@@ -1084,6 +1084,68 @@ textarea::placeholder {
         overflow: visible !important;
     }
 
+    /* Mobile & Tablet Help Center — Flush with green border, full width panels, no radius, no gaps */
+    body.help-center-active main {
+        margin-top: clamp(56px, 14vw, 64px) !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+    }
+
+    #helpCenterView {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        background: #ffffff !important;
+        min-height: calc(100vh - clamp(56px, 14vw, 64px)) !important;
+        min-height: calc(100dvh - clamp(56px, 14vw, 64px)) !important;
+        overflow: visible !important;
+    }
+
+    #helpCenterContentScroll {
+        overflow: visible !important;
+        height: auto !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    #helpCenterContentScroll > div {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    #helpCenterContentScroll > div > * + * {
+        margin-top: 0 !important;
+    }
+
+    #faq-help,
+    #contact-support {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        box-shadow: none !important;
+        padding: 1.5rem 1.25rem !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+    }
+
+    #faq-help {
+        border-top: none !important;
+        border-bottom: 8px solid #f1f5f9 !important;
+    }
+
+    #contact-support {
+        border-top: none !important;
+        border-bottom: none !important;
+    }
+
+    body.help-center-active footer {
+        margin-top: 0 !important;
+    }
+
     /* MOBILE NAV & FAQ RESET - ALWAYS PRESERVE GREEN BORDER */
     #mainNav {
         box-shadow: none !important;
