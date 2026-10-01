@@ -233,17 +233,17 @@ require_once __DIR__ . '/../config/app.php';
 
     <!-- INTEGRATED HELP CENTER VIEW -->
     <div id="helpCenterView"
-        class="hidden fixed inset-0 z-40 bg-white pt-[82px] overflow-hidden flex flex-col xl:flex-row transition-all duration-500 opacity-0 translate-y-10">
+        class="hidden w-full min-h-[calc(100vh_-_82px)] bg-gray-100 flex flex-col xl:flex-row transition-opacity duration-300 opacity-0">
         <!-- Sidebar -->
         <aside
-            class="hidden xl:block w-[400px] bg-white border-r border-gray-100 p-8 h-full overflow-y-auto pl-[8%] pr-10">
+            class="hidden xl:block w-[400px] shrink-0 bg-white border-r border-gray-200 p-8 pl-[8%] pr-10">
             <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Help Categories</h2>
             <nav id="helpCategoriesDesktop" class="flex flex-col gap-2"></nav>
         </aside>
 
         <!-- Content Area -->
-        <section id="helpCenterContentScroll" class="flex-1 h-full overflow-y-auto bg-gray-100">
-            <div class="w-full max-w-4xl p-8 xl:p-16 mx-auto space-y-8">
+        <section id="helpCenterContentScroll" class="flex-1 w-full bg-gray-100">
+            <div class="w-full max-w-4xl p-6 sm:p-8 xl:p-16 mx-auto space-y-8">
                 <!-- Panel 1: Frequently Asked Questions -->
                 <div id="faq-help" class="bg-white p-8 xl:p-10 rounded-3xl border border-gray-100 shadow-sm scroll-mt-6">
                     <div class="border-b border-gray-100 pb-5 mb-8">

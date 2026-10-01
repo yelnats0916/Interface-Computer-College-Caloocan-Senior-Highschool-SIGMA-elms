@@ -858,8 +858,43 @@ textarea::placeholder {
     opacity: 1 !important;
 }
 
+/* HELP CENTER VIEW — FULL PAGE MAIN BAR SCROLL */
 #helpCenterView {
-    padding-top: var(--nav-height) !important;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: calc(100vh - var(--nav-height));
+    margin-top: var(--nav-height) !important;
+    padding-top: 0 !important;
+    background: #f1f5f9 !important;
+    overflow: visible !important;
+    position: relative;
+    z-index: 20;
+}
+
+@media (min-width: 1280px) {
+    #helpCenterView {
+        flex-direction: row !important;
+    }
+
+    #helpCenterView > aside {
+        position: sticky !important;
+        top: var(--nav-height) !important;
+        height: calc(100vh - var(--nav-height)) !important;
+        overflow-y: auto !important;
+        background: #ffffff !important;
+        border-right: 1px solid #e2e8f0 !important;
+        flex-shrink: 0 !important;
+    }
+}
+
+#helpCenterContentScroll {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #f1f5f9 !important;
 }
 
 #helpCategoriesDesktop button,

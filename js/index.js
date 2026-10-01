@@ -463,13 +463,17 @@ document.addEventListener('DOMContentLoaded', function () {
     function setActiveHelpCategory(targetId, shouldScroll = true) {
         activeHelpCategoryId = targetId;
         renderHelpCategories();
-        if (shouldScroll && ui.help.content) {
+        if (shouldScroll) {
             const target = document.getElementById(targetId);
             if (target) {
                 isHelpScrollingProgrammatically = true;
                 clearTimeout(helpScrollTimer);
-                const y = target.getBoundingClientRect().top + ui.help.content.scrollTop - ui.help.content.getBoundingClientRect().top - 24;
-                ui.help.content.scrollTo({ top: y, behavior: 'smooth' });
+                const nav = document.getElementById('mainNav');
+                const navHeight = nav ? nav.offsetHeight : 82;
+                const targetRect = target.getBoundingClientRect();
+                const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                const destY = Math.max(0, targetRect.top + scrollY - navHeight - 20);
+                window.scrollTo({ top: destY, behavior: 'smooth' });
                 helpScrollTimer = setTimeout(() => {
                     isHelpScrollingProgrammatically = false;
                 }, 800);
@@ -478,23 +482,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function initHelpScrollspy() {
-        if (!ui.help.content) return;
         let ticking = false;
 
-        ui.help.content.addEventListener('scroll', () => {
+        window.addEventListener('scroll', () => {
             if (isHelpScrollingProgrammatically) return;
+            if (ui.views.help && ui.views.help.classList.contains('hidden')) return;
 
             if (!ticking) {
                 window.requestAnimationFrame(() => {
-                    const scrollContainer = ui.help.content;
-                    const containerRect = scrollContainer.getBoundingClientRect();
-                    const triggerY = containerRect.top + 180;
+                    const nav = document.getElementById('mainNav');
+                    const navHeight = nav ? nav.offsetHeight : 82;
+                    const triggerY = navHeight + 140;
 
                     let currentId = 'faq-help';
                     const contactSection = document.getElementById('contact-support');
                     if (contactSection) {
                         const contactRect = contactSection.getBoundingClientRect();
-                        const isNearBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 40;
+                        const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                        const windowHeight = window.innerHeight;
+                        const docHeight = document.documentElement.scrollHeight;
+                        const isNearBottom = (scrollY + windowHeight) >= docHeight - 80;
                         if (contactRect.top <= triggerY || isNearBottom) {
                             currentId = 'contact-support';
                         }
@@ -777,6 +784,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 clearErrors();
                 ui.nav.title.innerText = "Help Center";
                 renderHelpCategories();
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
             }
         }
     }

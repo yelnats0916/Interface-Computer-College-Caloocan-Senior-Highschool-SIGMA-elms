@@ -20,10 +20,10 @@
         </div>
     </div>
 
-    <div class="flex items-center h-full">
+    <div class="flex items-center">
         <button id="helpCenterNavMenuBtn" type="button" aria-expanded="false" aria-label="Open help categories"
-            class="hidden xl:hidden self-stretch px-5 bg-white text-gray-700 items-center justify-center transition-colors cursor-pointer outline-none shadow-none border-none hover:bg-gray-50">
-            <i class="fa-solid fa-bars text-xl pointer-events-none"></i>
+            class="hidden xl:hidden w-10 h-10 rounded-xl bg-transparent text-gray-700 items-center justify-center transition-colors cursor-pointer outline-none shadow-none border-none hover:bg-gray-100">
+            <i class="fa-solid fa-bars text-lg pointer-events-none"></i>
         </button>
 
         <!-- HELP CENTER BUTTON (Desktop XL Only) -->
