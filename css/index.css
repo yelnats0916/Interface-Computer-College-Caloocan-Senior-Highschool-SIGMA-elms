@@ -427,23 +427,23 @@ main {
 
 @media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
     body:not(.help-center-active) {
-        overflow-y: hidden !important;
+        overflow-y: auto !important;
     }
 
     body:not(.help-center-active) main {
-        height: calc(100vh - var(--nav-height)) !important;
+        height: auto !important;
         min-height: calc(100vh - var(--nav-height)) !important;
-        max-height: calc(100vh - var(--nav-height)) !important;
-        overflow: hidden !important;
+        max-height: none !important;
+        overflow: visible !important;
         display: flex !important;
         flex-direction: column !important;
     }
 
     body:not(.help-center-active) #landingMain {
-        flex: 1 1 0% !important;
-        min-height: 0 !important;
-        height: 100% !important;
-        max-height: none !important;
+        flex: none !important;
+        height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        max-height: calc(100vh - var(--nav-height)) !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: row !important;
@@ -453,7 +453,7 @@ main {
     body:not(.help-center-active) #landingSliderPanel {
         order: 1 !important;
         width: 65% !important;
-        height: auto !important;
+        height: 100% !important;
         align-self: stretch !important;
         display: flex !important;
         flex-direction: column !important;
@@ -476,8 +476,8 @@ main {
     body:not(.help-center-active) .login-panel {
         order: 2 !important;
         width: 35% !important;
-        height: auto !important;
-        min-height: 0 !important;
+        height: 100% !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
         max-height: 100% !important;
         align-self: stretch !important;
         border-left: 1px solid var(--primary) !important;
@@ -492,7 +492,7 @@ main {
 
     body:not(.help-center-active) footer {
         flex-shrink: 0 !important;
-        margin-top: auto !important;
+        width: 100% !important;
     }
 }
 
