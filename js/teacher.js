@@ -7729,43 +7729,46 @@ function initTeacherPortal() {
 
         const rect = (btn || e?.currentTarget)?.getBoundingClientRect();
 
+        const isMobile = window.innerWidth < 640;
+        const menuWidth = isMobile ? 140 : 175;
+
         const menu = document.createElement('div');
         menu.id = 'released-topic-floating-menu';
         menu.dataset.itemId = String(itemId);
         menu.dataset.category = category;
-        menu.className = 'fixed bg-white rounded-xl shadow-2xl border border-black/10 py-1.5 font-[\'Inter\']';
-        menu.style.cssText = 'position: fixed; z-index: 9999999; width: 175px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);';
+        menu.className = 'fixed bg-white rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl border border-black/10 py-1 sm:py-1.5 font-[\'Inter\']';
+        menu.style.cssText = `position: fixed; z-index: 9999999; width: ${menuWidth}px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);`;
 
         menu.innerHTML = `
             <button type="button" onclick="window.editUnifiedItemSchedule?.('${category}', '${escapeHtml(String(itemId))}', '${escapeHtml(itemTitle || '')}', event)"
-                class="w-full px-3.5 py-2 text-left text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                <i class="fa-solid fa-clock text-black text-xs"></i>
+                class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
+                <i class="fa-solid fa-clock text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
                 <span>Edit Schedule</span>
             </button>
             ${category === 'assessments' ? `
                 <button type="button" onclick="window.editUnifiedItemGrading?.('${category}', '${escapeHtml(String(itemId))}', '${escapeHtml(itemTitle || '')}', event)"
-                    class="w-full px-3.5 py-2 text-left text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-sliders text-black text-xs"></i>
+                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
+                    <i class="fa-solid fa-sliders text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
                     <span>Edit Details</span>
                 </button>
             ` : ''}
             ${isHidden ? `
                 <button type="button" onclick="window.toggleUnifiedItemHidden?.('${category}', '${escapeHtml(String(itemId))}', false, event)"
-                    class="w-full px-3.5 py-2 text-left text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-eye text-black text-xs"></i>
+                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
+                    <i class="fa-solid fa-eye text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
                     <span>Unhide</span>
                 </button>
             ` : `
                 <button type="button" onclick="window.toggleUnifiedItemHidden?.('${category}', '${escapeHtml(String(itemId))}', true, event)"
-                    class="w-full px-3.5 py-2 text-left text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-eye-slash text-black text-xs"></i>
+                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
+                    <i class="fa-solid fa-eye-slash text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
                     <span>Hide</span>
                 </button>
             `}
-            <div class="h-px bg-black/10 my-1"></div>
+            <div class="h-px bg-black/10 my-0.5 sm:my-1"></div>
             <button type="button" onclick="window.unreleaseUnifiedItem?.('${category}', '${escapeHtml(String(itemId))}', event, '${escapeHtml(itemTitle || '')}')"
-                class="w-full px-3.5 py-2 text-left text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                <i class="fa-solid fa-arrow-rotate-left text-black text-xs"></i>
+                class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
+                <i class="fa-solid fa-arrow-rotate-left text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
                 <span>Move to Draft</span>
             </button>
         `;
@@ -7774,12 +7777,15 @@ function initTeacherPortal() {
 
         // Position menu directly under the 3-dots button, right-aligned to it
         if (rect) {
-            const menuWidth = 175;
             let left = rect.right - menuWidth;
             let top = rect.bottom + 4;
-            if (left < 10) left = 10;
-            if (top + 140 > window.innerHeight) {
-                top = rect.top - 130;
+            if (left < 8) left = 8;
+            if (left + menuWidth > window.innerWidth - 8) {
+                left = window.innerWidth - menuWidth - 8;
+            }
+            const approxHeight = category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125);
+            if (top + approxHeight > window.innerHeight - 8) {
+                top = Math.max(8, rect.top - approxHeight - 4);
             }
             menu.style.left = `${left}px`;
             menu.style.top = `${top}px`;

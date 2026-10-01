@@ -2988,6 +2988,11 @@ input:active,
     display: none !important;
 }
 
+/* Assessment cards use .is-collapsed to hide only their detail table. */
+.assessment-card-panel.is-collapsed {
+    display: flex !important;
+}
+
 /* Materials Release Grid */
 .materials-release-grid {
     display: grid;
@@ -11086,8 +11091,6 @@ body:has(#teacher-header) #subject-segmented-header,
         margin-left: auto !important;
     }
 }
-
-
 
 
 
