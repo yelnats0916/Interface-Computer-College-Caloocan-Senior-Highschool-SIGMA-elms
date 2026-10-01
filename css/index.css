@@ -453,7 +453,10 @@ main {
     body:not(.help-center-active) #landingSliderPanel {
         order: 1 !important;
         width: 65% !important;
-        height: 100% !important;
+        height: auto !important;
+        align-self: stretch !important;
+        display: flex !important;
+        flex-direction: column !important;
         max-height: 100% !important;
         aspect-ratio: unset !important;
         margin: 0 !important;
@@ -463,10 +466,17 @@ main {
         overflow: hidden !important;
     }
 
+    body:not(.help-center-active) #slider {
+        flex: 1 1 0% !important;
+        height: 100% !important;
+        width: 100% !important;
+        position: relative !important;
+    }
+
     body:not(.help-center-active) .login-panel {
         order: 2 !important;
         width: 35% !important;
-        height: 100% !important;
+        height: auto !important;
         min-height: 0 !important;
         max-height: 100% !important;
         align-self: stretch !important;
@@ -892,6 +902,12 @@ textarea::placeholder {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
     opacity: 1 !important;
+}
+
+/* VIEW TOGGLING — ensure ID specificity does not override .hidden */
+#helpCenterView.hidden,
+#landingMain.hidden {
+    display: none !important;
 }
 
 /* HELP CENTER VIEW — FULL PAGE MAIN BAR SCROLL */
