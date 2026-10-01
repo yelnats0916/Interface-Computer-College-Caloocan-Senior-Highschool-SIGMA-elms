@@ -1077,15 +1077,26 @@ textarea::placeholder {
 @media (max-width: 1023px), (orientation: portrait) and (max-width: 1100px) {
 
     main {
+        margin-top: clamp(56px, 14vw, 64px) !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
         height: auto !important;
         overflow: visible !important;
+    }
+
+    #helpCenterNavMenuBtn {
+        display: none !important;
+    }
+
+    body.help-center-active #helpCenterNavMenuBtn {
+        display: flex !important;
     }
 
     #landingMain {
         flex-direction: column !important;
         flex: 1 1 auto !important;
-        min-height: calc(100vh - var(--nav-height)) !important;
-        min-height: calc(100dvh - var(--nav-height)) !important;
+        min-height: calc(100vh - clamp(56px, 14vw, 64px)) !important;
+        min-height: calc(100dvh - clamp(56px, 14vw, 64px)) !important;
         height: auto !important;
         background: #ffffff !important;
         margin-top: 0 !important;
@@ -1240,13 +1251,13 @@ textarea::placeholder {
         order: 1 !important;
         width: 100% !important;
         height: auto !important;
-        min-height: calc(100vh - var(--nav-height)) !important;
-        min-height: calc(100dvh - var(--nav-height)) !important;
+        min-height: calc(100vh - clamp(56px, 14vw, 64px)) !important;
+        min-height: calc(100dvh - clamp(56px, 14vw, 64px)) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: clamp(1rem, 2.5vh, 2rem) 1.25rem 2rem !important;
+        padding: 1rem 1.25rem !important;
         background: #ffffff !important;
         border: none !important;
         border-bottom: none !important;

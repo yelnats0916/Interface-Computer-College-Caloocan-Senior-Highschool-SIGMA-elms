@@ -3954,16 +3954,27 @@
         padding: 0 !important;
         background: transparent !important;
         align-self: center !important;
-        display: flex !important;
+        display: none !important;
         align-items: center !important;
         justify-content: center !important;
         border: none !important;
         border-radius: 8px !important;
     }
 
+    body.help-center-active #helpCenterNavMenuBtn {
+        display: flex !important;
+    }
+
     #helpCenterNavMenuBtn:hover,
     #helpCenterNavMenuBtn:active {
         background: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    main {
+        margin-top: clamp(56px, 14vw, 64px) !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        background: #ffffff !important;
     }
 
     /* Mobile Help Center — Flush with green border, full width panels, no radius, no gaps */
@@ -4126,7 +4137,7 @@
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: clamp(1rem, 2.5vh, 2rem) 1.25rem 2rem !important;
+        padding: 1rem 1.25rem !important;
         margin: 0 !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
@@ -5746,12 +5757,14 @@
 
     /* Closed Gap between Nav Bar and Selection Panel */
     body:has(#admin-header) main.flex-1,
-    main.flex-1 {
+    body:has(#quiz-action-bar) main.flex-1 {
         padding-top: 90px !important;
     }
 
-    main.flex-1 > div,
-    main.flex-1 .space-y-3\.5 {
+    body:has(#admin-header) main.flex-1 > div,
+    body:has(#quiz-action-bar) main.flex-1 > div,
+    body:has(#admin-header) main.flex-1 .space-y-3\.5,
+    body:has(#quiz-action-bar) main.flex-1 .space-y-3\.5 {
         gap: 0 !important;
         margin-top: 0 !important;
         padding-top: 0 !important;
