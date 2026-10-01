@@ -766,7 +766,12 @@ footer .hover\:text-icc-yellow:hover {
 
 @media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
 
-    /* MAIN — in Help Center, allow main to have auto height and visible overflow for full page scrolling */
+    /* MAIN & BODY — in Help Center, allow body & main to have auto height and visible overflow for position: sticky to stick */
+    body.help-center-active {
+        overflow-x: clip !important;
+        overflow-y: visible !important;
+    }
+
     body.help-center-active main {
         height: auto !important;
         min-height: calc(100vh - var(--nav-height)) !important;
@@ -922,6 +927,7 @@ textarea::placeholder {
     overflow: visible !important;
     position: relative;
     z-index: 20;
+    transform: none !important;
 }
 
 @media (min-width: 1280px) {
@@ -937,6 +943,8 @@ textarea::placeholder {
         background: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
         flex-shrink: 0 !important;
+        align-self: flex-start !important;
+        z-index: 30 !important;
     }
 }
 

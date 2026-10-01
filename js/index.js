@@ -698,8 +698,14 @@ document.addEventListener('DOMContentLoaded', function () {
         Object.keys(ui.views).forEach(key => {
             const v = ui.views[key];
             if (v) {
-                v.classList.add('hidden', 'opacity-0', 'translate-y-10');
-                v.classList.remove('opacity-100', 'translate-y-0');
+                v.classList.add('hidden', 'opacity-0');
+                v.classList.remove('opacity-100');
+                if (key !== 'help') {
+                    v.classList.add('translate-y-10');
+                    v.classList.remove('translate-y-0');
+                } else {
+                    v.classList.remove('translate-y-10', 'translate-y-0');
+                }
             }
         });
 
@@ -707,8 +713,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (target) {
             target.classList.remove('hidden');
             setTimeout(() => {
-                target.classList.remove('opacity-0', 'translate-y-10');
-                target.classList.add('opacity-100', 'translate-y-0');
+                target.classList.remove('opacity-0');
+                target.classList.add('opacity-100');
+                if (viewName !== 'help') {
+                    target.classList.remove('translate-y-10');
+                    target.classList.add('translate-y-0');
+                } else {
+                    target.classList.remove('translate-y-10', 'translate-y-0');
+                }
             }, 50);
         }
 
