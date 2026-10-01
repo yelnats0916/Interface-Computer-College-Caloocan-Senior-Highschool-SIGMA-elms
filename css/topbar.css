@@ -2221,7 +2221,7 @@
     body.mobile-panel-open #profileDropdownMenu,
     body.mobile-account-fullscreen #profileDropdownMenu,
     #profileDropdownMenu.mobile-account-fullscreen {
-        padding-bottom: 2.5rem !important;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     body.mobile-panel-open #profileDropdownMenu .profile-panel-hero,

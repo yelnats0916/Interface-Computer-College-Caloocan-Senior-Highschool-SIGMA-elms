@@ -313,11 +313,7 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
                 <span class="profile-menu-item__sublabel">Notifications &amp; preferences</span>
             </div>
         </a>
-    </nav>
-
-    <!-- ── Footer: Logout ── -->
-    <div class="profile-panel-footer">
-        <a href="index.php" class="profile-logout-btn" onclick="if(window.SigmaPresenceTracker && typeof window.SigmaPresenceTracker.logout==='function'){window.SigmaPresenceTracker.logout();}else{sessionStorage.clear();}">
+        <a href="index.php" class="profile-menu-item profile-logout-btn" onclick="if(window.SigmaPresenceTracker && typeof window.SigmaPresenceTracker.logout==='function'){window.SigmaPresenceTracker.logout();}else{sessionStorage.clear();}">
             <div class="profile-menu-item__icon">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </div>
@@ -325,7 +321,7 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
                 <span class="profile-menu-item__label">Logout</span>
             </div>
         </a>
-    </div>
+    </nav>
 </div>
 
 <!-- SIGMA AI Dropdown Panel (Shared across Admin, Teacher, Student) -->

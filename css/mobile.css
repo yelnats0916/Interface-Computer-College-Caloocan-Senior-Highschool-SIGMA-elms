@@ -924,20 +924,13 @@
     body.mobile-panel-open #profileDropdownMenu,
     body.mobile-account-fullscreen #profileDropdownMenu,
     #profileDropdownMenu.mobile-account-fullscreen {
-        padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     body.mobile-panel-open #profileDropdownMenu::after,
     body.mobile-account-fullscreen #profileDropdownMenu::after,
     #profileDropdownMenu.mobile-account-fullscreen::after {
-        content: "" !important;
-        display: block !important;
-        width: 100% !important;
-        height: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
-        min-height: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
-        flex-shrink: 0 !important;
-        pointer-events: none !important;
-        background: transparent !important;
+        display: none !important;
     }
 
     /* Mobile SIGMA AI panel composer bottom safe area */
