@@ -3971,13 +3971,20 @@
 
     .login-panel .login-form-stack {
         width: 100% !important;
-        max-width: 380px !important;
+        max-width: clamp(340px, 88vw, 580px) !important;
         margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
         padding: 0 !important;
+    }
+
+    .login-panel .login-form-shell,
+    .login-panel .floating-input-group,
+    .login-panel input,
+    .login-panel .sign-in-btn {
+        width: 100% !important;
     }
 
     .login-panel .login-form-logo-wrap {
@@ -4601,45 +4608,6 @@
         width: 15px !important;
     }
 
-    /* Mobile Full-Width & Expanded Description Editor Box */
-    .sigma-composer-body .sigma-composer-editor-box {
-        border-radius: 0 !important;
-        border: 1px solid #cbd5e1 !important;
-        width: 100% !important;
-        min-height: 220px !important;
-        flex: 1 1 auto !important;
-        display: flex !important;
-        flex-direction: column !important;
-        margin-top: 0.35rem !important;
-        margin-bottom: 0.25rem !important;
-        box-sizing: border-box !important;
-    }
-
-    .sigma-composer-body .sigma-composer-editor-box:focus-within,
-    .sigma-composer-body .sigma-composer-editor-box.focused {
-        border: 1px solid #FFD000 !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-    .sigma-composer-body .sigma-composer-toolbar {
-        border-radius: 0 !important;
-        border-bottom: 1px solid #e2e8f0 !important;
-        padding: 0.35rem 0.5rem !important;
-        flex-shrink: 0 !important;
-        background: #ffffff !important;
-    }
-
-    .sigma-composer-body .sigma-composer-textarea {
-        flex: 1 1 auto !important;
-        min-height: 180px !important;
-        max-height: none !important;
-        height: auto !important;
-        padding: 0.75rem 0.85rem !important;
-        font-size: 14.5px !important;
-        line-height: 1.5 !important;
-        box-sizing: border-box !important;
-    }
 
     /* Mobile Full-Width Attach to Announcement Panel */
     .sigma-composer-add-to-post-card {

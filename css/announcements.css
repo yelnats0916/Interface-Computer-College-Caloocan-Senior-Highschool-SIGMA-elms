@@ -204,7 +204,6 @@ body.sigma-composer-open {
     height: 100% !important;
     max-height: 100% !important;
     overscroll-behavior: none !important;
-    touch-action: none !important;
 }
 
 body.sigma-composer-open #layout-wrapper,
@@ -740,7 +739,10 @@ body.sigma-composer-open #home-view {
     width: 100%;
     min-height: 120px;
     max-height: 280px;
-    overflow-y: auto;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -2587,7 +2589,8 @@ button.sigma-card-video-expand-btn {
         height: auto !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        overscroll-behavior: contain !important;
+        touch-action: pan-y !important;
+        overscroll-behavior-y: contain !important;
         padding: 0.75rem 0.85rem !important;
         font-size: 14.5px !important;
         line-height: 1.5 !important;

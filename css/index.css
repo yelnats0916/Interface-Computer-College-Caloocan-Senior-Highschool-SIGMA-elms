@@ -1032,7 +1032,7 @@ textarea::placeholder {
         justify-content: center !important;
         align-items: center !important;
         width: 100% !important;
-        max-width: 380px !important;
+        max-width: clamp(340px, 88vw, 580px) !important;
     }
 
     .login-panel .login-form-logo-wrap {
@@ -1056,6 +1056,12 @@ textarea::placeholder {
         max-width: 100% !important;
         margin-left: auto !important;
         margin-right: auto !important;
+    }
+
+    .login-panel .floating-input-group,
+    .login-panel input,
+    .login-panel .sign-in-btn {
+        width: 100% !important;
     }
 
     /* 2. Slider & green border hidden on mobile/portrait */

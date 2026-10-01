@@ -15,12 +15,12 @@
 @import "profile.css";
 @import "notifications.css";
 @import "calendar.css?v=20260929dateselect1";
-@import "announcements.css?v=20260928tightdropdown1";
+@import "announcements.css?v=20261001scrollfix1";
 @import "announcement-cards.css?v=20260929badgewrap1";
 @import "classroom-room.css?v=20260927attendscale1";
 @import "settings-view.css";
 @import "topic-detail.css?v=20260927progresstask1";
-@import "mobile.css?v=20260929mobscaled1";
+@import "mobile.css?v=20261001scrollfix1";
 
 /* Universal utility classes */
 .hidden {

@@ -1604,25 +1604,10 @@
                 }
                 validateInputs();
                 updateToolbarActiveStates();
-
-                // Auto-scroll when typing to keep active typing cursor in view
-                try {
-                    const sel = window.getSelection();
-                    if (sel && sel.rangeCount > 0) {
-                        const range = sel.getRangeAt(0);
-                        const rect = range.getBoundingClientRect();
-                        const containerRect = bodyInput.getBoundingClientRect();
-                        if (rect.bottom > containerRect.bottom - 10) {
-                            bodyInput.scrollTop += (rect.bottom - containerRect.bottom + 24);
-                        } else if (rect.top < containerRect.top + 10) {
-                            bodyInput.scrollTop -= (containerRect.top - rect.top + 24);
-                        }
-                    }
-                } catch (scrollErr) {}
             };
 
             bodyInput.addEventListener('input', handleBodyInputLimit);
-            bodyInput.addEventListener('keyup', handleBodyInputLimit);
+            bodyInput.addEventListener('keyup', updateToolbarActiveStates);
             bodyInput.addEventListener('mouseup', updateToolbarActiveStates);
             bodyInput.addEventListener('focus', () => {
                 if (editorBox) editorBox.classList.add('focused');
