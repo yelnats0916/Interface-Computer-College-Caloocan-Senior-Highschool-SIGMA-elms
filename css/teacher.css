@@ -10015,7 +10015,7 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] h4 {
     word-break: break-word !important;
 }
 
-/* All materials panel not bold */
+/* All materials panel bold on desktop and mobile */
 .sigma-black-fade-panel h4,
 .teacher-portal .sigma-black-fade-panel h4,
 [id^="topic-dropdown-"] .sigma-black-fade-panel h4,
@@ -10023,8 +10023,10 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] h4 {
 .sigma-black-fade-panel .font-bold,
 .teacher-portal .sigma-black-fade-panel .font-bold,
 [id^="topic-dropdown-"] .sigma-black-fade-panel .font-bold,
-.teacher-portal [id^="topic-dropdown-"] .sigma-black-fade-panel .font-bold {
-    font-weight: 500 !important;
+.teacher-portal [id^="topic-dropdown-"] .sigma-black-fade-panel .font-bold,
+.video-selection-card h4,
+.assessment-card-panel h4 {
+    font-weight: 700 !important;
 }
 
 .teacher-portal [id^="subject-topic-panel-"] .mat-kebab-btn,

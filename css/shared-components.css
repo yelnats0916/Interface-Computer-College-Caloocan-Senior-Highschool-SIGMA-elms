@@ -487,7 +487,7 @@ body:has(#dashboard-view:not(.hidden)) {
 
 .video-selection-card h4,
 .topic-videos-list-container .video-selection-card h4 {
-    font-weight: 500 !important;
+    font-weight: 700 !important;
 }
 
 .video-thumbnail-panel {
@@ -620,16 +620,13 @@ body:has(#dashboard-view:not(.hidden)) {
 .material-card-title,
 .material-card-title:hover {
     text-decoration: none !important;
-    font-weight: 500 !important;
+    font-weight: 700 !important;
 }
 
 .sigma-black-fade-panel h4,
-.sigma-black-fade-panel h3,
-.sigma-black-fade-panel p,
-.sigma-black-fade-panel span:not([class*="fa-"]),
 [id^="topic-dropdown-"] .sigma-black-fade-panel h4,
 [id^="subject-topic-panel-"] h4 {
-    font-weight: 500 !important;
+    font-weight: 700 !important;
 }
 
 /* Topic panels text remains black on hover */

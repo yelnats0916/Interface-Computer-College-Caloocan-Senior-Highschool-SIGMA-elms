@@ -1565,7 +1565,7 @@
 
 .video-selection-card h4,
 .topic-videos-list-container .video-selection-card h4 {
-    font-weight: 500 !important;
+    font-weight: 700 !important;
 }
 
 /* Unique Video Thumbnail Panel */
@@ -2820,5 +2820,22 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
         border-radius: 9999px !important;
     }
 }
+
+/* ─── Universal Material, Video, Lesson, and Assessment Title Boldness (Desktop & Mobile) ─── */
+.video-selection-card h4,
+.topic-videos-list-container .video-selection-card h4,
+.topic-videos-list-card .video-selection-card h4,
+.video-selection-card .video-card-text-container h4,
+.sigma-black-fade-panel h4,
+.sigma-file-panel-title,
+.assessment-card-panel h4,
+#assessment-list h4,
+#handout-list h4,
+#topic-content-main h4,
+.student-assessment-list-item h4,
+.teacher-assessment-list-item h4 {
+    font-weight: 700 !important;
+}
+
 
 

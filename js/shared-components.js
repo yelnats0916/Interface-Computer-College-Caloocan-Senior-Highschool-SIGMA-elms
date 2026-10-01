@@ -27311,7 +27311,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                     </div>
                                     <div class="video-card-text-container px-0 w-full text-left">
                                         <div class="flex items-start justify-between gap-2 mb-1">
-                                            <h4 class="text-xs sm:text-sm md:text-base font-semibold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors m-0">${escapeHtml(video.title)}</h4>
+                                            <h4 class="text-xs sm:text-sm md:text-base font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors m-0">${escapeHtml(video.title)}</h4>
                                             ${statusBadgeHtml}
                                         </div>
                                         <p class="text-[11px] sm:text-xs md:text-sm font-normal text-black-fade leading-relaxed font-['Inter'] line-clamp-2 m-0 break-words">${escapeHtml(cleanDesc)}</p>
@@ -27521,7 +27521,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                             <span class="video-badge-bottom-right" ${isMp4Item ? `data-dynamic-video-src="${rawItemUrl}"` : ''} style="position: absolute !important; bottom: 6px !important; right: 6px !important; z-index: 20; font-size: 10px !important; padding: 2px 6px !important;"><i class="fa-regular fa-clock" style="font-size: 9px;"></i> ${durationStr}</span>
                                         </div>
                                         <div class="mb-0.5">
-                                            <h4 class="text-xs sm:text-sm font-semibold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors">${escapeHtml(v.title)}</h4>
+                                            <h4 class="text-xs sm:text-sm font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors">${escapeHtml(v.title)}</h4>
                                         </div>
                                         <p class="text-[11px] sm:text-xs font-normal text-black-fade leading-relaxed font-['Inter'] line-clamp-2 m-0 break-words">${escapeHtml(cleanDesc)}</p>
                                     </div>
