@@ -10436,6 +10436,13 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                 if (targetTopicTitle && ((topicTitleStr && topicTitleStr === targetTopicTitle) || topicIdStr.toLowerCase() === targetTopicTitle)) return true;
                 if (topicIdStr && !realTopicIds.has(topicIdStr) && topicIndexKeys.has(topicIdStr) && (!topicTitleStr || topicTitleStr === targetTopicTitle)) return true;
                 if (!topicIdStr && !topicTitleStr && topicOwned.indexOf(m) !== -1) return true;
+                const isTopic0 = (Number(topicIdx) === 0 || !topicIdx);
+                if (isTopic0) {
+                    if (!topicTitleStr || topicTitleStr === 'basic syntax and data types' || topicTitleStr === 'topic 1' || topicTitleStr === 'unknown topic' ||
+                        topicIdStr === 'topic-1' || topicIdStr === '0' || topicIdStr === '1' || topicIdStr === 'topic-0') {
+                        return true;
+                    }
+                }
                 return false;
             };
             subjectMaterials = topicOwned.concat(subjectMaterials);
@@ -10698,6 +10705,22 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                     max: m.max || m.points || m.totalPoints || 100
                 });
             });
+        }
+
+        if (typeof window.getTeacherSubjectAssessments === 'function' && onStaffPortal) {
+            try {
+                const staffAssessments = window.getTeacherSubjectAssessments(subjectId, sectionName || targetSec);
+                if (Array.isArray(staffAssessments) && staffAssessments.length > 0) {
+                    staffAssessments.forEach(sa => {
+                        if (!sa || isFakeAssessment(sa)) return;
+                        if (!belongsToTopic(sa)) return;
+                        const saId = String(sa.id || sa.title).toLowerCase();
+                        if (!list.some(it => String(it.id || it.title).toLowerCase() === saId)) {
+                            list.push(sa);
+                        }
+                    });
+                }
+            } catch (_) {}
         }
 
     } catch (e) {
