@@ -1135,14 +1135,14 @@ textarea::placeholder {
         border-left: none !important;
         border-right: none !important;
         box-shadow: none !important;
-        padding: 1.5rem 1.25rem !important;
+        padding: 1.25rem 1.25rem !important;
         margin: 0 !important;
         background: #ffffff !important;
     }
 
     #faq-help {
         border-top: none !important;
-        border-bottom: 8px solid #f1f5f9 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
     }
 
     #contact-support {
@@ -1152,6 +1152,77 @@ textarea::placeholder {
 
     body.help-center-active footer {
         margin-top: 0 !important;
+    }
+
+    /* Scale down text size in mobile Help Center */
+    #helpCenterContentScroll h2 {
+        font-size: 1.25rem !important;
+        line-height: 1.35 !important;
+    }
+
+    #helpCenterContentScroll h2 + p {
+        font-size: 0.75rem !important;
+        line-height: 1.4 !important;
+    }
+
+    #helpCenterContentScroll .border-b.pb-5.mb-8 {
+        padding-bottom: 0.65rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    #helpCenterContentScroll h3 {
+        font-size: 0.95rem !important;
+        line-height: 1.35 !important;
+        margin-bottom: 0.35rem !important;
+    }
+
+    #helpCenterContentScroll p.leading-relaxed {
+        font-size: 0.825rem !important;
+        line-height: 1.5 !important;
+    }
+
+    #helpCenterContentScroll .space-y-6 > * + * {
+        margin-top: 1rem !important;
+    }
+
+    #helpCenterContentScroll .pb-6 {
+        padding-bottom: 1rem !important;
+    }
+
+    /* Inner cards in Contact Support */
+    #contact-support .grid {
+        gap: 0.75rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    #contact-support .grid > div {
+        padding: 0.9rem !important;
+        border-radius: 0.85rem !important;
+    }
+
+    #contact-support .grid h3 {
+        font-size: 0.875rem !important;
+    }
+
+    #contact-support .grid p {
+        font-size: 0.75rem !important;
+        line-height: 1.45 !important;
+    }
+
+    /* Green banner card */
+    #contact-support .bg-\[\#15803d\] {
+        padding: 1rem 1.15rem !important;
+        border-radius: 0.85rem !important;
+        gap: 0.75rem !important;
+    }
+
+    #contact-support .bg-\[\#15803d\] h3 {
+        font-size: 0.925rem !important;
+    }
+
+    #contact-support .bg-\[\#15803d\] p {
+        font-size: 0.75rem !important;
+        line-height: 1.4 !important;
     }
 
     /* MOBILE NAV & FAQ RESET - ALWAYS PRESERVE GREEN BORDER */
