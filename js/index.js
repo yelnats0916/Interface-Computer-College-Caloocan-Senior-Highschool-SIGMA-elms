@@ -717,6 +717,9 @@ document.addEventListener('DOMContentLoaded', function () {
             history.pushState({ view: viewName }, '', hash);
         }
 
+        // Toggle help-center-active class on body for responsive layout handling
+        document.body.classList.toggle('help-center-active', viewName === 'help');
+
         // Nav Logic
         if (viewName === 'landing') {
             if (clearForm) {

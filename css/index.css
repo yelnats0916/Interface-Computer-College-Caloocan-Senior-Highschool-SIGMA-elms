@@ -426,32 +426,66 @@ main {
 }
 
 @media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
-    #landingMain {
+    body:not(.help-center-active) {
+        overflow-y: hidden !important;
+    }
+
+    body:not(.help-center-active) main {
         height: calc(100vh - var(--nav-height)) !important;
         min-height: calc(100vh - var(--nav-height)) !important;
+        max-height: calc(100vh - var(--nav-height)) !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    body:not(.help-center-active) #landingMain {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        max-height: none !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: row !important;
         align-items: stretch !important;
     }
 
-    #landingSliderPanel {
+    body:not(.help-center-active) #landingSliderPanel {
         order: 1 !important;
         width: 65% !important;
-        height: calc(100vh - var(--nav-height)) !important;
+        height: 100% !important;
+        max-height: 100% !important;
         aspect-ratio: unset !important;
         margin: 0 !important;
         border-radius: 0 !important;
         box-shadow: none !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
 
-    .login-panel {
+    body:not(.help-center-active) .login-panel {
         order: 2 !important;
         width: 35% !important;
-        height: calc(100vh - var(--nav-height)) !important;
-        min-height: calc(100vh - var(--nav-height)) !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: 100% !important;
         align-self: stretch !important;
         border-left: 1px solid var(--primary) !important;
         border-bottom: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    body:not(.help-center-active) footer {
+        flex-shrink: 0 !important;
+        margin-top: auto !important;
     }
 }
+
 
 /* SLIDER NAVIGATION BUTTONS (Pure Faded White Icon Controls) */
 .slider-nav-btn {
@@ -722,10 +756,12 @@ footer .hover\:text-icc-yellow:hover {
 
 @media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
 
-    /* MAIN — auto height for desktop layout */
-    main {
-        height: auto;
-        overflow: visible;
+    /* MAIN — in Help Center, allow main to have auto height and visible overflow for full page scrolling */
+    body.help-center-active main {
+        height: auto !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
 
     /* SLIDE IMAGE — stretch full image to fit the slide container */
@@ -864,7 +900,7 @@ textarea::placeholder {
     flex-direction: column;
     width: 100%;
     min-height: calc(100vh - var(--nav-height));
-    margin-top: var(--nav-height) !important;
+    margin-top: 0 !important;
     padding-top: 0 !important;
     background: #f1f5f9 !important;
     overflow: visible !important;
@@ -1016,6 +1052,11 @@ textarea::placeholder {
    ============================================================= */
 @media (max-width: 1023px), (orientation: portrait) and (max-width: 1100px) {
 
+    main {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
     #landingMain {
         flex-direction: column !important;
         flex: 1 1 auto !important;
@@ -1024,6 +1065,7 @@ textarea::placeholder {
         height: auto !important;
         background: #ffffff !important;
         margin-top: 0 !important;
+        overflow: visible !important;
     }
 
     /* MOBILE NAV & FAQ RESET - ALWAYS PRESERVE GREEN BORDER */

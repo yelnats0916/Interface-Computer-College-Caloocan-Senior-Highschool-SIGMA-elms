@@ -16,11 +16,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CSS: Custom Stylesheet -->
-    <link rel="stylesheet" href="css/index.css?v=20261001helpmainscroll1">
+    <link rel="stylesheet" href="css/index.css?v=20261001cleanlogin1">
 
     <!-- TAILWIND: Compiled CSS (no CDN, no production warning) -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261001helpmainscroll1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261001cleanlogin1">
     <style>
         #faq-help p.text-black,
         #faq-help p.text-black strong,
@@ -77,7 +77,7 @@
 
         <!-- MAIN CONTENT AREA: Slider + Login Panel -->
         <div id="landingMain"
-            class="w-full flex-1 m-0 p-0 flex flex-col lg:flex-row transition-all duration-400 min-h-[calc(100vh_-_82px)] lg:h-[calc(100vh_-_82px)] overflow-y-auto lg:overflow-hidden">
+            class="w-full flex-1 m-0 p-0 flex flex-col lg:flex-row transition-all duration-400">
 
             <!-- IMAGE SLIDER: Campus photos with manual navigation -->
             <div id="landingSliderPanel" class="w-full relative overflow-hidden shrink-0 group">
@@ -97,7 +97,7 @@
 
             <!-- LOGIN PANEL: Full-width on Tablet/Small Laptop, Side-by-side on XL Monitors -->
             <div
-                class="login-panel w-full lg:w-[35%] flex flex-col justify-center items-center px-6 md:px-10 py-8 lg:py-10 bg-white border-0 lg:border-l border-icc min-h-full lg:h-full">
+                class="login-panel w-full lg:w-[35%] flex flex-col justify-center items-center px-6 md:px-10 py-8 lg:py-10 bg-white border-0 lg:border-l border-icc">
                 <div class="login-form-stack">
 
                     <!-- LOGIN LOGO -->
@@ -203,6 +203,78 @@
             </div>
         </div>
 
+        <!-- INTEGRATED HELP CENTER VIEW -->
+        <div id="helpCenterView"
+            class="hidden w-full min-h-[calc(100vh_-_82px)] bg-gray-100 flex flex-col xl:flex-row transition-opacity duration-300 opacity-0">
+            <!-- Sidebar -->
+            <aside
+                class="hidden xl:block w-[400px] shrink-0 bg-white border-r border-gray-200 p-8 pl-[8%] pr-10">
+                <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Help Categories</h2>
+                <nav id="helpCategoriesDesktop" class="flex flex-col gap-2"></nav>
+            </aside>
+
+            <!-- Content Area -->
+            <section id="helpCenterContentScroll" class="flex-1 w-full bg-gray-100">
+                <div class="w-full max-w-4xl p-6 sm:p-8 xl:p-16 mx-auto space-y-8">
+                    <!-- Panel 1: Frequently Asked Questions -->
+                    <div id="faq-help" class="bg-white p-8 xl:p-10 rounded-3xl border border-gray-100 shadow-sm scroll-mt-6">
+                        <div class="border-b border-gray-100 pb-5 mb-8">
+                            <h2 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Frequently Asked Questions</h2>
+                            <p class="text-xs font-medium text-black-fade mt-1" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Common inquiries regarding student accounts, credentials, and portals.</p>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="pb-6 border-b border-slate-100">
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What is my ID and Email?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">Your official ID and Email are provided upon enrollment. If you need to retrieve these credentials, please visit the Registrar's Office with a valid ID.</p>
+                            </div>
+                            <div class="pb-6 border-b border-slate-100">
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What is the default password?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">Default passwords are typically your <strong>Surname</strong> followed by your <strong>registration id given in elms by the admin</strong>. If you are still unsure of your password details, please contact the Registrar's Office or your designated ELMS administrator.</p>
+                            </div>
+                            <div class="pb-6 border-b border-slate-100">
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">How do I reset a forgotten password?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">For security reasons, password resets are handled in person. Please visit the Admin Office to request a manual reset of your account credentials.</p>
+                            </div>
+                            <div class="pb-6 border-b border-slate-100">
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account inactive?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">Accounts may be set to inactive if there are pending enrollment issues, unconfirmed subject loads, or if the account has not been enrolled for consecutive semesters. To reactivate your account, please coordinate with the Registrar's Office to confirm your enrollment status.</p>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account locked, and how do I unlock it?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">Accounts are automatically locked after multiple consecutive failed password attempts to safeguard your account against unauthorized access. If your login displays <strong>"The account is locked,"</strong> please visit the Admin Office or ICT Department with your valid school ID to verify your identity and have an administrator unlock your account.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Contact Support -->
+                    <div id="contact-support" class="bg-white p-8 xl:p-10 rounded-3xl border border-gray-100 shadow-sm scroll-mt-6">
+                        <div class="border-b border-gray-100 pb-5 mb-8">
+                            <h2 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Contact Support</h2>
+                            <p class="text-xs font-medium text-black-fade mt-1" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Official contact channels for enrollment, registrar, and technical support.</p>
+                        </div>
+                        <div class="grid gap-6 md:grid-cols-2 mb-6">
+                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                <h3 class="text-base font-bold text-black mb-2 font-['Inter']">When should I contact support?</h3>
+                                <p class="text-black leading-relaxed text-xs font-medium">Reach out if you still cannot sign in, your account details do not match, your password reset does not work, or you need help confirming enrollment-related access.</p>
+                            </div>
+                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                <h3 class="text-base font-bold text-black mb-2 font-['Inter']">Where can I ask for help?</h3>
+                                <p class="text-black leading-relaxed text-xs font-medium">You may visit the ICT Department during school hours, or open the official contact page for registrar and school support concerns.</p>
+                            </div>
+                        </div>
+
+                        <div class="p-6 bg-[#15803d] text-white rounded-2xl flex items-center justify-between shadow-md gap-6">
+                            <div>
+                                <h3 class="text-lg font-bold mb-1 font-['Inter']">Need direct assistance?</h3>
+                                <p class="text-white text-xs leading-relaxed" style="color:#fff !important">Click <a href="https://home1.interface.edu.ph/index.php/contact-us" target="_blank" rel="noopener noreferrer" class="font-bold underline decoration-white/60 underline-offset-4 hover:text-[#FFD000] transition-colors" style="color:#fff !important">here</a> to open the official Contact Support page.</p>
+                            </div>
+                            <i class="fa-solid fa-headset text-4xl opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
         <!-- FOOTER: Social links and copyright -->
         <footer class="bg-[#15803d] text-white flex flex-col lg:flex-row w-full mt-auto">
             <!-- Left Side (Full width on mobile, 65% on desktop) -->
@@ -269,78 +341,6 @@
     <!-- =============================================================
          MODALS: Popup dialogs (overlays)
          ============================================================= -->
-
-    <!-- INTEGRATED HELP CENTER VIEW -->
-    <div id="helpCenterView"
-        class="hidden w-full min-h-[calc(100vh_-_82px)] bg-gray-100 flex flex-col xl:flex-row transition-opacity duration-300 opacity-0">
-        <!-- Sidebar -->
-        <aside
-            class="hidden xl:block w-[400px] shrink-0 bg-white border-r border-gray-200 p-8 pl-[8%] pr-10">
-            <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Help Categories</h2>
-            <nav id="helpCategoriesDesktop" class="flex flex-col gap-2"></nav>
-        </aside>
-
-        <!-- Content Area -->
-        <section id="helpCenterContentScroll" class="flex-1 w-full bg-gray-100">
-            <div class="w-full max-w-4xl p-6 sm:p-8 xl:p-16 mx-auto space-y-8">
-                <!-- Panel 1: Frequently Asked Questions -->
-                <div id="faq-help" class="bg-white p-8 xl:p-10 rounded-3xl border border-gray-100 shadow-sm scroll-mt-6">
-                    <div class="border-b border-gray-100 pb-5 mb-8">
-                        <h2 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Frequently Asked Questions</h2>
-                        <p class="text-xs font-medium text-black-fade mt-1" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Common inquiries regarding student accounts, credentials, and portals.</p>
-                    </div>
-                    <div class="space-y-6">
-                        <div class="pb-6 border-b border-slate-100">
-                            <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What is my ID and Email?</h3>
-                            <p class="text-black leading-relaxed text-sm font-medium">Your official ID and Email are provided upon enrollment. If you need to retrieve these credentials, please visit the Registrar's Office with a valid ID.</p>
-                        </div>
-                        <div class="pb-6 border-b border-slate-100">
-                            <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What is the default password?</h3>
-                            <p class="text-black leading-relaxed text-sm font-medium">Default passwords are typically your <strong>Surname</strong> followed by your <strong>registration id given in elms by the admin</strong>. If you are still unsure of your password details, please contact the Registrar's Office or your designated ELMS administrator.</p>
-                        </div>
-                        <div class="pb-6 border-b border-slate-100">
-                            <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">How do I reset a forgotten password?</h3>
-                            <p class="text-black leading-relaxed text-sm font-medium">For security reasons, password resets are handled in person. Please visit the Admin Office to request a manual reset of your account credentials.</p>
-                        </div>
-                        <div class="pb-6 border-b border-slate-100">
-                            <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account inactive?</h3>
-                            <p class="text-black leading-relaxed text-sm font-medium">Accounts may be set to inactive if there are pending enrollment issues, unconfirmed subject loads, or if the account has not been enrolled for consecutive semesters. To reactivate your account, please coordinate with the Registrar's Office to confirm your enrollment status.</p>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account locked, and how do I unlock it?</h3>
-                            <p class="text-black leading-relaxed text-sm font-medium">Accounts are automatically locked after multiple consecutive failed password attempts to safeguard your account against unauthorized access. If your login displays <strong>"The account is locked,"</strong> please visit the Admin Office or ICT Department with your valid school ID to verify your identity and have an administrator unlock your account.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Panel 2: Contact Support -->
-                <div id="contact-support" class="bg-white p-8 xl:p-10 rounded-3xl border border-gray-100 shadow-sm scroll-mt-6">
-                    <div class="border-b border-gray-100 pb-5 mb-8">
-                        <h2 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Contact Support</h2>
-                        <p class="text-xs font-medium text-black-fade mt-1" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Official contact channels for enrollment, registrar, and technical support.</p>
-                    </div>
-                    <div class="grid gap-6 md:grid-cols-2 mb-6">
-                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h3 class="text-base font-bold text-black mb-2 font-['Inter']">When should I contact support?</h3>
-                            <p class="text-black leading-relaxed text-xs font-medium">Reach out if you still cannot sign in, your account details do not match, your password reset does not work, or you need help confirming enrollment-related access.</p>
-                        </div>
-                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h3 class="text-base font-bold text-black mb-2 font-['Inter']">Where can I ask for help?</h3>
-                            <p class="text-black leading-relaxed text-xs font-medium">You may visit the ICT Department during school hours, or open the official contact page for registrar and school support concerns.</p>
-                        </div>
-                    </div>
-
-                    <div class="p-6 bg-[#15803d] text-white rounded-2xl flex items-center justify-between shadow-md gap-6">
-                        <div>
-                            <h3 class="text-lg font-bold mb-1 font-['Inter']">Need direct assistance?</h3>
-                            <p class="text-white text-xs leading-relaxed" style="color:#fff !important">Click <a href="https://home1.interface.edu.ph/index.php/contact-us" target="_blank" rel="noopener noreferrer" class="font-bold underline decoration-white/60 underline-offset-4 hover:text-[#FFD000] transition-colors" style="color:#fff !important">here</a> to open the official Contact Support page.</p>
-                        </div>
-                        <i class="fa-solid fa-headset text-4xl opacity-25"></i>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
 
 
 
@@ -448,7 +448,7 @@
          ============================================================= -->
     <script src="js/shared-components.js?v=20260929quizstorageicons1"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
-    <script src="js/index.js?v=20261001passreqfix1"></script>
+    <script src="js/index.js?v=20261001cleanlogin1"></script>
 
 </body>
 
