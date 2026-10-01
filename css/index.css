@@ -988,19 +988,20 @@ textarea::placeholder {
         min-height: calc(100dvh - var(--nav-height)) !important;
         height: auto !important;
         background: #ffffff !important;
-        margin-top: var(--nav-height) !important;
+        margin-top: 0 !important;
     }
 
-    /* MOBILE NAV & FAQ RESET */
+    /* MOBILE NAV & FAQ RESET - ALWAYS PRESERVE GREEN BORDER */
     #mainNav {
         box-shadow: none !important;
+        border-bottom: 2px solid var(--primary, #006738) !important;
     }
 
     #dotsContainer {
         display: none !important;
     }
 
-    /* 1. SCREEN 1: Clean 100vh Login Centered (No green border, slider hidden) */
+    /* 1. SCREEN 1: Clean 100vh Login Centered (Nav green border preserved, slider hidden) */
     .login-panel {
         order: 1 !important;
         width: 100% !important;
@@ -1011,7 +1012,7 @@ textarea::placeholder {
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: 1.5rem 1.25rem 2rem !important;
+        padding: clamp(1rem, 2.5vh, 2rem) 1.25rem 2rem !important;
         background: #ffffff !important;
         border: none !important;
         border-bottom: none !important;
@@ -1025,7 +1026,7 @@ textarea::placeholder {
     }
 
     .login-panel .login-form-stack {
-        margin: auto !important;
+        margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
@@ -1039,13 +1040,13 @@ textarea::placeholder {
         justify-content: center !important;
         align-items: center !important;
         margin-top: 0 !important;
-        margin-bottom: 1.25rem !important;
+        margin-bottom: clamp(1rem, 2.5vh, 1.75rem) !important;
     }
 
     .login-panel .login-form-logo {
-        width: clamp(85px, 24vw, 110px) !important;
-        height: clamp(85px, 24vw, 110px) !important;
-        max-width: 60vw !important;
+        width: clamp(140px, min(48vw, 24vh), 220px) !important;
+        height: clamp(140px, min(48vw, 24vh), 220px) !important;
+        max-width: 70vw !important;
         display: block !important;
         object-fit: contain !important;
     }

@@ -3928,6 +3928,7 @@
         height: clamp(56px, 14vw, 64px) !important;
         padding-left: 16px !important;
         padding-right: 16px !important;
+        border-bottom: 2px solid var(--primary, #006738) !important;
     }
 
     body.flex.flex-col.bg-gray-50 main {
@@ -3935,7 +3936,7 @@
         padding: 0 !important;
     }
 
-    /* Mobile landing page: hide slider, dots and green border completely */
+    /* Mobile landing page: hide slider, dots and campus banner border */
     #landingSliderPanel,
     #dotsContainer {
         display: none !important;
@@ -3962,7 +3963,7 @@
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: 1.25rem 1.25rem 2rem !important;
+        padding: clamp(1rem, 2.5vh, 2rem) 1.25rem 2rem !important;
         margin: 0 !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
@@ -3971,7 +3972,7 @@
     .login-panel .login-form-stack {
         width: 100% !important;
         max-width: 380px !important;
-        margin: auto !important;
+        margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
@@ -3984,13 +3985,13 @@
         justify-content: center !important;
         align-items: center !important;
         margin-top: 0 !important;
-        margin-bottom: 1.25rem !important;
+        margin-bottom: clamp(1rem, 2.5vh, 1.75rem) !important;
     }
 
     .login-panel .login-form-logo {
-        width: clamp(85px, 24vw, 110px) !important;
-        height: clamp(85px, 24vw, 110px) !important;
-        max-width: 60vw !important;
+        width: clamp(140px, min(48vw, 24vh), 220px) !important;
+        height: clamp(140px, min(48vw, 24vh), 220px) !important;
+        max-width: 70vw !important;
         display: block !important;
         object-fit: contain !important;
     }
