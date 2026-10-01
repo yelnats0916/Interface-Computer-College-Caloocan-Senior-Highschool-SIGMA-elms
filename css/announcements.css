@@ -2555,9 +2555,10 @@ button.sigma-card-video-expand-btn {
         border-radius: 12px !important;
         border: 1.5px solid #cbd5e1 !important;
         width: 100% !important;
-        min-height: 190px !important;
-        max-height: 300px !important;
-        flex: 0 1 auto !important;
+        height: 230px !important;
+        min-height: 180px !important;
+        max-height: 260px !important;
+        flex: 0 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
         margin-top: 0.35rem !important;
@@ -2579,15 +2580,18 @@ button.sigma-card-video-expand-btn {
         border-bottom: 1px solid #e2e8f0 !important;
         padding: 0.35rem 0.5rem !important;
         flex-shrink: 0 !important;
+        height: 38px !important;
+        min-height: 38px !important;
         background: #ffffff !important;
+        box-sizing: border-box !important;
     }
 
     .sigma-composer-body .sigma-composer-textarea {
-        flex: 1 1 auto !important;
-        min-height: 140px !important;
-        max-height: 240px !important;
-        height: auto !important;
-        overflow-y: auto !important;
+        flex: 1 1 0px !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        max-height: none !important;
+        overflow-y: scroll !important;
         -webkit-overflow-scrolling: touch !important;
         touch-action: pan-y !important;
         overscroll-behavior-y: contain !important;
@@ -2597,6 +2601,9 @@ button.sigma-card-video-expand-btn {
         box-sizing: border-box !important;
         word-break: break-word !important;
         outline: none !important;
+        pointer-events: auto !important;
+        user-select: text !important;
+        -webkit-user-select: text !important;
     }
 
     /* Mobile Full-Width Attach to Announcement Panel */

@@ -514,14 +514,20 @@
     html.mobile-panel-open,
     body.mobile-panel-open,
     html.mobile-account-fullscreen,
-    body.mobile-account-fullscreen,
+    body.mobile-account-fullscreen {
+        overflow: hidden !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overscroll-behavior: none !important;
+        touch-action: none !important;
+    }
+
     html.sigma-composer-open,
     body.sigma-composer-open {
         overflow: hidden !important;
         height: 100% !important;
         max-height: 100% !important;
         overscroll-behavior: none !important;
-        touch-action: none !important;
     }
 
     body.mobile-panel-open #layout-wrapper,

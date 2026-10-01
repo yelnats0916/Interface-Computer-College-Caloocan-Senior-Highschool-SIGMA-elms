@@ -1617,6 +1617,15 @@
                 if (editorBox) editorBox.classList.remove('focused');
             });
 
+            // Mobile & desktop touch/wheel event protection: stop propagation so global locks never intercept scrolling
+            const stopScrollPropagation = (e) => {
+                e.stopPropagation();
+            };
+            bodyInput.addEventListener('touchmove', stopScrollPropagation, { passive: true });
+            bodyInput.addEventListener('touchstart', stopScrollPropagation, { passive: true });
+            bodyInput.addEventListener('touchend', stopScrollPropagation, { passive: true });
+            bodyInput.addEventListener('wheel', stopScrollPropagation, { passive: true });
+
             // Drag and drop restrictions: reject images and files
             bodyInput.addEventListener('dragover', (e) => {
                 e.preventDefault();

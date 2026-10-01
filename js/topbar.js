@@ -1141,8 +1141,14 @@ function initSharedTopbarInteractions() {
 
         if (!isLocked) return;
 
+        // Unblock description editor textarea completely for free touch scrolling
+        if (e.target.closest('#sigma-composer-input-body, .sigma-composer-textarea')) {
+            return;
+        }
+
         // Find nearest scrollable container inside the active panel / modal
         const scrollable = e.target.closest(
+            '#sigma-composer-input-body, .sigma-composer-textarea, ' +
             '#schedule-dropdown-cards, #analytics-dropdown-cards, #schedule-dropdown, #analytics-dropdown, ' +
             '#noti-dropdown .notif-scroll-area, #noti-dropdown, #calendar-dropdown, #sigmaAiMessages, #sigmaAiPanel, ' +
             '#profileDropdownMenu, .sigma-composer-modal, .sigma-composer-body, .sigma-composer-content, ' +
