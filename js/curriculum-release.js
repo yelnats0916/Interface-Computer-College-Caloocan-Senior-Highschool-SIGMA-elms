@@ -564,6 +564,7 @@
     };
 
     window.switchReleaseQuarter = function (newQ) {
+        window.closeAllReleasedTopicActionMenus?.();
         window.setActiveReleaseQuarter(newQ);
         if (window._topicReleaseDraftState) window._topicReleaseDraftState.pendingTopicIds = [];
         if (window._learningMaterialsReleaseDraftState) window._learningMaterialsReleaseDraftState.pendingMaterialIds = [];
@@ -956,6 +957,10 @@
 
     // ── Unified Released Items Action Menu Handlers (Topics, Learning Materials, Assessments) ────
     window.closeAllReleasedTopicActionMenus = function () {
+        if (typeof window._cleanupReleasedTopicActionMenu === 'function') {
+            try { window._cleanupReleasedTopicActionMenu(); } catch (err) {}
+            window._cleanupReleasedTopicActionMenu = null;
+        }
         const existing = document.getElementById('released-topic-floating-menu');
         if (existing) existing.remove();
 
@@ -975,7 +980,7 @@
         const activeCategory = existingMenu?.dataset?.category;
 
         // If clicking same open button, toggle it closed
-        if (existingMenu && activeItemId === String(itemId) && activeCategory === category) {
+        if (existingMenu && String(activeItemId).trim() === String(itemId).trim() && activeCategory === category) {
             window.closeAllReleasedTopicActionMenus();
             return;
         }
@@ -1050,15 +1055,53 @@
             menu.style.top = `${top}px`;
         }
 
-        const handleOutsideClick = function (ev) {
-            if (!menu.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) {
+        const triggerTime = Date.now();
+        const dismissListener = function (ev) {
+            if (Date.now() - triggerTime < 30 && (ev.type === 'click' || ev.type === 'pointerdown' || ev.type === 'touchstart')) {
+                return;
+            }
+            if ((ev.target instanceof Node) && menu.contains(ev.target)) {
+                return;
+            }
+            if (btn && (ev.target === btn || ((ev.target instanceof Node) && btn.contains(ev.target)))) {
+                return;
+            }
+            window.closeAllReleasedTopicActionMenus();
+        };
+
+        const keyListener = function (ev) {
+            if (ev.key === 'Escape' || ev.keyCode === 27) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (typeof ev.stopImmediatePropagation === 'function') {
+                    ev.stopImmediatePropagation();
+                }
                 window.closeAllReleasedTopicActionMenus();
-                document.removeEventListener('click', handleOutsideClick, true);
             }
         };
-        setTimeout(() => {
-            document.addEventListener('click', handleOutsideClick, true);
-        }, 10);
+
+        const scrollListener = function (ev) {
+            if ((ev.target instanceof Node) && menu.contains(ev.target)) return;
+            window.closeAllReleasedTopicActionMenus();
+        };
+
+        const cleanup = function () {
+            document.removeEventListener('pointerdown', dismissListener, true);
+            document.removeEventListener('click', dismissListener, true);
+            document.removeEventListener('touchstart', dismissListener, true);
+            window.removeEventListener('scroll', scrollListener, true);
+            window.removeEventListener('resize', scrollListener, true);
+            document.removeEventListener('keydown', keyListener, true);
+        };
+
+        window._cleanupReleasedTopicActionMenu = cleanup;
+
+        document.addEventListener('pointerdown', dismissListener, true);
+        document.addEventListener('click', dismissListener, true);
+        document.addEventListener('touchstart', dismissListener, true);
+        window.addEventListener('scroll', scrollListener, true);
+        window.addEventListener('resize', scrollListener, true);
+        document.addEventListener('keydown', keyListener, true);
     };
 
     window.editUnifiedItemSchedule = function (category, itemId, itemTitle, e) {
@@ -7525,6 +7568,7 @@
     };
 
     window.closeTeacherReleaseTopicsModal = function (returnToHub = false) {
+        window.closeAllReleasedTopicActionMenus?.();
         window._topicReleaseDraftState = null;
         const overlay = document.getElementById('teacher-release-topics-overlay');
         if (!overlay) {
@@ -8762,6 +8806,7 @@
     };
 
     window.closeTeacherReleaseLearningMaterialsModal = function (returnToHub = false) {
+        window.closeAllReleasedTopicActionMenus?.();
         window._learningMaterialsReleaseDraftState = null;
         const overlay = document.getElementById('teacher-release-learning-materials-overlay');
         if (!overlay) {
@@ -8813,6 +8858,7 @@
             e.preventDefault();
             e.stopPropagation();
         }
+        window.closeAllReleasedTopicActionMenus?.();
         const bodyEl = document.getElementById(`topic-collapse-body-${topicSafeId}`);
         const chevronEl = document.getElementById(`topic-chevron-${topicSafeId}`);
         if (!bodyEl) return;
@@ -10393,6 +10439,7 @@
     };
 
     window.closeTeacherReleaseAssessmentsModal = function (returnToHub = false) {
+        window.closeAllReleasedTopicActionMenus?.();
         window._assessmentsReleaseDraftState = null;
         const overlay = document.getElementById('teacher-release-assessments-overlay');
         if (!overlay) {
