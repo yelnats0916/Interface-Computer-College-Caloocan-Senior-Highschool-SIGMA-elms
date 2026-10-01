@@ -483,6 +483,13 @@ require_once __DIR__ . "/includes/topbar.php";
                 <section id="section-topic-content" class="dynamic-section hidden">
                 </section>
 
+                <!-- ══ ASSESSMENTS SECTION ═════════════════════════════ -->
+                <section id="section-assessments" class="dynamic-section hidden">
+                    <div class="w-full">
+                        <div id="assessments-layout" class="w-full h-full"></div>
+                    </div>
+                </section>
+
                 <!-- ═══ GRADES SECTION ════════════════════════════════ -->
                 <section id="section-grades" class="dynamic-section hidden">
                 </section>

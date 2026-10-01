@@ -23876,7 +23876,7 @@ window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
     }
 
     return `
-        <div class="student-assessment-facts-panel assessment-facts-panel is-collapsed mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs" style="display: none;">
+        <div class="student-assessment-facts-panel assessment-facts-panel mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
             <!-- Desktop Table (Start, Due, Submitted, Graded) -->
             <div class="assessment-desktop-facts-table hidden md:block w-full">
                 <table class="w-full table-fixed" style="border-collapse: separate !important; border-spacing: 0 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;">
@@ -24158,26 +24158,31 @@ window.toggleAssessmentTableCollapse = function (btn, event) {
         event.preventDefault();
     }
     if (!btn) return;
-    const card = btn.closest('.assessment-card-panel') || btn.closest('.sigma-black-fade-panel') || btn.closest('.student-assessment-list-item') || btn.closest('.teacher-assessment-list-item');
+    const card = btn.closest('.assessment-card-panel')
+        || btn.closest('.sigma-black-fade-panel')
+        || btn.closest('.student-assessment-list-item')
+        || btn.closest('.teacher-assessment-list-item')
+        || btn.closest('[data-assessment-title]')
+        || btn.closest('.material-card');
     if (!card) return;
 
-    const wrapper = card.querySelector('.assessment-collapsible-table-wrapper')
-        || card.querySelector('.student-assessment-facts-panel')
-        || card.querySelector('.teacher-assessment-facts-panel')
-        || card.querySelector('.assessment-facts-panel');
-    if (!wrapper) return;
+    const wrapper = card.querySelector('.assessment-collapsible-table-wrapper');
+    const factsPanels = Array.from(card.querySelectorAll('.student-assessment-facts-panel, .teacher-assessment-facts-panel, .assessment-facts-panel'));
+    const allTargets = [wrapper, ...factsPanels].filter(Boolean);
+    if (allTargets.length === 0) return;
 
     const icon = btn.querySelector('i');
     const isCurrentlyCollapsed = card.classList.contains('is-collapsed')
-        || wrapper.classList.contains('hidden')
-        || wrapper.style.display === 'none';
+        || (wrapper && (wrapper.classList.contains('hidden') || wrapper.style.display === 'none' || wrapper.classList.contains('is-collapsed')))
+        || factsPanels.some(p => p.classList.contains('hidden') || p.style.display === 'none' || p.classList.contains('is-collapsed'));
 
     if (isCurrentlyCollapsed) {
         card.classList.remove('is-collapsed');
-        wrapper.classList.remove('hidden');
-        wrapper.classList.remove('is-collapsed');
-        wrapper.style.removeProperty('display');
-        wrapper.style.display = 'block';
+        allTargets.forEach(t => {
+            t.classList.remove('hidden', 'is-collapsed');
+            t.style.removeProperty('display');
+            t.style.display = 'block';
+        });
         btn.setAttribute('aria-expanded', 'true');
         btn.setAttribute('title', 'Collapse table');
         if (icon) {
@@ -24185,9 +24190,10 @@ window.toggleAssessmentTableCollapse = function (btn, event) {
         }
     } else {
         card.classList.add('is-collapsed');
-        wrapper.classList.add('hidden');
-        wrapper.classList.add('is-collapsed');
-        wrapper.style.display = 'none';
+        allTargets.forEach(t => {
+            t.classList.add('hidden', 'is-collapsed');
+            t.style.display = 'none';
+        });
         btn.setAttribute('aria-expanded', 'false');
         btn.setAttribute('title', 'Expand table');
         if (icon) {
@@ -24237,7 +24243,7 @@ window.buildTeacherDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
     const dueDisplayMobile = dueParsed ? `${dueParsed.dateStr}${dueParsed.timeStr ? ' • ' + dueParsed.timeStr : ''}` : (dueText || '-');
 
     return `
-        <div class="teacher-assessment-facts-panel assessment-facts-panel is-collapsed mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs" style="display: none;">
+        <div class="teacher-assessment-facts-panel assessment-facts-panel mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
             <!-- Desktop Table (Start, Due, Submitted, Graded) -->
             <div class="assessment-desktop-facts-table hidden md:block w-full">
                 <table class="w-full table-fixed" style="border-collapse: separate !important; border-spacing: 0 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;">
