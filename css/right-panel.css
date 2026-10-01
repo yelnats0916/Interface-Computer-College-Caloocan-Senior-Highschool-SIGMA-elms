@@ -1,0 +1,939 @@
+/**
+ * SIGMA ELMS - Unified Right Rail & Right Panel Component Stylesheet
+ * Standardized across Admin, Teacher, and Student portals.
+ * Enforces uniform 22px card border radius, border-slate-200, padding, typography, and sticky positioning.
+ */
+
+:root {
+    --right-rail-top: 106px;
+    --right-panel-radius: 22px;
+    --right-panel-border: #e2e8f0;
+}
+
+/* ═══ 1. Right Sticky Rail Container ═══════════════════════════════════════ */
+.home-sticky-rail--right {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: var(--right-rail-top) !important;
+    align-self: flex-start !important;
+    width: 297px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: calc(100vh - var(--right-rail-top)) !important;
+    max-height: calc(100vh - var(--right-rail-top)) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    z-index: 30 !important;
+}
+
+/* ═══ 2. Right Dashboard Panels Stack (Scrollable Track with Visible Scrollbar) ═════ */
+.home-dashboard-panels,
+.home-right-stack {
+    width: 297px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important; /* Standardized compact 14px gap */
+    padding-right: 6px !important;
+    padding-bottom: 2rem !important;
+    box-sizing: border-box !important;
+}
+
+#dashboard-view .home-sticky-rail--right,
+#section-dashboard .home-sticky-rail--right,
+#section-home .home-sticky-rail--right {
+    height: calc(100vh - var(--right-rail-top)) !important;
+    max-height: calc(100vh - var(--right-rail-top)) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#dashboard-view .home-dashboard-panels,
+#section-dashboard .home-dashboard-panels,
+#section-home .home-dashboard-panels {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    padding-bottom: 2rem !important;
+}
+
+.home-dashboard-panels::-webkit-scrollbar,
+.home-right-stack::-webkit-scrollbar,
+#admin-home-right-rail::-webkit-scrollbar {
+    width: 5px !important;
+    display: block !important;
+}
+
+.home-dashboard-panels::-webkit-scrollbar-track,
+.home-right-stack::-webkit-scrollbar-track,
+#admin-home-right-rail::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.home-dashboard-panels::-webkit-scrollbar-thumb,
+.home-right-stack::-webkit-scrollbar-thumb,
+#admin-home-right-rail::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 9999px !important;
+}
+
+.home-dashboard-panels::-webkit-scrollbar-thumb:hover,
+.home-right-stack::-webkit-scrollbar-thumb:hover,
+#admin-home-right-rail::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8 !important;
+}
+
+.home-dashboard-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.9rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.home-dashboard-group__title {
+    color: #94a3b8 !important;
+    font-size: 0.72rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.22em !important;
+    text-transform: uppercase !important;
+}
+
+.home-dashboard-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+}
+
+.home-dashboard-list::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* ═══ 3. Standard Right Panel Card (Matches Pocket Card Geometry) ═══════════ */
+.home-dashboard-card,
+.right-panel-card {
+    width: 291px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+    padding: 1.25rem 1.25rem !important;
+    border: 1px solid var(--right-panel-border) !important;
+    border-radius: var(--right-panel-radius) !important;
+    background: #ffffff !important;
+    box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    text-align: left !important;
+    font-family: 'Inter', sans-serif !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.home-overview-card {
+    width: 291px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--right-panel-border) !important;
+    border-radius: var(--right-panel-radius) !important;
+    background: #ffffff !important;
+    box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+
+.home-dashboard-card:hover,
+.right-panel-card:hover,
+.home-overview-card:hover {
+    box-shadow: var(--sigma-card-shadow-hover, 0 4px 12px rgba(0, 0, 0, 0.08)) !important;
+}
+
+.home-dashboard-card--combined {
+    gap: 0 !important;
+}
+
+/* ═══ 4. Inner Item Rows & Headings ═════════════════════════════════════════ */
+.home-dashboard-item {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.35rem !important;
+    padding: 0.9rem 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.home-dashboard-item:first-child {
+    padding-top: 0 !important;
+}
+
+.home-dashboard-item:last-child {
+    padding-bottom: 0 !important;
+    border-bottom: 0 !important;
+}
+
+/* ═══ Shared Panel Title (Single Source of Truth) ══════════════════════════ */
+.home-dashboard-panel-title,
+.home-dashboard-card__eyebrow,
+.home-dashboard-panel-heading,
+.home-dashboard-todo-header-title,
+.topic-section-selector-title {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: #15803d !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    font-family: 'Inter', sans-serif !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+}
+
+.home-dashboard-panel-title i,
+.home-dashboard-card__eyebrow i,
+.home-dashboard-panel-heading i,
+.home-dashboard-todo-header-title i,
+.topic-section-selector-title i {
+    color: #15803d !important;
+    font-size: 0.75rem !important;
+    width: 14px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+}
+
+.home-dashboard-panel-heading {
+    padding: 0.75rem 0 0.5rem !important;
+}
+
+.home-dashboard-panel-heading:first-child {
+    padding-top: 0 !important;
+}
+
+.home-dashboard-panel-heading--spaced {
+    margin-top: 0.75rem !important;
+}
+
+
+.home-dashboard-card__title {
+    color: #0f172a !important;
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: -0.01em !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.home-dashboard-assessment-btn {
+    appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: #0f172a !important;
+    cursor: pointer !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    border-radius: 0 !important;
+    text-align: left !important;
+    transition: color 0.15s ease !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    word-break: break-word !important;
+}
+
+.home-dashboard-assessment-btn:hover,
+.home-dashboard-assessment-btn:focus-visible {
+    color: #FFD000 !important;
+    outline: none !important;
+}
+
+.home-dashboard-subject-link {
+    appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: #0f172a !important;
+    cursor: pointer !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: -0.01em !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    border-radius: 0 !important;
+    text-align: left !important;
+    transition: color 0.18s ease !important;
+}
+
+.home-dashboard-subject-label--meta,
+.home-dashboard-subject-link--meta {
+    font-size: 0.775rem !important;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    line-height: 1.3 !important;
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    border-radius: 0 !important;
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: text !important;
+}
+
+.home-dashboard-subject-link:hover,
+.home-dashboard-subject-link:focus-visible {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+    outline: none !important;
+}
+
+.home-dashboard-card__meta,
+.home-dashboard-card__time {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.home-dashboard-card__meta i,
+.home-dashboard-card__time i {
+    color: #64748b !important;
+    font-size: 0.75rem !important;
+    width: 14px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+}
+
+/* Clock icon colors for Overdue (red), Due Soon (amber/yellow), and Upcoming (green) */
+.home-dashboard-card__time--overdue i,
+.home-dashboard-item--overdue .home-dashboard-card__time i,
+.home-dashboard-time-icon--overdue,
+i.home-dashboard-time-icon--overdue {
+    color: #dc2626 !important;
+}
+
+.home-dashboard-card__time--due i,
+.home-dashboard-item--due .home-dashboard-card__time i,
+.home-dashboard-time-icon--due,
+i.home-dashboard-time-icon--due {
+    color: #d97706 !important;
+}
+
+.home-dashboard-card__time--upcoming i,
+.home-dashboard-item--upcoming .home-dashboard-card__time i,
+.home-dashboard-time-icon--upcoming,
+i.home-dashboard-time-icon--upcoming {
+    color: #15803d !important;
+}
+
+/* Schedule Card specific: Solid Black Text + Green Icons */
+.home-dashboard-card--class .home-dashboard-card__meta,
+.home-dashboard-card--class .home-dashboard-card__time {
+    color: #1e293b !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    line-height: 1.45 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+}
+
+.home-dashboard-card--class .home-dashboard-card__meta i,
+.home-dashboard-card--class .home-dashboard-card__time i {
+    color: #15803d !important;
+    font-size: 0.775rem !important;
+    width: 14px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+}
+
+
+.home-dashboard-card__row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+}
+
+.home-dashboard-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.15rem 0.5rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.625rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.home-dashboard-badge--danger {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+}
+
+.home-dashboard-subject-toggle {
+    width: 100% !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    cursor: pointer !important;
+    gap: 0.5rem !important;
+    padding: 0.25rem 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    color: #0f172a !important;
+    transition: color 0.15s ease !important;
+}
+
+.home-dashboard-subject-toggle > span:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-align: left !important;
+    color: #0f172a !important;
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: -0.01em !important;
+    font-family: 'Inter', sans-serif !important;
+    transition: color 0.15s ease !important;
+}
+
+.home-dashboard-subject-toggle.is-collapsed {
+    color: #0f172a !important;
+}
+
+.home-dashboard-subject-toggle.is-collapsed > span:first-child {
+    color: #0f172a !important;
+}
+
+.home-dashboard-subject-toggle.is-collapsed .home-dashboard-chevron {
+    color: #94a3b8 !important;
+    transform: rotate(-90deg) !important;
+}
+
+.home-dashboard-subject-toggle:not(.is-collapsed) {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+}
+
+.home-dashboard-subject-toggle:not(.is-collapsed) > span:first-child {
+    color: #FFD000 !important;
+}
+
+.home-dashboard-subject-toggle:not(.is-collapsed) .home-dashboard-chevron {
+    color: #FFD000 !important;
+    transform: rotate(0deg) !important;
+}
+
+/* Hover turns yellow on entire subject row */
+.home-dashboard-subject-toggle:hover,
+.home-dashboard-subject-toggle:hover > span:first-child,
+.home-dashboard-subject-toggle:hover .home-dashboard-chevron,
+.home-dashboard-subject-toggle.is-collapsed:hover,
+.home-dashboard-subject-toggle.is-collapsed:hover > span:first-child,
+.home-dashboard-subject-toggle.is-collapsed:hover .home-dashboard-chevron {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+}
+
+.home-dashboard-subject-toggle-right {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    flex-shrink: 0 !important;
+    margin-top: 0.12rem !important;
+}
+
+/* Canonical Shared Red Notification Count Bubble (Exact Student Style) */
+.home-dashboard-subject-badge,
+.home-dashboard-todo-badge,
+.home-dashboard-activity-count,
+.home-dashboard-badge--danger,
+.sigma-notification-count-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 22px !important;
+    height: 22px !important;
+    padding: 0 6px !important;
+    background-color: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 9999px !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.home-dashboard-subject-toggle .home-dashboard-chevron {
+    color: #94a3b8 !important;
+    font-size: 0.65rem !important;
+    transition: transform 0.2s ease, color 0.2s ease !important;
+}
+
+.home-dashboard-subject-toggle.is-collapsed .home-dashboard-chevron {
+    transform: rotate(-90deg) !important;
+}
+
+.home-dashboard-activity-list {
+    margin-top: 0.35rem !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+    padding-left: 0.5rem !important;
+    border-left: 2px solid #f1f5f9 !important;
+    box-sizing: border-box !important;
+}
+
+.home-dashboard-activity-list.is-collapsed {
+    display: none !important;
+}
+
+.home-dashboard-activity-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    padding: 0.45rem 0 !important;
+    font-size: 0.8125rem !important;
+    color: #1e293b !important;
+    gap: 0.2rem !important;
+    border-bottom: 1px solid #f8fafc !important;
+}
+
+.home-dashboard-activity-item:last-child {
+    border-bottom: 0 !important;
+}
+
+.home-dashboard-activity-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+}
+
+.home-dashboard-activity-link {
+    appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.8125rem !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    transition: color 0.15s ease !important;
+}
+
+.home-dashboard-activity-link:hover,
+.home-dashboard-activity-link:focus-visible {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+    outline: none !important;
+}
+
+.home-dashboard-activity-count {
+    margin-top: 0.1rem !important;
+}
+
+.home-dashboard-activity-section,
+.home-dashboard-activity-time {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.775rem !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    width: 100% !important;
+}
+
+.home-dashboard-activity-section i,
+.home-dashboard-activity-time i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    font-size: 0.75rem !important;
+    width: 14px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+}
+
+.home-dashboard-activity-item.is-extra-item,
+.home-dashboard-item.is-extra-item {
+    display: none !important;
+}
+
+.home-dashboard-activity-list.is-showing-all .home-dashboard-activity-item.is-extra-item,
+.home-dashboard-card.is-showing-all-pending .home-dashboard-item.is-extra-pending-item,
+.home-dashboard-card.is-showing-all-overdue .home-dashboard-item.is-extra-overdue-item,
+.home-dashboard-card.is-showing-all-due .home-dashboard-item.is-extra-due-item,
+.home-dashboard-card.is-showing-all-upcoming .home-dashboard-item.is-extra-upcoming-item {
+    display: flex !important;
+}
+
+.home-dashboard-activity-item::before {
+    content: none !important;
+    display: none !important;
+}
+
+
+.home-dashboard-more-btn {
+    appearance: none !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 7px 12px !important;
+    margin-top: 8px !important;
+    margin-bottom: 4px !important;
+    color: #15803d !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    user-select: none !important;
+}
+
+.home-dashboard-more-btn:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #166534 !important;
+    text-decoration: none !important;
+}
+
+.home-dashboard-more-btn:active {
+    background: #f1f5f9 !important;
+}
+
+.home-dashboard-more-btn i {
+    font-size: 0.6875rem !important;
+    color: #15803d !important;
+    transition: transform 0.2s ease, color 0.18s ease !important;
+}
+
+.home-dashboard-more-btn:hover i {
+    color: #166534 !important;
+}
+
+/* ═══ Tasks Panel Hover & Selected States ══════════════════════════════════ */
+.home-dashboard-todo-icon {
+    color: #15803d !important;
+}
+
+.home-dashboard-todo-label {
+    color: #0f172a !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    transition: color 0.15s ease !important;
+}
+
+.home-dashboard-todo-chevron {
+    color: #0f172a !important;
+    transition: color 0.15s ease, transform 0.2s ease !important;
+}
+
+/* Hover: label and chevron turn yellow, assessment icon stays green */
+.home-dashboard-todo-category button:hover .home-dashboard-todo-label,
+.home-dashboard-todo-category button:hover .home-dashboard-todo-chevron,
+.home-dashboard-todo-category .group\/todo:hover .home-dashboard-todo-label,
+.home-dashboard-todo-category .group\/todo:hover .home-dashboard-todo-chevron {
+    color: #FFD000 !important;
+}
+
+/* Selected: label and chevron turn yellow, assessment icon stays green */
+.home-dashboard-todo-category button.is-selected .home-dashboard-todo-label,
+.home-dashboard-todo-category button.is-selected .home-dashboard-todo-chevron,
+.home-dashboard-todo-category .group\/todo.is-selected .home-dashboard-todo-label,
+.home-dashboard-todo-category .group\/todo.is-selected .home-dashboard-todo-chevron {
+    color: #FFD000 !important;
+}
+
+/* Always force assessment icon to remain green */
+.home-dashboard-todo-category .home-dashboard-todo-icon,
+.home-dashboard-todo-category button:hover .home-dashboard-todo-icon,
+.home-dashboard-todo-category button.is-selected .home-dashboard-todo-icon,
+.home-dashboard-todo-category .group\/todo:hover .home-dashboard-todo-icon,
+.home-dashboard-todo-category .group\/todo.is-selected .home-dashboard-todo-icon {
+    color: #15803d !important;
+}
+
+.home-dashboard-todo-subj-name {
+    color: #0f172a !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    transition: color 0.15s ease !important;
+}
+
+.home-dashboard-todo-items button:hover .home-dashboard-todo-subj-name,
+.home-dashboard-todo-items button:hover i,
+.home-dashboard-todo-items button:focus-visible .home-dashboard-todo-subj-name,
+.group\/subj:hover .home-dashboard-todo-subj-name,
+.group\/subj:hover i,
+.home-dashboard-todo-subj-name:hover,
+.home-dashboard-todo-subj-name:focus-visible {
+    color: #FFD000 !important;
+}
+
+
+
+/* ═══ 5. Pinned Academic Calendar Card ═════════════════════════════════════ */
+.pinned-calendar-card {
+    width: 291px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--right-panel-border) !important;
+    border-radius: var(--right-panel-radius) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.pinned-calendar-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.pinned-milestone-item {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 0.65rem !important;
+    padding: 0.6rem 0.85rem !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    transition: background 0.15s ease !important;
+}
+
+.pinned-milestone-item:last-child {
+    border-bottom: none !important;
+}
+
+.pinned-milestone-item:hover {
+    background-color: #f8fafc !important;
+}
+
+/* ═══ 5. Overview Pie Charts Canvas Sizing ══════════════════════════════════ */
+#userDistributionChart,
+#subjectDistributionChart,
+#sectionDistributionChart {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 144px !important;
+    max-height: 144px !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+/* ═══ 6. Online Members Avatar Grid Card ═══════════════════════════════════ */
+.online-members-card {
+    width: 291px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--right-panel-border) !important;
+    border-radius: var(--right-panel-radius) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.online-members-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+#online-members-count-badge {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+}
+
+.online-member-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    cursor: default !important;
+    padding: 0.25rem 0.1rem !important;
+    user-select: none !important;
+}
+
+.online-member-avatar-wrapper {
+    position: relative !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 9999px !important;
+    overflow: visible !important;
+    margin-bottom: 0.25rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.online-member-avatar-wrapper .sigma-user-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-radius: 9999px !important;
+    background-color: #f1f5f9 !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+}
+
+.online-member-avatar-wrapper .sigma-user-avatar i {
+    color: #94a3b8 !important;
+    transition: color 0.2s ease !important;
+}
+
+.online-member-avatar-wrapper:hover .sigma-user-avatar,
+.online-member-avatar-wrapper:focus-visible .sigma-user-avatar {
+    background-color: #e2e8f0 !important;
+}
+
+.online-member-avatar-wrapper:hover .sigma-user-avatar i {
+    color: #64748b !important;
+}
+
+.online-member-avatar-wrapper:hover .sigma-user-avatar img {
+    filter: brightness(0.94) !important;
+}
+
+.online-member-avatar-wrapper:active .sigma-user-avatar {
+    background-color: #cbd5e1 !important;
+}
+
+.online-member-avatar-img {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 9999px !important;
+    object-fit: cover !important;
+    background-color: #e2e8f0 !important;
+    border: 1.5px solid #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.online-member-status-dot {
+    position: absolute !important;
+    bottom: -1px !important;
+    right: -1px !important;
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 9999px !important;
+    background-color: #15803d !important;
+    border: 2px solid #ffffff !important;
+    z-index: 10 !important;
+}
+
+.online-member-name {
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    width: 100% !important;
+    max-width: 80px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.15 !important;
+    cursor: default !important;
+}
+
+/* ═══ 7. Empty State ════════════════════════════════════════════════════════ */
+.sigma-panel-empty-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.3rem !important;
+    padding: 0.25rem 0 !important;
+}
+
+.sigma-panel-empty-icon {
+    font-size: 1.1rem !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 0.35rem !important;
+}
+
+.home-dashboard-empty-text {
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    line-height: 1.4 !important;
+    margin: 4px 0 0 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}

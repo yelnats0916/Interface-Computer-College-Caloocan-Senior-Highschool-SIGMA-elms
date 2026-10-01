@@ -1,0 +1,438 @@
+/**
+ * SIGMA ELMS - Unified Calendar Component Stylesheet
+ * Interface Computer College - Caloocan Senior High School ELMS
+ * Borrowed by Admin, Teacher, and Student portals.
+ */
+
+/* ─── 1. Topbar Calendar Icon Button ────────────────────────────────────── */
+#calendar-toggle {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+#calendar-toggle:hover {
+    background-color: #e2e8f0;
+}
+
+#calendar-toggle i {
+    font-size: 22px;
+    color: #000000;
+    transition: color 0.2s ease;
+}
+
+#calendar-date-number {
+    position: absolute;
+    padding-top: 5px;
+    font-size: 9px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* ─── 2. Calendar Slide-Out Drawer Panel (400px) ────────────────────────── */
+#calendar-dropdown {
+    position: fixed !important;
+    right: 0 !important;
+    top: 82px !important;
+    width: 400px !important;
+    height: calc(100vh - 82px) !important;
+    background-color: #ffffff !important;
+    box-shadow: -20px 0 40px rgba(0, 0, 0, 0.08) !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-top-left-radius: 24px !important;
+    border-bottom-left-radius: 24px !important;
+    z-index: 500 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    font-family: 'Inter', sans-serif !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+}
+
+#calendar-dropdown.hidden {
+    display: none !important;
+}
+
+/* Calendar Header (Identical to Notifications) */
+.calendar-header {
+    padding: 20px 24px 14px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.calendar-header__title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+/* Calendar Month Navigation Header */
+.calendar-month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center !important;
+    margin-bottom: 20px;
+    gap: 8px;
+    position: relative;
+    width: 100%;
+}
+
+#calendarDropdownMonthYear {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.2 !important;
+    text-align: center;
+    margin: 0;
+}
+
+.calendar-nav-btn,
+#calendarDropdownPrevMonthBtn,
+#calendarDropdownNextMonthBtn {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 9999px !important;
+    background-color: transparent !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease !important;
+    padding: 0 !important;
+}
+
+@media (min-width: 640px) {
+    .calendar-nav-btn,
+    #calendarDropdownPrevMonthBtn,
+    #calendarDropdownNextMonthBtn {
+        width: 32px !important;
+        height: 32px !important;
+    }
+}
+
+.calendar-nav-btn:hover,
+#calendarDropdownPrevMonthBtn:hover,
+#calendarDropdownNextMonthBtn:hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+.calendar-nav-btn:active,
+#calendarDropdownPrevMonthBtn:active,
+#calendarDropdownNextMonthBtn:active {
+    background-color: #e2e8f0 !important;
+    color: #000000 !important;
+}
+
+.calendar-nav-btn i,
+#calendarDropdownPrevMonthBtn i,
+#calendarDropdownNextMonthBtn i {
+    font-size: 11px !important;
+    color: #000000 !important;
+}
+
+/* Calendar Custom Scrollbar */
+#calendar-dropdown::-webkit-scrollbar {
+    width: 4px;
+}
+
+#calendar-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#calendar-dropdown::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+#calendar-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* ─── 3. Calendar Grid & Interactive Elements ───────────────────────────── */
+.calendar-weekday-header {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding-bottom: 6px !important;
+}
+
+.calendar-day-cell {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #000000 !important; /* Black date text */
+    cursor: pointer;
+    border: none !important;
+    outline: none !important;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.calendar-day-cell:hover:not(.calendar-day-cell--today):not(.calendar-day-cell--selected):not(.calendar-day-cell--empty) {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+/* Today's Date (Solid Yellow, Bold Black Text, No Hover effect) */
+.calendar-day-cell--today {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.calendar-day-cell--today:hover {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+}
+
+/* Selected Date Highlight (Solid Shared Green Background, Bold White Text) */
+.calendar-day-cell--selected:not(.calendar-day-cell--today),
+.calendar-day-cell.calendar-day-cell--selected:not(.calendar-day-cell--today) {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.calendar-day-cell--selected:not(.calendar-day-cell--today):hover,
+.calendar-day-cell.calendar-day-cell--selected:not(.calendar-day-cell--today):hover {
+    background-color: #166534 !important;
+    color: #ffffff !important;
+}
+
+/* Today can never be selected shared green (always stays solid yellow) */
+.calendar-day-cell--today.calendar-day-cell--selected,
+.calendar-day-cell--today.calendar-day-cell--selected:hover {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.calendar-day-cell--has-event {
+    position: relative;
+}
+
+.calendar-day-cell--has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 9999px;
+    background-color: #FFD000;
+}
+
+.calendar-day-cell--empty {
+    cursor: default;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* "View Calendar →" Link */
+.view-calendar-anchor {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 8px 18px !important;
+    border-radius: 12px !important;
+    background-color: transparent !important;
+    font-family: 'Inter', sans-serif !important;
+    color: #000000 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    outline: none !important;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease !important;
+}
+
+.view-calendar-anchor:hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+    text-decoration: none !important;
+}
+
+/* Custom In-Page Month & Year Picker Dropdown */
+#calendar-custom-month-picker {
+    position: absolute !important;
+    top: 100% !important;
+    margin-top: 10px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 280px !important;
+    max-width: calc(100vw - 32px) !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 16px 38px -4px rgba(0, 0, 0, 0.18), 0 4px 14px -2px rgba(0, 0, 0, 0.08) !important;
+    z-index: 9999 !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+#calendar-custom-month-picker.hidden {
+    display: none !important;
+}
+
+.cal-picker-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.cal-picker-year-label {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    font-family: inherit !important;
+}
+
+.cal-picker-year-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    border-radius: 9999px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+    padding: 0 !important;
+}
+
+.cal-picker-year-btn:hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+.cal-picker-year-btn:active {
+    background-color: #e2e8f0 !important;
+    color: #000000 !important;
+}
+
+.cal-picker-year-btn i {
+    font-size: 11px !important;
+    color: #000000 !important;
+}
+
+.cal-picker-months-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+}
+
+.cal-picker-month-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 4px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    font-family: inherit !important;
+    outline: none !important;
+}
+
+.cal-picker-month-btn:hover {
+    background-color: rgba(0, 0, 0, 0.07) !important;
+    color: #000000 !important;
+}
+
+.cal-picker-month-btn.active {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25) !important;
+}
+
+.cal-picker-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #f1f5f9 !important;
+}
+
+.cal-picker-footer-today {
+    border: none !important;
+    background: transparent !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #15803d !important;
+    padding: 5px 12px !important;
+    border-radius: 8px !important;
+    transition: background-color 0.15s ease !important;
+    font-family: inherit !important;
+}
+
+.cal-picker-footer-today:hover {
+    background-color: #f1f5f9 !important;
+    color: #15803d !important;
+}
+
+.cal-picker-footer-close,
+button.cal-picker-footer-close {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+

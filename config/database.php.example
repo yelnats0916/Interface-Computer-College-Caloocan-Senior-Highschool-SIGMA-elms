@@ -1,0 +1,24 @@
+<?php
+/**
+ * SIGMA ELMS - Database Connection (PDO)
+ * Automatically adapts to local XAMPP or cloud Railway hosting.
+ */
+
+$host     = getenv('MYSQLHOST')     ?: '127.0.0.1';
+$port     = getenv('MYSQLPORT')     ?: '3306';
+$dbname   = getenv('MYSQLDATABASE') ?: 'sigma_elms_db';
+$user     = getenv('MYSQLUSER')     ?: 'root';
+$password = getenv('MYSQLPASSWORD') ?: '';
+
+try {
+    $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+    $pdo = new PDO($dsn, $user, $password, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
+} catch (PDOException $e) {
+    // In local development, show a readable message if the DB hasn't been created yet
+    error_log("Database Connection Warning: " . $e->getMessage());
+    $pdo = null; // Allows pages without database queries to continue loading smoothly
+}

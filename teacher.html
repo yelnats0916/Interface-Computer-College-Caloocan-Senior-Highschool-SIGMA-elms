@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interface Computer College - Teacher</title>
+    <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="css/teacher.css?v=20260930footerbtn1">
+    <link rel="stylesheet" href="css/topbar.css?v=20260930navheader2">
+    <link rel="stylesheet" href="css/forms.css?v=20260930lockboxfix1">
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="css/shared-components.css?v=20260930footerbtn1">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20260929tabletfix1">
+    <link rel="stylesheet" href="css/settings-view.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20260930moreradius1">
+    <link rel="stylesheet" href="css/sidebar.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/sigma-analytics.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/mobile.css?v=20260930navheader2">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script>
+        (function() {
+            try {
+                var hash = (window.location.hash || '').replace(/^#/, '').trim();
+                if (!hash || hash === 'dashboard' || hash === 'home') {
+                    var s = document.createElement('style');
+                    s.id = 'early-dashboard-style';
+                    s.textContent = '#section-dashboard { display: block !important; }';
+                    document.head.appendChild(s);
+                } else {
+                    document.documentElement.classList.add('sigma-hash-navigating');
+                    var s = document.createElement('style');
+                    s.id = 'sigma-early-hash-style';
+                    s.textContent = '.sigma-hash-navigating #section-dashboard, .sigma-hash-navigating #section-home, .sigma-hash-navigating #home-view { display: none !important; }';
+                    document.head.appendChild(s);
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        #adjust-hps-modal-overlay input[type="number"]::-webkit-inner-spin-button,
+        #adjust-hps-modal-overlay input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
+
+    <header id="teacher-header"
+        class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
+        <!-- ═══ TOP NAVIGATION BAR ════════════════════════════════════ -->
+        <nav class="top-nav justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <span id="global-sy-display" class="text-white tracking-wider text-[10px] font-medium">
+                    Initializing...</span>
+            </div>
+            <div class="top-nav__lang flex items-center gap-2 pr-4">
+                <i class="fa-solid fa-globe text-[10px] text-white/50"></i>
+                <span class="text-white text-[10px] font-medium">English (en)</span>
+            </div>
+            <div id="top-nav-loading-bar" class="top-nav-loading-bar" role="progressbar" aria-label="Loading indicator" aria-hidden="true"><div class="top-nav-loading-bar__fill"></div></div>
+        </nav>
+
+        <div class="admin-topbar__inner">
+            <div class="admin-topbar__brand">
+                <button id="sidebarToggleBtn" type="button" aria-label="Toggle sidebar"
+                    class="w-[38px] h-[38px] rounded-full hover:bg-slate-100 focus:outline-none flex items-center justify-center no-underline transition-colors">
+                    <i class="fa-solid fa-bars text-[17px] text-black"></i>
+                </button>
+                <div id="logo-container">
+                    <button id="nav-logo-btn" title="Go to Dashboard" onclick="window.switchTab('nav-dashboard');">
+                        <img src="image/ICC logo.jpg" alt="ICC Logo">
+                    </button>
+                </div>
+                <div class="admin-topbar__brand-copy">
+                    <p id="nav-context-text" class="admin-topbar__brand-label text-black">Interface Computer
+                        College</p>
+                </div>
+            </div>
+
+            <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] md:block z-[10]">
+                <div
+                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none outline-none focus:outline-none focus:ring-0 focus:shadow-none transition-all overflow-hidden"
+                    tabindex="-1">
+                    <span
+                        class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300">
+                        <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                    </span>
+                    <input id="searchBar" type="text" placeholder="Search" aria-label="Global search" maxlength="100" autocomplete="off"
+                        class="block w-full h-[38px] pl-5 pr-4 bg-transparent border-0 text-[14.5px] placeholder-black-fade focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none transition-all group-focus-within:pl-10 font-medium text-black font-['Inter']"
+                        onkeydown="if(event.key==='Enter'){}">
+                    <button id="globalSearchBtn"
+                        class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 text-black focus:outline-none">
+                        <i class="fa-solid fa-arrow-turn-down text-[10px] transform rotate-[-90deg] scale-y-[-1] text-black"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Action Group: Search + Burger to the right of search -->
+            <div class="admin-topbar__mobile-actions">
+                <button id="mobileSearchToggleBtn" type="button" class="mobile-search-toggle-btn" aria-label="Search" title="Search">
+                    <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                </button>
+                <button id="mobileSidebarToggleBtn" type="button" class="mobile-sidebar-toggle-btn" aria-label="Toggle sidebar" title="Menu">
+                    <i class="fa-solid fa-bars text-[17px] text-black"></i>
+                </button>
+            </div>
+
+            <!-- Desktop Action Icons -->
+            <div class="admin-topbar__desktop-icons flex items-center gap-2 pr-4">
+                <!-- SIGMA AI Toggle Button -->
+                <div class="relative">
+                    <button id="sigma-toggle" type="button" title="SIGMA AI"
+                        class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline cursor-pointer">
+                        <i class="fa-solid fa-bolt text-black text-sm transition-transform group-hover:scale-110"></i>
+                    </button>
+                </div>
+
+                <div class="relative">
+                    <button id="calendar-toggle"
+                        class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline">
+                        <div class="relative flex items-center justify-center pointer-events-none">
+                            <i class="fa-solid fa-calendar text-[22px] text-black transition-colors"></i>
+                            <span id="calendar-date-number"
+                                class="absolute pt-[5px] text-[9px] font-black text-white leading-none">28</span>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="relative">
+                    <button id="noti-toggle"
+                        class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline">
+                        <i class="fa-solid fa-bell text-[21px] text-black transition-colors"></i>
+                        <span id="noti-badge"
+                            class="absolute top-2 right-2 w-2 h-2 bg-[#FFD000] rounded-full border-2 border-white pointer-events-none"></span>
+                    </button>
+                </div>
+
+                <div class="relative">
+                    <button id="profileDropdownBtn"
+                        class="header-profile-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center text-black text-base font-bold no-underline transition-colors">
+                        <div class="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
+                            <img id="header-avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Avatar"
+                                class="absolute inset-0 w-full h-full object-cover hidden">
+                            <i id="header-avatar-placeholder" class="fa-solid fa-user text-sm text-[#94a3b8]"></i>
+                        </div>
+                        <div
+                            class="absolute bottom-[-2px] right-[-2px] w-4.5 h-4.5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center z-10">
+                            <i
+                                class="header-profile-btn__chevron fa-solid fa-chevron-down text-[10px] font-bold text-black transition-colors"></i>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Search Overlay -->
+            <div id="mobile-search-overlay" class="mobile-search-overlay hidden">
+                <button type="button" id="mobileSearchBackBtn" class="mobile-search-overlay__back" aria-label="Back to page" title="Back">
+                    <i class="fa-solid fa-chevron-left text-black text-sm"></i>
+                </button>
+                <div class="mobile-search-overlay__field">
+                    <input id="mobileSearchInput" type="text" placeholder="Search announcements, subjects..." autocomplete="off" class="mobile-search-overlay__input">
+                    <button type="button" id="mobileSearchSubmitBtn" class="mobile-search-overlay__submit" aria-label="Search" title="Search">
+                        <i class="fa-solid fa-magnifying-glass text-slate-700 text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile Search Dim Backdrop (Touch outside to return) -->
+            <div id="mobile-search-backdrop" class="mobile-search-backdrop hidden"></div>
+        </div>
+
+        <!-- Mobile Sub-Bar: SIGMA Analytics, Schedule & Tasks, SIGMA AI, Calendar, Notifications -->
+        <div id="mobile-header-subbar" class="mobile-header-subbar">
+            <!-- 1. SIGMA Analytics (Abstract line chart icon) -->
+            <button type="button" id="mobile-subbar-analytics" class="mobile-subbar-btn" aria-label="SIGMA Analytics" title="SIGMA Analytics">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+            </button>
+
+            <!-- 2. Right Section: Schedule & Tasks -->
+            <button type="button" id="mobile-subbar-schedule" class="mobile-subbar-btn" aria-label="Schedule & Tasks" title="Schedule & Tasks">
+                <i class="fa-regular fa-calendar-check text-[18px]"></i>
+            </button>
+
+            <!-- 3. AI SIGMA Chat (Abstract line bolt icon - for sigma panel chat) -->
+            <button type="button" id="mobile-subbar-sigma" class="mobile-subbar-btn" aria-label="SIGMA AI Chat" title="SIGMA AI Chat">
+                <svg class="mobile-subbar-icon-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+            </button>
+
+            <!-- 4. Calendar (Date display kept as is) -->
+            <button type="button" id="mobile-subbar-calendar" class="mobile-subbar-btn" aria-label="Calendar" title="Calendar">
+                <div class="mobile-subbar-calendar-icon">
+                    <i class="fa-solid fa-calendar text-[19px]"></i>
+                    <span id="mobile-calendar-date-number" class="mobile-subbar-date-number">28</span>
+                </div>
+            </button>
+
+            <!-- 5. Notification (Abstract line icon) -->
+            <button type="button" id="mobile-subbar-noti" class="mobile-subbar-btn" aria-label="Notifications" title="Notifications">
+                <i class="fa-regular fa-bell text-[18px]"></i>
+                <span id="mobile-noti-badge" class="mobile-subbar-badge hidden"></span>
+            </button>
+        </div>
+
+        <!-- Calendar Dropdown -->
+        <div id="calendar-dropdown"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-y-auto custom-scrollbar font-['Inter']">
+            <!-- Top Title Bar (Identical to Notifications) -->
+            <div class="calendar-header mobile-panel-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="calendar-header__title mobile-panel-title">Calendar</h3>
+                </div>
+            </div>
+
+            <!-- Month Navigation & Calendar Grid -->
+            <div class="px-8 py-6 bg-white flex-shrink-0">
+                <div class="calendar-month-nav flex items-center justify-center mb-5 gap-1 sm:gap-2 relative">
+                    <button type="button" id="calendarDropdownPrevMonthBtn" class="calendar-nav-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0" onclick="window.navCalendarDropdownMonth?.(-1, event)" title="Previous Month" aria-label="Previous Month">
+                        <i class="fa-solid fa-chevron-left text-[11px] sm:text-xs text-black"></i>
+                    </button>
+                    <h3 id="calendarDropdownMonthYear"
+                        class="text-[16px] font-bold text-black leading-none tracking-tight text-center font-['Inter'] select-none">August 2026</h3>
+                    <button type="button" id="calendarDropdownMonthPickerBtn" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-[#15803d] hover:text-[#166534] transition-all cursor-pointer border-0" onclick="window.openCalendarNativeMonthPicker?.(event)" title="Select Month & Year">
+                        <i class="fa-regular fa-calendar text-sm sm:text-base text-[#15803d]"></i>
+                    </button>
+                    <button type="button" id="calendarDropdownNextMonthBtn" class="calendar-nav-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0" onclick="window.navCalendarDropdownMonth?.(1, event)" title="Next Month" aria-label="Next Month">
+                        <i class="fa-solid fa-chevron-right text-[11px] sm:text-xs text-black"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center border-t border-slate-100 pt-4 mb-2">
+                    <div class="calendar-weekday-header">Sun</div>
+                    <div class="calendar-weekday-header">Mon</div>
+                    <div class="calendar-weekday-header">Tue</div>
+                    <div class="calendar-weekday-header">Wed</div>
+                    <div class="calendar-weekday-header">Thu</div>
+                    <div class="calendar-weekday-header">Fri</div>
+                    <div class="calendar-weekday-header">Sat</div>
+                </div>
+                <div id="calendarDropdownDaysGrid" class="grid grid-cols-7 gap-1 text-center">
+                    <!-- Populated by js/calendar.js -->
+                </div>
+
+                <!-- View Calendar Link -->
+                <div class="mt-6 mb-2 flex justify-center">
+                    <a href="#" class="view-calendar-anchor" aria-label="View Calendar">
+                        View Calendar →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Bottom Division Line -->
+            <div class="border-t border-gray-100 w-full mt-auto"></div>
+        </div>
+
+        <!-- Notifications Dropdown -->
+        <div id="noti-dropdown"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-hidden font-['Inter']">
+            <!-- Top Title Bar -->
+            <div class="notif-header mobile-panel-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="notif-header__title mobile-panel-title">Notifications</h3>
+                </div>
+                <button type="button" id="notiMarkAllReadBtn" class="notif-header__mark-all">Mark all as read</button>
+            </div>
+
+            <!-- Filter Tabs: All, Unread + See all -->
+            <div class="notif-tabs-bar">
+                <div class="notif-tabs-group">
+                    <button type="button" id="noti-tab-all" class="notif-tab-btn active">All</button>
+                    <button type="button" id="noti-tab-unread" class="notif-tab-btn">Unread</button>
+                </div>
+                <a href="#" class="notif-see-all-btn" onclick="event.preventDefault()">See all</a>
+            </div>
+
+            <!-- Scrollable Notifications Area -->
+            <div class="notif-scroll-area custom-scrollbar">
+                <div id="noti-dropdown-feed">
+                    <!-- Injected by js/notifications.js -->
+                </div>
+            </div>
+
+            <!-- Previous Notifications Button -->
+            <div id="noti-prev-wrapper" class="notif-prev-btn-wrapper" style="display: none;">
+                <button type="button" id="notiPrevNotificationsBtn" class="notif-prev-btn">
+                    <span>Previous Notifications</span>
+                    <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="profileDropdownMenu"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-hidden">
+
+            <!-- Mobile Header with Back Button -->
+            <div class="mobile-profile-header mobile-panel-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="if(typeof window.closeMobileAccountPanel==='function') window.closeMobileAccountPanel(); else window.closeMobileTopPanel();" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="mobile-panel-title">Account</h3>
+                </div>
+            </div>
+
+            <!-- ── Hero: Avatar + Name + ID ── -->
+            <div class="profile-panel-hero" onclick="window.navigateToUserProfile(event)" title="View Profile" role="button" tabindex="0">
+                <div class="profile-panel-avatar-wrap">
+                    <img id="sidebar-avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Avatar" class="hidden">
+                    <i id="sidebar-avatar-placeholder" class="fa-solid fa-user"></i>
+                </div>
+                <div style="text-align:center;">
+                    <h3 class="profile-panel-name">
+                        <span id="header-dropdown-firstName">Teacher</span>
+                        <span id="header-dropdown-lastName"></span>
+                    </h3>
+                    <p class="profile-panel-account-id" id="header-dropdown-accountId">ID: —</p>
+                </div>
+                <span class="profile-panel-role-badge">
+                    Teacher
+                </span>
+            </div>
+
+            <!-- ── Menu ── -->
+            <nav class="profile-panel-menu">
+                <a href="#account-settings" id="profile-settings-link"
+                    onclick="window.navigateToAccountSettings('notifications'); return false;"
+                    class="profile-menu-item">
+                    <div class="profile-menu-item__icon">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <div class="profile-menu-item__text">
+                        <span class="profile-menu-item__label">Account Settings</span>
+                        <span class="profile-menu-item__sublabel">Notifications & preferences</span>
+                    </div>
+                </a>
+            </nav>
+
+            <!-- ── Footer: Logout ── -->
+            <div class="profile-panel-footer">
+                <a href="index.html" class="profile-logout-btn" onclick="if(window.SigmaPresenceTracker && typeof window.SigmaPresenceTracker.logout==='function'){window.SigmaPresenceTracker.logout();}else{sessionStorage.clear();}">
+                    <div class="profile-menu-item__icon">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </div>
+                    <div class="profile-menu-item__text">
+                        <span class="profile-menu-item__label">Logout</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- SIGMA AI Dropdown Panel (Shared across Admin, Teacher, Student) -->
+        <div id="sigmaAiPanel"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-hidden font-['Inter']">
+            <div class="mobile-panel-header sigma-ai-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="sigma-ai-badge">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h3 class="sigma-ai-title mobile-panel-title">SIGMA</h3>
+                    </div>
+                </div>
+            </div>
+            <div id="sigmaAiMessages" class="flex-1 p-5 overflow-y-auto space-y-4 bg-gray-50/50"></div>
+            <div class="p-4 bg-white border-t border-gray-100 flex-shrink-0">
+                <div id="sigmaAiComposer" class="sigma-ai-composer">
+                    <div class="sigma-ai-composer__field">
+                        <textarea id="sigmaAiInput" aria-label="Ask SIGMA AI assistant" placeholder="Ask..." class="sigma-ai-composer__input"
+                            rows="1"></textarea>
+                    </div>
+                    <button id="sigmaAiSendBtn" type="button" class="sigma-ai-send-btn" aria-label="Send message">
+                        <i class="fa-solid fa-arrow-up sigma-ai-send-icon"></i>
+                        <span class="sigma-ai-send-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIGMA Analytics Dropdown Panel -->
+        <div id="analytics-dropdown"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-hidden font-['Inter']">
+            <div class="notif-header mobile-panel-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="notif-header__title mobile-panel-title">SIGMA Analytics</h3>
+                </div>
+            </div>
+            <div id="analytics-dropdown-cards" class="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                <!-- Hydrated dynamically -->
+            </div>
+        </div>
+
+        <!-- Schedule & Tasks Dropdown Panel (Right Section on Mobile) -->
+        <div id="schedule-dropdown"
+            class="header-panel hidden fixed right-0 top-[82px] h-[calc(100vh-82px)] w-[400px] bg-white border-l border-slate-200 flex flex-col z-[300] rounded-l-[24px] overflow-hidden font-['Inter']">
+            <div class="notif-header mobile-panel-header">
+                <div class="mobile-panel-header-left">
+                    <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="notif-header__title mobile-panel-title">Schedule & Tasks</h3>
+                </div>
+            </div>
+            <div id="schedule-dropdown-cards" class="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                <!-- Hydrated dynamically from Right Section -->
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ SIDEBAR ═══════════════════════════════════════════════ -->
+    <aside id="sidebar">
+        <nav class="py-4 flex flex-col">
+            <!-- Mobile User Profile Row (Mobile only - Real avatar + name only) -->
+            <div id="mobile-sidebar-user-row" class="mobile-sidebar-user-row" onclick="window.openMobileAccountPanel(event)">
+                <div class="mobile-sidebar-avatar-wrap">
+                    <img id="mobile-sidebar-avatar-img" class="header-avatar-img hidden" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Avatar">
+                    <i id="mobile-sidebar-avatar-fallback" class="fa-solid fa-user"></i>
+                </div>
+                <span id="mobile-sidebar-user-name" class="mobile-sidebar-user-name">Teacher</span>
+            </div>
+
+            <a href="#" id="nav-dashboard" class="nav-link active">
+                <div class="sidebar-rail-icon">
+                    <i class="fa-solid fa-house"></i>
+                    <span class="rail-label">Home</span>
+                </div>
+                <span class="full-label">Home</span>
+            </a>
+            <!-- 2. My Classes (Accordion showing the 2 Sections) -->
+            <div class="nav-group" data-sidebar-group="classes">
+                <button id="nav-classes" type="button" data-toggle="submenu"
+                    class="nav-link nav-link--group w-full no-underline group cursor-pointer">
+                    <div class="sidebar-rail-icon">
+                        <i class="fa-solid fa-door-open"></i>
+                        <span class="rail-label">My Classes</span>
+                    </div>
+                    <span class="full-label">My Classes</span>
+                    <i class="fa-solid fa-chevron-right sidebar-group-chevron"></i>
+                </button>
+                <div id="sections-submenu" class="sidebar-submenu hidden teacher-section-nav-children">
+                    <div class="px-4 py-3 text-xs text-gray-400 select-none">No sections assigned</div>
+                </div>
+            </div>
+            <a href="#" id="nav-grades" class="nav-link no-underline group cursor-pointer" title="Grades" onclick="window.switchTab('nav-grades'); return false;">
+                <div class="sidebar-rail-icon">
+                    <i class="fa-solid fa-chart-bar"></i>
+                    <span class="rail-label">Grades</span>
+                </div>
+                <span class="full-label">Grades</span>
+            </a>
+            <a href="#" id="nav-resources" class="nav-link no-underline group">
+                <div class="sidebar-rail-icon">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span class="rail-label">Resources</span>
+                </div>
+                <span class="full-label">Resources</span>
+            </a>
+            <div class="mt-auto pb-4"></div>
+        </nav>
+    </aside>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebar-overlay"
+        class="fixed left-0 right-0 bottom-0 bg-black/40 z-[200] hidden transition-opacity duration-300 lg:hidden"
+        style="top: var(--shell-offset)"></div>
+
+    <!-- ═══ SUB-SIDEBAR (shared — subjects list AND topic nav) ═══ -->
+    <aside id="sub-sidebar" class="fixed z-[10500] hidden">
+        <div id="sub-sidebar-header"
+            class="px-4 py-4 border-b border-gray-100 bg-white flex items-center min-h-[60px] hidden">
+            <h3 id="sub-sidebar-title" class="font-black text-gray-900 text-[15px] leading-tight truncate w-full">
+                Subjects</h3>
+        </div>
+        <div id="sub-sidebar-content" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+    </aside>
+
+    <!-- ═══ LAYOUT WRAPPER ═══════════════════════════════════════ -->
+    <div id="layout-wrapper" class="flex-1 flex flex-col min-w-0">
+        <main id="main-content" class="flex-1 relative">
+            <div id="content-sections" class="w-full min-h-full">
+
+                <!-- DASHBOARD SECTION -->
+                <section id="section-dashboard" class="dynamic-section hidden">
+                    <div class="dashboard-grid">
+                        <!-- 1. Left Section (3/12) - Sticky Metrics Rail -->
+                        <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
+                            <div id="sigma-panels-container" class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
+                                <!-- Populated dynamically by js/pocket-card.js with 4 initial cards and More expansion -->
+                            </div>
+                        </div>
+
+                        <!-- 2. Middle Section (6/12) -->
+                        <div class="lg:col-span-6 space-y-3.5 mt-2 main-dashboard-column">
+
+                            <!-- Welcome Panel -->
+                            <div class="welcome-panel-container">
+                                <div class="welcome-panel">
+                                    <img id="welcome-panel-teacher-img" src="image/ICC Goals.jpeg" alt="Welcome to ICC">
+                                    <div class="welcome-panel-overlay"></div>
+                                    <div class="welcome-panel-content">
+                                        <h4>Welcome back, <span id="welcome-user-role"></span><span id="welcome-user-firstName">Teacher</span>!</h4>
+                                        <h2>INTERFACE COMPUTER COLLEGE</h2>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Announcement Composer Trigger -->
+                            <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3">
+                                <button id="trigger-announcement-composer" onclick="window.openComposerModal()"
+                                    class="w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                    <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
+                                    <span class="text-black-fade">What do you want to announce?</span>
+                                </button>
+                            </div>
+
+                            <!-- Announcement Tabs -->
+                            <div class="sigma-feed-tabs-container">
+                                <button type="button" class="sigma-feed-tab-btn active" data-announcement-tab="all">Announcements</button>
+                                <button type="button" class="sigma-feed-tab-btn" data-announcement-tab="important">Important</button>
+                                <button type="button" class="sigma-feed-tab-btn" data-announcement-tab="posts">Posts</button>
+                            </div>
+
+                            <!-- Feed Area -->
+                            <div id="admin-announcements-feed" class="space-y-3.5">
+                                <!-- Injected by JS -->
+                            </div>
+                        </div>
+
+                        <!-- 3. Right Section (3/12) - Sticky Sidebar -->
+                        <div class="lg:col-span-3 sticky top-[106px] mt-2 home-sticky-rail home-sticky-rail--right">
+                            <div class="home-dashboard-panels pb-8" id="teacher-home-dashboard-combined-list">
+                                <section class="home-dashboard-group">
+                                    <div id="teacher-class-panel-slot" class="home-dashboard-list"></div>
+                                </section>
+                                <section class="home-dashboard-group">
+                                    <div id="teacher-submissions-panel-slot" class="home-dashboard-list"></div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </section><!-- END section-dashboard -->
+
+                <!-- Shared profile page rendered by js/profile-view.js -->
+                <section id="user-profile-view" class="dynamic-section hidden" data-shared-profile-view></section>
+
+                <!-- Shared settings page rendered by js/settings-view.js -->
+                <section id="user-settings-view" class="dynamic-section hidden" data-shared-settings-view></section>
+
+
+
+                <!-- ══ CLASSROOM DETAIL ════════════════════════════════ -->
+                <section id="section-classroom-detail" class="dynamic-section hidden">
+                    <div class="classroom-room-container">
+                        <div id="classroom-detail-view" class="classroom-detail-shell">
+                            <!-- Enhanced Header: Shared Classroom Room Banner -->
+                            <div id="teacher-classroom-banner-wrapper" class="relative mb-0 w-full"></div>
+                                <div id="classes-detail-tabs" class="hidden classroom-detail-tabs">
+                                    <div class="flex items-center justify-between w-full h-full">
+                                        <div class="flex items-center gap-1 sm:gap-2 h-full overflow-x-auto">
+                                            <button onclick="switchClassDetailTab('room')" id="tab-btn-room"
+                                                class="teacher-section-tab active"><i class="fa-solid fa-chalkboard"></i><span>Room</span></button>
+                                            <button onclick="switchClassDetailTab('attendance')" id="tab-btn-attendance"
+                                                class="teacher-section-tab"><i class="fa-solid fa-calendar-check"></i><span>Attendance</span></button>
+                                            <button onclick="switchClassDetailTab('topics')" id="tab-btn-topics"
+                                                class="teacher-section-tab"><i class="fa-solid fa-book"></i><span>Topics</span></button>
+                                            <div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>
+                                        </div>
+
+                                        <!-- Quick Actions / Dropdown -->
+                                        <div class="flex items-center gap-1.5 sm:gap-2 h-full">
+                                            <div class="relative">
+                                                <button id="classroom-quick-settings-btn" class="classroom-quick-btn"
+                                                    title="More options" aria-label="More options"
+                                                    onclick="window.toggleClassroomSettingsMenu && window.toggleClassroomSettingsMenu(event)">
+                                                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                                                </button>
+                                                 <div id="classroom-settings-menu"
+                                                    class="classroom-settings-menu hidden">
+                                                    <!-- Members Option -->
+                                                    <button type="button"
+                                                        onclick="switchClassDetailTab('members'); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
+                                                        class="classroom-settings-item flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
+                                                        <i class="fa-solid fa-users text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                        <span class="text-black text-xs">Members</span>
+                                                     </button>
+
+                                                    <!-- View Grades Option (Mobile Only) -->
+                                                    <button type="button"
+                                                        onclick="window.openTeacherClassroomGradesModal ? window.openTeacherClassroomGradesModal() : (window.openTeacherClassroomGradebook ? window.openTeacherClassroomGradebook() : (window.switchTab && window.switchTab('nav-grades'))); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
+                                                        class="classroom-settings-item classroom-settings-grades-btn items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
+                                                        <i class="fa-solid fa-chart-simple text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                        <span class="text-black text-xs">View Grades</span>
+                                                    </button>
+
+                                                    <!-- Customize Banner Button -->
+                                                    <button type="button"
+                                                        onclick="window.openCurrentClassroomCustomizer && window.openCurrentClassroomCustomizer(); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
+                                                        class="classroom-settings-item flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
+                                                        <i class="fa-solid fa-palette text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                        <span class="text-black text-xs">Customize Banner</span>
+                                                    </button>
+
+                                                    <!-- Comments Toggle Row -->
+                                                    <div class="classroom-settings-item flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer select-none whitespace-nowrap"
+                                                        onclick="window.handleClassroomCommentsRowClick && window.handleClassroomCommentsRowClick(event)">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <i class="fa-regular fa-comments text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                            <span class="text-xs font-semibold text-black tracking-tight whitespace-nowrap">Student Comment</span>
+                                                        </div>
+                                                        <label class="sigma-toggle-switch ml-2" onclick="event.stopPropagation()">
+                                                            <input type="checkbox" id="classroom-comments-toggle-switch" onchange="window.toggleCurrentClassroomComments && window.toggleCurrentClassroomComments(event)" aria-label="Toggle classroom comments switch">
+                                                            <span class="sigma-toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tab Contents -->
+                                <div id="class-detail-content" class="classroom-detail-content">
+                                    <div id="detail-section-topics" class="classroom-tab-section hidden">
+                                        <div id="room-topics-mount"></div>
+                                    </div>
+                                    <!-- Room Tab -->
+                                    <div id="detail-section-room" class="classroom-room-panel classroom-tab-section">
+                                        <div class="classroom-room-panel__inner">
+                                            <div class="classroom-room-layout">
+                                                <!-- Left Column: Announcements Stream (Reduced Width) -->
+                                                <div class="classroom-room-main flex-1 min-w-0 w-full">
+                                                    <!-- Announcement Composer Trigger Card (Matches Home Composer Trigger) -->
+                                                    <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3 w-full">
+                                                        <button type="button"
+                                                            onclick="window.openClassroomComposer && window.openClassroomComposer()"
+                                                            class="w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                                            <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
+                                                            <span class="text-black-fade">What do you want to announce?</span>
+                                                        </button>
+                                                    </div>
+
+                                                    <div id="room-announcements-feed"
+                                                        class="room-announcements-feed w-full"></div>
+                                                </div>
+
+                                                <!-- Right Column: Submissions Sidebar (Desktop only) -->
+                                                <div class="classroom-room-sidebar w-full lg:w-[280px] xl:w-[320px] flex-shrink-0">
+                                                    <div class="space-y-3.5 sticky top-6 classroom-room-sidebar__stack">
+                                                         <!-- Classwork Quick Links (1 Panel, No Title) -->
+                                                        <div class="home-dashboard-card !p-2 !gap-0 rounded-[22px] flex flex-col w-full flex-shrink-0">
+                                                            <button type="button"
+                                                                onclick="window.openTeacherClassroomGradesModal ? window.openTeacherClassroomGradesModal() : (window.openTeacherClassroomGradebook ? window.openTeacherClassroomGradebook() : (window.switchTab && window.switchTab('nav-grades')))"
+                                                                class="w-full py-2.5 px-3.5 rounded-xl flex items-center justify-between text-left bg-transparent hover:bg-slate-100 active:bg-slate-200 cursor-pointer font-['Inter'] transition-all">
+                                                                <div class="flex items-center gap-2.5">
+                                                                    <i class="fa-solid fa-chart-simple text-[#15803d] text-sm w-4 text-center shrink-0"></i>
+                                                                    <span class="text-xs sm:text-[13px] font-semibold text-black">View Grades</span>
+                                                                </div>
+                                                                <i class="fa-solid fa-arrow-right text-xs text-[#15803d]"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Members Tab -->
+                                    <div id="detail-section-members" class="hidden space-y-6 classroom-tab-section"></div>
+
+                                    <div id="detail-section-students" class="hidden space-y-4 classroom-tab-section">
+                                        <div class="mt-0 classroom-tab-surface">
+                                            <div class="flex items-center justify-between mb-6">
+                                                <h2
+                                                    class="text-sm font-black text-black uppercase tracking-widest leading-none">
+                                                    Student Roster</h2>
+                                                <div class="flex items-center gap-2">
+                                                    <span
+                                                        class="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-bold rounded-full">38
+                                                        Active</span>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr class="bg-[#15803d] border-b border-[#166534] select-none text-white">
+                                                            <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Student Name</th>
+                                                            <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Status</th>
+                                                            <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] text-right">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="student-roster-body" class="divide-y divide-gray-50">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Attendance Tab (Now Recording Interface) -->
+                                    <div id="detail-section-attendance" class="hidden space-y-4 classroom-tab-section">
+                                        <!-- Content removed per user request. Will be updated later. -->
+                                    </div>
+
+                                    <!-- Performance Tab (Hidden) -->
+                                    <div id="detail-section-analytics" class="hidden space-y-6 classroom-tab-section">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div
+                                                class="bg-white p-6 rounded-2xl border border-gray-100 standard-panel-shadow col-span-2">
+                                                <h3
+                                                    class="text-sm font-black text-gray-800 uppercase tracking-widest mb-6">
+                                                    Class Progress Overview</h3>
+                                                <div class="h-64 flex items-end justify-between gap-4 px-4">
+                                                    <div
+                                                        class="flex-1 bg-icc-light/50 rounded-t-lg relative group h-[60%]">
+                                                        <div
+                                                            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            Week 1: 82%</div>
+                                                    </div>
+                                                    <div
+                                                        class="flex-1 bg-icc-light/50 rounded-t-lg relative group h-[75%]">
+                                                        <div
+                                                            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            Week 2: 88%</div>
+                                                    </div>
+                                                    <div
+                                                        class="flex-1 bg-icc rounded-t-lg relative group h-[85%] shadow-lg shadow-icc/10">
+                                                        <div
+                                                            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            Week 3: 92%</div>
+                                                    </div>
+                                                    <div class="flex-1 bg-gray-100 rounded-t-lg h-[40%]"></div>
+                                                    <div class="flex-1 bg-gray-100 rounded-t-lg h-[30%]"></div>
+                                                </div>
+                                                <div
+                                                    class="flex justify-between mt-4 px-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                                    <span>Week 1</span><span>Week 2</span><span>Week
+                                                        3</span><span>Week
+                                                        4</span><span>Week 5</span>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="bg-white p-6 rounded-2xl border border-gray-100 standard-panel-shadow">
+                                                <h3
+                                                    class="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">
+                                                    Top Performers</h3>
+                                                <div class="space-y-4">
+                                                    <div
+                                                        class="flex items-center justify-between p-2 bg-icc-light/20 rounded-xl">
+                                                        <div class="flex items-center gap-3">
+                                                            <div
+                                                                class="w-8 h-8 rounded-full bg-icc text-white flex items-center justify-center text-[10px] font-black">
+                                                                1</div>
+                                                            <span class="text-xs font-bold text-gray-800">Bautista,
+                                                                <span
+                                                                    class="view-user-firstName-banner">Firstname</span></span>
+                                                        </div>
+                                                        <span class="text-xs font-black text-icc">98.5%</span>
+                                                    </div>
+                                                    <div
+                                                        class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors">
+                                                        <div class="flex items-center gap-3">
+                                                            <div
+                                                                class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-black">
+                                                                2</div>
+                                                            <span class="text-xs font-bold text-gray-800">Dela Cruz,
+                                                                Juan</span>
+                                                        </div>
+                                                        <span class="text-xs font-black text-gray-400">96.2%</span>
+                                                    </div>
+                                                    <div
+                                                        class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl transition-colors">
+                                                        <div class="flex items-center gap-3">
+                                                            <div
+                                                                class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-black">
+                                                                3</div>
+                                                            <span class="text-xs font-bold text-gray-800">Garcia,
+                                                                Ana</span>
+                                                        </div>
+                                                        <span class="text-xs font-black text-gray-400">95.8%</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    class="w-full mt-6 py-2 text-[10px] font-black text-icc uppercase tracking-widest hover:underline">View
+                                                    All Rankings</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="detail-section-topics-legacy" class="hidden space-y-6 classroom-tab-section">
+                                        <!-- Module List -->
+                                        <div class="space-y-6 pt-6">
+                                            <div class="flex items-center justify-between mb-4 px-6">
+                                                <div id="admin-sync-indicator"
+                                                    class="hidden flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
+                                                    <i class="fa-solid fa-rotate text-[10px] animate-spin"></i>
+                                                    <span class="text-[10px] font-black uppercase tracking-widest">Admin
+                                                        Sync Active</span>
+                                                </div>
+                                                <!-- Add Materials Trigger -->
+                                                <div class="relative">
+                                                    <button type="button" onclick="toggleMaterialsPopup()"
+                                                        class="text-sm font-bold text-black transition-colors hover:text-[#FFD000] flex items-center gap-2 py-2">
+                                                        <i class="fa-solid fa-plus text-xs"></i>
+                                                        Add Materials
+                                                    </button>
+
+                                                    <!-- Materials Small Panel -->
+                                                    <div id="materials-popup-panel"
+                                                        class="hidden absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-up-sm">
+                                                        <div class="px-5 py-3 border-b border-gray-50 bg-gray-50/50">
+                                                            <h3
+                                                                class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                Materials</h3>
+                                                        </div>
+                                                        <div class="p-1">
+                                                            <button type="button" onclick="switchTab('nav-materials')"
+                                                                class="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 hover:text-[#FFD000] rounded-xl transition-all group text-left">
+                                                                <i
+                                                                    class="fa-solid fa-folder-open text-gray-300 group-hover:text-[#FFD000] w-4 text-center"></i>
+                                                                Storage
+                                                            </button>
+                                                            <button type="button"
+                                                                onclick="window.toggleUploadMaterialOverlay(true)"
+                                                                class="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 hover:text-[#FFD000] rounded-xl transition-all group text-left">
+                                                                <i
+                                                                    class="fa-solid fa-cloud-arrow-up text-gray-300 group-hover:text-[#FFD000] w-4 text-center"></i>
+                                                                Upload Material
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div id="materials-list-grid"
+                                                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                </section>
+
+
+                <!-- MATERIALS SECTION -->
+                <section id="section-materials" class="dynamic-section hidden">
+                    <div id="materials-content-view" class="p-6 md:p-8">
+                        <div id="materials-dynamic-grid">
+                            <!-- Populated dynamically by renderMaterialsPage() in teacher.js -->
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-curriculum-page" class="dynamic-section hidden">
+                    <div class="mx-auto max-w-[1024px] w-full">
+                        <div id="curriculum-page-shell"
+                            class="bg-white border-x border-slate-200 min-h-screen standard-panel-shadow"></div>
+                    </div>
+                </section>
+
+                <section id="section-topic-detail" class="dynamic-section hidden">
+                </section>
+
+                <section id="section-topic-content" class="dynamic-section hidden">
+                </section>
+
+                <section id="section-grades" class="dynamic-section hidden">
+                </section>
+
+
+
+
+                <!-- Shared resources page rendered by js/resources-view.js -->
+                <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view></section>
+
+                <!-- ATTENDANCE SECTION -->
+                <section id="section-attendance"
+                    class="dynamic-section hidden flex-1 flex flex-col overflow-hidden pt-6 px-4 pb-4">
+                    <div class="mb-2 flex flex-col md:flex-row items-center justify-start gap-3 flex-shrink-0">
+
+                        <div class="flex items-center gap-3">
+                            <div class="relative group">
+                                <select id="attendance-year-select" aria-label="Select attendance year"
+                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[100px]">
+                                    <option value="2019">2019</option>
+                                    <option value="2020">2020</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026" selected>2026</option>
+                                    <option value="2027">2027</option>
+                                </select>
+                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', -1)"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
+                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', 1)"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
+                            </div>
+
+                            <div class="relative group">
+                                <select id="attendance-month-select" aria-label="Select attendance month"
+                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[140px]">
+                                    <option value="0">January</option>
+                                    <option value="1">February</option>
+                                    <option value="2" selected>March</option>
+                                    <option value="3">April</option>
+                                    <option value="4">May</option>
+                                    <option value="5">June</option>
+                                    <option value="6">July</option>
+                                    <option value="7">August</option>
+                                    <option value="8">September</option>
+                                    <option value="9">October</option>
+                                    <option value="10">November</option>
+                                    <option value="11">December</option>
+                                </select>
+                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', -1)"
+                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
+                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', 1)"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
+                            </div>
+
+                            <button id="attendance-today-btn"
+                                class="px-5 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-xs font-bold shadow-sm hover:bg-gray-100 transition-colors focus:outline-none focus:ring-0">Today</button>
+                        </div>
+                    </div>
+
+                    <div id="attendance-calendar-shell"
+                        class="flex-1 bg-white rounded-xl border border-black shadow-sm flex flex-col overflow-hidden relative w-full max-w-6xl ml-0 mb-0">
+                        <div class="grid grid-cols-7 border-b border-black bg-white flex-shrink-0">
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
+                                Sun</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
+                                Mon</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
+                                Tue</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
+                                Wed</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
+                                Thu</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
+                                Fri</div>
+                            <div
+                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
+                                Sat</div>
+                        </div>
+
+                        <div id="attendance-full-calendar-grid" class="flex-1 grid grid-cols-7 overflow-hidden">
+                        </div>
+
+                    </div>
+                </section>
+        </main>
+    </div>
+
+
+
+
+
+    <div id="mobile-sigma-sheet-backdrop" class="mobile-sigma-sheet-backdrop"></div>
+    <div id="mobile-sigma-sheet" class="mobile-sigma-sheet">
+        <div class="mobile-sigma-sheet__grab"></div>
+        <div class="mobile-sigma-sheet__head">
+            <span class="mobile-sigma-sheet__title">SIGMA Analytics</span>
+            <button type="button" id="mobile-sigma-sheet-close" class="mobile-sigma-sheet__close" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mobile-sigma-cards custom-scrollbar" id="mobile-sigma-cards"></div>
+    </div>
+
+    <!-- Notification Pull-up -->
+    <div id="mobile-noti-panel" class="mobile-pull-up-panel">
+        <div class="mobile-pull-up-header">
+            <span class="mobile-pull-up-title">Notifications</span>
+            <button type="button" class="mobile-pull-up-close" onclick="closeMobilePanel('mobile-noti-panel')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mobile-pull-up-content">
+            <div class="space-y-4">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-icc uppercase tracking-widest mb-1">New Submission</p>
+                    <p class="text-sm font-bold text-slate-800">Juan Abad submitted: Logic Gates Quiz</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Grade 11 - ICT A • 10:45 AM</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Class Schedule</p>
+                    <p class="text-sm font-bold text-slate-800">Next Class in 15 mins</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Web Development 1 • Room Lab 2</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-yellow-600 uppercase tracking-widest mb-1">Announcement</p>
+                    <p class="text-sm font-bold text-slate-800">2nd Quarter Updates</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Your announcement reached 45 students.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Pull-up -->
+    <div id="mobile-calendar-panel" class="mobile-pull-up-panel">
+        <div class="mobile-pull-up-header">
+            <span class="mobile-pull-up-title">Calendar & Schedule</span>
+            <button type="button" class="mobile-pull-up-close" onclick="closeMobilePanel('mobile-calendar-panel')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mobile-pull-up-content">
+            <div id="mobile-calendar-container" class="mb-6">
+                <!-- Inline calendar will be rendered here -->
+            </div>
+            <div class="mt-4 text-center">
+                <button class="view-calendar-anchor text-xs">View Calendar →</button>
+            </div>
+
+            <div class="mt-8 space-y-6">
+                <div>
+                    <div class="p-4 bg-icc/5 rounded-2xl border border-icc/10">
+                        <p class="text-sm font-bold text-slate-800">Web Development 1</p>
+                        <p class="text-[11px] text-icc font-black mt-1">TODAY • 1:30 PM - 3:00 PM</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Room Lab 2 • Grade 11 - ICT A</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <p class="text-sm font-bold text-slate-800">Logic Gates Exercise</p>
+                        <p class="text-[11px] text-red-600 font-black mt-1">DUE TODAY • 11:59 PM</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800">Final Project Proposal</p>
+                        <p class="text-[11px] text-slate-500 font-black mt-1">DUE MAY 15 • 11:59 PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Shared profile picture overlay rendered by js/profile-view.js -->
+
+    <!-- ═══ LEAVE ROOM MODAL ══════════════════════════════════════ -->
+    <div id="leaveRoomModal" class="hidden fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative z-10 shadow-2xl">
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-black text-gray-900 tracking-tight">Do you want to leave the room?</h3>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="confirmLeaveRoom()"
+                    class="w-full py-4 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-lg shadow-red-200 hover:bg-red-700 transition-all transform active:scale-95">Yes</button>
+                <button onclick="closeLeaveRoomModal()"
+                    class="w-full py-4 bg-gray-50 text-gray-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-gray-100 transition-all">No</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- TEACHER MATERIAL UPLOAD OVERLAY (Full Screen Workstation) -->
+    <div id="teacher-material-upload-overlay"
+        class="sigma-modal-overlay hidden">
+
+        <!-- Exit Control (Far Right) -->
+        <button type="button" onclick="window.toggleUploadMaterialOverlay(false)"
+            class="fixed top-10 right-10 w-12 h-12 rounded-full hover:bg-slate-200 flex items-center justify-center text-black transition-all z-[1001] cursor-pointer"
+            title="Exit Editor">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <div class="sigma-modal-shell animate-in slide-in-from-top-4 duration-500">
+            <!-- White Panel (Full Height Column) -->
+            <div
+                class="sigma-modal-panel">
+                <div class="border-b border-slate-50">
+                    <div class="px-10 py-8">
+                        <h1 class="text-2xl font-bold text-black tracking-tight">Upload Materials</h1>
+                    </div>
+                </div>
+
+                <div class="p-10 space-y-8">
+                    <div id="teacher-materials-main-view" class="space-y-8">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <h3 class="text-lg font-bold text-black tracking-tight">Classroom Materials</h3>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Add and
+                                    organize subject content</p>
+                            </div>
+
+                            <div class="flex items-center gap-6">
+                                <!-- Material Search Box -->
+                                <div
+                                    class="flex items-center bg-slate-50 border border-slate-100 rounded-xl px-4 py-1.5 gap-3 shadow-sm group focus-within:border-black transition-all">
+                                    <input type="text" id="teacher-mat-search" aria-label="Search teacher material" name="teacher-mat-search" placeholder="Search Material"
+                                        maxlength="50" autocomplete="off"
+                                        oninput="if(!this.value.trim()){window.renderTeacherMaterialsList();}"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();window.renderTeacherMaterialsList();}"
+                                        class="bg-transparent border-0 outline-none text-[12px] font-medium text-black w-48 placeholder:text-slate-400 placeholder:text-[10px] placeholder:font-black placeholder:uppercase placeholder:tracking-widest">
+                                    <button type="button" id="teacher-mat-search-btn" onclick="window.renderTeacherMaterialsList()" aria-label="Search material"
+                                        class="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-lg text-black hover:bg-slate-200 transition-all cursor-pointer">
+                                        <i class="fa-solid fa-magnifying-glass text-[12px] text-black"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Add Material Dropdown -->
+                                <div class="relative">
+                                    <button id="teacher-add-material-trigger" type="button"
+                                        onclick="window.toggleTeacherMaterialDropdown(event)"
+                                        class="text-[11px] font-black uppercase tracking-[0.2em] text-black hover:text-[#FFD000] transition-colors flex items-center gap-2 bg-transparent border-0 p-0">
+                                        <i class="fa-solid fa-plus text-[10px]"></i>
+                                        Add Material
+                                    </button>
+
+                                    <!-- Dropdown Menu -->
+                                    <div id="teacher-add-material-dropdown"
+                                        class="absolute right-0 top-full mt-4 w-64 bg-white border border-slate-100 rounded-3xl shadow-2xl hidden z-[50] overflow-hidden">
+                                        <div class="p-3 grid gap-1">
+                                            <button type="button" onclick="window.addTeacherMaterial('Video')"
+                                                class="w-full text-left px-6 py-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                                <span class="text-[12px] font-bold text-black">Add Video</span>
+                                            </button>
+                                            <button type="button" onclick="window.addTeacherMaterial('Lesson')"
+                                                class="w-full text-left px-6 py-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                                <span class="text-[12px] font-bold text-black">Add Lesson</span>
+                                            </button>
+                                            <button type="button" onclick="window.addTeacherMaterial('Quiz')"
+                                                class="w-full text-left px-6 py-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                                <span class="text-[12px] font-bold text-black">Add Quiz</span>
+                                            </button>
+                                            <button type="button" onclick="window.addTeacherMaterial('Task')"
+                                                class="w-full text-left px-6 py-4 hover:bg-slate-50 rounded-2xl transition-all">
+                                                <span class="text-[12px] font-bold text-black">Add Task</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Materials Grid Container -->
+                        <div id="teacher-materials-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        </div>
+
+                        <!-- Empty State for Materials -->
+                        <div id="teacher-materials-empty"
+                            class="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-200">
+                            <i class="fa-solid fa-folder-open sigma-empty-icon" aria-hidden="true"></i>
+                            <p class="sigma-empty-title">No Materials Added Yet</p>
+                        </div>
+                    </div>
+
+                    <!-- Material Editor View -->
+                    <div id="teacher-material-editor-view" class="hidden">
+    <!-- Notification Pull-up -->
+    <div id="mobile-noti-panel" class="mobile-pull-up-panel">
+        <div class="mobile-pull-up-header">
+            <span class="mobile-pull-up-title">Notifications</span>
+            <button type="button" class="mobile-pull-up-close" onclick="closeMobilePanel('mobile-noti-panel')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mobile-pull-up-content">
+            <div class="space-y-4">
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-icc uppercase tracking-widest mb-1">New Submission</p>
+                    <p class="text-sm font-bold text-slate-800">Juan Abad submitted: Logic Gates Quiz</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Grade 11 - ICT A • 10:45 AM</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Class Schedule</p>
+                    <p class="text-sm font-bold text-slate-800">Next Class in 15 mins</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Web Development 1 • Room Lab 2</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p class="text-xs font-black text-yellow-600 uppercase tracking-widest mb-1">Announcement</p>
+                    <p class="text-sm font-bold text-slate-800">2nd Quarter Updates</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Your announcement reached 45 students.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Pull-up -->
+    <div id="mobile-calendar-panel" class="mobile-pull-up-panel">
+        <div class="mobile-pull-up-header">
+            <span class="mobile-pull-up-title">Calendar & Schedule</span>
+            <button type="button" class="mobile-pull-up-close" onclick="closeMobilePanel('mobile-calendar-panel')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mobile-pull-up-content">
+            <div id="mobile-calendar-container" class="mb-6">
+                <!-- Inline calendar will be rendered here -->
+            </div>
+            <div class="mt-4 text-center">
+                <button class="view-calendar-anchor text-xs">View Calendar →</button>
+            </div>
+
+            <div class="mt-8 space-y-6">
+                <div>
+                    <div class="p-4 bg-icc/5 rounded-2xl border border-icc/10">
+                        <p class="text-sm font-bold text-slate-800">Web Development 1</p>
+                        <p class="text-[11px] text-icc font-black mt-1">TODAY • 1:30 PM - 3:00 PM</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Room Lab 2 • Grade 11 - ICT A</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <p class="text-sm font-bold text-slate-800">Logic Gates Exercise</p>
+                        <p class="text-[11px] text-red-600 font-black mt-1">DUE TODAY • 11:59 PM</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800">Final Project Proposal</p>
+                        <p class="text-[11px] text-slate-500 font-black mt-1">DUE MAY 15 • 11:59 PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <!-- Shared profile picture overlay rendered by js/profile-view.js -->
+
+    <!-- ═══ LEAVE ROOM MODAL ══════════════════════════════════════ -->
+    <div id="leaveRoomModal" class="hidden fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="bg-white rounded-[2.5rem] p-10 max-w-sm w-full relative z-10 shadow-2xl">
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-black text-gray-900 tracking-tight">Do you want to leave the room?</h3>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="confirmLeaveRoom()"
+                    class="w-full py-4 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-lg shadow-red-200 hover:bg-red-700 transition-all transform active:scale-95">Yes</button>
+                <button onclick="closeLeaveRoomModal()"
+                    class="w-full py-4 bg-gray-50 text-gray-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-gray-100 transition-all">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="js/shared-components.js?v=20260930navheader2"></script>
+    <script src="js/topbar.js?v=20260928scrolllock1"></script>
+    <script src="js/sidebar.js?v=20260923calmonthfix1"></script>
+    <script src="js/notifications.js?v=20260930studallnotif1"></script>
+    <script src="js/calendar.js?v=20260929dateselect1"></script>
+    <script src="js/dialog.js?v=20260930scaleaskpanel1"></script>
+    <script src="js/profile-view.js?v=20260923accountmenu1"></script>
+    <script src="js/settings-view.js?v=20260923calmonthfix1"></script>
+    <script src="js/resources-view.js?v=20260923empty1"></script>
+    <script src="js/classroom-room.js?v=20260928hidegradebtn1"></script>
+    <script src="js/panels.js?v=20260928panelpolish1"></script>
+    <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
+    <script src="js/announcements.js?v=20260929badgewrap1"></script>
+    <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
+    <script src="js/sigma-analytics.js?v=20260928fastgradebook1"></script>
+    <script src="js/subject-content-editor.js?v=20260929reorderdesktopscale1"></script>
+    <script src="js/subject-editor.js?v=20260930nobackbtn1"></script>
+    <script src="js/assessments-page.js?v=20260927gradefix5"></script>
+    <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
+    <script src="js/teacher.js?v=20260930footerbtn1"></script>
+</body>
+</html>

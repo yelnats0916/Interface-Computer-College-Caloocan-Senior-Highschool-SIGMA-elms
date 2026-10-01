@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sigma ELMS - Standalone Circular Time Picker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    html, body, button, input, select, textarea, div, span, p, h1, h2, h3, h4, h5, h6, label {
+      font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .touch-none-select {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex flex-col items-center justify-center p-4 text-slate-100">
+
+  <div class="max-w-md w-full bg-white text-slate-900 rounded-3xl shadow-2xl p-6 flex flex-col items-center space-y-4 border border-slate-100">
+    <div class="text-center">
+      <h1 class="text-lg font-bold text-slate-900">Sigma ELMS Time Dial</h1>
+      <p class="text-xs text-slate-500">Standalone Shareable Component</p>
+    </div>
+
+    <!-- Container for Time Picker Component -->
+    <div id="time-picker-mount" class="w-full flex justify-center"></div>
+
+    <!-- Output Display -->
+    <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-1">
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Selected Output</div>
+      <div class="text-sm font-bold text-emerald-700" id="output-preview">12:00 AM (00:00)</div>
+    </div>
+  </div>
+
+  <script src="js/time-picker-dial.js"></script>
+  <script>
+    // Initialize standalone component
+    const picker = createCircularTimePicker(document.getElementById('time-picker-mount'), {
+      initialTime: '12:00 AM',
+      onChange: (val) => {
+        document.getElementById('output-preview').textContent = `${val.time12} (${val.time24})`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,483 @@
+/**
+ * SIGMA ELMS - Unified In-App Settings View Stylesheet
+ * Standardized across Admin, Teacher, and Student portals.
+ */
+
+#user-settings-view {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+#user-settings-view.hidden {
+    display: none !important;
+}
+
+#user-settings-view:not(.hidden) {
+    display: block !important;
+}
+
+.sigma-settings-layout {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: calc(100vh - var(--sidebar-top-offset, 82px));
+    max-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    background-color: #f3f4f6;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #000000;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.sigma-settings-sidebar {
+    width: 320px;
+    min-width: 280px;
+    max-width: 340px;
+    flex-shrink: 0;
+    background-color: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.sigma-settings-main {
+    flex: 1 1 0%;
+    min-width: 0;
+    height: 100%;
+    background-color: #f3f4f6;
+    padding: 2.5rem 3rem;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    box-sizing: border-box;
+}
+
+.sigma-settings-inner {
+    width: 100%;
+    max-width: 56rem;
+    margin: 0 auto;
+    padding-bottom: 4rem;
+}
+
+.sigma-settings-panel-card {
+    background-color: #ffffff;
+    border-radius: 1.5rem;
+    border: 1px solid #f1f5f9;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    scroll-margin-top: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+@media (max-width: 768px) {
+    .sigma-settings-layout {
+        flex-direction: column;
+        height: auto;
+        max-height: none;
+        min-height: auto;
+        overflow: visible;
+    }
+    .sigma-settings-sidebar {
+        width: 100%;
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1.25rem 1rem;
+        height: auto;
+        overflow: visible;
+    }
+    .sigma-settings-main {
+        height: auto;
+        overflow: visible;
+        padding: 1.5rem 1rem;
+    }
+}
+
+/* ─── Category Sidebar Buttons (Help Center Standard) ─── */
+.sigma-settings-cat-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.85rem 1.15rem;
+    border-radius: 1rem;
+    border: none;
+    background: transparent;
+    color: #000000;
+    font-size: 0.925rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: left;
+    width: 100%;
+    user-select: none;
+    text-transform: capitalize;
+}
+
+.sigma-settings-cat-btn .sigma-settings-cat-icon,
+.sigma-settings-cat-btn i,
+.sigma-settings-cat-btn span {
+    color: #000000;
+    transition: color 0.18s ease;
+}
+
+/* UNSELECTED HOVER: Grey background with black text */
+.sigma-settings-cat-btn:not(.active):hover,
+button.sigma-settings-cat-btn:not(.active):hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+.sigma-settings-cat-btn:not(.active):hover *,
+button.sigma-settings-cat-btn:not(.active):hover * {
+    color: #000000 !important;
+}
+
+/* SELECTED + HOVER: Lock yellow/white — never grey when hovering active button */
+.sigma-settings-cat-btn.active:hover,
+button.sigma-settings-cat-btn.active:hover,
+.sigma-settings-cat-btn.bg-icc-yellow:hover,
+button.sigma-settings-cat-btn.bg-icc-yellow:hover {
+    background-color: #FFD000 !important;
+    color: #ffffff !important;
+}
+.sigma-settings-cat-btn.active:hover *,
+button.sigma-settings-cat-btn.active:hover *,
+.sigma-settings-cat-btn.bg-icc-yellow:hover *,
+button.sigma-settings-cat-btn.bg-icc-yellow:hover * {
+    color: #ffffff !important;
+}
+
+/* SELECTED STATE: Yellow background with crisp white text & icon */
+.sigma-settings-cat-btn.active,
+button.sigma-settings-cat-btn.active,
+.sigma-settings-cat-btn.bg-icc-yellow,
+button.sigma-settings-cat-btn.bg-icc-yellow {
+    background-color: #FFD000 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+.sigma-settings-cat-btn.active *,
+button.sigma-settings-cat-btn.active *,
+.sigma-settings-cat-btn.bg-icc-yellow *,
+button.sigma-settings-cat-btn.bg-icc-yellow *,
+.sigma-settings-cat-btn.active i,
+button.sigma-settings-cat-btn.active i,
+.sigma-settings-cat-btn.bg-icc-yellow i,
+button.sigma-settings-cat-btn.bg-icc-yellow i,
+.sigma-settings-cat-btn.active span,
+button.sigma-settings-cat-btn.active span,
+.sigma-settings-cat-btn.bg-icc-yellow span,
+button.sigma-settings-cat-btn.bg-icc-yellow span {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
+.sigma-settings-cat-icon {
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    transition: all 0.18s ease;
+}
+
+.sigma-settings-cat-btn.active .sigma-settings-cat-icon,
+button.sigma-settings-cat-btn.active .sigma-settings-cat-icon,
+.sigma-settings-cat-btn.bg-icc-yellow .sigma-settings-cat-icon,
+button.sigma-settings-cat-btn.bg-icc-yellow .sigma-settings-cat-icon {
+    background: transparent !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+/* ─── Card Section ─── */
+.sigma-settings-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 1.75rem 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    margin-bottom: 1.5rem;
+}
+
+.sigma-settings-card-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sigma-settings-card-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.sigma-settings-card-title i {
+    color: #15803d;
+    font-size: 1.05rem;
+}
+
+.sigma-settings-card-desc {
+    font-size: 0.825rem;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50));
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
+/* ─── Integrated Panel Headers ─── */
+.sigma-panel-header {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.sigma-panel-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: -0.015em;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin: 0;
+}
+
+.sigma-panel-subtitle {
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.55);
+    margin-top: 0.35rem;
+    line-height: 1.45;
+}
+
+/* ─── Form Fields & Grid ─── */
+.sigma-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.sigma-settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.sigma-settings-label {
+    font-size: 0.815rem;
+    font-weight: 700;
+    color: #000000;
+}
+
+.sigma-settings-input,
+.sigma-settings-select,
+.sigma-settings-textarea {
+    width: 100%;
+    padding: 0.65rem 0.875rem;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #000000;
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+.sigma-settings-input:focus,
+.sigma-settings-select:focus,
+.sigma-settings-textarea:focus {
+    border-color: #FFD000;
+    box-shadow: none;
+}
+
+.sigma-settings-input[readonly],
+.sigma-settings-input:disabled {
+    background: #f8fafc;
+    color: rgba(0, 0, 0, 0.60);
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+}
+
+/* ─── Notification Toggle Rows ─── */
+.sigma-settings-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sigma-settings-toggle-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sigma-settings-toggle-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sigma-settings-toggle-title {
+    font-size: 0.925rem;
+    font-weight: 700;
+    color: #000000;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sigma-settings-toggle-title i {
+    color: #15803d;
+    font-size: 0.875rem;
+    width: 16px;
+    text-align: center;
+}
+
+.sigma-settings-toggle-desc {
+    font-size: 0.8rem;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50));
+    margin-top: 0.2rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* ─── Apple-style Clean Toggle Switch ─── */
+.sigma-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.sigma-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.sigma-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #cbd5e1;
+    transition: 0.2s ease;
+    border-radius: 9999px;
+}
+
+.sigma-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.sigma-toggle-switch input:checked + .sigma-toggle-slider {
+    background-color: #15803d;
+}
+
+.sigma-toggle-switch input:checked + .sigma-toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* ─── Action Buttons Footer ─── */
+.sigma-settings-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.sigma-settings-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    user-select: none;
+}
+
+.sigma-settings-btn--primary {
+    background: #15803d;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(21, 128, 61, 0.25);
+}
+
+.sigma-settings-btn--primary:hover {
+    background: #166534;
+}
+
+.sigma-settings-btn--secondary {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+
+.sigma-settings-btn--secondary:hover {
+    background: #e2e8f0;
+}
+
+/* ─── Toast Feedback ─── */
+.sigma-settings-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #0f172a;
+    color: #ffffff;
+    padding: 0.875rem 1.25rem;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    font-size: 0.875rem;
+    font-weight: 600;
+    animation: slideUpToast 0.25s ease-out;
+}
+
+@keyframes slideUpToast {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -1,0 +1,2831 @@
+/**
+ * SIGMA ELMS - Shared Form & UI Component Design System
+ * 
+ * Centralized styles for buttons, textboxes, dropdowns, labels,
+ * modal workstations, and typography across all portals.
+ */
+
+/* ==========================================================================
+   1. GLOBAL TYPOGRAPHY & FONT STANDARDIZATION
+   ========================================================================== */
+html,
+body,
+button,
+input,
+select,
+textarea,
+h1, h2, h3, h4, h5, h6,
+p, label, a, table, td, th,
+div:not([class*="fa-"]),
+span:not([class*="fa-"]):not(.fa):not(.fa-solid):not(.fa-regular):not(.fa-brands) {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure FontAwesome icons always render correctly */
+.fa,
+.fas,
+.far,
+.fal,
+.fad,
+.fab,
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-thin,
+.fa-duotone,
+.fa-brands,
+i,
+i::before,
+i::after,
+[class^="fa-"],
+[class*=" fa-"],
+[class*="fa-"]::before,
+[class*="fa-"]::after {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "FontAwesome" !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    line-height: 1;
+}
+
+/* ==========================================================================
+   1.1 UNIVERSAL MODAL STEP NAVIGATION BARS (UNIFIED GREEN THEME)
+   ========================================================================== */
+.sigma-step-bar-active,
+[id*="-step-bar-"].bg-\[\#FFD000\]\/20,
+[id*="-step-bar-"].bg-\[\#15803d\]\/10 {
+    background-color: rgba(21, 128, 61, 0.10) !important;
+}
+
+.sigma-step-bar-active span,
+[id*="step-bar-"][id*="-label"].text-\[\#FFD000\],
+[id*="step-bar-"][id*="-label"].text-\[\#15803d\] {
+    color: #15803d !important;
+}
+
+[id*="step-bar-"][id*="-track"].bg-\[\#FFD000\],
+[id*="step-bar-"][id*="-track"].bg-\[\#15803d\] {
+    background-color: #15803d !important;
+}
+
+/* Inactive step labels use standard Black Fade */
+[id*="step-bar-"][id*="-label"]:not(.text-\[\#15803d\]):not(.text-\[\#FFD000\]),
+[id*="step-bar-"][id*="-label"].text-slate-500,
+[id*="step-bar-"][id*="-label"].text-black-fade {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+/* Segmented header bars - hidden when marked hidden */
+#subject-segmented-header.hidden,
+.subject-segmented-header.hidden,
+#section-step-tabs-container.hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+   1.2 UNIVERSAL BLACK FADE DESIGN TOKENS & UTILITIES
+   Shared system-wide: use these classes or variables for any muted/subtle text,
+   icons, placeholders, borders, and backgrounds.
+   ========================================================================== */
+:root {
+    --sigma-black-fade: rgba(0, 0, 0, 0.45);
+    --sigma-black-fade-light: rgba(0, 0, 0, 0.35);
+    --sigma-black-fade-dark: rgba(0, 0, 0, 0.65);
+    --sigma-black-fade-subtle: rgba(0, 0, 0, 0.20);
+    --sigma-black-fade-bg: rgba(0, 0, 0, 0.03);
+    --sigma-black-fade-border: rgba(0, 0, 0, 0.10);
+}
+
+/* Text Colors */
+.text-black-fade {
+    color: var(--sigma-black-fade) !important;
+}
+
+.text-black-fade-light {
+    color: var(--sigma-black-fade-light) !important;
+}
+
+.text-black-fade-dark {
+    color: var(--sigma-black-fade-dark) !important;
+}
+
+.text-black-fade-subtle {
+    color: var(--sigma-black-fade-subtle) !important;
+}
+
+/* Placeholder Black Fade Utilities */
+.placeholder-black-fade::placeholder,
+input.placeholder-black-fade::placeholder {
+    color: var(--sigma-black-fade) !important;
+    opacity: 1 !important;
+}
+
+/* Icon Fade Utilities */
+.icon-black-fade,
+i.black-fade {
+    color: var(--sigma-black-fade) !important;
+    opacity: 0.45 !important;
+}
+
+/* Backgrounds & Borders */
+.bg-black-fade {
+    background-color: var(--sigma-black-fade-bg) !important;
+}
+
+.border-black-fade {
+    border-color: var(--sigma-black-fade-border) !important;
+}
+
+/* Filter Configuration Button Next to Search */
+.sigma-filter-config-btn {
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.sigma-filter-config-btn:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #000000 !important;
+}
+
+.sigma-filter-config-btn i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-size: 14px;
+    transition: color 0.2s ease;
+}
+
+.sigma-filter-config-btn:hover i {
+    color: #000000 !important;
+}
+
+/* ==========================================================================
+   2. STANDARD FORM LABELS & FIELD GROUPS
+   ========================================================================== */
+.sigma-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.sigma-label {
+    font-size: 16px !important; /* Prominent, clear, legible */
+    font-weight: 700 !important;
+    text-transform: capitalize !important; /* Title Case */
+    letter-spacing: -0.01em !important;
+    color: #000000 !important; /* Pure crisp black */
+    display: block;
+    margin-left: 2px;
+}
+
+.sigma-required {
+    color: #dc2626; /* red-600 */
+    font-weight: 800;
+    margin-left: 2px;
+}
+
+.sigma-help-text {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+    margin-left: 2px;
+}
+
+/* ==========================================================================
+   3. STANDARD TEXTBOXES & INPUTS (.sigma-input)
+   ========================================================================== */
+.sigma-input {
+    width: 100%;
+    height: 48px;
+    background-color: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important; /* Visible, crisp slate-300 */
+    border-radius: 12px !important;
+    padding: 0 18px;
+    font-size: 14px !important;
+    font-weight: 500;
+    color: #000000 !important; /* Pure black text */
+    outline: none !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    box-sizing: border-box;
+}
+
+.sigma-input::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important; /* Faded black placeholder text */
+    font-size: 14px !important;
+    font-weight: 500;
+}
+
+.sigma-input::-webkit-calendar-picker-indicator {
+    display: none !important;
+    opacity: 0 !important;
+}
+
+.sigma-input:hover:not(:disabled):not([readonly]) {
+    background-color: #ffffff !important;
+}
+
+.sigma-input:focus:not(:disabled):not([readonly]) {
+    border-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.sigma-input:disabled,
+.sigma-input[readonly],
+.sigma-input:disabled:focus,
+.sigma-input[readonly]:focus,
+.sigma-input:disabled:hover,
+.sigma-input[readonly]:hover,
+.sigma-input:disabled:active,
+.sigma-input[readonly]:active {
+    background-color: #f8fafc !important; /* Standard slate-50 */
+    border-color: #cbd5e1 !important;
+    color: #000000 !important; /* Visible crisp black text */
+    cursor: not-allowed !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Standard Date Input & Clean Calendar Indicator */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="date"].sigma-input,
+.sigma-input[type="date"],
+.sigma-input[type="datetime-local"] {
+    color-scheme: light;
+}
+
+
+/* Multiline Textarea */
+.sigma-textarea {
+    width: 100%;
+    min-height: 110px;
+    background-color: #f8fafc;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.sigma-textarea::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    font-weight: 500;
+}
+
+.sigma-textarea:hover:not(:disabled):not([readonly]) {
+    border-color: #94a3b8 !important;
+}
+
+.sigma-textarea:focus {
+    border-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* ==========================================================================
+   4. STANDARD CUSTOM DROPDOWNS & SELECTS (.sigma-select)
+   ========================================================================== */
+.sigma-select-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.sigma-select {
+    width: 100%;
+    height: 48px;
+    background-color: #f8fafc;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 0 42px 0 18px;
+    font-size: 14px !important;
+    font-weight: 500;
+    color: #000000;
+    outline: none !important;
+    box-shadow: none !important;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    box-sizing: border-box;
+}
+
+select,
+select option,
+select optgroup,
+.sigma-select,
+.sigma-select option {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 14px !important;
+}
+
+select option,
+.sigma-select option {
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+.sigma-select:hover:not(:disabled),
+.sigma-select-wrapper select:hover:not(:disabled) {
+    border-color: #94a3b8 !important;
+    background-color: #f1f5f9 !important;
+}
+
+.sigma-select:focus {
+    border-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* ==========================================================================
+   4.1 SHARED FORM/MODAL INPUTS & SELECTS (SUBJECT, SECTION, USER)
+   Shared code for textboxes, dropdowns, and labels across Create/Edit Subject,
+   Create/Edit Section, and Create User / Edit Information modals
+   ========================================================================== */
+#subject-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not([id*="search"]),
+#subject-edit-form-body select,
+#section-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not(#section-existing-search-input):not([id^="subpage-master-"]):not([id*="search"]):not(.no-underline-input),
+#section-edit-form-body select,
+#user-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not([id*="search"]),
+#user-edit-form-body select,
+.sigma-subject-input,
+.sigma-subject-select,
+.sigma-form-input,
+.sigma-form-select,
+.sigma-underline-input,
+.sigma-underline-select {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 56px !important;
+    background-color: #f8fafc !important; /* bg-slate-50 */
+    border: none !important;
+    border-bottom: 2px solid #cbd5e1 !important; /* border-b-2 border-slate-300 */
+    border-radius: 0 !important;
+    padding: 16px 16px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+#subject-edit-form-body select,
+#section-edit-form-body select,
+#user-edit-form-body select,
+.sigma-subject-select,
+.sigma-form-select,
+.sigma-underline-select {
+    padding-right: 48px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    cursor: pointer !important;
+}
+
+#subject-edit-form-body input:not([type="time"]):not([type="date"]):not([id*="search"]):not(.sigma-input):not(.sigma-search-input):not(.no-underline-input):hover:not(:disabled):not([readonly]),
+#section-edit-form-body input:not([type="time"]):not([type="date"]):not([id*="search"]):not(.no-underline-input):not(.sigma-input):not(.sigma-search-input):hover:not(:disabled):not([readonly]),
+#user-edit-form-body input:not([type="time"]):not([type="date"]):not([id*="search"]):not(.sigma-input):not(.sigma-search-input):not(.no-underline-input):hover:not(:disabled):not([readonly]),
+.sigma-subject-input:hover:not(:disabled):not([readonly]),
+.sigma-form-input:hover:not(:disabled):not([readonly]),
+.sigma-underline-input:hover:not(:disabled):not([readonly]) {
+    background-color: #ffffff !important;
+    border-bottom-color: #cbd5e1 !important;
+}
+
+/* All Dropdowns / Selects Hover Grey Highlight across entire website */
+#subject-edit-form-body select:hover:not(:disabled):not([readonly]),
+#section-edit-form-body select:hover:not(:disabled):not([readonly]),
+#user-edit-form-body select:hover:not(:disabled):not([readonly]),
+#sy-edit-form-body select:hover:not(:disabled):not([readonly]),
+.sigma-subject-select:hover:not(:disabled):not([readonly]),
+.sigma-form-select:hover:not(:disabled):not([readonly]),
+.sigma-underline-select:hover:not(:disabled):not([readonly]),
+.sigma-select:hover:not(:disabled),
+select.sigma-select:hover:not(:disabled),
+.sigma-select-wrapper select:hover:not(:disabled),
+select:not([disabled]):hover {
+    background-color: #f1f5f9 !important; /* Standard Grey Highlight (slate-100) */
+    border-bottom-color: #cbd5e1 !important;
+}
+
+#subject-edit-form-body select:focus:hover,
+#section-edit-form-body select:focus:hover,
+#user-edit-form-body select:focus:hover,
+#sy-edit-form-body select:focus:hover,
+.sigma-subject-select:focus:hover,
+.sigma-form-select:focus:hover,
+.sigma-underline-select:focus:hover,
+.sigma-select:focus:hover,
+select.sigma-select:focus:hover,
+.sigma-select-wrapper select:focus:hover,
+select:focus:hover {
+    background-color: #f1f5f9 !important;
+}
+
+#subject-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not([id*="search"]):focus,
+#subject-edit-form-body select:focus,
+#section-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not(#section-existing-search-input):not([id^="subpage-master-"]):not([id*="search"]):not(.no-underline-input):focus,
+#section-edit-form-body select:focus,
+#user-edit-form-body input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="date"]):not([id*="search"]):focus,
+#user-edit-form-body select:focus,
+.sigma-subject-input:focus,
+.sigma-subject-select:focus,
+.sigma-form-input:focus,
+.sigma-form-select:focus,
+.sigma-underline-input:focus,
+.sigma-underline-select:focus {
+    background-color: #ffffff !important;
+    border-bottom: 2px solid #FFD000 !important;
+    border-bottom-color: #FFD000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+#subject-edit-form-body input:not([type="time"]):not([type="date"]):disabled,
+#subject-edit-form-body input:not([type="time"]):not([type="date"])[readonly],
+#subject-edit-form-body select:disabled,
+#section-edit-form-body input:not([type="time"]):not([type="date"]):disabled,
+#section-edit-form-body input:not([type="time"]):not([type="date"])[readonly],
+#section-edit-form-body select:disabled,
+#user-edit-form-body input:not([type="time"]):not([type="date"]):disabled,
+#user-edit-form-body input:not([type="time"]):not([type="date"])[readonly],
+#user-edit-form-body select:disabled,
+.sigma-subject-input:disabled,
+.sigma-subject-input[readonly],
+.sigma-subject-select:disabled,
+.sigma-form-input:disabled,
+.sigma-form-input[readonly],
+.sigma-form-select:disabled,
+.sigma-underline-input:disabled,
+.sigma-underline-input[readonly],
+.sigma-underline-select:disabled {
+    background-color: rgba(241, 245, 249, 0.7) !important;
+    border-bottom-color: #e2e8f0 !important;
+    color: #64748b !important;
+    cursor: not-allowed !important;
+}
+
+#subject-edit-form-body input:not([type="time"]):not([type="date"])::placeholder,
+#section-edit-form-body input:not([type="time"]):not([type="date"])::placeholder,
+#user-edit-form-body input:not([type="time"]):not([type="date"])::placeholder,
+.sigma-subject-input::placeholder,
+.sigma-form-input::placeholder,
+.sigma-underline-input::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+}
+
+/* 4.1.1 Time & Date Inputs Inside Pill Containers (Clean, Borderless, Transparent) */
+#subpage-days-schedule-list input[type="time"],
+#section-edit-schedule-subpage input[type="time"],
+#section-edit-form-body input[type="time"],
+#section-edit-form-body input[type="date"],
+#subpage-master-start-time,
+#subpage-master-end-time {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+    font-weight: 600 !important;
+    cursor: text !important;
+}
+
+#edit-user-email {
+    padding-right: 112px !important;
+}
+
+#subject-edit-form-body label:not(.cursor-pointer),
+#section-edit-form-body label:not(.cursor-pointer),
+#user-edit-form-body label:not(.cursor-pointer),
+.sigma-subject-label {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    text-transform: capitalize !important;
+    color: #000000 !important;
+    letter-spacing: normal !important;
+    margin-left: 4px !important;
+    display: block !important;
+}
+
+
+/* ==========================================================================
+   4.2 UNIVERSAL SEARCH INPUTS (ALWAYS 4-SIDED ROUNDED BOXES)
+   ========================================================================== */
+.sigma-search-input,
+.sigma-input[id*="search"],
+#subject-mat-search {
+    width: 100% !important;
+    height: 48px !important;
+    background-color: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 0 18px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+    font-family: 'Inter', sans-serif !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-search-input:focus,
+.sigma-input[id*="search"]:focus,
+#subject-mat-search:focus,
+#storage-picker-search-container:focus-within,
+#library-modal-search-container:focus-within {
+    border-color: #FFD000 !important;
+    border-bottom-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+.sigma-search-input:hover,
+.sigma-input[id*="search"]:hover,
+#subject-mat-search:hover {
+    border-color: #cbd5e1 !important;
+    border-bottom-color: #cbd5e1 !important;
+    background-color: #ffffff !important;
+}
+
+.sigma-search-input:focus:hover,
+.sigma-input[id*="search"]:focus:hover,
+#subject-mat-search:focus:hover {
+    border-color: #FFD000 !important;
+    border-bottom-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.sigma-search-input::placeholder,
+.sigma-input[id*="search"]::placeholder,
+#subject-mat-search::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+#admin-teacher-search-input,
+.sigma-input[id*="search"].pl-11,
+.sigma-input[id*="search"].pl-10,
+.sigma-search-input.pl-11 {
+    padding-left: 44px !important;
+}
+
+#admin-teacher-search-input:focus,
+#admin-teacher-search-input:focus-within {
+    border-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Subpage 4-Border Search Inputs with leading icons */
+#section-subpage-teacher-search,
+#section-subpage-subject-search,
+#section-subpage-students-search,
+.sigma-subpage-search-input {
+    padding-left: 44px !important;
+    padding-right: 16px !important;
+    border-radius: 12px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+}
+
+#section-subpage-teacher-search:hover,
+#section-subpage-subject-search:hover,
+#section-subpage-students-search:hover,
+.sigma-subpage-search-input:hover {
+    background-color: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-color: #cbd5e1 !important;
+    border-bottom-color: #cbd5e1 !important;
+}
+
+#section-subpage-teacher-search:focus,
+#section-subpage-subject-search:focus,
+#section-subpage-students-search:focus,
+.sigma-subpage-search-input:focus,
+#section-subpage-teacher-search:focus:hover,
+#section-subpage-subject-search:focus:hover,
+#section-subpage-students-search:focus:hover,
+.sigma-subpage-search-input:focus:hover {
+    border: 1.5px solid #FFD000 !important;
+    border-color: #FFD000 !important;
+    border-bottom-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Subpage Search Buttons Stability (Never hide or flicker on hover) */
+#section-subpage-teacher-search-btn,
+#section-subpage-subject-search-btn,
+#section-subpage-students-search-btn {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 100px !important;
+    flex-shrink: 0 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+#section-subpage-teacher-search-btn:hover,
+#section-subpage-subject-search-btn:hover,
+#section-subpage-students-search-btn:hover {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: #166534 !important;
+    color: #ffffff !important;
+    transform: none !important;
+}
+
+/* Selected Subpage Item Panel (Clean White Background with Black Fade Borderlines) */
+.sigma-selected-faded-panel {
+    background-color: #ffffff !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+}
+
+.sigma-selected-teacher-row,
+.sigma-selected-teacher-row:hover,
+.sigma-row-selected,
+.sigma-row-selected:hover {
+    background-color: #e7f6ec !important;
+}
+
+.sigma-form-input,
+.sigma-form-select,
+.sigma-underline-input,
+.sigma-underline-select {
+    height: 52px !important;
+    padding: 0 16px !important;
+}
+
+.sigma-form-select,
+.sigma-underline-select {
+    padding-right: 42px !important;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   4.3 UNIVERSAL DESCRIPTION BOXES & TEXTAREAS (ALL 4 BORDERS & ROUNDED)
+   ========================================================================== */
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input),
+.sigma-textarea,
+.sigma-form-textarea,
+#topic-editor-desc-input,
+#mat-editor-desc,
+#edit-profile-vision,
+#edit-profile-mission,
+#edit-bio-description {
+    width: 100% !important;
+    min-height: 110px !important;
+    background-color: #f8fafc !important; /* slate-50 */
+    border: 1.5px solid #cbd5e1 !important; /* All 4 borders in slate-300 */
+    border-radius: 16px !important; /* Clean rounded corners */
+    padding: 14px 18px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', sans-serif !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+    resize: none !important;
+    box-sizing: border-box !important;
+}
+
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input)::placeholder,
+.sigma-textarea::placeholder,
+.sigma-form-textarea::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    font-weight: 500 !important;
+}
+
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):hover:not(:disabled):not([readonly]),
+.sigma-textarea:hover:not(:disabled):not([readonly]),
+.sigma-form-textarea:hover:not(:disabled):not([readonly]) {
+    background-color: #f8fafc !important;
+    border-color: #94a3b8 !important; /* All 4 borders hover: slate-400 */
+}
+
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):focus,
+.sigma-textarea:focus,
+.sigma-form-textarea:focus,
+#topic-editor-desc-input:focus,
+#topic-edit-desc:focus,
+#mat-editor-desc:focus,
+#teacher-mat-editor-desc:focus,
+#edit-subject-desc:focus,
+#save-quiz-desc-input:focus,
+#edit-bio-description:focus,
+#edit-user-bio-description:focus,
+#edit-profile-vision:focus,
+#edit-profile-mission:focus,
+.sigma-composer-editor-box:focus-within,
+.sigma-composer-body .sigma-composer-editor-box:focus-within,
+.sigma-composer-editor-box.focused,
+.sigma-composer-textarea:focus,
+#sigma-composer-input-body:focus,
+textarea[id*="desc"]:focus,
+textarea[name*="desc"]:focus,
+textarea[placeholder*="desc" i]:focus,
+textarea[placeholder*="instruction" i]:focus,
+textarea[placeholder*="detail" i]:focus {
+    background-color: #ffffff !important;
+    border: 1px solid #FFD000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* ==========================================================================
+   4.4 CANONICAL UNDERLINE TEXTAREAS & INPUTS (.sigma-one-border-textarea)
+   ========================================================================== */
+.sigma-one-border-textarea,
+textarea[id^="question-prompt-input-"],
+.sigma-underline-field {
+    width: 100% !important;
+    min-height: 58px !important;
+    background-color: #f8fafc !important;
+    border: none !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.22) !important;
+    border-radius: 0 !important;
+    padding: 15px 18px 16px 18px !important;
+    font-size: 15px !important;
+    font-weight: 450 !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    resize: none !important;
+    overflow: hidden !important;
+    line-height: 1.6 !important;
+    font-family: 'Inter', sans-serif !important;
+    box-sizing: border-box !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+.sigma-one-border-textarea:hover,
+textarea[id^="question-prompt-input-"]:hover,
+.sigma-underline-field:hover {
+    background-color: transparent !important;
+    border-bottom-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.sigma-one-border-textarea:focus,
+textarea[id^="question-prompt-input-"]:focus,
+.sigma-underline-field:focus {
+    background-color: transparent !important;
+    border-bottom-color: #FFD000 !important;
+}
+
+/* Compact Underline Textarea for Choices, Enumeration Items, and Matching Pairs */
+.sigma-underline-item-textarea,
+#active-question-container textarea.sigma-underline-item-textarea {
+    width: 100% !important;
+    min-height: 28px !important;
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 3px 6px !important;
+    font-size: 15px !important;
+    font-weight: 450 !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    resize: none !important;
+    overflow: hidden !important;
+    line-height: 1.5 !important;
+    font-family: 'Inter', sans-serif !important;
+    box-sizing: border-box !important;
+    display: block !important;
+}
+
+.sigma-underline-item-textarea:focus,
+#active-question-container textarea.sigma-underline-item-textarea:focus {
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Question Panels Full Width & No Radius (Mobile Only) */
+@media (max-width: 767px) {
+    #active-question-container {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #active-question-card-inner,
+    .active-question-card,
+    #active-question-container > div {
+        width: calc(100% + 3rem) !important;
+        max-width: calc(100% + 3rem) !important;
+        margin-left: -1.5rem !important;
+        margin-right: -1.5rem !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        box-shadow: none !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
+
+
+.sigma-form-input::placeholder,
+.sigma-underline-input::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    font-weight: 500;
+}
+
+.sigma-form-input:hover:not(:disabled):not([readonly]),
+.sigma-underline-input:hover:not(:disabled):not([readonly]) {
+    background-color: #ffffff !important;
+    border-bottom-color: #cbd5e1 !important;
+}
+
+.sigma-form-select:hover:not(:disabled),
+.sigma-underline-select:hover:not(:disabled) {
+    background-color: #f1f5f9 !important;
+    border-bottom-color: #cbd5e1 !important;
+}
+
+.sigma-form-input:focus,
+.sigma-form-select:focus,
+.sigma-underline-input:focus,
+.sigma-underline-select:focus {
+    border-bottom: 2px solid #FFD000 !important;
+    border-bottom-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Faded Black for Dropdown / Select Hint & Placeholder States */
+select:has(option[value=""]:checked),
+select:has(option[value=""][disabled]:checked),
+select.is-placeholder,
+.sigma-select.is-placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+}
+
+select option,
+.sigma-select option {
+    font-size: 14px !important;
+    padding: 8px 12px;
+    color: #000000 !important;
+    background-color: #ffffff;
+}
+
+select option[value=""][disabled],
+select option[value=""][hidden],
+.sigma-select option[value=""][disabled],
+.sigma-select option[value=""][hidden] {
+    color: rgba(0, 0, 0, 0.40) !important;
+}
+
+.sigma-select:hover:not(:disabled) {
+    border-color: #94a3b8;
+}
+
+.sigma-select:focus {
+    border-color: #FFD000 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.sigma-select:disabled {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    cursor: not-allowed;
+}
+
+.sigma-select-icon {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 11px;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+
+/* ==========================================================================
+   5. STANDARD BUTTONS (.sigma-btn-*)
+   ========================================================================== */
+.sigma-btn,
+button.sigma-btn,
+a.sigma-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    text-transform: capitalize !important; /* Title Case */
+    letter-spacing: normal !important;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.sigma-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.sigma-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* Global Button Title Case & No Glow Standardization */
+button:not(.btn-icon-only):not([class*="fa-"]),
+.sigma-btn,
+.btn-primary,
+.btn-secondary,
+.sigma-discard-btn-confirm,
+.sigma-discard-btn-cancel,
+.sigma-delete-btn-confirm,
+.sigma-delete-btn-cancel {
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+#subject-confirm-cancel,
+#subject-confirm-proceed,
+#section-confirm-cancel,
+#section-confirm-proceed,
+#sy-confirm-cancel,
+#sy-confirm-proceed,
+#profile-confirm-cancel,
+#profile-confirm-proceed,
+#branch-confirm-cancel,
+#branch-confirm-proceed,
+#user-confirm-cancel,
+#user-confirm-proceed,
+.sigma-discard-btn-confirm,
+.sigma-discard-btn-cancel,
+.sigma-delete-btn-confirm,
+.sigma-delete-btn-cancel,
+#subject-delete-btn,
+#section-delete-btn,
+#sy-delete-btn,
+#profile-delete-btn,
+#final-delete-btn {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    box-shadow: none !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Button Sizes */
+.sigma-btn-sm {
+    height: 38px;
+    padding: 0 16px;
+    font-size: 13px !important;
+    border-radius: 10px;
+}
+
+.sigma-btn-md {
+    height: 46px;
+    padding: 0 24px;
+    font-size: 14px !important;
+}
+
+.sigma-btn-lg {
+    height: 50px;
+    padding: 0 32px;
+    font-size: 15px !important;
+}
+
+.sigma-btn.hidden,
+.sigma-btn[hidden],
+button.sigma-btn.hidden,
+[class*="sigma-btn"].hidden,
+.sigma-modal-footer.hidden,
+.sigma-modal-footer[hidden],
+.sigma-modal-footer .hidden {
+    display: none !important;
+}
+
+/* Primary Green Button (ICC Theme) - STRICTLY NO GLOW EFFECT */
+.sigma-btn-primary,
+button.sigma-btn-primary,
+button[class*="bg-[#15803d]"],
+button[class*="bg-emerald-700"],
+button[class*="bg-green-700"],
+.bg-\[\#15803d\] {
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+    --tw-shadow: 0 0 #0000 !important;
+    --tw-shadow-colored: 0 0 #0000 !important;
+}
+
+.sigma-btn-primary {
+    background-color: #15803d !important; /* Green 700 */
+    color: #ffffff !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+.sigma-btn-primary:hover:not(:disabled) {
+    background-color: #166534 !important; /* Green 800 Highlight */
+    box-shadow: none !important;
+    filter: none !important;
+    --tw-shadow: 0 0 #0000 !important;
+}
+
+.sigma-btn-primary:active:not(:disabled),
+button[class*="bg-[#15803d]"]:active:not(:disabled) {
+    transform: scale(0.98) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    --tw-shadow: 0 0 #0000 !important;
+}
+
+.sigma-btn-primary:focus,
+button.sigma-btn-primary:focus,
+button[class*="bg-[#15803d]"]:focus,
+.bg-\[\#15803d\]:focus {
+    box-shadow: none !important;
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+.teacher-save-grade-btn {
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
+    padding: 0 24px;
+    margin-top: 0.25rem;
+    font-size: 14px !important;
+    position: relative;
+    z-index: 3;
+    pointer-events: auto !important;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.teacher-save-grade-btn:disabled {
+    background-color: #f1f5f9 !important;
+    color: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid #e2e8f0 !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    transform: none !important;
+}
+
+.score-draft-flag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #FFD000;
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    font-family: Inter, sans-serif;
+}
+
+.score-draft-flag[hidden] {
+    display: none !important;
+}
+
+#teacher-grading-score-display.is-draft {
+    background: #FFD000;
+    color: #000;
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+/* Secondary / Light Button */
+.sigma-btn-secondary {
+    background-color: #f1f5f9 !important; /* Slate 100 */
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+
+.sigma-btn-secondary:hover:not(:disabled) {
+    background-color: #e2e8f0 !important;
+    color: #000000 !important;
+}
+
+/* White / Bordered Button (e.g. Save as Draft, Cancel) */
+.sigma-btn-white {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.sigma-btn-white:hover:not(:disabled) {
+    background-color: #e2e8f0 !important; /* Visible soft grey tint */
+    border-color: #e2e8f0 !important; /* No dark border on hover */
+    color: #000000 !important;
+}
+
+/* Ghost / Text Button */
+.sigma-btn-ghost {
+    background-color: transparent !important;
+    color: #000000 !important;
+    border-color: transparent !important;
+    font-weight: 700 !important;
+    letter-spacing: normal !important;
+    text-transform: capitalize !important;
+    padding: 0 16px !important;
+}
+
+.sigma-btn-ghost:hover:not(:disabled) {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+/* Outline Green Button */
+.sigma-btn-outline {
+    background-color: transparent !important;
+    color: #15803d !important;
+    border-color: #15803d !important;
+}
+
+.sigma-btn-outline:hover:not(:disabled) {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+}
+
+/* Danger Button */
+.sigma-btn-danger {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+.sigma-btn-danger:hover:not(:disabled) {
+    background-color: #b91c1c !important;
+}
+
+/* Circular Close / Exit Button */
+.sigma-btn-close {
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sigma-btn-close:hover {
+    background-color: #f1f5f9;
+    color: #000000;
+}
+
+/* ==========================================================================
+   6. STANDARD WORKSTATION & MODAL SHELL (.sigma-modal-*)
+   ========================================================================== */
+html.sigma-modal-open,
+body.sigma-modal-open,
+html:has(.sigma-modal-overlay:not(.hidden)),
+body:has(.sigma-modal-overlay:not(.hidden)) {
+    overflow: hidden !important;
+    height: 100vh !important;
+}
+
+.sigma-modal-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    background-color: #f8fafc;
+    z-index: 10001 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.sigma-modal-overlay.hidden {
+    display: none !important;
+}
+
+.sigma-modal-shell {
+    width: 100% !important;
+    max-width: 1024px !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+    flex-shrink: 0 !important;
+}
+
+.sigma-modal-panel {
+    background-color: #ffffff !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05) !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;  /* Panel grows with content; shell clips/scrolls */
+}
+
+/* Modal overlays: the page behind them does not scroll.
+   The body area scrolls only when the content is taller than the form. */
+html:has(#universal-quiz-preview-modal:not(.hidden)),
+html:has(#sigma-quiz-form-modal:not(.hidden)),
+html:has(#student-preview-modal:not(.hidden)),
+html:has(#attendance-export-modal:not(.hidden)),
+html:has(#subject-edit-overlay:not(.hidden)),
+html:has(#sy-edit-overlay:not(.hidden)),
+html:has(#sy-manager-overlay:not(.hidden)),
+html:has(#user-permissions-overlay:not(.hidden)),
+html:has(#section-topic-content:not(.hidden)):has(#universal-quiz-preview-modal:not(.hidden)),
+html:has(#section-topic-content:not(.hidden)):has(#sigma-quiz-form-modal:not(.hidden)),
+html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hidden)) {
+    overflow: hidden !important;
+}
+
+#universal-quiz-preview-modal,
+#sigma-quiz-form-modal,
+#student-preview-modal,
+#user-edit-overlay,
+#section-edit-overlay,
+#subject-edit-overlay,
+#sy-edit-overlay,
+#sy-manager-overlay,
+#user-permissions-overlay,
+#teacher-material-upload-overlay,
+#subject-quiz-viewer-modal,
+#user-password-edit-overlay,
+#profile-edit-overlay,
+#attendance-export-modal {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+}
+
+/* === Shells: grow with content (overlay is the scroll container) === */
+#universal-quiz-preview-modal .sigma-modal-shell,
+#sigma-quiz-form-modal .sigma-modal-shell,
+#student-preview-modal .sigma-modal-shell,
+#user-edit-overlay .sigma-modal-shell,
+#section-edit-overlay .sigma-modal-shell,
+#subject-edit-overlay .sigma-modal-shell,
+#sy-edit-overlay .sigma-modal-shell,
+#sy-manager-overlay .sigma-modal-shell,
+#user-permissions-overlay .sigma-modal-shell,
+#teacher-material-upload-overlay .sigma-modal-shell,
+#subject-quiz-viewer-modal .sigma-modal-shell,
+#user-password-edit-overlay .sigma-modal-shell,
+#profile-edit-overlay .sigma-modal-shell,
+#attendance-export-modal .sigma-modal-shell {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* === Panels: grow with content === */
+#universal-quiz-preview-modal .sigma-modal-panel,
+#sigma-quiz-form-modal .sigma-modal-panel,
+#student-preview-modal .sigma-modal-panel,
+#user-edit-overlay .sigma-modal-panel,
+#section-edit-overlay .sigma-modal-panel,
+#subject-edit-overlay .sigma-modal-panel,
+#sy-edit-overlay .sigma-modal-panel,
+#sy-manager-overlay .sigma-modal-panel,
+#user-permissions-overlay .sigma-modal-panel,
+#teacher-material-upload-overlay .sigma-modal-panel,
+#subject-quiz-viewer-modal .sigma-modal-panel,
+#user-password-edit-overlay .sigma-modal-panel,
+#profile-edit-overlay .sigma-modal-panel,
+#attendance-export-modal .sigma-modal-panel {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+}
+
+/* === Form bodies: normal flex-grow flow === */
+#universal-quiz-preview-modal .sigma-modal-panel > .flex-1,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1,
+#student-preview-modal .sigma-modal-panel > .flex-1,
+#user-edit-overlay #user-edit-form-body,
+#section-edit-overlay #section-edit-form-body,
+#subject-edit-overlay #subject-edit-form-body,
+#sy-edit-overlay #sy-edit-form-body,
+#sy-manager-overlay #sy-manager-list,
+#sy-manager-overlay #sy-manager-body,
+#user-permissions-overlay .flex-1,
+#user-password-edit-overlay .flex-1,
+#profile-edit-overlay .flex-1,
+#teacher-material-upload-overlay .p-10.space-y-8,
+.sigma-modal-body,
+.sigma-modal-panel > .flex-1,
+.sigma-modal-panel > form.flex-1 {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+
+#universal-quiz-preview-modal #uqp-body,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1 > div,
+#student-preview-modal #student-preview-questions-list {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
+#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
+#user-edit-overlay #user-edit-form-body::-webkit-scrollbar,
+#section-edit-overlay #section-edit-form-body::-webkit-scrollbar,
+#subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar,
+#sy-edit-overlay #sy-edit-form-body::-webkit-scrollbar,
+#sy-manager-overlay #sy-manager-list::-webkit-scrollbar,
+.sigma-modal-body::-webkit-scrollbar,
+.sigma-modal-panel > .flex-1::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
+#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
+#user-edit-overlay #user-edit-form-body::-webkit-scrollbar-track,
+#section-edit-overlay #section-edit-form-body::-webkit-scrollbar-track,
+#subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-track,
+#sy-edit-overlay #sy-edit-form-body::-webkit-scrollbar-track,
+#sy-manager-overlay #sy-manager-list::-webkit-scrollbar-track,
+.sigma-modal-body::-webkit-scrollbar-track,
+.sigma-modal-panel > .flex-1::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
+#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
+#user-edit-overlay #user-edit-form-body::-webkit-scrollbar-thumb,
+#section-edit-overlay #section-edit-form-body::-webkit-scrollbar-thumb,
+#subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-thumb,
+#sy-edit-overlay #sy-edit-form-body::-webkit-scrollbar-thumb,
+#sy-manager-overlay #sy-manager-list::-webkit-scrollbar-thumb,
+.sigma-modal-body::-webkit-scrollbar-thumb,
+.sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
+#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
+#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
+#user-edit-overlay #user-edit-form-body::-webkit-scrollbar-thumb:hover,
+#section-edit-overlay #section-edit-form-body::-webkit-scrollbar-thumb:hover,
+#subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-thumb:hover,
+#sy-edit-overlay #sy-edit-form-body::-webkit-scrollbar-thumb:hover,
+#sy-manager-overlay #sy-manager-list::-webkit-scrollbar-thumb:hover,
+.sigma-modal-body::-webkit-scrollbar-thumb:hover,
+.sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Ensure modal header & footer remain locked to viewport edges without shrinking */
+.sigma-modal-header,
+#subject-modal-header,
+#subject-segmented-header {
+    position: sticky !important;
+    top: 0 !important;
+    flex-shrink: 0 !important;
+    z-index: 40 !important;
+}
+
+.sigma-modal-footer,
+#subject-modal-footer,
+#subject-global-footer {
+    flex-shrink: 0 !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 30 !important;
+}
+
+.sigma-modal-footer.hidden,
+.sigma-modal-footer[hidden],
+#subject-modal-footer.hidden,
+#subject-global-footer.hidden {
+    display: none !important;
+}
+
+.sigma-modal-header {
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: #ffffff;
+    flex-shrink: 0;
+    z-index: 20;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.sigma-modal-header-top {
+    padding: 32px 40px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sigma-modal-title {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: -0.025em !important;
+    color: #000000 !important;
+    margin: 0;
+}
+
+.sigma-modal-body {
+    flex: 1;
+    padding: 32px 40px 96px;
+    overflow: visible !important;
+}
+
+.sigma-modal-footer {
+    position: sticky;
+    bottom: 0;
+    border-top: 1px solid #e2e8f0; /* Visible, clean neutral divider */
+    padding: 24px 40px;
+    background-color: #ffffff; /* Clean seamless white */
+    flex-shrink: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-shadow: none !important;
+}
+
+.sigma-modal-footer.justify-end,
+#section-modal-footer,
+#user-modal-footer {
+    justify-content: flex-end !important;
+}
+
+/* ==========================================================================
+   7. STANDARD DATA TABLES & TABLE ACTION BUTTONS (.sigma-table-*)
+   ========================================================================== */
+.sigma-table-container {
+    width: 100%;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Global Default Clean Grey Data Table Theme */
+table,
+.sigma-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+table thead,
+.sigma-table thead,
+.sigma-thead {
+    background-color: #15803d;
+    border-bottom: 1px solid #166534;
+}
+
+table thead th,
+.sigma-table th,
+.sigma-th,
+.admin-table-striped thead th,
+.admin-table-striped th {
+    padding: 14px 20px !important;
+    font-size: 13px;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0.01em;
+    color: #ffffff !important;
+    border-bottom: 1px solid #166534;
+    border-right: none !important;
+    border-left: none !important;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+table thead th:last-child,
+.sigma-table th:last-child,
+.sigma-th:last-child,
+.admin-table-striped thead th:last-child,
+.admin-table-striped th:last-child {
+    border-right: none !important;
+}
+
+table thead th:first-child,
+.sigma-table th:first-child,
+.sigma-th:first-child,
+.admin-table-striped thead th:first-child,
+.admin-table-striped th:first-child {
+    border-right: 1px solid #166534 !important;
+    border-left: none !important;
+}
+
+/* User Accounts Table: Right borderline strictly on Profile/Name column (3rd column) */
+#users-view thead th:nth-child(3),
+table:has(#userTableBody) thead th:nth-child(3) {
+    border-right: 1px solid #166534 !important;
+}
+
+/* School Year table: Year End | Quarter, and Date End | Status */
+table:has(#schoolYearTableBody) thead th:nth-child(3),
+table:has(#schoolYearTableBody) thead th:nth-child(6) {
+    border-right: 1px solid #166534 !important;
+}
+
+table tbody td,
+.sigma-table td,
+.sigma-td,
+.admin-table-striped tbody td,
+.admin-table-striped td {
+    padding: 16px 20px;
+    font-size: 14px;
+    font-weight: 400 !important;
+    color: #000000;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-right: none !important;
+    border-left: none !important;
+    border-top: none;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+table tbody td:first-child,
+.sigma-table td:first-child,
+.sigma-td:first-child,
+.admin-table-striped tbody td:first-child,
+.admin-table-striped td:first-child {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: none !important;
+}
+
+/* User Accounts Table: Right borderline strictly on Profile/Name column (3rd column) */
+#users-view tbody td:nth-child(3),
+#userTableBody td:nth-child(3) {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+table:has(#schoolYearTableBody) tbody td:nth-child(3),
+table:has(#schoolYearTableBody) tbody td:nth-child(6),
+#schoolYearTableBody td:nth-child(3),
+#schoolYearTableBody td:nth-child(6) {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+table tbody td:last-child,
+.sigma-table td:last-child,
+.sigma-td:last-child,
+.admin-table-striped tbody td:last-child,
+.admin-table-striped td:last-child {
+    border-right: none !important;
+}
+
+table tbody tr:nth-child(even),
+.sigma-table tbody tr:nth-child(even) {
+    background-color: #f8fafc; /* Subtle grey zebra striping */
+}
+
+table tbody tr:nth-child(odd),
+.sigma-table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+/* 1-cell only hover gray highlight */
+table tbody td:hover,
+.sigma-table tbody td:hover,
+.forms-table tbody td:hover {
+    background-color: #f1f5f9 !important; /* Slate 100 hover per 1 cell */
+    transition: background-color 0.12s ease;
+}
+
+
+table tbody tr:last-child td,
+.sigma-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.sigma-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table Status Badges */
+.sigma-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+.sigma-badge-success {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.sigma-badge-warning {
+    background-color: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.sigma-badge-danger {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.sigma-badge-neutral {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+/* Table Quick Action Icon Buttons */
+.sigma-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sigma-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sigma-action-btn:hover {
+    background-color: #15803d;
+    border-color: #15803d;
+    color: #ffffff;
+}
+
+.sigma-action-btn-danger:hover {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   8. SHARED CONFIRMATION & ALERT DIALOG (.sigma-dialog-*)
+   ========================================================================== */
+.sigma-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.sigma-dialog-card,
+#sigma-universal-ask-card,
+.sigma-universal-ask-card,
+#sigma-universal-ask-overlay > div {
+    position: relative;
+    background-color: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 16px 36px -12px rgba(15, 23, 42, 0.16);
+    width: min(calc(100vw - 28px), 330px);
+    max-width: 330px;
+    max-height: min(88vh, calc(100dvh - 28px));
+    overflow-y: auto;
+    padding: 18px 16px 15px;
+    text-align: center;
+    animation: sigmaDialogZoom 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    margin: auto;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-card,
+    #sigma-universal-ask-card,
+    .sigma-universal-ask-card,
+    #sigma-universal-ask-overlay > div {
+        width: min(calc(100vw - 48px), 360px);
+        max-width: 360px;
+        max-height: min(90vh, calc(100dvh - 36px));
+        border-radius: 22px;
+        padding: 22px 20px 18px;
+    }
+}
+
+.sigma-dialog-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+}
+
+.sigma-dialog-close-btn:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+@keyframes sigmaDialogZoom {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sigma-dialog-icon-wrap,
+#sigma-ask-icon-wrap {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 9999px;
+    background-color: #f8fafc;
+    border: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    color: #0f172a;
+    font-size: 18px;
+    box-sizing: border-box;
+}
+
+#sigma-ask-icon-wrap i,
+#sigma-dialog-icon {
+    font-size: 17px !important;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-icon-wrap,
+    #sigma-ask-icon-wrap {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        margin: 0 auto 12px;
+        font-size: 20px;
+    }
+    #sigma-ask-icon-wrap i,
+    #sigma-dialog-icon {
+        font-size: 19px !important;
+    }
+}
+
+.sigma-dialog-title,
+#sigma-ask-title {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    margin: 0 0 5px !important;
+    line-height: 1.25 !important;
+    letter-spacing: -0.01em !important;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-title,
+    #sigma-ask-title {
+        font-size: 16.5px !important;
+        line-height: 1.3 !important;
+        margin: 0 0 6px !important;
+    }
+}
+
+.sigma-dialog-desc,
+#sigma-dialog-desc,
+#sigma-ask-desc {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 450 !important;
+    color: #475569 !important;
+    margin: 0 0 14px !important;
+    line-height: 1.48 !important;
+    padding: 0 4px !important;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-desc,
+    #sigma-dialog-desc,
+    #sigma-ask-desc {
+        font-size: 12.5px !important;
+        line-height: 1.55 !important;
+        color: #334155 !important;
+        margin: 0 0 16px !important;
+        padding: 0 6px !important;
+    }
+}
+
+.sigma-dialog-actions,
+#sigma-ask-actions {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.sigma-dialog-actions.two-buttons,
+#sigma-ask-actions.grid-cols-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.sigma-dialog-actions.one-button {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-actions,
+    #sigma-ask-actions {
+        gap: 10px;
+        margin-top: 16px;
+    }
+}
+
+.sigma-dialog-btn-cancel,
+#sigma-ask-cancel-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    border-radius: 10px !important;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    font-family: 'Inter', sans-serif !important;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    line-height: 36px !important;
+}
+
+.sigma-dialog-btn-cancel:hover,
+#sigma-ask-cancel-btn:hover {
+    background-color: #e2e8f0;
+}
+
+.sigma-dialog-btn-cancel:active,
+#sigma-ask-cancel-btn:active {
+    transform: scale(0.98);
+}
+
+.sigma-dialog-btn-confirm,
+#sigma-ask-proceed-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    border-radius: 10px !important;
+    background-color: #15803d;
+    color: #ffffff;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    font-family: 'Inter', sans-serif !important;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    line-height: 36px !important;
+}
+
+.sigma-dialog-btn-confirm:hover,
+#sigma-ask-proceed-btn:hover {
+    background-color: #166534 !important;
+    box-shadow: none !important;
+}
+
+.sigma-dialog-btn-confirm:active,
+#sigma-ask-proceed-btn:active {
+    transform: scale(0.98);
+    box-shadow: none !important;
+}
+
+.sigma-dialog-btn-danger {
+    background-color: #dc2626 !important;
+    box-shadow: none !important;
+}
+
+.sigma-dialog-btn-danger:hover {
+    background-color: #b91c1c !important;
+    box-shadow: none !important;
+}
+
+@media (min-width: 640px) {
+    .sigma-dialog-btn-cancel,
+    #sigma-ask-cancel-btn,
+    .sigma-dialog-btn-confirm,
+    #sigma-ask-proceed-btn {
+        height: 39px !important;
+        min-height: 39px !important;
+        max-height: 39px !important;
+        border-radius: 11px !important;
+        font-size: 12.5px !important;
+        padding: 0 12px !important;
+        line-height: 39px !important;
+    }
+}
+
+/* ─── Comment Hover Trash Button ─────────────────────────────────────────── */
+.sigma-sub-comment-row .sigma-comment-delete-btn,
+.sigma-sub-reply-row .sigma-comment-delete-btn {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.sigma-sub-comment-row:hover .sigma-comment-delete-btn,
+.sigma-sub-reply-row:hover .sigma-comment-delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ─── Dialog / Modal Scrollbar Lock (All Asking Dialog Panels & Overlays) ───────────── */
+html.dialog-open,
+html.modal-open,
+html.sigma-modal-open,
+html.has-modal-open,
+body.dialog-open,
+body.modal-open,
+body.sigma-modal-open,
+body.has-modal-open {
+    overflow: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+html.dialog-open::-webkit-scrollbar,
+html.modal-open::-webkit-scrollbar,
+html.sigma-modal-open::-webkit-scrollbar,
+html.has-modal-open::-webkit-scrollbar,
+body.dialog-open::-webkit-scrollbar,
+body.modal-open::-webkit-scrollbar,
+body.sigma-modal-open::-webkit-scrollbar,
+body.has-modal-open::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+html.dialog-open #admin-main,
+html.modal-open #admin-main,
+html.sigma-modal-open #admin-main,
+html.has-modal-open #admin-main,
+body.dialog-open #admin-main,
+body.modal-open #admin-main,
+body.sigma-modal-open #admin-main,
+body.has-modal-open #admin-main,
+html.dialog-open #main-content,
+html.modal-open #main-content,
+html.sigma-modal-open #main-content,
+html.has-modal-open #main-content,
+body.dialog-open #main-content,
+body.modal-open #main-content,
+body.sigma-modal-open #main-content,
+body.has-modal-open #main-content {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+html.dialog-open #admin-main::-webkit-scrollbar,
+html.modal-open #admin-main::-webkit-scrollbar,
+html.sigma-modal-open #admin-main::-webkit-scrollbar,
+html.has-modal-open #admin-main::-webkit-scrollbar,
+body.dialog-open #admin-main::-webkit-scrollbar,
+body.modal-open #admin-main::-webkit-scrollbar,
+body.sigma-modal-open #admin-main::-webkit-scrollbar,
+body.has-modal-open #admin-main::-webkit-scrollbar,
+html.dialog-open #main-content::-webkit-scrollbar,
+html.modal-open #main-content::-webkit-scrollbar,
+html.sigma-modal-open #main-content::-webkit-scrollbar,
+html.has-modal-open #main-content::-webkit-scrollbar,
+body.dialog-open #main-content::-webkit-scrollbar,
+body.modal-open #main-content::-webkit-scrollbar,
+body.sigma-modal-open #main-content::-webkit-scrollbar,
+body.has-modal-open #main-content::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+
+/* ─── Filter Dropdown Panel (Shared: Admin / Teacher / Student) ──────────── */
+/*
+ * z-index: 50 — safely above in-page elements (z-index 1..20) and table headers (z-10),
+ * but strictly below the fixed topbar (z-index: 250) so it never slides over the header.
+ */
+.sigma-filter-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 280px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10);
+    z-index: 50;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sigma-filter-dropdown.hidden {
+    display: none;
+}
+
+/* Title row */
+.sigma-filter-dropdown-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #000000;
+    letter-spacing: 0.05em;
+    /* Title case — do NOT uppercase */
+}
+
+/* Each toggle row */
+.sigma-filter-dropdown label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 6px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.sigma-filter-dropdown label:last-child {
+    border-bottom: none;
+}
+
+/* Label text — title case, black */
+.sigma-filter-dropdown label span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #000000;
+    /* No uppercase, no tracking-widest — title case by default */
+}
+
+/* Checkbox */
+.sigma-filter-dropdown input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 2px solid #cbd5e1;
+    appearance: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.sigma-filter-dropdown input[type="checkbox"]:checked {
+    background-color: #15803d;
+    border-color: #15803d;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+    background-size: 13px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Role Selector Tabs in Permissions Modal */
+.perm-role-tab {
+    color: #1e293b !important;
+    background-color: transparent !important;
+    cursor: pointer;
+    border: none !important;
+    border-radius: 16px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease;
+}
+.perm-role-tab:hover:not(.active):not(:disabled) {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+.perm-role-tab.active {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+.perm-role-tab.active i,
+.perm-role-tab.active span {
+    color: #000000 !important;
+}
+.perm-role-tab:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.4 !important;
+}
+
+/* Permissions Modal Checkbox Styling */
+#user-permissions-overlay input[type="checkbox"]:not(.sr-only) {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    accent-color: #2563eb !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+}
+
+/* ─── Topic Cover & Design Templates Options Menu ──────────── */
+.topic-options-menu {
+    position: absolute;
+    top: 42px;
+    right: 8px;
+    min-width: 190px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.20);
+    z-index: 60;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.topic-options-menu.hidden {
+    display: none !important;
+}
+
+.topic-options-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f172a;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    font-family: 'Inter', sans-serif;
+    text-transform: capitalize;
+}
+
+.topic-options-item:hover {
+    background-color: #f1f5f9;
+}
+
+.topic-options-item.danger {
+    color: #dc2626;
+}
+
+.topic-options-item.danger:hover {
+    background-color: #fef2f2;
+}
+
+#topic-image-picker-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100050 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#curriculum-scope-picker-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100050 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+#curriculum-scope-picker-modal.hidden {
+    display: none !important;
+}
+
+#sigma-topic-cover-lightbox {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100060 !important;
+}
+
+/* ==========================================================================
+   Split Button Cohesive Hover, Active, and Disabled States
+   (Applies only to the header bar trigger buttons, never inside dropdown menus)
+   ========================================================================== */
+#section-split-btn-group > button:disabled,
+#subject-split-btn-group > button:disabled,
+#section-subpage-confirm-btn:disabled,
+#section-next-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background-color: #15803d !important;
+    pointer-events: none !important;
+}
+
+#section-split-btn-group:hover > button:not(:disabled),
+#subject-split-btn-group:hover > button:not(:disabled) {
+    background-color: #166534;
+}
+
+#section-save-btn:not(:disabled):hover,
+#subject-save-btn:not(:disabled):hover,
+#section-split-dropdown-btn:not(:disabled):hover,
+#subject-split-dropdown-btn:not(:disabled):hover,
+#section-subpage-confirm-btn:not(:disabled):hover,
+#section-next-btn:not(:disabled):hover {
+    background-color: #14532d !important;
+}
+
+#section-split-btn-group > button:not(:disabled):active,
+#subject-split-btn-group > button:not(:disabled):active,
+#section-subpage-confirm-btn:not(:disabled):active,
+#section-next-btn:not(:disabled):active {
+    background-color: #0f3d1e !important;
+}
+
+
+
+/* Dropdown Menu Item Buttons: Clean neutral text & grey hover, never solid green */
+#section-split-dropdown-menu button,
+#subject-split-dropdown-menu button {
+    background-color: transparent !important;
+    color: #000000 !important;
+}
+
+#section-split-dropdown-menu button:hover:not(:disabled),
+#subject-split-dropdown-menu button:hover:not(:disabled) {
+    background-color: rgba(226, 232, 240, 0.8) !important;
+    color: #000000 !important;
+}
+
+#section-split-dropdown-menu button:active:not(:disabled),
+#subject-split-dropdown-menu button:active:not(:disabled) {
+    background-color: rgba(203, 213, 225, 0.9) !important;
+    color: #000000 !important;
+}
+
+#section-split-dropdown-menu button:disabled,
+#subject-split-dropdown-menu button:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    background-color: transparent !important;
+    color: rgba(0, 0, 0, 0.4) !important;
+    pointer-events: none !important;
+}
+
+#section-split-dropdown-menu button:disabled *,
+#subject-split-dropdown-menu button:disabled * {
+    color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ==========================================================================
+   Section Step 2 Action Headers & Universal Yellow Hover (#FFD000)
+   ========================================================================== */
+.hover\:text-\[\#FFD000\]:hover,
+.hover\:text-\[\#FFD000\]:hover *,
+.group:hover .group-hover\:text-\[\#FFD000\],
+#section-assign-subject-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-subject-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-schedule-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-schedule-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-teacher-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-teacher-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-students-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-students-header-btn:hover:not(.pointer-events-none):not(.opacity-40) * {
+    color: #FFD000 !important;
+}
+
+/* ==========================================================================
+   Universal Comment & Reply Hover Trash Can
+   ========================================================================== */
+.sigma-comment-delete-btn {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.15s ease, visibility 0.15s ease, background-color 0.15s ease;
+}
+
+.sigma-sub-comment-row:hover .sigma-comment-delete-btn,
+.sigma-sub-reply-row:hover .sigma-comment-delete-btn,
+.group:hover .sigma-comment-delete-btn,
+.sigma-comment-row:hover .sigma-comment-delete-btn,
+#dialog-comments-list-container .group:hover .sigma-comment-delete-btn,
+[id^="dialog-comment-"]:hover .sigma-comment-delete-btn {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.sigma-comment-delete-btn:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.sigma-comment-delete-btn:active {
+    background-color: #e2e8f0 !important;
+}
+
+/* Native date and time fields stay typable. Only the picker icon is styled. */
+input[type="time"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"] {
+    color-scheme: light !important;
+    cursor: text !important;
+    caret-color: #000000 !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+/* Container focus & hover highlights for all time/date input boxes across all pages */
+.time-input-box,
+#teacher-time-panel-box,
+#teacher-end-time-panel-box,
+#teacher-release-date-box,
+#teacher-due-date-box,
+#subpage-days-schedule-list .relative,
+.relative:has(#subpage-master-start-time),
+.relative:has(#subpage-master-end-time) {
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+    cursor: text !important;
+}
+
+.time-input-box:hover,
+#teacher-time-panel-box:hover,
+#teacher-end-time-panel-box:hover,
+#teacher-release-date-box:hover,
+#teacher-due-date-box:hover,
+#subpage-days-schedule-list .relative:hover,
+.relative:has(#subpage-master-start-time):hover,
+.relative:has(#subpage-master-end-time):hover {
+    border-color: #94a3b8 !important;
+}
+
+.time-input-box:focus-within,
+#teacher-time-panel-box:focus-within,
+#teacher-end-time-panel-box:focus-within,
+#teacher-release-date-box:focus-within,
+#teacher-due-date-box:focus-within,
+#subpage-days-schedule-list .relative:focus-within,
+.relative:has(#subpage-master-start-time):focus-within,
+.relative:has(#subpage-master-end-time):focus-within,
+#teacher-grading-configuration-card .relative:focus-within,
+#teacher-schedule-timelimit-shell:focus-within,
+#teacher-schedule-activity-component-box:focus-within,
+.focus-within\:border-\[\#FFD000\]:focus-within {
+    border-color: #FFD000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    background-color: #ffffff !important;
+}
+
+/* All 1-border (underline) text fields & inputs: Selected yellow bottom border (#FFD000) */
+.sigma-subject-input:focus,
+.sigma-subject-select:focus,
+.sigma-form-input:focus,
+.sigma-form-select:focus,
+.sigma-underline-input:focus,
+.sigma-underline-select:focus,
+.sigma-one-border-textarea:focus,
+.sigma-underline-field:focus,
+input[class*="border-b"]:focus,
+select[class*="border-b"]:focus,
+textarea[class*="border-b"]:focus,
+input[class*="sigma-underline"]:focus,
+select[class*="sigma-underline"]:focus,
+textarea[class*="sigma-underline"]:focus,
+.border-b-2:focus,
+.border-b:focus,
+.focus\:border-black:focus {
+    border-bottom-color: #FFD000 !important;
+}
+
+/* Boxed text fields & description boxes: flat 1px yellow border when selected (#FFD000) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
+select:not(.sigma-subject-select):not(.sigma-form-select):not(.sigma-underline-select):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
+textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
+.sigma-composer-editor-box:focus-within,
+.sigma-composer-body .sigma-composer-editor-box:focus-within,
+.sigma-composer-editor-box.focused,
+.focus\:border-\[\#15803d\]:focus,
+.focus-within\:border-\[\#15803d\]:focus-within {
+    border-color: #FFD000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+/* ==========================================================================
+   Universal Protection for Locked / Readonly / Disabled Fields & Containers
+   Prevent turning white or showing yellow focus borders when clicked/focused
+   ========================================================================== */
+input:disabled,
+input[readonly],
+input:disabled:focus,
+input[readonly]:focus,
+input:disabled:active,
+input[readonly]:active,
+input:disabled:hover,
+input[readonly]:hover,
+input:disabled:focus-visible,
+input[readonly]:focus-visible,
+textarea:disabled,
+textarea[readonly],
+textarea:disabled:focus,
+textarea[readonly]:focus,
+textarea:disabled:active,
+textarea[readonly]:active,
+textarea:disabled:hover,
+textarea[readonly]:hover,
+select:disabled,
+select[readonly],
+select:disabled:focus,
+select[readonly]:focus,
+select:disabled:active,
+select[readonly]:active,
+select:disabled:hover,
+select[readonly]:hover {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Locked text boxes with slate-100 or slate-50 background must stay grey when clicked */
+.bg-slate-100\/70:focus-within,
+.bg-slate-100\/70:hover,
+.bg-slate-100\/70:active,
+.bg-slate-100\/70:focus,
+.bg-slate-100:focus-within,
+.bg-slate-100:hover,
+.bg-slate-100:active,
+.bg-slate-100:focus,
+div:has(> input[readonly]):focus-within,
+div:has(> input:disabled):focus-within,
+div:has(> textarea[readonly]):focus-within,
+div:has(> textarea:disabled):focus-within,
+div.cursor-not-allowed:focus-within,
+div.cursor-not-allowed:hover,
+div.cursor-not-allowed:active,
+div.cursor-not-allowed:focus {
+    background-color: rgba(241, 245, 249, 0.7) !important;
+    border-color: #e2e8f0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+#teacher-schedule-max-score[readonly],
+#teacher-schedule-max-score[readonly]:focus,
+#teacher-schedule-max-score[readonly]:active,
+#teacher-schedule-max-score[readonly]:hover,
+#teacher-schedule-max-score:disabled,
+#teacher-schedule-max-score:disabled:focus,
+#teacher-schedule-max-score:disabled:active,
+#teacher-schedule-max-score:disabled:hover {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+}
+
+div:has(#teacher-schedule-max-score[readonly]),
+div:has(#teacher-schedule-max-score[readonly]):focus-within,
+div:has(#teacher-schedule-max-score[readonly]):hover,
+div:has(#teacher-schedule-max-score[readonly]):active,
+div:has(#teacher-schedule-max-score:disabled),
+div:has(#teacher-schedule-max-score:disabled):focus-within,
+div:has(#teacher-schedule-max-score:disabled):hover,
+div:has(#teacher-schedule-max-score:disabled):active {
+    background-color: rgba(241, 245, 249, 0.7) !important;
+    border-color: #e2e8f0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Shared Brand Green Utility */
+.bg-\[\#15803d\] {
+    background-color: #15803d !important;
+}
+
+/* Hide subject segmented nav bar in topics/materials or standalone mode */
+#subject-edit-overlay.content-mode #subject-segmented-header,
+#subject-edit-overlay.standalone-mode #subject-segmented-header,
+#subject-edit-overlay.hide-bars #subject-segmented-header,
+#subject-edit-overlay.teacher-mode #subject-segmented-header {
+    display: none !important;
+}
+
+/* Topic Accordion Panel Hover Highlight Grey */
+[id^="subject-topic-panel-"] {
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[id^="subject-topic-panel-"]:hover {
+    border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+[id^="subject-topic-panel-"] > div:first-child {
+    transition: background-color 0.15s ease !important;
+}
+
+[id^="subject-topic-panel-"] > div:first-child:hover,
+[id^="subject-topic-panel-"] > div:first-child:active {
+    background-color: #f1f5f9 !important; /* slate-100 */
+}
+
+/* When collapsed (dropdown hidden), hovering anywhere on the panel highlights it grey */
+[id^="subject-topic-panel-"]:has([id^="topic-dropdown-"].hidden):hover,
+[id^="subject-topic-panel-"]:has([id^="topic-dropdown-"].hidden):hover > div:first-child {
+    background-color: #f1f5f9 !important;
+}
+
+/* ==========================================================================
+   GLOBAL UNIVERSAL ELIMINATION OF HOVER HIGHLIGHT GREY ON TEXT BOXES & INPUTS
+   Ensures textboxes, search boxes, and inputs never turn grey on hover across all pages.
+   ========================================================================== */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):hover:not(:disabled):not([readonly]),
+textarea:hover:not(:disabled):not([readonly]),
+.sigma-input:hover:not(:disabled):not([readonly]),
+.sigma-textarea:hover:not(:disabled):not([readonly]),
+.sigma-subject-input:hover:not(:disabled):not([readonly]),
+.sigma-form-input:hover:not(:disabled):not([readonly]),
+.sigma-underline-input:hover:not(:disabled):not([readonly]),
+.sigma-underline-field:hover:not(:disabled):not([readonly]),
+.sigma-one-border-textarea:hover:not(:disabled):not([readonly]),
+[id*="search"]:hover:not(:disabled):not([readonly]),
+input[class*="search"]:hover:not(:disabled):not([readonly]) {
+    background-color: #ffffff !important;
+}
+
+/* Maintain transparency for inputs designed to sit in transparent inner shells */
+input.bg-transparent:hover:not(:disabled):not([readonly]),
+.bg-transparent > input:hover:not(:disabled):not([readonly]),
+.relative.flex.items-center.w-full > input.bg-transparent:hover:not(:disabled):not([readonly]) {
+    background-color: transparent !important;
+}
+
+/* Also eliminate grey focus highlight inside text boxes */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):focus,
+textarea:focus,
+.sigma-input:focus,
+.sigma-textarea:focus,
+.sigma-subject-input:focus,
+.sigma-form-input:focus,
+.sigma-underline-input:focus,
+.sigma-underline-field:focus,
+[id*="search"]:focus {
+    background-color: #ffffff !important;
+}
+
+input.bg-transparent:focus,
+.bg-transparent > input:focus,
+.relative.flex.items-center.w-full > input.bg-transparent:focus {
+    background-color: transparent !important;
+}
+
+/* ==========================================================================
+   Subject Modal & Sub-Editor Footers - Canonical Responsive Sizing
+   - Desktop Mode (>= 640px): Normal button size (46px height, 14px font)
+   - Mobile Mode (< 640px): Small button size (36px height, 12px font)
+   ========================================================================== */
+#subject-global-footer button:not(.hidden) {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    transition: all 0.15s ease-in-out;
+}
+#subject-global-footer button.hidden,
+#subject-global-footer .hidden {
+    display: none !important;
+}
+
+@media (max-width: 639px) {
+    #subject-modal-footer,
+    #subject-global-footer {
+        padding: 10px 16px !important;
+    }
+    #subject-modal-footer button,
+    #subject-modal-footer .sigma-btn,
+    #subject-modal-footer .sigma-btn-md,
+    #subject-global-footer button,
+    #subject-global-footer .sigma-btn,
+    #subject-global-footer .sigma-btn-md,
+    #subject-global-footer .sigma-btn-primary,
+    #subject-global-footer .sigma-btn-white,
+    #subject-global-footer .sigma-btn-secondary {
+        height: 36px !important;
+        min-height: 36px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        font-size: 12px !important;
+        border-radius: 10px !important;
+        gap: 6px !important;
+    }
+    #subject-modal-footer button i,
+    #subject-global-footer button i {
+        font-size: 12px !important;
+    }
+}
+
+@media (min-width: 640px) {
+    #subject-modal-footer,
+    #subject-global-footer {
+        padding: 14px 32px !important;
+    }
+    #subject-global-footer button,
+    #subject-global-footer .sigma-btn,
+    #subject-global-footer .sigma-btn-md,
+    #subject-global-footer .sigma-btn-primary,
+    #subject-global-footer .sigma-btn-white,
+    #subject-global-footer .sigma-btn-secondary {
+        height: 46px !important;
+        min-height: 46px !important;
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+        font-size: 14px !important;
+        border-radius: 12px !important;
+        gap: 8px !important;
+    }
+    #subject-global-footer #topic-editor-back-btn,
+    #subject-global-footer #mat-editor-back-btn,
+    #subject-global-footer #mat-detail-back-btn,
+    #subject-global-footer #topic-editor-delete-btn,
+    #subject-global-footer #mat-editor-delete-btn {
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+    }
+    #subject-modal-footer button i,
+    #subject-global-footer button i {
+        font-size: 13px !important;
+    }
+}

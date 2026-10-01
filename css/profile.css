@@ -1,0 +1,520 @@
+/**
+ * SIGMA ELMS - Unified Profile Component Stylesheet
+ * Interface Computer College - Caloocan Senior High School ELMS
+ * Borrowed by Admin, Teacher, and Student portals.
+ */
+
+/* ─── 1. Topbar Profile Button ───────────────────────────────────────────── */
+#profile-toggle,
+#profileDropdownBtn,
+.header-profile-btn {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    background-color: #f1f5f9 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+#profile-toggle:hover,
+#profileDropdownBtn:hover,
+.header-profile-btn:hover,
+#profile-toggle.active,
+#profileDropdownBtn.active,
+.header-profile-btn.active {
+    background-color: #e2e8f0 !important;
+}
+
+#profile-toggle.active .header-profile-btn__chevron,
+#profileDropdownBtn.active .header-profile-btn__chevron,
+.header-profile-btn.active .header-profile-btn__chevron {
+    color: #FFD000 !important;
+    transform: rotate(180deg);
+}
+
+.header-profile-btn__chevron {
+    font-size: 10px;
+    font-weight: 700;
+    color: #000000;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+    display: inline-block;
+}
+
+/* ─── 2. Profile Slide-Out Drawer ────────────────────────────────────────── */
+#profile-dropdown,
+#profileDropdownMenu {
+    position: fixed !important;
+    right: 0 !important;
+    top: 82px !important;
+    width: 400px !important;
+    height: calc(100vh - 82px) !important;
+    background-color: #ffffff !important;
+    box-shadow: -20px 0 40px rgba(0, 0, 0, 0.08) !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-top-left-radius: 24px !important;
+    border-bottom-left-radius: 24px !important;
+    z-index: 300 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    font-family: 'Inter', sans-serif !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+}
+
+#profile-dropdown.hidden,
+#profileDropdownMenu.hidden {
+    display: none !important;
+}
+
+/* Profile Custom Scrollbar */
+#profile-dropdown::-webkit-scrollbar,
+#profileDropdownMenu::-webkit-scrollbar {
+    width: 4px;
+}
+
+#profile-dropdown::-webkit-scrollbar-track,
+#profileDropdownMenu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#profile-dropdown::-webkit-scrollbar-thumb,
+#profileDropdownMenu::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+#profile-dropdown::-webkit-scrollbar-thumb:hover,
+#profileDropdownMenu::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* ─── 3. Profile Hero Section ────────────────────────────────────────────── */
+.profile-panel-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 36px 32px 28px;
+    background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background-color 0.18s ease, background 0.18s ease;
+}
+
+.profile-panel-hero:hover {
+    background: #e2e8f0 !important;
+}
+
+.profile-panel-avatar-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 9999px;
+    background-color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 0 0 4px #ffffff, 0 0 0 6px #e2e8f0, 0 4px 16px rgba(0, 0, 0, 0.10);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+.profile-panel-avatar-wrap:hover {
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+.profile-panel-avatar-wrap img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9999px;
+}
+
+.profile-panel-avatar-wrap i,
+#sidebar-avatar-placeholder {
+    font-size: 32px !important;
+    color: #94a3b8 !important;
+    display: inline-block;
+}
+
+#header-avatar-placeholder {
+    font-size: 15px !important;
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+    display: inline-block;
+}
+
+#user-avatar-placeholder {
+    font-size: 72px !important;
+    color: #94a3b8 !important;
+    display: inline-block;
+}
+
+.sigma-avatar-placeholder {
+    color: #94a3b8 !important;
+}
+
+/* Canonical Shared User Avatar Component - Exact Match to Topbar Profile Button */
+.sigma-user-avatar {
+    position: relative;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-radius: 9999px !important;
+    background-color: #f1f5f9 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    user-select: none;
+    vertical-align: middle;
+}
+
+.sigma-user-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9999px;
+}
+
+.sigma-user-avatar i {
+    color: #94a3b8 !important;
+    font-size: 15px !important;
+    display: inline-block;
+    line-height: 1;
+}
+
+.sigma-user-avatar--xs {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+}
+
+.sigma-user-avatar--xs i {
+    font-size: 11px !important;
+}
+
+.sigma-user-avatar--sm {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+}
+
+.sigma-user-avatar--sm i {
+    font-size: 15px !important;
+}
+
+.sigma-user-avatar--md {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+}
+
+.sigma-user-avatar--md i {
+    font-size: 15px !important;
+}
+
+.sigma-user-avatar--lg {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+}
+
+.sigma-user-avatar--lg i {
+    font-size: 18px !important;
+}
+
+/* User Profile Banner Avatar Wrap */
+#user-profile-picture-trigger {
+    position: relative;
+    border-radius: 9999px;
+    background-color: #e2e8f0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 0 0 6px #ffffff, 0 0 0 8px #e2e8f0, 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: none !important;
+    outline: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+#user-profile-picture-trigger:hover {
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+#user-profile-picture-trigger img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9999px;
+}
+
+.profile-panel-name {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    margin: 0;
+    cursor: pointer;
+}
+
+.profile-panel-account-id {
+    font-size: 12px;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 0;
+    cursor: pointer;
+}
+
+/* ─── Shared Role Badge ─── */
+.profile-panel-role-badge,
+.profile-role-badge,
+#view-user-role {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 12px;
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: capitalize !important;
+    line-height: 1.4;
+    border: none !important;
+}
+
+/* ─── 4. Profile Menu Items ──────────────────────────────────────────────── */
+.profile-panel-menu {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 6px;
+}
+
+.profile-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    color: #334155;
+    text-decoration: none !important;
+    transition: background-color 0.18s ease, color 0.18s ease;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    border-radius: 16px !important;
+}
+
+.profile-menu-item:hover,
+.profile-menu-item.active,
+.profile-menu-item:focus {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-radius: 16px !important;
+}
+
+.profile-menu-item__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.18s ease;
+}
+
+.profile-menu-item:hover .profile-menu-item__icon {
+    background-color: #e2e8f0;
+}
+
+.profile-menu-item__icon i {
+    font-size: 13px;
+    color: #000000;
+}
+
+.profile-menu-item__text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.profile-menu-item__label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000000;
+    line-height: 1.2;
+}
+
+.profile-menu-item__sublabel {
+    font-size: 11px;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    line-height: 1.2;
+}
+
+/* ─── 5. Logout / Danger Item ────────────────────────────────────────────── */
+.profile-panel-footer {
+    flex-shrink: 0;
+    border-top: 1px solid #f1f5f9;
+    padding: 12px 16px;
+}
+
+.profile-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    text-decoration: none !important;
+    transition: background-color 0.18s ease, color 0.18s ease;
+    text-align: left;
+    border-radius: 16px !important;
+}
+
+.profile-logout-btn:hover {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-radius: 16px !important;
+}
+
+.profile-logout-btn .profile-menu-item__icon {
+    background-color: #f1f5f9;
+    flex-shrink: 0;
+}
+
+.profile-logout-btn:hover .profile-menu-item__icon {
+    background-color: #e2e8f0;
+}
+
+.profile-logout-btn i {
+    font-size: 13px;
+    color: #000000;
+}
+
+/* ─── 6. User Profile Picture Chooser Modal & Edit Options Panel ────────── */
+#user-profile-picture-overlay {
+    font-family: 'Inter', sans-serif !important;
+}
+
+#user-profile-picture-overlay h3,
+#user-profile-picture-overlay button,
+#user-profile-picture-overlay p {
+    font-family: 'Inter', sans-serif !important;
+}
+
+#user-profile-upload-btn,
+#user-profile-select-avatar-btn,
+#user-profile-remove-avatar-btn {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+.photo-upload-card {
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+.photo-upload-card.photo-card-active {
+    z-index: 9999 !important;
+}
+
+.photo-options-trigger {
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.photo-options-trigger:hover {
+    transform: scale(1.06);
+}
+
+.photo-options-menu {
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22), 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 16px !important;
+    font-family: 'Inter', sans-serif !important;
+    z-index: 10000 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    min-width: 185px !important;
+    white-space: nowrap !important;
+}
+
+.photo-options-menu button {
+    border: none !important;
+    outline: none !important;
+    font-family: 'Inter', sans-serif !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* ─── 7. User Profile Tabs (Unified Underline & Hover Highlight) ─────────── */
+#user-profile-view #profile-tab-achievements:not([class*="border-[#15803d]"]):hover,
+#user-profile-view #profile-tab-subjects:not([class*="border-[#15803d]"]):hover,
+#user-profile-view #profile-tab-sections:not([class*="border-[#15803d]"]):hover {
+    background: #f1f5f9 !important;
+    background-color: #f1f5f9 !important;
+    border-radius: 8px !important;
+}
+
+#user-profile-view #profile-tab-achievements[class*="border-[#15803d]"]:hover,
+#user-profile-view #profile-tab-subjects[class*="border-[#15803d]"]:hover,
+#user-profile-view #profile-tab-sections[class*="border-[#15803d]"]:hover {
+    background: transparent !important;
+    background-color: transparent !important;
+}

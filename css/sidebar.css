@@ -1,0 +1,1051 @@
+/**
+ * SIGMA ELMS - Unified Sidebar Component Stylesheet
+ * Interface Computer College - Caloocan Senior High School ELMS
+ * Sidebar is a FIXED OVERLAY — content never squeezes or shifts.
+ * Content always stays at 82px left margin (collapsed rail width).
+ */
+
+:root {
+    --sidebar-top-offset: 82px;
+    --sidebar-expanded-width: 260px;
+    --sidebar-collapsed-width: 82px;
+    --sidebar-width: var(--sidebar-collapsed-width);
+    --sidebar-bg-green: #15803d;
+    --sidebar-hover-bg: rgba(255, 255, 255, 0.12);
+    --sidebar-active-bg: #ffffff;
+    --sidebar-active-color: #000000;
+    --sidebar-active-yellow: #FFD000;
+}
+
+/* ─── 1. Universal Sidebar Container ───────────────────────────────────── */
+#sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: var(--sidebar-top-offset) !important;
+    width: var(--sidebar-expanded-width) !important;
+    height: calc(100vh - var(--sidebar-top-offset)) !important;
+    background-color: var(--sidebar-bg-green) !important;
+    z-index: 10000 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    transform: none !important;
+    transition: none !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom minimal scrollbar for sidebar */
+#sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+/* ─── 2. Main Content Workspace Layout Offset ──────────────────────────── */
+/* Content is ALWAYS fixed at collapsed-width offset (82px).
+   Sidebar overlays on top — content never squeezes or shifts. */
+#layout-wrapper {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    margin-top: var(--sidebar-top-offset) !important;
+    /* auto + flex grow: percentage width on a flex child sticks after
+       DevTools shrinks then restores the viewport. */
+    width: auto !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+    min-height: calc(100vh - var(--sidebar-top-offset)) !important;
+    min-width: 0 !important;
+    transition: none !important;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* ─── 3. Navigation Links (Expanded Mode) ───────────────────────────────── */
+.nav-link {
+    position: relative;
+    display: flex !important;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+    padding: 0 !important;
+    height: 54px;
+    border-radius: 0;
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    user-select: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.nav-link:focus,
+.nav-link:focus-visible,
+.nav-link:active {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.nav-link i:not(.sidebar-group-chevron),
+.nav-link span,
+.nav-link div {
+    pointer-events: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+/* Explicit inactive state: always pure white with no black transition */
+.nav-link:not(.active) {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+    transition: none !important;
+}
+
+.nav-link:not(.active) i:not(.sidebar-group-chevron),
+.nav-link:not(.active) span,
+.nav-link:not(.active) .full-label,
+.nav-link:not(.active) .rail-label {
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+/* Hover state */
+.nav-link:not(.active):hover {
+    background-color: var(--sidebar-hover-bg) !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.nav-link:not(.active):hover i:not(.sidebar-group-chevron),
+.nav-link:not(.active):hover span,
+.nav-link:not(.active):hover .full-label,
+.nav-link:not(.active):hover .rail-label {
+    color: #ffffff !important;
+}
+
+/* Active item highlight: Solid white background with ICC Yellow Icon & Black Text (instant, no flicker) */
+.nav-link.active {
+    background-color: var(--sidebar-active-bg) !important;
+    color: var(--sidebar-active-color) !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: none !important;
+}
+
+.nav-link.active i {
+    color: var(--sidebar-active-yellow) !important;
+    transition: none !important;
+}
+
+.nav-link.active span,
+.nav-link.active .full-label,
+.nav-link.active .rail-label {
+    color: var(--sidebar-active-color) !important;
+    font-weight: 500 !important;
+    transition: none !important;
+}
+
+/* Sidebar Rail Icon & Labels */
+.sidebar-rail-icon {
+    width: var(--sidebar-collapsed-width);
+    min-width: var(--sidebar-collapsed-width);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-shrink: 0;
+    transform: none !important;
+    animation: none !important;
+}
+
+.sidebar-rail-icon i {
+    font-size: 1.25rem;
+    line-height: 1;
+    transform: none !important;
+}
+
+.rail-label {
+    display: none;
+    margin-top: 5px;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1.15;
+    text-align: center;
+    text-transform: capitalize !important;
+    letter-spacing: 0.01em;
+    color: #ffffff;
+    max-width: 72px;
+    word-break: normal;
+    transform: none !important;
+    animation: none !important;
+}
+
+.full-label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #ffffff;
+    text-transform: capitalize !important;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+.sidebar-group-chevron {
+    margin-left: auto !important;
+    margin-right: 18px !important;
+    opacity: 0.85;
+    font-size: 10px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transform-origin: center center !important;
+    transform: rotate(0deg);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.nav-link.open .sidebar-group-chevron,
+.nav-link[aria-expanded="true"] .sidebar-group-chevron,
+[data-toggle="submenu"].open .sidebar-group-chevron,
+[data-toggle="submenu"][aria-expanded="true"] .sidebar-group-chevron,
+.sidebar-group-chevron.rotate-90 {
+    transform: rotate(90deg);
+}
+
+.nav-link:not(.open):not([aria-expanded="true"]) .sidebar-group-chevron:not(.rotate-90),
+.nav-link[aria-expanded="false"] .sidebar-group-chevron:not(.rotate-90),
+[data-toggle="submenu"]:not(.open):not([aria-expanded="true"]) .sidebar-group-chevron:not(.rotate-90),
+[data-toggle="submenu"][aria-expanded="false"] .sidebar-group-chevron:not(.rotate-90) {
+    transform: rotate(0deg);
+}
+
+/* ─── 4. Submenu Dropdowns / Accordions ─────────────────────────────────── */
+.sidebar-submenu {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0 8px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-submenu.hidden,
+.nav-sublink.hidden,
+.nav-link.hidden,
+.nav-group.hidden,
+#sidebar .hidden {
+    display: none !important;
+}
+
+.nav-sublink {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 18px 0 62px;
+    color: #ffffff !important;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: capitalize !important;
+    transition: none !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.nav-sublink:focus,
+.nav-sublink:focus-visible,
+.nav-sublink:active {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.nav-sublink i {
+    width: 14px;
+    text-align: center;
+    font-size: 12px;
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+.nav-sublink span {
+    transition: none !important;
+}
+
+.nav-sublink:not(.active) {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+.nav-sublink:not(.active) i,
+.nav-sublink:not(.active) span {
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+.nav-sublink:not(.active):hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+.nav-sublink:not(.active):hover i,
+.nav-sublink:not(.active):hover span {
+    color: #ffffff !important;
+}
+
+.nav-sublink.active {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+.nav-sublink.active i {
+    color: var(--sidebar-active-yellow) !important;
+    transition: none !important;
+}
+
+.nav-sublink.active span {
+    color: #000000 !important;
+    font-weight: 500 !important;
+    transition: none !important;
+}
+
+/* ─── 5. Collapsed Rail Mode (body.sidebar-collapsed) ───────────────────── */
+body.sidebar-collapsed #sidebar {
+    width: var(--sidebar-collapsed-width) !important;
+}
+
+/* Content stays the same — sidebar just narrows, content never moves */
+body.sidebar-collapsed #layout-wrapper {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    width: auto !important;
+}
+
+@media (min-width: 1024px) {
+    #sidebar,
+    body.sidebar-collapsed #sidebar {
+        transform: none !important;
+    }
+
+    #layout-wrapper,
+    body.sidebar-collapsed #layout-wrapper {
+        margin-left: var(--sidebar-collapsed-width) !important;
+        width: auto !important;
+    }
+}
+
+body.sidebar-collapsed .nav-link {
+    justify-content: center;
+    transition: none !important;
+}
+
+body.sidebar-collapsed .nav-link:not(.active) {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: none !important;
+}
+
+body.sidebar-collapsed .nav-link:not(.active) i:not(.sidebar-group-chevron) {
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+body.sidebar-collapsed .nav-link:not(.active) span,
+body.sidebar-collapsed .nav-link:not(.active) .rail-label {
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+/* Connected White Selected Rail Item — only for truly active/selected navigation */
+body.sidebar-collapsed .nav-link.active {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    position: relative !important;
+    z-index: 251 !important;
+    box-shadow: none !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+    border-right: none !important;
+    border-left: none !important;
+    transition: none !important;
+}
+
+body.sidebar-collapsed .nav-link.active i:not(.sidebar-group-chevron) {
+    color: var(--sidebar-active-yellow) !important;
+    transition: none !important;
+}
+
+body.sidebar-collapsed .nav-link.active span,
+body.sidebar-collapsed .nav-link.active .rail-label {
+    color: #000000 !important;
+    font-weight: 600 !important;
+    transition: none !important;
+}
+
+/* Hovering over any unselected rail item must NEVER turn white or select */
+body.sidebar-collapsed .nav-link:not(.active):hover {
+    background-color: var(--sidebar-hover-bg) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+}
+
+body.sidebar-collapsed .nav-link:not(.active):hover i:not(.sidebar-group-chevron) {
+    color: #ffffff !important;
+}
+
+body.sidebar-collapsed .nav-link:not(.active):hover span,
+body.sidebar-collapsed .nav-link:not(.active):hover .rail-label {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+body.sidebar-collapsed .sidebar-rail-icon {
+    width: var(--sidebar-collapsed-width);
+    min-width: var(--sidebar-collapsed-width);
+    flex-direction: column !important;
+}
+
+body.sidebar-collapsed .rail-label {
+    display: block;
+}
+
+body.sidebar-collapsed .full-label,
+body.sidebar-collapsed .sidebar-group-chevron,
+body.sidebar-collapsed .sidebar-submenu {
+    display: none !important;
+}
+
+/* ─── 6. Responsive Mobile Mode (<1024px) ───────────────────────────────── */
+@media (max-width: 1023px) {
+    #layout-wrapper,
+    body.sidebar-collapsed #layout-wrapper {
+        margin-left: 0 !important;
+        margin-top: 0 !important;
+        width: 100% !important;
+    }
+
+    #sidebar,
+    body.sidebar-collapsed #sidebar {
+        top: var(--student-top-nav-height, clamp(17px, 4.2vw, 21px)) !important;
+        height: calc(100vh - var(--student-top-nav-height, clamp(17px, 4.2vw, 21px))) !important;
+        height: calc(100dvh - var(--student-top-nav-height, clamp(17px, 4.2vw, 21px))) !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        width: var(--sidebar-expanded-width) !important;
+        z-index: 10000 !important;
+    }
+
+    #sidebar.sidebar-visible,
+    body.sidebar-collapsed #sidebar.sidebar-visible {
+        transform: translateX(0) !important;
+        box-shadow: 8px 0 28px -4px rgba(0, 0, 0, 0.4) !important;
+        z-index: 10000 !important;
+    }
+
+    body.sidebar-collapsed .full-label {
+        display: block !important;
+    }
+
+    body.sidebar-collapsed .rail-label {
+        display: none !important;
+    }
+
+    body.sidebar-collapsed .sidebar-group-chevron {
+        display: block !important;
+    }
+
+    #sidebar.sidebar-visible .sidebar-submenu:not(.hidden) {
+        display: flex !important;
+    }
+}
+
+/* Mobile Sidebar Drawer Overlay (covers main bar & subbar, but not the green bar) */
+#sidebar-overlay {
+    position: fixed !important;
+    top: var(--student-top-nav-height, clamp(17px, 4.2vw, 21px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-color: rgba(15, 23, 42, 0.5) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9999 !important;
+    transition: opacity 0.25s ease;
+}
+
+#sidebar-overlay.hidden {
+    display: none !important;
+}
+
+@media (min-width: 1024px) {
+    #sidebar-overlay {
+        display: none !important;
+    }
+}
+
+/* Mobile Sidebar User Profile Row (Inside Sidebar Drawer at top) */
+.mobile-sidebar-user-row {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    .mobile-sidebar-user-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        padding: 12px 16px !important;
+        margin-bottom: 8px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        transition: background-color 0.15s ease !important;
+    }
+
+    .mobile-sidebar-user-row:hover,
+    .mobile-sidebar-user-row:active {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .mobile-sidebar-avatar-wrap {
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 9999px !important;
+        background-color: #f1f5f9 !important;
+        background: #f1f5f9 !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.85) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .mobile-sidebar-avatar-wrap img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+        border-radius: 9999px !important;
+    }
+
+    .mobile-sidebar-avatar-wrap i {
+        font-size: 16px !important;
+        color: #64748b !important;
+    }
+
+    .mobile-sidebar-user-name {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        letter-spacing: -0.01em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+}
+
+/* ─── 7. Unified Sub-Sidebar Flyout & Accordions ───────────────────────── */
+#sub-sidebar {
+    position: fixed !important;
+    left: calc(var(--sidebar-collapsed-width) - 1px) !important;
+    top: var(--sidebar-top-offset);
+    width: 256px !important;
+    max-height: calc(100vh - var(--sidebar-top-offset) - 16px) !important;
+    height: auto !important;
+    min-height: 140px !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border-radius: 0 18px 18px 18px !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    border-left: none !important;
+    box-shadow: 
+        0 10px 25px -3px rgba(15, 23, 42, 0.08),
+        0 4px 10px -2px rgba(15, 23, 42, 0.04),
+        6px 0 18px -3px rgba(15, 23, 42, 0.05) !important;
+    z-index: 10500 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    transform-origin: top left !important;
+}
+
+/* Invisible hit bridge between icon rail and sub-sidebar floating card */
+#sub-sidebar::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -16px;
+    width: 16px;
+    height: calc(100% + 24px);
+    background: transparent;
+    pointer-events: auto;
+}
+
+#sub-sidebar.hidden {
+    display: none !important;
+}
+
+@keyframes subSidebarSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateX(-4px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+#sub-sidebar.sub-sidebar-visible,
+aside#sub-sidebar.sub-sidebar-visible {
+    display: flex !important;
+    animation: subSidebarSlideIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    z-index: 10500 !important;
+}
+
+/* Sub-Sidebar Header — matches 54px rail button height for perfect seamless continuity */
+#sub-sidebar-header {
+    padding: 0 16px !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+    background: #ffffff !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+}
+
+#sub-sidebar-header::before {
+    content: '';
+    display: inline-block;
+    width: 3.5px;
+    height: 14px;
+    background-color: #15803d;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+#sub-sidebar-title {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    text-transform: capitalize !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Sub-Sidebar Scrollable Content */
+#sub-sidebar-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 10px 10px 24px 10px !important;
+    background: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+#sub-sidebar-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+#sub-sidebar-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+/* Sub-Sidebar Standard Navigation Links */
+.sub-sidebar-link {
+    display: flex !important;
+    align-items: center !important;
+    gap: 11px !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 9px 12px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    text-decoration: none !important;
+    text-transform: capitalize !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    cursor: pointer !important;
+    text-align: left !important;
+    transition: none !important;
+    box-sizing: border-box !important;
+    outline: none !important;
+}
+
+.sub-sidebar-link span {
+    color: #000000 !important;
+    font-weight: 500 !important;
+    transition: none !important;
+}
+
+.sub-sidebar-link i {
+    width: 16px !important;
+    text-align: center !important;
+    font-size: 13px !important;
+    color: #000000 !important;
+    flex-shrink: 0 !important;
+    transition: none !important;
+}
+
+.sub-sidebar-link:hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+    border-color: #e2e8f0 !important;
+}
+
+.sub-sidebar-link:hover i {
+    color: #000000 !important;
+    transform: none !important;
+}
+
+.sub-sidebar-link:hover span {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
+
+.sub-sidebar-link.active {
+    background: #FFD000 !important;
+    border-color: #FFD000 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+.sub-sidebar-link.active i {
+    color: #ffffff !important;
+    transition: none !important;
+}
+
+.sub-sidebar-link.active span {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    transition: none !important;
+}
+
+/* Sub-Sidebar Section & Classroom Room Cards (Teacher / Student) */
+.student-section-room-list,
+.teacher-section-room-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    width: 100% !important;
+}
+
+.teacher-section-room-link,
+.student-section-room-link {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    border: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: none !important;
+    box-sizing: border-box !important;
+    outline: none !important;
+}
+
+.teacher-section-room-link:hover,
+.student-section-room-link:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.teacher-section-room-link__icon,
+.student-section-room-link__icon {
+    font-size: 13px !important;
+    width: 16px !important;
+    height: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-top: 2px !important;
+    flex-shrink: 0 !important;
+    color: #000000 !important;
+}
+
+.teacher-section-room-link:hover .teacher-section-room-link__icon,
+.student-section-room-link:hover .student-section-room-link__icon,
+.teacher-section-room-link:hover i,
+.student-section-room-link:hover i {
+    color: #000000 !important;
+}
+
+.teacher-section-room-link__content,
+.student-section-room-link__content {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+    gap: 2px !important;
+}
+
+.teacher-section-room-link__title,
+.student-section-room-link__title {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    line-height: 1.25 !important;
+    text-transform: capitalize !important;
+    word-break: break-word !important;
+    letter-spacing: -0.01em !important;
+}
+
+.teacher-section-room-link__meta,
+.student-section-room-link__meta {
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    color: rgba(0, 0, 0, 0.55) !important;
+    line-height: 1.2 !important;
+    text-transform: capitalize !important;
+    word-break: break-word !important;
+}
+
+/* ─── Active state for Sub-Sidebar Room Cards, Grades & Topics ─── */
+.teacher-section-room-link.active,
+.student-section-room-link.active,
+.grades-overlay-link.active,
+.subject-nav-child.active,
+#sub-sidebar .teacher-section-room-link.active,
+#sub-sidebar .student-section-room-link.active,
+#sub-sidebar .grades-overlay-link.active,
+#sub-sidebar .subject-nav-child.active {
+    background-color: #FFD000 !important;
+    background: #FFD000 !important;
+    border-color: #FFD000 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.teacher-section-room-link.active *,
+.student-section-room-link.active *,
+.grades-overlay-link.active *,
+.subject-nav-child.active *,
+#sub-sidebar .teacher-section-room-link.active *,
+#sub-sidebar .student-section-room-link.active *,
+#sub-sidebar .grades-overlay-link.active *,
+#sub-sidebar .subject-nav-child.active * {
+    color: #ffffff !important;
+}
+
+.teacher-section-room-link.active .teacher-section-room-link__icon,
+.student-section-room-link.active .student-section-room-link__icon,
+.teacher-section-room-link.active i,
+.student-section-room-link.active i,
+.grades-overlay-link.active i,
+.subject-nav-child.active i,
+#sub-sidebar .teacher-section-room-link.active .teacher-section-room-link__icon,
+#sub-sidebar .student-section-room-link.active .student-section-room-link__icon,
+#sub-sidebar .teacher-section-room-link.active i,
+#sub-sidebar .student-section-room-link.active i,
+#sub-sidebar .grades-overlay-link.active i,
+#sub-sidebar .subject-nav-child.active i,
+#sub-sidebar .subject-nav-child-icon {
+    color: #ffffff !important;
+}
+
+.teacher-section-room-link.active .teacher-section-room-link__title,
+.student-section-room-link.active .student-section-room-link__title,
+.grades-overlay-link.active span,
+.subject-nav-child.active span,
+#sub-sidebar .teacher-section-room-link.active .teacher-section-room-link__title,
+#sub-sidebar .student-section-room-link.active .student-section-room-link__title,
+#sub-sidebar .grades-overlay-link.active span,
+#sub-sidebar .subject-nav-child.active span {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+.teacher-section-room-link.active .teacher-section-room-link__meta,
+.student-section-room-link.active .student-section-room-link__meta,
+#sub-sidebar .teacher-section-room-link.active .teacher-section-room-link__meta,
+#sub-sidebar .student-section-room-link.active .student-section-room-link__meta {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-weight: 400 !important;
+}
+
+/* Sub-sidebar unselected icons fallback to black */
+#sub-sidebar .teacher-section-room-link:not(.active) .teacher-section-room-link__icon,
+#sub-sidebar .student-section-room-link:not(.active) .student-section-room-link__icon,
+#sub-sidebar .teacher-section-room-link:not(.active) i,
+#sub-sidebar .student-section-room-link:not(.active) i,
+#sub-sidebar .sub-sidebar-link:not(.active) i,
+#sub-sidebar .grades-overlay-link:not(.active) i,
+#sub-sidebar .subject-nav-child:not(.active) i {
+    color: #000000 !important;
+}
+
+/* ─── Sub-Sidebar Topic Navigation Items (Course Topics) ─── */
+#sub-sidebar .topic-nav-item {
+    width: 100% !important;
+    text-align: left !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+}
+
+#sub-sidebar .topic-nav-item:hover:not(.active) {
+    background-color: #f1f5f9 !important;
+}
+
+#sub-sidebar .topic-nav-item p,
+#sub-sidebar .topic-nav-item span,
+#sub-sidebar .topic-nav-item .topic-nav-title {
+    color: #000000 !important;
+}
+
+#sub-sidebar .topic-nav-item.active,
+#sub-sidebar .topic-nav-item.active:hover {
+    background-color: #FFD000 !important;
+    background: #FFD000 !important;
+    color: #ffffff !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+#sub-sidebar .topic-nav-item.active *,
+#sub-sidebar .topic-nav-item.active p,
+#sub-sidebar .topic-nav-item.active span,
+#sub-sidebar .topic-nav-item.active .topic-nav-title,
+#sub-sidebar .topic-nav-item.active i,
+#sub-sidebar .topic-nav-item.active .fa-solid,
+#sub-sidebar .topic-nav-item.active .fa-regular {
+    color: #ffffff !important;
+}
+
+/* Inside Expanded Sidebar (#sidebar) overrides */
+#sidebar .teacher-section-room-link,
+#sidebar .student-section-room-link {
+    padding: 8px 16px 8px 58px !important;
+    border-radius: 0 !important;
+    color: #ffffff !important;
+    background: transparent !important;
+    min-height: 42px !important;
+}
+
+#sidebar .teacher-section-room-link .teacher-section-room-link__icon,
+#sidebar .student-section-room-link .student-section-room-link__icon,
+#sidebar .teacher-section-room-link i,
+#sidebar .student-section-room-link i,
+#sidebar .teacher-section-room-link:not(.active) .teacher-section-room-link__icon,
+#sidebar .student-section-room-link:not(.active) .student-section-room-link__icon,
+#sidebar .teacher-section-room-link:not(.active) i,
+#sidebar .student-section-room-link:not(.active) i,
+#sidebar .nav-sublink:not(.active) i {
+    color: #ffffff !important;
+}
+
+#sidebar .teacher-section-room-link:hover,
+#sidebar .student-section-room-link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+#sidebar .teacher-section-room-link:hover .teacher-section-room-link__icon,
+#sidebar .student-section-room-link:hover .student-section-room-link__icon,
+#sidebar .teacher-section-room-link:hover i,
+#sidebar .student-section-room-link:hover i {
+    color: #ffffff !important;
+}
+
+#sidebar .teacher-section-room-link.active,
+#sidebar .student-section-room-link.active {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+}
+
+#sidebar .teacher-section-room-link.active .teacher-section-room-link__icon,
+#sidebar .student-section-room-link.active .student-section-room-link__icon,
+#sidebar .teacher-section-room-link.active i,
+#sidebar .student-section-room-link.active i {
+    color: #FFD000 !important;
+}
+
+#sidebar .teacher-section-room-link__title,
+#sidebar .student-section-room-link__title {
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+}
+
+#sidebar .teacher-section-room-link.active .teacher-section-room-link__title,
+#sidebar .student-section-room-link.active .student-section-room-link__title {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
+
+#sidebar .teacher-section-room-link__meta,
+#sidebar .student-section-room-link__meta {
+    color: rgba(255, 255, 255, 0.75) !important;
+    font-size: 10.5px !important;
+    font-weight: 400 !important;
+    text-transform: capitalize !important;
+}
+
+#sidebar .teacher-section-room-link.active .teacher-section-room-link__meta,
+#sidebar .student-section-room-link.active .student-section-room-link__meta {
+    color: #475569 !important;
+    font-weight: 400 !important;
+}
+

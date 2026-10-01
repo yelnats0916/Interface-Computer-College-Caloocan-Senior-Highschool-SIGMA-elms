@@ -1,0 +1,2890 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Create Quiz - Interface Computer College</title>
+    <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
+
+    <!-- FONTS: Google Inter + Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+    <!-- SORTABLE -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/forms.css?v=20260930greyhover1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20260929nobackdesktop1">
+
+    <!-- TAILWIND: Compiled CSS -->
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="css/mobile.css?v=20260929blackstats1">
+
+    <style>
+        * {
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+        }
+
+        i,
+        [class^="fa-"],
+        [class*=" fa-"] {
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+        }
+
+        .standard-panel-shadow {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        /* Sortable Styles - Exact Match with Classrooms */
+        .sortable-ghost {
+            opacity: 1 !important;
+            background: #f1f5f9 !important;
+            border: 2px dashed #cbd5e1 !important;
+            border-radius: 1rem !important;
+        }
+
+        .sortable-drag-clone,
+        .sortable-drag-clone * {
+            opacity: 1 !important;
+            filter: none !important;
+        }
+
+        .deck-thumbnail-card:not(.deck-editing-card) {
+            cursor: pointer !important;
+        }
+
+        .deck-editing-card {
+            cursor: default !important;
+        }
+
+        .deck-drag-handle {
+            cursor: grab !important;
+        }
+
+        .deck-drag-handle:active,
+        .deck-thumbnail-card:active .deck-drag-handle {
+            cursor: grabbing !important;
+        }
+
+        body.sortable-is-dragging,
+        body.sortable-is-dragging *,
+        .sortable-chosen,
+        .sortable-chosen *,
+        .sortable-drag-clone,
+        .sortable-drag-clone * {
+            cursor: grabbing !important;
+            user-select: none !important;
+        }
+
+        #active-question-container .sigma-underline-item-textarea,
+        .sigma-underline-item-textarea {
+            width: 100% !important;
+            min-height: 28px !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 3px 6px !important;
+            font-size: 15px !important;
+            font-weight: 450 !important;
+            color: #000000 !important;
+            outline: none !important;
+            box-shadow: none !important;
+            resize: none !important;
+            overflow: hidden !important;
+            line-height: 1.5 !important;
+            box-sizing: border-box !important;
+            display: block !important;
+        }
+
+        #active-question-container .sigma-underline-item-textarea:focus {
+            background: transparent !important;
+            background-color: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        #save-quiz-main-btn:not(:disabled):hover,
+        #save-quiz-dropdown-trigger:hover {
+            background-color: #14532d !important;
+            filter: brightness(0.92);
+        }
+
+        #save-quiz-main-btn:not(:disabled):active,
+        #save-quiz-dropdown-trigger:active {
+            background-color: #0f3d1e !important;
+            filter: brightness(0.85);
+        }
+
+        /* ─── Quiz Creator Mobile Responsive: 3-Line Header, Scaled Buttons & Panels, No Squeezing ─── */
+        @media (max-width: 767px) {
+            body {
+                overflow-x: hidden !important;
+            }
+
+            /* 1. Header: Exactly 3 Lines on Mobile (With Bottom Green Bar) */
+            header#admin-header {
+                height: auto !important;
+                min-height: 0 !important;
+                border-bottom: 2px solid #15803d !important;
+            }
+
+            header#admin-header nav.top-nav {
+                height: 24px !important;
+                min-height: 24px !important;
+                padding: 0 12px !important;
+            }
+
+            header#admin-header .admin-topbar__inner {
+                display: flex !important;
+                flex-direction: column !important;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                padding: 0 !important;
+                border-bottom: none !important;
+            }
+
+            /* Line 2: Brand (Logo + Full Title) */
+            header#admin-header .admin-topbar__brand {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                width: 100% !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                padding: 0 12px !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+            }
+
+            header#admin-header .admin-topbar__brand #logo-container img {
+                width: 22px !important;
+                height: 22px !important;
+            }
+
+            header#admin-header #header-brand-title {
+                font-size: 12.5px !important;
+                max-width: none !important;
+                overflow: visible !important;
+                white-space: nowrap !important;
+            }
+
+            /* Line 3: Actions (Preview + Save Quiz) */
+            header#admin-header #header-actions-mobile-wrap,
+            header#admin-header .admin-topbar__inner > .flex.items-center.ml-auto {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-end !important;
+                width: 100% !important;
+                height: 34px !important;
+                min-height: 34px !important;
+                padding: 0 10px !important;
+                margin-left: 0 !important;
+                gap: 6px !important;
+                background-color: #ffffff !important;
+                border-bottom: none !important;
+            }
+
+            /* Scaled Down Header Buttons */
+            header#admin-header button[onclick*="openStudentQuizPreviewModal"] {
+                height: 24px !important;
+                min-height: 24px !important;
+                padding: 0 8px !important;
+                font-size: 10px !important;
+                font-weight: 600 !important;
+                border-radius: 6px !important;
+                background-color: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                color: #0f172a !important;
+                gap: 4px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+            }
+
+            header#admin-header button[onclick*="openStudentQuizPreviewModal"] i {
+                font-size: 9.5px !important;
+                color: #0f172a !important;
+            }
+
+            header#admin-header #export-quiz-dropdown-wrap {
+                height: 24px !important;
+                min-height: 24px !important;
+                border-radius: 6px !important;
+                overflow: visible !important;
+                position: relative !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+            }
+
+            header#admin-header #save-quiz-main-btn {
+                height: 24px !important;
+                min-height: 24px !important;
+                padding: 0 8px !important;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                background-color: #15803d !important;
+                color: #ffffff !important;
+                border-top-left-radius: 6px !important;
+                border-bottom-left-radius: 6px !important;
+                border-radius: 6px 0 0 6px !important;
+                border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+                gap: 4px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                cursor: pointer !important;
+                pointer-events: auto !important;
+                opacity: 1 !important;
+            }
+
+            header#admin-header #save-quiz-main-btn i {
+                font-size: 9px !important;
+                color: #ffffff !important;
+            }
+
+            header#admin-header #save-quiz-dropdown-trigger {
+                height: 24px !important;
+                min-height: 24px !important;
+                padding: 0 6px !important;
+                background-color: #15803d !important;
+                color: #ffffff !important;
+                border-top-right-radius: 6px !important;
+                border-bottom-right-radius: 6px !important;
+                border-radius: 0 6px 6px 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+                pointer-events: auto !important;
+                opacity: 1 !important;
+            }
+
+            header#admin-header #save-quiz-dropdown-trigger i {
+                font-size: 9px !important;
+                color: #ffffff !important;
+            }
+
+            /* Scaled Down Chevron Dropdown Menu (Mobile Only) */
+            #export-quiz-dropdown-menu {
+                width: 175px !important;
+                min-width: 175px !important;
+                max-width: calc(100vw - 20px) !important;
+                padding: 4px !important;
+                border-radius: 12px !important;
+                margin-top: 5px !important;
+                right: 0 !important;
+                top: 100% !important;
+                z-index: 300 !important;
+                background-color: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12) !important;
+            }
+
+            #export-quiz-dropdown-menu button {
+                padding: 5px 8px !important;
+                min-height: 26px !important;
+                border-radius: 7px !important;
+                gap: 6px !important;
+            }
+
+            #export-quiz-dropdown-menu button i {
+                font-size: 10px !important;
+                width: 13px !important;
+                text-align: center !important;
+            }
+
+            #export-quiz-dropdown-menu button span {
+                font-size: 10.5px !important;
+                font-weight: 600 !important;
+            }
+
+            #export-quiz-dropdown-menu div[id$="-divider"] {
+                margin: 2px 0 !important;
+            }
+
+            /* Closed Gap between Nav Bar and Selection Panel */
+            body:has(#admin-header) main.flex-1,
+            main.flex-1 {
+                padding-top: 90px !important;
+                padding-bottom: 8px !important;
+                min-height: calc(100dvh - 90px) !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            main.flex-1 > div,
+            main.flex-1 > div.flex {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                gap: 0 !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+            }
+
+            main.flex-1 > div > div:first-child,
+            main.flex-1 .space-y-3\.5 {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                gap: 0 !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+
+            /* 2. Selection Panel: Sticking to Nav Bar (0 Gap), Full Width, Scaled Down */
+            #quiz-action-bar {
+                width: calc(100% + 3rem) !important;
+                max-width: calc(100% + 3rem) !important;
+                margin-left: -1.5rem !important;
+                margin-right: -1.5rem !important;
+                margin-top: 0 !important;
+                border-radius: 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-top: none !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+                min-height: auto !important;
+                padding: 6px 12px 8px 12px !important;
+                overflow: visible !important;
+                overflow-x: visible !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 5px 6px !important;
+                position: sticky !important;
+                top: 90px !important;
+                z-index: 240 !important;
+                background-color: #ffffff !important;
+            }
+
+            #quiz-action-bar::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            /* Action buttons: 2-column grid layout on mobile */
+            #quiz-action-bar > div:first-child {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                align-items: center !important;
+                gap: 5px 12px !important;
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                flex-shrink: 1 !important;
+                box-sizing: border-box !important;
+            }
+
+            #quiz-action-bar > div:first-child > div.shrink-0 {
+                display: flex !important;
+                align-items: center !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Action panel container on mobile: prevent text selection */
+            #quiz-action-bar,
+            #quiz-action-bar * {
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                -webkit-touch-callout: none !important;
+            }
+
+            /* Buttons inside selection pane: Perfectly aligned vertically per column */
+            #quiz-action-bar button,
+            #quiz-action-bar .shrink-0 button,
+            #quiz-action-bar > div:first-child button {
+                height: 26px !important;
+                min-height: 26px !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                border-radius: 0 !important;
+                gap: 6px !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                outline: none !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+                -webkit-tap-highlight-color: transparent !important;
+                box-sizing: border-box !important;
+            }
+
+            #quiz-action-bar button:hover,
+            #quiz-action-bar button:active,
+            #quiz-action-bar button:focus,
+            #quiz-action-bar .shrink-0 button:hover,
+            #quiz-action-bar .shrink-0 button:active,
+            #quiz-action-bar .shrink-0 button:focus,
+            #quiz-action-bar > div:first-child button:hover,
+            #quiz-action-bar > div:first-child button:active,
+            #quiz-action-bar > div:first-child button:focus {
+                background: transparent !important;
+                background-color: transparent !important;
+                box-shadow: none !important;
+                outline: none !important;
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            /* Standardized 16px icon box so all icons and labels vertically align per column */
+            #quiz-action-bar button i,
+            #quiz-action-bar .shrink-0 button i,
+            #quiz-action-bar > div:first-child button i {
+                font-size: 11px !important;
+                width: 16px !important;
+                min-width: 16px !important;
+                max-width: 16px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+                flex-shrink: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            #quiz-action-bar button i.fa-bolt {
+                color: #FFD000 !important;
+            }
+
+            #quiz-action-bar button i:not(.fa-bolt) {
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            #quiz-action-bar button:hover i:not(.fa-bolt),
+            #quiz-action-bar button:active i:not(.fa-bolt),
+            #quiz-action-bar button:focus i:not(.fa-bolt) {
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            #quiz-action-bar span,
+            #quiz-action-bar button span {
+                font-size: 11px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+                text-align: left !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Selection panel stats: questions and points */
+            #quiz-action-bar > div:last-child {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-end !important;
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                padding: 4px 2px 2px 2px !important;
+                gap: 8px !important;
+                border-top: 1px dashed #e2e8f0 !important;
+                margin-top: 2px !important;
+            }
+
+            /* Selection panel stats: questions and points (exact match with desktop solid black) */
+            #quiz-action-bar #quiz-stat-questions,
+            #quiz-action-bar #quiz-stat-points,
+            #quiz-action-bar > div:last-child span {
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                white-space: nowrap !important;
+                color: #000000 !important;
+            }
+
+            #quiz-action-bar #quiz-stat-questions i {
+                color: #000000 !important;
+                font-size: 11px !important;
+            }
+
+            #quiz-action-bar #quiz-stat-points i.fa-star {
+                color: #FFD000 !important;
+                font-size: 11px !important;
+            }
+
+            #quiz-action-bar > div:last-child span.opacity-40 {
+                opacity: 0.4 !important;
+                color: #000000 !important;
+            }
+
+            /* 3. Question & Add Image Panels: Full-Width, No Radius & Scaled Down Text / Buttons */
+            #quiz-banner-images-list,
+            #active-question-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            #active-question-container {
+                flex: 1 1 auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            #quiz-banner-images-list > div,
+            .quiz-general-image-panel,
+            #active-question-card-inner,
+            .active-question-card,
+            #active-question-container > div {
+                width: calc(100% + 3rem) !important;
+                max-width: calc(100% + 3rem) !important;
+                margin-left: -1.5rem !important;
+                margin-right: -1.5rem !important;
+                border-radius: 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                box-shadow: none !important;
+                padding: 14px 12px !important;
+            }
+
+            /* Add Image Panel Mobile Constraints */
+            #quiz-banner-images-list > div > div,
+            .quiz-general-image-panel > div,
+            #quiz-banner-images-list .quiz-general-image-box,
+            .quiz-general-image-panel .quiz-general-image-box {
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+
+            #quiz-banner-images-list .quiz-general-image-box,
+            .quiz-general-image-panel .quiz-general-image-box {
+                height: 240px !important;
+                border-radius: 8px !important;
+            }
+
+            #quiz-banner-images-list input[type="text"],
+            .quiz-general-image-panel input[type="text"] {
+                font-size: 13px !important;
+                min-height: 40px !important;
+                padding: 8px 12px !important;
+                width: 100% !important;
+            }
+
+            #quiz-banner-images-list .group\/bannerimg > div,
+            .quiz-general-image-panel .group\/bannerimg > div {
+                opacity: 1 !important;
+            }
+
+            /* Empty Question State Panel: Increased height, vertically centered, auto-sized across mobile screen heights */
+            #active-question-container .quiz-empty-question-state,
+            #active-question-container > .active-question-card:not(#active-question-card-inner) {
+                flex: 1 1 auto !important;
+                min-height: clamp(230px, 38vh, 480px) !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 28px 16px !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                margin-bottom: 0 !important;
+            }
+
+            #active-question-container .quiz-empty-question-state i.fa-list-check,
+            #active-question-container > .active-question-card:not(#active-question-card-inner) i.fa-list-check {
+                font-size: 32px !important;
+                margin-bottom: 12px !important;
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            #active-question-container .quiz-empty-question-state p.text-sm,
+            #active-question-container > .active-question-card:not(#active-question-card-inner) p.text-sm {
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                color: #000000 !important;
+            }
+
+            #active-question-container .quiz-empty-question-state p.text-xs,
+            #active-question-container > .active-question-card:not(#active-question-card-inner) p.text-xs {
+                font-size: 12px !important;
+                line-height: 1.4 !important;
+                max-width: 290px !important;
+                margin-top: 6px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            /* Active Question Card (When questions exist, sizes naturally) */
+            #active-question-card-inner {
+                flex: 0 0 auto !important;
+                height: auto !important;
+            }
+
+            /* Question Header inside Active Card */
+            #active-question-card-inner .border-b.border-slate-200.pb-3 {
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+                padding-bottom: 8px !important;
+            }
+
+            #active-question-card-inner span.bg-\[\#15803d\] {
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 28px !important;
+                font-size: 11px !important;
+                border-radius: 7px !important;
+            }
+
+            #active-question-card-inner .sigma-select-wrapper {
+                min-width: 0 !important;
+                max-width: calc(100vw - 80px) !important;
+                flex: 1 1 auto !important;
+            }
+
+            #active-question-card-inner .sigma-select {
+                height: 32px !important;
+                min-height: 32px !important;
+                font-size: 11.5px !important;
+                padding-left: 8px !important;
+                padding-right: 24px !important;
+                border-radius: 8px !important;
+            }
+
+            #active-question-card-inner .sigma-select-icon {
+                font-size: 10px !important;
+                right: 8px !important;
+            }
+
+            #active-question-card-inner button[onclick*="toggleAnswerKey"] {
+                height: 28px !important;
+                min-height: 28px !important;
+                min-width: 0 !important;
+                padding: 0 8px !important;
+                font-size: 11px !important;
+                border-radius: 7px !important;
+                gap: 4px !important;
+            }
+
+            #active-question-card-inner button[onclick*="toggleAnswerKey"] i {
+                font-size: 10px !important;
+            }
+
+            #active-question-card-inner [id^="active-question-points-badge-"],
+            #active-question-card-inner [id^="question-pts-input-"] {
+                font-size: 11px !important;
+            }
+
+            #active-question-card-inner div:has(> [id^="active-question-points-badge-"]),
+            #active-question-card-inner div:has(> [id^="question-pts-input-"]) {
+                height: 28px !important;
+                width: auto !important;
+                padding: 0 6px !important;
+            }
+
+            #active-question-card-inner button[onclick*="toggleQuestionShuffleChoices"],
+            #active-question-card-inner button[onclick*="duplicateQuestion"],
+            #active-question-card-inner button[onclick*="removeQuestion"],
+            #active-question-card-inner button[onclick*="question-image-file"] {
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 28px !important;
+                min-height: 28px !important;
+                border-radius: 7px !important;
+                font-size: 11px !important;
+            }
+
+            #active-question-card-inner .sigma-one-border-textarea {
+                font-size: 13.5px !important;
+                padding: 6px 8px !important;
+                min-height: 34px !important;
+            }
+
+            #active-question-card-inner .sigma-underline-item-textarea {
+                font-size: 12.5px !important;
+                min-height: 22px !important;
+            }
+
+            /* Matching Type & Enumeration Answer Key Mobile Full-Width Textboxes */
+            #active-question-card-inner .group\/pair,
+            #active-question-card-inner .group\/enum-row {
+                width: 100% !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                align-items: center !important;
+                gap: 8px !important;
+            }
+
+            #active-question-card-inner .group\/pair > .order-3,
+            #active-question-card-inner .group\/enum-row > .order-2 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+
+            #active-question-card-inner .group\/pair textarea,
+            #active-question-card-inner .group\/enum-row textarea {
+                width: 100% !important;
+                min-width: 0 !important;
+                min-height: 42px !important;
+            }
+
+            #active-question-card-inner button[onclick*="addChoice"] {
+                min-height: 36px !important;
+                padding: 4px 8px !important;
+                font-size: 11px !important;
+            }
+
+            /* 4. Question Deck: Scaled Down Cards & Text */
+            #questions-sidebar-wrap {
+                min-width: 0 !important;
+                max-width: 100% !important;
+                position: static !important;
+                height: auto !important;
+                margin-top: 10px !important;
+                margin-bottom: 0 !important;
+                padding-bottom: 8px !important;
+                flex-shrink: 0 !important;
+            }
+
+            #questions-thumbnails-container {
+                padding-bottom: 0 !important;
+            }
+
+            #questions-sidebar-wrap h3 {
+                font-size: 11.5px !important;
+            }
+
+            #questions-sidebar-wrap #deck-shuffle-btn {
+                height: 26px !important;
+                padding: 0 8px !important;
+                font-size: 10.5px !important;
+                border-radius: 7px !important;
+            }
+
+            #questions-sidebar-wrap #sidebar-question-count-badge {
+                font-size: 11px !important;
+            }
+
+            .deck-thumbnail-card {
+                padding: 8px 10px !important;
+                border-radius: 10px !important;
+            }
+
+            .deck-thumbnail-card .deck-drag-handle {
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: flex !important;
+                background-color: #f1f5f9 !important;
+                width: 22px !important;
+                height: 22px !important;
+                min-width: 22px !important;
+                border-radius: 6px !important;
+                margin-left: 0 !important;
+                margin-right: 3px !important;
+                touch-action: none !important;
+            }
+
+            .deck-thumbnail-card .deck-drag-handle i {
+                font-size: 11px !important;
+                color: #475569 !important;
+                opacity: 1 !important;
+            }
+
+            .deck-thumbnail-card span.bg-\[\#15803d\],
+            .deck-thumbnail-card span.bg-\[\#FFD000\] {
+                width: 18px !important;
+                height: 18px !important;
+                min-width: 18px !important;
+                font-size: 9.5px !important;
+                border-radius: 4px !important;
+            }
+
+            .deck-thumbnail-card [id^="thumb-type-"] {
+                font-size: 11px !important;
+            }
+
+            .deck-thumbnail-card [id^="thumb-points-wrap-"] {
+                font-size: 10px !important;
+            }
+
+            .deck-thumbnail-card p {
+                font-size: 10px !important;
+            }
+
+            .deck-editing-card {
+                padding: 6px 10px !important;
+                border-radius: 10px !important;
+            }
+
+            .deck-editing-card span {
+                font-size: 11px !important;
+            }
+
+            #questions-thumbnails-container > .h-64 {
+                height: 120px !important;
+                min-height: 120px !important;
+                padding: 12px !important;
+                border-radius: 10px !important;
+            }
+
+            #questions-thumbnails-container > .h-64 .w-12.h-12 {
+                width: 32px !important;
+                height: 32px !important;
+                border-radius: 8px !important;
+                margin-bottom: 6px !important;
+            }
+
+            #questions-thumbnails-container > .h-64 i {
+                font-size: 13px !important;
+            }
+
+            #questions-thumbnails-container > .h-64 p.text-xs {
+                font-size: 11.5px !important;
+                margin-bottom: 2px !important;
+            }
+
+            #questions-thumbnails-container > .h-64 p.text-\[11px\] {
+                font-size: 10px !important;
+            }
+
+            /* ─── Mobile Quiz Workstations (Preview Mode, View Mode, Actual Student Quiz) ─── */
+            /* 1. Hide Fixed Exit Button (✕) on Mobile */
+            #student-preview-modal > button[title*="Exit"],
+            #universal-quiz-preview-modal > button[title*="Exit"],
+            #sigma-quiz-form-modal > #sigma-quiz-exit-btn,
+            #sigma-quiz-form-modal > button[title*="Exit"] {
+                display: none !important;
+            }
+
+            /* 2. Show Back Button Chevron in Header (Mobile Only) */
+            #student-preview-modal .quiz-preview-mobile-back-btn,
+            #universal-quiz-preview-modal .quiz-preview-mobile-back-btn,
+            #sigma-quiz-form-modal .quiz-preview-mobile-back-btn {
+                display: inline-flex !important;
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 28px !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 8px !important;
+                background: transparent !important;
+                border: none !important;
+                cursor: pointer !important;
+                flex-shrink: 0 !important;
+                margin-right: 2px !important;
+            }
+
+            #student-preview-modal .quiz-preview-mobile-back-btn i,
+            #universal-quiz-preview-modal .quiz-preview-mobile-back-btn i,
+            #sigma-quiz-form-modal .quiz-preview-mobile-back-btn i {
+                font-size: 13px !important;
+                color: #0f172a !important;
+            }
+
+            /* 3. Modal Shell & Panel Full Screen on Mobile */
+            #student-preview-modal .sigma-modal-shell,
+            #universal-quiz-preview-modal .sigma-modal-shell,
+            #sigma-quiz-form-modal .sigma-modal-shell {
+                padding: 0 !important;
+                max-width: 100vw !important;
+                width: 100vw !important;
+            }
+
+            #student-preview-modal .sigma-modal-panel,
+            #universal-quiz-preview-modal .sigma-modal-panel,
+            #sigma-quiz-form-modal .sigma-modal-panel {
+                border-radius: 0 !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                min-height: 100vh !important;
+                height: 100vh !important;
+            }
+
+            /* 4. Scaled Header */
+            #student-preview-modal .border-b.sticky.top-0 > div:first-child,
+            #universal-quiz-preview-modal .border-b.border-slate-100:first-child,
+            #sigma-quiz-form-modal .border-b.sticky.top-0 > div:first-child {
+                padding: 10px 12px !important;
+                gap: 6px 8px !important;
+                align-items: center !important;
+            }
+
+            #student-preview-quiz-title,
+            #uqp-title,
+            #sigma-quiz-form-modal .border-b.sticky.top-0 h1 {
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                line-height: 1.25 !important;
+            }
+
+            /* Scaled Badges (Preview Mode, Timer) */
+            #student-preview-modal .rounded-full.bg-slate-100,
+            #universal-quiz-preview-modal #uqp-mode-badge,
+            #sigma-quiz-form-modal #sigma-quiz-timer-badge,
+            #sigma-quiz-form-modal .rounded-full.bg-slate-100 {
+                padding: 2.5px 7px !important;
+                font-size: 9.5px !important;
+                font-weight: 700 !important;
+                gap: 3.5px !important;
+                border-radius: 9999px !important;
+            }
+
+            #student-preview-modal .rounded-full.bg-slate-100 i,
+            #universal-quiz-preview-modal #uqp-mode-badge i,
+            #sigma-quiz-form-modal #sigma-quiz-timer-badge i,
+            #sigma-quiz-form-modal .rounded-full.bg-slate-100 i {
+                font-size: 9px !important;
+            }
+
+            /* 5. Scaled Subheader (Points counter & Question Pills) */
+            #student-preview-modal .border-b.bg-white.z-10,
+            #universal-quiz-preview-modal .border-b.bg-white:not(:first-child),
+            #sigma-quiz-form-modal .border-b.bg-white.z-10 {
+                padding: 6px 12px !important;
+                gap: 6px !important;
+            }
+
+            #student-preview-counter,
+            #uqp-counter,
+            #sigma-quiz-form-modal .border-b.bg-white.z-10 > div:first-child {
+                font-size: 10.5px !important;
+                font-weight: 600 !important;
+            }
+
+            #preview-question-pills-strip,
+            #uqp-pills-strip,
+            #sigma-quiz-form-modal .border-b.bg-white.z-10 .flex.items-center.gap-1\.5 {
+                gap: 3px !important;
+            }
+
+            #preview-question-pills-strip button,
+            #uqp-pills-strip button,
+            #sigma-quiz-form-modal .border-b.bg-white.z-10 button {
+                width: 22px !important;
+                height: 22px !important;
+                min-width: 22px !important;
+                font-size: 9.5px !important;
+                font-weight: 700 !important;
+                border-radius: 6px !important;
+                padding: 0 !important;
+            }
+
+            /* 6. Assessment Body & Question Content Scaling */
+            #student-preview-modal .sigma-modal-panel > .flex-1,
+            #universal-quiz-preview-modal #uqp-scroll,
+            #sigma-quiz-form-modal .sigma-modal-panel > .flex-1 {
+                padding: 10px 12px !important;
+            }
+
+            #student-preview-questions-list,
+            #uqp-body,
+            #sigma-quiz-form-modal .sigma-modal-panel > .flex-1 > div {
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+
+            #student-preview-questions-list .space-y-6,
+            #uqp-body .space-y-6,
+            #sigma-quiz-form-modal .space-y-6 {
+                gap: 8px !important;
+            }
+
+            /* Question Number Circle & Prompt */
+            #student-preview-questions-list .w-8.h-8.rounded-full,
+            #uqp-body .w-8.h-8.rounded-full,
+            #sigma-quiz-form-modal .w-8.h-8.rounded-full {
+                width: 22px !important;
+                height: 22px !important;
+                min-width: 22px !important;
+                font-size: 10.5px !important;
+                font-weight: 800 !important;
+            }
+
+            #student-preview-questions-list h3,
+            #uqp-body h3,
+            #sigma-quiz-form-modal h3 {
+                font-size: 13.5px !important;
+                font-weight: 700 !important;
+                line-height: 1.35 !important;
+            }
+
+            /* Choices Grid & Cards */
+            #student-preview-questions-list .grid,
+            #uqp-body .grid,
+            #sigma-quiz-form-modal .grid {
+                grid-template-columns: 1fr !important;
+                gap: 6px !important;
+                padding-top: 4px !important;
+            }
+
+            #student-preview-questions-list .grid > div,
+            #uqp-body .grid > div,
+            #sigma-quiz-form-modal .grid > div {
+                padding: 8px 10px !important;
+                min-height: 40px !important;
+                border-radius: 10px !important;
+                gap: 8px !important;
+            }
+
+            #student-preview-questions-list .grid > div span:first-child,
+            #uqp-body .grid > div span:first-child,
+            #sigma-quiz-form-modal .grid > div span:first-child {
+                width: 22px !important;
+                height: 22px !important;
+                min-width: 22px !important;
+                font-size: 10px !important;
+                font-weight: 800 !important;
+                border-radius: 6px !important;
+            }
+
+            #student-preview-questions-list .grid > div span.text-sm,
+            #uqp-body .grid > div span.text-sm,
+            #sigma-quiz-form-modal .grid > div span.text-sm {
+                font-size: 12px !important;
+                font-weight: 600 !important;
+                line-height: 1.3 !important;
+            }
+
+            /* Identification input */
+            #student-preview-questions-list input[type="text"],
+            #uqp-body input[type="text"],
+            #sigma-quiz-form-modal input[type="text"] {
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                border-radius: 10px !important;
+            }
+
+            /* Textarea / Essay */
+            #student-preview-questions-list textarea,
+            #uqp-body textarea,
+            #sigma-quiz-form-modal textarea {
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                border-radius: 10px !important;
+                min-height: 80px !important;
+            }
+
+            /* 7. Sticky Footer Navigation */
+            #student-preview-modal-footer,
+            #universal-quiz-preview-modal .sigma-modal-footer,
+            #sigma-quiz-form-modal .sigma-modal-footer {
+                padding: 8px 12px !important;
+                min-height: 48px !important;
+            }
+
+            #preview-footer-prev-btn,
+            #preview-footer-next-btn,
+            #uqp-prev-btn,
+            #uqp-next-btn,
+            #sigma-quiz-prev-btn,
+            #sigma-quiz-next-btn,
+            #sigma-quiz-submit-btn,
+            #sigma-quiz-done-btn,
+            #student-preview-modal-footer button,
+            #universal-quiz-preview-modal .sigma-modal-footer button,
+            #sigma-quiz-form-modal .sigma-modal-footer button {
+                height: 30px !important;
+                min-height: 30px !important;
+                padding: 0 12px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                border-radius: 8px !important;
+                gap: 5px !important;
+            }
+
+            #preview-footer-prev-btn i,
+            #preview-footer-next-btn i,
+            #uqp-prev-btn i,
+            #uqp-next-btn i,
+            #student-preview-modal-footer button i,
+            #universal-quiz-preview-modal .sigma-modal-footer button i,
+            #sigma-quiz-form-modal .sigma-modal-footer button i {
+                font-size: 9.5px !important;
+            }
+
+            #preview-footer-question-counter,
+            #universal-quiz-preview-modal .sigma-modal-footer .text-sm,
+            #sigma-quiz-form-modal .sigma-modal-footer .text-sm {
+                font-size: 11px !important;
+                font-weight: 600 !important;
+            }
+        }
+
+        /* Library & Storage Modal Search Input Reset & Hint Black Fade */
+        #library-modal-search-input,
+        #library-modal-search-input:focus,
+        #library-modal-search-input:hover,
+        #library-modal-search-input:active,
+        #storage-picker-search-input,
+        #storage-picker-search-input:focus,
+        #storage-picker-search-input:hover,
+        #storage-picker-search-input:active {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+        }
+
+        #library-modal-search-input::placeholder,
+        #library-modal-search-input::-webkit-input-placeholder,
+        #library-modal-search-input::-moz-placeholder,
+        #library-modal-search-input:-ms-input-placeholder,
+        #storage-picker-search-input::placeholder,
+        #storage-picker-search-input::-webkit-input-placeholder,
+        #storage-picker-search-input::-moz-placeholder,
+        #storage-picker-search-input:-ms-input-placeholder {
+            color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            opacity: 1 !important;
+        }
+
+        /* AI Generator Material Search Input Reset & Hint Black Fade */
+        #ai-material-search-input,
+        #ai-material-search-input:focus,
+        #ai-material-search-input:hover,
+        #ai-material-search-input:active {
+            border: none !important;
+            border-width: 0 !important;
+            border-color: transparent !important;
+            outline: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            text-overflow: ellipsis !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+        }
+
+        #ai-material-search-input::placeholder,
+        #ai-material-search-input::-webkit-input-placeholder,
+        #ai-material-search-input::-moz-placeholder,
+        #ai-material-search-input:-ms-input-placeholder {
+            color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            opacity: 1 !important;
+            text-overflow: ellipsis !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+        }
+
+        @media (max-width: 639.98px) {
+            #ai-material-search-input {
+                font-size: 11.5px !important;
+                padding-right: 6px !important;
+            }
+            #ai-material-search-btn {
+                height: 32px !important;
+                padding-left: 14px !important;
+                padding-right: 14px !important;
+                font-size: 12px !important;
+                font-weight: 700 !important;
+                border-radius: 8px !important;
+                flex-shrink: 0 !important;
+            }
+            #ai-gen-count-wrapper {
+                width: 135px !important;
+                max-width: 145px !important;
+                align-self: flex-start !important;
+                flex-shrink: 0 !important;
+            }
+        }
+
+        #ai-gen-count-wrapper {
+            width: 135px !important;
+            max-width: 145px !important;
+            align-self: flex-start !important;
+            flex-shrink: 0 !important;
+        }
+
+        @media (min-width: 640px) {
+            #ai-gen-count-wrapper {
+                width: 145px !important;
+                max-width: 150px !important;
+                align-self: center !important;
+            }
+            /* AI Generator Modal — fixed 740px on desktop */
+            #ai-generator-modal > div:first-child {
+                height: 740px !important;
+                min-height: min(740px, calc(100vh - 40px)) !important;
+                max-height: calc(100vh - 40px) !important;
+            }
+
+            /* AI Borrowed Material Exit Button: Grey circular hover highlight on desktop only */
+            .ai-borrowed-remove-btn:hover {
+                background-color: #cbd5e1 !important; /* slate-300 grey highlight */
+                color: #000000 !important;
+            }
+        }
+
+        .ai-borrowed-remove-btn {
+            width: 22px !important;
+            height: 22px !important;
+            border-radius: 9999px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #000000 !important;
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            transition: background-color 0.15s ease-in-out !important;
+            cursor: pointer !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Import Questions Modal Paste Textarea Stretch & Reduced Font Size */
+        #import-questions-modal .overflow-y-auto.flex-1 {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        #import-paste-section {
+            flex: 1 1 0% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+        }
+
+        #import-paste-textarea {
+            flex: 1 1 0% !important;
+            width: 100% !important;
+            min-height: 140px !important;
+            font-size: 11px !important;
+            line-height: 1.45 !important;
+            font-family: 'Inter', sans-serif !important;
+            color: #000000 !important;
+        }
+
+        #import-paste-textarea[readonly],
+        #import-paste-textarea.is-locked {
+            background-color: #f1f5f9 !important;
+            color: #334155 !important;
+            cursor: not-allowed !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        #import-paste-textarea::placeholder,
+        #import-paste-textarea::-webkit-input-placeholder,
+        #import-paste-textarea::-moz-placeholder,
+        #import-paste-textarea:-ms-input-placeholder {
+            font-size: 10.5px !important;
+            line-height: 1.45 !important;
+            font-family: 'Inter', sans-serif !important;
+            color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            opacity: 1 !important;
+        }
+
+        @media (max-width: 639.98px) {
+            #import-paste-textarea {
+                font-size: 10px !important;
+                min-height: 120px !important;
+            }
+            #import-paste-textarea::placeholder,
+            #import-paste-textarea::-webkit-input-placeholder,
+            #import-paste-textarea::-moz-placeholder,
+            #import-paste-textarea:-ms-input-placeholder {
+                font-size: 9.5px !important;
+            }
+        }
+
+        /* AI Generator Shared Primary Green Buttons Highlight (Zero Glow / Zero Shadow) */
+        #ai-generator-modal .sigma-btn-primary,
+        #ai-generate-submit-btn,
+        #ai-confirm-generate-btn,
+        #ai-generator-modal button.sigma-btn-primary {
+            background-color: #15803d !important;
+            color: #ffffff !important;
+            border: 1px solid #15803d !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transition: all 0.15s ease-in-out !important;
+            box-shadow: none !important;
+            filter: none !important;
+            text-shadow: none !important;
+        }
+
+        #ai-generator-modal .sigma-btn-primary:disabled,
+        #ai-generate-submit-btn:disabled,
+        #ai-generate-submit-btn[disabled],
+        #ai-confirm-generate-btn:disabled,
+        #ai-generator-modal button.sigma-btn-primary:disabled {
+            background-color: #cbd5e1 !important;
+            border-color: #cbd5e1 !important;
+            color: #64748b !important;
+            opacity: 0.55 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        #ai-generator-modal .sigma-btn-primary:hover,
+        #ai-generate-submit-btn:hover,
+        #ai-confirm-generate-btn:hover,
+        #ai-generator-modal button.sigma-btn-primary:hover {
+            background-color: #166534 !important;
+            border-color: #166534 !important;
+            box-shadow: none !important;
+            filter: none !important;
+            text-shadow: none !important;
+        }
+
+        #ai-generator-modal .sigma-btn-primary:active,
+        #ai-generate-submit-btn:active,
+        #ai-confirm-generate-btn:active,
+        #ai-generator-modal button.sigma-btn-primary:active {
+            background-color: #14532d !important;
+            transform: scale(0.97) !important;
+            box-shadow: none !important;
+            filter: none !important;
+            text-shadow: none !important;
+        }
+
+        #ai-generator-modal .sigma-btn-primary:focus,
+        #ai-generate-submit-btn:focus,
+        #ai-confirm-generate-btn:focus,
+        #ai-generator-modal button.sigma-btn-primary:focus {
+            box-shadow: none !important;
+            outline: none !important;
+            --tw-ring-shadow: 0 0 #0000 !important;
+            --tw-ring-offset-shadow: 0 0 #0000 !important;
+        }
+
+        /* Selected Text Box & Description Box: Strict Yellow Border (#FFD000), Never Green */
+        #ai-gen-topic:focus,
+        #ai-generator-modal textarea:focus,
+        #ai-generator-modal input:focus,
+        #ai-generator-modal select:focus,
+        #ai-generator-modal .focus-within\:border-\[\#15803d\]:focus-within,
+        #ai-generator-modal .focus\:border-\[\#15803d\]:focus {
+            border-color: #FFD000 !important;
+            outline: none !important;
+            box-shadow: none !important;
+            --tw-ring-shadow: 0 0 #0000 !important;
+            --tw-ring-offset-shadow: 0 0 #0000 !important;
+        }
+
+        #ai-gen-topic[readonly],
+        #ai-gen-topic.is-locked {
+            background-color: #f1f5f9 !important;
+            color: #334155 !important;
+            cursor: not-allowed !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        #ai-gen-engine-btn.border-\[\#FFD000\],
+        #ai-gen-type-btn.border-\[\#FFD000\],
+        #ai-gen-engine-btn.border-\[\#15803d\],
+        #ai-gen-type-btn.border-\[\#15803d\],
+        #ai-gen-engine-btn:focus,
+        #ai-gen-type-btn:focus,
+        #ai-gen-engine-wrapper:focus-within #ai-gen-engine-btn,
+        #ai-gen-type-wrapper:focus-within #ai-gen-type-btn {
+            border-color: #FFD000 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Quiz Library Card Icon Box Styling (Desktop & General) */
+        #library-modal-quizzes-list .select-none .w-10,
+        #library-modal-quizzes-list .select-none .w-9,
+        #library-modal-quizzes-list .select-none [class*="w-8"],
+        #library-modal-quizzes-list .select-none [class*="w-9"],
+        #library-modal-quizzes-list .select-none [class*="w-10"] {
+            width: 40px !important;
+            height: 40px !important;
+            min-width: 40px !important;
+            min-height: 40px !important;
+            border-radius: 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        #library-modal-quizzes-list .select-none [class*="w-8"] i,
+        #library-modal-quizzes-list .select-none [class*="w-9"] i,
+        #library-modal-quizzes-list .select-none [class*="w-10"] i {
+            font-size: 15px !important;
+        }
+
+        /* Library Modal Responsive & Mobile Full Screen Styles */
+        @media (min-width: 641px) {
+            #open-quiz-library-dialog {
+                height: 740px !important;
+                min-height: min(740px, calc(100vh - 40px)) !important;
+                max-height: calc(100vh - 40px) !important;
+                max-width: 860px !important;
+                border-radius: 1.5rem !important;
+            }
+
+            /* Normal full-size desktop buttons for Library modal */
+            #open-quiz-library-dialog button[onclick*="triggerLibraryModalSearch"] {
+                height: 38px !important;
+                min-height: 38px !important;
+                padding: 0 18px !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                border-radius: 10px !important;
+            }
+
+            #ai-borrow-btn-sublabel,
+            #ai-borrow-btn-label {
+                white-space: normal !important;
+                text-overflow: clip !important;
+                overflow: visible !important;
+            }
+
+            #lib-filter-my-btn {
+                width: 42px !important;
+                height: 42px !important;
+                min-width: 42px !important;
+                min-height: 42px !important;
+                border-radius: 12px !important;
+            }
+
+            #lib-filter-my-btn i {
+                font-size: 14px !important;
+            }
+
+            #library-modal-filter-pills .quiz-storage-filter-chip {
+                padding: 6px 14px !important;
+                font-size: 12px !important;
+                font-weight: 700 !important;
+            }
+
+            #open-quiz-library-dialog > div:last-child {
+                padding: 16px 28px !important;
+            }
+
+            #open-quiz-library-dialog > div:last-child button {
+                height: 44px !important;
+                min-height: 44px !important;
+                padding: 0 24px !important;
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                border-radius: 12px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 8px !important;
+            }
+
+            #open-quiz-library-dialog > div:last-child button i {
+                font-size: 13px !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            #open-quiz-library-modal {
+                padding: 0 !important;
+            }
+
+            #open-quiz-library-dialog {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-height: 100vh !important;
+                max-height: 100dvh !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                border-radius: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            /* Header scaled down */
+            #open-quiz-library-dialog > div:first-child {
+                padding: 10px 14px !important;
+            }
+
+            #open-quiz-library-dialog > div:first-child .w-10,
+            #open-quiz-library-dialog > div:first-child .w-8 {
+                width: 32px !important;
+                height: 32px !important;
+                border-radius: 10px !important;
+            }
+
+            #open-quiz-library-dialog > div:first-child .w-10 i,
+            #open-quiz-library-dialog > div:first-child .w-8 i {
+                font-size: 13px !important;
+            }
+
+            #open-quiz-library-dialog h2 {
+                font-size: 14.5px !important;
+                line-height: 1.25 !important;
+            }
+
+            #open-quiz-library-dialog h2 + p {
+                font-size: 10px !important;
+                line-height: 1.3 !important;
+            }
+
+            /* Body padding & spacing scaled down */
+            #open-quiz-library-dialog .overflow-y-auto.flex-1 {
+                padding: 10px 12px !important;
+                gap: 8px !important;
+            }
+
+            /* Search Bar & Search Button scaled down */
+            #open-quiz-library-dialog .relative.flex-1.flex.items-center.bg-slate-50 {
+                padding: 3px 8px !important;
+                border-radius: 10px !important;
+            }
+
+            #open-quiz-library-dialog .relative.flex-1.flex.items-center.bg-slate-50 i.fa-magnifying-glass {
+                font-size: 10px !important;
+                margin-right: 5px !important;
+            }
+
+            #library-modal-search-input {
+                font-size: 11px !important;
+                padding-right: 8px !important;
+                margin-right: 2px !important;
+                text-overflow: ellipsis !important;
+                overflow: hidden !important;
+                white-space: nowrap !important;
+            }
+
+            #library-modal-search-input::placeholder {
+                font-size: 10.5px !important;
+                text-overflow: ellipsis !important;
+                overflow: hidden !important;
+                white-space: nowrap !important;
+            }
+
+            #open-quiz-library-dialog button[onclick*="triggerLibraryModalSearch"],
+            #library-modal-search-btn {
+                height: 28px !important;
+                padding: 0 10px !important;
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                border-radius: 8px !important;
+                margin-left: 4px !important;
+                flex-shrink: 0 !important;
+            }
+
+            #lib-filter-my-btn {
+                width: 31px !important;
+                height: 31px !important;
+                border-radius: 9px !important;
+            }
+
+            #lib-filter-my-btn i {
+                font-size: 11px !important;
+            }
+
+            /* Filter chips scaled down & anti-overlap */
+            #library-modal-filter-pills,
+            #quiz-storage-filter-chips {
+                gap: 5px !important;
+                padding-top: 4px !important;
+                padding-bottom: 2px !important;
+            }
+
+            #library-modal-filter-pills .quiz-storage-filter-chip,
+            #quiz-storage-filter-chips .quiz-storage-filter-chip,
+            .quiz-storage-filter-chip {
+                padding: 3px 8.5px !important;
+                font-size: 10.5px !important;
+                line-height: 1.25 !important;
+            }
+
+            #library-modal-filter-pills .quiz-storage-filter-chip i,
+            #quiz-storage-filter-chips .quiz-storage-filter-chip i,
+            .quiz-storage-filter-chip i {
+                font-size: 9.5px !important;
+            }
+
+            .quiz-storage-filter-chip:not(.bg-\[\#15803d\]) i,
+            .quiz-storage-filter-chip.bg-slate-100 i {
+                color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+            }
+
+            .quiz-storage-filter-chip.bg-\[\#15803d\] i {
+                color: #ffffff !important;
+            }
+
+            /* Continue Where You Left Off Panel scaled down */
+            #library-modal-quizzes-list .bg-amber-50 {
+                padding: 8px 10px !important;
+                border-radius: 10px !important;
+                gap: 8px !important;
+                margin-bottom: 8px !important;
+            }
+
+            #library-modal-quizzes-list .bg-amber-50 .w-10.h-10 {
+                width: 28px !important;
+                height: 28px !important;
+                border-radius: 8px !important;
+            }
+
+            #library-modal-quizzes-list .bg-amber-50 .w-10.h-10 i {
+                font-size: 11px !important;
+            }
+
+            #library-modal-quizzes-list .bg-amber-50 p.text-\[10px\] {
+                font-size: 8.5px !important;
+            }
+
+            #library-modal-quizzes-list .bg-amber-50 p.text-sm {
+                font-size: 11.5px !important;
+            }
+
+            #library-modal-quizzes-list .bg-amber-50 button {
+                font-size: 10.5px !important;
+                padding: 3px 8px !important;
+                height: 25px !important;
+                border-radius: 6px !important;
+            }
+
+            /* Cards grid & cards scaled down */
+            #library-modal-quizzes-list .grid {
+                gap: 8px !important;
+                padding-top: 2px !important;
+                padding-bottom: 2px !important;
+            }
+
+            #library-modal-quizzes-list .select-none {
+                padding: 9px 10px !important;
+                border-radius: 12px !important;
+                gap: 7px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .w-8\.5,
+            #library-modal-quizzes-list .select-none .sm\:w-9\.5,
+            #library-modal-quizzes-list .select-none .w-10 {
+                width: 28px !important;
+                height: 28px !important;
+                border-radius: 8px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .w-8\.5 i,
+            #library-modal-quizzes-list .select-none .sm\:w-9\.5 i,
+            #library-modal-quizzes-list .select-none .w-10 i {
+                font-size: 11px !important;
+            }
+
+            #library-modal-quizzes-list .select-none h5 {
+                font-size: 11.5px !important;
+                line-height: 1.25 !important;
+            }
+
+            #library-modal-quizzes-list .select-none p {
+                font-size: 9.5px !important;
+            }
+
+            #library-modal-quizzes-list .select-none span.uppercase {
+                font-size: 7.5px !important;
+                padding: 1px 4px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .border-t {
+                padding-top: 5px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .border-t * {
+                font-size: 9px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .w-5.h-5,
+            #library-modal-quizzes-list .select-none .w-6.h-6 {
+                width: 17px !important;
+                height: 17px !important;
+            }
+
+            #library-modal-quizzes-list .select-none .w-5.h-5 i,
+            #library-modal-quizzes-list .select-none .w-6.h-6 i {
+                font-size: 8.5px !important;
+            }
+
+            /* Footer scaled down */
+            #open-quiz-library-dialog > div:last-child {
+                padding: 9px 12px !important;
+            }
+
+            #open-quiz-library-dialog > div:last-child button {
+                height: 32px !important;
+                padding: 0 14px !important;
+                font-size: 11.5px !important;
+                border-radius: 8px !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-admin-bg min-h-screen flex flex-col font-['Inter'] text-black">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header id="admin-header"
+        class="admin-topbar admin-global-header shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col bg-white standard-panel-shadow"
+        style="border-bottom: 2px solid #15803d !important;">
+        
+        <!-- School Year Status Strip (Green) -->
+        <nav class="top-nav justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <span id="global-sy-display" class="text-white tracking-wider text-[10px] font-medium">
+                    S.Y. 2026-2027 • 1st Quarter
+                </span>
+                <span id="nav-quiz-title-badge" class="hidden text-white/95 text-[11px] font-semibold border-l border-white/30 pl-3 truncate max-w-[300px]">
+                </span>
+            </div>
+            <div class="flex items-center gap-2 pr-4">
+                <i class="fa-solid fa-globe text-[10px] text-white/50"></i>
+                <span class="text-white text-[10px] font-medium">English (en)</span>
+            </div>
+        </nav>
+
+        <div class="admin-topbar__inner">
+            <div class="admin-topbar__brand">
+                <div id="logo-container">
+                    <button id="nav-logo-btn" title="Interface Computer College" class="cursor-default">
+                        <img src="image/ICC logo.jpg" alt="ICC Logo">
+                    </button>
+                </div>
+                <div class="admin-topbar__brand-copy min-w-0">
+                    <p id="header-brand-title" class="admin-topbar__brand-label text-black font-bold truncate max-w-[280px]">Create Quiz</p>
+                </div>
+            </div>
+
+            <!-- Center Search Bar -->
+            <div class="header-search-container absolute left-1/2 -translate-x-1/2 w-full max-w-[480px] hidden md:block z-[101]">
+                <div
+                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all overflow-hidden">
+                    <span
+                        class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300">
+                        <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                    </span>
+                    <input id="searchBar" type="text" placeholder="Search questions or keywords..." maxlength="100" autocomplete="off"
+                        class="block w-full h-[38px] pl-5 pr-4 bg-transparent border-0 text-[14.5px] placeholder-black-fade focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none transition-all group-focus-within:pl-10 font-medium text-black font-['Inter']"
+                        oninput="window.filterQuestions(this.value)">
+                    <button class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 text-black">
+                        <i class="fa-solid fa-arrow-turn-down text-[10px] transform rotate-[-90deg] scale-y-[-1] text-black"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="header-actions-mobile-wrap" class="flex items-center gap-3 pr-6 md:pr-8 ml-auto">
+                <button type="button" onclick="window.openStudentQuizPreviewModal()"
+                    class="sigma-btn sigma-btn-white sigma-btn-md !h-10 !px-4 text-black font-semibold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:bg-slate-100 active:bg-slate-200"
+                    title="Student preview">
+                    <i class="fa-regular fa-eye text-sm text-black"></i>
+                    <span>Preview</span>
+                </button>
+
+                <!-- Unified Sigma Split Action Button (Save Quiz + Download Dropdown) -->
+                <div class="relative inline-flex items-center shadow-xs rounded-xl" id="export-quiz-dropdown-wrap">
+                    <!-- Left Segment: Save Quiz Main Action -->
+                    <button type="button" id="save-quiz-main-btn" onclick="window.promptSaveQuiz(false, false)"
+                        class="h-10 pl-4 pr-3.5 rounded-l-xl bg-[#15803d] hover:bg-[#14532d] active:bg-[#0f3d1e] text-white font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer border-r border-white/20 font-['Inter'] shadow-xs"
+                        title="Save quiz to library">
+                        <i class="fa-solid fa-check text-xs text-white"></i>
+                        <span>Save Quiz</span>
+                    </button>
+
+                    <!-- Right Segment: Download Dropdown Trigger -->
+                    <button type="button" id="save-quiz-dropdown-trigger" onclick="window.toggleExportDropdown(event)"
+                        class="h-10 px-3 rounded-r-xl bg-[#15803d] hover:bg-[#14532d] active:bg-[#0f3d1e] text-white flex items-center justify-center transition-all cursor-pointer font-['Inter'] shadow-xs"
+                        title="Export and Download Options">
+                        <i class="fa-solid fa-chevron-down text-[11px] text-white/90 transition-transform duration-150" id="export-quiz-chevron"></i>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="export-quiz-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-emerald-50/95 backdrop-blur-xs rounded-2xl border border-emerald-200/90 shadow-xl p-1.5 z-[260] space-y-0.5 animate-in fade-in zoom-in-95 duration-100 font-['Inter']">
+                        <button type="button" id="dropdown-save-draft-btn" onclick="window.promptSaveQuiz(true, true); window.toggleExportDropdown(false)"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-regular fa-bookmark text-xs"></i>
+                            <span>Save as Draft</span>
+                        </button>
+                        <button type="button" id="dropdown-create-new-btn" onclick="window.handleCreateNewQuizFromDropdown(); window.toggleExportDropdown(false)"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>Create New Quiz</span>
+                        </button>
+                        <button type="button" id="dropdown-open-library-btn" onclick="window.openQuizLibraryModal(); window.toggleExportDropdown(false)"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-solid fa-folder-open text-xs"></i>
+                            <span>Open from Library...</span>
+                        </button>
+                        <button type="button" id="dropdown-download-pdf-btn" onclick="window.openDownloadOptionsModal('pdf'); window.toggleExportDropdown(false)"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-solid fa-file-pdf text-xs"></i>
+                            <span>View PDF</span>
+                        </button>
+                        <!-- Make a Copy — only shown when a saved (non-draft) quiz is loaded -->
+                        <div id="dropdown-copy-divider" class="hidden my-1 border-t border-slate-200/60"></div>
+                        <button type="button" id="dropdown-copy-quiz-btn" onclick="window.makeACopyOfCurrentQuiz(); window.toggleExportDropdown(false)"
+                            class="hidden w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-regular fa-copy text-xs"></i>
+                            <span>Make a Copy</span>
+                        </button>
+                        <!-- Delete Quiz — only shown when a saved/draft quiz is loaded -->
+                        <div id="dropdown-delete-divider" class="hidden my-1 border-t border-slate-200/60"></div>
+                        <button type="button" id="dropdown-delete-quiz-btn" onclick="window.promptDeleteCurrentQuiz(); window.toggleExportDropdown(false)"
+                            class="hidden w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-200/70 text-black rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                            <span>Delete Quiz</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER (Matches Material Viewer Placement with Right Question Navigator) -->
+    <main class="flex-1 pt-24 pb-0 pl-6 md:pl-12 pr-6 md:pr-8 w-full max-w-full animate-in fade-in duration-200">
+        <div class="flex flex-col lg:flex-row items-start gap-6 w-full">
+            
+            <!-- Left: Active Question Editor Workspace (Fixed 1024px matching Image 2 Subject Panel) -->
+            <div class="w-full lg:w-[1024px] max-w-[1024px] shrink-0 space-y-3.5 pb-8">
+                <!-- Action Panel (Add Question, Add Image) in black fade -->
+                <div id="quiz-action-bar" class="w-full min-h-[64px] bg-white rounded-[24px] border border-slate-300 standard-panel-shadow px-6 sm:px-8 py-3.5 flex items-center justify-between gap-4 select-none">
+                    <div class="flex items-center gap-2 sm:gap-4 md:gap-5 shrink-0">
+                        <!-- Add Question (Black Fade) -->
+                        <button type="button" onclick="window.addQuestion('Multiple Choice')"
+                            class="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-sm font-semibold text-black-fade hover:text-black hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap shrink-0">
+                            <i class="fa-solid fa-plus text-xs text-black-fade group-hover:text-black"></i>
+                            <span>Add Question</span>
+                        </button>
+
+                        <!-- Generate with SIGMA AI (Yellow Sigma Bolt) -->
+                        <button type="button" onclick="window.openAIGeneratorModal()" title="Generate with SIGMA AI"
+                            class="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-sm font-semibold text-black-fade hover:text-black hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap shrink-0 normal-case" style="text-transform: none !important;">
+                            <i class="fa-solid fa-bolt text-sm text-[#FFD000] group-hover:scale-110 transition-transform"></i>
+                            <span class="normal-case" style="text-transform: none !important;">Generate with SIGMA AI</span>
+                        </button>
+
+                        <!-- Import Questions (Black Fade) -->
+                        <button type="button" onclick="window.openImportQuestionsModal()"
+                            class="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-sm font-semibold text-black-fade hover:text-black hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap shrink-0">
+                            <i class="fa-solid fa-file-import text-sm text-black-fade group-hover:text-black"></i>
+                            <span>Import Questions</span>
+                        </button>
+
+                        <!-- Add Image (Black Fade) -->
+                        <div class="shrink-0">
+                            <button type="button" onclick="window.triggerAddImage()"
+                                class="group flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-sm font-semibold text-black-fade hover:text-black hover:bg-slate-100 transition-colors cursor-pointer whitespace-nowrap">
+                                <i class="fa-regular fa-image text-sm text-black-fade group-hover:text-black"></i>
+                                <span>Add Image</span>
+                            </button>
+                            <input type="file" id="quiz-image-file-input" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event)">
+                        </div>
+                    </div>
+
+                    <!-- Stats (Solid black text and questions icon) -->
+                    <div class="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-black whitespace-nowrap shrink-0 pl-2">
+                        <span id="quiz-stat-questions" class="flex items-center gap-1.5 whitespace-nowrap text-black">
+                            <i class="fa-solid fa-list-check text-xs text-black"></i>
+                            <span class="text-black">0 / 100 Questions</span>
+                        </span>
+                        <span class="opacity-40 text-black">•</span>
+                        <span id="quiz-stat-points" class="flex items-center gap-1.5 whitespace-nowrap text-black">
+                            <i class="fa-solid fa-star text-[#FFD000] text-xs"></i>
+                            <span class="text-black">0 Points</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Optional Quiz Images List (Supports multiple images, each in fixed-size panel) -->
+                <div id="quiz-banner-images-list" class="space-y-4"></div>
+
+                <!-- Active Question Container -->
+                <div id="active-question-container">
+                    <!-- Currently Active Question Editor Card Rendered Here -->
+                </div>
+            </div>
+
+            <!-- Right: Smaller Scale Questions List / Sidebar -->
+            <div id="questions-sidebar-wrap" class="flex-1 min-w-[340px] max-w-[480px] w-full shrink-0 sticky top-24 flex flex-col h-[calc(100vh-96px)] space-y-3 pb-0">
+                <div class="flex items-center justify-between px-2 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-xs font-bold text-black">Question Deck</h3>
+                        <button type="button" id="deck-shuffle-btn" onclick="window.shuffleAllQuestions()"
+                            class="hidden group flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-black hover:bg-slate-100 transition-all cursor-pointer border border-slate-300 bg-white shadow-2xs"
+                            title="Randomize Question Deck Order">
+                            <i class="fa-solid fa-shuffle text-[11px] text-black"></i>
+                            <span>Shuffle</span>
+                        </button>
+                    </div>
+                    <span id="sidebar-question-count-badge" class="text-xs font-bold text-black">0 / 100 items</span>
+                </div>
+                <div id="questions-thumbnails-container" class="space-y-2.5 flex-1 overflow-y-auto pr-3 pb-8 w-full">
+                    <!-- Smaller scale cards rendered here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- AI GENERATOR MODAL -->
+    <div id="ai-generator-modal" class="hidden fixed inset-0 z-[300] bg-black/50 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 standard-panel-shadow curriculum-release-panel-fixed w-full sm:!max-w-[860px] h-full sm:h-[740px] flex flex-col overflow-hidden relative font-['Inter']" style="max-width: 860px;">
+            
+            <!-- VIEW 1: Main AI Generator Configuration View -->
+            <div id="ai-generator-main-view" class="flex flex-col flex-1 overflow-hidden min-h-0">
+                <!-- Modal Header Nav Bar (Release Panel Style) -->
+                <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[#FFD000] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <i class="fa-solid fa-bolt text-sm sm:text-lg text-white"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Generate Questions with SIGMA AI</h2>
+                            <p class="text-[10px] sm:text-xs font-normal text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Describe your lesson topic or upload reference materials, and SIGMA AI will automatically create question items with correct answer keys.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Body (Scrollable Area) -->
+                <div class="p-3.5 sm:px-8 sm:py-6 pb-24 sm:pb-32 overflow-y-auto flex-1 space-y-3 sm:space-y-4 font-['Inter'] min-h-0">
+                    <!-- Validation Warning Banner -->
+                    <div id="ai-gen-validation-warning" class="hidden p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-medium flex items-center gap-2.5 animate-in fade-in duration-150 shadow-2xs">
+                        <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 text-amber-700">
+                            <i class="fa-solid fa-triangle-exclamation text-xs sm:text-sm"></i>
+                        </div>
+                        <span id="ai-gen-warning-text" class="flex-1 leading-snug">Please describe a lesson topic, borrow course materials, or upload a document before generating.</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <!-- Option Selector Tabs (2 options: Borrow | Upload) -->
+                        <div class="space-y-1.5">
+                            <span class="text-xs sm:text-sm font-semibold text-black block">Choose Grounding Source</span>
+                            <div class="grid grid-cols-2 gap-1 sm:gap-1.5 p-1 bg-slate-100/90 rounded-xl sm:rounded-2xl border border-slate-200">
+                                <!-- Option 1: Borrow Materials (active by default) -->
+                                <button type="button" id="ai-source-tab-borrow" onclick="window.switchAIGenSourceOption('borrow')"
+                                    class="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer bg-white text-black shadow-2xs border border-slate-200/80">
+                                    <i id="ai-source-icon-borrow" class="fa-solid fa-book-bookmark text-xs sm:text-sm text-[#15803d]"></i>
+                                    <span class="truncate">Borrow Material</span>
+                                </button>
+
+                                <!-- Option 2: Upload Document -->
+                                <button type="button" id="ai-source-tab-upload" onclick="window.switchAIGenSourceOption('upload')"
+                                    class="flex items-center justify-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer text-black/40">
+                                    <i id="ai-source-icon-upload" class="fa-solid fa-cloud-arrow-up text-xs sm:text-sm"></i>
+                                    <span class="truncate">Upload Material</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Option 1 Panel: Borrow Course Materials -->
+                        <div id="ai-panel-borrow" class="space-y-2">
+                            <span class="text-xs sm:text-sm font-semibold text-black block mb-1 pt-0.5">Borrow Course Materials</span>
+                            <!-- Clickable Panel To Next Page (Borrow Course Materials) -->
+                            <button type="button" id="ai-borrow-trigger-btn" onclick="window.openMaterialPickerPage()"
+                                class="w-full p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 text-xs sm:text-sm font-normal text-black transition-all cursor-pointer shadow-2xs flex items-center justify-between group gap-2.5">
+                                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#15803d] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                        <i id="ai-borrow-btn-icon" class="fa-solid fa-book-bookmark text-xs sm:text-base shrink-0"></i>
+                                    </div>
+                                    <div class="text-left min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span id="ai-borrow-btn-label" class="text-xs sm:text-sm font-bold text-black block leading-tight">Borrow Lesson, Video, or Handout Material</span>
+                                        </div>
+                                        <span id="ai-borrow-btn-sublabel" class="text-[10px] sm:text-xs text-black-fade font-normal block whitespace-normal mt-0.5 leading-snug">Browse and select Senior High materials to ground your quiz</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span id="ai-borrow-btn-badge" class="text-[10px] sm:text-xs text-black-fade bg-slate-100 border border-slate-200/80 font-medium px-2 py-0.5 rounded-full hidden sm:inline-block">Borrow</span>
+                                    <div id="ai-borrow-btn-plus-box" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-black-fade group-hover:text-black group-hover:border-slate-300 transition-all shadow-2xs">
+                                        <i id="ai-borrow-btn-plus-icon" class="fa-solid fa-plus text-[10px] sm:text-xs"></i>
+                                    </div>
+                                </div>
+                            </button>
+
+                            <!-- Multiple Borrowed Source Badges Container -->
+                            <div id="ai-borrowed-badges-list" class="flex flex-col gap-1.5 empty:hidden w-full"></div>
+                        </div>
+
+                        <!-- Option 2 Panel: Upload Reference Document + Describe Topic (below) -->
+                        <div id="ai-panel-upload" class="hidden space-y-2">
+                            <!-- Upload Dropzone -->
+                            <span class="text-xs sm:text-sm font-semibold text-black block mb-1">Upload Reference Document, Image, or Video</span>
+                            <div class="space-y-2">
+                                <!-- Dropzone Active / Empty State -->
+                                <div id="ai-gen-dropzone" onclick="document.getElementById('ai-gen-file-input').click()"
+                                    ondragover="event.preventDefault(); this.classList.add('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                                    ondragleave="this.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                                    ondrop="window.handleAIGenFileDrop(event)"
+                                    class="sigma-dashed-dropzone rounded-xl sm:rounded-2xl p-2.5 sm:p-4 text-center cursor-pointer space-y-1 group transition-all">
+                                    <div class="sigma-dropzone-icon-box w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto shadow-2xs text-black-fade">
+                                        <i class="fa-solid fa-cloud-arrow-up text-xs sm:text-base"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors leading-tight">
+                                            Drag &amp; drop document, image, or video to ground AI, or <span class="underline text-black group-hover:text-[#FFD000] transition-colors">browse</span>
+                                        </p>
+                                        <p class="text-[9.5px] sm:text-[11px] text-black-fade mt-0.5">Supports <strong>.docx, .pdf, .txt, .md, .pptx, images, .mp4</strong> (Up to 25MB)</p>
+                                    </div>
+                                    <input type="file" id="ai-gen-file-input" accept=".txt,.docx,.doc,.pdf,.md,.pptx,.csv,image/*,.png,.jpg,.jpeg,.webp,.mp4,video/mp4" class="hidden" onchange="window.handleAIGenFileSelect(event)">
+                                </div>
+
+                                <!-- Uploaded File Badge / Preview Card -->
+                                <div id="ai-gen-uploaded-file-card" class="hidden sigma-black-fade-panel group relative rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
+                                    <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+                                        <div class="w-10 sm:w-16 flex flex-col items-center gap-1 shrink-0 select-none">
+                                            <div id="ai-gen-file-icon-wrap" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                <i id="ai-gen-file-icon" class="fa-solid fa-file-word text-xs sm:text-base text-blue-600"></i>
+                                            </div>
+                                            <span id="ai-gen-file-badge" class="text-[7.5px] sm:text-[8.5px] px-1 sm:px-1.5 py-0.5 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200/70 font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">DOCX</span>
+                                        </div>
+                                        <div class="min-w-0 flex-1 flex flex-col justify-center">
+                                            <p id="ai-gen-file-name" class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors truncate">filename.docx</p>
+                                            <p id="ai-gen-file-meta" class="text-[9.5px] sm:text-xs text-black-fade font-medium mt-0.5">DOCX Document • Ready for AI grounding</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                        <button type="button" onclick="document.getElementById('ai-gen-file-input').click()"
+                                            class="px-2 sm:px-2.5 py-1 rounded-lg text-[10.5px] sm:text-xs font-semibold text-black hover:bg-slate-200/80 border border-slate-200/80 transition-colors cursor-pointer" title="Change file">
+                                            Change
+                                        </button>
+                                        <button type="button" onclick="window.clearAIGenUploadedFile(event)"
+                                            class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl hover:bg-slate-100 text-black-fade hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors" title="Remove file">
+                                            <i class="fa-solid fa-trash-can text-xs sm:text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Divider -->
+                            <div class="flex items-center gap-2 py-0.5">
+                                <div class="flex-1 h-px bg-slate-200"></div>
+                                <span class="text-[10px] sm:text-xs text-black/40 font-medium shrink-0">or describe below (optional)</span>
+                                <div class="flex-1 h-px bg-slate-200"></div>
+                            </div>
+
+                            <!-- Describe Topic Textarea (below upload, always visible in this panel) -->
+                            <div class="space-y-1">
+                                <label for="ai-gen-topic" class="text-xs sm:text-sm font-semibold text-black block">Describe Lesson Topic or Prompt</label>
+                                <p class="text-[9.5px] sm:text-[11px] text-black-fade leading-tight">
+                                    AI will read the file first. Any topic description below is added after the file content. You can use either, or both.
+                                </p>
+                                <textarea id="ai-gen-topic" rows="3" maxlength="300"
+                                    placeholder="Describe your lesson topic or topic competencies to ground AI..."
+                                    oninput="window.syncAIGenerateButtonState()"
+                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-xs sm:text-sm font-normal text-black outline-none focus:border-[#FFD000] focus:bg-white transition-all placeholder:text-black/40 font-['Inter'] resize-none leading-relaxed"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start sm:items-center gap-1.5 text-[9.5px] sm:text-[11px] text-black-fade leading-tight pt-1">
+                            <i class="fa-solid fa-shield-halved text-[#15803d] shrink-0 mt-0.5 sm:mt-0"></i>
+                            <span>Grounding: Prioritizes internal ELMS lesson material; retrieves external facts only when directly related.</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 w-full relative z-30" id="ai-gen-engine-type-row">
+                        <!-- Engine Custom Dropdown Panel -->
+                        <div class="flex-1 min-w-0 relative z-20" id="ai-gen-engine-wrapper">
+                            <select id="ai-gen-engine" class="hidden" aria-hidden="true" tabindex="-1">
+                                <option value="gemini" selected>Google Gemini</option>
+                                <option value="grok">xAI Grok</option>
+                                <option value="both">Both (Hybrid AI)</option>
+                            </select>
+
+                            <button type="button" id="ai-gen-engine-btn" onclick="window.toggleAIEngineDropdown(event)"
+                                class="w-full flex items-center justify-between gap-2 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-3 sm:pr-3.5 h-10 sm:h-12 transition-all cursor-pointer font-['Inter'] text-left">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Engine:</span>
+                                    <span id="ai-gen-engine-label" class="text-xs sm:text-sm font-normal text-black truncate">Google Gemini</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-xs text-black shrink-0 transition-transform duration-200" id="ai-gen-engine-chevron"></i>
+                            </button>
+
+                            <!-- Engine Panel List (Opens downward in natural dropdown direction) -->
+                            <div id="ai-gen-engine-menu"
+                                class="hidden absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl sm:rounded-2xl shadow-2xl z-[100] p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 font-['Inter']">
+                                <button type="button" onclick="window.selectAIEngine('gemini', 'Google Gemini')"
+                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-[#15803d] hover:bg-slate-100 cursor-pointer transition-colors" data-value="gemini">
+                                    <span>Google Gemini</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIEngine('grok', 'xAI Grok')"
+                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="grok">
+                                    <span>xAI Grok</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIEngine('both', 'Both (Hybrid AI)')"
+                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="both">
+                                    <span>Both (Hybrid AI)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Type Custom Dropdown Panel -->
+                        <div class="flex-1 min-w-0 relative z-20" id="ai-gen-type-wrapper">
+                            <select id="ai-gen-type" class="hidden" aria-hidden="true" tabindex="-1">
+                                <option value="Mixed" selected>Mixed Types</option>
+                                <option value="Multiple Choice">Multiple Choice</option>
+                                <option value="True or False">True or False</option>
+                                <option value="Short Answer">Short Answer</option>
+                                <option value="Essay">Essay / Paragraph</option>
+                                <option value="Matching Type">Matching Type</option>
+                                <option value="Enumeration">Enumeration</option>
+                            </select>
+
+                            <button type="button" id="ai-gen-type-btn" onclick="window.toggleAITypeDropdown(event)"
+                                class="w-full flex items-center justify-between gap-2 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-3 sm:pr-3.5 h-10 sm:h-12 transition-all cursor-pointer font-['Inter'] text-left">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Type:</span>
+                                    <span id="ai-gen-type-label" class="text-xs sm:text-sm font-normal text-black truncate">Mixed Types</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-xs text-black shrink-0 transition-transform duration-200" id="ai-gen-type-chevron"></i>
+                            </button>
+
+                            <!-- Type Panel List (Opens downward in natural dropdown direction) -->
+                            <div id="ai-gen-type-menu"
+                                class="hidden absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl sm:rounded-2xl shadow-2xl z-[100] p-1.5 space-y-0.5 max-h-56 sm:max-h-60 overflow-y-auto scrollbar-thin animate-in fade-in zoom-in-95 duration-100 font-['Inter']">
+                                <button type="button" onclick="window.selectAIType('Mixed', 'Mixed Types')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-[#15803d] hover:bg-slate-100 cursor-pointer transition-colors" data-value="Mixed">
+                                    <span>Mixed Types</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('Multiple Choice', 'Multiple Choice')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="Multiple Choice">
+                                    <span>Multiple Choice</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('True or False', 'True or False')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="True or False">
+                                    <span>True or False</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('Short Answer', 'Short Answer')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="Short Answer">
+                                    <span>Short Answer</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('Essay', 'Essay / Paragraph')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="Essay">
+                                    <span>Essay / Paragraph</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('Matching Type', 'Matching Type')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="Matching Type">
+                                    <span>Matching Type</span>
+                                </button>
+                                <button type="button" onclick="window.selectAIType('Enumeration', 'Enumeration')"
+                                    class="ai-type-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="Enumeration">
+                                    <span>Enumeration</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="w-[135px] sm:w-[150px] max-w-[150px] self-start sm:self-auto shrink-0" id="ai-gen-count-wrapper">
+                            <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl pl-2.5 sm:pl-3.5 pr-2.5 sm:pr-3.5 h-10 sm:h-12 focus-within:border-[#FFD000] focus-within:bg-white transition-all">
+                                <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Count:</span>
+                                <input type="number" id="ai-gen-count" min="1" max="100" value="5" inputmode="numeric"
+                                    onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (parseInt(this.value) > 100) { this.value = 100; } else if (parseInt(this.value) < 1 && this.value !== '') { this.value = 1; }"
+                                    onblur="if (!this.value || parseInt(this.value) < 1) { this.value = 1; } else if (parseInt(this.value) > 100) { this.value = 100; }"
+                                    class="w-9 sm:w-10 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
+                                <span id="ai-gen-count-max-label" class="text-black-fade text-[10px] sm:text-xs font-normal shrink-0">/ 100</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10">
+                        <span class="block text-xs sm:text-sm font-semibold text-black mb-1.5 sm:mb-2">Difficulty Level</span>
+                        <div class="grid grid-cols-3 gap-2 sm:gap-3.5">
+                            <!-- Easy (Green) -->
+                            <label class="flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200 py-2 sm:py-3 rounded-xl sm:rounded-2xl cursor-pointer transition-all font-normal text-black text-xs sm:text-sm hover:bg-slate-100 hover:border-slate-300 has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-500 has-[:checked]:text-emerald-950 has-[:checked]:font-semibold has-[:checked]:shadow-xs">
+                                <input type="radio" name="ai-difficulty" value="Easy" class="accent-[#15803d] w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer">
+                                <span>Easy</span>
+                            </label>
+                            <!-- Medium (Yellow) -->
+                            <label class="flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200 py-2 sm:py-3 rounded-xl sm:rounded-2xl cursor-pointer transition-all font-normal text-black text-xs sm:text-sm hover:bg-slate-100 hover:border-slate-300 has-[:checked]:bg-amber-50 has-[:checked]:border-amber-400 has-[:checked]:text-amber-950 has-[:checked]:font-semibold has-[:checked]:shadow-xs">
+                                <input type="radio" name="ai-difficulty" value="Medium" checked class="accent-[#d97706] w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer">
+                                <span>Medium</span>
+                            </label>
+                            <!-- Hard (Red) -->
+                            <label class="flex items-center justify-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200 py-2 sm:py-3 rounded-xl sm:rounded-2xl cursor-pointer transition-all font-normal text-black text-xs sm:text-sm hover:bg-slate-100 hover:border-slate-300 has-[:checked]:bg-red-50 has-[:checked]:border-red-400 has-[:checked]:text-red-950 has-[:checked]:font-semibold has-[:checked]:shadow-xs">
+                                <input type="radio" name="ai-difficulty" value="Hard" class="accent-red-600 w-3.5 h-3.5 sm:w-4 sm:h-4 cursor-pointer">
+                                <span>Hard</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer Action Bar (Full-Width Bar) -->
+                <div class="px-4 sm:px-8 py-3 sm:py-4 border-t border-slate-100 flex items-center justify-between gap-2.5 sm:gap-3 shrink-0 bg-white font-['Inter']">
+                    <button type="button" onclick="window.closeAIGeneratorModal()"
+                        class="h-9 sm:h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                        Cancel
+                    </button>
+                    <button type="button" id="ai-generate-submit-btn" onclick="window.generateAIQuestions()"
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-11 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold text-white transition-all flex items-center gap-2 !shadow-none hover:bg-[#166534] active:scale-95 cursor-pointer"
+                        style="box-shadow: none !important; filter: none !important;">
+                        <i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i>
+                        <span>Generate</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW 2: Next Page - Borrow Course Materials & Uploads -->
+            <div id="ai-generator-borrow-view" class="hidden flex flex-col flex-1 overflow-hidden min-h-0 animate-in slide-in-from-right-3 duration-200">
+                <!-- Header with Back Button -->
+                <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <button type="button" onclick="event.stopPropagation(); window.backToAIGeneratorMain(event);"
+                            id="ai-borrow-header-back-btn"
+                            class="w-8 h-8 rounded-full hover:bg-slate-100 active:bg-slate-200 flex sm:hidden items-center justify-center text-black transition-colors cursor-pointer shrink-0 border-0 p-0"
+                            title="Back to Generator">
+                            <i class="fa-solid fa-arrow-left text-xs sm:text-sm text-black"></i>
+                        </button>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Course Materials & Uploads</h2>
+                            <p class="text-[10px] sm:text-xs font-normal text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Search and select Senior High materials to ground your quiz generation.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body (Scrollable Course Materials List & Search) -->
+                <div class="p-3.5 sm:px-8 sm:py-5 overflow-y-auto flex-1 space-y-3 sm:space-y-4 font-['Inter'] flex flex-col min-h-0">
+                    <!-- Search Input & Search Button -->
+                    <div class="relative w-full flex items-center bg-white border-2 border-[#FFD000] focus-within:border-[#FFD000] rounded-xl sm:rounded-2xl overflow-hidden shadow-xs p-1 shrink-0 gap-1.5 sm:gap-2">
+                        <div class="pl-2 sm:pl-3 text-black-fade flex items-center pointer-events-none shrink-0">
+                            <i class="fa-solid fa-magnifying-glass text-[11px] sm:text-xs text-black-fade"></i>
+                        </div>
+                        <input type="text" id="ai-material-search-input" maxlength="100"
+                            placeholder="Search lessons, videos, or files..."
+                            class="flex-1 min-w-0 py-1.5 sm:py-2 pr-2 text-xs sm:text-sm font-normal text-black outline-none border-0 !border-none focus:ring-0 focus:outline-none focus:border-none shadow-none bg-transparent placeholder-black-fade truncate"
+                            style="border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important;"
+                            autocomplete="off"
+                            oninput="const clearBtn = document.getElementById('ai-material-search-clear-btn'); if(clearBtn) clearBtn.classList.toggle('hidden', !this.value.trim());"
+                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.triggerMaterialSearch(); }">
+                        <button type="button" onclick="window.clearMaterialSearch()" id="ai-material-search-clear-btn" class="hidden text-black-fade hover:text-black text-xs px-1.5 cursor-pointer shrink-0">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <button type="button" onclick="window.triggerMaterialSearch()"
+                            id="ai-material-search-btn"
+                            class="sigma-btn sigma-btn-primary h-8 px-3.5 sm:px-4 text-white text-xs font-bold flex items-center justify-center cursor-pointer transition-all shrink-0 rounded-lg sm:rounded-xl !shadow-none hover:bg-[#166534] active:scale-95" style="box-shadow: none !important;">
+                            <span>Search</span>
+                        </button>
+                    </div>
+
+                    <!-- Filter Category Pills (Hidden initially until search is performed) -->
+                    <div class="hidden flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 shrink-0" id="ai-material-filter-pills">
+                        <button type="button" onclick="window.setMaterialCategoryFilter('all')" data-cat="all" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#15803d] text-white cursor-pointer transition-all whitespace-nowrap !shadow-none" style="box-shadow: none !important;">All</button>
+                        <button type="button" onclick="window.setMaterialCategoryFilter('lesson')" data-cat="lesson" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-normal text-black-fade hover:text-black bg-slate-100 hover:bg-slate-200/70 cursor-pointer transition-all whitespace-nowrap">Lessons</button>
+                        <button type="button" onclick="window.setMaterialCategoryFilter('video')" data-cat="video" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-normal text-black-fade hover:text-black bg-slate-100 hover:bg-slate-200/70 cursor-pointer transition-all whitespace-nowrap">Videos</button>
+                        <button type="button" onclick="window.setMaterialCategoryFilter('pdf')" data-cat="pdf" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-normal text-black-fade hover:text-black bg-slate-100 hover:bg-slate-200/70 cursor-pointer transition-all whitespace-nowrap">PDFs</button>
+                        <button type="button" onclick="window.setMaterialCategoryFilter('pptx')" data-cat="pptx" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-normal text-black-fade hover:text-black bg-slate-100 hover:bg-slate-200/70 cursor-pointer transition-all whitespace-nowrap">PPTX Slides</button>
+                        <button type="button" onclick="window.setMaterialCategoryFilter('docx')" data-cat="docx" class="ai-mat-filter-pill px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-normal text-black-fade hover:text-black bg-slate-100 hover:bg-slate-200/70 cursor-pointer transition-all whitespace-nowrap">DOCX</button>
+                    </div>
+
+                    <!-- Dynamic Materials List Container -->
+                    <div id="ai-materials-items-list" class="flex-1 overflow-y-auto space-y-2 p-0.5 sm:p-1 min-h-0">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </div>
+
+                <!-- Footer with Done Button -->
+                <div class="px-4 sm:px-8 py-3 sm:py-4 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0 bg-white font-['Inter']">
+                    <div id="ai-borrow-selected-count-label" class="text-xs sm:text-sm font-semibold text-black-fade">
+                        0 materials selected
+                    </div>
+                    <button type="button" onclick="event.stopPropagation(); window.backToAIGeneratorMain(event);"
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-10 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-bold !shadow-none hover:bg-[#166534] active:scale-95 transition-all cursor-pointer" style="box-shadow: none !important;">
+                        <span>Done</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- AI SWITCH SOURCE CONFIRMATION MODAL -->
+    <div id="ai-switch-source-modal" class="hidden fixed inset-0 z-[360] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 font-['Inter']">
+        <div class="bg-white rounded-3xl border border-slate-200 standard-panel-shadow w-full max-w-sm p-6 space-y-5 text-center animate-in zoom-in-95 duration-150">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h3 class="text-base sm:text-lg font-bold text-black" id="ai-switch-source-title">Switch Grounding Source?</h3>
+                <p class="text-xs text-black-fade leading-relaxed" id="ai-switch-source-desc">Switching sources will remove your currently selected materials. Are you sure you want to continue?</p>
+            </div>
+            <div class="flex items-center justify-center gap-3 pt-2">
+                <button type="button" onclick="window.closeAISwitchSourceModal()"
+                    class="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Cancel
+                </button>
+                <button type="button" id="ai-confirm-switch-source-btn" onclick="window.confirmAISwitchSourceAction()"
+                    class="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#15803d] hover:bg-emerald-800 transition-colors cursor-pointer !shadow-none" style="box-shadow: none !important;">
+                    Switch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI DISCARD CONFIRMATION MODAL -->
+    <div id="ai-discard-modal" class="hidden fixed inset-0 z-[350] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-3xl border border-slate-200 standard-panel-shadow w-full max-w-sm p-6 space-y-5 text-center animate-in zoom-in-95 duration-150">
+            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h3 class="text-lg font-bold text-black" id="discard-modal-title">Discard Changes?</h3>
+                <p class="text-xs text-black-fade" id="discard-modal-desc">You have unsaved changes. Are you sure you want to discard them?</p>
+            </div>
+            <div class="flex items-center justify-center gap-3 pt-2">
+                <button type="button" onclick="window.closeAIDiscardModal()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Keep Editing
+                </button>
+                <button type="button" onclick="window.confirmDiscardAction()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-[#15803d] hover:bg-emerald-800 transition-colors cursor-pointer !shadow-none" style="box-shadow: none !important;">
+                    Discard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI GENERATE CONFIRMATION MODAL -->
+    <div id="ai-confirm-generate-modal" class="hidden fixed inset-0 z-[350] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-3xl border border-slate-200 standard-panel-shadow w-full max-w-md p-6 space-y-5 text-center animate-in zoom-in-95 duration-150">
+            <div class="w-12 h-12 rounded-2xl bg-[#FFD000]/20 text-[#15803d] flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-bolt text-lg text-[#15803d]"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h3 class="text-lg font-bold text-black" id="ai-confirm-generate-title">Generate Questions?</h3>
+                <p class="text-xs text-black-fade" id="ai-confirm-generate-desc">AI will automatically create question items with correct answer keys based on your selected topic and settings.</p>
+            </div>
+            <div class="flex items-center justify-center gap-3 pt-2">
+                <button type="button" onclick="window.closeAIConfirmGenerateModal()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Cancel
+                </button>
+                <button type="button" id="ai-confirm-generate-btn" onclick="window.executeAIQuestionGeneration()"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-[#15803d] hover:bg-emerald-800 transition-colors cursor-pointer !shadow-none flex items-center justify-center gap-2" style="box-shadow: none !important;">
+                    <i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i>
+                    <span>Yes, Generate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORT QUESTIONS MODAL -->
+    <div id="import-questions-modal" class="hidden fixed inset-0 z-[300] bg-black/50 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 standard-panel-shadow curriculum-release-panel-fixed w-full sm:!max-w-[860px] h-full sm:h-[740px] flex flex-col overflow-hidden relative font-['Inter']" style="max-width: 860px;">
+            <!-- Modal Header Nav Bar (Release Panel Style) -->
+            <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 shadow-xs">
+                        <i class="fa-solid fa-file-import text-sm sm:text-lg"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Import Questions</h2>
+                        <p class="text-[10px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Upload a document and the system will extract questions automatically. Optionally add more plain questions in the text box below (no answer keys).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body (Scrollable Area) -->
+            <div class="p-3 sm:px-8 sm:py-5 overflow-y-auto flex-1 flex flex-col space-y-3 sm:space-y-4 font-['Inter'] min-h-0">
+                <!-- Combined Starter Templates Panel -->
+                <div id="import-starter-templates-panel" class="shrink-0 p-3 sm:p-4 bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3 transition-all">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-black-fade">Starter Templates:</span>
+                    </div>
+                    
+                    <div class="space-y-2 sm:space-y-2.5">
+                        <!-- Question Sheet Templates -->
+                        <div class="grid grid-cols-1 sm:grid-cols-[190px_1fr] items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-medium text-black">
+                            <span class="text-black-fade font-semibold shrink-0">• Question Sheet Templates:</span>
+                            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <button type="button" onclick="window.previewSampleQuizTemplate('questions', 'docx')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview DOCX Template">
+                                    <i class="fa-solid fa-file-word text-blue-600"></i>
+                                    <span>.DOCX</span>
+                                </button>
+                                <button type="button" onclick="window.previewSampleQuizTemplate('questions', 'txt')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview TXT Template">
+                                    <i class="fa-solid fa-file-code text-emerald-700"></i>
+                                    <span>.TXT</span>
+                                </button>
+                                <button type="button" onclick="window.previewSampleQuizTemplate('questions', 'pdf')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview PDF Template">
+                                    <i class="fa-solid fa-file-pdf text-red-600"></i>
+                                    <span>.PDF</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lesson Notes Templates -->
+                        <div class="grid grid-cols-1 sm:grid-cols-[190px_1fr] items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-medium text-black">
+                            <span class="text-black-fade font-semibold shrink-0">• Lesson Notes Templates:</span>
+                            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <button type="button" onclick="window.previewSampleQuizTemplate('notes', 'docx')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview DOCX Template">
+                                    <i class="fa-solid fa-file-word text-blue-600"></i>
+                                    <span>.DOCX</span>
+                                </button>
+                                <button type="button" onclick="window.previewSampleQuizTemplate('notes', 'txt')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview TXT Template">
+                                    <i class="fa-solid fa-file-code text-emerald-700"></i>
+                                    <span>.TXT</span>
+                                </button>
+                                <button type="button" onclick="window.previewSampleQuizTemplate('notes', 'pdf')"
+                                    class="flex-1 sm:flex-initial min-w-[68px] sm:w-22 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[10.5px] sm:text-xs font-semibold text-black flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-colors shadow-2xs" title="Preview PDF Template">
+                                    <i class="fa-solid fa-file-pdf text-red-600"></i>
+                                    <span>.PDF</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Method Tabs & Input Area -->
+                <div class="flex-1 flex flex-col min-h-0 space-y-2.5 sm:space-y-3">
+                    <!-- Dropzone / File Picker Container -->
+                    <div class="shrink-0 space-y-2">
+                        <!-- Dropzone Active / Empty State -->
+                        <div id="import-dropzone" onclick="document.getElementById('import-file-input').click()"
+                            ondragover="event.preventDefault(); this.classList.add('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                            ondragleave="this.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                            ondrop="window.handleImportFileDrop(event)"
+                            class="sigma-dashed-dropzone rounded-xl sm:rounded-2xl p-3.5 sm:p-6 text-center cursor-pointer space-y-1.5 sm:space-y-2 group transition-all">
+                            <div class="sigma-dropzone-icon-box w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto shadow-2xs text-black-fade">
+                                <i class="fa-solid fa-cloud-arrow-up text-base sm:text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors">
+                                    Drag & drop your file here, or <span class="underline text-black group-hover:text-[#FFD000] transition-colors">browse</span>
+                                </p>
+                                <p class="text-[10px] sm:text-xs text-black-fade mt-0.5">Supports <strong>.docx, .pdf, .txt, .md, .pptx</strong> (Up to 10MB)</p>
+                            </div>
+                            <input type="file" id="import-file-input" accept=".txt,.docx,.doc,.pdf,.md,.pptx,.csv" class="hidden" onchange="window.handleImportFileSelect(event)">
+                        </div>
+
+                        <!-- Uploaded File Badge / Preview Card -->
+                        <div id="import-uploaded-file-card" class="hidden sigma-black-fade-panel group relative rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
+                            <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+                                <div class="w-12 sm:w-20 flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 select-none">
+                                    <div id="import-file-icon-wrap" class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                        <i id="import-file-icon" class="fa-solid fa-file-word text-sm sm:text-lg text-blue-600"></i>
+                                    </div>
+                                    <span id="import-file-badge" class="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200/70 font-bold rounded-md leading-tight inline-flex items-center justify-center text-center uppercase">DOCX</span>
+                                </div>
+                                <div class="min-w-0 flex-1 flex flex-col justify-center">
+                                    <p id="import-file-name" class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors truncate">filename.docx</p>
+                                    <p id="import-file-meta" class="text-[10px] sm:text-xs text-black-fade font-medium mt-0.5">DOCX Document • Ready for conversion</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                <button type="button" onclick="document.getElementById('import-file-input').click()"
+                                    class="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-200/80 border border-slate-200/80 transition-colors cursor-pointer" title="Change file">
+                                    Change
+                                </button>
+                                <button type="button" onclick="window.clearImportUploadedFile(event)"
+                                    class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl hover:bg-slate-100 text-black-fade hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors" title="Remove file">
+                                    <i class="fa-solid fa-trash-can text-xs sm:text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Or Paste Direct Text Area -->
+                    <div id="import-paste-section" class="flex-1 flex flex-col min-h-0 space-y-1 sm:space-y-1.5 transition-all">
+                        <div class="flex items-center gap-2 py-0.5 shrink-0">
+                            <div class="flex-1 h-px bg-slate-200"></div>
+                            <span class="text-[10px] sm:text-xs text-black/40 font-medium shrink-0">or add questions below (optional)</span>
+                            <div class="flex-1 h-px bg-slate-200"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] sm:text-xs text-black-fade shrink-0">
+                            <div class="flex items-center gap-2">
+                                <span id="import-paste-label" class="font-semibold text-black">Additional Questions (text only):</span>
+                                <span id="import-paste-locked-badge" class="hidden items-center gap-1 text-[9.5px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/90 px-1.5 sm:px-2 py-0.5 rounded-md">
+                                    <i class="fa-solid fa-lock text-[8.5px]"></i> Locked to file
+                                </span>
+                            </div>
+                            <span id="import-detected-count" class="text-emerald-700 font-bold"></span>
+                        </div>
+                        <p id="import-paste-helper" class="text-[9.5px] sm:text-[11px] text-black-fade leading-tight sm:leading-normal shrink-0">
+                            Questions only — no answer keys. The system reads the file first; text entered here is appended after. Press <kbd class="px-1.5 py-0.5 rounded bg-slate-200 text-black font-semibold text-[9px] sm:text-[10px]">Enter</kbd> for each new question.
+                        </p>
+                        <textarea id="import-paste-textarea" maxlength="10000"
+                            placeholder="What is the capital of the Philippines?&#10;Define photosynthesis.&#10;What are the three branches of government?"
+                            oninput="window.updateImportPreviewCounter()"
+                            class="flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-[10px] sm:text-[11px] font-sans text-black outline-none focus:bg-white focus:border-[#FFD000] transition-all placeholder:text-black-fade placeholder:text-[9.5px] sm:placeholder:text-[10.5px] min-h-[140px] sm:min-h-[180px] resize-y leading-relaxed"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Action Bar (Full-Width Bar) -->
+            <div class="px-4 sm:px-8 py-2.5 sm:py-4 border-t border-slate-100 flex items-center justify-between gap-2.5 sm:gap-3 shrink-0 bg-white font-['Inter']">
+                <button type="button" onclick="window.closeImportQuestionsModal()"
+                    class="h-9 sm:h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Cancel
+                </button>
+                <button type="button" onclick="window.executeImportQuestions()" id="execute-import-btn"
+                    class="h-9 sm:h-11 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold text-slate-400 bg-slate-200 opacity-50 cursor-not-allowed pointer-events-none transition-all flex items-center justify-center shadow-none" disabled>
+                    <span>Convert Questions</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SAVE QUIZ / DRAFT METADATA DIALOG MODAL -->
+    <div id="save-quiz-metadata-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150 font-['Inter'] max-h-[92vh] overflow-y-auto scrollbar-thin" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div id="save-metadata-icon-wrap" class="w-10 h-10 rounded-2xl bg-emerald-100 text-[#15803d] flex items-center justify-center shrink-0">
+                        <i id="save-metadata-icon" class="fa-solid fa-check text-base"></i>
+                    </div>
+                    <div>
+                        <h3 id="save-metadata-title" class="text-lg font-bold text-black tracking-tight">Save Quiz</h3>
+                        <p id="save-metadata-desc-hint" class="text-xs text-black-fade">Enter a title and description for your quiz</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closeSaveQuizModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-black transition-colors cursor-pointer" title="Close">
+                    <i class="fa-solid fa-xmark text-base text-black"></i>
+                </button>
+            </div>
+
+            <!-- Form Fields -->
+            <div class="space-y-3.5">
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label for="save-quiz-title-input" class="text-xs font-bold text-black uppercase tracking-wider">Quiz Name / Title <span class="text-red-500">*</span></label>
+                        <span id="save-quiz-title-count" class="text-[11px] font-medium text-black-fade">0 / 60</span>
+                    </div>
+                    <input type="text" id="save-quiz-title-input" placeholder="e.g., Computer Networking Midterm Exam"
+                        maxlength="60"
+                        oninput="window.updateSaveQuizCharCounts()"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-black outline-none focus:bg-white focus:border-black transition-all placeholder:text-black-fade placeholder:font-normal"
+                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.confirmSaveQuizFromModal(); }">
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label for="save-quiz-desc-input" class="text-xs font-bold text-black uppercase tracking-wider">Description <span class="text-black-fade font-normal text-[11px] lowercase">(optional)</span></label>
+                        <span id="save-quiz-desc-count" class="text-[11px] font-medium text-black-fade">0 / 150</span>
+                    </div>
+                    <textarea id="save-quiz-desc-input" rows="2" placeholder="Brief summary of topics covered or student instructions..."
+                        maxlength="150"
+                        oninput="window.updateSaveQuizCharCounts()"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium text-black outline-none focus:bg-white focus:border-black transition-all placeholder:text-black-fade resize-none break-words"></textarea>
+                </div>
+
+                <!-- Icon & Color Customizer -->
+                <div class="space-y-2 pt-1 border-t border-slate-100">
+                    <span class="text-xs font-bold text-black uppercase tracking-wider block">Quiz Icon & Badge</span>
+
+                    <!-- Icon Preview & Icon Choices -->
+                    <div class="flex items-center gap-3 p-2.5 bg-slate-50 border border-slate-200/90 rounded-2xl">
+                        <!-- Live Icon Preview -->
+                        <div id="save-quiz-icon-preview" class="w-11 h-11 rounded-xl bg-[#FFD000] text-white flex items-center justify-center text-lg shrink-0 shadow-2xs border border-black/10">
+                            <i id="save-quiz-icon-display" class="fa-solid fa-bolt-lightning"></i>
+                        </div>
+
+                        <!-- Scrollable Icon Option Chips -->
+                        <div class="flex-1 overflow-x-auto py-1 flex items-center gap-1.5 no-scrollbar" id="save-quiz-icon-options">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Color Swatches Palette -->
+                    <div class="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar" id="save-quiz-color-options">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="window.closeSaveQuizModal()"
+                    class="px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" id="save-modal-confirm-btn" onclick="window.confirmSaveQuizFromModal()"
+                    class="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+                    <i id="save-modal-btn-icon" class="fa-solid fa-check text-xs"></i>
+                    <span id="save-modal-btn-label">Save Quiz</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPEN FROM LIBRARY MODAL DIALOG -->
+    <div id="open-quiz-library-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150">
+        <div id="open-quiz-library-dialog" class="bg-white rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 standard-panel-shadow curriculum-release-panel-fixed w-full sm:!max-w-[860px] h-full sm:h-[740px] flex flex-col overflow-hidden relative font-['Inter']" onclick="event.stopPropagation()">
+            <!-- Modal Header (Release Panel Style) -->
+            <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-yellow-100 text-yellow-500 flex items-center justify-center shrink-0 shadow-xs">
+                        <i class="fa-solid fa-folder-open text-xs sm:text-base text-yellow-500"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Open Quiz from Library</h2>
+                        <p class="text-[10px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Select a saved quiz or unfinished draft to load into the creator</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body (Scrollable Area) -->
+            <div class="p-3 sm:px-8 sm:py-5 overflow-y-auto flex-1 space-y-3 sm:space-y-4 font-['Inter'] flex flex-col min-h-0">
+                <!-- Search & Filter Controls -->
+                <div class="space-y-2 sm:space-y-3 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <div id="library-modal-search-container" class="relative flex-1 flex items-center bg-slate-50 border border-slate-300 rounded-xl px-2.5 sm:px-3.5 py-1 sm:py-2 focus-within:bg-white focus-within:border-[#FFD000] focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all gap-1.5 sm:gap-2" style="box-shadow: none !important;">
+                            <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm text-black shrink-0 ml-0.5 sm:ml-1 mr-1"></i>
+                            <input type="text" id="library-modal-search-input" maxlength="100" placeholder="Search by quiz title..."
+                                class="flex-1 min-w-0 bg-transparent text-xs sm:text-sm font-medium text-black outline-none border-0 !border-none focus:ring-0 focus:outline-none focus:border-none shadow-none placeholder:text-black-fade truncate pl-1 pr-2.5 sm:pr-3"
+                                style="border: none !important; outline: none !important; box-shadow: none !important; background: transparent !important;"
+                                autocomplete="off"
+                                oninput="const clearBtn = document.getElementById('lib-search-clear-btn'); if(clearBtn) clearBtn.classList.toggle('hidden', !this.value.trim());"
+                                onkeydown="if(event.key === 'Enter'){ event.preventDefault(); window.triggerLibraryModalSearch(); }">
+                            <button type="button" onclick="window.clearLibraryModalSearch()" id="lib-search-clear-btn" class="hidden text-black-fade hover:text-black text-xs px-1 cursor-pointer shrink-0">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                            <button type="button" onclick="window.triggerLibraryModalSearch()"
+                                id="library-modal-search-btn"
+                                class="h-7.5 sm:h-9.5 px-3 sm:px-5 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
+                                <span>Search</span>
+                            </button>
+                        </div>
+                        <button type="button" onclick="window.toggleLibraryMyStorageFilter()" id="lib-filter-my-btn"
+                            title="My Storage (Quizzes created by you)"
+                            class="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-black flex items-center justify-center cursor-pointer transition-colors shrink-0 shadow-2xs">
+                            <i class="fa-solid fa-folder-open text-xs sm:text-sm text-black"></i>
+                        </button>
+                    </div>
+
+                    <!-- Category Filter Chips -->
+                    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar pt-1 flex-nowrap shrink-0" id="library-modal-filter-pills">
+                        <button type="button" onclick="window.setLibraryModalFilter('all')" id="lib-filter-all"
+                            class="quiz-storage-filter-chip shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-[#15803d] text-white shadow-2xs cursor-pointer transition-all">
+                            All
+                        </button>
+                        <button type="button" onclick="window.setLibraryModalFilter('recent')" id="lib-filter-recent"
+                            class="quiz-storage-filter-chip shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70 cursor-pointer transition-all">
+                            Recent
+                        </button>
+                        <button type="button" onclick="window.setLibraryModalFilter('draft')" id="lib-filter-draft"
+                            class="quiz-storage-filter-chip shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70 cursor-pointer transition-all">
+                            <i class="fa-solid fa-file-lines text-[10px] sm:text-xs text-black-fade"></i>
+                            <span>Draft</span>
+                        </button>
+                        <button type="button" onclick="window.setLibraryModalFilter('ai')" id="lib-filter-ai"
+                            class="quiz-storage-filter-chip shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70 cursor-pointer transition-all">
+                            <i class="fa-solid fa-bolt text-[10px] sm:text-xs text-black-fade"></i>
+                            <span>AI Generated</span>
+                        </button>
+                        <button type="button" onclick="window.setLibraryModalFilter('manual')" id="lib-filter-manual"
+                            class="quiz-storage-filter-chip shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70 cursor-pointer transition-all">
+                            <i class="fa-solid fa-pen-nib text-[10px] sm:text-xs text-black-fade"></i>
+                            <span>Manual</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quizzes List Container (Scrollable) -->
+                <div id="library-modal-quizzes-list" class="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Modal Footer Action Bar (Full-Width Bar) -->
+            <div class="px-4 py-3 sm:px-8 sm:py-4 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0 bg-white font-['Inter']">
+                <button type="button" onclick="window.closeQuizLibraryModal()"
+                    class="h-9 sm:h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Close
+                </button>
+                <button type="button" id="lib-modal-action-btn" onclick="window.confirmSelectedLibraryQuiz()" disabled
+                    class="sigma-btn sigma-btn-primary h-9 sm:h-11 px-6 sm:px-7 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer shadow-sm">
+                    <i class="fa-solid fa-folder-open text-xs sm:text-sm" id="lib-modal-action-icon"></i>
+                    <span id="lib-modal-action-text">Load</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW / EXPORT QUIZ PDF MODAL -->
+    <div id="download-quiz-modal" class="hidden fixed inset-0 z-[300] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div class="bg-white rounded-3xl border border-slate-200 standard-panel-shadow w-full max-w-lg p-6 md:p-8 space-y-6 relative">
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div id="download-modal-format-icon" class="w-10 h-10 rounded-2xl bg-emerald-50 text-[#15803d] flex items-center justify-center shrink-0 shadow-xs text-lg">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-black" id="download-modal-title">View Assessment PDF</h2>
+                        <p class="text-xs text-black-fade" id="download-modal-desc">Preview and print your formatted exam paper or answer key.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closeDownloadOptionsModal()"
+                    class="w-8 h-8 rounded-full text-black hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer shrink-0">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Export Type Selection -->
+            <div class="space-y-2">
+                <span class="block text-xs font-bold text-black uppercase tracking-wider">Document Type</span>
+                <div class="grid grid-cols-2 gap-3">
+                    <label id="download-mode-student-wrap" class="flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-[#15803d] has-[:checked]:bg-emerald-50/50 border-slate-200 hover:border-slate-300">
+                        <input type="radio" id="download-mode-student-input" name="download-mode" value="student" checked class="accent-[#15803d] w-4 h-4 cursor-pointer">
+                        <div>
+                            <p class="text-xs font-bold text-black">Student Copy</p>
+                            <p class="text-[11px] text-black-fade">Blank spaces for answers</p>
+                        </div>
+                    </label>
+                    <label id="download-mode-teacher-wrap" class="flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-[#15803d] has-[:checked]:bg-emerald-50/50 border-slate-200 hover:border-slate-300">
+                        <input type="radio" id="download-mode-teacher-input" name="download-mode" value="teacher" class="accent-[#15803d] w-4 h-4 cursor-pointer">
+                        <div>
+                            <p class="text-xs font-bold text-black">Teacher Copy</p>
+                            <p id="download-mode-teacher-sub" class="text-[11px] text-black-fade">With Answer Key & Rubrics</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Header Options -->
+            <div class="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <span class="text-xs font-bold text-black">Print Header Information:</span>
+                <label class="flex items-center gap-2.5 text-xs text-black font-medium cursor-pointer">
+                    <input type="checkbox" id="download-opt-header" checked class="accent-[#15803d] w-4 h-4 rounded cursor-pointer">
+                    <span>Include School Title, Date, Name & Score blanks</span>
+                </label>
+                <label class="flex items-center gap-2.5 text-xs text-black font-medium cursor-pointer">
+                    <input type="checkbox" id="download-opt-points" checked class="accent-[#15803d] w-4 h-4 rounded cursor-pointer">
+                    <span>Show points per question item</span>
+                </label>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <button type="button" onclick="window.closeDownloadOptionsModal()"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold text-black hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                    Cancel
+                </button>
+                <button type="button" onclick="window.executeDownloadAssessment()" id="execute-download-btn"
+                    class="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#15803d] hover:bg-emerald-800 transition-all flex items-center gap-2 cursor-pointer shadow-md">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                    <span id="download-confirm-btn-label">View PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STUDENT LIVE PREVIEW OVERLAY (Full Screen Workstation matching shared modal form) -->
+    <div id="student-preview-modal" class="sigma-modal-overlay hidden">
+        <!-- Exit Control (Far Right) -->
+        <button type="button" onclick="window.closeStudentQuizPreviewModal()"
+            class="fixed top-10 right-10 w-12 h-12 rounded-full hover:bg-slate-200 flex items-center justify-center text-black transition-all z-[10001] cursor-pointer"
+            title="Exit Preview">
+            <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+
+        <div class="sigma-modal-shell">
+            <!-- White Panel (Full Height Column) -->
+            <div class="sigma-modal-panel min-h-screen">
+                <!-- Header (Quiz Title & Student Preview Badge) -->
+                <div class="border-b border-slate-100 sticky top-0 bg-white z-20">
+                    <div class="px-8 sm:px-12 pt-8 pb-4 flex items-center justify-between gap-4 flex-wrap">
+                        <div class="min-w-0 flex-1 flex items-center gap-2">
+                            <button type="button" onclick="window.closeStudentQuizPreviewModal()"
+                                class="quiz-preview-mobile-back-btn hidden items-center justify-center w-8 h-8 -ml-1 rounded-lg text-black hover:bg-slate-100 active:bg-slate-200 shrink-0 cursor-pointer"
+                                title="Back">
+                                <i class="fa-solid fa-chevron-left text-xs text-black"></i>
+                            </button>
+                            <h1 id="student-preview-quiz-title" class="text-2xl font-bold text-black tracking-tight font-['Inter'] truncate">Student Preview</h1>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <div class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-800 font-bold text-xs shadow-2xs">
+                                <i class="fa-solid fa-circle-info text-blue-600"></i>
+                                <span class="text-black-fade">Preview Mode</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subheader: Question Counter & Number Pills Strip -->
+                <div class="border-b border-slate-100 bg-white z-10 px-8 sm:px-12 py-3.5 flex items-center justify-between gap-4 flex-wrap">
+                    <div id="student-preview-counter" class="text-sm font-semibold text-black-fade font-['Inter']">
+                        <span class="inline-flex items-center gap-1.5 font-semibold text-black"><i class="fa-solid fa-star text-[#FFD000] text-xs"></i><span>10 Points</span></span>
+                    </div>
+                    <div id="preview-question-pills-strip" class="flex items-center gap-1.5 flex-wrap">
+                        <!-- Pills rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Assessment Body (Vertically & Horizontally Centered Question Area) -->
+                <div class="flex-1 px-8 sm:px-12 py-8 overflow-y-auto flex flex-col justify-center">
+                    <div id="student-preview-questions-list" class="w-full max-w-3xl mx-auto space-y-6 my-auto">
+                        <!-- Question content rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Sticky Footer -->
+                <div id="student-preview-modal-footer" class="sigma-modal-footer px-8 sm:px-12 py-5 border-t border-slate-200 flex items-center justify-between bg-white shrink-0">
+                    <button type="button" onclick="window.prevPreviewQuestion()" id="preview-footer-prev-btn"
+                        class="sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer invisible pointer-events-none">
+                        <i class="fa-solid fa-arrow-left text-xs"></i>
+                        <span>Previous</span>
+                    </button>
+                    <div id="preview-footer-question-counter" class="text-sm font-semibold text-black-fade font-['Inter'] text-center">
+                        Question 1 of 1
+                    </div>
+                    <button type="button" onclick="window.nextPreviewQuestion()" id="preview-footer-next-btn"
+                        class="sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer">
+                        <span>Next</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REAL-TIME SAVE / DRAFT STATUS TOAST PILL -->
+    <div id="quiz-save-toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[3000] hidden items-center gap-2.5 px-5 py-2.5 rounded-2xl shadow-2xl border font-['Inter'] transition-all duration-300 pointer-events-none animate-in fade-in slide-in-from-top-3">
+        <div id="quiz-save-toast-spinner" class="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <i id="quiz-save-toast-icon" class="fa-solid fa-check text-sm"></i>
+        <div class="text-xs font-semibold" id="quiz-save-toast-text">Saving Quiz...</div>
+    </div>
+
+    <!-- Fullscreen Image Lightbox Modal -->
+    <div id="image-fullscreen-modal" class="fixed inset-0 z-[99999] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onclick="window.closeImageFullscreen()">
+        <button type="button" onclick="window.closeImageFullscreen()" class="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-all cursor-pointer z-10 shadow-lg" title="Close (Esc)">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+        <div class="relative max-w-[94vw] max-h-[92vh] flex flex-col items-center justify-center" onclick="event.stopPropagation()">
+            <img id="image-fullscreen-img" src="" alt="Fullscreen Image" class="max-w-[94vw] max-h-[84vh] object-contain rounded-xl shadow-2xl">
+            <p id="image-fullscreen-title" class="text-sm font-semibold text-white/90 text-center mt-3 max-w-2xl break-words"></p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- CORE JAVASCRIPT CONTROLLERS (Consistent with Teacher/Admin Pages) -->
+    <script src="js/shared-components.js?v=20260929manualsearch1"></script>
+    <script src="js/quiz-components.js?v=20260929matchinganskey1"></script>
+    <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
+    <script src="js/notifications.js?v=20260916strictdef14"></script>
+    <script src="js/topbar.js?v=20260916strictdef14"></script>
+    <script src="js/sidebar.js?v=20260916strictdef14"></script>
+    <script src="js/secure-input-guard.js?v=20260912sec1"></script>
+    <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
+</body>
+</html>

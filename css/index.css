@@ -1,0 +1,1220 @@
+/* =============================================================
+   SIGMA ELMS — Login Page Stylesheet
+   Interface Computer College | Senior High School ELMS
+   ============================================================= */
+
+
+/* ===== VARIABLES: ICC Brand Colors & Black Fade System ===== */
+:root {
+    --primary: #15803d;
+    --primary-dark: #166534;
+    --primary-light: #dcfce7;
+    --icc-yellow: #FFD000;
+    --sigma-black-fade: rgba(0, 0, 0, 0.50);
+    --sigma-black-fade-light: rgba(0, 0, 0, 0.40);
+    --sigma-black-fade-bg: rgba(0, 0, 0, 0.035);
+    --sigma-black-fade-border: rgba(0, 0, 0, 0.10);
+    --nav-height: clamp(72px, 6.5vh, 92px);
+}
+
+.text-black-fade {
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+}
+
+.text-black {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.icon-black-fade {
+    color: var(--sigma-black-fade) !important;
+    opacity: 0.55 !important;
+}
+
+.bg-black-fade {
+    background-color: var(--sigma-black-fade-bg) !important;
+}
+
+.border-black-fade {
+    border-color: var(--sigma-black-fade-border) !important;
+}
+
+.border-icc {
+    border-color: var(--primary) !important;
+}
+
+/* Main Scrollbar - matches admin */
+* {
+    scrollbar-width: auto;
+    scrollbar-color: transparent transparent;
+}
+
+*:hover {
+    scrollbar-color: rgba(0, 0, 0, .18) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 10px;
+    transition: none !important;
+}
+
+::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+}
+
+*:hover> ::-webkit-scrollbar-thumb,
+*:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, .18);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, .32) !important;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.login-form-logo-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: clamp(1.75rem, 4vw, 3rem) !important;
+}
+
+.login-form-stack {
+    width: 100%;
+    max-width: 760px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.login-panel {
+    border-left: 1px solid var(--primary) !important;
+}
+
+
+
+.login-panel .login-form-logo {
+    width: 11rem !important;
+    height: 11rem !important;
+    display: block;
+    object-fit: contain;
+}
+
+.login-panel .login-form-shell {
+    width: 100% !important;
+    max-width: 760px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.login-captcha-box {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.95rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 1rem;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+}
+
+.login-captcha-box--full {
+    min-height: 5.75rem;
+    padding: 1.2rem 1.1rem;
+    border-radius: 0;
+    align-items: center;
+    cursor: default;
+}
+
+.recaptcha-wiremark {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    min-width: 5.4rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.recaptcha-wiremark__icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 1rem;
+}
+
+.recaptcha-wiremark__text {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+}
+
+.recaptcha-wiremark__meta {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
+}
+
+.login-captcha-check {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: #15803d;
+    flex-shrink: 0;
+}
+
+.login-captcha-box--full .login-captcha-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.45rem;
+    height: 1.45rem;
+    border: 1.5px solid #9ca3af;
+    border-radius: 0.18rem;
+    background: #ffffff;
+    position: relative;
+    cursor: pointer;
+    accent-color: unset;
+}
+
+.login-captcha-box--full .login-captcha-check:checked {
+    border-color: #16a34a;
+    background: #ffffff;
+}
+
+.login-captcha-box--full .login-captcha-check:checked::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 45%;
+    width: 0.45rem;
+    height: 0.85rem;
+    border: solid #16a34a;
+    border-width: 0 2.5px 2.5px 0;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.login-captcha-box--full .login-captcha-check:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.12);
+}
+
+.floating-input-group {
+    position: relative;
+}
+
+.floating-input {
+    padding-top: 1.6rem !important;
+    padding-bottom: 0.6rem !important;
+    font-weight: 700 !important;
+}
+
+.floating-input-label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sigma-black-fade) !important;
+    font-size: 1rem;
+    font-weight: 500;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: transparent;
+}
+
+/* Legacy floating rules removed */
+
+.floating-input-group--modal .floating-input {
+    padding-top: 1.7rem !important;
+    padding-bottom: 0.8rem !important;
+}
+
+.floating-input-label--modal {
+    left: 1.25rem;
+    font-size: 0.98rem;
+}
+
+.floating-input--modal:focus+.floating-input-label--modal,
+.floating-input--modal:not(:placeholder-shown)+.floating-input-label--modal {
+    top: 0.55rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+}
+
+.password-toggle-btn {
+    opacity: 0.5;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.password-toggle-btn:hover {
+    opacity: 1;
+}
+
+.password-toggle-btn i {
+    pointer-events: none;
+}
+
+/* Remove default browser eye icon */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+}
+
+.login-panel input.input-error {
+    border-color: #ef4444 !important;
+}
+
+/* Show scrollbar on hover */
+.hover-scrollbar:hover::-webkit-scrollbar {
+    display: block;
+}
+
+.hover-scrollbar:hover {
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
+}
+
+
+
+/* ===== RESET: Universal Box-Sizing & Base Styles ===== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Global Typography: Inter for text, preserve Font Awesome for icons */
+body,
+button,
+input,
+select,
+textarea,
+div,
+p,
+span,
+a,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+td,
+th {
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Ensure icons use Font Awesome */
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-thin,
+.fa-duotone,
+.fa-brands,
+.fa,
+i[class*="fa-"] {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
+}
+
+body,
+html {
+    font-family: 'Inter', sans-serif !important;
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    background-color: white !important;
+}
+
+
+/* ===== LAYOUT: Modal Lock & Page Structure ===== */
+
+/* MODAL LOCK — prevents background scroll when any modal is open */
+body.modal-open,
+html.modal-open {
+    overflow: hidden !important;
+}
+
+/* NAVIGATION — responsive auto-resizing top bar */
+#mainNav {
+    border-bottom: 1px solid var(--primary) !important;
+    height: var(--nav-height) !important;
+    padding-left: clamp(1rem, 3.5vw, 2.5rem) !important;
+    padding-right: clamp(1rem, 3.5vw, 2.5rem) !important;
+}
+
+#mainNav img {
+    width: clamp(48px, min(6.5vw, 6vh), 68px) !important;
+    height: clamp(48px, min(6.5vw, 6vh), 68px) !important;
+    object-fit: contain !important;
+    transition: width 0.2s ease, height 0.2s ease;
+}
+
+#navTitle {
+    font-size: clamp(1.125rem, min(2.5vw, 2.2vh), 1.55rem) !important;
+    line-height: 1.2 !important;
+}
+
+#navSubtitle {
+    font-size: clamp(0.72rem, min(1.4vw, 1.25vh), 0.95rem) !important;
+    line-height: 1.2 !important;
+}
+
+#navContextBox {
+    margin-left: clamp(0.35rem, 1.2vw, 0.85rem) !important;
+    gap: clamp(0.35rem, 1vw, 0.75rem) !important;
+}
+
+/* MAIN — ensures page scroll is never blocked by main container */
+main {
+    margin-top: var(--nav-height) !important;
+    overflow: visible !important;
+}
+
+
+/* ===== COMPONENTS: Image Slider ===== */
+
+#landingSliderPanel {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+}
+
+@media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
+    #landingMain {
+        height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        align-items: stretch !important;
+    }
+
+    #landingSliderPanel {
+        order: 1 !important;
+        width: 65% !important;
+        height: calc(100vh - var(--nav-height)) !important;
+        aspect-ratio: unset !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .login-panel {
+        order: 2 !important;
+        width: 35% !important;
+        height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        align-self: stretch !important;
+        border-left: 1px solid var(--primary) !important;
+        border-bottom: none !important;
+    }
+}
+
+/* SLIDER NAVIGATION BUTTONS (Pure Faded White Icon Controls) */
+.slider-nav-btn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    height: 100% !important;
+    width: 52px !important;
+    z-index: 45;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    outline: none !important;
+    user-select: none !important;
+    padding: 0 !important;
+    transition: all 0.2s ease;
+}
+
+.slider-nav-btn i {
+    font-size: 2.25rem !important;
+    color: #ffffff !important;
+    opacity: 0.65 !important;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55)) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slider-nav-btn--prev {
+    left: 0 !important;
+    justify-content: flex-start !important;
+    padding-left: 14px !important;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.06) 65%, transparent 100%) !important;
+}
+
+.slider-nav-btn--next {
+    right: 0 !important;
+    justify-content: flex-end !important;
+    padding-right: 14px !important;
+    background: linear-gradient(to left, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.06) 65%, transparent 100%) !important;
+}
+
+.slider-nav-btn:hover i,
+.slider-nav-btn:active i {
+    opacity: 1 !important;
+    transform: scale(1.12) !important;
+}
+
+.slider-nav-btn--prev:active {
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.42) 0%, transparent 100%) !important;
+}
+
+.slider-nav-btn--next:active {
+    background: linear-gradient(to left, rgba(0, 0, 0, 0.42) 0%, transparent 100%) !important;
+}
+
+/* Hide navigation buttons on desktop (desktop auto-rotates) */
+@media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
+    .slider-nav-btn {
+        display: none !important;
+    }
+}
+
+/* SLIDER CONTAINER — fills parent, no offset */
+#slider {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    left: 0 !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    overflow: hidden !important;
+}
+
+/* SLIDE — absolute-positioned for crossfade transitions */
+.slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.8s ease-in-out;
+    z-index: 1;
+    overflow: hidden;
+    background-color: #f3f4f6;
+    /* Added fallback background color */
+}
+
+/* SLIDE ACTIVE — visible slide on top */
+.slide.active {
+    opacity: 1 !important;
+    z-index: 2 !important;
+}
+
+/* SLIDE IMAGE — fills the slider panel completely with NO CUTTING */
+.slide img,
+.slide-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: fill !important;
+    object-position: center !important;
+    display: block !important;
+}
+
+/* SLIDE BLUR BACKGROUND — removed */
+.slide-blur-bg {
+    display: none !important;
+}
+
+
+/* ===== COMPONENTS: Slider Dots ===== */
+
+/* DOTS CONTAINER — centered, bottom part of banner, smooth hover reveal */
+#dotsContainer {
+    position: absolute !important;
+    bottom: 2rem !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(4px) !important;
+    z-index: 45 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover over banner reveals dots smoothly on desktop */
+#landingSliderPanel:hover #dotsContainer,
+#dotsContainer:hover {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(-50%) translateY(0) !important;
+}
+
+/* DOT — individual faded navigation indicator with no squeezing */
+.dot {
+    width: 9px !important;
+    height: 9px !important;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45) !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    border: none !important;
+    transition: all 0.25s ease !important;
+}
+
+.dot:hover {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    transform: scale(1.25) !important;
+}
+
+/* DOT ACTIVE — highlighted current slide indicator */
+.dot.active {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    transform: scale(1.35) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+}
+
+
+/* FOOTER LINK HOVER — Pure solid yellow color change with no opacity */
+footer a {
+    transition: color 0.2s ease;
+}
+
+footer a:hover,
+#footerAboutLink:hover,
+footer .hover\:text-icc-yellow:hover {
+    color: #FFD000 !important;
+}
+
+/* ===== COMPONENTS: Social Icons (Footer) ===== */
+
+/* SOCIAL ICON — glassmorphic circular button */
+.social-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* =============================================================
+   COMPONENTS: Modals & Z-Index Layers
+   ============================================================= */
+
+/* MODAL OVERLAYS — stacking order for popup modals */
+#loginModal,
+#helpModal {
+    z-index: 200 !important;
+}
+
+
+/* =============================================================
+   DESKTOP STYLES (min-width: 1024px)
+   Login panel with white background on the right side
+   ============================================================= */
+
+/* LOGIN INPUTS — Universal (Mobile, Tablet, Desktop) */
+.login-panel input {
+    background: #fdfdfd !important;
+    border: 1px solid #9ca3af !important;
+    color: #1a1a1a !important;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: none !important;
+    /* Sharp, no animation */
+}
+
+.login-panel input:hover {
+    border-color: #000000 !important;
+    background: #ffffff !important;
+    outline: none !important;
+}
+
+/* LOGIN INPUT FOCUS — flat yellow border, no glow */
+.login-panel input:focus,
+.floating-input:focus {
+    border-color: #FFD000 !important;
+    background: #ffffff !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+/* Maintain red border on hover/focus if error exists */
+.login-panel input.input-error:hover,
+.login-panel input.input-error:focus {
+    border-color: #ef4444 !important;
+}
+
+/* Maintain red label color if error exists */
+.login-panel input.input-error~.floating-input-label {
+    color: #ef4444 !important;
+}
+
+/* CUSTOM SELECTION — grey highlight instead of blue */
+.login-panel input::selection,
+.login-panel ::selection {
+    background: #cbd5e1 !important;
+    /* Slate grey highlight */
+    color: #000000 !important;
+}
+
+/* DISABLED STATE — highlighted background when loading */
+.login-panel input:disabled {
+    background-color: #f3f4f6 !important;
+    /* Reverted to neutral gray */
+    color: #4b5563 !important;
+    /* Keep gray instead of black when locking */
+    cursor: not-allowed;
+    border-color: #d1d5db !important;
+    transition: none !important;
+    font-weight: 400 !important;
+    /* Remove bold */
+}
+
+@media (min-width: 1024px) and (orientation: landscape), (min-width: 1200px) {
+
+    /* MAIN — auto height for desktop layout */
+    main {
+        height: auto;
+        overflow: visible;
+    }
+
+    /* SLIDE IMAGE — stretch full image to fit the slide container */
+    .slide img,
+    .slide-img {
+        object-fit: fill !important;
+    }
+
+    /* SLIDE BLUR BACKGROUND — hide background */
+    .slide-blur-bg {
+        display: none !important;
+    }
+
+    /* LOGIN PANEL — white card filling right 40% of viewport */
+    .login-panel {
+        background: white;
+        color: #1a1a1a;
+        z-index: 10;
+        position: relative;
+        padding-left: clamp(0.75rem, 2vw, 1.5rem) !important;
+        padding-right: clamp(0.75rem, 2vw, 1.5rem) !important;
+    }
+}
+
+/* FLOATING LABEL SYSTEM */
+.floating-input-group {
+    position: relative;
+    width: 100%;
+}
+
+.floating-input {
+    width: 100%;
+    padding: 1.1rem 1rem 0.6rem 1rem;
+    /* Reverted to more compact padding */
+    border: 1px solid #9ca3af !important;
+    /* Made more grey as requested */
+    border-radius: 0.5rem;
+    outline: none;
+    transition: none !important;
+    /* No animated border */
+    background: white;
+    font-weight: 400 !important;
+    /* Remove bold text when typing */
+}
+
+.floating-input-label,
+.floating-input-label--modal {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    background: white;
+    padding: 0 0.25rem;
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+    opacity: 1 !important;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    font-weight: 500;
+    transform: none;
+}
+
+.floating-input::placeholder,
+.floating-input--modal::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+    opacity: 1 !important;
+}
+
+/* Float Label when focused, has content, or is disabled (loading) */
+.floating-input:focus~.floating-input-label,
+.floating-input:not(:placeholder-shown)~.floating-input-label,
+.floating-input:disabled~.floating-input-label,
+.floating-input--modal:focus~.floating-input-label--modal,
+.floating-input--modal:not(:placeholder-shown)~.floating-input-label--modal {
+    top: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+    transform: translateY(0);
+    font-weight: 500;
+}
+
+/* Password Toggle Icon */
+.password-toggle-btn i {
+    color: var(--sigma-black-fade) !important;
+    transition: color 0.2s ease;
+}
+
+.password-toggle-btn:hover i {
+    color: #000000 !important;
+}
+
+/* Top Navbar Help Center Button Icon & Yellow Hover */
+#entryHelpCenterBtn i,
+#entryHelpCenterBtnSmall i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    transition: color 0.2s ease, transform 0.2s ease !important;
+}
+
+#entryHelpCenterBtn:hover i,
+#entryHelpCenterBtnSmall:hover i {
+    color: #FFD000 !important;
+}
+
+/* Help Center Subtitles, Categories & FAQ */
+#navSubtitle {
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+}
+
+#helpCategoriesDesktop h2,
+#helpCategoriesMobile p,
+#helpCenterContentScroll p.text-black-fade,
+#faq-help p.text-black-fade,
+#contact-support p.text-black-fade {
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+    opacity: 1 !important;
+}
+
+#faq-help p.text-black,
+#faq-help p.text-black strong,
+#contact-support p.text-black,
+#contact-support p.text-black strong {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    opacity: 1 !important;
+}
+
+#helpCenterView {
+    padding-top: var(--nav-height) !important;
+}
+
+#helpCategoriesDesktop button,
+#helpCategoriesMobile button {
+    transition: all 0.2s ease;
+    border-radius: 0.75rem !important;
+}
+
+/* SELECTED STATE: Yellow background with crisp white text & icon (Desktop & Mobile) */
+#helpCategoriesDesktop button.bg-icc-yellow,
+#helpCategoriesMobile button.bg-icc-yellow {
+    background-color: #FFD000 !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+#helpCategoriesDesktop button.bg-icc-yellow i,
+#helpCategoriesMobile button.bg-icc-yellow i {
+    color: #ffffff !important;
+}
+
+/* UNSELECTED HOVER STATE: Grey background highlight with black text (Desktop & Mobile) */
+#helpCategoriesDesktop button:not(.bg-icc-yellow):hover,
+#helpCategoriesMobile button:not(.bg-icc-yellow):hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+#helpCategoriesDesktop button:not(.bg-icc-yellow):hover i,
+#helpCategoriesMobile button:not(.bg-icc-yellow):hover i {
+    color: #000000 !important;
+}
+
+/* MOBILE HELP SIDEBAR EXIT BUTTON — matches modal/form exit button */
+#helpMobileSidebarClose {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    border-radius: 9999px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #000000 !important;
+    background-color: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease, opacity 0.2s ease !important;
+}
+
+#helpMobileSidebarClose:hover {
+    background-color: #f1f5f9 !important;
+}
+
+#helpMobileSidebarClose:active {
+    background-color: #e2e8f0 !important;
+}
+
+#helpMobileSidebarClose i {
+    font-size: 1.125rem !important;
+    line-height: 1 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+/* Specific Highlight color for label when loading/locked */
+.floating-input:disabled~.floating-input-label {
+    color: var(--sigma-black-fade) !important;
+    -webkit-text-fill-color: var(--sigma-black-fade) !important;
+    /* Match the gray look instead of black */
+    background-color: #f3f4f6 !important;
+    /* Match the box neutral highlight */
+    padding: 0 0.5rem;
+    border-radius: 4px;
+}
+
+/* Mobile & Tablet Specific Spacing */
+@media (max-width: 1023px) {
+    .floating-input {
+        padding: 1.5rem 1rem 0.5rem 1rem;
+        /* Slightly taller on mobile */
+    }
+
+    .floating-input:focus~.floating-input-label,
+    .floating-input:not(:placeholder-shown)~.floating-input-label {
+        font-size: 0.75rem;
+        /* Copied from desktop size */
+        top: 0.2rem;
+    }
+}
+
+/* LOGIN BUTTON — green with white text (Universal) */
+.login-panel .sign-in-btn {
+    background: var(--primary);
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: all 0.2s ease;
+}
+
+/* LOGIN BUTTON HOVER — darker green on hover */
+.login-panel .sign-in-btn:hover {
+    background: var(--primary-dark);
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+@media (min-width: 1024px) {
+
+    /* FORGOT LINK HOVER — underline on hover */
+    .login-panel .forgot-link:hover {
+        color: #000000 !important;
+        text-decoration: underline;
+    }
+}
+
+
+/* =============================================================
+   RESPONSIVE: Tablet & Mobile (< 1024px OR Portrait Tablet up to 1100px)
+   ============================================================= */
+@media (max-width: 1023px), (orientation: portrait) and (max-width: 1100px) {
+
+    #landingMain {
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        height: auto !important;
+        background: #ffffff !important;
+    }
+
+    /* MOBILE NAV & FAQ RESET */
+    #mainNav {
+        box-shadow: none !important;
+    }
+
+    #dotsContainer {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        bottom: 1.25rem !important;
+        transform: translateX(-50%) translateY(0) !important;
+        gap: 8px !important;
+    }
+
+    /* 1. SCREEN 1: Clean 100vh Login (Banner hidden below fold on load) */
+    .login-panel {
+        order: 1 !important;
+        width: 100% !important;
+        height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100vh - var(--nav-height)) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 1.75rem 1.25rem !important;
+        background: #ffffff !important;
+        border: none !important;
+        border-bottom: 1px solid var(--primary) !important;
+        outline: none !important;
+        border-radius: 0 !important;
+        position: relative !important;
+        z-index: 10 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+    }
+
+    .login-panel .login-form-stack {
+        margin: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        width: 100% !important;
+        max-width: 90% !important;
+    }
+
+    .login-panel .login-form-logo-wrap {
+        display: flex !important;
+        justify-content: center !important;
+        margin-top: 0 !important;
+        margin-bottom: clamp(1rem, 2.75vh, 2rem) !important;
+    }
+
+    .login-panel .login-form-logo {
+        width: clamp(7rem, min(38vw, 19vh), 13.5rem) !important;
+        height: clamp(7rem, min(38vw, 19vh), 13.5rem) !important;
+        max-width: 75vw !important;
+        display: block !important;
+        object-fit: contain !important;
+    }
+
+    .login-panel .login-form-shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* 2. SCREEN 2: Clean Full-Bleed Banner & Footer (Stick Together, Zero Cutoff) */
+    #landingSliderPanel {
+        order: 2 !important;
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 4 / 3 !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        position: relative !important;
+        z-index: 5 !important;
+        border-radius: 0 !important;
+        overflow: hidden !important;
+        box-shadow: none !important;
+    }
+
+    .slide img,
+    .slide-img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: fill !important;
+        object-position: center !important;
+    }
+
+    footer {
+        margin-top: 0 !important;
+    }
+}
+
+/* ERROR STATE */
+.input-error {
+    border-color: #ef4444 !important;
+}
+
+.input-error~.floating-input-label {
+    color: #ef4444 !important;
+}
+
+/* TABLET SPECIFIC (600px - 1023px, and portrait up to 1100px) */
+@media (min-width: 600px) and (max-width: 1023px), (min-width: 600px) and (orientation: portrait) and (max-width: 1100px) {
+    .login-panel {
+        padding: 2.5rem clamp(1.5rem, 5vw, 3.5rem) !important;
+    }
+
+    .login-panel .login-form-stack {
+        width: 100% !important;
+        max-width: 90% !important;
+    }
+
+    .login-panel .login-form-logo {
+        width: clamp(12rem, min(42vw, 25vh), 21rem) !important;
+        height: clamp(12rem, min(42vw, 25vh), 21rem) !important;
+    }
+
+    .login-panel input,
+    .login-panel .sign-in-btn {
+        font-size: 1.15rem !important;
+    }
+}
+
+/* =============================================================
+   RESPONSIVE: Landscape Short Viewports (max-height: 500px)
+   ============================================================= */
+@media (max-height: 500px) and (orientation: landscape) {
+    nav {
+        height: 56px !important;
+    }
+
+    nav img {
+        width: 40px !important;
+        height: 40px !important;
+    }
+
+    nav h1 {
+        font-size: 1rem !important;
+    }
+
+    main {
+        margin-top: 56px !important;
+    }
+
+
+
+    .login-panel {
+        padding: 1rem 0.75rem !important;
+        height: auto !important;
+        min-height: calc(100vh - 56px) !important;
+        background: white !important;
+        justify-content: center !important;
+    }
+
+    .login-panel .login-form-shell {
+        width: 100% !important;
+        max-width: 760px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .login-panel input,
+    .login-panel .sign-in-btn {
+        padding: 0.5rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+
+/* =============================================================
+   RESPONSIVE: Tablet Landscape (1024px – 1400px)
+   Slightly smaller logo and tighter padding for tablet landscape
+   ============================================================= */
+@media (min-width: 1024px) and (max-width: 1400px) and (orientation: landscape) {
+
+    /* LOGIN PANEL PADDING — tighter padding for tablet */
+    .login-panel {
+        padding: 2rem 0.9rem !important;
+    }
+}
+
+
+/* =============================================================
+   RESPONSIVE: Nest Hub (1024px wide, ≤650px tall)
+   Compact login form for short desktop-class viewport
+   ============================================================= */
+@media (min-width: 1024px) and (max-height: 650px) and (orientation: landscape) {
+
+    /* LOGIN PANEL — compact centered layout */
+    .login-panel {
+        padding: 1rem 2rem !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+    }
+
+    /* LOGIN LOGO SPACING — tight margin below logo */
+    .login-panel .login-form-logo-wrap {
+        margin-bottom: 1rem !important;
+    }
+
+    /* LOGIN LABEL — smaller text for compact form */
+    .login-panel label {
+        font-size: 0.8rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    /* FORGOT LINK — smaller text and tighter spacing */
+    .login-panel .forgot-link {
+        font-size: 0.8rem !important;
+        margin-top: 0.5rem !important;
+    }
+
+    /* FORGOT LINK CONTAINER — reduced top margin */
+    .login-panel .mt-6 {
+        margin-top: 0.5rem !important;
+    }
+}
+
+/* GRADEBOOK REFRESH ANIMATION */
+@keyframes gradebookFadeIn {
+    from { opacity: 0.5; }
+    to { opacity: 1; }
+}
+.gradebook-refresh-anim {
+    animation: gradebookFadeIn 0.3s ease-out;
+}

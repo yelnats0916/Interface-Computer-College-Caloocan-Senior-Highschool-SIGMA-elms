@@ -1,0 +1,126 @@
+/**
+ * SIGMA ELMS - Unified Welcome Panel Component Stylesheet
+ * Standardized across Admin, Teacher, and Student portals.
+ * Ensures identical 220px height, 22px border radius, background scaling, and typography.
+ */
+
+:root {
+    --welcome-panel-height: 220px;
+    --welcome-panel-radius: 22px;
+    --welcome-panel-border: #e2e8f0;
+}
+
+.welcome-panel {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: var(--welcome-panel-height) !important;
+    min-height: var(--welcome-panel-height) !important;
+    border-radius: var(--welcome-panel-radius) !important;
+    border: 1px solid var(--welcome-panel-border) !important;
+    overflow: hidden !important;
+    box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    display: flex !important;
+    align-items: center !important;
+    padding-left: 3rem !important;
+    padding-right: 3rem !important;
+    box-sizing: border-box !important;
+}
+
+.welcome-panel img,
+.welcome-panel .welcome-panel-bg-img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.welcome-panel:hover img,
+.welcome-panel:hover .welcome-panel-bg-img {
+    transform: scale(1.05) !important;
+}
+
+.welcome-panel .welcome-panel-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(to right, rgba(21, 128, 61, 0.9) 0%, rgba(21, 128, 61, 0.45) 55%, transparent 100%) !important;
+    z-index: 1 !important;
+}
+
+.welcome-panel .welcome-panel-content {
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+.welcome-panel h4,
+.welcome-panel .welcome-subtitle {
+    color: #FFD000 !important;
+    font-weight: 900 !important;
+    font-size: 1.5rem !important; /* 24px */
+    line-height: 2rem !important;
+    margin-bottom: 0.75rem !important; /* 12px */
+    letter-spacing: -0.01em !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35) !important;
+}
+
+.welcome-panel h2,
+.welcome-panel .welcome-title {
+    color: #ffffff !important;
+    font-size: 2.25rem !important; /* 36px */
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.02em !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25) !important;
+}
+
+.welcome-panel-container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .welcome-panel-container {
+        display: block !important;
+        width: calc(100% + 24px) !important;
+        max-width: calc(100% + 24px) !important;
+        margin-left: -12px !important;
+        margin-right: -12px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 12px 14px 10px 14px !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .welcome-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: clamp(145px, 36vw, 175px) !important;
+        min-height: clamp(145px, 36vw, 175px) !important;
+        padding-left: clamp(14px, 4vw, 20px) !important;
+        padding-right: clamp(14px, 4vw, 20px) !important;
+        border-radius: 18px !important;
+        border: 1px solid #e2e8f0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    }
+
+    .welcome-panel h4,
+    .welcome-panel .welcome-subtitle {
+        font-size: clamp(0.95rem, 3.2vw, 1.2rem) !important;
+        margin-bottom: clamp(0.2rem, 1vw, 0.35rem) !important;
+    }
+
+    .welcome-panel h2,
+    .welcome-panel .welcome-title {
+        font-size: clamp(1.2rem, 4.5vw, 1.75rem) !important;
+    }
+}

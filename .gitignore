@@ -1,0 +1,23 @@
+# ─── Node / npm ───────────────────────────────────────────
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# ─── Tailwind build artifacts ─────────────────────────────
+# Keep css/tailwind.css (committed so browsers can load it without a build step)
+# Only ignore the raw input file if you want
+# css/tailwind-input.css
+
+# ─── OS / Editor junk ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+
+# ─── VS Code (keep settings, ignore workspace state) ──────
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# ─── Sensitive / private ──────────────────────────────────
+config/database.php

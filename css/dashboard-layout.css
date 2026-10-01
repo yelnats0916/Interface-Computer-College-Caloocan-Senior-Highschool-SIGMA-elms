@@ -1,0 +1,357 @@
+/**
+ * SIGMA ELMS - Unified Dashboard Grid Layout
+ * Single source of truth for the 3-column dashboard grid layout.
+ * Used by: admin.html, teacher.html, student.html
+ *
+ * Grid structure:
+ *   Left Rail   = 297px  (.home-sticky-rail--left)
+ *   Middle Feed = fluid  (.main-dashboard-column)
+ *   Right Rail  = 297px  (.home-sticky-rail--right)
+ *
+ * To change layout for ALL portals, edit ONLY this file.
+ */
+
+:root {
+    --sigma-page-tint-bg: rgba(21, 128, 61, 0.035);
+    --sigma-black-fade-bg: rgba(0, 0, 0, 0.035);
+}
+
+/* overflow-x: clip on the root does not reliably update after DevTools
+   dock/undock (viewport jump). hidden still prevents sideways scroll and
+   lets Chrome recompute layout when the window snaps back. */
+html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Route-aware root overflow for sticky dashboard rails.
+   Chrome needs overflow-x: clip/visible scroll ancestors for position: sticky
+   to pin correctly under the fixed portal header. */
+html:has(body #section-dashboard:not(.hidden)),
+html:has(body #section-home:not(.hidden)),
+html:has(body #dashboard-view:not(.hidden)) {
+    overflow-x: clip !important;
+}
+
+body:has(#section-dashboard:not(.hidden)),
+body:has(#section-home:not(.hidden)),
+body:has(#section-classrooms:not(.hidden)),
+body:has(#section-classes:not(.hidden)),
+body:has(#dashboard-view:not(.hidden)) {
+    overflow: visible !important;
+}
+
+/* Ensure all ancestors of the dashboard grid allow natural height expansion so position:sticky works.
+ * Uses :has() to scope this rule ONLY when the dashboard section is visible — this gives it higher
+ * specificity than body.subjects-panels-mode selectors in teacher.css, which would break the layout. */
+body:has(#section-dashboard:not(.hidden)) #layout-wrapper,
+body:has(#section-dashboard:not(.hidden)) #main-content,
+body:has(#section-dashboard:not(.hidden)) #content-sections,
+body:has(#section-home:not(.hidden)) #layout-wrapper,
+body:has(#section-home:not(.hidden)) #main-content,
+body:has(#section-home:not(.hidden)) #content-sections,
+body:has(#section-classrooms:not(.hidden)) #layout-wrapper,
+body:has(#section-classrooms:not(.hidden)) #main-content,
+body:has(#section-classrooms:not(.hidden)) #content-sections,
+body:has(#section-classes:not(.hidden)) #layout-wrapper,
+body:has(#section-classes:not(.hidden)) #main-content,
+body:has(#section-classes:not(.hidden)) #content-sections,
+body:has(#dashboard-view:not(.hidden)) #layout-wrapper,
+body:has(#dashboard-view:not(.hidden)) #admin-main,
+body:has(#dashboard-view:not(.hidden)) #main-content,
+body:has(#dashboard-view:not(.hidden)) #content-sections {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+/* Universal Home / Dashboard Page Default Background for all roles (Admin, Teacher, Student) */
+#section-home,
+#section-dashboard,
+#dashboard-view {
+    background-color: var(--admin-bg, #f8fafc) !important;
+}
+
+body:has(#section-home:not(.hidden)),
+body:has(#section-dashboard:not(.hidden)),
+body:has(#dashboard-view:not(.hidden)) {
+    background-color: var(--admin-bg, #f8fafc) !important;
+}
+
+#section-home,
+#section-dashboard,
+#section-classrooms,
+#section-classes,
+#dashboard-view {
+    height: auto !important;
+    min-height: calc(100vh - var(--shell-offset, 82px)) !important;
+    overflow: visible !important;
+}
+
+/* === 1. Dashboard Grid Container ========================================= */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 1rem;
+    padding-top: 1rem;
+    align-items: start;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .dashboard-grid {
+        display: grid !important;
+        grid-template-columns: 297px minmax(0, 1fr) 297px !important;
+        gap: clamp(1rem, 1.5vw, 2rem) !important;
+        align-items: start !important;
+        padding: 1rem 1rem 0 !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+    }
+
+    .dashboard-grid > div:nth-child(1) {
+        grid-column: 1 !important;
+        min-width: 297px !important;
+        max-width: 297px !important;
+        width: 297px !important;
+    }
+
+    .dashboard-grid > div:nth-child(2) {
+        grid-column: 2 !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .dashboard-grid > div:nth-child(3) {
+        grid-column: 3 !important;
+        min-width: 297px !important;
+        max-width: 297px !important;
+        width: 297px !important;
+    }
+
+    /* 2-column layout (Sections & Classes: fluid main column + 297px right rail) */
+    .dashboard-grid:has(> :nth-child(2):last-child),
+    .dashboard-grid--two-column {
+        grid-template-columns: minmax(0, 1fr) 297px !important;
+    }
+
+    .dashboard-grid:has(> :nth-child(2):last-child) > div:nth-child(1),
+    .dashboard-grid--two-column > div:nth-child(1) {
+        grid-column: 1 !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    .dashboard-grid:has(> :nth-child(2):last-child) > div:nth-child(2),
+    .dashboard-grid--two-column > div:nth-child(2) {
+        grid-column: 2 !important;
+        min-width: 297px !important;
+        max-width: 297px !important;
+        width: 297px !important;
+    }
+
+    .home-sticky-rail,
+    .home-sticky-rail--left,
+    .home-sticky-rail--right {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 106px !important;
+        align-self: start !important;
+        display: flex !important;
+        flex-direction: column !important;
+        width: 297px !important;
+        max-width: 297px !important;
+        min-width: 297px !important;
+        height: calc(100vh - 106px) !important;
+        max-height: calc(100vh - 106px) !important;
+        overflow: hidden !important;
+        z-index: 30 !important;
+    }
+
+    #sigma-panels-container,
+    #dashboard-metrics-container,
+    .pocket-cards-rail,
+    .home-dashboard-panels,
+    .home-right-stack {
+        width: 297px !important;
+        max-width: 297px !important;
+        height: auto !important;
+        max-height: none !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        overscroll-behavior: contain !important;
+        padding-bottom: 2rem !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* === 2. Middle Column (Main Dashboard Feed) =============================== */
+.main-dashboard-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    padding-bottom: 0 !important;
+    margin-bottom: 1.25rem !important;
+}
+
+.main-dashboard-column > * {
+    width: 100%;
+}
+
+/* === 3. Welcome Panel Alignment inside Middle Column ====================== */
+.main-dashboard-column .welcome-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* === 4. Mobile Layout (<= 768px: Center Column Only, Rails Hidden) ======== */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        display: block !important;
+        grid-template-columns: 1fr !important;
+        padding: 0 12px 2.5rem !important;
+        gap: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Hide SIGMA Analytics (Left Rail) and Schedule / Due Dates (Right Rail) */
+    .home-sticky-rail,
+    .home-sticky-rail--left,
+    .home-sticky-rail--right,
+    #section-home .home-sticky-rail,
+    #section-home .home-sticky-rail--left,
+    #section-home .home-sticky-rail--right,
+    #section-dashboard .home-sticky-rail,
+    #dashboard-view .home-sticky-rail,
+    .dashboard-grid > div:first-child:not(.main-dashboard-column),
+    .dashboard-grid > div:last-child:not(.main-dashboard-column) {
+        display: none !important;
+    }
+
+    /* 100% Full-Width Focus for Middle Center Page */
+    .main-dashboard-column {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .welcome-panel-container {
+        display: block !important;
+        width: calc(100% + 24px) !important;
+        max-width: calc(100% + 24px) !important;
+        margin-left: -12px !important;
+        margin-right: -12px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 12px 14px 10px 14px !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .main-dashboard-column .welcome-panel,
+    .welcome-panel-container .welcome-panel,
+    .welcome-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        box-sizing: border-box !important;
+        border-radius: 18px !important;
+        border: 1px solid #e2e8f0 !important;
+        overflow: hidden !important;
+        box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    }
+}
+
+/* Tablet Layout (769px - 1023px) - Balanced 2-Column Responsive Layout */
+@media (min-width: 769px) and (max-width: 1023px) {
+    .dashboard-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 297px !important;
+        gap: 1.25rem !important;
+        padding: 1rem 1.25rem 2rem !important;
+        align-items: start !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Column 1: Middle Feed takes the main full-width focus */
+    .dashboard-grid > div:nth-child(2),
+    .main-dashboard-column {
+        grid-column: 1 !important;
+        grid-row: 1 / span 2 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Column 2, Row 1: Left Rail (SIGMA Analytics) */
+    .dashboard-grid > div:nth-child(1),
+    .home-sticky-rail--left {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        width: 297px !important;
+        max-width: 297px !important;
+        min-width: 297px !important;
+        position: relative !important;
+        top: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    /* Column 2, Row 2: Right Rail (Schedule & Tasks / Classes) */
+    .dashboard-grid > div:nth-child(3),
+    .home-sticky-rail--right {
+        grid-column: 2 !important;
+        grid-row: 2 !important;
+        width: 297px !important;
+        max-width: 297px !important;
+        min-width: 297px !important;
+        position: relative !important;
+        top: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    /* 2-column layouts without left rail (e.g. Sections & Classes) */
+    .dashboard-grid:has(> :nth-child(2):last-child) > div:nth-child(1),
+    .dashboard-grid--two-column > div:nth-child(1) {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+    }
+    .dashboard-grid:has(> :nth-child(2):last-child) > div:nth-child(2),
+    .dashboard-grid--two-column > div:nth-child(2) {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+    }
+
+    #sigma-panels-container,
+    #teacher-home-dashboard-combined-list,
+    .home-dashboard-panels,
+    .pocket-cards-rail {
+        width: 297px !important;
+        max-width: 297px !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+}
+

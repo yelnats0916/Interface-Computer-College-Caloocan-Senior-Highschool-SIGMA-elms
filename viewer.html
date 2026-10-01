@@ -1,0 +1,2582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Viewer - Sigma ELMS</title>
+    <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
+
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- TAILWIND CSS -->
+    <link rel="stylesheet" href="css/tailwind.css">
+
+    <!-- DOCUMENT PARSING ENGINES -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+        }
+
+        /* --- ADAPTIVE TEXT SELECTION HIGHLIGHTER --- */
+        ::selection {
+            background-color: var(--selection-bg) !important;
+            color: var(--selection-color) !important;
+        }
+
+        ::-moz-selection {
+            background-color: var(--selection-bg) !important;
+            color: var(--selection-color) !important;
+        }
+
+        .paper-sheet *::selection,
+        .docx-wrapper *::selection,
+        .doc-content *::selection,
+        .slide-canvas *::selection {
+            background-color: var(--selection-bg) !important;
+            color: var(--selection-color) !important;
+        }
+
+        .paper-sheet *::-moz-selection,
+        .docx-wrapper *::-moz-selection,
+        .doc-content *::-moz-selection,
+        .slide-canvas *::-moz-selection {
+            background-color: var(--selection-bg) !important;
+            color: var(--selection-color) !important;
+        }
+
+        /* --- PREVENT ACCIDENTAL HIGHLIGHTING DURING DRAG & SCROLL --- */
+        .paper-canvas,
+        .pptx-stage-area,
+        .pptx-sidebar,
+        .slide-canvas,
+        .slide-thumb-card,
+        #viewer-toolbar {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .doc-content p,
+        .doc-content span,
+        .doc-content h1,
+        .doc-content h2,
+        .doc-content h3,
+        .doc-content td,
+        .doc-content th,
+        .doc-content li,
+        .slide-canvas-body p,
+        .slide-canvas-title h2 {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        img {
+            -webkit-user-drag: none;
+            user-select: none;
+        }
+
+        .doc-content img,
+        .paper-sheet img,
+        .docx img,
+        .docx-wrapper img {
+            max-width: 100% !important;
+            height: auto !important;
+            display: block;
+            margin: 1.25rem auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .doc-content table,
+        .paper-sheet table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 1.5rem 0 !important;
+        }
+
+        .doc-content th,
+        .doc-content td,
+        .paper-sheet th,
+        .paper-sheet td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 8px 12px !important;
+            font-size: 0.875rem !important;
+        }
+
+        .doc-content th,
+        .paper-sheet th {
+            background-color: #f1f5f9 !important;
+            font-weight: 700 !important;
+        }
+
+        /* --- AUTO SCROLLBAR COLOR & ADAPTIVE SYSTEM --- */
+        :root {
+            color-scheme: light;
+            --canvas-bg: #e2e8f0;
+            --toolbar-bg: rgba(255, 255, 255, 0.98);
+            --toolbar-border: #cbd5e1;
+            --sidebar-bg: #f8fafc;
+            --sidebar-border: #cbd5e1;
+            --sidebar-item-hover: #f1f5f9;
+            --text-main: #000000;
+            --text-muted: #000000;
+            --control-bg: #f1f5f9;
+            --control-border: #cbd5e1;
+            --btn-color: #000000;
+            --btn-hover-bg: #ffffff;
+            --btn-hover-color: #000000;
+            --btn-secondary-bg: #ffffff;
+            --btn-secondary-border: #cbd5e1;
+            --btn-secondary-color: #000000;
+            --btn-secondary-hover-bg: #f1f5f9;
+            --slider-track-bg: #94a3b8;
+            --slider-thumb-bg: #000000;
+            --paper-bg: #ffffff;
+            --paper-text: #1e293b;
+            --paper-heading: #0f172a;
+            --paper-table-th: #f8fafc;
+            --paper-table-border: #cbd5e1;
+            --selection-bg: #15803d; /* Solid Green in Light Mode */
+            --selection-color: #ffffff;
+            --paper-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12), 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
+            --slide-bg: #ffffff;
+            --slide-text: #1e293b;
+            --slide-border: #cbd5e1;
+        }
+
+        body.dark-theme {
+            color-scheme: dark;
+            --canvas-bg: #09090b;
+            --toolbar-bg: rgba(18, 18, 20, 0.98);
+            --toolbar-border: #27272a;
+            --sidebar-bg: #121215;
+            --sidebar-border: #27272a;
+            --sidebar-item-hover: #27272a;
+            --text-main: #ffffff;
+            --text-muted: #ffffff;
+            --control-bg: #27272a;
+            --control-border: #3f3f46;
+            --btn-color: #ffffff;
+            --btn-hover-bg: #3f3f46;
+            --btn-hover-color: #ffffff;
+            --btn-secondary-bg: #27272a;
+            --btn-secondary-border: #3f3f46;
+            --btn-secondary-color: #ffffff;
+            --btn-secondary-hover-bg: #3f3f46;
+            --slider-track-bg: #52525b;
+            --slider-thumb-bg: #ffffff;
+            --paper-bg: #1c1c20; /* Dark mode paper */
+            --paper-text: #e4e4e7;
+            --paper-heading: #ffffff;
+            --paper-table-th: #27272a;
+            --paper-table-border: #3f3f46;
+            --selection-bg: #3f3f46; /* Charcoal selection in dark mode */
+            --selection-color: #ffffff;
+            --paper-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            --slide-bg: #18181b;
+            --slide-text: #e4e4e7;
+            --slide-border: #27272a;
+        }
+
+        /* --- AUTO SCROLLBAR (NORMAL THICKNESS & THEMED) --- */
+        * {
+            scrollbar-width: auto;
+            scrollbar-color: auto;
+        }
+
+        body {
+            background-color: var(--canvas-bg);
+            transition: background-color 0.2s ease;
+        }
+
+        #viewer-toolbar {
+            background-color: var(--toolbar-bg);
+            border-color: var(--toolbar-border);
+        }
+
+        #doc-title {
+            color: var(--text-main) !important;
+        }
+
+        #doc-type-label,
+        #doc-size-label,
+        #slide-stepper-label {
+            color: var(--text-main) !important;
+        }
+
+        .controls-group {
+            background-color: var(--control-bg) !important;
+            border-color: var(--control-border) !important;
+        }
+
+        .control-btn {
+            color: var(--btn-color) !important;
+        }
+
+        .control-btn:hover {
+            background-color: var(--btn-hover-bg) !important;
+            color: var(--btn-hover-color) !important;
+        }
+
+        .action-secondary-btn {
+            background-color: var(--btn-secondary-bg) !important;
+            border-color: var(--btn-secondary-border) !important;
+            color: var(--btn-secondary-color) !important;
+        }
+
+        .action-secondary-btn:hover {
+            background-color: var(--btn-secondary-hover-bg) !important;
+            color: var(--btn-secondary-color) !important;
+        }
+
+        /* --- SLIDER STYLING MATCHING OFFICE --- */
+        .zoom-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 90px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .zoom-slider:focus {
+            outline: none;
+        }
+
+        .zoom-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            background: var(--slider-track-bg);
+            border-radius: 1px;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 8px;
+            height: 18px;
+            border-radius: 0px !important;
+            background: var(--slider-thumb-bg);
+            margin-top: -8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+            transition: transform 0.1s ease;
+        }
+
+        .zoom-slider::-webkit-slider-thumb:hover {
+            transform: scaleY(1.15);
+        }
+
+        .zoom-slider::-moz-range-track {
+            width: 100%;
+            height: 2px;
+            background: var(--slider-track-bg);
+            border-radius: 1px;
+        }
+
+        .zoom-slider::-moz-range-thumb {
+            width: 8px;
+            height: 18px;
+            border-radius: 0px !important;
+            border: none;
+            background: var(--slider-thumb-bg);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        }
+
+        /* --- WORD DOCUMENT PAPER CANVAS --- */
+        .paper-canvas {
+            display: none !important;
+            min-height: calc(100vh - 64px);
+            padding: 40px 20px 80px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .paper-canvas.active {
+            display: flex !important;
+        }
+
+        .paper-sheet {
+            width: 816px;
+            min-height: 1056px;
+            background-color: var(--paper-bg);
+            color: var(--paper-text);
+            padding: 64px 72px;
+            border-radius: 0px !important;
+            box-shadow: var(--paper-shadow);
+            transform-origin: top center;
+            transition: transform 0.15s ease-out, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .doc-content {
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--paper-text);
+            word-wrap: break-word;
+        }
+
+        .doc-content h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 20px 0 12px;
+            color: var(--paper-heading);
+            line-height: 1.3;
+        }
+
+        .doc-content h2 {
+            font-size: 19px;
+            font-weight: 700;
+            margin: 18px 0 10px;
+            color: var(--paper-heading);
+            line-height: 1.35;
+        }
+
+        .doc-content h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 14px 0 8px;
+            color: var(--paper-heading);
+        }
+
+        .doc-content p {
+            margin-bottom: 14px;
+        }
+
+        .doc-content ul {
+            list-style-type: disc;
+            margin-left: 24px;
+            margin-bottom: 14px;
+        }
+
+        .doc-content ol {
+            list-style-type: decimal;
+            margin-left: 24px;
+            margin-bottom: 14px;
+        }
+
+        .doc-content li {
+            margin-bottom: 4px;
+        }
+
+        .doc-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+            border: 1px solid var(--paper-table-border);
+            font-size: 14px;
+        }
+
+        .doc-content th,
+        .doc-content td {
+            border: 1px solid var(--paper-table-border);
+            padding: 8px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .doc-content th {
+            background-color: var(--paper-table-th);
+            font-weight: 700;
+            color: var(--paper-heading);
+        }
+
+        .doc-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0px !important;
+            margin: 14px auto;
+            display: block;
+        }
+
+        .doc-content strong,
+        .doc-content b {
+            font-weight: 700;
+            color: var(--paper-heading);
+        }
+
+        /* docx-preview specific overrides */
+        .docx-wrapper {
+            background: transparent !important;
+            padding: 0 !important;
+        }
+
+        .docx-wrapper > section.docx {
+            background: var(--paper-bg) !important;
+            color: var(--paper-text) !important;
+            box-shadow: var(--paper-shadow) !important;
+            margin-bottom: 24px !important;
+            border-radius: 0px !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            padding: 64px 72px !important;
+            width: 816px !important;
+            min-height: 1056px !important;
+            transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        /* --- COMPREHENSIVE DARK THEME OVERRIDES FOR DOCX & TABLES --- */
+        body.dark-theme .paper-sheet,
+        body.dark-theme .docx-wrapper > section.docx {
+            background-color: var(--paper-bg) !important;
+            color: var(--paper-text) !important;
+        }
+
+        body.dark-theme .paper-sheet *,
+        body.dark-theme .docx-wrapper > section.docx * {
+            color: var(--paper-text) !important;
+        }
+
+        body.dark-theme .paper-sheet h1,
+        body.dark-theme .paper-sheet h2,
+        body.dark-theme .paper-sheet h3,
+        body.dark-theme .paper-sheet h4,
+        body.dark-theme .paper-sheet strong,
+        body.dark-theme .paper-sheet b,
+        body.dark-theme .docx-wrapper > section.docx h1,
+        body.dark-theme .docx-wrapper > section.docx h2,
+        body.dark-theme .docx-wrapper > section.docx h3,
+        body.dark-theme .docx-wrapper > section.docx h4,
+        body.dark-theme .docx-wrapper > section.docx strong,
+        body.dark-theme .docx-wrapper > section.docx b {
+            color: var(--paper-heading) !important;
+        }
+
+        body.dark-theme .paper-sheet table,
+        body.dark-theme .paper-sheet tr,
+        body.dark-theme .paper-sheet td,
+        body.dark-theme .paper-sheet th,
+        body.dark-theme .docx-wrapper > section.docx table,
+        body.dark-theme .docx-wrapper > section.docx tr,
+        body.dark-theme .docx-wrapper > section.docx td,
+        body.dark-theme .docx-wrapper > section.docx th {
+            background-color: transparent !important;
+            border-color: var(--paper-table-border) !important;
+            color: var(--paper-text) !important;
+        }
+
+        body.dark-theme .paper-sheet th,
+        body.dark-theme .docx-wrapper > section.docx th {
+            background-color: var(--paper-table-th) !important;
+            color: var(--paper-heading) !important;
+        }
+
+        body.dark-theme .paper-sheet span,
+        body.dark-theme .paper-sheet p,
+        body.dark-theme .paper-sheet div,
+        body.dark-theme .docx-wrapper > section.docx span,
+        body.dark-theme .docx-wrapper > section.docx p,
+        body.dark-theme .docx-wrapper > section.docx div {
+            background-color: transparent !important;
+        }
+
+        /* --- POWERPOINT PRESENTATION WORKSPACE --- */
+        .pptx-workspace {
+            display: none !important;
+            height: calc(100vh - 64px);
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .pptx-workspace.active {
+            display: flex !important;
+        }
+
+        .pptx-sidebar {
+            width: 230px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: transform 0.2s ease, width 0.2s ease;
+        }
+
+        .pptx-sidebar.collapsed {
+            width: 0px;
+            padding: 0px;
+            overflow: hidden;
+            border-right: none;
+        }
+
+        .slide-thumb-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background-color 0.15s;
+        }
+
+        .slide-thumb-item:hover {
+            background-color: var(--sidebar-item-hover);
+        }
+
+        .slide-thumb-num {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-main);
+            min-width: 16px;
+            text-align: right;
+            padding-top: 4px;
+        }
+
+        .slide-thumb-card {
+            flex: 1;
+            aspect-ratio: 16/9;
+            background-color: #ffffff;
+            border: 1px solid var(--sidebar-border);
+            border-radius: 0px !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .slide-thumb-item.active .slide-thumb-card {
+            border: 2px solid #d24726 !important;
+            box-shadow: 0 0 0 2px rgba(210, 71, 38, 0.25) !important;
+        }
+
+        .slide-thumb-item.active .slide-thumb-num {
+            color: #d24726 !important;
+        }
+
+        /* 1-BY-1 SLIDE PRESENTATION STAGE WITH SCROLLBAR */
+        .pptx-stage-area {
+            flex: 1;
+            height: 100%;
+            overflow-y: scroll !important;
+            overflow-x: hidden;
+            padding: 0;
+            position: relative;
+            background-color: var(--canvas-bg);
+        }
+
+        .pptx-scroll-spacer {
+            width: 100%;
+            position: relative;
+        }
+
+        .slide-stage-sticky {
+            position: sticky;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 64px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 24px 50px;
+            box-sizing: border-box;
+        }
+
+        /* FLOATING SLIDE SELECTION INDICATOR (SHOWN ON SCROLLBAR INTERACTION ONLY) */
+        .slide-indicator-badge {
+            position: fixed;
+            top: 80px;
+            right: 32px;
+            background-color: var(--toolbar-bg);
+            color: var(--text-main);
+            border: 1px solid var(--toolbar-border);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+        }
+
+        .slide-indicator-badge.visible {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0px) !important;
+        }
+
+        /* ORIGINAL SHARP 16:9 BIG SIZE SLIDE CANVAS */
+        .slide-canvas {
+            width: 1120px;
+            min-height: 630px;
+            aspect-ratio: 16/9;
+            background-color: #ffffff;
+            color: #1e293b;
+            border-radius: 0px !important;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.18), 0 2px 6px -1px rgba(0, 0, 0, 0.08);
+            padding: 40px 48px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transform-origin: center center;
+            transition: transform 0.15s ease-out;
+            overflow: hidden;
+        }
+
+        .slide-canvas.is-image-slide {
+            padding: 0 !important;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+        }
+
+        body.dark-theme .slide-canvas {
+            background-color: #18181b;
+            color: #f4f4f5;
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        body.dark-theme .slide-canvas.is-image-slide {
+            background-color: #09090b;
+        }
+
+        .slide-canvas-title {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.25;
+            color: #0f172a;
+            border-bottom: 2px solid #d24726;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+
+        body.dark-theme .slide-canvas-title {
+            color: #ffffff;
+        }
+
+        .slide-canvas-body {
+            font-size: 16px;
+            line-height: 1.75;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .slide-canvas-bullet {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .slide-canvas-bullet-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 0px !important;
+            background-color: #d24726;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+
+        .slide-canvas-img {
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 0px !important;
+            border: none;
+            margin: auto;
+            display: block;
+        }
+
+        /* --- FULLSCREEN PRESENTATION MODE (SLIDE SHOW - FULL MONITOR) --- */
+        #slideshow-modal {
+            position: fixed;
+            inset: 0;
+            background-color: #000000 !important;
+            z-index: 999999;
+            display: none !important;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden !important;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #slideshow-modal:fullscreen,
+        #slideshow-modal:-webkit-full-screen {
+            background-color: #000000 !important;
+            width: 100vw;
+            height: 100vh;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden !important;
+        }
+
+        #slideshow-modal.active {
+            display: flex !important;
+        }
+
+        #slideshow-modal .slide-canvas {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            min-height: 100vh !important;
+            border-radius: 0px !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 44px 64px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+        }
+
+        #slideshow-modal .slide-canvas-title {
+            font-size: 32px !important;
+            margin-bottom: 14px !important;
+            padding-bottom: 10px !important;
+            color: #0f172a !important;
+        }
+
+        #slideshow-modal .slide-canvas-body {
+            font-size: 20px !important;
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+        }
+
+        #slideshow-modal .slide-canvas-img {
+            max-height: 74vh !important;
+            max-width: 100% !important;
+            object-fit: contain !important;
+            margin: auto !important;
+            border: none !important;
+        }
+
+        /* --- HIGH-FIDELITY PRINTING SYSTEM (AUTOMATIC LANDSCAPE / PORTRAIT) --- */
+        #print-area {
+            display: none;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body, html {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            #viewer-toolbar,
+            #loading-overlay,
+            #error-state,
+            #slideshow-modal,
+            .slide-indicator-badge {
+                display: none !important;
+            }
+
+            /* DOCX Printing (Direct Native Canvas - Zero Freezing & High Contrast Black Text) */
+            body.docx-mode #pptx-workspace,
+            body.docx-mode #print-area {
+                display: none !important;
+            }
+
+            body.docx-mode #paper-canvas {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #ffffff !important;
+                min-height: auto !important;
+                transform: none !important;
+            }
+
+            body.docx-mode #paper-wrapper {
+                transform: none !important;
+            }
+
+            body.docx-mode .doc-content,
+            body.docx-mode .doc-content *,
+            body.docx-mode .paper-sheet,
+            body.docx-mode .paper-sheet *,
+            body.docx-mode .docx-wrapper,
+            body.docx-mode .docx-wrapper *,
+            body.docx-mode .docx-wrapper > section.docx,
+            body.docx-mode .docx-wrapper > section.docx * {
+                color: #000000 !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+            }
+
+            body.docx-mode .docx-wrapper {
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            body.docx-mode .docx-wrapper > section.docx,
+            body.docx-mode .paper-sheet {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 auto !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                background: #ffffff !important;
+            }
+
+            body.docx-mode .docx-wrapper > section.docx:last-child,
+            body.docx-mode .paper-sheet:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            /* PPTX Printing (Strict 1 Slide per Landscape Page) */
+            body.pptx-mode #paper-canvas,
+            body.pptx-mode #pptx-workspace {
+                display: none !important;
+            }
+
+            body.pptx-mode #print-area {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .print-slide-page {
+                width: 100% !important;
+                height: 100% !important;
+                page-break-before: auto !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                break-before: auto !important;
+                break-after: page !important;
+                break-inside: avoid !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-sizing: border-box !important;
+                border: none !important;
+                background: #ffffff !important;
+                overflow: hidden !important;
+            }
+
+            .print-slide-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+
+            .print-slide-img {
+                width: 100% !important;
+                height: 100% !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
+                display: block !important;
+                margin: auto !important;
+                padding: 0 !important;
+                border: none !important;
+            }
+
+            .print-slide-content {
+                width: 100% !important;
+                height: 100% !important;
+                padding: 40px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+            }
+        }
+    </style>
+    <style id="dynamic-print-page">
+        @page { size: auto; margin: 0mm; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased selection:bg-[#15803d] selection:text-white">
+
+    <!-- TOP TOOLBAR (Black/White Themed & Uncrowded) -->
+    <header id="viewer-toolbar" class="sticky top-0 z-50 backdrop-blur border-b px-3 sm:px-6 h-16 flex items-center justify-between shadow-xs transition-colors duration-200 shrink-0 gap-3">
+        <!-- Left: Document Info & PPTX Sidebar Toggle -->
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+            <!-- Sidebar toggle button for PPTX -->
+            <button type="button" onclick="window.togglePptxSidebar()" id="sidebar-toggle-btn" class="action-secondary-btn w-9 h-9 rounded-xl border hidden items-center justify-center cursor-pointer shadow-2xs transition-all" title="Toggle Slide Sidebar">
+                <i class="fa-solid fa-table-columns text-sm"></i>
+            </button>
+
+            <div id="doc-type-badge" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#2b579a]/10 border border-[#2b579a]/30 flex items-center justify-center shrink-0 shadow-2xs">
+                <i id="doc-type-icon" class="fa-solid fa-file-word text-[#2b579a] text-lg sm:text-xl"></i>
+            </div>
+            <div class="min-w-0 max-w-[160px] sm:max-w-[240px] md:max-w-[300px]">
+                <h1 id="doc-title" class="text-sm font-bold truncate transition-colors" title="Document">Document Preview</h1>
+                <div class="flex items-center gap-1.5 text-[10px] font-bold">
+                    <span id="doc-type-label" class="uppercase tracking-wider transition-colors">DOCX</span>
+                    <span class="w-1 h-1 rounded-full bg-slate-400/50"></span>
+                    <span id="doc-size-label" class="font-semibold transition-colors">Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Viewing Controls (Docx vs PPTX Mode) -->
+        <div id="center-toolbar-controls" class="controls-group flex items-center gap-1 sm:gap-1.5 border rounded-xl px-2 py-1 shrink-0 transition-colors shadow-2xs">
+            <!-- PPTX Slide Stepper (Hidden in Docx) -->
+            <div id="pptx-nav-controls" class="hidden items-center gap-1 pr-1.5 border-r border-slate-300 dark:border-zinc-700">
+                <button type="button" onclick="window.prevSlide()" class="control-btn px-2 h-7.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer" title="Previous Slide (← / Scroll Up)">
+                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                </button>
+                <span id="slide-stepper-label" class="text-xs font-bold px-1.5 transition-colors">
+                    1 / 1
+                </span>
+                <button type="button" onclick="window.nextSlide()" class="control-btn px-2 h-7.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer" title="Next Slide (→ / Space / Scroll Down)">
+                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                </button>
+            </div>
+
+            <!-- Zoom Out (-10%) -->
+            <button type="button" onclick="window.zoomOut()" class="control-btn w-7.5 h-7.5 rounded-lg transition-all flex items-center justify-center text-xs cursor-pointer" title="Zoom Out 10% (Ctrl -)">
+                <i class="fa-solid fa-minus"></i>
+            </button>
+
+            <!-- Zoom Range Slider -->
+            <div class="flex items-center px-1 hidden md:flex">
+                <input type="range" id="zoom-slider" min="30" max="250" step="10" value="100" oninput="window.setZoomFromSlider(this.value)" class="zoom-slider" title="Zoom Level">
+            </div>
+
+            <!-- Zoom In (+10%) -->
+            <button type="button" onclick="window.zoomIn()" class="control-btn w-7.5 h-7.5 rounded-lg transition-all flex items-center justify-center text-xs cursor-pointer" title="Zoom In 10% (Ctrl +)">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+
+            <!-- Zoom Percentage Display / 100% Reset Button -->
+            <button type="button" onclick="window.resetZoom()" id="zoom-display" class="control-btn px-1.5 h-7.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-w-[46px] text-center" title="Reset Zoom to 100%">
+                100%
+            </button>
+
+            <div class="w-px h-4 bg-slate-400/30 mx-0.5 hidden lg:block"></div>
+
+            <!-- Fit Width -->
+            <button type="button" onclick="window.fitWidth()" class="control-btn w-7.5 h-7.5 rounded-lg transition-all hidden lg:flex items-center justify-center text-xs cursor-pointer" title="Fit to Page Width">
+                <i class="fa-solid fa-arrows-left-right"></i>
+            </button>
+
+            <!-- Fit Page -->
+            <button type="button" onclick="window.fitPage()" class="control-btn w-7.5 h-7.5 rounded-lg transition-all hidden lg:flex items-center justify-center text-xs cursor-pointer" title="Fit Entire Page">
+                <i class="fa-solid fa-arrows-up-down"></i>
+            </button>
+        </div>
+
+        <!-- Right: Actions & Tools (Black/White Consistent) -->
+        <div class="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0">
+            <!-- PPTX Slide Show Icon Button (Hidden for Docx) -->
+            <button type="button" onclick="window.startSlideShow()" id="pptx-slideshow-btn" class="action-secondary-btn w-9 h-9 rounded-xl border hidden items-center justify-center cursor-pointer shadow-2xs transition-all" title="Slide Show (F5)">
+                <i class="fa-solid fa-person-chalkboard text-sm"></i>
+            </button>
+
+            <!-- Theme Toggle: System / Light / Dark -->
+            <button type="button" onclick="window.toggleViewerTheme()" id="theme-toggle-btn" class="action-secondary-btn px-2.5 py-2 border font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Switch Theme (Auto / Light / Dark)">
+                <i id="theme-icon" class="fa-solid fa-circle-half-stroke"></i>
+                <span id="theme-label" class="hidden sm:inline">Auto</span>
+            </button>
+
+            <!-- Fullscreen (Icon Only) -->
+            <button type="button" onclick="window.toggleFullScreen()" id="fullscreen-btn" class="action-secondary-btn w-9 h-9 rounded-xl border flex items-center justify-center cursor-pointer shadow-2xs transition-all" title="Toggle Fullscreen">
+                <i id="fullscreen-icon" class="fa-solid fa-expand text-sm"></i>
+            </button>
+
+            <!-- Print -->
+            <button type="button" onclick="window.printDocument()" id="print-btn" class="action-secondary-btn w-9 h-9 sm:w-auto sm:px-3 py-2 border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs" title="Print Document">
+                <i class="fa-solid fa-print"></i>
+                <span class="hidden md:inline">Print</span>
+            </button>
+
+            <!-- Download -->
+            <a id="download-btn" href="#" download="document" class="w-9 h-9 sm:w-auto px-3 py-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer" title="Download Document">
+                <i class="fa-solid fa-download"></i>
+                <span class="hidden md:inline">Download</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- LOADING STATE -->
+    <div id="loading-overlay" class="flex-1 flex flex-col items-center justify-center p-12 gap-4">
+        <div class="w-10 h-10 border-4 border-slate-400/40 border-t-[#15803d] rounded-full animate-spin"></div>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Document...</p>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="error-state" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <div class="bg-white dark:bg-zinc-900 rounded-3xl p-8 sm:p-10 border border-slate-300 dark:border-zinc-800 shadow-xl max-w-md w-full space-y-5">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center mx-auto text-2xl">
+                <i class="fa-solid fa-file-circle-xmark"></i>
+            </div>
+            <div class="space-y-1.5">
+                <h2 class="text-lg font-bold text-black dark:text-white">Unable to Load Preview</h2>
+                <p id="error-msg" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">The document data could not be retrieved.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                <a id="error-download-btn" href="#" download="document" class="flex-1 px-4 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-2xs">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Download File</span>
+                </a>
+                <button onclick="location.reload()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Retry</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WORD CANVAS WORKSPACE (DOCX ONLY) -->
+    <main id="paper-canvas" class="paper-canvas">
+        <div id="paper-wrapper">
+            <div id="document-sheet" class="paper-sheet">
+                <div id="doc-content-area" class="doc-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- POWERPOINT WORKSPACE (PPTX ONLY - Left Thumbnails Sidebar + 1-by-1 Slide Canvas) -->
+    <div id="pptx-workspace" class="pptx-workspace">
+        <!-- Left Slides Thumbnails Section -->
+        <aside id="pptx-sidebar" class="pptx-sidebar">
+            <div class="px-2 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between border-b border-slate-200 dark:border-zinc-800">
+                <span>Slides (<span id="slide-count-badge">0</span>)</span>
+            </div>
+            <div id="slides-thumbnail-list" class="flex flex-col gap-2"></div>
+        </aside>
+
+        <!-- Center / Right Stage Area (1-by-1 Slide with Native Main Scrollbar) -->
+        <section id="pptx-stage-area" class="pptx-stage-area">
+            <!-- Scroll spacer establishing native track -->
+            <div id="pptx-scroll-spacer" class="pptx-scroll-spacer">
+                <div id="slide-stage-wrapper" class="slide-stage-sticky">
+                    <div id="main-slide-container" class="slide-canvas"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Floating Slide Number Indicator Badge (Fades in on scrollbar click/interaction) -->
+        <div id="slide-indicator-badge" class="slide-indicator-badge">
+            Slide: <span id="indicator-current">1</span> of <span id="indicator-total">1</span>
+        </div>
+    </div>
+
+    <!-- FULLSCREEN SLIDE SHOW MODAL (No exit button, press ESC to exit, space/arrows navigate) -->
+    <div id="slideshow-modal" onclick="window.nextSlide()" ondblclick="window.exitSlideShow()">
+        <div id="slideshow-container" class="w-full h-full flex items-center justify-center p-0"></div>
+    </div>
+
+    <!-- DEDICATED HIGH-FIDELITY PRINT CONTAINER (RENDERED BEFORE PRINTING) -->
+    <div id="print-area"></div>
+
+    <!-- DOCUMENT VIEWER ENGINE SCRIPT -->
+    <script>
+        // Completely isolate process thread so each preview tab operates 100% independently
+        try {
+            window.opener = null;
+        } catch (e) {}
+
+        let currentZoom = 1.0;
+        let activeTheme = localStorage.getItem('sigma-viewer-theme') || 'auto'; // 'auto', 'light', 'dark'
+        let currentFileData = null;
+        let currentFileName = 'Document';
+        let currentFileType = 'docx';
+        let pptxSlides = [];
+        let currentSlideIdx = 0;
+        let isSlideShowActive = false;
+        let wheelDebounceTimeout = null;
+        let badgeFadeTimeout = null;
+        let isProgrammaticScroll = false;
+        let isShowingSlideShowEnd = false;
+        let slideShowAutoExitTimer = null;
+
+        // --- THEME MANAGEMENT (PURE BLACK OR WHITE TOOLS) ---
+        function applyTheme(theme) {
+            activeTheme = theme;
+            localStorage.setItem('sigma-viewer-theme', theme);
+
+            const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeLabel = document.getElementById('theme-label');
+
+            if (themeLabel) {
+                if (theme === 'auto') {
+                    themeLabel.textContent = isDark ? 'Auto (Dark)' : 'Auto (Light)';
+                } else if (theme === 'dark') {
+                    themeLabel.textContent = 'Dark Mode';
+                } else {
+                    themeLabel.textContent = 'Light Mode';
+                }
+            }
+
+            if (isDark) {
+                body.classList.add('dark-theme');
+                if (themeIcon) {
+                    themeIcon.className = theme === 'auto' ? 'fa-solid fa-circle-half-stroke' : 'fa-solid fa-moon';
+                }
+            } else {
+                body.classList.remove('dark-theme');
+                if (themeIcon) {
+                    themeIcon.className = theme === 'auto' ? 'fa-solid fa-circle-half-stroke' : 'fa-solid fa-sun';
+                }
+            }
+        }
+
+        window.toggleViewerTheme = function () {
+            const next = activeTheme === 'auto' ? 'light' : activeTheme === 'light' ? 'dark' : 'auto';
+            applyTheme(next);
+        };
+
+        // Listen for OS theme changes when in auto mode
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (activeTheme === 'auto') applyTheme('auto');
+        });
+
+        // --- ZOOM CONTROLS (±10% STEP & SLIDER) ---
+        function updateZoom() {
+            const docWrapper = document.getElementById('paper-wrapper');
+            const slideWrapper = document.getElementById('slide-stage-wrapper');
+            const display = document.getElementById('zoom-display');
+            const slider = document.getElementById('zoom-slider');
+
+            const percent = Math.round(currentZoom * 100);
+
+            const targetWrapper = currentFileType === 'pptx' ? slideWrapper : docWrapper;
+            if (targetWrapper) {
+                targetWrapper.style.transform = `scale(${currentZoom})`;
+                targetWrapper.style.transformOrigin = 'center center';
+            }
+            if (display) {
+                display.textContent = `${percent}%`;
+            }
+            if (slider) {
+                slider.value = percent;
+            }
+        }
+
+        window.setZoomFromSlider = function (val) {
+            currentZoom = Math.round(parseFloat(val)) / 100;
+            updateZoom();
+        };
+
+        window.zoomIn = function () {
+            if (currentZoom < 2.5) {
+                currentZoom = Math.min(2.5, Math.round((currentZoom + 0.10) * 100) / 100);
+                updateZoom();
+            }
+        };
+
+        window.zoomOut = function () {
+            if (currentZoom > 0.3) {
+                currentZoom = Math.max(0.3, Math.round((currentZoom - 0.10) * 100) / 100);
+                updateZoom();
+            }
+        };
+
+        window.resetZoom = function () {
+            currentZoom = 1.0;
+            updateZoom();
+        };
+
+        window.fitWidth = function () {
+            const stage = currentFileType === 'pptx' ? document.getElementById('pptx-stage-area') : document.getElementById('paper-canvas');
+            if (!stage) return;
+            const availableWidth = stage.clientWidth - 60;
+            const target = availableWidth / (currentFileType === 'pptx' ? 1120 : 816);
+            currentZoom = Math.min(2.0, Math.max(0.3, Math.round(target * 10) / 10));
+            updateZoom();
+        };
+
+        window.fitPage = function () {
+            const stage = currentFileType === 'pptx' ? document.getElementById('pptx-stage-area') : document.getElementById('paper-canvas');
+            if (!stage) return;
+            const availableHeight = stage.clientHeight - 60;
+            const target = availableHeight / (currentFileType === 'pptx' ? 630 : 1056);
+            currentZoom = Math.min(1.5, Math.max(0.3, Math.round(target * 10) / 10));
+            updateZoom();
+        };
+
+        window.toggleFullScreen = function () {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        };
+
+        document.addEventListener('fullscreenchange', () => {
+            const fsIcon = document.getElementById('fullscreen-icon');
+            if (fsIcon) {
+                fsIcon.className = document.fullscreenElement ? 'fa-solid fa-compress text-sm' : 'fa-solid fa-expand text-sm';
+            }
+            if (!document.fullscreenElement && isSlideShowActive) {
+                window.exitSlideShow();
+            }
+        });
+
+        // --- PPTX SIDEBAR TOGGLE ---
+        window.togglePptxSidebar = function () {
+            const sidebar = document.getElementById('pptx-sidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('collapsed');
+            }
+        };
+
+        // Keyboard Shortcuts (Space, Left/Right arrows, ESC for slide show)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isSlideShowActive) {
+                e.preventDefault();
+                window.exitSlideShow();
+                return;
+            }
+            if (e.key === 'F5' && currentFileType === 'pptx') {
+                e.preventDefault();
+                window.startSlideShow();
+                return;
+            }
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    window.zoomIn();
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    window.zoomOut();
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    window.resetZoom();
+                }
+            } else if (currentFileType === 'pptx') {
+                if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    window.nextSlide();
+                } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    window.prevSlide();
+                }
+            }
+        });
+
+        // --- DOCUMENT INITIALIZATION & RENDERING ---
+        async function loadDocument() {
+            try {
+                applyTheme(activeTheme);
+
+                // 1. Prioritize URL query parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const paramDocId = urlParams.get('docId');
+                const paramSrc = urlParams.get('src') || urlParams.get('source');
+                const paramName = urlParams.get('name');
+                const paramRealName = urlParams.get('realName');
+                const paramType = urlParams.get('type');
+
+                // 2. Read SessionStorage fallback
+                const sessionData = sessionStorage.getItem('sigma_active_preview_doc');
+                let docData = null;
+                if (sessionData) {
+                    try {
+                        docData = JSON.parse(sessionData);
+                    } catch (e) {}
+                }
+
+                const fileName = paramRealName || paramName || docData?.fileName || 'Document';
+                const displayDocTitle = paramName || paramRealName || docData?.fileName || 'Document';
+                const fileType = (paramType || docData?.fileType || (fileName.split('.').pop()) || 'docx').toLowerCase();
+
+                let source = paramSrc || docData?.fileUrl || docData?.dataUrl;
+                if (source) {
+                    try {
+                        while (source.includes('%25') || source.includes('%2F') || source.includes('%20') || source.includes('%3A')) {
+                            const dec = decodeURIComponent(source);
+                            if (dec === source) break;
+                            source = dec;
+                        }
+                    } catch (e) {}
+                }
+
+                currentFileName = fileName;
+                currentFileType = fileType;
+
+                // Update UI Header
+                document.title = `${fileName} - Document Viewer`;
+                document.getElementById('doc-title').textContent = fileName;
+                document.getElementById('doc-type-label').textContent = fileType.toUpperCase();
+
+                const downloadBtn = document.getElementById('download-btn');
+                if (downloadBtn) {
+                    downloadBtn.download = fileName;
+                    if (source) downloadBtn.href = source;
+                }
+
+                // Update Badge Icon & Tools according to file type
+                const badge = document.getElementById('doc-type-badge');
+                const icon = document.getElementById('doc-type-icon');
+                const pptxNav = document.getElementById('pptx-nav-controls');
+                const pptxSlideShowBtn = document.getElementById('pptx-slideshow-btn');
+                const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+                const paperCanvas = document.getElementById('paper-canvas');
+                const pptxWorkspace = document.getElementById('pptx-workspace');
+
+                if (fileType === 'pdf') {
+                    // PDF: Redirect directly to browser native viewer
+                    if (source) {
+                        window.location.replace(source);
+                        return;
+                    }
+                } else if (fileType === 'pptx') {
+                    document.body.classList.remove('docx-mode');
+                    document.body.classList.add('pptx-mode');
+                    const printStyle = document.getElementById('dynamic-print-page');
+                    if (printStyle) printStyle.textContent = '@page { size: landscape; margin: 0; }';
+
+                    badge.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#d24726]/10 border border-[#d24726]/30 flex items-center justify-center shrink-0 shadow-2xs';
+                    icon.className = 'fa-solid fa-file-powerpoint text-[#d24726] text-lg sm:text-xl';
+                    pptxNav.classList.remove('hidden');
+                    pptxNav.classList.add('flex');
+                    pptxSlideShowBtn.classList.remove('hidden');
+                    pptxSlideShowBtn.classList.add('flex');
+                    sidebarToggleBtn.classList.remove('hidden');
+                    sidebarToggleBtn.classList.add('flex');
+                    paperCanvas.classList.remove('active');
+                } else if (fileType === 'txt' || fileType === 'text') {
+                    document.body.classList.remove('pptx-mode');
+                    document.body.classList.add('docx-mode');
+                    const printStyle = document.getElementById('dynamic-print-page');
+                    if (printStyle) printStyle.textContent = '@page { size: portrait; margin: 10mm; }';
+
+                    badge.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0 shadow-2xs';
+                    icon.className = 'fa-solid fa-file-lines text-slate-700 text-lg sm:text-xl';
+                    pptxNav.classList.add('hidden');
+                    pptxSlideShowBtn.classList.add('hidden');
+                    sidebarToggleBtn.classList.add('hidden');
+                    pptxWorkspace.classList.remove('active');
+                } else {
+                    document.body.classList.remove('pptx-mode');
+                    document.body.classList.add('docx-mode');
+                    const printStyle = document.getElementById('dynamic-print-page');
+                    if (printStyle) printStyle.textContent = '@page { size: portrait; margin: 0mm; }';
+
+                    badge.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#2b579a]/10 border border-[#2b579a]/30 flex items-center justify-center shrink-0 shadow-2xs';
+                    icon.className = 'fa-solid fa-file-word text-[#2b579a] text-lg sm:text-xl';
+                    pptxNav.classList.add('hidden');
+                    pptxSlideShowBtn.classList.add('hidden');
+                    sidebarToggleBtn.classList.add('hidden');
+                    pptxWorkspace.classList.remove('active');
+                }
+
+                // BroadcastChannel Instant Sync
+                let busBuffer = null;
+                let docBus = null;
+                if (typeof BroadcastChannel !== 'undefined') {
+                    try {
+                        docBus = new BroadcastChannel('sigma_document_bus');
+                        docBus.onmessage = (e) => {
+                            if (e.data && e.data.type === 'DELIVER_DOCUMENT' && e.data.data) {
+                                if (e.data.docId === paramDocId || (e.data.name && e.data.name.toLowerCase() === fileName.toLowerCase())) {
+                                    busBuffer = e.data.data;
+                                }
+                            }
+                        };
+                        docBus.postMessage({
+                            type: 'REQUEST_DOCUMENT',
+                            docId: paramDocId,
+                            name: fileName
+                        });
+                    } catch (e) {}
+                }
+
+                // Persistent IndexedDB Helper with auto-close on version change and unload
+                let _viewerDb = null;
+                const getViewerDB = () => {
+                    if (_viewerDb) return Promise.resolve(_viewerDb);
+                    return new Promise((res) => {
+                        if (!window.indexedDB) { res(null); return; }
+                        try {
+                            const req = indexedDB.open('SigmaDocumentDB', 1);
+                            req.onupgradeneeded = (e) => {
+                                const db = e.target.result;
+                                if (!db.objectStoreNames.contains('documents')) {
+                                    db.createObjectStore('documents');
+                                }
+                            };
+                            req.onsuccess = (e) => {
+                                _viewerDb = e.target.result;
+                                _viewerDb.onversionchange = () => {
+                                    try { _viewerDb.close(); } catch (err) {}
+                                    _viewerDb = null;
+                                };
+                                res(_viewerDb);
+                            };
+                            req.onerror = () => res(null);
+                            req.onblocked = () => res(null);
+                        } catch (e) { res(null); }
+                    });
+                };
+
+                window.addEventListener('beforeunload', () => {
+                    if (_viewerDb) {
+                        try { _viewerDb.close(); } catch (e) {}
+                        _viewerDb = null;
+                    }
+                });
+
+                const getDocFromIndexedDB = async (k) => {
+                    if (!k) return null;
+                    const db = await getViewerDB();
+                    if (!db || !db.objectStoreNames.contains('documents')) return null;
+
+                    const cleanK = String(k).trim();
+                    const lowerK = cleanK.toLowerCase();
+                    const baseK = cleanK.split('/').pop().split('\\').pop().toLowerCase();
+                    const noImageK = cleanK.replace(/^image\//i, '').trim();
+                    const noImageLowerK = noImageK.toLowerCase();
+
+                    return new Promise((res) => {
+                        try {
+                            const tx = db.transaction('documents', 'readonly');
+                            const store = tx.objectStore('documents');
+
+                            // Direct key get
+                            const r = store.get(cleanK);
+                            r.onsuccess = () => {
+                                if (r.result && r.result.data) {
+                                    res(r.result);
+                                    return;
+                                }
+
+                                // Secondary direct key get by lowercase
+                                const rLow = store.get(lowerK);
+                                rLow.onsuccess = () => {
+                                    if (rLow.result && rLow.result.data) {
+                                        res(rLow.result);
+                                        return;
+                                    }
+
+                                    // Third direct key get by base name
+                                    const rBase = store.get(baseK);
+                                    rBase.onsuccess = () => {
+                                        if (rBase.result && rBase.result.data) {
+                                            res(rBase.result);
+                                            return;
+                                        }
+
+                                        // Fourth direct key get without image/ prefix
+                                        const rNoImg = store.get(noImageLowerK);
+                                        rNoImg.onsuccess = () => {
+                                            if (rNoImg.result && rNoImg.result.data) {
+                                                res(rNoImg.result);
+                                                return;
+                                            }
+
+                                            // Full Scan Cursor Fallback
+                                            if (store.openCursor) {
+                                                const cursorReq = store.openCursor();
+                                                cursorReq.onsuccess = (e) => {
+                                                    const cursor = e.target.result;
+                                                    if (cursor) {
+                                                        const val = cursor.value;
+                                                        if (val && val.data) {
+                                                            const vName = (val.name || '').toLowerCase();
+                                                            const vBase = (val.baseName || '').toLowerCase();
+                                                            const vId = (val.id || '').toLowerCase();
+                                                            const vTitle = (val.title || '').toLowerCase();
+                                                            const vUrl = (val.url || '').toLowerCase();
+                                                            if (
+                                                                vId === lowerK || vName === lowerK || vBase === baseK ||
+                                                                vName === baseK || vBase === noImageLowerK || vTitle === lowerK ||
+                                                                vUrl === lowerK || (baseK && (vName.includes(baseK) || baseK.includes(vName)))
+                                                            ) {
+                                                                res(val);
+                                                                return;
+                                                            }
+                                                        }
+                                                        cursor.continue();
+                                                    } else {
+                                                        res(null);
+                                                    }
+                                                };
+                                                cursorReq.onerror = () => res(null);
+                                            } else {
+                                                res(null);
+                                            }
+                                        };
+                                        rNoImg.onerror = () => res(null);
+                                    };
+                                    rBase.onerror = () => res(null);
+                                };
+                                rLow.onerror = () => res(null);
+                            };
+                            r.onerror = () => res(null);
+                        } catch (e) { res(null); }
+                    });
+                };
+
+                let arrayBuffer = null;
+
+                // Multi-attempt document resolution loop (extended patience up to ~3.75s for large writes)
+                for (let attempt = 0; attempt < 25; attempt++) {
+                    // 1. Instant check: BroadcastChannel bus response
+                    if (!arrayBuffer && busBuffer && busBuffer.byteLength > 0) {
+                        arrayBuffer = busBuffer;
+                    }
+
+                    // 2. Try IndexedDB
+                    if (!arrayBuffer) {
+                        let dbDoc = null;
+                        if (paramDocId) dbDoc = await getDocFromIndexedDB(paramDocId);
+                        if (!dbDoc && paramRealName) dbDoc = await getDocFromIndexedDB(paramRealName);
+                        if (!dbDoc) dbDoc = await getDocFromIndexedDB(fileName);
+                        if (!dbDoc && paramName && paramName !== fileName) dbDoc = await getDocFromIndexedDB(paramName);
+                        if (!dbDoc && fileName.includes('%')) {
+                            try { dbDoc = await getDocFromIndexedDB(decodeURIComponent(fileName)); } catch(e){}
+                        }
+                        if (!dbDoc) {
+                            const cleanBase = fileName.split('/').pop().split('\\').pop();
+                            dbDoc = await getDocFromIndexedDB(cleanBase);
+                        }
+                        if (!dbDoc && source) dbDoc = await getDocFromIndexedDB(source);
+                        if (!dbDoc && source) {
+                            const cleanSource = source.replace(/^image\//i, '').split('/').pop().split('\\').pop();
+                            dbDoc = await getDocFromIndexedDB(cleanSource);
+                        }
+                        if (!dbDoc) {
+                            const activeDoc = await getDocFromIndexedDB('active_preview_doc');
+                            if (activeDoc) {
+                                const matchesId = activeDoc.id === paramDocId;
+                                const matchesName = activeDoc.name && (
+                                    activeDoc.name.toLowerCase() === fileName.toLowerCase() ||
+                                    (activeDoc.baseName && activeDoc.baseName.toLowerCase() === fileName.toLowerCase()) ||
+                                    (paramRealName && activeDoc.name.toLowerCase() === paramRealName.toLowerCase()) ||
+                                    fileName.toLowerCase().includes(activeDoc.name.toLowerCase()) ||
+                                    activeDoc.name.toLowerCase().includes(fileName.toLowerCase())
+                                );
+                                const isFresh = activeDoc.timestamp && (Date.now() - activeDoc.timestamp) < 60000;
+                                if (matchesId || matchesName || isFresh) {
+                                    dbDoc = activeDoc;
+                                }
+                            }
+                        }
+
+                        if (dbDoc && dbDoc.data) {
+                            if (dbDoc.data instanceof ArrayBuffer || dbDoc.data.constructor?.name === 'ArrayBuffer') {
+                                arrayBuffer = dbDoc.data;
+                            } else if (dbDoc.data instanceof Blob || (typeof Blob !== 'undefined' && dbDoc.data.constructor?.name === 'Blob') || (dbDoc.data.size !== undefined && typeof dbDoc.data.arrayBuffer === 'function')) {
+                                arrayBuffer = await dbDoc.data.arrayBuffer();
+                            } else if (dbDoc.data.buffer && (dbDoc.data.buffer instanceof ArrayBuffer || dbDoc.data.buffer.constructor?.name === 'ArrayBuffer')) {
+                                arrayBuffer = dbDoc.data.buffer.slice(dbDoc.data.byteOffset || 0, (dbDoc.data.byteOffset || 0) + (dbDoc.data.byteLength || dbDoc.data.buffer.byteLength));
+                            } else if (typeof dbDoc.data === 'string' && dbDoc.data.startsWith('data:')) {
+                                const res = await fetch(dbDoc.data);
+                                arrayBuffer = await res.arrayBuffer();
+                            }
+                            if (downloadBtn && !downloadBtn.href.startsWith('blob:') && arrayBuffer) {
+                                try {
+                                    const blob = new Blob([arrayBuffer]);
+                                    downloadBtn.href = URL.createObjectURL(blob);
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    // 4. Check LocalStorage fallback matching docId, fileName, or fresh preview
+                    if (!arrayBuffer) {
+                        try {
+                            const localData = localStorage.getItem('sigma_active_preview_doc');
+                            if (localData) {
+                                const parsed = JSON.parse(localData);
+                                const matchesId = paramDocId && parsed.docId === paramDocId;
+                                const matchesName = parsed.fileName && (
+                                    parsed.fileName.toLowerCase() === fileName.toLowerCase() ||
+                                    fileName.toLowerCase().includes(parsed.fileName.toLowerCase()) ||
+                                    parsed.fileName.toLowerCase().includes(fileName.toLowerCase())
+                                );
+                                const isFresh = parsed.timestamp && (Date.now() - parsed.timestamp) < 60000;
+                                if (parsed && parsed.dataUrl && (matchesId || matchesName || isFresh)) {
+                                    const res = await fetch(parsed.dataUrl);
+                                    arrayBuffer = await res.arrayBuffer();
+                                    if (downloadBtn) downloadBtn.href = parsed.dataUrl;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    // 5. Check SessionStorage fallback strictly matching fileName
+                    if (!arrayBuffer && docData?.dataUrl && docData.fileName && docData.fileName.toLowerCase() === fileName.toLowerCase()) {
+                        try {
+                            const res = await fetch(docData.dataUrl);
+                            arrayBuffer = await res.arrayBuffer();
+                        } catch (e) {}
+                    }
+
+                    // 6. Fetch from source URL
+                    if (!arrayBuffer && source && source !== '#' && !source.startsWith('javascript:')) {
+                        try {
+                            const res = await fetch(source);
+                            if (res.ok) {
+                                arrayBuffer = await res.arrayBuffer();
+                            }
+                        } catch (fetchErr) {}
+                    }
+
+                    if (arrayBuffer && arrayBuffer.byteLength > 0) break;
+
+                    // Periodic re-broadcast on bus every 4 attempts
+                    if (attempt % 4 === 0 && docBus) {
+                        try {
+                            docBus.postMessage({
+                                type: 'REQUEST_DOCUMENT',
+                                docId: paramDocId,
+                                name: fileName
+                            });
+                        } catch (e) {}
+                    }
+
+                    // Wait 150ms before next retry
+                    await new Promise(r => setTimeout(r, 150));
+                }
+
+                if (arrayBuffer && arrayBuffer.byteLength > 0) {
+                    const sizeKb = arrayBuffer.byteLength / 1024;
+                    document.getElementById('doc-size-label').textContent = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(2)} MB` : `${sizeKb.toFixed(0)} KB`;
+
+                    // Mobile version: trigger download of DOCX and TXT
+                    const isMobilePreview = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    if (isMobilePreview && (fileType === 'docx' || fileType === 'txt' || fileType === 'text')) {
+                        try {
+                            const blob = new Blob([arrayBuffer]);
+                            const dlUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = dlUrl;
+                            a.download = fileName;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+                        } catch (e) {
+                            console.warn('Auto-download on mobile previewer error:', e);
+                        }
+                    }
+
+                    if (fileType === 'pptx') {
+                        await renderPptx(arrayBuffer, fileName, source);
+                    } else if (fileType === 'txt' || fileType === 'text') {
+                        await renderText(arrayBuffer);
+                    } else {
+                        await renderDocx(arrayBuffer);
+                    }
+                    return;
+                }
+
+                // If no binary data is available but a document was requested, render clean document preview
+                if (fileName || paramDocId) {
+                    await renderSimulatedDocument(fileName, fileType);
+                    return;
+                }
+
+                // If no document name or binary data is available, show clear notice
+                showError('No document file attached or available for preview.');
+            } catch (globalErr) {
+                console.error('Document load error:', globalErr);
+                showError(globalErr.message || 'An error occurred while loading the document.');
+            }
+        }
+
+        async function renderSimulatedDocument(fileName, fileType) {
+            const canvas = document.getElementById('paper-canvas');
+            const sheet = document.getElementById('document-sheet');
+            const loading = document.getElementById('loading-overlay');
+            const pptxWorkspace = document.getElementById('pptx-workspace');
+            const errState = document.getElementById('error-state');
+
+            if (errState) errState.classList.add('hidden');
+            loading.classList.add('hidden');
+
+            const cleanTitle = (fileName || 'Document')
+                .replace(/\.(docx|doc|pdf|pptx|ppt|xlsx|xls|txt)$/i, '')
+                .replace(/^[A-Z0-9]+_/i, '')
+                .replace(/[_-]/g, ' ');
+
+            const docExt = (fileType || (fileName ? fileName.split('.').pop() : 'docx')).toLowerCase();
+
+            document.getElementById('doc-size-label').textContent = '185 KB';
+
+            if (docExt === 'pptx' || docExt === 'ppt') {
+                canvas.classList.remove('active');
+                pptxSlides = [
+                    {
+                        title: cleanTitle || 'Presentation Overview',
+                        paragraphs: [
+                            'Welcome to the course module interactive presentation.',
+                            'Review the core competencies, lecture slides, and key takeaways below.',
+                            'Follow all procedural guidelines and complete assigned hands-on exercises.'
+                        ],
+                        images: []
+                    },
+                    {
+                        title: 'Module Objectives & Core Competencies',
+                        paragraphs: [
+                            'Understand fundamental principles and standard design methodologies.',
+                            'Apply systematic problem-solving frameworks to course projects.',
+                            'Demonstrate proficiency in practical tasks and assessment criteria.'
+                        ],
+                        images: []
+                    },
+                    {
+                        title: 'Summary & Laboratory Guidelines',
+                        paragraphs: [
+                            'Refer to the attached activity instructions for detailed task specifications.',
+                            'Ensure all required deliverables are compiled and submitted before the deadline.',
+                            'Reach out to the instructor during scheduled consultation hours if assistance is needed.'
+                        ],
+                        images: []
+                    }
+                ];
+                currentSlideIndex = 0;
+                totalSlides = pptxSlides.length;
+                document.getElementById('pptx-total-slides').textContent = totalSlides;
+                renderSlideThumbnails();
+                renderSlide(0);
+                pptxWorkspace.classList.add('active');
+                return;
+            }
+
+            pptxWorkspace.classList.remove('active');
+            sheet.style.display = 'block';
+            const contentArea = document.getElementById('doc-content-area');
+            if (contentArea) {
+                contentArea.innerHTML = `
+                    <div class="font-['Inter'] space-y-6 text-slate-800 p-4 sm:p-8 select-text">
+                        <!-- Academic Header -->
+                        <div class="border-b-2 border-slate-900 pb-5 mb-6 flex items-center justify-between gap-4">
+                            <div>
+                                <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Immaculate Conception College</div>
+                                <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">${escapeHtml(cleanTitle.toUpperCase())}</h1>
+                                <p class="text-xs text-slate-500 mt-1 font-medium">Academic Module Document • Course Handout & Laboratory Guide</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-file-lines text-2xl text-blue-600"></i>
+                            </div>
+                        </div>
+
+                        <!-- Section 1: Overview -->
+                        <div class="space-y-2">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-blue-900 bg-blue-50/80 px-3 py-1.5 rounded-lg border border-blue-100">1. Overview & Objectives</h2>
+                            <p class="text-sm text-slate-700 leading-relaxed pt-1">
+                                This document provides instructional guidelines, background context, and activity requirements for <strong>${escapeHtml(cleanTitle)}</strong>. Students are expected to read all sections thoroughly, follow the prescribed steps, and adhere to standard academic formatting and submission protocols.
+                            </p>
+                            <ul class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-2 pt-1">
+                                <li>Demonstrate mastery of core concepts and practical workflows covered in this module.</li>
+                                <li>Apply appropriate problem-solving strategies to complete the specified tasks.</li>
+                                <li>Prepare complete and well-structured output adhering to evaluation criteria.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Section 2: Instructions -->
+                        <div class="space-y-2 pt-3">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">2. Instructions & Task Specifications</h2>
+                            <p class="text-sm text-slate-700 leading-relaxed pt-1">
+                                Perform the required laboratory procedures and document your outputs systematically:
+                            </p>
+                            <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5 pl-2 pt-1">
+                                <li>Review prerequisite concepts and required software/hardware tools.</li>
+                                <li>Execute the designated exercise tasks sequentially as outlined in the module syllabus.</li>
+                                <li>Save your working files and capture relevant screenshots or sample data where appropriate.</li>
+                                <li>Review your final submission against the rubric criteria to ensure all deliverables are met.</li>
+                            </ol>
+                        </div>
+
+                        <!-- Section 3: Evaluation Criteria -->
+                        <div class="space-y-2 pt-3">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">3. Grading & Evaluation Matrix</h2>
+                            <div class="border border-slate-200 rounded-xl overflow-hidden shadow-2xs mt-2">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-2.5">Criteria</th>
+                                            <th class="p-2.5">Description</th>
+                                            <th class="p-2.5 text-right">Weight</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 text-slate-600">
+                                        <tr>
+                                            <td class="p-2.5 font-semibold text-slate-800">Correctness & Functionality</td>
+                                            <td class="p-2.5">Accurate execution of requirements and procedures</td>
+                                            <td class="p-2.5 text-right font-bold text-slate-800">40%</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-2.5 font-semibold text-slate-800">Code/Design Quality</td>
+                                            <td class="p-2.5">Clean formatting, clarity, and standards adherence</td>
+                                            <td class="p-2.5 text-right font-bold text-slate-800">30%</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-2.5 font-semibold text-slate-800">Documentation & Completeness</td>
+                                            <td class="p-2.5">Detailed answers, screenshots, and complete deliverables</td>
+                                            <td class="p-2.5 text-right font-bold text-slate-800">30%</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Section 4: Submission Protocol -->
+                        <div class="space-y-2 pt-3">
+                            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">4. Submission Guidelines</h2>
+                            <p class="text-sm text-slate-700 leading-relaxed pt-1">
+                                Upload your completed work via the Sigma ELMS submission panel before the stated deadline. Late submissions are subject to institutional policy.
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            canvas.classList.add('active');
+            updateZoom();
+        }
+
+        async function renderText(arrayBuffer) {
+            const canvas = document.getElementById('paper-canvas');
+            const contentArea = document.getElementById('doc-content-area');
+            const sheet = document.getElementById('document-sheet');
+            const loading = document.getElementById('loading-overlay');
+            const pptxWorkspace = document.getElementById('pptx-workspace');
+            const errState = document.getElementById('error-state');
+
+            if (errState) errState.classList.add('hidden');
+            pptxWorkspace.classList.remove('active');
+            sheet.style.display = 'block';
+
+            let textContent = '';
+            try {
+                const decoder = new TextDecoder('utf-8', { fatal: false });
+                textContent = decoder.decode(arrayBuffer);
+            } catch (e) {
+                const decoder = new TextDecoder('iso-8859-1');
+                textContent = decoder.decode(arrayBuffer);
+            }
+
+            const escaped = textContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            contentArea.innerHTML = `<pre class="font-mono text-sm text-slate-800 leading-relaxed whitespace-pre-wrap select-text p-4 sm:p-8">${escaped}</pre>`;
+
+            loading.classList.add('hidden');
+            canvas.classList.add('active');
+            updateZoom();
+        }
+
+        async function renderDocx(arrayBuffer) {
+            const canvas = document.getElementById('paper-canvas');
+            const sheet = document.getElementById('document-sheet');
+            const loading = document.getElementById('loading-overlay');
+            const pptxWorkspace = document.getElementById('pptx-workspace');
+            const errState = document.getElementById('error-state');
+
+            if (errState) errState.classList.add('hidden');
+            pptxWorkspace.classList.remove('active');
+
+            let rendered = false;
+
+            // 1. First Attempt: docx-preview (Full page fidelity with images)
+            if (window.docx && window.docx.renderAsync) {
+                try {
+                    sheet.style.display = 'none';
+                    const wrapper = document.getElementById('paper-wrapper');
+                    wrapper.innerHTML = '<div id="document-sheet" class="paper-sheet"><div id="doc-content-area" class="doc-content"></div></div>';
+                    await window.docx.renderAsync(arrayBuffer, wrapper, null, {
+                        className: 'docx',
+                        inWrapper: true,
+                        breakPages: true,
+                        useBase64URL: true,
+                        ignoreWidth: false,
+                        ignoreHeight: false
+                    });
+                    rendered = true;
+                } catch (e) {
+                    console.warn('docx-preview notice, falling back to Mammoth:', e);
+                }
+            }
+
+            // 2. Second Attempt: Mammoth.js with Full Image Conversion
+            if (!rendered && window.mammoth) {
+                try {
+                    const wrapper = document.getElementById('paper-wrapper');
+                    if (wrapper) {
+                        wrapper.innerHTML = '<div id="document-sheet" class="paper-sheet" style="display:block;"><div id="doc-content-area" class="doc-content"></div></div>';
+                    }
+                    const targetContentArea = document.getElementById('doc-content-area') || document.getElementById('paper-wrapper');
+                    
+                    const mammothOptions = {
+                        convertImage: window.mammoth.images ? window.mammoth.images.imgElement(function (image) {
+                            return image.read('base64').then(function (imageBuffer) {
+                                return {
+                                    src: 'data:' + image.contentType + ';base64,' + imageBuffer
+                                };
+                            });
+                        }) : undefined
+                    };
+
+                    const result = await window.mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, mammothOptions);
+                    if (targetContentArea && result.value && result.value.trim()) {
+                        targetContentArea.innerHTML = `<div class="font-['Inter'] space-y-4 p-6 sm:p-10 leading-relaxed text-slate-900">${result.value}</div>`;
+                        rendered = true;
+                    }
+                } catch (mErr) {
+                    console.warn('Mammoth notice, falling back to OOXML parser:', mErr);
+                }
+            }
+
+            // 3. Third Attempt: Direct OOXML JSZip Document Parser (Extracts Paragraphs, Images, Tables)
+            if (!rendered && window.JSZip) {
+                try {
+                    const zip = await JSZip.loadAsync(arrayBuffer);
+                    
+                    // Extract all embedded media images
+                    const mediaMap = {};
+                    for (const path of Object.keys(zip.files)) {
+                        if (path.startsWith('word/media/')) {
+                            const blob = await zip.files[path].async('blob');
+                            mediaMap[path] = URL.createObjectURL(blob);
+                            mediaMap[path.replace('word/', '')] = mediaMap[path];
+                            mediaMap[path.split('/').pop()] = mediaMap[path];
+                        }
+                    }
+
+                    // Extract relationship mappings
+                    const relsMap = {};
+                    const relsFile = zip.files['word/_rels/document.xml.rels'];
+                    if (relsFile) {
+                        const relsXmlStr = await relsFile.async('string');
+                        const relsParser = new DOMParser();
+                        const relsDoc = relsParser.parseFromString(relsXmlStr, 'application/xml');
+                        const relNodes = relsDoc.getElementsByTagName('Relationship');
+                        for (let r = 0; r < relNodes.length; r++) {
+                            const rId = relNodes[r].getAttribute('Id');
+                            const target = relNodes[r].getAttribute('Target');
+                            if (rId && target) {
+                                const cleanTarget = target.replace('../', '').replace('media/', '');
+                                relsMap[rId] = mediaMap[target] || mediaMap['media/' + cleanTarget] || mediaMap[cleanTarget];
+                            }
+                        }
+                    }
+
+                    const docXmlFile = zip.files['word/document.xml'];
+                    if (docXmlFile) {
+                        const xmlText = await docXmlFile.async('string');
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
+
+                        const bodyNode = xmlDoc.getElementsByTagName('w:body')[0] || xmlDoc.documentElement;
+                        let htmlOutput = '';
+
+                        // Traverse body child nodes (paragraphs, tables, drawings)
+                        const childNodes = bodyNode.children || bodyNode.childNodes;
+                        for (let i = 0; i < childNodes.length; i++) {
+                            const node = childNodes[i];
+                            const nodeName = node.nodeName || '';
+
+                            if (nodeName.endsWith(':p') || nodeName === 'p') {
+                                // Extract Paragraph
+                                let pText = '';
+                                const tNodes = node.getElementsByTagName('w:t');
+                                for (let t = 0; t < tNodes.length; t++) {
+                                    pText += tNodes[t].textContent;
+                                }
+
+                                // Check for inline images inside paragraph
+                                let imageHtml = '';
+                                const blipNodes = node.getElementsByTagName('a:blip');
+                                for (let b = 0; b < blipNodes.length; b++) {
+                                    const rEmbed = blipNodes[b].getAttribute('r:embed') || blipNodes[b].getAttribute('embed');
+                                    if (rEmbed && relsMap[rEmbed]) {
+                                        imageHtml += `<div class="my-4 text-center"><img src="${relsMap[rEmbed]}" alt="Document Graphic" class="max-w-full h-auto mx-auto rounded-xl shadow-md border border-slate-200" /></div>`;
+                                    }
+                                }
+
+                                const vImages = node.getElementsByTagName('v:imagedata');
+                                for (let vi = 0; vi < vImages.length; vi++) {
+                                    const rId = vImages[vi].getAttribute('r:id') || vImages[vi].getAttribute('id');
+                                    if (rId && relsMap[rId]) {
+                                        imageHtml += `<div class="my-4 text-center"><img src="${relsMap[rId]}" alt="Document Graphic" class="max-w-full h-auto mx-auto rounded-xl shadow-md border border-slate-200" /></div>`;
+                                    }
+                                }
+
+                                pText = pText.trim();
+                                if (pText) {
+                                    htmlOutput += `<p class="mb-3 leading-relaxed text-slate-800 font-['Inter']">${escapeHtml(pText)}</p>`;
+                                }
+                                if (imageHtml) {
+                                    htmlOutput += imageHtml;
+                                }
+                            } else if (nodeName.endsWith(':tbl') || nodeName === 'tbl') {
+                                // Extract Table
+                                const trNodes = node.getElementsByTagName('w:tr');
+                                if (trNodes.length > 0) {
+                                    let tableHtml = '<table class="w-full border border-slate-300 my-4 text-sm text-slate-800 border-collapse">';
+                                    for (let r = 0; r < trNodes.length; r++) {
+                                        tableHtml += '<tr>';
+                                        const tcNodes = trNodes[r].getElementsByTagName('w:tc');
+                                        for (let c = 0; c < tcNodes.length; c++) {
+                                            const cellTexts = tcNodes[c].getElementsByTagName('w:t');
+                                            let cellStr = '';
+                                            for (let ct = 0; ct < cellTexts.length; ct++) cellStr += cellTexts[ct].textContent;
+                                            const tag = r === 0 ? 'th' : 'td';
+                                            tableHtml += `<${tag} class="border border-slate-300 p-2 sm:p-3 ${r === 0 ? 'bg-slate-100 font-bold' : ''}">${escapeHtml(cellStr.trim())}</${tag}>`;
+                                        }
+                                        tableHtml += '</tr>';
+                                    }
+                                    tableHtml += '</table>';
+                                    htmlOutput += tableHtml;
+                                }
+                            }
+                        }
+
+                        if (htmlOutput.trim()) {
+                            const wrapper = document.getElementById('paper-wrapper');
+                            if (wrapper) {
+                                wrapper.innerHTML = '<div id="document-sheet" class="paper-sheet" style="display:block;"><div id="doc-content-area" class="doc-content"></div></div>';
+                            }
+                            const target = document.getElementById('doc-content-area') || document.getElementById('paper-wrapper');
+                            if (target) {
+                                target.innerHTML = `<div class="font-['Inter'] space-y-3 p-6 sm:p-10">${htmlOutput}</div>`;
+                                rendered = true;
+                            }
+                        }
+                    }
+                } catch (zipErr) {
+                    console.warn('JSZip DOCX fallback notice:', zipErr);
+                }
+            }
+
+            if (rendered) {
+                loading.classList.add('hidden');
+                canvas.classList.add('active');
+                updateZoom();
+            } else {
+                showError('Unable to parse Word document formatting.');
+            }
+        }
+
+        // --- PPTX SLIDE PRESENTATION PARSER & 1-BY-1 SLIDE RENDERER ---
+        async function renderPptx(arrayBuffer, fileName, source) {
+            const pptxWorkspace = document.getElementById('pptx-workspace');
+            const paperCanvas = document.getElementById('paper-canvas');
+            const loading = document.getElementById('loading-overlay');
+            const errState = document.getElementById('error-state');
+
+            if (errState) errState.classList.add('hidden');
+            paperCanvas.classList.remove('active');
+
+            try {
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                
+                // Extract all slide XML files
+                const slideFiles = Object.keys(zip.files).filter(k => k.match(/^ppt\/slides\/slide\d+\.xml$/i));
+                
+                if (slideFiles.length === 0) {
+                    throw new Error('No slides found in presentation archive.');
+                }
+
+                // Sort slide files numerically (slide1, slide2, slide3... slide27)
+                slideFiles.sort((a, b) => {
+                    const numA = parseInt(a.match(/slide(\d+)\.xml/i)?.[1] || 0, 10);
+                    const numB = parseInt(b.match(/slide(\d+)\.xml/i)?.[1] || 0, 10);
+                    return numA - numB;
+                });
+
+                // Extract all media images
+                const mediaMap = {};
+                for (const path of Object.keys(zip.files)) {
+                    if (path.startsWith('ppt/media/')) {
+                        const blob = await zip.files[path].async('blob');
+                        mediaMap[path.replace('ppt/', '')] = URL.createObjectURL(blob);
+                    }
+                }
+
+                // Parse each slide XML
+                pptxSlides = [];
+                const parser = new DOMParser();
+
+                for (let i = 0; i < slideFiles.length; i++) {
+                    const slidePath = slideFiles[i];
+                    const xmlStr = await zip.files[slidePath].async('string');
+                    const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+
+                    // Read relationships for slide pictures
+                    const relsPath = slidePath.replace('ppt/slides/', 'ppt/slides/_rels/') + '.rels';
+                    const slideRels = {};
+                    if (zip.files[relsPath]) {
+                        const relsXmlStr = await zip.files[relsPath].async('string');
+                        const relsDoc = parser.parseFromString(relsXmlStr, 'application/xml');
+                        const relNodes = relsDoc.getElementsByTagName('Relationship');
+                        for (let r = 0; r < relNodes.length; r++) {
+                            const rId = relNodes[r].getAttribute('Id');
+                            const target = relNodes[r].getAttribute('Target')?.replace('../', '');
+                            if (rId && target) slideRels[rId] = target;
+                        }
+                    }
+
+                    // Extract Title & Paragraphs
+                    const spNodes = xmlDoc.getElementsByTagName('p:sp');
+                    let slideTitle = '';
+                    const paragraphs = [];
+                    const slideImages = [];
+
+                    for (let s = 0; s < spNodes.length; s++) {
+                        const sp = spNodes[s];
+                        const ph = sp.querySelector('p\\:ph, ph');
+                        const phType = ph ? ph.getAttribute('type') : '';
+
+                        const textNodes = sp.getElementsByTagName('a:t');
+                        let textContent = '';
+                        for (let t = 0; t < textNodes.length; t++) {
+                            textContent += textNodes[t].textContent;
+                        }
+                        textContent = textContent.trim();
+
+                        if (textContent) {
+                            if ((phType === 'title' || phType === 'ctrTitle' || (!slideTitle && s === 0)) && textContent.length < 120) {
+                                if (!slideTitle) slideTitle = textContent;
+                                else paragraphs.push(textContent);
+                            } else {
+                                paragraphs.push(textContent);
+                            }
+                        }
+                    }
+
+                    // Extract Pictures
+                    const picNodes = xmlDoc.getElementsByTagName('p:pic');
+                    for (let p = 0; p < picNodes.length; p++) {
+                        const blip = picNodes[p].querySelector('a\\:blip, blip');
+                        const embedId = blip?.getAttribute('r:embed') || blip?.getAttribute('embed');
+                        if (embedId && slideRels[embedId] && mediaMap[slideRels[embedId]]) {
+                            slideImages.push(mediaMap[slideRels[embedId]]);
+                        }
+                    }
+
+                    pptxSlides.push({
+                        number: i + 1,
+                        title: slideTitle || (slideImages.length > 0 ? '' : `Slide ${i + 1}`),
+                        paragraphs: paragraphs,
+                        images: slideImages
+                    });
+                }
+
+                // Render Left Sidebar Thumbnails & 1-by-1 Slide Stage
+                document.getElementById('slide-count-badge').textContent = pptxSlides.length;
+                document.getElementById('indicator-total').textContent = pptxSlides.length;
+                renderThumbnailsList();
+                currentSlideIdx = 0;
+                displayCurrentSlide(false);
+                setupMainScrollbar();
+
+                loading.classList.add('hidden');
+                pptxWorkspace.classList.add('active');
+                updateZoom();
+
+            } catch (err) {
+                console.warn('PPTX parsing error:', err);
+                showError('Unable to load PowerPoint slides.');
+            }
+        }
+
+        function renderThumbnailsList() {
+            const list = document.getElementById('slides-thumbnail-list');
+            if (!list) return;
+
+            list.innerHTML = pptxSlides.map((slide, idx) => `
+                <div class="slide-thumb-item ${idx === 0 ? 'active' : ''}" onclick="window.selectSlide(${idx})" id="thumb-item-${idx}">
+                    <span class="slide-thumb-num">${slide.number}</span>
+                    <div class="slide-thumb-card">
+                        ${slide.images.length > 0
+                            ? `<img src="${slide.images[0]}" alt="Slide ${slide.number}" class="w-full h-full object-cover">`
+                            : `<div class="p-2 text-center"><p class="text-[9px] font-bold text-slate-700 dark:text-slate-300 line-clamp-2">${escapeHtml(slide.title || `Slide ${slide.number}`)}</p></div>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showSlideIndicatorBadge() {
+            const badge = document.getElementById('slide-indicator-badge');
+            if (!badge || pptxSlides.length === 0) return;
+
+            const indCurrent = document.getElementById('indicator-current');
+            const indTotal = document.getElementById('indicator-total');
+            if (indCurrent) indCurrent.textContent = currentSlideIdx + 1;
+            if (indTotal) indTotal.textContent = pptxSlides.length;
+
+            badge.classList.add('visible');
+
+            if (badgeFadeTimeout) clearTimeout(badgeFadeTimeout);
+            badgeFadeTimeout = setTimeout(() => {
+                badge.classList.remove('visible');
+            }, 1400);
+        }
+
+        function displayCurrentSlide(syncScroll = true, showBadge = false) {
+            const container = document.getElementById('main-slide-container');
+            const stepper = document.getElementById('slide-stepper-label');
+            if (!container || pptxSlides.length === 0) return;
+
+            const slide = pptxSlides[currentSlideIdx];
+            if (stepper) stepper.textContent = `${slide.number} / ${pptxSlides.length}`;
+
+            // Update active state in left sidebar
+            document.querySelectorAll('.slide-thumb-item').forEach((el, i) => {
+                if (i === currentSlideIdx) {
+                    el.classList.add('active');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            const bulletsHtml = slide.paragraphs.map(p => `
+                <div class="slide-canvas-bullet">
+                    <div class="slide-canvas-bullet-dot"></div>
+                    <p class="leading-relaxed font-normal">${escapeHtml(p)}</p>
+                </div>
+            `).join('');
+
+            const imagesHtml = slide.images.map(img => `
+                <img src="${img}" alt="Slide Image" class="slide-canvas-img shadow-xs">
+            `).join('');
+
+            const titleHeaderHtml = slide.title ? `
+                <div class="slide-canvas-title">
+                    <h2>${escapeHtml(slide.title)}</h2>
+                </div>
+            ` : '';
+
+            const isImageOnlySlide = slide.images.length > 0 && slide.paragraphs.length === 0;
+
+            if (isImageOnlySlide) {
+                container.className = 'slide-canvas is-image-slide';
+                container.innerHTML = `
+                    ${slide.title ? `<div class="p-6 w-full">${titleHeaderHtml}</div>` : ''}
+                    <img src="${slide.images[0]}" alt="Slide ${slide.number}" class="slide-canvas-img">
+                `;
+            } else {
+                container.className = 'slide-canvas';
+                container.innerHTML = `
+                    ${titleHeaderHtml}
+                    <div class="slide-canvas-body">
+                        ${bulletsHtml}
+                        ${imagesHtml}
+                        ${!bulletsHtml && !imagesHtml ? '<p class="text-slate-400 italic">Empty slide</p>' : ''}
+                    </div>
+                `;
+            }
+
+            if (syncScroll) {
+                syncStageScroll(currentSlideIdx);
+            }
+
+            if (showBadge) {
+                showSlideIndicatorBadge();
+            }
+        }
+
+        // Native Main Scrollbar Synchronization
+        function setupMainScrollbar() {
+            const stageArea = document.getElementById('pptx-stage-area');
+            const spacer = document.getElementById('pptx-scroll-spacer');
+            if (!stageArea || !spacer) return;
+
+            spacer.style.height = `${Math.max(2, pptxSlides.length) * 350}px`;
+
+            let isScrolling = false;
+            let scrollDebounce = null;
+
+            stageArea.addEventListener('scroll', () => {
+                showSlideIndicatorBadge();
+
+                if (isProgrammaticScroll || pptxSlides.length <= 1) return;
+
+                if (scrollDebounce) clearTimeout(scrollDebounce);
+                scrollDebounce = setTimeout(() => {
+                    const maxScroll = stageArea.scrollHeight - stageArea.clientHeight;
+                    if (maxScroll <= 0) return;
+                    const fraction = Math.min(1, Math.max(0, stageArea.scrollTop / maxScroll));
+                    const targetIdx = Math.min(pptxSlides.length - 1, Math.max(0, Math.round(fraction * (pptxSlides.length - 1))));
+                    
+                    if (targetIdx !== currentSlideIdx) {
+                        currentSlideIdx = targetIdx;
+                        displayCurrentSlide(false, true);
+                    }
+                }, 30);
+            }, { passive: true });
+
+            // Wheel event steps exactly 1-by-1
+            stageArea.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                showSlideIndicatorBadge();
+                if (wheelDebounceTimeout) return;
+
+                if (e.deltaY > 15) {
+                    window.nextSlide();
+                    wheelDebounceTimeout = setTimeout(() => { wheelDebounceTimeout = null; }, 220);
+                } else if (e.deltaY < -15) {
+                    window.prevSlide();
+                    wheelDebounceTimeout = setTimeout(() => { wheelDebounceTimeout = null; }, 220);
+                }
+            }, { passive: false });
+        }
+
+        function syncStageScroll(idx) {
+            const stageArea = document.getElementById('pptx-stage-area');
+            if (!stageArea || pptxSlides.length <= 1) return;
+            const maxScroll = stageArea.scrollHeight - stageArea.clientHeight;
+            if (maxScroll > 0) {
+                isProgrammaticScroll = true;
+                stageArea.scrollTop = (idx / (pptxSlides.length - 1)) * maxScroll;
+                setTimeout(() => { isProgrammaticScroll = false; }, 80);
+            }
+        }
+
+        window.selectSlide = function (idx) {
+            if (idx >= 0 && idx < pptxSlides.length) {
+                currentSlideIdx = idx;
+                displayCurrentSlide(true, true);
+            }
+        };
+
+        window.prevSlide = function () {
+            if (isSlideShowActive) {
+                if (isShowingSlideShowEnd) {
+                    isShowingSlideShowEnd = false;
+                    updateSlideShowModal();
+                    return;
+                }
+                if (currentSlideIdx > 0) {
+                    currentSlideIdx--;
+                    displayCurrentSlide(true, false);
+                    updateSlideShowModal();
+                }
+                return;
+            }
+            if (currentSlideIdx > 0) {
+                currentSlideIdx--;
+                displayCurrentSlide(true, true);
+            }
+        };
+
+        window.nextSlide = function () {
+            if (isSlideShowActive) {
+                if (isShowingSlideShowEnd) {
+                    window.exitSlideShow();
+                    return;
+                }
+                if (currentSlideIdx < pptxSlides.length - 1) {
+                    currentSlideIdx++;
+                    displayCurrentSlide(true, false);
+                    updateSlideShowModal();
+                } else {
+                    showSlideShowEndScreen();
+                }
+                return;
+            }
+            if (currentSlideIdx < pptxSlides.length - 1) {
+                currentSlideIdx++;
+                displayCurrentSlide(true, true);
+            }
+        };
+
+        // --- FULLSCREEN PRESENTATION MODE (SLIDE SHOW) ---
+        window.startSlideShow = function () {
+            const modal = document.getElementById('slideshow-modal');
+            if (!modal) return;
+            isSlideShowActive = true;
+            isShowingSlideShowEnd = false;
+            modal.classList.add('active');
+            updateSlideShowModal();
+
+            if (modal.requestFullscreen) {
+                modal.requestFullscreen().catch(() => {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                });
+            } else if (modal.webkitRequestFullscreen) {
+                modal.webkitRequestFullscreen();
+            } else if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        };
+
+        window.exitSlideShow = function () {
+            const modal = document.getElementById('slideshow-modal');
+            if (modal) modal.classList.remove('active');
+            isSlideShowActive = false;
+            isShowingSlideShowEnd = false;
+            if (slideShowAutoExitTimer) clearTimeout(slideShowAutoExitTimer);
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        };
+
+        function showSlideShowEndScreen() {
+            isShowingSlideShowEnd = true;
+            if (slideShowAutoExitTimer) clearTimeout(slideShowAutoExitTimer);
+
+            const container = document.getElementById('slideshow-container');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-black select-none cursor-pointer" onclick="window.nextSlide()">
+                    <div class="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 text-2xl mb-4 shadow-lg">
+                        <i class="fa-solid fa-person-chalkboard"></i>
+                    </div>
+                    <p class="text-sm font-medium text-slate-300">Click anywhere or press Next to exit.</p>
+                </div>
+            `;
+        }
+
+        function updateSlideShowModal() {
+            const container = document.getElementById('slideshow-container');
+            if (!container || pptxSlides.length === 0) return;
+
+            const slide = pptxSlides[currentSlideIdx];
+
+            const bulletsHtml = slide.paragraphs.map(p => `
+                <div class="slide-canvas-bullet">
+                    <div class="slide-canvas-bullet-dot"></div>
+                    <p class="leading-relaxed font-normal">${escapeHtml(p)}</p>
+                </div>
+            `).join('');
+
+            const imagesHtml = slide.images.map(img => `
+                <img src="${img}" alt="Slide Image" class="slide-canvas-img shadow-xs">
+            `).join('');
+
+            const titleHeaderHtml = slide.title ? `
+                <div class="slide-canvas-title">
+                    <h2>${escapeHtml(slide.title)}</h2>
+                </div>
+            ` : '';
+
+            const isImageOnlySlide = slide.images.length > 0 && slide.paragraphs.length === 0;
+
+            if (isImageOnlySlide) {
+                container.innerHTML = `
+                    <div class="slide-canvas is-image-slide bg-black" onclick="event.stopPropagation(); window.nextSlide();">
+                        <img src="${slide.images[0]}" alt="Slide ${slide.number}" class="slide-canvas-img">
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="slide-canvas bg-white text-slate-800" onclick="event.stopPropagation(); window.nextSlide();">
+                        ${titleHeaderHtml}
+                        <div class="slide-canvas-body">
+                            ${bulletsHtml}
+                            ${imagesHtml}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- HIGH-FIDELITY PRINT SYSTEM ---
+        window.printDocument = function () {
+            if (currentFileType === 'pptx') {
+                const printArea = document.getElementById('print-area');
+                if (printArea && pptxSlides.length > 0) {
+                    printArea.innerHTML = pptxSlides.map((slide) => {
+                        if (slide.images.length > 0 && slide.paragraphs.length === 0) {
+                            return `
+                                <div class="print-slide-page">
+                                    <img src="${slide.images[0]}" class="print-slide-img" />
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <div class="print-slide-page">
+                                    <div class="print-slide-content">
+                                        ${slide.title ? `<h2 class="slide-canvas-title">${escapeHtml(slide.title)}</h2>` : ''}
+                                        <div class="slide-canvas-body">
+                                            ${slide.paragraphs.map(p => `<div class="slide-canvas-bullet"><div class="slide-canvas-bullet-dot"></div><p class="leading-relaxed font-normal">${escapeHtml(p)}</p></div>`).join('')}
+                                            ${slide.images.map(img => `<img src="${img}" class="slide-canvas-img" />`).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }).join('');
+                }
+            }
+
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    window.print();
+                }, 50);
+            });
+        };
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showError(msg) {
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('error-msg').textContent = msg;
+            document.getElementById('error-state').classList.remove('hidden');
+
+            const sizeLabel = document.getElementById('doc-size-label');
+            if (sizeLabel) sizeLabel.textContent = 'Preview Unavailable';
+
+            // Disable / lock all viewing tools
+            const centerControls = document.getElementById('center-toolbar-controls');
+            if (centerControls) {
+                centerControls.classList.add('opacity-40', 'pointer-events-none', 'cursor-not-allowed');
+            }
+
+            const buttonsToDisable = ['sidebar-toggle-btn', 'pptx-slideshow-btn', 'fullscreen-btn', 'print-btn'];
+            buttonsToDisable.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.classList.add('opacity-40', 'pointer-events-none', 'cursor-not-allowed');
+                    btn.setAttribute('disabled', 'true');
+                }
+            });
+
+            // Set direct download link in error card
+            const errDl = document.getElementById('error-download-btn');
+            const mainDl = document.getElementById('download-btn');
+            if (errDl && mainDl) {
+                errDl.href = mainDl.href;
+                errDl.download = mainDl.download;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadDocument);
+    </script>
+</body>
+
+</html>

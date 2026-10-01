@@ -1,0 +1,1993 @@
+.hidden {
+    display: none !important;
+}
+
+.text-black {
+    color: #000 !important;
+}
+
+
+
+/* Sticky side panels */
+.lg\:col-span-3.sticky {
+    position: sticky;
+}
+
+
+/* School Year Card Base Text: Charcoal Black */
+#sy-bar-year,
+#sy-bar-quarter {
+    color: #0f172a !important;
+}
+
+/* All Table Containers and Tables: Clean Single-Border Collapse */
+table,
+.admin-table-striped,
+#users-view table,
+#school-year-view table,
+#school-sections-view table,
+#school-subjects-view table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* All Table Headers: Green Background, White Text, 1px White Vertical Column Dividers */
+table thead,
+table thead tr,
+table thead th,
+.admin-table-striped thead,
+.admin-table-striped thead tr,
+.admin-table-striped thead th,
+.admin-table-striped th,
+#users-view thead,
+#users-view thead tr,
+#users-view thead th,
+#school-year-view thead,
+#school-year-view thead tr,
+#school-year-view thead th,
+#school-sections-view thead,
+#school-sections-view thead tr,
+#school-sections-view thead th,
+#school-subjects-view thead,
+#school-subjects-view thead tr,
+#school-subjects-view thead th {
+    background-color: #15803d !important;
+    border-bottom: 2px solid #0d652d !important;
+    color: #ffffff !important;
+}
+
+table thead th,
+table thead th *,
+table th,
+table th *,
+.admin-table-striped thead th,
+.admin-table-striped thead th *,
+.admin-table-striped th,
+.admin-table-striped th *,
+#users-view thead th,
+#users-view thead th *,
+#school-year-view thead th,
+#school-year-view thead th *,
+#school-sections-view thead th,
+#school-sections-view thead th *,
+#school-subjects-view thead th,
+#school-subjects-view thead th * {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+table thead th,
+table th,
+.admin-table-striped thead th,
+.admin-table-striped th,
+#users-view thead th,
+#school-year-view thead th,
+#school-sections-view thead th,
+#school-subjects-view thead th {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    border-right: none !important;
+    border-bottom: 2px solid #0d652d !important;
+    border-left: none !important;
+    border-top: none !important;
+    box-sizing: border-box !important;
+}
+
+/* No outer edge: remove vertical border on the last column */
+table thead th:last-child,
+table th:last-child,
+.admin-table-striped thead th:last-child,
+.admin-table-striped th:last-child,
+#users-view thead th:last-child,
+#school-year-view thead th:last-child,
+#school-sections-view thead th:last-child,
+#school-subjects-view thead th:last-child {
+    border-right: none !important;
+}
+
+/* Vertical borderline strictly on the first header column (No.) */
+table thead th:first-child,
+table th:first-child,
+.admin-table-striped thead th:first-child,
+.admin-table-striped th:first-child,
+#users-view thead th:first-child,
+#school-year-view thead th:first-child,
+#school-sections-view thead th:first-child,
+#school-subjects-view thead th:first-child {
+    border-right: 1px solid #166534 !important;
+    border-left: none !important;
+}
+
+/* Sections table groups: Section/Subject/Room | Teacher/Students | School Year onward */
+#school-sections-view thead th:nth-child(4),
+#school-sections-view thead th:nth-child(6),
+table:has(#sectionTableBody) thead th:nth-child(4),
+table:has(#sectionTableBody) thead th:nth-child(6) {
+    border-right: 1px solid #166534 !important;
+}
+
+#school-sections-view tbody td:nth-child(4),
+#school-sections-view tbody td:nth-child(6),
+#sectionTableBody td:nth-child(4),
+#sectionTableBody td:nth-child(6) {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Subjects table: line between Subject and Type */
+#school-subjects-view thead th:nth-child(3),
+table:has(#subjectTableBody) thead th:nth-child(3) {
+    border-right: 1px solid #166534 !important;
+}
+
+#school-subjects-view tbody td:nth-child(3),
+#subjectTableBody td:nth-child(3) {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Section teacher rows use the same 32px profile size as the accounts Name column. */
+#sectionTableBody .section-teacher-avatar.sigma-user-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+}
+
+#sectionTableBody .section-teacher-avatar.sigma-user-avatar i {
+    font-size: 13px !important;
+}
+
+/* Admin Shared Tables: Division borders for all column titles in the header */
+#users-view thead th:not(:last-child),
+#school-year-view thead th:not(:last-child),
+#school-sections-view thead th:not(:last-child),
+#school-subjects-view thead th:not(:last-child),
+table:has(#userTableBody) thead th:not(:last-child),
+table:has(#schoolYearTableBody) thead th:not(:last-child),
+table:has(#sectionTableBody) thead th:not(:last-child),
+table:has(#subjectTableBody) thead th:not(:last-child),
+.admin-table thead th:not(:last-child),
+table thead.bg-\[\#15803d\] th:not(:last-child),
+thead.bg-\[\#15803d\] th:not(:last-child) {
+    border-right: 1px solid #166534 !important;
+}
+
+#users-view thead th:last-child,
+#school-year-view thead th:last-child,
+#school-sections-view thead th:last-child,
+#school-subjects-view thead th:last-child,
+table:has(#userTableBody) thead th:last-child,
+table:has(#schoolYearTableBody) thead th:last-child,
+table:has(#sectionTableBody) thead th:last-child,
+table:has(#subjectTableBody) thead th:last-child,
+thead.bg-\[\#15803d\] th:last-child {
+    border-right: none !important;
+}
+
+
+/* Table body data cells: delete vertical borders */
+table tbody,
+#users-view tbody,
+#school-year-view tbody,
+#school-sections-view tbody,
+#school-subjects-view tbody {
+    border-top: none !important;
+}
+
+table tbody td,
+.admin-table-striped tbody td,
+.admin-table-striped td,
+#users-view tbody td,
+#school-year-view tbody td,
+#school-sections-view tbody td,
+#school-subjects-view tbody td {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+    font-weight: 400 !important;
+    color: #000000;
+    border-left: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-sizing: border-box !important;
+}
+
+/* Vertical borderline strictly on the No. column (first body cell) */
+table tbody td:first-child,
+.admin-table-striped tbody td:first-child,
+.admin-table-striped td:first-child,
+#users-view tbody td:first-child,
+#school-year-view tbody td:first-child,
+#school-sections-view tbody td:first-child,
+#school-subjects-view tbody td:first-child {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: none !important;
+}
+
+/* User Accounts Table: Right borderline strictly on Profile/Name column (3rd column) */
+#users-view tbody td:nth-child(3),
+#userTableBody td:nth-child(3) {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* No outer right edge on last body cell */
+table tbody td:last-child,
+.admin-table-striped tbody td:last-child,
+.admin-table-striped td:last-child,
+#users-view tbody td:last-child,
+#school-year-view tbody td:last-child,
+#school-sections-view tbody td:last-child,
+#school-subjects-view tbody td:last-child {
+    border-right: none !important;
+}
+
+/* Outside padding at left and right edge of all tables in admin (matching toolbar px-10) */
+#users-view .flex-1.flex.flex-col,
+#school-year-view .flex-1.flex.flex-col,
+#school-sections-view .flex-1.flex.flex-col,
+#school-subjects-view .flex-1.flex.flex-col,
+#users-view > div > div.flex-1,
+#school-year-view > div > div.flex-1,
+#school-sections-view > div > div.flex-1,
+#school-subjects-view > div > div.flex-1 {
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+    box-sizing: border-box !important;
+}
+
+/* Zebra striping applied per cell */
+.admin-table-striped tbody tr:nth-child(even) td,
+#users-view tbody tr:nth-child(even) td,
+#school-year-view tbody tr:nth-child(even) td,
+#school-sections-view tbody tr:nth-child(even) td,
+#school-subjects-view tbody tr:nth-child(even) td,
+table tbody tr:nth-child(even) td {
+    background-color: #f8fafc;
+}
+
+.admin-table-striped tbody tr:nth-child(odd) td,
+#users-view tbody tr:nth-child(odd) td,
+#school-year-view tbody tr:nth-child(odd) td,
+#school-sections-view tbody tr:nth-child(odd) td,
+#school-subjects-view tbody tr:nth-child(odd) td,
+table tbody tr:nth-child(odd) td {
+    background-color: #ffffff;
+}
+
+/* 1-cell only hover gray highlight */
+.admin-table-striped tbody td:hover,
+#users-view tbody td:hover,
+#school-year-view tbody td:hover,
+#school-sections-view tbody td:hover,
+#school-subjects-view tbody td:hover,
+#roles-view tbody td:hover,
+#audit-logs-view tbody td:hover,
+.sigma-table tbody td:hover,
+table tbody td:hover {
+    background-color: #f1f5f9 !important;
+    transition: background-color 0.12s ease;
+}
+
+
+/* Force Inter for School Year Table, but exclude icons */
+#school-year-view table,
+#school-year-view table :not(i, [class^="fa-"], [class*=" fa-"]) {
+    font-family: 'Inter', sans-serif !important;
+}
+
+:root {
+    --admin-bg: #f8fafc;
+    --admin-card: #FFFFFF;
+    --admin-border: #e2e8f0;
+    --admin-accent: #22c55e;
+    /* Green highlight */
+    --admin-highlight: #FFD000;
+    /* Student Yellow */
+    --admin-primary: #15803d;
+    /* Student Green */
+    --admin-sidebar-expanded-width: 280px;
+    --admin-sidebar-collapsed-width: 82px;
+    --sidebar-collapsed-width: 82px;
+    --sidebar-expanded-width: 280px;
+    --sidebar-top-offset: 82px;
+    --admin-sidebar-width: var(--admin-sidebar-expanded-width);
+    --admin-top-nav-height: 26px;
+    --admin-header-height: 56px;
+    --admin-total-top-offset: 82px;
+    --shell-offset: var(--admin-total-top-offset);
+    --panel-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+body.sidebar-collapsed {
+    --admin-sidebar-width: var(--admin-sidebar-collapsed-width);
+    --sidebar-width: var(--sidebar-collapsed-width);
+}
+
+.standard-panel-shadow {
+    box-shadow: var(--panel-shadow) !important;
+}
+
+
+/* Studen   tyle global scrollbar */
+* {
+    scrollbar-width: auto;
+    scrollbar-color: transparent transparent;
+}
+
+*:hover {
+    scrollbar-color: rgba(0, 0, 0, .18) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 10px;
+    transition: none !important;
+}
+
+::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+}
+
+*:hover> ::-webkit-scrollbar-thumb,
+*:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, .18);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, .32) !important;
+}
+
+html,
+body,
+input,
+button,
+select,
+textarea,
+optgroup,
+option,
+label,
+.sigma-input,
+.sigma-label,
+.sigma-select,
+.sigma-modal,
+.sigma-field-group,
+form,
+dialog {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Ensure FontAwesome icons always render their icon font correctly */
+i,
+[class^="fa-"],
+[class*=" fa-"],
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-thin,
+.fa-duotone,
+.fa-brands,
+.fa {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "FontAwesome" !important;
+}
+
+body {
+    background-color: var(--admin-bg);
+}
+
+body.sidebar-collapsed {
+    --admin-sidebar-width: var(--admin-sidebar-collapsed-width);
+}
+
+body.branch-edit-mode {
+    overflow: hidden;
+    height: 100vh;
+}
+
+body.sy-edit-mode {
+    overflow: hidden;
+    height: 100vh;
+}
+
+body.subject-edit-mode {
+    overflow: hidden;
+    height: 100vh;
+}
+
+body.section-edit-mode {
+    overflow: hidden;
+    height: 100vh;
+}
+
+
+/* Header and topbar are canonically defined in css/topbar.css */
+
+
+
+/* Sub-sidebar unified in css/sidebar.css */
+
+/* SIGMA AI notch/panel */
+#sigmaAiNotch {
+    display: none !important;
+}
+
+#sigmaAiPanel {
+    position: fixed;
+    top: var(--admin-total-top-offset, 82px);
+    right: 0;
+    width: 400px;
+    height: calc(100vh - var(--admin-total-top-offset, 82px));
+    background: white;
+    z-index: 500 !important;
+    box-shadow: -20px 0 40px rgba(0, 0, 0, 0.08);
+    border-left: 1px solid #e5e7eb;
+    border-top-left-radius: 24px;
+    border-bottom-left-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    font-family: 'Inter', sans-serif !important;
+}
+
+#sigmaAiPanel.hidden {
+    display: none !important;
+}
+
+#sigmaAiNotch {
+    display: none !important;
+}
+
+.dragging,
+.dragging * {
+    transition: none !important;
+}
+
+.sigma-ai-composer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: transparent;
+    width: 100%;
+}
+
+.sigma-ai-composer__field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0.5rem 1rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 9999px;
+    background: #f8fafc !important;
+    min-height: 42px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.sigma-ai-composer__field:focus-within {
+    border-color: #FFD000 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.sigma-ai-composer__input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.4;
+    padding: 2px 0;
+    display: block;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.sigma-ai-composer__input::placeholder {
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+}
+
+.sigma-ai-send-btn {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    border-radius: 9999px !important;
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border: none !important;
+    outline: none !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
+}
+
+.sigma-ai-send-btn:hover:not(:disabled) {
+    background-color: #166534 !important;
+    transform: scale(1.05) !important;
+}
+
+.sigma-ai-send-btn:active:not(:disabled) {
+    transform: scale(0.95) !important;
+}
+
+.sigma-ai-send-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+.sigma-ai-send-icon {
+    font-size: 0.9rem !important;
+    color: #ffffff !important;
+}
+
+.sigma-ai-send-spinner {
+    display: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    animation: sigmaAiSpin 0.7s linear infinite;
+}
+
+.sigma-ai-send-btn.is-loading .sigma-ai-send-icon {
+    display: none;
+}
+
+.sigma-ai-send-btn.is-loading .sigma-ai-send-spinner {
+    display: inline-block;
+}
+
+.sigma-ai-message {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.sigma-ai-message--user {
+    align-items: flex-end !important;
+}
+
+.sigma-ai-message--assistant,
+.sigma-ai-message:not(.sigma-ai-message--user) {
+    align-items: flex-start !important;
+}
+
+.sigma-ai-message__meta {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    line-height: 1.3 !important;
+    padding: 0 2px !important;
+    user-select: none !important;
+    display: block !important;
+}
+
+.sigma-ai-message:not(.sigma-ai-message--user) .sigma-ai-message__meta {
+    margin-left: 38px !important;
+    text-align: left !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__meta {
+    margin-right: 4px !important;
+    text-align: right !important;
+    align-self: flex-end !important;
+}
+
+.sigma-ai-message__row {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    max-width: 90% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__row {
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+}
+
+.sigma-ai-message__stack {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    max-width: 86% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__stack {
+    align-items: flex-end !important;
+}
+
+.sigma-ai-message__icon {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    border-radius: 9999px !important;
+    background: #FFD000 !important;
+    color: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    margin-top: 1px !important;
+}
+
+.sigma-ai-message__icon i {
+    font-size: 11px !important;
+    color: #000000 !important;
+    line-height: 1 !important;
+}
+
+.sigma-ai-message__bubble {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 13.5px !important;
+    line-height: 1.55 !important;
+    font-weight: 450 !important;
+    padding: 10px 15px !important;
+    border-radius: 18px !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    width: fit-content !important;
+}
+
+.sigma-ai-message__bubble strong,
+.sigma-ai-message__bubble b {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    color: inherit !important;
+}
+
+.sigma-ai-message__bubble .font-black {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 800 !important;
+    color: inherit !important;
+}
+
+.sigma-ai-message__bubble--assistant,
+.sigma-ai-message:not(.sigma-ai-message--user) .sigma-ai-message__bubble {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #0f172a !important;
+    border-top-left-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.sigma-ai-message__bubble--user,
+.sigma-ai-message--user .sigma-ai-message__bubble {
+    background: #15803d !important;
+    color: #ffffff !important;
+    border: 1px solid transparent !important;
+    border-top-right-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+@keyframes sigmaAiSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: sigmaAiSpin 1s linear infinite;
+}
+
+
+
+.admin-card {
+    background: white;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: none !important;
+}
+
+#admin-main {
+    padding-top: 0 !important;
+    overflow-x: clip !important;
+}
+
+.branch-edit-shell {
+    width: 100%;
+    max-width: 1024px;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+}
+
+.branch-edit-panel {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* School Year Form Inputs (Matching Assign Schedule Visuals) */
+#sy-edit-overlay input[type="date"] {
+    position: relative;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+    color: #000000;
+    font-weight: 600;
+}
+
+#sy-edit-overlay input[type="date"]:hover {
+    border-color: #000000;
+    box-shadow: none !important;
+}
+
+#sy-edit-overlay input[type="date"]:focus {
+    border-color: #FFD000;
+    background-color: #ffffff;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #000000;
+}
+
+input[type="time"],
+input[type="date"],
+input[type="datetime-local"] {
+    cursor: text !important;
+    color-scheme: light !important;
+    caret-color: #000000 !important;
+}
+
+
+
+#edit-sy-year-start-trigger i,
+#sy-year-end-container-box i {
+    color: #000000 !important;
+    opacity: 0.4 !important;
+    font-size: 1rem !important;
+}
+
+#sy-year-dropdown-panel {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+#sy-year-dropdown-panel::-webkit-scrollbar {
+    width: 5px;
+}
+
+#sy-year-dropdown-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#sy-year-dropdown-panel::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+}
+
+/* School Year Table: Action edit icon hovers yellow icon only */
+.sy-table-edit-btn,
+#schoolYearTableBody .sy-table-edit-btn {
+    color: #000000 !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: color 0.15s ease-in-out;
+}
+
+.sy-table-edit-btn:hover,
+.sy-table-edit-btn:hover i,
+#schoolYearTableBody .sy-table-edit-btn:hover,
+#schoolYearTableBody .sy-table-edit-btn:hover i {
+    color: #FFD000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sy-year-item.sy-year-active {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    cursor: not-allowed;
+    opacity: 0.95;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.sy-year-item.sy-year-active:hover {
+    background-color: #15803d !important;
+}
+
+@media (max-width: 640px) {
+    .branch-edit-shell {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+.org-logo-thumb {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    object-fit: cover;
+    border: 1px solid #d8e3d8;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.org-logo-uploader {
+    min-height: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.org-logo-preview {
+    width: 7rem;
+    height: 7rem;
+    border-radius: 1.75rem;
+    object-fit: cover;
+    border: 1px solid #d8e3d8;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+/* Row hover highlight (Grey) */
+tr.cursor-pointer:hover td {
+    background-color: #f1f5f9 !important;
+    /* slate-100 */
+    color: inherit !important;
+}
+
+/* Row selection highlight (Dark Green) */
+tr.admin-row-selected td,
+tr.admin-row-selected:hover td {
+    background-color: var(--admin-primary) !important;
+    color: #ffffff !important;
+}
+
+tr.admin-row-selected td .text-slate-600,
+tr.admin-row-selected td .text-slate-900,
+tr.admin-row-selected td .font-mono,
+tr.admin-row-selected td .text-green-700,
+tr.admin-row-selected:hover td .text-slate-600,
+tr.admin-row-selected:hover td .text-slate-900,
+tr.admin-row-selected:hover td .font-mono,
+tr.admin-row-selected:hover td .text-green-700 {
+    color: #ffffff !important;
+}
+
+.nav-link:hover {
+    text-decoration: none !important;
+}
+
+.nav-sublink:hover,
+.nav-sublink:focus,
+#sub-sidebar a:hover,
+#sub-sidebar a:focus,
+button:hover,
+button:focus,
+a:hover,
+a:focus {
+    text-decoration: none !important;
+}
+
+/* Remove hover background changes for standard buttons */
+button.bg-super-accent:hover,
+button.bg-slate-800:hover,
+button.bg-slate-900:hover {
+    background-color: inherit !important;
+    opacity: 1 !important;
+}
+
+#top-edit-btn:disabled:hover {
+    text-decoration: none !important;
+}
+
+
+
+/* ─── Animations ─────────────────────────────────────── */
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-left {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-slide-left {
+    animation: slide-left 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Profile & Notification Panels (Side Drawers) ────── */
+#profile-dropdown,
+#noti-dropdown {
+    box-shadow: -20px 0 50px rgba(15, 23, 42, 0.1);
+    transform-origin: right;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#profile-dropdown.hidden,
+#noti-dropdown.hidden {
+    display: none !important;
+}
+
+#profile-dropdown .nav-link {
+    height: auto !important;
+    padding: 0 !important;
+}
+
+#profile-dropdown button:hover,
+#profile-dropdown a:hover {
+    text-decoration: none !important;
+}
+
+/* Parent Tab Division Lines (Removed redundant borders, using sidebar-divider instead) */
+#sidebar nav>.nav-link,
+#sidebar nav>.nav-group>.nav-link {
+    border: none !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Dashboard Ported Components */
+.student-home-announcements {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.student-home-announcements__tab {
+    border: 0;
+    background: transparent;
+    color: #000000;
+    padding: 0.6rem 1.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.student-home-announcements__tab:hover {
+    background: #f1f5f9;
+    color: #000000;
+}
+
+.student-home-announcements__tab--active {
+    background: #15803d !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(21, 128, 61, 0.2);
+}
+
+.student-home-announcements__feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Announcement Card Style */
+.announcement-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: var(--panel-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.announcement-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.announcement-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.announcement-card__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.announcement-card__badge--admin {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.announcement-card__badge--teacher {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.announcement-card__badge--important {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.announcement-card__time {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.announcement-card__title {
+    margin: 0 0 0.5rem;
+    color: #0f172a;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.announcement-card__body {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.announcement-card__meta {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* SortableJS Visual Feedback */
+.sortable-ghost {
+    background-color: #f8fafc !important;
+    border: 2px dashed #94a3b8 !important;
+    border-radius: 1rem !important;
+    opacity: 0.55 !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+.sortable-drag,
+.sortable-fallback {
+    display: flex !important;
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 20px 30px -8px rgba(0, 0, 0, 0.22), 0 10px 15px -5px rgba(0, 0, 0, 0.12) !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+    z-index: 99999 !important;
+    cursor: grabbing !important;
+    transition: none !important;
+    animation: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+.sortable-drag *,
+.sortable-fallback * {
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Prevent text highlight / selection during drag reorder */
+#subject-topics-list,
+#subject-topics-list *,
+.sigma-black-fade-panel,
+.sigma-black-fade-panel *,
+.sortable-chosen,
+.sortable-chosen *,
+body.sorting-subject-topics,
+body.sorting-subject-topics * {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Subject Editor - Action Buttons */
+#subject-add-topic-header-btn,
+#add-material-trigger {
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, color 0.15s ease-in-out !important;
+}
+
+#add-material-trigger.is-active {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #000000 !important;
+}
+
+#add-material-trigger.is-active i,
+#add-material-trigger.is-active span,
+#add-material-trigger.is-active * {
+    color: #000000 !important;
+}
+
+
+
+/* Card Hover Cursor */
+#sections-grid>div {
+    cursor: default;
+}
+
+/* User Accounts Action Dropdown */
+.action-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.action-dots-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #000;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+}
+
+.action-dots-btn:hover,
+.action-dots-btn.active {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+}
+
+.action-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 8px;
+    min-width: 195px;
+    width: max-content;
+    max-width: 240px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+    padding: 6px;
+    display: none;
+    transform-origin: top right;
+}
+
+.action-dropdown-menu.show {
+    display: block;
+    animation: slide-up 0.2s ease-out;
+}
+
+.action-dropdown-menu.dropup,
+.teacher-dropdown-menu.dropup,
+.sy-action-dropdown.dropup {
+    top: auto !important;
+    bottom: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+    transform-origin: bottom right !important;
+}
+
+.action-dropdown-menu.dropup.show,
+.teacher-dropdown-menu.dropup:not(.hidden),
+.sy-action-dropdown.dropup:not(.hidden) {
+    animation: slide-down 0.2s ease-out;
+}
+
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.action-dropdown-item {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+    color: #000;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: none;
+    font-family: 'Inter', sans-serif !important;
+    cursor: pointer;
+}
+
+.action-dropdown-item:hover {
+    background-color: #f1f5f9;
+}
+
+.action-dropdown-item.danger,
+.action-dropdown-item.text-red-600 {
+    color: #dc2626 !important;
+}
+
+.action-dropdown-item.danger:hover,
+.action-dropdown-item.text-red-600:hover {
+    background-color: #fef2f2 !important;
+    color: #b91c1c !important;
+}
+
+.action-dropdown-item.danger i,
+.action-dropdown-item.text-red-600 i,
+.action-dropdown-item.danger span,
+.action-dropdown-item.text-red-600 span {
+    color: inherit !important;
+}
+
+.action-dropdown-item.text-\[\#15803d\],
+.action-dropdown-item.success {
+    color: #15803d !important;
+}
+
+.action-dropdown-item.text-\[\#15803d\]:hover,
+.action-dropdown-item.success:hover {
+    background-color: #f0fdf4 !important;
+    color: #166534 !important;
+}
+
+.action-dropdown-item.text-\[\#15803d\] i,
+.action-dropdown-item.text-\[\#15803d\] span,
+.action-dropdown-item.success i,
+.action-dropdown-item.success span {
+    color: inherit !important;
+}
+
+.action-dropdown-item i {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+/* Manage Search Fields Checkboxes */
+input[type='checkbox']:checked ~ i.fa-check {
+    opacity: 1 !important;
+}
+
+input[type='checkbox']:checked {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+}
+
+/* =============================================================
+   ENHANCED DROPDOWN & FORM TYPOGRAPHY
+   ============================================================= */
+select,
+select option,
+select optgroup {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 17px !important;
+    line-height: 1.5 !important;
+}
+
+select option {
+    padding: 10px 14px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+}
+
+#mat-topic-id,
+#edit-subject-type,
+#edit-subject-strand,
+#edit-section-grade,
+#edit-section-school-year,
+#edit-user-role,
+#edit-user-gender {
+    font-size: 18px !important;
+    font-weight: 500 !important;
+}
+
+#mat-topic-id option,
+#edit-subject-type option,
+#edit-subject-strand option,
+#edit-section-grade option,
+#edit-section-school-year option,
+#edit-user-role option,
+#edit-user-gender option {
+    font-size: 17px !important;
+    padding: 10px 14px !important;
+    font-weight: 500 !important;
+}
+
+#mat-editor-title,
+#topic-editor-title-input,
+#edit-subject-name,
+#edit-subject-code,
+#edit-subject-units,
+#edit-section-name,
+#edit-section-room,
+#edit-user-firstname,
+#edit-user-middlename,
+#edit-user-lastname,
+#edit-user-id,
+#edit-user-email {
+    font-size: 18px !important;
+    font-weight: 500 !important;
+}
+
+#mat-editor-desc,
+#topic-editor-desc-input,
+#edit-subject-desc {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+}
+
+/* =============================================================
+   BLACK FADE PANELS (Topics, Materials, Files, Rubrics)
+   ============================================================= */
+.sigma-black-fade-panel {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease !important;
+}
+
+.sigma-black-fade-panel:hover {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+
+/* Material title direct text hover yellow */
+.sigma-black-fade-panel h4.cursor-pointer:hover,
+#subject-materials-list h4:hover,
+.material-card-title:hover {
+    color: #FFD000 !important;
+    text-decoration: none !important;
+}
+
+.sigma-black-fade-panel h4,
+.sigma-black-fade-panel h4:hover,
+.sigma-black-fade-panel a,
+.sigma-black-fade-panel a:hover,
+.material-card-title,
+.material-card-title:hover {
+    text-decoration: none !important;
+}
+
+/* Topic panels text remains black on hover */
+#subject-topics-list .sigma-black-fade-panel:hover h4,
+#subject-topics-list .sigma-black-fade-panel:hover h3,
+#subject-topics-list .sigma-black-fade-panel:hover p,
+#subject-topics-list .sigma-black-fade-panel:hover span {
+    color: inherit;
+}
+
+#subject-topics-list .sigma-black-fade-panel:hover h4 {
+    color: #000000 !important;
+}
+
+/* Curriculum View Scope Search Input Placeholder Black Fade */
+#curriculum-scope-search-input::placeholder,
+input#curriculum-scope-search-input::placeholder {
+    color: rgba(0, 0, 0, 0.40) !important;
+    opacity: 1 !important;
+}
+
+.sigma-black-fade-btn {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+    border: 2px dashed rgba(0, 0, 0, 0.18) !important;
+    transition: all 0.15s ease !important;
+}
+
+.sigma-black-fade-btn:hover {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+    border-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* ==========================================================================
+   Shared Dashed Yellow Interactive Panels & Buttons (Single Shared Style)
+   ========================================================================== */
+.sigma-dashed-yellow-slot,
+.sigma-add-topic-dashed-btn,
+.sigma-dashed-dropzone {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+    border: 2px dashed rgba(0, 0, 0, 0.18) !important;
+    color: #000000 !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
+    transform: none !important;
+}
+
+.sigma-dashed-yellow-slot:hover,
+.sigma-add-topic-dashed-btn:hover,
+.sigma-dashed-dropzone:hover {
+    background-color: rgba(255, 208, 0, 0.06) !important;
+    border-color: #FFD000 !important;
+    transform: none !important;
+}
+
+.sigma-add-topic-dashed-btn:hover,
+.sigma-add-topic-dashed-btn:hover span,
+.sigma-add-topic-dashed-btn:hover i,
+.sigma-dashed-yellow-slot:hover,
+.sigma-dashed-yellow-slot:hover p,
+.sigma-dashed-yellow-slot:hover span,
+.sigma-dashed-yellow-slot:hover i,
+.sigma-dashed-dropzone:hover,
+.sigma-dashed-dropzone:hover p,
+.sigma-dashed-dropzone:hover span,
+.sigma-dashed-dropzone:hover h4,
+.sigma-dashed-dropzone:hover h3,
+.sigma-dashed-dropzone:hover label,
+.sigma-dashed-dropzone:hover .text-black,
+.sigma-dashed-dropzone:hover .text-black-fade {
+    color: #b45309 !important;
+}
+
+.sigma-dashed-dropzone:hover p.text-xs,
+.sigma-dashed-dropzone:hover span.text-xs,
+.sigma-dashed-dropzone:hover .text-black-fade {
+    color: #d97706 !important;
+}
+
+.sigma-dashed-dropzone p,
+.sigma-dashed-dropzone span,
+.sigma-dashed-dropzone h4,
+.sigma-dashed-dropzone h3,
+.sigma-dashed-dropzone label {
+    transition: color 0.2s ease !important;
+}
+
+.sigma-dropzone-icon-box {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: var(--black-fade, rgba(0, 0, 0, 0.40)) !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease !important;
+}
+
+.sigma-dropzone-icon-box.sigma-icon-blue,
+.sigma-dropzone-icon-box.sigma-icon-indigo,
+.sigma-dropzone-icon-box.sigma-icon-amber,
+.sigma-dropzone-icon-box.sigma-icon-emerald,
+.sigma-dropzone-icon-box i,
+.sigma-dropzone-icon-box svg {
+    color: var(--black-fade, rgba(0, 0, 0, 0.40)) !important;
+}
+
+.sigma-dashed-dropzone:hover .sigma-dropzone-icon-box {
+    background-color: #FEF3C7 !important;
+    border-color: #FFD000 !important;
+    color: #92400e !important;
+    transform: scale(1.06) !important;
+}
+
+.sigma-dashed-dropzone:hover .sigma-dropzone-icon-box *,
+.sigma-dashed-dropzone:hover .sigma-dropzone-icon-box i,
+.sigma-dashed-dropzone:hover .sigma-dropzone-icon-box svg,
+.sigma-dashed-dropzone:hover > i,
+.sigma-dashed-dropzone:hover > svg {
+    color: #92400e !important;
+}
+
+/* Section Management Metric Cards - Liquid Wandering Fluid Blobs that travel freely across the card */
+@keyframes liquidWander1 {
+    0% {
+        transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1.1);
+        border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    }
+    20% {
+        transform: translate(-50%, -50%) translate(55px, -40px) rotate(72deg) scale(1.35);
+        border-radius: 65% 35% 50% 50% / 30% 60% 40% 70%;
+    }
+    40% {
+        transform: translate(-50%, -50%) translate(-50px, 45px) rotate(144deg) scale(1.05);
+        border-radius: 30% 70% 40% 60% / 60% 30% 70% 40%;
+    }
+    60% {
+        transform: translate(-50%, -50%) translate(45px, 35px) rotate(216deg) scale(1.4);
+        border-radius: 70% 30% 60% 40% / 50% 70% 30% 50%;
+    }
+    80% {
+        transform: translate(-50%, -50%) translate(-40px, -35px) rotate(288deg) scale(1.15);
+        border-radius: 50% 50% 30% 70% / 40% 60% 50% 60%;
+    }
+    100% {
+        transform: translate(-50%, -50%) translate(0px, 0px) rotate(360deg) scale(1.1);
+        border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    }
+}
+
+@keyframes liquidWander2 {
+    0% {
+        transform: translate(-50%, -50%) translate(0px, 0px) rotate(360deg) scale(1.3);
+        border-radius: 55% 45% 40% 60% / 60% 35% 65% 40%;
+    }
+    25% {
+        transform: translate(-50%, -50%) translate(-55px, -40px) rotate(270deg) scale(1.05);
+        border-radius: 40% 60% 70% 30% / 40% 40% 60% 60%;
+    }
+    50% {
+        transform: translate(-50%, -50%) translate(60px, 25px) rotate(180deg) scale(1.38);
+        border-radius: 65% 35% 30% 70% / 70% 30% 70% 30%;
+    }
+    75% {
+        transform: translate(-50%, -50%) translate(-30px, 50px) rotate(90deg) scale(1.12);
+        border-radius: 35% 65% 55% 45% / 50% 60% 40% 50%;
+    }
+    100% {
+        transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg) scale(1.3);
+        border-radius: 55% 45% 40% 60% / 60% 35% 65% 40%;
+    }
+}
+
+.sigma-interactive-metric-card,
+.sigma-section-metric-card {
+    position: relative !important;
+    overflow: hidden !important;
+    background-color: #edf7ee !important;
+    background-image: linear-gradient(145deg, rgba(21, 128, 61, 0.08) 0%, rgba(255, 255, 255, 0.70) 100%) !important;
+    border: 1px solid rgba(21, 128, 61, 0.22) !important;
+    border-left: 4px solid #15803d !important;
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.06),
+        0 1px 3px rgba(0, 0, 0, 0.08),
+        0 8px 24px -4px rgba(21, 128, 61, 0.12) !important;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease !important;
+}
+
+/* Layer 1: Vibrant fresh green with warm sunlit amber/yellow blend (friendly, organic, visibly green without being dark) */
+.sigma-section-metric-card::before {
+    content: '' !important;
+    position: absolute !important;
+    top: var(--mouse-y, -999px) !important;
+    left: var(--mouse-x, -999px) !important;
+    width: 380px !important;
+    height: 380px !important;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(34, 197, 94, 0.65) 0%,     /* Crisp vibrant green core (#22c55e) */
+        rgba(74, 222, 128, 0.58) 28%,   /* Bright friendly leaf green (#4ade80) */
+        rgba(163, 230, 53, 0.45) 52%,   /* Warm sunlit lime-green bridge (#a3e635) */
+        rgba(250, 204, 21, 0.32) 72%,   /* Warm golden yellow glow (#facc15) */
+        rgba(255, 255, 255, 0.65) 86%,  /* Clean soft white rim */
+        transparent 96%
+    ) !important;
+    pointer-events: none !important;
+    opacity: var(--mouse-opacity, 0) !important;
+    filter: blur(22px) !important;
+    animation: liquidWander1 7.0s ease-in-out infinite !important;
+    transition: opacity 0.35s ease !important;
+    z-index: 0 !important;
+}
+
+/* Layer 2: Counter-wandering luminous green with warm amber wave */
+.sigma-section-metric-card::after {
+    content: '' !important;
+    position: absolute !important;
+    top: var(--mouse-y, -999px) !important;
+    left: var(--mouse-x, -999px) !important;
+    width: 350px !important;
+    height: 350px !important;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(74, 222, 128, 0.68) 0%,    /* Bright energetic spring green (#4ade80) */
+        rgba(34, 197, 94, 0.54) 30%,    /* Clear true green body (#22c55e - not dark!) */
+        rgba(190, 242, 100, 0.42) 55%,  /* Luminous apple green (#bef264) */
+        rgba(234, 179, 8, 0.28) 70%,    /* Warm sunlit amber tone (#eab308) */
+        rgba(255, 255, 255, 0.60) 86%,  /* Soft luminous rim */
+        transparent 96%
+    ) !important;
+    pointer-events: none !important;
+    opacity: var(--mouse-opacity, 0) !important;
+    filter: blur(24px) !important;
+    animation: liquidWander2 6.2s ease-in-out infinite !important;
+    transition: opacity 0.35s ease !important;
+    z-index: 0 !important;
+}
+
+.sigma-section-metric-card > * {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Base text styles */
+.sigma-section-metric-card span {
+    transition: color 0.15s ease, text-shadow 0.2s ease !important;
+}
+
+/* Spotlit text under the tracker - dynamic white text with elegant shade */
+.sigma-section-metric-card .metric-text-content {
+    position: relative;
+}
+
+/* Duplicate overlay text that gets revealed in white strictly within the tracker area */
+.sigma-section-metric-card .metric-text-spotlight {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(21, 128, 61, 0.50);
+    opacity: var(--mouse-opacity, 0);
+    -webkit-mask-image: radial-gradient(circle 160px at var(--mouse-x, -999px) var(--mouse-y, -999px), black 0%, black 55%, transparent 100%);
+    mask-image: radial-gradient(circle 160px at var(--mouse-x, -999px) var(--mouse-y, -999px), black 0%, black 55%, transparent 100%);
+    transition: opacity 0.25s ease;
+    z-index: 2;
+}
+
+.sigma-section-metric-card .metric-text-spotlight * {
+    color: #ffffff !important;
+}
+
+.sigma-interactive-metric-card #sy-bar-year,
+.sigma-interactive-metric-card #sy-bar-quarter,
+.sigma-section-metric-card #sy-bar-year,
+.sigma-section-metric-card #sy-bar-quarter {
+    color: #0f172a !important;
+}
+
+.sigma-interactive-metric-card .metric-text-spotlight #sy-bar-year-spotlight,
+.sigma-interactive-metric-card .metric-text-spotlight #sy-bar-quarter-spotlight,
+.sigma-interactive-metric-card .metric-text-spotlight #sy-bar-dates-spotlight,
+.sigma-interactive-metric-card .metric-text-spotlight #sy-bar-dates-spotlight * {
+    color: #ffffff !important;
+}
+
+.sigma-interactive-metric-card.flex-1 .metric-text-spotlight {
+    -webkit-mask-image: radial-gradient(circle 260px at var(--mouse-x, -999px) var(--mouse-y, -999px), black 0%, black 60%, transparent 100%) !important;
+    mask-image: radial-gradient(circle 260px at var(--mouse-x, -999px) var(--mouse-y, -999px), black 0%, black 60%, transparent 100%) !important;
+}
+
+.sigma-interactive-metric-card:hover,
+.sigma-section-metric-card:hover {
+    background-color: #f0fdf4 !important;
+    border-color: rgba(34, 197, 94, 0.40) !important;
+    border-left-color: #16a34a !important;
+    box-shadow: 
+        0 12px 28px -4px rgba(0, 0, 0, 0.09),
+        0 4px 10px rgba(0, 0, 0, 0.05),
+        0 14px 30px -3px rgba(21, 128, 61, 0.22) !important;
+    transform: translateY(-3px) !important;
+}
+
+.sigma-section-metric-card .metric-icon-box {
+    position: relative !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 
+        0 2px 6px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(255, 255, 255, 0.8) !important;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease !important;
+    overflow: hidden !important;
+}
+
+/* Friendly soft radiant aura inside icon box */
+.sigma-section-metric-card .metric-icon-box::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: -2px !important;
+    background: radial-gradient(circle at center, rgba(187, 247, 208, 0.60) 0%, rgba(254, 240, 138, 0.35) 50%, transparent 80%) !important;
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease !important;
+    pointer-events: none !important;
+    border-radius: inherit !important;
+}
+
+/* Base icon glyph - clean crisp black */
+.sigma-section-metric-card .metric-icon-box .metric-icon-base {
+    position: relative !important;
+    z-index: 2 !important;
+    color: #0f172a !important; /* Bold solid black */
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease !important;
+}
+
+/* Spotlight white icon - revealed dynamically only when tracking fluid passes by */
+.sigma-section-metric-card .metric-icon-box .metric-icon-spotlight {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 3 !important;
+    color: #ffffff !important;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 6px rgba(21, 128, 61, 0.7)) !important;
+    opacity: var(--mouse-opacity, 0);
+    -webkit-mask-image: radial-gradient(circle 120px at var(--icon-mouse-x, -999px) var(--icon-mouse-y, -999px), black 0%, black 50%, transparent 100%);
+    mask-image: radial-gradient(circle 120px at var(--icon-mouse-x, -999px) var(--icon-mouse-y, -999px), black 0%, black 50%, transparent 100%);
+    transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    pointer-events: none !important;
+}
+
+/* When hovered, clean crisp white box with cheerful mint-gold aura */
+.sigma-section-metric-card:hover .metric-icon-box {
+    background: #ffffff !important;
+    border-color: rgba(34, 197, 94, 0.45) !important;
+    box-shadow: 
+        0 6px 16px -2px rgba(34, 197, 94, 0.22),
+        0 0 12px 2px rgba(254, 240, 138, 0.35) !important;
+}
+
+.sigma-section-metric-card:hover .metric-icon-box::before {
+    opacity: 1 !important;
+    transform: rotate(45deg) scale(1.15) !important;
+}
+
+.sigma-section-metric-card:hover .metric-icon-box .metric-icon-base,
+.sigma-section-metric-card:hover .metric-icon-box .metric-icon-spotlight {
+    transform: scale(1.15);
+}
+
+/* --- CANONICAL SHARED INTERACTIVE SCHOOL YEAR HERO BANNER --- */
+.sigma-interactive-sy-banner {
+    position: relative !important;
+    overflow: hidden !important;
+    background: linear-gradient(135deg, #15803d 0%, #166534 100%) !important;
+    border: 1px solid rgba(74, 222, 128, 0.35) !important;
+    box-shadow: 0 10px 25px -5px rgba(21, 128, 61, 0.35), 0 8px 10px -6px rgba(21, 128, 61, 0.25) !important;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+
+.sigma-interactive-sy-banner:hover {
+    transform: translateY(-2px);
+    border-color: rgba(134, 239, 172, 0.55) !important;
+    box-shadow: 0 16px 32px -6px rgba(21, 128, 61, 0.45), 0 0 20px 2px rgba(74, 222, 128, 0.25) !important;
+}
+
+/* Layer 1: Radiant emerald & sunlit lime fluid sweep across the banner */
+.sigma-interactive-sy-banner::before {
+    content: '' !important;
+    position: absolute !important;
+    top: var(--mouse-y, -999px) !important;
+    left: var(--mouse-x, -999px) !important;
+    width: 480px !important;
+    height: 480px !important;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(74, 222, 128, 0.65) 0%,     /* Radiant spring green (#4ade80) */
+        rgba(163, 230, 53, 0.48) 32%,    /* Sunlit lime (#a3e635) */
+        rgba(250, 204, 21, 0.32) 58%,    /* Warm golden amber (#facc15) */
+        rgba(255, 255, 255, 0.60) 78%,   /* Luminous aurora rim */
+        transparent 95%
+    ) !important;
+    pointer-events: none !important;
+    opacity: var(--mouse-opacity, 0) !important;
+    filter: blur(28px) !important;
+    animation: liquidWander1 7.0s ease-in-out infinite !important;
+    transition: opacity 0.35s ease !important;
+    z-index: 0 !important;
+}
+
+/* Layer 2: Counter-wandering rich emerald & warm amber aurora wave */
+.sigma-interactive-sy-banner::after {
+    content: '' !important;
+    position: absolute !important;
+    top: var(--mouse-y, -999px) !important;
+    left: var(--mouse-x, -999px) !important;
+    width: 440px !important;
+    height: 440px !important;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(34, 197, 94, 0.70) 0%,     /* Vivid deep leaf green (#22c55e) */
+        rgba(74, 222, 128, 0.52) 34%,   /* Fresh lively green (#4ade80) */
+        rgba(234, 179, 8, 0.28) 64%,    /* Warm sunlit amber (#eab308) */
+        rgba(255, 255, 255, 0.55) 84%,  /* Soft luminous rim */
+        transparent 96%
+    ) !important;
+    pointer-events: none !important;
+    opacity: var(--mouse-opacity, 0) !important;
+    filter: blur(30px) !important;
+    animation: liquidWander2 6.2s ease-in-out infinite !important;
+    transition: opacity 0.35s ease !important;
+    z-index: 0 !important;
+}
+
+.sigma-interactive-sy-banner > * {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Backlit text glow under the fluid tracker */
+.sigma-interactive-sy-banner:hover #sy-bar-year,
+.sigma-interactive-sy-banner:hover #sy-bar-quarter {
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.40), 0 0 24px rgba(134, 239, 172, 0.70);
+    transition: text-shadow 0.3s ease;
+}
+
+/* Edit Roles and Permissions Modal Category Navigation Tabs */
+.perm-category-tab.active {
+    background-color: #FFD000 !important;
+    color: #ffffff !important;
+}
+
+.perm-category-tab.active span,
+.perm-category-tab.active i {
+    color: #ffffff !important;
+}
+
+.perm-category-tab:not(.active) {
+    color: #000000 !important;
+}
+
+.perm-category-tab:not(.active) span,
+.perm-category-tab:not(.active) i {
+    color: #000000 !important;
+}
+
+/* ==========================================================================
+   Section Step 2 Action Headers & Universal Yellow Hover (#FFD000)
+   ========================================================================== */
+.hover\:text-\[\#FFD000\]:hover,
+.hover\:text-\[\#FFD000\]:hover *,
+.group:hover .group-hover\:text-\[\#FFD000\],
+#section-assign-subject-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-subject-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-schedule-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-schedule-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-teacher-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-teacher-header-btn:hover:not(.pointer-events-none):not(.opacity-40) *,
+#section-assign-students-header-btn:hover:not(.pointer-events-none):not(.opacity-40),
+#section-assign-students-header-btn:hover:not(.pointer-events-none):not(.opacity-40) * {
+    color: #FFD000 !important;
+}
+
+/* Admin Grades Header Panel & Subject Picker Dropdown */
+#admin-grades-shared-navbar {
+    position: relative !important;
+    z-index: 60 !important;
+    overflow: visible !important;
+}
+
+#admin-grades-subject-section-dropdown-wrapper {
+    position: relative !important;
+    z-index: 70 !important;
+    overflow: visible !important;
+}
+
+#admin-grades-subject-picker-menu {
+    position: absolute !important;
+    z-index: 200 !important;
+}
+
+#admin-gradebook-spreadsheet thead th {
+    z-index: 30 !important;
+    cursor: default !important;
+}
+
+#admin-gradebook-spreadsheet thead th button,
+#admin-gradebook-spreadsheet thead th .cursor-pointer,
+#admin-gradebook-spreadsheet thead th button *,
+#admin-gradebook-spreadsheet thead th .cursor-pointer * {
+    cursor: pointer !important;
+}
+
+/* Shared Brand Green Utility */
+.bg-\[\#15803d\] {
+    background-color: #15803d !important;
+}
+
+/* Section Modal Step Badges Alignment & Centering */
+#section-subject-step-num,
+#section-schedule-step-num,
+#section-teacher-step-num,
+#section-students-step-num {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+}
+
+#section-subject-step-num svg,
+#section-schedule-step-num svg,
+#section-teacher-step-num svg,
+#section-students-step-num svg {
+    display: block !important;
+    margin: auto !important;
+}
+
+/* Hide subject segmented nav bar in topics/materials or standalone mode */
+#subject-edit-overlay.content-mode #subject-segmented-header,
+#subject-edit-overlay.standalone-mode #subject-segmented-header,
+#subject-edit-overlay.hide-bars #subject-segmented-header {
+    display: none !important;
+}
+
+
+
+

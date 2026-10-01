@@ -1,0 +1,1318 @@
+/**
+ * SIGMA ELMS - Unified Announcement Feed & Card Templates
+ * Handles: Text-only, Text with Picture, Text with Video templates,
+ * Tab navigation (Announcements, Important, Posts), Legible Timestamps, 
+ * Like action, and Author/Admin Edit & Delete menu.
+ */
+
+/* ═════════════════════════════════════════════════════════════════════════
+   1. FEED TAB FILTER BAR
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-feed-tabs-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.sigma-feed-tab-btn {
+    flex: 1 1 0px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border-radius: 9999px;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em;
+    border: none;
+    background: transparent;
+    color: #334155 !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.sigma-feed-tab-btn:not(.active) {
+    color: #334155 !important;
+    font-weight: 500 !important;
+}
+
+.sigma-feed-tab-btn:hover:not(.active) {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+.sigma-feed-tab-btn.active {
+    background: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(21, 128, 61, 0.20);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   2. ANNOUNCEMENT CARD BASE STRUCTURE
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-announcement-card {
+    --sigma-card-pad-x: 1.5rem;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+    padding: 1.25rem var(--sigma-card-pad-x) !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+    margin-bottom: 0.75rem !important;
+    position: relative !important;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    overflow: visible !important;
+}
+
+.sigma-announcement-card:hover {
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Card Header */
+.sigma-card-header-row {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.sigma-card-author-meta {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+.sigma-card-author-avatar-img,
+.sigma-card-author-meta .sigma-user-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 9999px !important;
+    object-fit: cover;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    flex-shrink: 0 !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, filter 0.2s ease !important;
+}
+
+.sigma-card-author-meta .sigma-user-avatar i {
+    font-size: 16px !important;
+    color: #94a3b8 !important;
+    transition: color 0.2s ease !important;
+}
+
+/* Hover grey highlight on announcement author avatar */
+.sigma-card-author-meta > div:first-child:hover .sigma-user-avatar,
+.sigma-card-author-meta > div:first-child:hover .sigma-card-author-avatar-img,
+.sigma-card-author-meta .sigma-user-avatar:hover,
+.sigma-card-author-meta .sigma-card-author-avatar-img:hover,
+.sigma-announcement-card .sigma-user-avatar:hover,
+.sigma-announcement-card .sigma-card-author-avatar-img:hover {
+    background-color: #e2e8f0 !important;
+    border-color: #cbd5e1 !important;
+    cursor: pointer;
+}
+
+.sigma-card-author-meta > div:first-child:hover .sigma-user-avatar i,
+.sigma-card-author-meta .sigma-user-avatar:hover i,
+.sigma-announcement-card .sigma-user-avatar:hover i {
+    color: #64748b !important;
+}
+
+.sigma-card-author-meta > div:first-child:hover .sigma-user-avatar img,
+.sigma-card-author-meta .sigma-user-avatar:hover img,
+.sigma-card-author-meta .sigma-card-author-avatar-img:hover,
+.sigma-announcement-card .sigma-user-avatar:hover img,
+.sigma-announcement-card .sigma-card-author-avatar-img:hover {
+    filter: brightness(0.94) !important;
+}
+
+.sigma-card-author-meta > div:first-child:active .sigma-user-avatar,
+.sigma-card-author-meta .sigma-user-avatar:active,
+.sigma-announcement-card .sigma-user-avatar:active {
+    background-color: #cbd5e1 !important;
+}
+
+.sigma-card-author-text-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.sigma-card-author-fullname {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.sigma-badge-important {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: #fef3c7 !important;
+    border: 1px solid #fde68a !important;
+    color: #92400e !important;
+    border-radius: 9999px !important;
+    padding: 1.5px 5px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+    user-select: none !important;
+    box-shadow: 0 1px 2px rgba(245, 158, 11, 0.12) !important;
+    transition: all 0.15s ease !important;
+}
+
+.sigma-badge-important i {
+    color: #d97706 !important;
+    font-size: 9.5px !important;
+    display: inline-block !important;
+    line-height: 1 !important;
+}
+
+.sigma-card-author-subrow {
+    display: flex !important;
+    align-items: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-top: 1px !important;
+}
+
+.sigma-card-author-role-subtitle {
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    line-height: 1.25 !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    margin-top: 2px !important;
+}
+
+.sigma-card-audience-badge,
+.sigma-card-section-badge {
+    display: inline-flex !important;
+    align-items: flex-start !important;
+    gap: 5px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: #334155 !important;
+    background-color: #f1f5f9 !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    padding: 2px 7.5px !important;
+    border-radius: 10px !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    min-width: 0 !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    flex: 0 1 max-content !important;
+    flex-shrink: 1 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    transition: all 0.15s ease !important;
+}
+
+.sigma-card-section-badge i,
+.sigma-card-audience-badge i {
+    flex-shrink: 0 !important;
+    font-size: 9.5px !important;
+    margin-top: 2.5px !important;
+    line-height: 1 !important;
+}
+
+.sigma-card-badge-label-text {
+    display: inline !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.25 !important;
+    font-weight: 500 !important;
+}
+
+.sigma-badge-sec-name {
+    white-space: nowrap !important;
+    font-weight: 500 !important;
+}
+
+.sigma-badge-bullet {
+    display: inline !important;
+    white-space: nowrap !important;
+}
+
+.sigma-badge-subj-name {
+    display: inline !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    font-weight: 500 !important;
+}
+
+/* Header Right: Legible Date/Time & Options Menu */
+.sigma-card-header-right {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+    min-height: 22px !important;
+    height: 22px !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.sigma-card-timestamp-text {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.01em !important;
+    line-height: 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+}
+
+/* Options Ellipsis Button & Dropdown */
+.sigma-card-options-wrapper {
+    position: relative;
+    z-index: 30;
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 22px !important;
+}
+
+.sigma-card-options-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    border: none;
+    background: transparent;
+    color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 30;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sigma-card-options-btn:hover,
+.sigma-card-options-btn:focus,
+.sigma-card-options-btn.active {
+    background: #f1f5f9;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.sigma-card-options-btn:hover i,
+.sigma-card-options-btn:focus i,
+.sigma-card-options-btn.active i {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.sigma-card-options-dropdown {
+    position: fixed;
+    min-width: 125px;
+    width: max-content;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+    padding: 4px !important;
+    z-index: 9999 !important;
+    display: none;
+    box-sizing: border-box !important;
+}
+
+.sigma-card-options-dropdown.show {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    animation: menuFadeIn 0.12s ease;
+}
+
+@keyframes menuFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sigma-card-options-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: #000000;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: background 0.12s ease, color 0.12s ease;
+    box-sizing: border-box;
+}
+
+.sigma-card-options-item i {
+    font-size: 11px;
+    width: 14px;
+    text-align: center;
+    color: #000000 !important;
+    flex-shrink: 0;
+}
+
+.sigma-card-options-item span {
+    font-size: 12px;
+    font-weight: 500;
+    color: #000000;
+}
+
+.sigma-card-options-item:hover {
+    background: #f1f5f9;
+    color: #000000;
+}
+
+.sigma-card-options-item.delete-item {
+    color: #000000;
+}
+
+.sigma-card-options-item.delete-item:hover {
+    background: #f1f5f9;
+    color: #000000;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   3. CARD TITLE & BODY CONTENT
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-card-post-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.35;
+    margin: 0 0 0.5rem 0;
+    word-break: break-word;
+}
+
+.sigma-card-post-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    margin: 0 0 0.875rem 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.sigma-card-see-more-btn {
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    display: inline-block;
+    transition: text-decoration 0.12s ease;
+}
+
+.sigma-card-see-more-btn:hover {
+    text-decoration: underline;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   4. TEMPLATE SIZING FOR MEDIA (TEXT ONLY, PICTURE, VIDEO)
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* Template 1: Text-Only (Natural self-sizing) */
+.sigma-announcement-card--text-only {
+    min-height: auto !important;
+}
+
+/* Template 2: Text with Picture (Edge-to-edge container, no padding, no radius, full uncropped original image, pointer cursor) */
+.sigma-card-media-picture-container {
+    width: calc(100% + (var(--sigma-card-pad-x, 1.5rem) * 2)) !important;
+    max-width: none !important;
+    margin-left: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    margin-right: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    max-height: 520px;
+    border-radius: 0 !important;
+    overflow: hidden;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+    background: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-left: none !important;
+    border-right: none !important;
+    cursor: pointer !important;
+}
+
+.sigma-card-media-picture-container img {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: 520px;
+    object-fit: contain !important;
+    border-radius: 0 !important;
+    display: block !important;
+    margin: 0 auto !important;
+    cursor: pointer !important;
+    background: #000000 !important;
+}
+
+/* Multi-Photo Grid (2, 3, 4+ Small Images Layouts) */
+.sigma-card-photo-grid {
+    width: calc(100% + (var(--sigma-card-pad-x, 1.5rem) * 2)) !important;
+    max-width: none !important;
+    margin-left: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    margin-right: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    display: grid !important;
+    gap: 3px !important;
+    background: #000000 !important;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+    overflow: hidden !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 2 Images: 2 equal side-by-side square columns, no bottom black void */
+.sigma-card-photo-grid.count-2 {
+    grid-template-columns: 1fr 1fr !important;
+    aspect-ratio: 2 / 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+/* 3 Images: 1 prominent on left spanning 2 rows, 2 stacked on right */
+.sigma-card-photo-grid.count-3 {
+    grid-template-columns: 1.6fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    aspect-ratio: 16 / 10 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+.sigma-card-photo-grid.count-3 .sigma-grid-img-cell:first-child {
+    grid-row: span 2 !important;
+}
+
+/* 4+ Images: 2x2 grid with 4 quadrants */
+.sigma-card-photo-grid.count-4 {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+.sigma-grid-img-cell {
+    position: relative !important;
+    overflow: hidden !important;
+    background: #000000 !important;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: pointer !important;
+}
+
+.sigma-grid-img-cell img {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: unset !important;
+    object-fit: cover !important;
+    display: block !important;
+    cursor: pointer !important;
+    transform: none !important;
+    transition: opacity 0.15s ease !important;
+}
+
+.sigma-grid-img-cell:hover img {
+    transform: none !important;
+    opacity: 0.95 !important;
+}
+
+.sigma-grid-more-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.58) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #ffffff !important;
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    pointer-events: none !important;
+    transition: background 0.15s ease !important;
+}
+
+.sigma-grid-img-cell:hover .sigma-grid-more-overlay {
+    background: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Multi-Image Composer Preview: strictly 2 columns only (pair rows, 4 = 2 rows of 2, etc.) with tight spacing */
+.sigma-composer-multi-preview-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-preview-thumb-box {
+    position: relative !important;
+    height: 140px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* If exactly 2 images, give them slightly more vertical space for a clean pair */
+.sigma-composer-multi-preview-grid.is-pair-only .sigma-composer-preview-thumb-box,
+.sigma-composer-preview-thumb-box.count-2 {
+    height: 175px !important;
+    border-radius: 12px !important;
+}
+
+.sigma-composer-preview-thumb-box img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+}
+
+.sigma-composer-preview-thumb-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+}
+
+.sigma-composer-preview-thumb-remove:hover {
+    background: #ef4444;
+    transform: scale(1.08);
+}
+
+.sigma-composer-preview-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 4px;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-preview-counter {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.sigma-composer-btn-add-more {
+    font-size: 12px;
+    font-weight: 700;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sigma-composer-btn-add-more:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+/* Template 3: Text with Video (Edge-to-edge container, no side padding, clean aspect ratio fit) */
+.sigma-card-media-video-container {
+    width: calc(100% + (var(--sigma-card-pad-x, 1.5rem) * 2)) !important;
+    max-width: none !important;
+    margin-left: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    margin-right: calc(var(--sigma-card-pad-x, 1.5rem) * -1) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 520px !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+    background: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+.sigma-card-media-video-container video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 520px !important;
+    object-fit: contain !important;
+    display: block !important;
+    background: #000000 !important;
+    margin: 0 auto !important;
+    border-radius: 0 !important;
+    outline: none !important;
+}
+
+/* Remove redundant top-right fullscreen button (Native video controls provide fullscreen) */
+.sigma-card-video-expand-btn,
+button.sigma-card-video-expand-btn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   5. ACTIONS BAR (LIKES & COMMENTS BUTTONS)
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-card-footer-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    border-top: none !important;
+    margin-top: 6px !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-card-like-btn,
+.sigma-card-comment-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 12px !important;
+    border-radius: 9999px !important;
+    border: 1px solid var(--sigma-black-fade-border, rgba(0, 0, 0, 0.10)) !important;
+    background: var(--sigma-black-fade-bg, rgba(0, 0, 0, 0.035)) !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+    user-select: none !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.sigma-card-like-btn i,
+.sigma-card-comment-btn i {
+    font-size: 11px !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+    width: 12px !important;
+    text-align: center !important;
+}
+
+.sigma-card-like-btn i {
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.15s ease !important;
+}
+
+.sigma-card-like-btn i.fa-regular,
+.sigma-card-comment-btn i.fa-regular {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 400 !important;
+}
+
+.sigma-card-like-btn span,
+.sigma-card-comment-btn span {
+    line-height: 1 !important;
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
+.sigma-card-like-btn.liked {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+    color: #dc2626 !important;
+}
+
+.sigma-card-like-btn.liked i,
+.sigma-card-like-btn.liked i.fa-solid {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 900 !important;
+    color: #ef4444 !important;
+    transform: scale(1.15) !important;
+}
+
+/* Desktop Hover States */
+@media (hover: hover) and (pointer: fine) {
+    .sigma-card-like-btn:hover,
+    .sigma-card-comment-btn:hover {
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: rgba(0, 0, 0, 0.80) !important;
+    }
+    .sigma-card-like-btn:hover i,
+    .sigma-card-comment-btn:hover i {
+        color: rgba(0, 0, 0, 0.80) !important;
+    }
+    .sigma-card-like-btn.liked:hover {
+        background: #fee2e2 !important;
+        border-color: #fca5a5 !important;
+        color: #dc2626 !important;
+    }
+    .sigma-card-like-btn.liked:hover i {
+        color: #ef4444 !important;
+    }
+}
+
+/* Mobile Touch States (No sticky hover background) */
+@media (hover: none), (pointer: coarse) {
+    .sigma-card-like-btn,
+    .sigma-card-comment-btn {
+        -webkit-tap-highlight-color: transparent !important;
+    }
+    .sigma-card-like-btn:active,
+    .sigma-card-comment-btn:active {
+        background: rgba(0, 0, 0, 0.08) !important;
+    }
+    .sigma-card-like-btn.liked:active {
+        background: #fee2e2 !important;
+    }
+}
+
+/* Bottom right menu trigger if needed */
+.sigma-card-bottom-options {
+    display: flex;
+    align-items: center;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   6. DELETE CONFIRMATION MODAL
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-delete-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2300;
+    background-color: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+
+.sigma-delete-dialog-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sigma-delete-dialog {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 1.75rem;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sigma-delete-dialog-backdrop.active .sigma-delete-dialog {
+    transform: scale(1) translateY(0);
+}
+
+.sigma-delete-icon-circle {
+    width: 52px;
+    height: 52px;
+    border-radius: 9999px;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.sigma-delete-dialog-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.5rem 0;
+}
+
+.sigma-delete-dialog-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0 0 1.5rem 0;
+}
+
+.sigma-delete-dialog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.sigma-delete-btn-cancel {
+    flex: 1;
+    height: 42px;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto !important;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.sigma-delete-btn-cancel:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.sigma-delete-btn-cancel:active {
+    transform: scale(0.98);
+}
+
+.sigma-delete-btn-confirm {
+    flex: 1;
+    height: 42px;
+    border: none !important;
+    background: #15803d !important;
+    color: #ffffff !important;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto !important;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.sigma-delete-btn-confirm:hover {
+    background: #166534 !important;
+}
+
+.sigma-delete-btn-confirm:active {
+    transform: scale(0.98);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   7. FULLSCREEN IMAGE LIGHTBOX / PREVIEW MODAL
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-card-important-star-icon {
+    color: #eab308 !important;
+    font-size: 15px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: 6px !important;
+    filter: drop-shadow(0 1px 3px rgba(234, 179, 8, 0.4)) !important;
+    vertical-align: middle !important;
+}
+
+/* Strict Scroll Lock while Lightbox is open */
+html.sigma-lightbox-open,
+body.sigma-lightbox-open,
+html.overflow-hidden,
+body.overflow-hidden {
+    overflow: hidden !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    touch-action: none !important;
+    overscroll-behavior: none !important;
+}
+
+.sigma-image-lightbox-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.96) !important;
+    z-index: 2147483647 !important;
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    cursor: default !important;
+    opacity: 0;
+    transition: opacity 0.2s ease !important;
+    user-select: none !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+    overscroll-behavior: none !important;
+}
+
+.sigma-image-lightbox-overlay.active {
+    display: flex !important;
+    opacity: 1 !important;
+}
+
+.sigma-image-lightbox-container {
+    position: relative !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: default !important;
+    overflow: hidden !important;
+}
+
+.sigma-image-lightbox-img {
+    width: auto !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
+    object-fit: contain !important;
+    display: block !important;
+    animation: sigmaZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.15s ease !important;
+}
+
+.sigma-image-lightbox-video {
+    width: auto !important;
+    max-width: calc(100vw - 48px) !important;
+    height: calc(100vh - 48px) !important;
+    max-height: calc(100vh - 48px) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85) !important;
+    object-fit: contain !important;
+    display: block !important;
+    outline: none !important;
+    background: #000000 !important;
+    animation: sigmaZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.15s ease !important;
+}
+
+/* Exit button outside the image: pure exit icon with NO highlighted circle */
+.sigma-image-lightbox-close {
+    position: fixed !important;
+    top: 24px !important;
+    right: 28px !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    font-size: 34px !important;
+    padding: 8px !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    z-index: 2147483647 !important;
+    opacity: 0.95;
+    transition: opacity 0.15s ease !important;
+}
+
+.sigma-image-lightbox-close:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+}
+
+/* Lightbox Navigation Buttons (Previous & Next) */
+.sigma-lightbox-nav-btn {
+    position: fixed !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: #ffffff !important;
+    border: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    border-radius: 0 !important;
+    display: flex;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 32px !important;
+    cursor: pointer !important;
+    transition: opacity 0.15s ease !important;
+    z-index: 2147483647 !important;
+    box-shadow: none !important;
+    padding: 12px !important;
+    line-height: 1 !important;
+    opacity: 0.95;
+}
+
+.sigma-lightbox-nav-btn i {
+    font-size: 32px !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+}
+
+.sigma-lightbox-nav-btn.hidden,
+.sigma-lightbox-counter.hidden {
+    display: none !important;
+}
+
+.sigma-lightbox-nav-btn:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    transform: translateY(-50%) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    cursor: pointer !important;
+}
+
+.sigma-lightbox-nav-prev {
+    left: 24px !important;
+}
+
+.sigma-lightbox-nav-next {
+    right: 24px !important;
+}
+
+.sigma-lightbox-counter {
+    position: fixed !important;
+    bottom: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    color: #f1f5f9 !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(8px) !important;
+    padding: 6px 16px !important;
+    border-radius: 9999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    z-index: 2147483647 !important;
+    display: block;
+}
+
+/* Lightbox Post Like Action Bar (Synced with Announcement Post) */
+.sigma-lightbox-actions-bar {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 28px !important;
+    left: auto !important;
+    z-index: 2147483647 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.sigma-lightbox-actions-bar.hidden,
+.sigma-lightbox-actions-bar[style*="display: none"] {
+    display: none !important;
+}
+
+.sigma-lightbox-like-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    background: rgba(15, 23, 42, 0.78) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
+    color: #f1f5f9 !important;
+    width: 58px !important;
+    height: 64px !important;
+    border-radius: 18px !important;
+    cursor: pointer !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55) !important;
+    transition: all 0.2s ease !important;
+    user-select: none !important;
+    padding: 0 !important;
+}
+
+.sigma-lightbox-like-btn i {
+    font-size: 22px !important;
+    line-height: 1 !important;
+    transition: transform 0.15s ease, color 0.15s ease !important;
+}
+
+.sigma-lightbox-like-btn i.fa-regular {
+    font-weight: 400 !important;
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+}
+
+.sigma-lightbox-like-btn i.fa-solid {
+    font-weight: 900 !important;
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+}
+
+.sigma-lightbox-like-btn span {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    color: #f1f5f9;
+    letter-spacing: 0.02em !important;
+}
+
+.sigma-lightbox-like-btn:hover {
+    background: rgba(15, 23, 42, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.48) !important;
+    transform: scale(1.08) !important;
+}
+
+.sigma-lightbox-like-btn.liked {
+    border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+.sigma-lightbox-like-btn.liked i,
+.sigma-lightbox-like-btn.liked span {
+    color: #ef4444 !important;
+}
+
+@keyframes sigmaZoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Remove bottom gap between the feed stream / cards and bottom of viewport */
+.sigma-announcement-card:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Saved photos stay hidden only until the real file is attached. No broken icon, no black box. */
+.sigma-card-media-picture-container:not(.is-ready),
+.sigma-card-photo-grid:not(.is-ready),
+img[data-idb-pending="1"] {
+    display: none !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   INFINITE SCROLL LAZY-LOAD SENTINEL (4 posts at a time, Desktop & Mobile)
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-feed-sentinel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    padding: 14px 0 20px 0;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.sigma-feed-sentinel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 6px 14px;
+    border-radius: 9999px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+
+

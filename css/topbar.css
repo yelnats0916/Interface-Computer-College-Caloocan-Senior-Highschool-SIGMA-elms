@@ -1,0 +1,2252 @@
+/**
+ * SIGMA ELMS - Unified Topbar Component Stylesheet
+ * Interface Computer College - Caloocan Senior High School ELMS
+ * Locked at exact 82px total header height across all portals.
+ */
+
+:root {
+    /* Exact Header Dimensions (82px Total on ALL pages) */
+    --header-total-height: 82px;
+    --top-nav-green-height: 26px;
+    --topbar-white-height: 56px;
+
+
+    /* ICC Theme Colors */
+    --icc-green-primary: #15803d;
+    --icc-green-dark: #14532d;
+    --icc-green-light: #dcfce7;
+    --icc-yellow: #FFD000;
+    --admin-bg: #f8fafc;
+    --sigma-black-fade: rgba(0, 0, 0, 0.45);
+}
+
+/* ─── 1. Universal Topbar Container (Total 82px Height) ─────────────────── */
+.admin-global-header,
+.portal-global-header,
+#teacher-header,
+#student-header,
+#admin-header {
+    height: var(--header-total-height) !important;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 250;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 2px solid var(--icc-green-primary) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Main workspace offset for fixed 82px topbar */
+.portal-main-wrapper {
+    margin-top: var(--header-total-height);
+    min-height: calc(100vh - var(--header-total-height));
+}
+
+/* ─── 2. Green School Year Strip (Height: 26px - Teacher Standard) ──────── */
+.top-nav {
+    position: relative !important;
+    z-index: 400 !important;
+    width: 100%;
+    height: var(--top-nav-green-height, 26px) !important;
+    min-height: var(--top-nav-green-height, 26px) !important;
+    background-color: var(--icc-green-primary, #15803d) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    color: #ffffff !important;
+    font-size: 11px;
+    font-weight: 500;
+    border-bottom: none;
+    box-sizing: border-box;
+}
+
+/* ─── Top-Nav Full Line Progress Bar (Slim Full-Width Progress Indicator) ──── */
+.top-nav-loading-bar {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 3px !important;
+    background: rgba(0, 0, 0, 0.15) !important; /* Continuous full width track */
+    overflow: hidden !important;
+    pointer-events: none !important;
+    z-index: 9999 !important;
+    display: block !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.25s ease, visibility 0.25s ease !important;
+}
+
+.top-nav-loading-bar.active,
+.top-nav-loading-bar.finishing {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* The actual progress bar filling the line - One Solid Color (ICC Yellow) */
+.top-nav-loading-bar__fill {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100% !important;
+    width: 0%;
+    background: #FFD000 !important; /* Pure solid ICC Gold/Yellow */
+    box-shadow: 0 0 8px rgba(255, 208, 0, 0.75) !important;
+    transition: width 0.28s cubic-bezier(0.1, 0.8, 0.3, 1) !important;
+    will-change: width !important;
+}
+
+/* Subtle warm gold shimmer (no white) */
+.top-nav-loading-bar.active .top-nav-loading-bar__fill::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%) !important;
+    animation: topNavProgressShimmer 1.1s infinite ease-in-out !important;
+}
+
+@keyframes topNavProgressShimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.top-nav #global-sy-display {
+    color: #ffffff !important;
+    text-transform: none !important;
+}
+
+.top-nav span,
+.top-nav i {
+    color: #ffffff !important;
+}
+
+.top-nav__lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+}
+
+.top-nav__lang i {
+    font-size: 11px;
+    color: #ffffff !important;
+}
+
+.top-nav__lang span {
+    color: #ffffff !important;
+}
+
+/* ─── 3. White Branding & Controls Bar (Height: 56px) ──────────────────── */
+.admin-topbar__inner {
+    width: 100%;
+    height: var(--topbar-white-height) !important;
+    min-height: var(--topbar-white-height) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px 0 0;
+    position: relative;
+    background-color: #ffffff;
+    border-bottom: 2px solid var(--icc-green-primary) !important;
+    box-sizing: border-box !important;
+}
+
+.admin-topbar__brand {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    height: 100%;
+    position: relative;
+    z-index: 2;
+}
+
+.admin-topbar__brand-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-left: 0;
+    flex: 1 1 auto;
+}
+
+.admin-topbar__mobile-actions {
+    display: none;
+}
+
+#sidebarToggleBtn {
+    width: 82px !important;
+    height: var(--topbar-white-height, 56px) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+#sidebarToggleBtn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background-color 0.2s ease;
+    z-index: -1;
+}
+
+#sidebarToggleBtn:hover::before {
+    background-color: #f1f5f9;
+}
+
+#sidebarToggleBtn i {
+    font-size: 17px;
+    color: #000000;
+}
+
+#logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 72px;
+    height: var(--topbar-white-height, 56px);
+    margin: 0;
+}
+
+#logo-container button,
+#nav-logo-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    cursor: pointer;
+}
+
+#logo-container img,
+#nav-logo-btn img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
+}
+
+.admin-topbar__brand-label,
+#nav-context-text,
+#header-brand-title {
+    margin: 0;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    letter-spacing: -0.01em !important;
+    text-transform: none !important;
+    color: #000000 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    text-decoration: none !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.admin-topbar__brand-label *,
+#nav-context-text *,
+#header-brand-title * {
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    text-decoration: none !important;
+}
+
+.admin-topbar__brand-label:hover,
+.admin-topbar__brand-label *:hover,
+#nav-context-text:hover,
+#nav-context-text *:hover,
+#header-brand-title:hover,
+#header-brand-title *:hover {
+    text-decoration: none !important;
+    cursor: default !important;
+}
+
+.admin-topbar__brand-sub {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1;
+}
+
+/* Header Navbar Breadcrumb System (Stacked 2-line layout matching default header weight & size) */
+.has-breadcrumb,
+#nav-context-text.has-breadcrumb,
+#header-brand-title.has-breadcrumb,
+.admin-topbar__brand-label.has-breadcrumb {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    width: auto !important;
+    max-width: min(440px, calc(50vw - 220px));
+    min-width: 0 !important;
+    overflow: visible !important;
+    line-height: 1.15 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.has-breadcrumb .breadcrumb-line-group,
+#nav-context-text.has-breadcrumb .breadcrumb-line-group,
+#header-brand-title.has-breadcrumb .breadcrumb-line-group,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-line-group {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    gap: 1px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    text-align: left !important;
+}
+
+.has-breadcrumb .breadcrumb-subject,
+#nav-context-text.has-breadcrumb .breadcrumb-subject,
+#header-brand-title.has-breadcrumb .breadcrumb-subject,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-subject {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    line-height: 1.15 !important;
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: text !important;
+    letter-spacing: 0.01em !important;
+    transition: none !important;
+}
+
+.has-breadcrumb .breadcrumb-subject:hover,
+#nav-context-text.has-breadcrumb .breadcrumb-subject:hover,
+#header-brand-title.has-breadcrumb .breadcrumb-subject:hover,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-subject:hover {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    text-decoration: none !important;
+    cursor: default !important;
+}
+
+.has-breadcrumb .breadcrumb-separator,
+#nav-context-text.has-breadcrumb .breadcrumb-separator,
+#header-brand-title.has-breadcrumb .breadcrumb-separator,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-separator {
+    display: none !important;
+}
+
+.has-breadcrumb .breadcrumb-subrow,
+#nav-context-text.has-breadcrumb .breadcrumb-subrow,
+#header-brand-title.has-breadcrumb .breadcrumb-subrow,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-subrow {
+    display: block !important;
+    max-width: 100% !important;
+    line-height: 1.2 !important;
+}
+
+.has-breadcrumb .breadcrumb-topic,
+#nav-context-text.has-breadcrumb .breadcrumb-topic,
+#header-brand-title.has-breadcrumb .breadcrumb-topic,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-topic {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    color: #000000 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    line-height: 1.15 !important;
+    cursor: default !important;
+    user-select: none !important;
+    letter-spacing: -0.01em !important;
+}
+
+/* Scaled down text size when the title is medium, long, or very long */
+.has-breadcrumb .breadcrumb-topic.is-medium-title,
+#nav-context-text.has-breadcrumb .breadcrumb-topic.is-medium-title,
+#header-brand-title.has-breadcrumb .breadcrumb-topic.is-medium-title,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-topic.is-medium-title {
+    font-size: 0.95rem !important;
+    line-height: 1.15 !important;
+}
+
+.has-breadcrumb .breadcrumb-topic.is-long-title,
+#nav-context-text.has-breadcrumb .breadcrumb-topic.is-long-title,
+#header-brand-title.has-breadcrumb .breadcrumb-topic.is-long-title,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-topic.is-long-title {
+    font-size: 0.85rem !important;
+    line-height: 1.12 !important;
+}
+
+.has-breadcrumb .breadcrumb-topic.is-very-long-title,
+#nav-context-text.has-breadcrumb .breadcrumb-topic.is-very-long-title,
+#header-brand-title.has-breadcrumb .breadcrumb-topic.is-very-long-title,
+.admin-topbar__brand-label.has-breadcrumb .breadcrumb-topic.is-very-long-title {
+    font-size: 0.78rem !important;
+    line-height: 1.1 !important;
+}
+
+/* ─── 4. Center Pill Search Bar ────────────────────────────────────────── */
+.header-search-container,
+.admin-topbar__inner > div.absolute.left-1\/2 {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 100%;
+    max-width: 440px !important;
+    z-index: 10 !important;
+    display: block;
+    margin: 0 !important;
+}
+
+@media (max-width: 1280px) {
+    .header-search-container,
+    .admin-topbar__inner > div.absolute.left-1\/2 {
+        max-width: 360px !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .header-search-container,
+    .admin-topbar__inner > div.absolute.left-1\/2 {
+        max-width: 280px !important;
+    }
+
+    .has-breadcrumb,
+    #nav-context-text.has-breadcrumb,
+    #header-brand-title.has-breadcrumb,
+    .admin-topbar__brand-label.has-breadcrumb {
+        max-width: calc(50vw - 150px) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-search-container,
+    .admin-topbar__inner > div.absolute.left-1\/2 {
+        display: none !important;
+    }
+}
+
+
+.header-search-shell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 9999px;
+    overflow: hidden;
+    height: 38px;
+    transition: border-color 0.15s ease;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.header-search-shell:focus,
+.header-search-shell:focus-visible,
+.header-search-shell:focus-within {
+    border-color: var(--icc-yellow);
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.header-search-shell input {
+    height: 38px;
+    border: none;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent;
+    color: #000000 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em;
+}
+
+.header-search-shell input::placeholder {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+}
+
+.header-search-enter {
+    width: 72px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: rgba(0, 0, 0, 0.035) !important;
+    color: #000000 !important;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.header-search-enter i {
+    color: #000000 !important;
+    transition: color 0.2s ease;
+}
+
+.header-search-enter:hover {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+    color: #000000 !important;
+}
+
+.header-search-enter:hover i {
+    color: #000000 !important;
+}
+
+/* ─── 5. Circular Action Buttons (Calendar, Notif, Profile) ────────────── */
+.header-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    background-color: #f1f5f9 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.header-icon-btn:hover {
+    background-color: #e2e8f0 !important;
+}
+
+.header-icon-btn:active,
+.header-profile-btn:active {
+    transform: scale(0.95);
+}
+
+.header-icon-btn i {
+    color: #000000 !important;
+    transition: color 0.2s ease;
+}
+
+#calendar-date-number {
+    color: #ffffff !important;
+    font-weight: 900;
+    font-size: 9px;
+    line-height: 1;
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+    transition: color 0.2s ease;
+}
+
+/* ─── Topbar SIGMA AI Icon Button ────────────────────────────────────── */
+#sigma-toggle {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+#sigma-toggle:hover {
+    background-color: #e2e8f0;
+}
+
+#sigma-toggle i {
+    font-size: 14px;
+    color: #000000;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+#sigma-toggle:hover i {
+    transform: scale(1.1);
+}
+
+/* ─── Selected / Active State for Action Icons (SIGMA AI, Calendar, Notifications) ─── */
+.header-icon-btn.active,
+#sigma-toggle.active,
+#calendar-toggle.active,
+#noti-toggle.active {
+    background-color: rgba(255, 208, 0, 0.18) !important;
+}
+
+.header-icon-btn.active:hover,
+#sigma-toggle.active:hover,
+#calendar-toggle.active:hover,
+#noti-toggle.active:hover {
+    background-color: rgba(255, 208, 0, 0.28) !important;
+}
+
+#sigma-toggle.active i,
+#calendar-toggle.active i,
+#noti-toggle.active i,
+.header-icon-btn.active i {
+    color: #FFD000 !important;
+}
+
+#calendar-toggle.active #calendar-date-number {
+    color: #000000 !important;
+}
+
+/* ─── Profile Button (Normal Neutral Grey) ──────────────────────────────── */
+.header-profile-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    background-color: #f1f5f9 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.header-profile-btn:hover,
+.header-profile-btn.active,
+#profile-toggle.active,
+#profileDropdownBtn.active {
+    background-color: #e2e8f0 !important;
+}
+
+.header-profile-btn img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9999px;
+}
+
+.header-profile-btn #header-avatar-placeholder,
+.header-profile-btn .header-avatar-placeholder {
+    font-size: 15px !important;
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+}
+
+.header-profile-btn__chevron {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease !important;
+    display: inline-block !important;
+    color: #000000 !important;
+}
+
+#profile-toggle.active .header-profile-btn__chevron,
+#profileDropdownBtn.active .header-profile-btn__chevron,
+.header-profile-btn.active .header-profile-btn__chevron {
+    color: #FFD000 !important;
+    transform: rotate(180deg) !important;
+}
+
+/* ─── 4. Shared Header Slide-Out / Pop-Up Panels (Calendar, Notifs, Profile, SIGMA AI) ─── */
+.header-panel,
+#calendar-dropdown,
+#noti-dropdown,
+#profileDropdownMenu,
+#sigmaAiPanel {
+    position: fixed !important;
+    z-index: 500 !important;
+}
+
+/* Mobile Back Button & Mobile Profile Header: STRICTLY for mobile mode (<= 768px). NEVER displayed on desktop */
+.mobile-panel-header-back-btn,
+.mobile-profile-header {
+    display: none !important;
+}
+
+/* ─── 4b. SIGMA AI Panel Header (Desktop Base) ─────────────────────────── */
+.sigma-ai-header {
+    min-height: 56px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+.sigma-ai-header .mobile-panel-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.sigma-ai-header .sigma-ai-badge {
+    width: 30px;
+    height: 30px;
+    background-color: #FFD000;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.sigma-ai-header .sigma-ai-badge i {
+    color: #000000;
+    font-size: 13px;
+}
+
+/* Unified Desktop Drawer Header Titles Typography (Consistent across Notifications, Calendar & SIGMA) */
+.notif-header__title,
+.calendar-header__title,
+.sigma-ai-header .sigma-ai-title,
+.sigma-ai-header .mobile-panel-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    letter-spacing: -0.01em !important;
+    text-transform: none !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+    user-select: none;
+}
+
+/* ─── 5. SIGMA AI Composer & Message Meta (Shared Across All Roles) ───────── */
+.sigma-ai-composer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: transparent;
+    width: 100%;
+}
+
+.sigma-ai-composer__field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0.5rem 1rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 9999px;
+    background: #f8fafc !important;
+    min-height: 42px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.sigma-ai-composer__field:focus-within {
+    border-color: #FFD000 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.sigma-ai-composer__input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.4;
+    padding: 2px 0;
+    display: block;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.sigma-ai-composer__input::placeholder {
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+}
+
+.sigma-ai-send-btn {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    border-radius: 9999px !important;
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border: none !important;
+    outline: none !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
+}
+
+.sigma-ai-send-btn:hover:not(:disabled) {
+    background-color: #166534 !important;
+    transform: scale(1.05) !important;
+}
+
+.sigma-ai-send-btn:active:not(:disabled) {
+    transform: scale(0.95) !important;
+}
+
+.sigma-ai-send-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+.sigma-ai-send-icon {
+    font-size: 0.9rem !important;
+    color: #ffffff !important;
+}
+
+/* ─── 6. Unified SIGMA AI Chat Bubble System (Shared Across All Roles) ─── */
+#sigmaAiPanel,
+#sigmaAiMessages,
+.sigma-ai-message,
+.sigma-ai-message__bubble,
+.sigma-ai-composer__input {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+#sigmaAiMessages {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+.sigma-ai-message {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-ai-message--user {
+    align-items: flex-end !important;
+}
+
+.sigma-ai-message--assistant,
+.sigma-ai-message:not(.sigma-ai-message--user) {
+    align-items: flex-start !important;
+}
+
+/* Timestamp / Meta */
+.sigma-ai-message__meta {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    line-height: 1.3 !important;
+    padding: 0 2px !important;
+    user-select: none !important;
+    display: block !important;
+}
+
+.sigma-ai-message:not(.sigma-ai-message--user) .sigma-ai-message__meta {
+    margin-left: 38px !important;
+    text-align: left !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__meta {
+    margin-right: 4px !important;
+    text-align: right !important;
+    align-self: flex-end !important;
+}
+
+/* Row containing Avatar & Bubble (support both .sigma-ai-message__row and .sigma-ai-message__stack) */
+.sigma-ai-message__row {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    max-width: 90% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__row {
+    justify-content: flex-end !important;
+    align-self: flex-end !important;
+}
+
+/* Backward compatibility for .sigma-ai-message__stack if present */
+.sigma-ai-message__stack {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    max-width: 86% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-ai-message--user .sigma-ai-message__stack {
+    align-items: flex-end !important;
+}
+
+/* Assistant Avatar Icon */
+.sigma-ai-message__icon {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    border-radius: 9999px !important;
+    background: #FFD000 !important;
+    color: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    margin-top: 1px !important;
+}
+
+.sigma-ai-message__icon i {
+    font-size: 11px !important;
+    color: #000000 !important;
+    line-height: 1 !important;
+}
+
+/* Chat Speech Bubble */
+.sigma-ai-message__bubble {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 13.5px !important;
+    line-height: 1.55 !important;
+    font-weight: 450 !important;
+    padding: 10px 15px !important;
+    border-radius: 18px !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    width: fit-content !important;
+}
+
+.sigma-ai-message__bubble strong,
+.sigma-ai-message__bubble b {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    color: inherit !important;
+}
+
+.sigma-ai-message__bubble .font-black {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 800 !important;
+    color: inherit !important;
+}
+
+/* Assistant Bubble (White with crisp hairline border & soft shadow) */
+.sigma-ai-message__bubble--assistant,
+.sigma-ai-message:not(.sigma-ai-message--user) .sigma-ai-message__bubble {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #0f172a !important;
+    border-top-left-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* User Bubble (ICC Green with white text) */
+.sigma-ai-message__bubble--user,
+.sigma-ai-message--user .sigma-ai-message__bubble {
+    background: #15803d !important;
+    color: #ffffff !important;
+    border: 1px solid transparent !important;
+    border-top-right-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ==========================================================================
+   MOBILE NAVIGATION HEADER & SUB-BAR SYSTEM (Screens <= 768px)
+   ========================================================================== */
+
+/* Sub-Bar default (hidden on desktop) */
+.mobile-header-subbar {
+    display: none;
+}
+
+.mobile-search-toggle-btn {
+    display: none;
+}
+
+.mobile-search-overlay {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* Offset synchronization for student and teacher portals (Fluid auto-sizing) */
+    :root {
+        --student-top-nav-height: clamp(17px, 4.2vw, 21px) !important;
+        --student-mainbar-height: clamp(40px, 10.5vw, 46px) !important;
+        --student-subbar-height: clamp(38px, 9.8vw, 44px) !important;
+        --student-header-height: calc(var(--student-mainbar-height) + var(--student-subbar-height)) !important;
+        --student-total-top-offset: calc(var(--student-top-nav-height) + var(--student-header-height)) !important;
+        --shell-offset: calc(var(--student-top-nav-height) + var(--student-header-height)) !important;
+        --teacher-total-top-offset: calc(var(--student-top-nav-height) + var(--student-header-height)) !important;
+    }
+
+    /* Top Green Strip: Auto-sizes dynamically with phone screen, noticeably smaller than main bar (~1/3 height) */
+    .top-nav {
+        position: relative !important;
+        z-index: 400 !important;
+        height: clamp(17px, 4.2vw, 21px) !important;
+        min-height: clamp(17px, 4.2vw, 21px) !important;
+        max-height: clamp(17px, 4.2vw, 21px) !important;
+        padding: 0 clamp(8px, 2.5vw, 14px) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        line-height: clamp(17px, 4.2vw, 21px) !important;
+        background-color: #15803d !important;
+        box-sizing: border-box !important;
+    }
+
+    .top-nav #global-sy-display {
+        font-size: clamp(7.5px, 2vw, 9px) !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.02em !important;
+        text-transform: none !important;
+        line-height: clamp(17px, 4.2vw, 21px) !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        color: #ffffff !important;
+    }
+
+    .top-nav .top-nav__lang,
+    .top-nav #global-lang-btn,
+    .top-nav .pr-4,
+    .top-nav > div.pr-4,
+    .top-nav > div:nth-child(2),
+    .top-nav > div:not(:first-child):not(.top-nav-loading-bar) {
+        display: flex !important;
+        align-items: center !important;
+        gap: 3.5px !important;
+        padding-right: 0 !important;
+        margin: 0 !important;
+        flex-shrink: 0 !important;
+    }
+
+    .top-nav .top-nav__lang span,
+    .top-nav #global-lang-btn span,
+    .top-nav .pr-4 span,
+    .top-nav > div.pr-4 span,
+    .top-nav > div:nth-child(2) span,
+    .top-nav > div:not(:first-child):not(.top-nav-loading-bar) span,
+    .top-nav span:not(#global-sy-display) {
+        font-size: clamp(7.5px, 2vw, 9px) !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.02em !important;
+        text-transform: none !important;
+        line-height: clamp(17px, 4.2vw, 21px) !important;
+        color: #ffffff !important;
+        white-space: nowrap !important;
+        display: inline-block !important;
+    }
+
+    .top-nav .top-nav__lang i,
+    .top-nav #global-lang-btn i,
+    .top-nav .pr-4 i,
+    .top-nav > div.pr-4 i,
+    .top-nav > div:nth-child(2) i,
+    .top-nav > div:not(:first-child):not(.top-nav-loading-bar) i,
+    .top-nav i.fa-globe,
+    .top-nav i {
+        font-size: clamp(7.5px, 2vw, 9px) !important;
+        line-height: clamp(17px, 4.2vw, 21px) !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .top-nav .top-nav-loading-bar,
+    .top-nav #top-nav-loading-bar {
+        display: block !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 3px !important;
+        z-index: 9999 !important;
+    }
+
+    /* Row 1: Main White Navbar - bigger than green bar (auto-resizes with screen) */
+    .admin-topbar__inner {
+        height: clamp(50px, 12vw, 58px) !important;
+        min-height: clamp(50px, 12vw, 58px) !important;
+        padding: 0 !important;
+        justify-content: space-between !important;
+        position: relative !important;
+        z-index: 30 !important;
+        background-color: #ffffff !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important; /* Clear division noticed between main bar and sub-bar below */
+        transition: box-shadow 0.15s ease, border-bottom-color 0.15s ease !important;
+        box-sizing: border-box !important;
+    }
+
+    .admin-topbar__brand {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    /* Show mobile burger button on left side of brand */
+    .admin-topbar__brand #sidebarToggleBtn {
+        display: inline-flex !important;
+        width: clamp(34px, 9vw, 38px) !important;
+        height: clamp(34px, 9vw, 38px) !important;
+        border: none !important;
+        border-right: none !important;
+        border-radius: 9999px !important;
+        background: transparent !important;
+        margin-left: clamp(4px, 1.5vw, 8px) !important;
+        margin-right: clamp(4px, 1.5vw, 8px) !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
+    }
+
+    .admin-topbar__brand #sidebarToggleBtn::before {
+        width: clamp(32px, 8.5vw, 36px) !important;
+        height: clamp(32px, 8.5vw, 36px) !important;
+        border-radius: 9999px !important;
+    }
+
+    .admin-topbar__brand #sidebarToggleBtn i {
+        font-size: clamp(14px, 3.8vw, 17px) !important;
+        color: #000000 !important;
+    }
+
+    #logo-container {
+        width: clamp(28px, 7.5vw, 38px) !important;
+        height: clamp(28px, 7.5vw, 38px) !important;
+        margin-left: 0 !important;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    #logo-container img {
+        width: clamp(26px, 7vw, 36px) !important;
+        height: clamp(26px, 7vw, 36px) !important;
+        object-fit: contain !important;
+    }
+
+    .admin-topbar__brand-copy {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - 120px) !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        margin-left: clamp(6px, 1.8vw, 10px) !important;
+    }
+
+    .admin-topbar__brand-label,
+    #nav-context-text,
+    #header-brand-title {
+        font-size: clamp(11.5px, 3.2vw, 14.5px) !important;
+        font-weight: 700 !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        color: #000000 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .has-breadcrumb,
+    #nav-context-text.has-breadcrumb,
+    #header-brand-title.has-breadcrumb,
+    .admin-topbar__brand-label.has-breadcrumb {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+        max-width: calc(100vw - 110px) !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        white-space: normal !important;
+        text-overflow: clip !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .has-breadcrumb .breadcrumb-line-group,
+    #nav-context-text.has-breadcrumb .breadcrumb-line-group,
+    #header-brand-title.has-breadcrumb .breadcrumb-line-group,
+    .admin-topbar__brand-label.has-breadcrumb .breadcrumb-line-group {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        gap: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .has-breadcrumb .breadcrumb-subject,
+    #nav-context-text.has-breadcrumb .breadcrumb-subject,
+    #header-brand-title.has-breadcrumb .breadcrumb-subject,
+    .admin-topbar__brand-label.has-breadcrumb .breadcrumb-subject {
+        font-size: clamp(9px, 2.5vw, 10.5px) !important;
+        font-weight: 600 !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+        line-height: 1.15 !important;
+        display: block !important;
+    }
+
+    .has-breadcrumb .breadcrumb-topic,
+    #nav-context-text.has-breadcrumb .breadcrumb-topic,
+    #header-brand-title.has-breadcrumb .breadcrumb-topic,
+    .admin-topbar__brand-label.has-breadcrumb .breadcrumb-topic {
+        font-size: clamp(12px, 3.2vw, 13.5px) !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+        line-height: 1.2 !important;
+        display: block !important;
+        -webkit-line-clamp: 1 !important;
+        line-clamp: 1 !important;
+    }
+
+    /* Hide desktop action icons in topbar (since they are now in the sub-bar below) */
+    .admin-topbar__desktop-icons,
+    .admin-topbar__inner > .flex.items-center.gap-2.pr-4 {
+        display: none !important;
+    }
+
+    /* Mobile Action Group on right: Search only */
+    .admin-topbar__mobile-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: clamp(4px, 1.5vw, 8px) !important;
+        margin-right: clamp(8px, 2.5vw, 14px) !important;
+        flex-shrink: 0 !important;
+    }
+
+    .mobile-search-toggle-btn {
+        display: inline-flex !important;
+        width: clamp(32px, 8.5vw, 38px) !important;
+        height: clamp(32px, 8.5vw, 38px) !important;
+        border-radius: 9999px !important;
+        background: #f1f5f9 !important;
+        border: none !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #0f172a !important;
+        cursor: pointer !important;
+        transition: background-color 0.15s ease !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
+    }
+
+    .mobile-search-toggle-btn i {
+        font-size: clamp(13px, 3.5vw, 16px) !important;
+    }
+
+    .mobile-search-toggle-btn:hover {
+        background: #e2e8f0 !important;
+    }
+
+    /* Hide right-side burger button on mobile (burger is now back on the left) */
+    .mobile-sidebar-toggle-btn {
+        display: none !important;
+    }
+
+    /* Mobile Search Dim Backdrop (Dim light everything below, touching outside returns to page) */
+    .mobile-search-backdrop {
+        position: fixed;
+        inset: 0;
+        top: clamp(40px, 10.5vw, 46px);
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        z-index: 95;
+        transition: opacity 0.2s ease;
+    }
+
+    .mobile-search-backdrop.hidden {
+        display: none !important;
+    }
+
+    /* Expandable Search Overlay */
+    .mobile-search-overlay {
+        display: flex;
+        position: absolute;
+        inset: 0;
+        background: #ffffff;
+        z-index: 100;
+        align-items: center;
+        padding: 0 10px;
+        gap: 6px;
+        box-sizing: border-box;
+    }
+
+    .mobile-search-overlay.hidden {
+        display: none !important;
+    }
+
+    .mobile-search-overlay__back {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        color: #000000;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+    }
+
+    .mobile-search-overlay__back i {
+        font-size: 15px;
+        color: #000000 !important;
+    }
+
+    .mobile-search-overlay__field {
+        flex: 1 1 auto;
+        position: relative;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .mobile-search-overlay__input {
+        width: 100%;
+        height: 36px;
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 9999px;
+        padding: 0 36px 0 14px;
+        font-size: 13px;
+        color: #0f172a;
+        outline: none;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        transition: border-color 0.15s ease;
+    }
+
+    .mobile-search-overlay__input:focus {
+        border-color: #facc15;
+        background: #ffffff;
+    }
+
+    .mobile-search-overlay__submit {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 30px;
+        height: 30px;
+        border-radius: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #0f172a;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .mobile-search-overlay__submit i {
+        font-size: 13.5px;
+        color: #0f172a !important;
+    }
+
+    .mobile-search-overlay__close {
+        display: none !important;
+    }
+
+    /* Row 2: Sub-Bar (Icon Panel) Below Navbar (Notification, Calendar, AI Sigma, Profile Icon Only) */
+    .mobile-header-subbar {
+        display: flex !important;
+        width: 100% !important;
+        height: clamp(38px, 9.8vw, 44px) !important;
+        min-height: clamp(38px, 9.8vw, 44px) !important;
+        max-height: clamp(38px, 9.8vw, 44px) !important;
+        margin-top: 0 !important;
+        background: #ffffff !important;
+        border-bottom: none !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        padding: 0 clamp(4px, 1.5vw, 10px) !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 20 !important;
+        overflow: hidden !important;
+        transition: margin-top 0.15s cubic-bezier(0.16, 1, 0.3, 1), 
+                    height 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                    max-height 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                    min-height 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.12s ease, 
+                    box-shadow 0.12s ease,
+                    visibility 0.15s !important;
+    }
+
+    /* Scroll Down: Icon panel smoothly SLIDES UP BEHIND the main bar with ZERO excess */
+    .subbar-hidden .mobile-header-subbar,
+    header.subbar-hidden .mobile-header-subbar,
+    body.subbar-hidden .mobile-header-subbar {
+        margin-top: calc(-1 * clamp(38px, 9.8vw, 44px)) !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+    }
+
+    /* When icon panel hides, the bottom green border line of main bar is STILL SEEN */
+    .subbar-hidden .admin-topbar__inner,
+    header.subbar-hidden .admin-topbar__inner,
+    body.subbar-hidden .admin-topbar__inner {
+        border-bottom: 2px solid #15803d !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    #student-header,
+    #teacher-header,
+    header#student-header,
+    header#teacher-header,
+    .portal-global-header#student-header,
+    .portal-global-header#teacher-header {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    #student-header > *,
+    #teacher-header > * {
+        pointer-events: auto !important;
+    }
+
+    .mobile-subbar-btn,
+    .mobile-subbar-btn:hover,
+    .mobile-subbar-btn:focus,
+    .mobile-subbar-btn:active,
+    .mobile-subbar-btn.active {
+        width: clamp(36px, 9.5vw, 44px) !important;
+        height: clamp(32px, 8vw, 36px) !important;
+        border-radius: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        color: var(--sigma-black-fade, rgba(0, 0, 0, 0.48)) !important;
+        position: relative !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        font-size: clamp(15px, 4vw, 18px) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        font-weight: 700 !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    .mobile-subbar-btn i {
+        font-size: clamp(15px, 4vw, 18px) !important;
+        color: var(--sigma-black-fade, rgba(0, 0, 0, 0.48)) !important;
+    }
+
+    .mobile-subbar-btn svg {
+        width: clamp(16px, 4.2vw, 19px) !important;
+        height: clamp(16px, 4.2vw, 19px) !important;
+        stroke: var(--sigma-black-fade, rgba(0, 0, 0, 0.48)) !important;
+        color: var(--sigma-black-fade, rgba(0, 0, 0, 0.48)) !important;
+    }
+
+    /* Profile Avatar Wrap (Clean circular photo without chevron on mobile) */
+    .mobile-subbar-btn--profile {
+        padding: 0 !important;
+    }
+
+    .mobile-subbar-avatar-wrap {
+        width: clamp(27px, 7vw, 30px) !important;
+        height: clamp(27px, 7vw, 30px) !important;
+        border-radius: 9999px !important;
+        background-color: #f1f5f9 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        position: relative !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    .mobile-subbar-avatar-wrap img.header-avatar-img {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+
+    .mobile-subbar-avatar-wrap img.header-avatar-img.hidden {
+        display: none !important;
+    }
+
+    .mobile-subbar-avatar-wrap i.header-avatar-placeholder {
+        font-size: 13px !important;
+        color: #94a3b8 !important;
+    }
+
+    .mobile-subbar-avatar-wrap i.header-avatar-placeholder.hidden {
+        display: none !important;
+    }
+
+    /* Remove chevron badge on mobile profile icon */
+    .mobile-subbar-avatar-badge {
+        display: none !important;
+    }
+
+    .mobile-subbar-badge {
+        position: absolute !important;
+        top: 4px !important;
+        right: 8px !important;
+        width: 8px !important;
+        height: 8px !important;
+        background: #FFD000 !important;
+        border: 2px solid #ffffff !important;
+        border-radius: 9999px !important;
+    }
+
+    .mobile-subbar-badge.hidden {
+        display: none !important;
+    }
+
+    .mobile-subbar-calendar-icon {
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        pointer-events: none !important;
+    }
+
+    .mobile-subbar-date-number {
+        position: absolute !important;
+        font-size: clamp(7.5px, 2vw, 9px) !important;
+        font-weight: 700 !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        color: #ffffff !important;
+        line-height: 1 !important;
+        margin-top: 4px !important;
+    }
+
+    /* Hide legacy bottom appbar */
+    #mobile-bottom-appbar,
+    .mobile-bottom-appbar {
+        display: none !important;
+    }
+
+    /* Fix Welcome Panel on Mobile: Directly below icon panel, tight unnoticeable gap */
+    #layout-wrapper,
+    body.sidebar-collapsed #layout-wrapper {
+        margin-top: 0 !important;
+        margin-left: 0 !important;
+        padding-top: var(--shell-offset) !important;
+        width: 100% !important;
+    }
+
+    #main-content,
+    #content-sections,
+    #section-home,
+    #section-dashboard,
+    #section-classroom-detail,
+    #section-topic-content,
+    #section-topic-detail,
+    #section-curriculum-page,
+    .topic-page-shell,
+    .student-topic-page-shell,
+    .teacher-topic-page-shell,
+    .topic-page-tabs-header,
+    .classroom-room-container,
+    #classroom-detail-content,
+    #classroom-detail-view {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    .dashboard-grid {
+        display: block !important;
+        grid-template-columns: 1fr !important;
+        padding: 0 12px 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .main-dashboard-column {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .welcome-panel-container {
+        display: block !important;
+        width: calc(100% + 24px) !important;
+        max-width: calc(100% + 24px) !important;
+        margin-left: -12px !important;
+        margin-right: -12px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 12px 14px 10px 14px !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .main-dashboard-column .welcome-panel,
+    .welcome-panel-container .welcome-panel,
+    .welcome-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        box-sizing: border-box !important;
+        border-radius: 18px !important;
+        border: 1px solid #e2e8f0 !important;
+        overflow: hidden !important;
+        box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    }
+
+    /* Completely hide side rails on mobile so they never create gap or height */
+    .home-sticky-rail,
+    .home-sticky-rail--left,
+    .home-sticky-rail--right,
+    #section-home .home-sticky-rail,
+    #section-home .home-sticky-rail--left,
+    #section-home .home-sticky-rail--right,
+    #section-dashboard .home-sticky-rail,
+    #dashboard-view .home-sticky-rail,
+    #sigma-panels-container {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MOBILE FULL-PAGE PANEL OVERLAYS (No pull-up bottom sheets)
+       When an icon is clicked:
+       1. Icon panel slides up and places in main bar (where logo was)
+       2. Back button icon appears in the top-left
+       3. Screen below transforms to the selected panel (100% full screen)
+       ═══════════════════════════════════════════════════════════ */
+    html.mobile-panel-open,
+    body.mobile-panel-open,
+    html.mobile-account-fullscreen,
+    body.mobile-account-fullscreen {
+        overflow: hidden !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overscroll-behavior: none !important;
+        touch-action: none !important;
+    }
+
+    body.mobile-panel-open #layout-wrapper,
+    body.mobile-account-fullscreen #layout-wrapper,
+    body.mobile-panel-open #main-content,
+    body.mobile-account-fullscreen #main-content,
+    body.mobile-panel-open #content-sections,
+    body.mobile-account-fullscreen #content-sections {
+        overflow: hidden !important;
+        pointer-events: none !important;
+        touch-action: none !important;
+        user-select: none !important;
+    }
+
+    /* When mobile panel is open: Icon panel goes up to cover the main bar including the bottom border */
+    body.mobile-panel-open .admin-topbar__inner,
+    header.mobile-panel-open .admin-topbar__inner {
+        display: none !important;
+        border-bottom: none !important;
+        border: none !important;
+    }
+
+    /* In panel mode, icon panel sits directly below top green bar (covering the main bar and bottom border) */
+    body.mobile-panel-open .mobile-header-subbar,
+    header.mobile-panel-open .mobile-header-subbar,
+    body.mobile-panel-open.subbar-hidden .mobile-header-subbar,
+    header.mobile-panel-open.subbar-hidden .mobile-header-subbar,
+    body.mobile-panel-open header.subbar-hidden .mobile-header-subbar {
+        margin-top: 0 !important;
+        height: clamp(40px, 10.5vw, 46px) !important;
+        min-height: clamp(40px, 10.5vw, 46px) !important;
+        max-height: clamp(40px, 10.5vw, 46px) !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        padding: 0 clamp(4px, 1.5vw, 10px) !important;
+        background: #ffffff !important;
+        border-bottom: none !important;
+        border: none !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        z-index: 300 !important;
+        overflow: hidden !important;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    /* Selected Icon in Subbar: Color Yellow & Shaded (Solid), No Box Highlight */
+    .mobile-subbar-btn.active,
+    .mobile-subbar-btn.selected,
+    body.mobile-panel-open .mobile-subbar-btn.active,
+    body.mobile-panel-open .mobile-subbar-btn.selected {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        color: #FFD000 !important;
+    }
+
+    .mobile-subbar-btn.active i,
+    .mobile-subbar-btn.selected i,
+    .mobile-subbar-btn.active .fa-bell,
+    .mobile-subbar-btn.selected .fa-bell,
+    .mobile-subbar-btn.active .fa-calendar,
+    .mobile-subbar-btn.selected .fa-calendar,
+    .mobile-subbar-btn.active .fa-user,
+    .mobile-subbar-btn.selected .fa-user {
+        color: #FFD000 !important;
+    }
+
+    .mobile-subbar-btn.active .mobile-subbar-date-number,
+    .mobile-subbar-btn.selected .mobile-subbar-date-number {
+        color: #0f172a !important;
+    }
+
+    .mobile-subbar-btn.active svg,
+    .mobile-subbar-btn.selected svg {
+        color: #FFD000 !important;
+        stroke: #FFD000 !important;
+        fill: #FFD000 !important;
+    }
+
+    .mobile-subbar-btn.active svg line,
+    .mobile-subbar-btn.selected svg line {
+        stroke: #FFD000 !important;
+        stroke-width: 2.2 !important;
+    }
+
+    .mobile-subbar-btn.active svg polygon,
+    .mobile-subbar-btn.selected svg polygon {
+        fill: #FFD000 !important;
+        stroke: #FFD000 !important;
+    }
+
+    /* Back Button on the left side of panel headers */
+    .mobile-panel-header-back-btn {
+        display: none;
+    }
+
+    /* Unified Mobile Panel Header System */
+    body.mobile-panel-open .mobile-panel-header,
+    body.mobile-panel-open #noti-dropdown .notif-header,
+    body.mobile-panel-open #calendar-dropdown .calendar-header,
+    body.mobile-panel-open #analytics-dropdown .notif-header,
+    body.mobile-panel-open #schedule-dropdown .notif-header,
+    body.mobile-panel-open #profileDropdownMenu .mobile-profile-header,
+    body.mobile-account-fullscreen .mobile-panel-header,
+    body.mobile-account-fullscreen .mobile-profile-header,
+    body.mobile-account-fullscreen #profileDropdownMenu .mobile-profile-header,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-panel-header,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-profile-header,
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-header,
+    body.mobile-panel-open #sigmaAiPanel > div:first-child {
+        height: clamp(48px, 12vw, 54px) !important;
+        min-height: clamp(48px, 12vw, 54px) !important;
+        max-height: clamp(48px, 12vw, 54px) !important;
+        padding: 0 clamp(12px, 3.5vw, 18px) !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        box-sizing: border-box !important;
+        flex-shrink: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 50 !important;
+    }
+
+    body.mobile-panel-open .mobile-panel-header-left,
+    body.mobile-account-fullscreen .mobile-panel-header-left,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-panel-header-left {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: clamp(6px, 1.8vw, 10px) !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-badge {
+        width: clamp(24px, 6.5vw, 28px) !important;
+        height: clamp(24px, 6.5vw, 28px) !important;
+        border-radius: 6px !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-badge i {
+        font-size: clamp(11px, 2.8vw, 12px) !important;
+    }
+
+    /* Back button: sleek "<" chevron right beside the header title */
+    body.mobile-panel-open .mobile-panel-header-back-btn,
+    body.mobile-account-fullscreen .mobile-panel-header-back-btn,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-panel-header-back-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: clamp(28px, 7.5vw, 34px) !important;
+        height: clamp(28px, 7.5vw, 34px) !important;
+        min-width: clamp(28px, 7.5vw, 34px) !important;
+        border-radius: 9999px !important;
+        background: transparent !important;
+        border: none !important;
+        color: #0f172a !important;
+        font-size: clamp(13px, 3.5vw, 15px) !important;
+        cursor: pointer !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        outline: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        transition: background-color 0.15s ease !important;
+        flex-shrink: 0 !important;
+    }
+
+    body.mobile-panel-open .mobile-panel-header-back-btn:active,
+    body.mobile-account-fullscreen .mobile-panel-header-back-btn:active,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-panel-header-back-btn:active {
+        background-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.mobile-panel-open .mobile-profile-header,
+    body.mobile-account-fullscreen .mobile-profile-header,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-profile-header {
+        display: flex !important;
+    }
+
+    /* Full-screen mobile panel overlay directly below the icon panel */
+    body.mobile-panel-open #noti-dropdown:not(.hidden),
+    body.mobile-panel-open #calendar-dropdown:not(.hidden),
+    body.mobile-panel-open #sigmaAiPanel:not(.hidden),
+    body.mobile-panel-open #analytics-dropdown:not(.hidden),
+    body.mobile-panel-open #schedule-dropdown:not(.hidden) {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        top: calc(clamp(17px, 4.2vw, 21px) + clamp(40px, 10.5vw, 46px)) !important;
+        height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        bottom: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        z-index: 250 !important;
+        background-color: #ffffff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        animation: mobilePanelSlideIn 0.12s cubic-bezier(0, 0, 0.2, 1) !important;
+    }
+
+    /* Mobile Schedule & Analytics Drawer Panels: Seamless closed gaps, single divider, fullwidth */
+    body.mobile-panel-open #schedule-dropdown:not(.hidden),
+    body.mobile-panel-open #analytics-dropdown:not(.hidden),
+    #schedule-dropdown,
+    #analytics-dropdown {
+        background-color: #ffffff !important;
+    }
+
+    #schedule-dropdown-cards,
+    #analytics-dropdown-cards {
+        padding: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        gap: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        background-color: #ffffff !important;
+    }
+
+    #schedule-dropdown-cards > div:last-child,
+    #schedule-dropdown-cards .home-dashboard-card:last-child,
+    #analytics-dropdown-cards > div:last-child,
+    #analytics-dropdown-cards .pocket-card:last-child,
+    #analytics-dropdown-cards .sigma-card:last-child {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+    }
+
+    #schedule-dropdown-cards > :not([hidden]) ~ :not([hidden]),
+    #analytics-dropdown-cards > :not([hidden]) ~ :not([hidden]),
+    #schedule-dropdown-cards .home-dashboard-group > :not([hidden]) ~ :not([hidden]),
+    #analytics-dropdown-cards .home-dashboard-group > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0 !important;
+    }
+
+    /* Distinct Noticeable Sharp Edge Shadow Between Adjacent Closed-Gap Schedule & Tasks Panels */
+    #mobile-schedule-class-slot,
+    #mobile-schedule-tasks-slot,
+    #schedule-dropdown-cards > .home-dashboard-group,
+    #schedule-dropdown-cards > .home-dashboard-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        position: relative !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+    }
+
+    #mobile-schedule-class-slot {
+        z-index: 2 !important;
+    }
+
+    #mobile-schedule-tasks-slot {
+        z-index: 1 !important;
+    }
+
+    #mobile-schedule-class-slot .home-dashboard-card,
+    #mobile-schedule-tasks-slot .home-dashboard-card,
+    #schedule-dropdown-cards .home-dashboard-group .home-dashboard-card {
+        border: none !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+    }
+
+    #schedule-dropdown-cards .right-panel-card,
+    #schedule-dropdown-cards .home-overview-card,
+    #schedule-dropdown-cards .home-dashboard-list,
+    #schedule-dropdown-cards .home-dashboard-card,
+    .home-dashboard-card,
+    .right-panel-card,
+    .home-overview-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+        padding-left: clamp(16px, 4.5vw, 22px) !important;
+        padding-right: clamp(16px, 4.5vw, 22px) !important;
+    }
+
+    /* Edge-to-edge full width for SIGMA Analytics cards in mobile panel */
+    #analytics-dropdown-cards .pocket-card,
+    #analytics-dropdown-cards .sigma-card,
+    #analytics-dropdown-cards [data-id^="metric-"],
+    #analytics-dropdown-cards [data-id^="sigma-"],
+    #analytics-dropdown-cards .pocket-overview-card,
+    #analytics-dropdown-cards .home-dashboard-card,
+    #analytics-dropdown-cards .home-overview-card,
+    #analytics-dropdown-cards > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+    }
+
+    #analytics-dropdown-cards .pocket-card-body,
+    #analytics-dropdown-cards .sigma-card-body {
+        padding: 0.875rem clamp(16px, 4.5vw, 22px) !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #analytics-dropdown-cards .pocket-card > div:first-child,
+    #analytics-dropdown-cards .sigma-card > div:first-child,
+    #analytics-dropdown-cards .bg-\[\#15803d\] {
+        width: 100% !important;
+        padding-left: clamp(16px, 4.5vw, 22px) !important;
+        padding-right: clamp(16px, 4.5vw, 22px) !important;
+        box-sizing: border-box !important;
+        border-radius: 0 !important;
+    }
+
+    #schedule-dropdown-cards .home-dashboard-card:hover,
+    #schedule-dropdown-cards .right-panel-card:hover,
+    #analytics-dropdown-cards .pocket-card:hover,
+    .home-dashboard-card:hover,
+    .right-panel-card:hover {
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    /* Mobile Account Panel: Ungrouped from icon panels, goes directly up to the green bar */
+    body.mobile-account-fullscreen #profileDropdownMenu:not(.hidden),
+    #profileDropdownMenu.mobile-account-fullscreen:not(.hidden) {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        top: var(--student-top-nav-height, clamp(17px, 4.2vw, 21px)) !important;
+        height: calc(100vh - var(--student-top-nav-height, clamp(17px, 4.2vw, 21px))) !important;
+        max-height: calc(100vh - var(--student-top-nav-height, clamp(17px, 4.2vw, 21px))) !important;
+        bottom: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        z-index: 10000 !important;
+        background-color: #ffffff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        animation: mobilePanelSlideIn 0.12s cubic-bezier(0, 0, 0.2, 1) !important;
+    }
+
+    body.mobile-account-fullscreen .mobile-profile-header,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-profile-header {
+        display: flex !important;
+    }
+
+    @keyframes mobilePanelSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(3px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Unified Header Title Typography: Beside the back button, never above or below */
+    body.mobile-panel-open .mobile-panel-title,
+    body.mobile-account-fullscreen .mobile-panel-title,
+    body.mobile-panel-open #noti-dropdown .notif-header__title,
+    body.mobile-panel-open #calendar-dropdown .calendar-header__title,
+    body.mobile-panel-open #analytics-dropdown .notif-header__title,
+    body.mobile-panel-open #schedule-dropdown .notif-header__title,
+    body.mobile-account-fullscreen #profileDropdownMenu .mobile-profile-header h3,
+    body.mobile-account-fullscreen #profileDropdownMenu .mobile-panel-title,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-profile-header h3,
+    #profileDropdownMenu.mobile-account-fullscreen .mobile-panel-title,
+    body.mobile-panel-open #sigmaAiPanel .mobile-panel-title,
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-title {
+        display: inline-block !important;
+        font-size: clamp(15px, 4vw, 17px) !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        letter-spacing: -0.015em !important;
+        line-height: 1.2 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        white-space: nowrap !important;
+        text-transform: none !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    body.mobile-panel-open #noti-dropdown .notif-header__mark-all {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+        padding: 2px 6px !important;
+        margin-left: 12px !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        border-radius: 4px !important;
+        transition: background 0.15s ease !important;
+    }
+
+    body.mobile-panel-open #noti-dropdown .notif-header__mark-all:hover {
+        background: rgba(0, 0, 0, 0.07) !important;
+    }
+
+    body.mobile-panel-open #noti-dropdown .notif-tabs-bar {
+        padding: 10px 16px !important;
+        border-bottom: 1px solid #f8fafc !important;
+    }
+
+    body.mobile-panel-open #noti-dropdown .notif-scroll-area {
+        flex: 1 1 auto !important;
+        padding: 8px 16px 2.5rem !important;
+        overflow-y: auto !important;
+    }
+
+    body.mobile-panel-open #profileDropdownMenu,
+    body.mobile-account-fullscreen #profileDropdownMenu,
+    #profileDropdownMenu.mobile-account-fullscreen {
+        padding-bottom: 2.5rem !important;
+    }
+
+    body.mobile-panel-open #profileDropdownMenu .profile-panel-hero,
+    body.mobile-account-fullscreen #profileDropdownMenu .profile-panel-hero,
+    #profileDropdownMenu.mobile-account-fullscreen .profile-panel-hero {
+        padding: 24px 20px 20px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        margin: 0 !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel #sigmaAiMessages {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+    }
+
+    /* Abolish all legacy pull-up sheets and bottom sheets */
+    .mobile-pull-up-panel,
+    .mobile-sigma-sheet,
+    .mobile-sigma-sheet-backdrop {
+        display: none !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+    }
+}
+
+
+
+

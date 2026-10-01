@@ -1,0 +1,2682 @@
+/**
+ * SIGMA ELMS - Unified Announcement Component Stylesheet
+ * Standardized across Admin, Teacher, and Student portals.
+ * Modern Facebook-style composer modal, audience targeting pills,
+ * friendly "Add to your post" toolbar, photo/video preview chips, and feed cards.
+ */
+
+:root {
+    --announcement-radius: 22px;
+    --announcement-green: #15803d;
+    --announcement-green-dark: #14532d;
+    --announcement-green-light: #dcfce7;
+    --announcement-border: #e2e8f0;
+    --announcement-card-bg: #ffffff;
+    --sigma-black-fade: rgba(0, 0, 0, 0.45);
+    --sigma-black-fade-dark: rgba(0, 0, 0, 0.65);
+    --sigma-black-fade-light: rgba(0, 0, 0, 0.35);
+    --sigma-black-fade-subtle: rgba(0, 0, 0, 0.20);
+    --sigma-black-fade-bg: rgba(0, 0, 0, 0.035);
+    --sigma-black-fade-border: rgba(0, 0, 0, 0.10);
+}
+
+.text-black-fade {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   1. TRIGGER COMPOSER BAR (Home / Dashboard Feed)
+   ═════════════════════════════════════════════════════════════════════════ */
+.announcement-composer-trigger-card {
+    background: #ffffff;
+    border: 1px solid var(--announcement-border);
+    border-radius: var(--announcement-radius);
+    padding: 0.875rem 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.announcement-composer-trigger-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.announcement-trigger-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    object-fit: cover;
+    background: #f1f5f9;
+    flex-shrink: 0;
+}
+
+.announcement-trigger-input-btn,
+#trigger-announcement-composer {
+    flex: 1;
+    height: 42px;
+    background-color: #f1f5f9;
+    border: none;
+    border-radius: 9999px;
+    padding: 0 1.25rem;
+    text-align: left;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.announcement-trigger-input-btn span,
+#trigger-announcement-composer span,
+.announcement-composer-trigger-card button span {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    transition: color 0.15s ease;
+}
+
+.announcement-trigger-input-btn i,
+#trigger-announcement-composer i,
+.announcement-composer-trigger-card button i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-size: 13.5px;
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+}
+
+.announcement-trigger-input-btn:hover,
+#trigger-announcement-composer:hover {
+    background-color: #e2e8f0;
+}
+
+.announcement-trigger-input-btn:hover span,
+#trigger-announcement-composer:hover span,
+.announcement-composer-trigger-card button:hover span,
+.announcement-composer-trigger-card:hover button span,
+button[onclick*="openComposerModal"]:hover span,
+button[onclick*="openClassroomComposer"]:hover span {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.announcement-trigger-input-btn:hover i,
+#trigger-announcement-composer:hover i,
+.announcement-composer-trigger-card button:hover i,
+.announcement-composer-trigger-card:hover button i,
+button[onclick*="openComposerModal"]:hover i,
+button[onclick*="openClassroomComposer"]:hover i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.announcement-trigger-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.announcement-trigger-quick-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    font-size: 16px;
+}
+
+.announcement-trigger-quick-btn:hover {
+    background-color: #f1f5f9;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   1.5. FEED TAB FILTER BAR (Announcements, Important, Posts)
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-feed-tabs-container {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.sigma-feed-tab-btn {
+    flex: 1 1 0px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border-radius: 9999px;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em;
+    border: none;
+    background: transparent;
+    color: #334155 !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.sigma-feed-tab-btn:not(.active) {
+    color: #334155 !important;
+    font-weight: 500 !important;
+}
+
+.sigma-feed-tab-btn:hover:not(.active) {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+.sigma-feed-tab-btn.active {
+    background: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(21, 128, 61, 0.20);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   2. FACEBOOK-STYLE CREATE POST MODAL DIALOG
+   ═════════════════════════════════════════════════════════════════════════ */
+html.sigma-composer-open,
+body.sigma-composer-open {
+    overflow: hidden !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+}
+
+body.sigma-composer-open #layout-wrapper,
+body.sigma-composer-open #main-content,
+body.sigma-composer-open #content-sections,
+body.sigma-composer-open .main-dashboard-column,
+body.sigma-composer-open #home-view {
+    overflow: hidden !important;
+    pointer-events: none !important;
+    touch-action: none !important;
+    user-select: none !important;
+}
+
+.sigma-composer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99999 !important;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    overscroll-behavior: contain !important;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s ease;
+}
+
+.sigma-composer-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sigma-composer-modal {
+    background: #ffffff;
+    width: max-content;
+    min-width: min(680px, 95vw);
+    max-width: min(860px, 96vw);
+    max-height: 90vh;
+    border-radius: var(--announcement-radius);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sigma-composer-backdrop.active .sigma-composer-modal {
+    transform: scale(1) translateY(0);
+}
+
+/* Modal Header */
+.sigma-composer-header {
+    position: relative;
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid var(--announcement-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+}
+
+.sigma-composer-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    text-align: center;
+    letter-spacing: -0.01em;
+}
+
+.sigma-composer-back-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #000000;
+    font-size: 16px;
+    padding: 0;
+    transition: background 0.15s ease;
+}
+
+.sigma-composer-back-btn:hover {
+    background: #f1f5f9;
+}
+
+.sigma-composer-close-btn {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000000;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+
+.sigma-composer-close-btn:hover {
+    background: #f1f5f9;
+    color: #000000;
+}
+
+/* Modal Body */
+.sigma-composer-body {
+    flex: 1 1 auto;
+    padding: 1rem 1.25rem;
+    overflow-y: auto !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
+/* Author Identity & Audience Dropdown Pill */
+.sigma-composer-author-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-shrink: 0 !important;
+}
+
+#sigma-composer-author-avatar-wrap,
+.sigma-composer-author-avatar {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 9999px;
+    object-fit: cover;
+    background: #e2e8f0;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.sigma-composer-author-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.sigma-composer-author-name {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+}
+
+.sigma-composer-pills-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
+}
+
+/* Dropdown Pill Button */
+.sigma-composer-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.65rem;
+    height: 25px;
+    min-height: 25px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--sigma-black-fade-dark, rgba(0, 0, 0, 0.65));
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    position: relative;
+    white-space: nowrap !important;
+    max-width: 100%;
+    width: auto;
+    box-sizing: border-box;
+}
+
+.sigma-composer-pill-btn span,
+#sigma-composer-audience-label,
+#sigma-composer-students-label,
+#sigma-composer-priority-label {
+    white-space: nowrap !important;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    font-size: 11.5px;
+    font-weight: 500;
+}
+
+#sigma-composer-students-label {
+    max-width: none !important;
+}
+
+#sigma-composer-priority-label {
+    max-width: none !important;
+}
+
+.sigma-composer-pill-btn i {
+    font-size: 10px;
+    line-height: 1;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sigma-composer-pill-btn i.fa-chevron-down {
+    font-size: 8px;
+    margin-left: 1px;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-pill-btn i,
+.sigma-composer-pill-btn i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.sigma-composer-pill-btn:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: var(--sigma-black-fade-dark, rgba(0, 0, 0, 0.65));
+}
+
+.sigma-composer-pill-btn:hover span {
+    color: var(--sigma-black-fade-dark, rgba(0, 0, 0, 0.65)) !important;
+}
+
+.sigma-composer-pill-btn.locked,
+.sigma-composer-pill-btn.locked:hover {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: var(--sigma-black-fade-dark, rgba(0, 0, 0, 0.65)) !important;
+    cursor: default !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-pill-btn.locked i,
+.sigma-composer-pill-btn.locked i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-pill-btn:hover i,
+.sigma-composer-pill-btn:hover i {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-pill-btn i.fa-chevron-down,
+.sigma-composer-pill-btn i.fa-chevron-down {
+    font-size: 10px;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-close-btn i,
+.sigma-composer-close-btn i {
+    color: #000000 !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-close-btn:hover i,
+.sigma-composer-close-btn:hover i {
+    color: #000000 !important;
+}
+
+.sigma-composer-backdrop.active .sigma-composer-submit-btn i {
+    color: #ffffff !important;
+}
+
+/* Dropdown Popover Menu */
+.sigma-composer-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: min(360px, calc(100vw - 24px)) !important;
+    background: #ffffff;
+    border: 1px solid var(--announcement-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    padding: 0.35rem 0.35rem;
+    z-index: 2050;
+    display: none;
+    box-sizing: border-box;
+}
+
+#sigma-composer-priority-menu {
+    left: auto;
+    right: 0;
+    min-width: 160px;
+    width: max-content;
+}
+
+.sigma-composer-dropdown-menu.show {
+    display: block;
+    animation: dropdownFade 0.15s ease;
+}
+
+@keyframes dropdownFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sigma-dropdown-group-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: capitalize !important;
+    letter-spacing: 0.02em;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    padding: 0.2rem 0.45rem 0.25rem;
+    margin-bottom: 0.1rem;
+    user-select: none;
+}
+
+/* Dropdown list scroll container with height limit before auto scroll */
+.sigma-dropdown-scroll-list {
+    max-height: min(240px, 45vh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 2px;
+}
+
+.sigma-dropdown-scroll-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sigma-dropdown-scroll-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sigma-dropdown-scroll-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.16);
+    border-radius: 9999px;
+}
+
+.sigma-dropdown-scroll-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.sigma-dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.35rem 0.55rem;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #000000;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    box-sizing: border-box;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sigma-dropdown-item span,
+.sigma-dropdown-item .sigma-dropdown-item-text {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #000000;
+    white-space: nowrap;
+    word-break: normal;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.sigma-dropdown-item i {
+    width: 16px;
+    text-align: center;
+    font-size: 11px;
+    color: #000000 !important;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sigma-dropdown-item:hover {
+    background: #f1f5f9;
+}
+
+.sigma-dropdown-item:hover span,
+.sigma-dropdown-item:hover .sigma-dropdown-item-text {
+    color: #000000;
+}
+
+.sigma-dropdown-item:hover i {
+    color: #000000 !important;
+}
+
+.sigma-dropdown-item.active {
+    background: #fef3c7;
+    color: #000000;
+    font-weight: 500;
+}
+
+.sigma-dropdown-item.active span,
+.sigma-dropdown-item.active .sigma-dropdown-item-text {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
+
+.sigma-dropdown-item.active i {
+    color: #000000 !important;
+}
+
+.sigma-dropdown-item.active:hover {
+    background: #fde68a;
+}
+
+/* Input Fields */
+.sigma-composer-title-input {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 0.375rem 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f172a;
+    outline: none;
+    background: transparent;
+    flex-shrink: 0 !important;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+
+.sigma-composer-title-input::placeholder {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    font-weight: 500;
+    opacity: 1 !important;
+}
+
+/* Rich Text Formatting Toolbar & Unified Editor Box */
+.sigma-composer-editor-box {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-editor-box:focus-within,
+.sigma-composer-editor-box.focused {
+    border: 1px solid #FFD000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.sigma-composer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: #475569;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.sigma-composer-tool-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.sigma-composer-tool-btn:active {
+    transform: scale(0.94);
+}
+
+.sigma-composer-tool-btn.active {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.sigma-composer-tool-divider {
+    width: 1px;
+    height: 18px;
+    background: #e2e8f0;
+    margin: 0 0.35rem;
+}
+
+.sigma-composer-textarea {
+    width: 100%;
+    min-height: 120px;
+    max-height: 280px;
+    overflow-y: auto;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #1e293b;
+    background: transparent !important;
+    font-family: inherit;
+    padding: 0.875rem 1rem;
+    position: relative;
+    word-break: break-word;
+    flex-shrink: 0 !important;
+    box-sizing: border-box;
+}
+
+.sigma-composer-textarea:empty:before {
+    content: attr(data-placeholder);
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45));
+    pointer-events: none;
+    display: block;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   MEDIA ATTACHED MODE (VIDEO OR IMAGES PRESENT)
+   - Description becomes 1 row and NEVER squeezes
+   - Title text box stays untouched at the top
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-composer-modal.has-media .sigma-composer-author-row {
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-modal.has-media .sigma-composer-title-input {
+    flex-shrink: 0 !important;
+    min-height: 38px !important;
+    margin-bottom: 0.15rem !important;
+}
+
+.sigma-composer-modal.has-media .sigma-composer-editor-box {
+    flex-shrink: 0 !important;
+    height: auto !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    margin-top: 0.15rem !important;
+    margin-bottom: 0.25rem !important;
+    overflow: hidden !important;
+}
+
+/* Hide toolbar when media is attached so description is 1 clean, spacious row without squeeze */
+.sigma-composer-modal.has-media .sigma-composer-toolbar {
+    display: none !important;
+}
+
+/* Single 1-row description input when media is attached: starts 1 row, but pressing enter expands downwards pushing down media */
+.sigma-composer-modal.has-media .sigma-composer-textarea {
+    min-height: 44px !important;
+    height: auto !important;
+    max-height: 220px !important;
+    padding: 0.65rem 0.875rem !important;
+    font-size: 14.5px !important;
+    line-height: 1.45 !important;
+    overflow-y: auto !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    white-space: pre-wrap !important;
+}
+
+.sigma-composer-textarea ul {
+    list-style-type: disc !important;
+    padding-left: 1.5rem !important;
+    margin: 0.25rem 0 !important;
+}
+
+.sigma-composer-textarea ol {
+    list-style-type: decimal !important;
+    padding-left: 1.5rem !important;
+    margin: 0.25rem 0 !important;
+}
+
+.sigma-composer-textarea u {
+    text-decoration: underline !important;
+}
+
+.sigma-composer-textarea b,
+.sigma-composer-textarea strong {
+    font-weight: 700 !important;
+}
+
+.sigma-composer-textarea i,
+.sigma-composer-textarea em {
+    font-family: inherit !important;
+    font-style: italic !important;
+    text-transform: none !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   3. ATTACHMENTS PREVIEW CHIPS & DROPZONE
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-composer-attachments-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    width: 100%;
+    flex-shrink: 0 !important;
+}
+
+.sigma-attachment-item {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0 !important;
+    width: 100%;
+}
+
+.sigma-attachment-item video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px !important;
+    object-fit: contain !important;
+    background: #000000 !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+/* 1 uploaded image: whole pic inside the dialog panel */
+.sigma-composer-single-photo-box {
+    position: relative;
+    width: 100%;
+    max-height: 280px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-single-photo-box img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+.sigma-attachment-remove-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.75);
+    color: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+}
+
+.sigma-attachment-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.9);
+    transform: scale(1.08);
+}
+
+.sigma-attachment-meta-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.sigma-attachment-size-warning {
+    padding: 0.625rem 0.875rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   4. "ADD TO YOUR POST" ACTION BAR
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-composer-add-to-post-card {
+    border: 1px solid var(--announcement-border);
+    border-radius: 14px;
+    padding: 0.625rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sigma-add-to-post-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.sigma-add-to-post-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.sigma-action-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 17px;
+    transition: all 0.15s ease;
+}
+
+.sigma-action-icon-btn i {
+    pointer-events: none;
+}
+
+.sigma-action-icon-btn:hover {
+    background: #f1f5f9;
+    transform: scale(1.08);
+}
+
+.sigma-action-icon-btn.active {
+    background: #e2e8f0;
+}
+
+/* Icon specific theme colors */
+.sigma-icon-photo { color: #16a34a; }
+.sigma-icon-video { color: #dc2626; }
+.sigma-action-icon-btn.sigma-icon-important {
+    color: #94a3b8;
+    background: transparent;
+    transition: all 0.15s ease;
+}
+@media (hover: hover) {
+    .sigma-action-icon-btn.sigma-icon-important:hover:not(.active) {
+        color: #eab308;
+        background: #fefce8;
+    }
+}
+.sigma-action-icon-btn.sigma-icon-important.active {
+    color: #ca8a04 !important;
+    background: #fef9c3 !important;
+    box-shadow: 0 0 0 1.5px #fde047 !important;
+}
+.sigma-action-icon-btn.sigma-icon-important:not(.active) {
+    color: #94a3b8 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   5. POST SUBMISSION BUTTON
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-composer-footer {
+    padding: 0.875rem 1.25rem 1.25rem !important;
+    border-top: 1px solid var(--announcement-border);
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex-shrink: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-composer-submit-btn {
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    background: var(--announcement-green);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-composer-submit-btn:hover:not(:disabled) {
+    background: var(--announcement-green-dark);
+}
+
+.sigma-composer-submit-btn:disabled {
+    background: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   6. ANNOUNCEMENT FEED CARDS
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-announcement-card {
+    background: #ffffff;
+    border: 1px solid var(--announcement-border);
+    border-radius: var(--announcement-radius);
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.25rem;
+    transition: box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.sigma-announcement-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+.sigma-announcement-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.875rem;
+}
+
+.sigma-card-author-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sigma-card-author-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 9999px;
+    object-fit: cover;
+    background: #f1f5f9;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
+}
+
+.sigma-card-author-avatar:hover,
+.sigma-card-author-info [onclick]:hover .sigma-card-author-avatar,
+.sigma-card-author-info [onclick]:hover .sigma-user-avatar {
+    background-color: #e2e8f0;
+    cursor: pointer;
+}
+
+.sigma-card-author-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.sigma-card-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 0.125rem;
+    flex-wrap: wrap;
+}
+
+.sigma-badge-audience {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: #f1f5f9;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.sigma-badge-priority {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.sigma-card-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.01em;
+}
+
+.sigma-card-body-text,
+.sigma-card-post-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    margin: 0 0 0.875rem 0;
+    word-break: break-word;
+}
+
+.sigma-card-post-body ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin: 0.35rem 0;
+}
+
+.sigma-card-post-body ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin: 0.35rem 0;
+}
+
+.sigma-card-post-body u {
+    text-decoration: underline;
+}
+
+.sigma-card-post-body b,
+.sigma-card-post-body strong {
+    font-weight: 700;
+}
+
+.sigma-card-post-body i,
+.sigma-card-post-body em {
+    font-family: inherit !important;
+    font-style: italic !important;
+    text-transform: none !important;
+}
+
+.sigma-card-see-more-btn {
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    display: inline-block;
+    transition: text-decoration 0.12s ease;
+}
+
+.sigma-card-see-more-btn:hover {
+    text-decoration: underline;
+}
+
+/* Feed Card Media Display (Edge-to-edge container, no padding, no radius, black background, full uncropped image, pointer cursor) */
+.sigma-card-media-picture-container,
+.sigma-card-media-wrapper {
+    width: calc(100% + 3rem) !important;
+    margin-left: -1.5rem !important;
+    margin-right: -1.5rem !important;
+    max-height: 520px;
+    border-radius: 0 !important;
+    overflow: hidden;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+    background: #000000 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-left: none !important;
+    border-right: none !important;
+    cursor: pointer !important;
+}
+
+.sigma-card-media-picture-container img,
+.sigma-card-media-wrapper img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 520px;
+    object-fit: contain !important;
+    border-radius: 0 !important;
+    display: block;
+    margin: 0 auto;
+    cursor: pointer !important;
+    background: #000000 !important;
+}
+
+/* Multi-Photo Grid (Supports up to 8 pictures) */
+.sigma-card-photo-grid {
+    width: calc(100% + 3rem) !important;
+    margin-left: -1.5rem !important;
+    margin-right: -1.5rem !important;
+    display: grid;
+    gap: 3px;
+    background: #000000;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+    overflow: hidden;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sigma-card-photo-grid--2,
+.sigma-card-photo-grid.count-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    aspect-ratio: 2 / 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+.sigma-card-photo-grid--3,
+.sigma-card-photo-grid.count-3 {
+    grid-template-columns: 1.6fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+    aspect-ratio: 16 / 10 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+.sigma-card-photo-grid.count-3 .sigma-grid-img-cell:first-child {
+    grid-row: span 2 !important;
+}
+
+.sigma-card-photo-grid--4,
+.sigma-card-photo-grid.count-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(2, 1fr) !important;
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 480px !important;
+}
+
+.sigma-card-photo-grid--5,
+.sigma-card-photo-grid--6,
+.sigma-card-photo-grid.count-5,
+.sigma-card-photo-grid.count-6 {
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 150px;
+}
+
+.sigma-card-photo-grid--7,
+.sigma-card-photo-grid--8,
+.sigma-card-photo-grid.count-7,
+.sigma-card-photo-grid.count-8 {
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 140px;
+}
+
+.sigma-card-photo-grid-item,
+.sigma-grid-img-cell {
+    position: relative;
+    overflow: hidden;
+    background: #000000;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: pointer !important;
+}
+
+.sigma-card-photo-grid-item img,
+.sigma-grid-img-cell img {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: unset !important;
+    object-fit: cover !important;
+    display: block !important;
+}
+
+.sigma-card-video-expand-btn,
+button.sigma-card-video-expand-btn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.sigma-card-photo-grid-item:hover img,
+.sigma-grid-img-cell:hover img {
+    opacity: 0.92;
+    transform: scale(1.02);
+}
+
+/* Multi-Image Composer Preview: strictly 2 columns only (pair rows, 4 = 2 rows of 2, etc.) with tight spacing */
+.sigma-composer-multi-preview-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-preview-thumb-box {
+    position: relative !important;
+    height: 140px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    background: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* If exactly 2 images, give them slightly more vertical space for a clean pair */
+.sigma-composer-multi-preview-grid.is-pair-only .sigma-composer-preview-thumb-box,
+.sigma-composer-preview-thumb-box.count-2 {
+    height: 175px !important;
+    border-radius: 12px !important;
+}
+
+.sigma-composer-preview-thumb-box img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+}
+
+.sigma-composer-preview-thumb-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+}
+
+.sigma-composer-preview-thumb-remove:hover {
+    background: #ef4444;
+    transform: scale(1.08);
+}
+
+.sigma-composer-preview-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 4px;
+    flex-shrink: 0 !important;
+}
+
+.sigma-composer-preview-counter {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.sigma-composer-btn-add-more {
+    font-size: 12px;
+    font-weight: 700;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sigma-composer-btn-add-more:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.sigma-card-media-wrapper video {
+    width: 100%;
+    max-height: 480px;
+    background: #000000;
+    display: block;
+}
+
+/* Actions Footer (Like / Comment) */
+.sigma-card-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 0.5rem;
+    border-top: none !important;
+}
+
+.sigma-card-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sigma-card-action-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.sigma-card-action-btn.liked {
+    color: #ef4444;
+}
+
+.sigma-card-action-btn.liked i {
+    font-weight: 900;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* Announce To - Student Picker Modal (Google Classroom Style)              */
+/* ═════════════════════════════════════════════════════════════════════════ */
+.sigma-student-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100002 !important;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.sigma-student-picker-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sigma-student-picker-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: min(350px, calc(100vw - 32px));
+    border-radius: 16px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-sizing: border-box;
+}
+
+.sigma-student-picker-backdrop.active .sigma-student-picker-card {
+    transform: scale(1) translateY(0);
+}
+
+.sigma-student-picker-header {
+    padding: 1rem 1.15rem 0.5rem 1.15rem;
+}
+
+.sigma-student-picker-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.25;
+}
+
+.sigma-student-picker-list {
+    padding: 0.25rem 0.65rem 0.5rem 0.65rem;
+    max-height: min(280px, 45vh);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sigma-student-picker-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sigma-student-picker-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sigma-student-picker-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.16);
+    border-radius: 9999px;
+}
+
+.sigma-student-picker-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.sigma-student-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s ease;
+    min-height: 36px;
+    box-sizing: border-box;
+}
+
+.sigma-student-row:hover {
+    background: #f8fafc;
+}
+
+.sigma-student-checkbox {
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    accent-color: #15803d;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.sigma-student-picker-list .sigma-user-avatar,
+.sigma-student-avatar-badge {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    border-radius: 9999px !important;
+    background-color: #f1f5f9 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+}
+
+.sigma-student-picker-list .sigma-user-avatar img,
+.sigma-student-avatar-badge img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+}
+
+.sigma-student-picker-list .sigma-user-avatar i,
+.sigma-student-avatar-badge i {
+    color: #64748b !important;
+    font-size: 11.5px !important;
+    display: inline-block;
+    line-height: 1;
+}
+
+.sigma-student-name {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #0f172a;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.sigma-student-picker-footer {
+    padding: 0.65rem 1rem 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.sigma-student-btn-done {
+    padding: 0.35rem 1.25rem;
+    border: none;
+    background: #15803d;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    height: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(21, 128, 61, 0.25);
+    transition: all 0.15s ease;
+}
+
+.sigma-student-btn-done:hover {
+    background: #166534;
+    box-shadow: 0 3px 8px rgba(21, 128, 61, 0.35);
+}
+
+#sigma-composer-pill-students {
+    max-width: 180px;
+}
+
+#sigma-composer-students-label {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   6. DISCARD CONFIRMATION DIALOG PANEL
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-discard-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 100005 !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.sigma-discard-dialog-backdrop.active {
+    display: flex !important;
+    animation: modalFadeIn 0.15s ease-out;
+}
+
+.sigma-discard-dialog {
+    background: #ffffff;
+    width: 100%;
+    max-width: 580px;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    padding: 2rem 2rem 1.75rem;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 100010 !important;
+}
+
+.sigma-discard-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin: 0 auto 1rem;
+}
+
+.sigma-discard-dialog-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.5rem;
+}
+
+.sigma-discard-dialog-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.45;
+    margin: 0 0 1.25rem;
+}
+
+.sigma-discard-dialog-actions {
+    display: flex;
+    gap: 0.625rem;
+    justify-content: center;
+}
+
+.sigma-discard-btn-cancel {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sigma-discard-btn-cancel:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.sigma-discard-btn-confirm {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    border-radius: 12px;
+    border: none;
+    background: #15803d;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sigma-discard-btn-confirm:hover {
+    background: #166534;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   7. CUSTOM TOAST NOTIFICATION PANELS
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 380px;
+    width: calc(100vw - 32px);
+    pointer-events: none;
+}
+
+.sigma-toast-panel {
+    pointer-events: auto;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.sigma-toast-panel.hide {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.sigma-toast-icon {
+    font-size: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.sigma-toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.sigma-toast-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+
+.sigma-toast-desc {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.4;
+}
+
+.sigma-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px;
+    line-height: 1;
+    transition: color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.sigma-toast-close:hover {
+    color: #0f172a;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ANNOUNCEMENT FEED CARD LIKE BUTTON STYLING
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-card-footer-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    border-top: none !important;
+    margin-top: 6px !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-card-like-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 12px !important;
+    border-radius: 9999px !important;
+    border: 1px solid var(--sigma-black-fade-border, rgba(0, 0, 0, 0.10)) !important;
+    background: var(--sigma-black-fade-bg, rgba(0, 0, 0, 0.035)) !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+    user-select: none !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.sigma-card-like-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: rgba(0, 0, 0, 0.80) !important;
+}
+
+.sigma-card-like-btn i {
+    font-size: 11px !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+    width: 12px !important;
+    text-align: center !important;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.15s ease !important;
+}
+
+.sigma-card-like-btn i.fa-regular {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 400 !important;
+}
+
+.sigma-card-like-btn span {
+    line-height: 1 !important;
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
+.sigma-card-like-btn.liked {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+    color: #dc2626 !important;
+}
+
+.sigma-card-like-btn.liked i,
+.sigma-card-like-btn.liked i.fa-solid {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 900 !important;
+    color: #ef4444 !important;
+    transform: scale(1.15) !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   8. FEED EMPTY STATE CARD
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-announcements-empty-state {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 22px !important;
+    padding: 3.5rem 2rem 4.5rem 2rem !important;
+    min-height: 280px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0 !important;
+}
+
+.sigma-empty-icon-circle {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 9999px !important;
+    background: #f1f5f9 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto 1rem !important;
+}
+
+.sigma-empty-icon-circle i {
+    font-size: 22px !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.sigma-empty-title {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    color: #000 !important;
+    margin: 0 !important;
+}
+
+.sigma-empty-subtitle {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    margin: 6px auto 0 !important;
+    max-width: 28rem !important;
+}
+
+@media (max-width: 768px) {
+    .sigma-announcements-empty-state {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: #ffffff !important;
+        position: relative !important;
+        padding: 2rem 1.25rem 2.5rem 1.25rem !important;
+        height: auto !important;
+        min-height: calc(100dvh - var(--shell-offset, 105px) - 210px) !important;
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-shadow: none !important;
+    }
+.sigma-badge-important {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: #fef3c7 !important;
+    border: 1px solid #fde68a !important;
+    color: #92400e !important;
+    border-radius: 9999px !important;
+    padding: 1.5px 5px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+    user-select: none !important;
+    box-shadow: 0 1px 2px rgba(245, 158, 11, 0.12) !important;
+    transition: all 0.15s ease !important;
+}
+
+.sigma-badge-important i {
+    color: #d97706 !important;
+    font-size: 9.5px !important;
+    display: inline-block !important;
+    line-height: 1 !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   9. POST CARD COMMENT ACTION BUTTON
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-card-comment-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    height: 25px !important;
+    min-height: 25px !important;
+    padding: 0 9px !important;
+    border-radius: 9999px !important;
+    border: 1px solid var(--sigma-black-fade-border, rgba(0, 0, 0, 0.10)) !important;
+    background: var(--sigma-black-fade-bg, rgba(0, 0, 0, 0.035)) !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+    user-select: none !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.sigma-card-comment-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: rgba(0, 0, 0, 0.80) !important;
+}
+
+.sigma-card-comment-btn i {
+    font-size: 11px !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+    width: 12px !important;
+    text-align: center !important;
+    transition: color 0.15s ease !important;
+}
+
+.sigma-card-comment-btn i.fa-regular {
+    font-family: 'Font Awesome 6 Free' !important;
+    font-weight: 400 !important;
+}
+
+.sigma-card-comment-btn span {
+    line-height: 1 !important;
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   10. FACEBOOK-STYLE POST DIALOG MODAL & COMMENTS THREAD
+   ═════════════════════════════════════════════════════════════════════════ */
+.sigma-post-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 99999 !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(4px);
+}
+
+.sigma-post-dialog-backdrop.active {
+    display: flex;
+    animation: dialogFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dialogFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sigma-post-dialog-modal {
+    background: #ffffff;
+    border-radius: 22px;
+    width: 100%;
+    max-width: 680px;
+    height: 80vh;
+    max-height: 85vh;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e8f0;
+}
+
+.sigma-post-dialog-header {
+    position: relative;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0 1rem;
+    flex-shrink: 0;
+    background: #ffffff;
+}
+
+.sigma-post-dialog-back-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #000000;
+    font-size: 14px;
+    padding: 0;
+    transition: background 0.15s ease;
+}
+
+.sigma-post-dialog-back-btn:hover {
+    background: #f1f5f9;
+}
+
+.sigma-post-dialog-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #000000;
+    text-align: center;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.sigma-post-dialog-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 1.25rem;
+    font-family: 'Inter', sans-serif;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.sigma-post-dialog-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sigma-post-dialog-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+.sigma-post-dialog-footer {
+    border-top: 1px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+    .sigma-post-dialog-backdrop {
+        padding: 0 !important;
+        background: #ffffff !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        backdrop-filter: none !important;
+    }
+
+    .sigma-post-dialog-backdrop.active {
+        animation: none !important;
+    }
+
+    .sigma-post-dialog-modal {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        min-width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        min-height: 100vh !important;
+        min-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        inset: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .sigma-post-dialog-header {
+        height: 48px !important;
+        min-height: 48px !important;
+        padding: 0 12px !important;
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        border-radius: 0 !important;
+    }
+
+    .sigma-post-dialog-back-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: absolute !important;
+        left: 8px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 8px !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        color: #000000 !important;
+        font-size: 16px !important;
+        padding: 0 !important;
+        z-index: 10 !important;
+    }
+
+    .sigma-post-dialog-back-btn i {
+        color: #000000 !important;
+        font-size: 16px !important;
+    }
+
+    .sigma-post-dialog-header .sigma-composer-close-btn {
+        display: none !important;
+    }
+
+    .sigma-post-dialog-title {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        text-align: center !important;
+    }
+
+    .sigma-post-dialog-body {
+        padding: 12px 16px !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .sigma-post-dialog-footer {
+        padding: 8px 12px !important;
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+        border-top: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        border-radius: 0 !important;
+    }
+
+    /* Mobile Full-Screen Create Post / Composer Modal */
+    .sigma-composer-backdrop {
+        padding: 0 !important;
+        background: #ffffff !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    .sigma-composer-backdrop.active .sigma-composer-modal,
+    .sigma-composer-modal {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        min-width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        min-height: 100vh !important;
+        min-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        inset: 0 !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .sigma-composer-header {
+        height: 48px !important;
+        min-height: 48px !important;
+        padding: 0 12px !important;
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        border-radius: 0 !important;
+    }
+
+    .sigma-composer-back-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: absolute !important;
+        left: 8px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 8px !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        color: #000000 !important;
+        font-size: 16px !important;
+        padding: 0 !important;
+        z-index: 10 !important;
+    }
+
+    .sigma-composer-back-btn i {
+        color: #000000 !important;
+        font-size: 16px !important;
+    }
+
+    .sigma-composer-close-btn {
+        display: none !important;
+    }
+
+    .sigma-composer-title {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        text-align: center !important;
+    }
+
+    .sigma-composer-body {
+        padding: 12px 16px !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+    }
+
+    .sigma-composer-body .sigma-composer-author-row {
+        align-items: flex-start !important;
+        gap: 10px !important;
+        margin-bottom: 2px !important;
+    }
+
+    .sigma-composer-body #sigma-composer-author-avatar-wrap,
+    .sigma-composer-body .sigma-composer-author-avatar {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        border-radius: 9999px !important;
+        margin-top: 1px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sigma-composer-body .sigma-composer-author-details {
+        gap: 6px !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    .sigma-composer-body .sigma-composer-author-name {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        line-height: 1.25 !important;
+    }
+
+    .sigma-composer-body .sigma-composer-pills-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 5px !important;
+        width: 100% !important;
+    }
+
+    .sigma-composer-body .sigma-composer-pill-btn {
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 2px 8px !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        border-radius: 9999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        white-space: nowrap !important;
+        max-width: 100% !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+    }
+
+    .sigma-composer-body .sigma-composer-pill-btn span,
+    .sigma-composer-body #sigma-composer-audience-label,
+    .sigma-composer-body #sigma-composer-students-label,
+    .sigma-composer-body #sigma-composer-priority-label {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.25 !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        max-width: none !important;
+    }
+
+    .sigma-composer-body #sigma-composer-students-label {
+        max-width: none !important;
+    }
+
+    .sigma-composer-body #sigma-composer-priority-label {
+        max-width: none !important;
+    }
+
+    .sigma-composer-body .sigma-composer-pill-btn i {
+        font-size: 10px !important;
+        line-height: 1 !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sigma-composer-body .sigma-composer-pill-btn i.fa-chevron-down {
+        font-size: 8px !important;
+        margin-left: 1px !important;
+    }
+
+    .sigma-composer-dropdown-menu {
+        max-width: calc(100vw - 24px) !important;
+        box-sizing: border-box !important;
+    }
+
+    .sigma-dropdown-group-title {
+        font-size: 10px !important;
+        padding: 0.15rem 0.4rem 0.2rem !important;
+    }
+
+    .sigma-dropdown-item {
+        padding: 0.32rem 0.45rem !important;
+        font-size: 11px !important;
+        gap: 0.45rem !important;
+    }
+
+    .sigma-dropdown-item span,
+    .sigma-dropdown-item .sigma-dropdown-item-text {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.3 !important;
+    }
+
+    .sigma-dropdown-item i {
+        font-size: 10.5px !important;
+        width: 15px !important;
+    }
+
+    /* Mobile Full-Width & Expanded Description Editor Box */
+    .sigma-composer-body .sigma-composer-editor-box {
+        border-radius: 0 !important;
+        border: 1px solid #cbd5e1 !important;
+        width: 100% !important;
+        min-height: 220px !important;
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.25rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .sigma-composer-body .sigma-composer-editor-box:focus-within,
+    .sigma-composer-body .sigma-composer-editor-box.focused {
+        border: 1px solid #FFD000 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .sigma-composer-body .sigma-composer-toolbar {
+        border-radius: 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 0.35rem 0.5rem !important;
+        flex-shrink: 0 !important;
+        background: #ffffff !important;
+    }
+
+    .sigma-composer-body .sigma-composer-textarea {
+        flex: 1 1 auto !important;
+        min-height: 180px !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 0.75rem 0.85rem !important;
+        font-size: 14.5px !important;
+        line-height: 1.5 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Mobile Full-Width Attach to Announcement Panel */
+    .sigma-composer-add-to-post-card {
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: 1px solid #e2e8f0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 0.6rem 0.85rem !important;
+        width: 100% !important;
+        margin-bottom: 0.5rem !important;
+        box-sizing: border-box !important;
+        box-shadow: none !important;
+    }
+
+    .sigma-add-to-post-label {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+    }
+
+    .sigma-composer-footer {
+        padding: 10px 14px 16px 14px !important;
+        padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 12px)) !important;
+        border-top: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        border-radius: 0 !important;
+    }
+}
+
+/* Comment Thread Components */
+.sigma-comment-bubble {
+    background: transparent;
+    padding: 0.125rem 0.25rem;
+}
+
+.sigma-comment-input-pill {
+    background: #f1f5f9;
+    border: 1.5px solid transparent;
+    border-radius: 20px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0.5rem 0 0.875rem;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+
+.sigma-comment-input-pill:focus-within {
+    background: #f1f5f9;
+    border-color: #facc15;
+    box-shadow: none;
+}
+
+.sigma-comment-textarea {
+    width: 100%;
+    min-height: 36px;
+    height: 36px;
+    max-height: 120px;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #000000;
+    padding: 8px 0 8px 0;
+    margin: 0;
+    box-shadow: none;
+    overflow-y: hidden;
+    word-break: break-word;
+    white-space: pre-wrap;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+    box-sizing: border-box;
+}
+
+.sigma-comment-textarea::placeholder {
+    color: rgba(0, 0, 0, 0.40);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+}
+
+.sigma-comment-delete-btn {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.group:hover .sigma-comment-delete-btn,
+.sigma-comment-row:hover .sigma-comment-delete-btn,
+#dialog-comment-list .group:hover .sigma-comment-delete-btn,
+[id^="dialog-comment-"]:hover .sigma-comment-delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
