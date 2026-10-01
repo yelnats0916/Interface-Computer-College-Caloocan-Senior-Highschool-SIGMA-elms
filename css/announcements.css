@@ -1776,7 +1776,7 @@ button.sigma-card-video-expand-btn {
     padding: 0.625rem 1rem;
     border-radius: 12px;
     border: none;
-    background: #15803d;
+    background: #dc2626;
     color: #ffffff;
     font-size: 13px;
     font-weight: 600;
@@ -1785,7 +1785,16 @@ button.sigma-card-video-expand-btn {
 }
 
 .sigma-discard-btn-confirm:hover {
-    background: #166534;
+    background: #b91c1c;
+}
+
+@media (max-width: 768px) {
+    .sigma-discard-dialog {
+        max-width: 90% !important;
+        width: 90% !important;
+        padding: 1.5rem 1.25rem !important;
+        border-radius: 16px !important;
+    }
 }
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -2541,21 +2550,24 @@ button.sigma-card-video-expand-btn {
 
     /* Mobile Full-Width & Expanded Description Editor Box */
     .sigma-composer-body .sigma-composer-editor-box {
-        border-radius: 0 !important;
-        border: 1px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        border: 1.5px solid #cbd5e1 !important;
         width: 100% !important;
-        min-height: 220px !important;
-        flex: 1 1 auto !important;
+        min-height: 190px !important;
+        max-height: 300px !important;
+        flex: 0 1 auto !important;
         display: flex !important;
         flex-direction: column !important;
         margin-top: 0.35rem !important;
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.4rem !important;
         box-sizing: border-box !important;
+        overflow: hidden !important;
+        background: #ffffff !important;
     }
 
     .sigma-composer-body .sigma-composer-editor-box:focus-within,
     .sigma-composer-body .sigma-composer-editor-box.focused {
-        border: 1px solid #FFD000 !important;
+        border: 1.5px solid #FFD000 !important;
         box-shadow: none !important;
         outline: none !important;
     }
@@ -2570,13 +2582,18 @@ button.sigma-card-video-expand-btn {
 
     .sigma-composer-body .sigma-composer-textarea {
         flex: 1 1 auto !important;
-        min-height: 180px !important;
-        max-height: none !important;
+        min-height: 140px !important;
+        max-height: 240px !important;
         height: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
         padding: 0.75rem 0.85rem !important;
         font-size: 14.5px !important;
         line-height: 1.5 !important;
         box-sizing: border-box !important;
+        word-break: break-word !important;
+        outline: none !important;
     }
 
     /* Mobile Full-Width Attach to Announcement Panel */

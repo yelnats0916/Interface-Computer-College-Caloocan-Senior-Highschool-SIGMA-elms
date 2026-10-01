@@ -1056,6 +1056,9 @@
         { key: 'important', label: 'Important', icon: 'fa-star', badgeClass: 'bg-amber-100 text-amber-900' }
     ];
 
+    // Active attempt close composer reference for discard confirmations
+    let currentAttemptCloseComposer = null;
+
     // Build the Composer Modal DOM dynamically if not present (Admin & Teacher only)
     function ensureComposerModalDOM() {
         const path = (window.location.pathname || '').toLowerCase();
@@ -1081,7 +1084,7 @@
             <div class="sigma-composer-modal">
                 <!-- Header -->
                 <div class="sigma-composer-header">
-                    <button type="button" class="sigma-composer-back-btn" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.closeComposer() : (window.closeClassroomComposer && window.closeClassroomComposer())" title="Back">
+                    <button type="button" class="sigma-composer-back-btn" id="sigma-composer-back-btn" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.closeComposer() : (window.closeClassroomComposer && window.closeClassroomComposer())" title="Back">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
                     <h3 class="sigma-composer-title">Create Post</h3>
@@ -1199,8 +1202,8 @@
                 <div class="sigma-discard-icon-circle">
                     <i class="fa-solid fa-trash-can"></i>
                 </div>
-                <h4 class="sigma-discard-dialog-title">Discard post?</h4>
-                <p class="sigma-discard-dialog-desc">You have an unfinished post with changes or attachments. If you leave now, your draft will be discarded.</p>
+                <h4 class="sigma-discard-dialog-title">Discard Announcement?</h4>
+                <p class="sigma-discard-dialog-desc">You have unsaved changes in your announcement. If you leave now, everything you typed will be lost.</p>
                 <div class="sigma-discard-dialog-actions">
                     <button type="button" class="sigma-discard-btn-cancel" id="sigma-discard-btn-cancel">Keep Editing</button>
                     <button type="button" class="sigma-discard-btn-confirm" id="sigma-discard-btn-confirm">Discard</button>
@@ -1404,7 +1407,7 @@
                     if (typeof window.openAskingPanel === 'function') {
                         window.openAskingPanel({
                             title: 'Discard Changes?',
-                            message: 'You have unsaved changes. Are you sure you want to discard your writing and exit?',
+                            message: 'You have unsaved changes in your announcement. If you leave now, your changes will be discarded.',
                             type: 'warning',
                             icon: 'fa-solid fa-triangle-exclamation text-amber-500',
                             confirmText: 'Discard',
@@ -1423,14 +1426,14 @@
 
             const title = (document.getElementById('sigma-composer-input-title')?.value || '').trim();
             const body = (document.getElementById('sigma-composer-input-body')?.innerText || '').trim();
-            const hasMedia = attachedImages.length > 0 || attachedFile !== null;
+            const hasMedia = (Array.isArray(attachedImages) && attachedImages.length > 0) || attachedFile !== null;
             const hasChanges = title.length > 0 || body.length > 0 || hasMedia;
 
             if (hasChanges) {
                 if (typeof window.openAskingPanel === 'function') {
                     window.openAskingPanel({
-                        title: 'Discard Post?',
-                        message: 'You have an unfinished post. Are you sure you want to discard your writing and exit?',
+                        title: 'Discard Announcement?',
+                        message: 'You have unsaved changes in your announcement. If you leave now, everything you typed will be lost.',
                         type: 'warning',
                         icon: 'fa-solid fa-triangle-exclamation text-amber-500',
                         confirmText: 'Discard',
@@ -1444,6 +1447,17 @@
                 return;
             }
             closeComposerModal();
+        }
+
+        currentAttemptCloseComposer = attemptCloseComposer;
+
+        const composerBackBtn = document.getElementById('sigma-composer-back-btn') || backdrop.querySelector('.sigma-composer-back-btn');
+        if (composerBackBtn) {
+            composerBackBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                attemptCloseComposer();
+            };
         }
 
         // Close on X click (if present)
@@ -1590,6 +1604,21 @@
                 }
                 validateInputs();
                 updateToolbarActiveStates();
+
+                // Auto-scroll when typing to keep active typing cursor in view
+                try {
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) {
+                        const range = sel.getRangeAt(0);
+                        const rect = range.getBoundingClientRect();
+                        const containerRect = bodyInput.getBoundingClientRect();
+                        if (rect.bottom > containerRect.bottom - 10) {
+                            bodyInput.scrollTop += (rect.bottom - containerRect.bottom + 24);
+                        } else if (rect.top < containerRect.top + 10) {
+                            bodyInput.scrollTop -= (containerRect.top - rect.top + 24);
+                        }
+                    }
+                } catch (scrollErr) {}
             };
 
             bodyInput.addEventListener('input', handleBodyInputLimit);
@@ -5420,7 +5449,21 @@
     // Expose Public API
     window.SigmaAnnouncements = {
         openComposer: openComposerModal,
-        closeComposer: closeComposerModal,
+        closeComposer: function () {
+            if (typeof currentAttemptCloseComposer === 'function') {
+                currentAttemptCloseComposer();
+            } else {
+                closeComposerModal();
+            }
+        },
+        attemptCloseComposer: function () {
+            if (typeof currentAttemptCloseComposer === 'function') {
+                currentAttemptCloseComposer();
+            } else {
+                closeComposerModal();
+            }
+        },
+        closeComposerModal: closeComposerModal,
         renderFeed: renderFeed,
         loadNextBatch: loadNextFeedBatch,
         toggleLike: toggleLike,

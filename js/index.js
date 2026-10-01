@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!pass) {
             resetRecaptcha(formType);
             const err = formType === 'modal' ? ui.errors.modalPass : ui.errors.pass;
-            const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.id; // Corrected ID reference
+            const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass;
             showError(err, "Password is required.", false, inp);
             setLoading(formType, false);
             return;

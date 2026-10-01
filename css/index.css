@@ -985,8 +985,10 @@ textarea::placeholder {
         flex-direction: column !important;
         flex: 1 1 auto !important;
         min-height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100dvh - var(--nav-height)) !important;
         height: auto !important;
         background: #ffffff !important;
+        margin-top: var(--nav-height) !important;
     }
 
     /* MOBILE NAV & FAQ RESET */
@@ -995,33 +997,31 @@ textarea::placeholder {
     }
 
     #dotsContainer {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        bottom: 1.25rem !important;
-        transform: translateX(-50%) translateY(0) !important;
-        gap: 8px !important;
+        display: none !important;
     }
 
-    /* 1. SCREEN 1: Clean 100vh Login (Banner hidden below fold on load) */
+    /* 1. SCREEN 1: Clean 100vh Login Centered (No green border, slider hidden) */
     .login-panel {
         order: 1 !important;
         width: 100% !important;
-        height: calc(100vh - var(--nav-height)) !important;
+        height: auto !important;
         min-height: calc(100vh - var(--nav-height)) !important;
+        min-height: calc(100dvh - var(--nav-height)) !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: 1.75rem 1.25rem !important;
+        padding: 1.5rem 1.25rem 2rem !important;
         background: #ffffff !important;
         border: none !important;
-        border-bottom: 1px solid var(--primary) !important;
+        border-bottom: none !important;
         outline: none !important;
         border-radius: 0 !important;
         position: relative !important;
         z-index: 10 !important;
         box-shadow: none !important;
         margin: 0 !important;
+        box-sizing: border-box !important;
     }
 
     .login-panel .login-form-stack {
@@ -1029,21 +1029,23 @@ textarea::placeholder {
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
+        align-items: center !important;
         width: 100% !important;
-        max-width: 90% !important;
+        max-width: 380px !important;
     }
 
     .login-panel .login-form-logo-wrap {
         display: flex !important;
         justify-content: center !important;
+        align-items: center !important;
         margin-top: 0 !important;
-        margin-bottom: clamp(1rem, 2.75vh, 2rem) !important;
+        margin-bottom: 1.25rem !important;
     }
 
     .login-panel .login-form-logo {
-        width: clamp(7rem, min(38vw, 19vh), 13.5rem) !important;
-        height: clamp(7rem, min(38vw, 19vh), 13.5rem) !important;
-        max-width: 75vw !important;
+        width: clamp(85px, 24vw, 110px) !important;
+        height: clamp(85px, 24vw, 110px) !important;
+        max-width: 60vw !important;
         display: block !important;
         object-fit: contain !important;
     }
@@ -1055,32 +1057,14 @@ textarea::placeholder {
         margin-right: auto !important;
     }
 
-    /* 2. SCREEN 2: Clean Full-Bleed Banner & Footer (Stick Together, Zero Cutoff) */
+    /* 2. Slider & green border hidden on mobile/portrait */
     #landingSliderPanel {
-        order: 2 !important;
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: 4 / 3 !important;
-        margin: 0 !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        position: relative !important;
-        z-index: 5 !important;
-        border-radius: 0 !important;
-        overflow: hidden !important;
-        box-shadow: none !important;
-    }
-
-    .slide img,
-    .slide-img {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: fill !important;
-        object-position: center !important;
+        display: none !important;
     }
 
     footer {
         margin-top: 0 !important;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
     }
 }
 
