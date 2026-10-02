@@ -1791,7 +1791,7 @@ if (overlay) overlay.classList.add('hidden');
         if (typeof syncStudentSectionsNavState === 'function') {
             syncStudentSectionsNavState();
         }
-        window.scrollTo({ top: 0 });
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
     }
     //   Sub-sidebar instant show/hide (NO slide animation)  
 
@@ -4730,7 +4730,7 @@ if (overlay) overlay.classList.add('hidden');
         if (window.setStudentActiveSubject) window.setStudentActiveSubject(subjectId);
 
         _buildAndShowTopicPage(subjectId);
-
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
     }
     window.switchToTopicPage = switchToTopicPage;
 
@@ -5032,15 +5032,7 @@ if (overlay) overlay.classList.add('hidden');
         }
         window.noteStudentHistoryScreen?.();
         _showTopicContent(subjectId, topicIdx, tab, videoIdx);
-        if (videoIdx !== null) {
-            try {
-                window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
-                document.documentElement.scrollTop = 0;
-                document.body.scrollTop = 0;
-                const mc = document.getElementById('main-content');
-                if (mc) mc.scrollTop = 0;
-            } catch (_) { }
-        }
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
         if (isSubMode) {
             window.scrollSubmissionViewToTop?.();
         }
@@ -5135,16 +5127,9 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
         window.noteStudentHistoryScreen?.();
-        if (assessmentIdx !== null || isMediaTab || isSubMode) {
-            try {
-                window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
-                document.documentElement.scrollTop = 0;
-                document.body.scrollTop = 0;
-                const mc = document.getElementById('main-content');
-                if (mc) mc.scrollTop = 0;
-            } catch (_) { }
-        }
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
         _renderTopicContentMain(_tcSubjectId, _tcTopicIdx, tab);
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
         if (isSubMode) {
             window.scrollSubmissionViewToTop?.();
         }

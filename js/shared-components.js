@@ -5,7 +5,122 @@
  * Page-specific behavior stays in admin.js, teacher.js, or student.js.
  */
 
-// --- CANONICAL SHARED TAB FAVICON / LOGO INITIALIZATION ---
+// --- CANONICAL UNIVERSAL SCROLL-TO-TOP RESET ---
+// Ensures that navigating between pages, tabs, topics, or materials always starts at the top
+(function() {
+    if (typeof window === 'undefined') return;
+
+    try {
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+    } catch (_) {}
+
+    window.sigmaResetScrollToTop = function(target, options = {}) {
+        try {
+            const behavior = options?.smooth ? 'smooth' : 'instant';
+
+            // 1. Reset browser window & root viewport elements
+            if (typeof window.scrollTo === 'function') {
+                try {
+                    window.scrollTo({ top: 0, left: 0, behavior: behavior });
+                } catch (_) {
+                    window.scrollTo(0, 0);
+                }
+            }
+            if (document.documentElement && document.documentElement.scrollTop !== 0) {
+                document.documentElement.scrollTop = 0;
+            }
+            if (document.body && document.body.scrollTop !== 0) {
+                document.body.scrollTop = 0;
+            }
+
+            // 2. Reset explicit target if provided
+            if (target) {
+                const el = typeof target === 'string' ? document.querySelector(target) : target;
+                if (el && typeof el.scrollTop === 'number') {
+                    el.scrollTop = 0;
+                }
+            }
+
+            // 3. Reset all known scroll containers in SIGMA ELMS
+            const scrollIds = [
+                'main-content',
+                'admin-main',
+                'student-main',
+                'teacher-main',
+                'layout-wrapper',
+                'classroom-body',
+                'topic-content-body',
+                'detail-section-topics',
+                'subject-topics-container',
+                'school-grades-view',
+                'users-view',
+                'section-topic-content',
+                'student-panel-fullscreen-overlay',
+                'section-materials-table'
+            ];
+
+            scrollIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.scrollTop > 0) {
+                    el.scrollTop = 0;
+                }
+            });
+
+            const scrollSelectors = [
+                'main',
+                '.admin-main',
+                '.student-main',
+                '.teacher-main',
+                '.assessment-material-detail-view',
+                '.topic-video-player-view',
+                '.topic-page-shell',
+                '.topic-content-scroll',
+                '.classroom-scroll-container',
+                '.topic-overview-body-card',
+                '[data-scroll-container]'
+            ];
+
+            scrollSelectors.forEach(sel => {
+                const elements = document.querySelectorAll(sel);
+                elements.forEach(node => {
+                    if (node && node.scrollTop > 0) {
+                        node.scrollTop = 0;
+                    }
+                });
+            });
+        } catch (_) {}
+    };
+
+    // Auto-reset scroll on page load, navigation events, and history state changes
+    window.addEventListener('load', () => window.sigmaResetScrollToTop?.(), { passive: true });
+    window.addEventListener('pageshow', () => window.sigmaResetScrollToTop?.(), { passive: true });
+    window.addEventListener('popstate', () => {
+        window.sigmaResetScrollToTop?.();
+        setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
+    }, { passive: true });
+    window.addEventListener('hashchange', () => {
+        window.sigmaResetScrollToTop?.();
+        setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
+    }, { passive: true });
+
+    // Universal navigation click delegator
+    document.addEventListener('click', (e) => {
+        const navTrigger = e.target.closest(
+            '.canonical-tab-btn, .canonical-back-btn, .material-detail-back-btn, ' +
+            '.nav-link, .nav-sublink, [data-nav-tab], .topic-card, .assessment-row, ' +
+            '[data-action="open-topic"], [data-action="back"], .room-quarter-menu__item, ' +
+            '.sigma-tab-btn, .tab-btn, a[href^="#"]'
+        );
+        if (navTrigger) {
+            window.sigmaResetScrollToTop?.();
+            requestAnimationFrame(() => window.sigmaResetScrollToTop?.());
+            setTimeout(() => window.sigmaResetScrollToTop?.(), 30);
+            setTimeout(() => window.sigmaResetScrollToTop?.(), 100);
+        }
+    }, { capture: true, passive: true });
+})();
 
 // One empty-state layout: 36px fade icon, 14px/700 title, 12px/500 fade subtitle.
 window.renderSigmaEmptyState = function (options) {

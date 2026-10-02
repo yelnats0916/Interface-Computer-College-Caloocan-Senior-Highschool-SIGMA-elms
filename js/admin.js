@@ -4174,6 +4174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adminMain) {
             adminMain.scrollTop = 0;
         }
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
     };
 
     window.switchTab = function (rawTabId, skipHashUpdate = false) {

@@ -5824,6 +5824,7 @@ function initTeacherPortal() {
         window.currentTopicState = currentTopicState;
 
         _buildAndShowTopicPage(resolvedSubjectId);
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : scrollToTop();
     }
     window.switchToTopicPage = switchToTopicPage;
 
@@ -6093,6 +6094,7 @@ function initTeacherPortal() {
         showSection('section-topic-content');
 
         buildTopicContentPage(subjectId, topicIdx);
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : scrollToTop();
 
         // Hide sub-sidebar overlay when topic content workstation is active
         const subSidebar = document.getElementById('sub-sidebar');
@@ -6171,9 +6173,7 @@ function initTeacherPortal() {
         localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
 
         _renderTopicContentMain();
-        if (assessmentIdx !== null || isMediaTab || isSubMode) {
-            scrollToTop();
-        }
+        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : scrollToTop();
 
         // Keep sticky rail without auto-scrolling
         window.holdTopicRailSticky?.();
@@ -18730,6 +18730,10 @@ function initTeacherPortal() {
 
     // --- Navigation Logic ---
     function scrollToTop() {
+        if (typeof window.sigmaResetScrollToTop === 'function') {
+            window.sigmaResetScrollToTop();
+            return;
+        }
         window.scrollTo(0, 0);
         document.body.scrollTop = 0;
         document.documentElement.scrollTop = 0;
