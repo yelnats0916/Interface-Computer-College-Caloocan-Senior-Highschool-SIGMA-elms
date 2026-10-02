@@ -7075,7 +7075,7 @@ window.addSubjectTopic = function () {
                                 <span class="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200/70 text-[#15803d] font-bold rounded-md text-[10px] leading-tight inline-flex items-center justify-center text-center uppercase whitespace-nowrap">${_escape('RUBRIC')}</span>
                             </div>
                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                <h4 onclick="window.previewEditorFile('rubric')" class="text-base sm:text-lg font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
+                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
                             </div>
                         </div>
                         ${canAdminDeleteRubric ? `
@@ -7102,7 +7102,7 @@ window.addSubjectTopic = function () {
 
             rubricHtml = `
                 <div class="material-detail-rubric-section border-t border-slate-200 pt-4 sm:pt-6">
-                    <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2.5 sm:mb-4">Grading Rubric</h3>
+                    <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">Grading Rubric</h3>
                     ${rubricCardHtml}
                 </div>
             `;
@@ -7141,8 +7141,8 @@ window.addSubjectTopic = function () {
                     <div class="material-detail-info px-4 sm:px-0 space-y-2.5">
                         <h1 class="material-detail-title text-xl sm:text-2xl font-bold text-black tracking-tight font-['Inter'] leading-snug break-words">${_escape(displayTitle)}</h1>
                         <div class="material-detail-badge-row flex items-center gap-3 text-xs flex-wrap">
-                            <span class="material-detail-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md ${badgeClass} border font-bold text-[11px] capitalize">
-                                <i class="fa-solid ${typeIcon}"></i> ${typeLabel}
+                            <span class="material-detail-badge material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${badgeClass} border font-bold text-[10px] capitalize leading-tight">
+                                <i class="fa-solid ${typeIcon} text-[9px]"></i> ${typeLabel}
                             </span>
                         </div>
                         ${hasDescription ? `
@@ -7236,8 +7236,8 @@ window.addSubjectTopic = function () {
                 <div class="material-detail-info space-y-2">
                     <h1 class="material-detail-title text-xl sm:text-2xl font-bold text-black tracking-tight font-['Inter'] leading-snug break-words">${_escape(displayTitle)}</h1>
                     <div class="material-detail-badge-row flex items-center gap-2 text-xs flex-wrap">
-                        <span class="material-detail-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md ${badgeClass} border font-bold text-[11px] capitalize">
-                            <i class="fa-solid ${typeIcon}"></i> ${typeLabel}
+                        <span class="material-detail-badge material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${badgeClass} border font-bold text-[10px] capitalize leading-tight">
+                            <i class="fa-solid ${typeIcon} text-[9px]"></i> ${typeLabel}
                         </span>
                     </div>
                 </div>
@@ -7252,7 +7252,7 @@ window.addSubjectTopic = function () {
                 <!-- Attached Document / Resource Section -->
                 ${attachedFileHtml ? `
                     <div class="material-detail-attached-file border-t border-slate-200 pt-4 sm:pt-6">
-                        <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2.5 sm:mb-4">${m.type === 'Quiz' ? 'Attached Quiz' : 'Attached Document'}</h3>
+                        <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">${m.type === 'Quiz' ? 'Attached Quiz' : 'Attached Document'}</h3>
                         ${attachedFileHtml}
                     </div>
                 ` : ''}
@@ -9477,8 +9477,8 @@ window.addSubjectTopic = function () {
                                     <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || rawExt.toUpperCase()}</span>
                                 </div>
                                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                    <p class="text-xs sm:text-sm font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
-                                    <p class="text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || (rawExt.toUpperCase() + ' Document')}</p>
+                                    <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                    <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || (rawExt.toUpperCase() + ' Document')}</p>
                                 </div>
                             </div>
                             <button type="button" onclick="event.stopPropagation(); window.removeMaterialFile('main')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-100 text-black-fade hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors" title="Remove File">
@@ -9526,8 +9526,8 @@ window.addSubjectTopic = function () {
                                         <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || 'DOCX'}</span>
                                     </div>
                                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                        <p class="text-xs sm:text-sm font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
-                                        <p class="text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || 'Attached File'}</p>
+                                        <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                        <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || 'Attached File'}</p>
                                     </div>
                                 </div>
                                 <button type="button" onclick="event.stopPropagation(); window.removeMaterialFile('main')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-100 text-black-fade hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors" title="Remove File">
@@ -9573,8 +9573,8 @@ window.addSubjectTopic = function () {
                                                 <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap bg-emerald-50 text-[#15803d] border border-emerald-200/70 font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">RUBRIC</span>
                                             </div>
                                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                                <p class="text-xs sm:text-sm font-bold text-black hover:text-[#FFD000] transition-colors truncate">${_escape(state.rubricFileName)}</p>
-                                                <p class="text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.rubricFileSize || 'Rubric File'}</p>
+                                                <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black hover:text-[#FFD000] transition-colors truncate">${_escape(state.rubricFileName)}</p>
+                                                <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.rubricFileSize || 'Rubric File'}</p>
                                             </div>
                                         </div>
                                         <button type="button" onclick="event.stopPropagation(); window.removeMaterialFile('rubric')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-100 text-black-fade hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors" title="Remove File">
@@ -9637,11 +9637,11 @@ window.addSubjectTopic = function () {
                                                 <i class="${formIconCls} text-sm sm:text-base ${quizDetails.iconColor}"${formIconStyleAttr}></i>
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-xs sm:text-sm font-bold text-black truncate group-hover:text-[#FFD000] transition-colors">${_escape(quizTitle)}</p>
-                                                <p class="text-[11px] sm:text-xs text-black-fade font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black truncate group-hover:text-[#FFD000] transition-colors">${_escape(quizTitle)}</p>
+                                                <p class="sigma-file-panel-meta text-[10.5px] sm:text-xs text-black-fade font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
                                                     <span>${quizQuestions} ${quizQuestions === 1 ? 'Question' : 'Questions'}</span>
                                                     <span class="text-slate-300">•</span>
-                                                    <span class="flex items-center gap-1"><i class="fa-solid fa-star text-[#FFD000] text-[10px]"></i> ${quizPoints} Points</span>
+                                                    <span class="flex items-center gap-1"><i class="fa-solid fa-star text-[#FFD000] text-[9.5px]"></i> ${quizPoints} Points</span>
                                                 </p>
                                             </div>
                                         </div>

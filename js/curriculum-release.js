@@ -1623,7 +1623,7 @@
                     </button>
                     <button type="button" id="topic-picker-submit-btn" onclick="window.saveTeacherTopicPickerSelection?.()"
                         ${draftPendingIds.length > 0 ? '' : 'disabled'}
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl ${draftPendingIds.length > 0 ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'} font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl ${draftPendingIds.length > 0 ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'} font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -8642,7 +8642,7 @@
                     </button>
                     <button type="button" id="learning-picker-submit-btn" onclick="window.submitLearningMaterialsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -9865,7 +9865,7 @@
                     </button>
                     <button type="button" id="topics-materials-picker-submit-btn" onclick="window.submitTopicsAndMaterialsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -10343,7 +10343,7 @@
                     </button>
                     <button type="button" id="assessments-picker-submit-btn" onclick="window.submitAssessmentsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>

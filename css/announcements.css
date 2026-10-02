@@ -1819,7 +1819,7 @@ button.sigma-card-video-expand-btn {
     pointer-events: auto;
     background: #ffffff;
     border-radius: 14px;
-    box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
     padding: 0.875rem 1rem;
     display: flex;
     align-items: flex-start;
@@ -2050,6 +2050,8 @@ button.sigma-card-video-expand-btn {
         text-align: center !important;
         box-shadow: none !important;
     }
+}
+
 .sigma-badge-important {
     display: inline-flex !important;
     align-items: center !important;
@@ -2645,21 +2647,21 @@ button.sigma-card-video-expand-btn {
 }
 
 .sigma-comment-input-pill {
-    background: #f1f5f9;
-    border: 1.5px solid transparent;
-    border-radius: 20px;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 22px;
     display: flex;
-    align-items: flex-end;
-    padding: 0 0.5rem 0 0.875rem;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-    min-height: 38px;
+    align-items: center;
+    padding: 4px 10px 4px 14px;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    min-height: 44px;
     box-sizing: border-box;
 }
 
 .sigma-comment-input-pill:focus-within {
-    background: #f1f5f9;
-    border-color: #facc15;
-    box-shadow: none;
+    background: #ffffff;
+    border-color: #FFD000;
+    box-shadow: 0 0 0 2px rgba(255, 208, 0, 0.25);
 }
 
 .sigma-comment-textarea {

@@ -5527,8 +5527,9 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     const targetStudentName = studentUser ? String(studentUser.name || studentUser.fullName || '').trim() : '';
 
     const assId = ass?.id || ass?.quizId || ass?.materialId || ass?.origId || index;
-    const cacheKey = `${assId}_${subjectId}_${topicIdx}_${index}_${section}_${targetStudentId}`;
-    if (Date.now() - window._studentAssessmentDetailsCacheTime > 2000) {
+    const normSectionKey = String(section || '').trim().toLowerCase();
+    const cacheKey = `${assId}_${subjectId}_${topicIdx}_${index}_${normSectionKey}_${targetStudentId}`;
+    if (Date.now() - window._studentAssessmentDetailsCacheTime > 2500) {
         window._studentAssessmentDetailsCache.clear();
         window._studentAssessmentDetailsCacheTime = Date.now();
     }
@@ -5613,12 +5614,18 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         try {
             eff = window.getEffectiveAssessmentStatusAndScore(studentUser, lookupCat, lookupIdx, subjectId, scoreQuarter, lookupItem);
         } catch (e) {}
-        if ((!eff || (!eff.isManualOverride && !eff.teacherSaved && (!eff.status || eff.isFromSubmission || eff.score === undefined || eff.score === null || eff.score === '' || eff.score === '-'))) && typeof window.getCategoryDetails === 'function') {
+        const hasScoresStorage = Boolean(
+            localStorage.getItem('sigma-grades-data') ||
+            localStorage.getItem('sigma_grades_v2') ||
+            localStorage.getItem('sigma-gradebook-scores')
+        );
+        if (hasScoresStorage && (!eff || (!eff.isManualOverride && !eff.teacherSaved && (!eff.status || eff.isFromSubmission || eff.score === undefined || eff.score === null || eff.score === '' || eff.score === '-'))) && typeof window.getCategoryDetails === 'function') {
             const wantTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
             const wantTitleClean = wantTitle.replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
             const wantIds = [ass?.id, ass?.quizId, ass?.selectedQuizId, ass?.materialId].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
             const isAssQuiz = Boolean(ass?.quizId || ass?.selectedQuizId || /quiz/i.test(wantTitle) || String(ass?.category || ass?.type || '').toLowerCase().includes('quiz'));
-            ['quiz', 'assignment', 'activity', 'perf. task', 'ww'].some(c => {
+            const checkCats = isAssQuiz ? ['quiz', 'ww'] : (cat.includes('perf') ? ['perf. task'] : ['assignment', 'activity', 'ww']);
+            checkCats.some(c => {
                 const items = window.getCategoryDetails(c, scoreQuarter, subjectId, section) || [];
                 const matched = items.find(it => {
                     const itIds = [it?.id, it?.origId, it?.quizId, it?.selectedQuizId, it?.materialId].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
@@ -6112,7 +6119,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
     const scorePct = isGraded ? Math.min(100, Math.max(0, Math.round((numericScore / assMaxScore) * 100))) : 0;
 
     return `
-        <div class="topic-progress-card ${options.className || ''}">
+        <div id="assessment-score-panel" class="topic-progress-card assessment-score-panel-card ${options.className || ''}">
             <!-- Main Score & Status Display -->
             <div class="flex items-start justify-between gap-3">
                 <!-- Left Column: Score -->
@@ -8400,111 +8407,149 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             badgeStyleClass = 'text-emerald-700 bg-emerald-50 border border-emerald-200';
         }
 
+        const isMobileScreen = (typeof window !== 'undefined' && window.innerWidth <= 768);
+        // Submission sheets begin collapsed on phones. Desktop and mobile keep
+        // independent state so a previously open desktop panel cannot open the
+        // mobile bottom sheet on arrival.
+        const isPanelCollapsed = (typeof window !== 'undefined')
+            ? (isMobileScreen
+                ? (typeof window._mobileScorePanelCollapsed === 'boolean' ? window._mobileScorePanelCollapsed : true)
+                : (typeof window._desktopGradingPanelCollapsed === 'boolean' ? window._desktopGradingPanelCollapsed : false))
+            : false;
+
         return `
-                <div id="${prefix}-class-panel-card" class="topic-progress-card topic-score-sticky flex flex-col gap-3 font-['Inter'] w-full box-border">
-                    <div class="flex items-center justify-between pb-3 border-b border-black/10 select-none">
-                        <span class="topic-progress-title home-dashboard-panel-title">
-                            <i class="fa-solid fa-award"></i> Score
-                        </span>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${badgeStyleClass} font-['Inter']">
-                            ${studentStatusBadgeText}
-                        </span>
-                    </div>
-
-                    <!-- Student Switcher Header -->
-                    <div class="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-2.5 flex flex-col gap-2">
-                        <!-- Section Header at the Top of Name Panel -->
-                        <div class="px-0.5 pt-0.5 flex items-center gap-2 min-w-0">
-                            <i class="fa-solid fa-users-rectangle text-xs text-[#15803d] shrink-0"></i>
-                            <span class="text-xs font-bold text-[#15803d] shrink-0">Section</span>
-                            <span class="text-xs font-bold text-black truncate">${window.escapeHtml ? window.escapeHtml(section || '') : (section || '')}</span>
+                <div id="${prefix}-class-panel-card" onclick="event.stopPropagation()" class="topic-progress-card topic-score-sticky ${isPanelCollapsed ? 'is-collapsed is-desktop-collapsed' : 'is-expanded'} flex flex-col font-['Inter'] w-full box-border relative z-[75]">
+                    <!-- Grading Controls Body (Unified layout on Mobile and Desktop) -->
+                    <div class="mobile-score-sheet-body flex flex-col gap-3 font-['Inter'] w-full pt-1 sm:pt-0">
+                        <!-- Grading Title Header (Chevron-only click for expand/collapse) -->
+                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none cursor-default w-full">
+                            <span class="topic-progress-title home-dashboard-panel-title flex items-center gap-1.5 sm:gap-2 text-[11.5px] sm:text-xs font-bold text-[#15803d]">
+                                <i class="fa-solid fa-award text-[#15803d] text-[11px] sm:text-xs"></i>
+                                <span>Grade</span>
+                            </span>
+                            <button type="button" onclick="event.stopPropagation(); window.toggleGradingPanelCollapse?.(event)"
+                                class="desktop-grading-toggle-btn ml-auto w-6 h-6 flex items-center justify-center text-[#15803d] hover:text-[#166534] bg-transparent border-0 cursor-pointer shrink-0 transition-colors"
+                                title="${isPanelCollapsed ? 'Expand grading panel' : 'Collapse grading panel'}">
+                                <i id="desktop-grading-panel-chevron" class="fa-solid ${isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
+                            </button>
                         </div>
 
-                        <!-- Full-width Clickable Student Selector Button (No Chevron, Extra Width) -->
-                        <button type="button" onclick="window.toggleGradingStudentList?.()"
-                            class="w-full flex items-center gap-2.5 px-3 py-2 bg-white hover:bg-slate-100/80 active:bg-slate-100 border border-slate-200/90 hover:border-slate-300 rounded-xl transition-all cursor-pointer text-left shadow-2xs group"
-                            title="Click to choose student">
-                            ${avatarHtml}
-                            <span class="font-bold text-xs text-slate-900 truncate flex-1 leading-snug">${window.escapeHtml ? window.escapeHtml(studentName) : studentName}</span>
+                        <!-- Student Switcher Header -->
+                        <div class="grading-student-card bg-slate-50/80 border border-slate-200/90 rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 flex flex-col gap-1.5 sm:gap-2">
+                            <!-- Full-width Clickable Student Selector Button (Centered Avatar + Name) -->
+                            <button type="button" onclick="window.toggleGradingStudentList?.()"
+                                style="display: flex !important; justify-content: center !important; align-items: center !important; text-align: center !important;"
+                                class="grading-student-picker-btn w-full flex items-center justify-center gap-2 px-2.5 py-1 sm:py-2 bg-white hover:bg-slate-100/80 active:bg-slate-100 border border-slate-200/90 hover:border-slate-300 rounded-lg sm:rounded-xl transition-all cursor-pointer text-center shadow-2xs group"
+                                title="Click to choose student">
+                                <div class="grading-student-identity-wrap inline-flex items-center justify-center gap-2 max-w-full" style="display: inline-flex !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important; width: auto !important; max-width: 100% !important;">
+                                    <span class="grading-student-avatar-wrap shrink-0 flex items-center justify-center" style="display: inline-flex !important; align-items: center !important; justify-content: center !important; flex: 0 0 auto !important; margin: 0 !important;">${avatarHtml}</span>
+                                    <span class="grading-student-name font-bold text-[11px] sm:text-xs text-slate-900 whitespace-nowrap leading-tight text-left" style="white-space: nowrap !important; overflow: visible !important; text-overflow: clip !important; display: inline-block !important; flex: 0 0 auto !important; margin: 0 !important;">${window.escapeHtml ? window.escapeHtml(studentName) : studentName}</span>
+                                </div>
+                            </button>
+
+                            <!-- Prev & Next Navigation + Counter Subtitle -->
+                            <div class="grading-nav-row flex items-center justify-between gap-1 text-[10.5px] sm:text-xs select-none px-0.5 pt-0.5 font-['Inter'] w-full">
+                                <button type="button" onclick="window.navigateTopicStudent(-1)"
+                                    style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
+                                    class="grading-nav-btn grading-nav-prev-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
+                                    title="Previous Student">
+                                    <i class="fa-solid fa-chevron-left text-[9px] sm:text-[10px] text-black shrink-0"></i>
+                                    <span style="flex: 0 0 auto !important;">Prev</span>
+                                </button>
+                                <span class="grading-nav-counter text-black-fade font-semibold text-[10.5px] sm:text-xs text-center px-1 leading-tight whitespace-nowrap shrink-0" style="flex: 0 0 auto !important;">${counterText}</span>
+                                <button type="button" onclick="window.navigateTopicStudent(1)"
+                                    style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
+                                    class="grading-nav-btn grading-nav-next-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
+                                    title="Next Student">
+                                    <span style="flex: 0 0 auto !important;">Next</span>
+                                    <i class="fa-solid fa-chevron-right text-[9px] sm:text-[10px] text-black shrink-0"></i>
+                                </button>
+                            </div>
+
+                            <!-- Section Header Below Prev/Next Navigation (Collapsible) -->
+                            <div class="desktop-grading-collapsible-section ${isPanelCollapsed ? 'hidden' : ''} px-0.5 pt-1 sm:pt-1.5 border-t border-slate-200/80 flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                <i class="fa-solid fa-users-rectangle text-[#15803d] shrink-0" style="font-size: 11px !important;"></i>
+                                <span class="desktop-grading-section-label font-bold text-[#15803d] shrink-0" style="font-size: 11px !important; line-height: 1.2 !important;">Section</span>
+                                <span class="desktop-grading-section-name font-semibold text-black truncate" style="font-size: 11px !important; line-height: 1.2 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;">${window.escapeHtml ? window.escapeHtml(section || '') : (section || '')}</span>
+                            </div>
+                        </div>
+
+                        <!-- Collapsible Controls Container (Status, Points, Save Grade) -->
+                        <div class="desktop-grading-collapsible-controls flex flex-col gap-2 sm:gap-3 w-full ${isPanelCollapsed ? 'hidden' : ''}">
+                            <!-- Submission Status Row with Dropdown (None as Default, Missing, Absent, Incomplete, Excuse) -->
+                            <div class="flex items-center justify-between gap-2 sm:gap-3 px-0.5 py-0.5 sm:py-1">
+                                <span class="text-[11px] sm:text-xs font-bold text-[#15803d] shrink-0">Status</span>
+                                <div class="relative inline-flex items-center shrink-0" id="teacher-grading-status-dropdown-wrapper">
+                                    <button type="button" id="teacher-grading-status-trigger-btn" onclick="window.toggleGradingStatusDropdown?.(event)"
+                                        aria-expanded="false" aria-controls="teacher-grading-status-menu"
+                                        class="w-24 sm:w-28 text-center text-[11px] sm:text-xs font-bold text-black py-1 sm:py-1.5 px-2 sm:px-2.5 bg-white hover:bg-slate-100 hover:border-slate-400 active:bg-slate-100 border border-slate-300 rounded-lg sm:rounded-xl outline-none cursor-pointer font-['Inter'] transition-all flex items-center justify-between gap-1 shadow-2xs">
+                                        <span id="teacher-grading-status-current-label" class="flex-1 text-center truncate">${(normalizedStatus && normalizedStatus !== 'none') ? (normalizedStatus === 'excused' ? 'Excuse' : (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1))) : 'None'}</span>
+                                        <i id="teacher-grading-status-chevron" class="fa-solid fa-chevron-down text-[8.5px] text-slate-500 shrink-0"></i>
+                                    </button>
+                                    <select id="teacher-grading-status-select"
+                                        onchange="window.handleGradingStatusChange?.(this.value);"
+                                        class="sr-only" tabindex="-1" aria-hidden="true" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;">
+                                        <option value="None" ${normalizedStatus === 'none' ? 'selected' : ''}>None</option>
+                                        <option value="Missing" ${normalizedStatus === 'missing' ? 'selected' : ''}>Missing</option>
+                                        <option value="Absent" ${normalizedStatus === 'absent' ? 'selected' : ''}>Absent</option>
+                                        <option value="Incomplete" ${normalizedStatus === 'incomplete' ? 'selected' : ''}>Incomplete</option>
+                                        <option value="Excuse" ${normalizedStatus === 'excuse' || normalizedStatus === 'excused' ? 'selected' : ''}>Excuse</option>
+                                    </select>
+                                    <!-- Custom Dropdown Menu (Opens downwards on desktop, all black text) -->
+                                    <div id="teacher-grading-status-menu" class="hidden absolute right-0 top-full mt-1.5 sm:top-full sm:bottom-auto sm:mt-1.5 w-28 bg-white border border-slate-200 rounded-xl shadow-lg p-1 z-[120] font-['Inter']" onclick="event.stopPropagation()">
+                                        <button type="button" onclick="window.selectGradingStatusOption?.('None')" class="w-full text-center px-2 py-1 text-[11px] font-semibold text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border-0 bg-transparent">None</button>
+                                        <button type="button" onclick="window.selectGradingStatusOption?.('Missing')" class="w-full text-center px-2 py-1 text-[11px] font-semibold text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border-0 bg-transparent">Missing</button>
+                                        <button type="button" onclick="window.selectGradingStatusOption?.('Absent')" class="w-full text-center px-2 py-1 text-[11px] font-semibold text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border-0 bg-transparent">Absent</button>
+                                        <button type="button" onclick="window.selectGradingStatusOption?.('Incomplete')" class="w-full text-center px-2 py-1 text-[11px] font-semibold text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border-0 bg-transparent">Incomplete</button>
+                                        <button type="button" onclick="window.selectGradingStatusOption?.('Excuse')" class="w-full text-center px-2 py-1 text-[11px] font-semibold text-black hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border-0 bg-transparent">Excuse</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        <!-- Points Input Row (Same row: Points on left, Input & / max pts on right) -->
+                        <div class="flex items-center justify-between gap-2 sm:gap-3 px-0.5 py-0.5 sm:py-1">
+                            <label for="teacher-grading-score-input" class="text-[11px] sm:text-xs font-bold text-[#15803d] shrink-0 cursor-pointer">Points</label>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span id="teacher-grading-score-draft" class="score-draft-flag" hidden>Not saved</span>
+                                <button type="button" id="teacher-grading-score-edit"
+                                    title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading') : 'Edit score'}"
+                                    onclick="window.toggleTeacherScoreEditor?.()"
+                                    ${scorePanelLocked ? 'disabled' : ''}
+                                    data-selected="0"
+                                    onmouseenter="if(!this.disabled && this.dataset.selected !== '1') this.style.backgroundColor='#e2e8f0';"
+                                    onmouseleave="if(this.dataset.selected !== '1') this.style.backgroundColor='transparent';"
+                                    class="w-6 h-6 sm:w-7 sm:h-7 inline-flex items-center justify-center rounded-md sm:rounded-lg text-black cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style="background-color: transparent;">
+                                    <i class="fa-solid ${scorePanelLocked ? 'fa-lock text-slate-400' : 'fa-pencil text-black'} text-[11px] sm:text-xs"></i>
+                                </button>
+                                <span id="teacher-grading-score-display" class="min-w-6 sm:min-w-8 text-center text-[11px] sm:text-xs font-bold text-black select-none">${(scoreDisplayVal !== '' && scoreDisplayVal !== null && scoreDisplayVal !== undefined) ? scoreDisplayVal : '—'}</span>
+                                <input type="number" id="teacher-grading-score-input"
+                                    min="0" max="${maxScoreVal}"
+                                    value="${scoreDisplayVal}"
+                                    data-saved-score="${scoreDisplayVal}"
+                                    data-saved-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
+                                    data-draft-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
+                                    data-needs-submission="${scorePanelLocked ? '1' : '0'}"
+                                    data-needs-quiz-review="0"
+                                    data-is-quiz="${isQuizItem ? '1' : '0'}"
+                                    data-has-quiz-submission="${hasSubmittedQuiz ? '1' : '0'}"
+                                    placeholder="-"
+                                    ${scorePanelLocked ? `disabled title="${isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading'}"` : ''}
+                                    onfocus="this.dataset.ph = this.placeholder; this.placeholder = '';"
+                                    oninput="window.syncGradeScoreDraft?.();"
+                                    onchange="window.syncGradeScoreDraft?.();"
+                                    onblur="const draft = String(this.dataset.draftStatus || ''); if (!this.value && this.value !== 0 && this.value !== '0' && draft !== 'excuse' && draft !== 'missing' && draft !== 'absent' && draft !== 'none') { this.value = this.dataset.savedScore || ''; } this.placeholder = this.dataset.ph || '-'; window.syncGradeScoreDraft?.();"
+                                    onkeydown="if(['-','+','e','E'].includes(event.key)){ event.preventDefault(); } else if(event.key === 'Enter'){ event.preventDefault(); event.stopPropagation(); window.saveTeacherGradingScore?.(); }"
+                                    class="w-14 sm:w-16 h-7 sm:h-8 px-1.5 sm:px-2 text-center text-[11px] sm:text-xs font-bold text-slate-900 placeholder:text-black/40 placeholder:opacity-100 ${scorePanelLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-slate-400'} border rounded-lg sm:rounded-xl outline-none focus:placeholder-transparent" style="display:none; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s ease, background-color 0.15s ease;">
+                                <span class="text-[11px] sm:text-xs font-bold text-black select-none">/ ${maxScoreVal} pts</span>
+                            </div>
+                        </div>
+
+                        <button type="button" id="teacher-grading-save-btn" class="sigma-btn sigma-btn-primary teacher-save-grade-btn" disabled title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked until student submits their work') : 'Enter a score to save grade'}" data-student-id="${window.escapeHtml ? window.escapeHtml(String(studentId || '')) : String(studentId || '')}" data-student-name="${window.escapeHtml ? window.escapeHtml(String(studentName || '')) : String(studentName || '')}" onclick="window.saveTeacherGradingScore?.()">
+                            <span>Save Grade</span>
                         </button>
-
-                        <!-- Prev & Next Navigation + Counter Subtitle -->
-                        <div class="flex items-center justify-between gap-1 text-xs select-none px-0.5 pt-0.5 font-['Inter']">
-                            <button type="button" onclick="window.navigateTopicStudent(-1)"
-                                class="px-2 py-1 rounded-lg flex items-center gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-xs font-semibold shrink-0"
-                                title="Previous Student">
-                                <i class="fa-solid fa-chevron-left text-[10px] text-black"></i>
-                                <span>Prev</span>
-                            </button>
-                            <span class="text-black-fade font-semibold text-xs truncate text-center px-1 leading-tight">${counterText}</span>
-                            <button type="button" onclick="window.navigateTopicStudent(1)"
-                                class="px-2 py-1 rounded-lg flex items-center gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-xs font-semibold shrink-0"
-                                title="Next Student">
-                                <span>Next</span>
-                                <i class="fa-solid fa-chevron-right text-[10px] text-black"></i>
-                            </button>
                         </div>
                     </div>
-
-                    <!-- Submission Status Row with Dropdown (None as Default, Missing, Absent, Incomplete, Excuse) -->
-                    <div class="flex items-center justify-between gap-3 px-0.5 py-1">
-                        <span class="text-xs font-bold text-[#15803d] shrink-0">Status</span>
-                        <div class="relative inline-flex items-center shrink-0">
-                            <select id="teacher-grading-status-select"
-                                onchange="window.handleGradingStatusChange?.(this.value); this.blur();"
-                                style="outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s ease, background-color 0.15s ease;"
-                                class="w-28 text-center text-xs font-bold text-black py-1.5 px-3 bg-white hover:bg-slate-100 hover:border-slate-400 focus:bg-white focus:border-slate-400 active:bg-slate-100 border border-slate-300 rounded-xl outline-none cursor-pointer appearance-none font-['Inter'] transition-all">
-                                <option value="None" ${normalizedStatus === 'none' ? 'selected' : ''}>None</option>
-                                <option value="Missing" ${normalizedStatus === 'missing' ? 'selected' : ''}>Missing</option>
-                                <option value="Absent" ${normalizedStatus === 'absent' ? 'selected' : ''}>Absent</option>
-                                <option value="Incomplete" ${normalizedStatus === 'incomplete' ? 'selected' : ''}>Incomplete</option>
-                                <option value="Excuse" ${normalizedStatus === 'excuse' || normalizedStatus === 'excused' ? 'selected' : ''}>Excuse</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Points Input Row (Same row: Points on left, Input & / max pts on right) -->
-                    <div class="flex items-center justify-between gap-3 px-0.5 py-1">
-                        <label for="teacher-grading-score-input" class="text-xs font-bold text-[#15803d] shrink-0 cursor-pointer">Points</label>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <span id="teacher-grading-score-draft" class="score-draft-flag" hidden>Not saved</span>
-                            <button type="button" id="teacher-grading-score-edit"
-                                title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading') : 'Edit score'}"
-                                onclick="window.toggleTeacherScoreEditor?.()"
-                                ${scorePanelLocked ? 'disabled' : ''}
-                                data-selected="0"
-                                onmouseenter="if(!this.disabled && this.dataset.selected !== '1') this.style.backgroundColor='#e2e8f0';"
-                                onmouseleave="if(this.dataset.selected !== '1') this.style.backgroundColor='transparent';"
-                                class="w-7 h-7 inline-flex items-center justify-center rounded-lg text-black cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                                style="background-color: transparent;">
-                                <i class="fa-solid ${scorePanelLocked ? 'fa-lock text-slate-400' : 'fa-pencil text-black'} text-xs"></i>
-                            </button>
-                            <span id="teacher-grading-score-display" class="min-w-8 text-center text-xs font-bold text-black select-none">${(scoreDisplayVal !== '' && scoreDisplayVal !== null && scoreDisplayVal !== undefined) ? scoreDisplayVal : '—'}</span>
-                            <input type="number" id="teacher-grading-score-input"
-                                min="0" max="${maxScoreVal}"
-                                value="${scoreDisplayVal}"
-                                data-saved-score="${scoreDisplayVal}"
-                                data-saved-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
-                                data-draft-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
-                                data-needs-submission="${scorePanelLocked ? '1' : '0'}"
-                                data-needs-quiz-review="0"
-                                data-is-quiz="${isQuizItem ? '1' : '0'}"
-                                data-has-quiz-submission="${hasSubmittedQuiz ? '1' : '0'}"
-                                placeholder="-"
-                                ${scorePanelLocked ? `disabled title="${isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading'}"` : ''}
-                                onfocus="this.dataset.ph = this.placeholder; this.placeholder = '';"
-                                oninput="window.syncGradeScoreDraft?.();"
-                                onchange="window.syncGradeScoreDraft?.();"
-                                onblur="const draft = String(this.dataset.draftStatus || ''); if (!this.value && this.value !== 0 && this.value !== '0' && draft !== 'excuse' && draft !== 'missing' && draft !== 'absent' && draft !== 'none') { this.value = this.dataset.savedScore || ''; } this.placeholder = this.dataset.ph || '-'; window.syncGradeScoreDraft?.();"
-                                onkeydown="if(['-','+','e','E'].includes(event.key)){ event.preventDefault(); } else if(event.key === 'Enter'){ event.preventDefault(); event.stopPropagation(); window.saveTeacherGradingScore?.(); }"
-                                class="w-16 h-8 px-2 text-center text-xs font-bold text-slate-900 placeholder:text-black/40 placeholder:opacity-100 ${scorePanelLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-slate-400'} border rounded-xl outline-none focus:placeholder-transparent" style="display:none; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s ease, background-color 0.15s ease;">
-                            <span class="text-xs font-bold text-black select-none">/ ${maxScoreVal} pts</span>
-                        </div>
-                    </div>
-
-                    <button type="button" id="teacher-grading-save-btn" class="sigma-btn sigma-btn-primary teacher-save-grade-btn" disabled title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked until student submits their work') : 'Enter a score to save grade'}" data-student-id="${window.escapeHtml ? window.escapeHtml(String(studentId || '')) : String(studentId || '')}" data-student-name="${window.escapeHtml ? window.escapeHtml(String(studentName || '')) : String(studentName || '')}" onclick="window.saveTeacherGradingScore?.()">
-                        <span>Save Grade</span>
-                    </button>
                 </div>
             ${window.renderGradingStudentCoverHtml ? window.renderGradingStudentCoverHtml({
                 prefix,
@@ -8572,6 +8617,62 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         </div>
     `;
 };
+
+window.toggleGradingPanelCollapse = function (event, forceState) {
+    if (event) {
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const card = document.querySelector('.topic-score-sticky, [id$="-class-panel-card"]');
+    if (!card) return;
+
+    const rail = document.getElementById('topic-right-section');
+    const collapsibleSection = card.querySelector('.desktop-grading-collapsible-section');
+    const collapsibleControls = card.querySelector('.desktop-grading-collapsible-controls');
+    const chevron = card.querySelector('#desktop-grading-panel-chevron');
+    const toggleBtn = card.querySelector('.desktop-grading-toggle-btn');
+    const backdrop = document.getElementById('mobile-score-sheet-backdrop');
+
+    const isCurrentlyCollapsed = card.classList.contains('is-collapsed') || card.classList.contains('is-desktop-collapsed');
+    const shouldCollapse = (typeof forceState === 'boolean') ? !forceState : !isCurrentlyCollapsed;
+
+    if (shouldCollapse) {
+        window.closeGradingStatusDropdown?.();
+        card.classList.add('is-collapsed', 'is-desktop-collapsed');
+        card.classList.remove('is-expanded');
+        if (rail) {
+            rail.classList.add('is-collapsed');
+            rail.classList.remove('is-expanded');
+        }
+        if (collapsibleSection) collapsibleSection.classList.add('hidden');
+        if (collapsibleControls) collapsibleControls.classList.add('hidden');
+        if (chevron) chevron.className = 'fa-solid fa-chevron-down text-[10.5px] text-[#15803d] transition-transform duration-200';
+        if (toggleBtn) toggleBtn.title = 'Expand grading panel';
+        if (backdrop) backdrop.classList.add('hidden');
+        window._gradingPanelCollapsed = true;
+        window._desktopGradingPanelCollapsed = true;
+        window._mobileScorePanelCollapsed = true;
+    } else {
+        card.classList.remove('is-collapsed', 'is-desktop-collapsed');
+        card.classList.add('is-expanded');
+        if (rail) {
+            rail.classList.remove('is-collapsed');
+            rail.classList.add('is-expanded');
+        }
+        if (collapsibleSection) collapsibleSection.classList.remove('hidden');
+        if (collapsibleControls) collapsibleControls.classList.remove('hidden');
+        if (chevron) chevron.className = 'fa-solid fa-chevron-up text-[10.5px] text-[#15803d] transition-transform duration-200';
+        if (toggleBtn) toggleBtn.title = 'Collapse grading panel';
+        if (backdrop) backdrop.classList.add('hidden');
+        window._gradingPanelCollapsed = false;
+        window._desktopGradingPanelCollapsed = false;
+        window._mobileScorePanelCollapsed = false;
+    }
+};
+
+window.toggleDesktopGradingCollapse = window.toggleGradingPanelCollapse;
+window.toggleMobileScorePanel = window.toggleGradingPanelCollapse;
+
 // --- PROGRESS COLOR SCALE (0% to 100%) ---
 window.getTaskProgressColor = function (pct) {
     const val = Math.min(100, Math.max(0, Number(pct) || 0));
@@ -8768,7 +8869,7 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
     const quarterDashOffset = (circleCircumference * (1 - (quarterScorePct / 100))).toFixed(2);
 
     return `
-        <div id="topic-task-progress-card" class="topic-progress-card flex flex-col font-['Inter'] w-full box-border">
+        <div id="topic-task-progress-card" class="topic-progress-card rounded-2xl flex flex-col font-['Inter'] w-full box-border">
             <div class="topic-section-selector-title home-dashboard-panel-title flex items-center gap-2 cursor-default mb-1.5">
                 <i class="fa-solid fa-bars-progress text-[#15803d] text-xs"></i>
                 <span class="text-xs sm:text-sm font-bold text-[#15803d]">Task Progress</span>
@@ -9301,7 +9402,7 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
     return window.renderCanonicalTopHeaderTabBarHtml({
         backAction,
         backTitle: 'Back to Topics',
-        backText: 'Topics',
+        backText: '',
         tabs
     });
 };
@@ -10075,27 +10176,127 @@ window.isFakeAssessment = function (item) {
     if (!item) return true;
     if (item.isFake === true || item.isSample === true) return true;
     const id = String(item.id || '').trim().toLowerCase();
-    const authorId = String(item.authorId || '').trim().toLowerCase();
-    const authorName = String(item.authorName || '').trim().toLowerCase();
+    const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
+    const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
     if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) {
+        return true;
+    }
+    const title = String(item.title || item.name || '').trim();
+    if (!title) return true;
+    if (title.startsWith('"') || title.startsWith("'")) return true;
+    const lower = title.toLowerCase();
+
+    // Explicitly known real user-released assessments - NEVER FAKE
+    if (lower.includes('variable declaration practice') ||
+        lower.includes('basic syntax and data types') ||
+        lower.startsWith('task 1') ||
+        lower.startsWith('task 2') ||
+        lower.startsWith('quiz 1')) {
+        return false;
+    }
+
+    // Fake / dummy / keyboard-mash assessments to strictly block & delete
+    if (id === 'assess-task-1' || id === 'assess-task-2' || id.includes('assess-task-1') || id.includes('assess-task-2') ||
+        lower.includes('sample assessment') ||
+        lower.includes('mock assessment') ||
+        lower.includes('fake assessment') ||
+        lower.includes('dummy') ||
+        lower === 'fgdfhd' || lower.includes('fgdfhd') ||
+        lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') ||
+        lower === 'scdad' || lower.includes('scdad') ||
+        /^[bcdfghjklmnpqrstvwxyz]{4,}$/i.test(lower)) {
         return true;
     }
     // If it's a real user-created or stored material, never consider it fake
     if (id.startsWith('mat-') || id.startsWith('subj-') || item.fileUrl || item.fileName || item.quizId || item.selectedQuizId || item.authorRole) {
         return false;
     }
-    const title = String(item.title || item.name || '').trim();
-    if (!title) return true;
-    if (title.startsWith('"') || title.startsWith("'")) return true;
-    const lower = title.toLowerCase();
-    if (lower.includes('sample assessment') ||
-        lower.includes('mock assessment') ||
-        lower.includes('fake assessment') ||
-        lower.includes('dummy')) {
-        return true;
-    }
     return false;
 };
+
+/**
+ * Global Purge Utility to permanently scrub fake and dummy assessments from localStorage
+ */
+window.purgeFakeAssessments = function () {
+    try {
+        const isFake = window.isFakeAssessment || (() => false);
+        const filterList = (arr) => {
+            if (!Array.isArray(arr)) return arr;
+            return arr.filter(item => !isFake(item));
+        };
+
+        // 1. sigma_classroom_materials
+        const rawCls = localStorage.getItem('sigma_classroom_materials');
+        if (rawCls) {
+            try {
+                const parsed = JSON.parse(rawCls);
+                if (Array.isArray(parsed)) {
+                    const cleaned = filterList(parsed);
+                    if (cleaned.length !== parsed.length) {
+                        localStorage.setItem('sigma_classroom_materials', JSON.stringify(cleaned));
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // 2. sigma-admin-subjects
+        const rawAdmin = localStorage.getItem('sigma-admin-subjects');
+        if (rawAdmin) {
+            try {
+                const subjs = JSON.parse(rawAdmin);
+                if (Array.isArray(subjs)) {
+                    let changed = false;
+                    subjs.forEach(s => {
+                        if (!s) return;
+                        if (Array.isArray(s.materials)) {
+                            const b = s.materials.length;
+                            s.materials = filterList(s.materials);
+                            if (s.materials.length !== b) changed = true;
+                        }
+                        if (Array.isArray(s.topics)) {
+                            s.topics.forEach(t => {
+                                if (!t) return;
+                                ['assignments', 'quizzes', 'activities', 'performanceTasks', 'tasks', 'materials', 'quiz', 'activity', 'performance'].forEach(k => {
+                                    if (Array.isArray(t[k])) {
+                                        const b = t[k].length;
+                                        t[k] = filterList(t[k]);
+                                        if (t[k].length !== b) changed = true;
+                                    }
+                                });
+                            });
+                        }
+                    });
+                    if (changed) {
+                        localStorage.setItem('sigma-admin-subjects', JSON.stringify(subjs));
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // 3. Dynamic subject materials and assessments in localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            if (/^sigma_(custom_)?(assessments|materials)_/i.test(k) || k === 'sigma_teacher_quizzes' || k === 'sigma_quizzes') {
+                try {
+                    const rawVal = localStorage.getItem(k);
+                    if (rawVal) {
+                        const parsed = JSON.parse(rawVal);
+                        if (Array.isArray(parsed)) {
+                            const cleaned = filterList(parsed);
+                            if (cleaned.length !== parsed.length) {
+                                localStorage.setItem(k, JSON.stringify(cleaned));
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+        }
+    } catch (e) {
+        console.warn('[SIGMA] purgeFakeAssessments error:', e);
+    }
+};
+try { window.purgeFakeAssessments(); } catch (_) {}
 
 /**
  * Universal Deduplication Helper for Subject Materials and Assessments
@@ -10291,8 +10492,8 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
     const rawList = Array.isArray(defaultAssessments) && defaultAssessments.length ? defaultAssessments.filter(it => !isFakeAssessment(it)) : [];
     const list = window.deduplicateMaterialsArray(rawList, { collapseRoles: true });
     const isAllAssessmentsTab = (tab === 'assessments' || !tab);
-    const labels = { assignments: 'Assignment', tasks: 'Task', task: 'Task', quiz: 'Quiz', activity: 'Activity', performance: 'Performance Task', assessments: 'Assessment' };
-    const label = labels[tab] || 'Assessment';
+    const labels = { assignments: 'Task', tasks: 'Task', task: 'Task', quiz: 'Quiz', activity: 'Task', performance: 'Task', assessments: 'Task' };
+    const label = labels[tab] || 'Task';
 
     const onStaffPortal = typeof location !== 'undefined' && /teacher\.html|admin\.html/i.test(String(location.pathname || ''));
     let targetSec = String(
@@ -10327,14 +10528,12 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
             return false;
         };
 
-        const resolveCategory = (matType) => {
+        const resolveCategory = (matType, matTitle = '') => {
             const t = String(matType || '').trim().toLowerCase();
-            if (t.includes('quiz')) return 'Quiz';
-            if (t === 'task' || t === 'tasks' || t.startsWith('task')) return 'Task';
-            if (t.includes('assign')) return 'Assignment';
-            if (t.includes('activ')) return 'Activity';
-            if (t.includes('perf')) return 'Performance Task';
-            return 'Assessment';
+            const tit = String(matTitle || '').trim().toLowerCase();
+            if (tit.startsWith('task') || t === 'task' || t === 'tasks' || t === 'assignment' || t === 'activity' || t.includes('perf')) return 'Task';
+            if (t.includes('quiz') || tit.startsWith('quiz')) return 'Quiz';
+            return 'Task';
         };
 
         // 1. From Subject Storage (sigma-admin-subjects / window.SUBJECTS_STORAGE_KEY)
@@ -10438,7 +10637,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                 if (!topicIdStr && !topicTitleStr && topicOwned.indexOf(m) !== -1) return true;
                 const isTopic0 = (Number(topicIdx) === 0 || !topicIdx);
                 if (isTopic0) {
-                    if (!topicTitleStr || topicTitleStr === 'basic syntax and data types' || topicTitleStr === 'topic 1' || topicTitleStr === 'unknown topic' ||
+                    if (topicTitleStr === 'basic syntax and data types' || topicTitleStr === 'topic 1' ||
                         topicIdStr === 'topic-1' || topicIdStr === '0' || topicIdStr === '1' || topicIdStr === 'topic-0') {
                         return true;
                     }
@@ -10464,7 +10663,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                     const matchesTopic = belongsToTopic(m);
 
                     if (matchesType && matchesTopic) {
-                        const itemCategory = resolveCategory(m.type);
+                        const itemCategory = resolveCategory(m.type, m.title || m.name);
                         const title = m.title || `${itemCategory} #${idx + 1}`;
                         const assId = String(m.id || `subj-ass-${idx}`);
                         const existingIdx = list.findIndex(item => {
@@ -10481,7 +10680,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                             if (iTitle && mTitle && iTitle === mTitle) return true;
                             return false;
                         });
-                        const isQuizItem = String(m.type || '').toLowerCase().includes('quiz') || Boolean(m.selectedQuizId || m.quizId);
+                        const isQuizItem = itemCategory === 'Quiz';
                         const materialNameExt = String(m.fileName || m.perfGuidelinesFileName || m.fileUrl || m.url || '').split('?')[0].split('#')[0];
                         const materialExt = materialNameExt.includes('.') ? materialNameExt.split('.').pop() : '';
                         const ft = isQuizItem
@@ -10575,7 +10774,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
 
         addedAssessments.forEach((a, idx) => {
             if (isFakeAssessment(a)) return;
-            const itemCategory = resolveCategory(a.type);
+            const itemCategory = resolveCategory(a.type, a.title || a.name);
             const title = a.title || a.name || `${itemCategory} #${idx + 1}`;
             const assId = String(a.id || `dyn-ass-${idx}`);
             const existingIdx = list.findIndex(item => {
@@ -10593,7 +10792,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                 return false;
             });
 
-            const isQuizItem = ((a.type || '').toLowerCase().includes('quiz') || a.quizMode === 'storage') && (a.selectedQuizId || a.quizId || (!a.fileName && !a.fileUrl && !a.url));
+            const isQuizItem = itemCategory === 'Quiz';
             const dynamicNameExt = String(a.fileName || a.perfGuidelinesFileName || a.fileUrl || a.url || '').split('?')[0].split('#')[0];
             const dynamicExt = dynamicNameExt.includes('.') ? dynamicNameExt.split('.').pop() : '';
             const ft = isQuizItem ? 'quiz' : (/^(pdf|docx|doc|pptx|ppt|xlsx|xls|csv|txt)$/i.test(dynamicExt) ? dynamicExt : 'DOCX').toUpperCase();
@@ -10691,7 +10890,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                     return ids.some(id => itemIds.includes(id));
                 });
                 if (already) return;
-                const itemCategory = resolveCategory(m.type || m.category);
+                const itemCategory = resolveCategory(m.type || m.category, m.title || m.name);
                 list.push({
                     ...m,
                     id: m.id || m.materialId || m.title,
@@ -11067,7 +11266,9 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
         onChangeQuiz = null,
         onDeleteQuiz = null,
         rightActionHtml = '',
-        actionHtml = ''
+        actionHtml = '',
+        size = '',
+        subtitle = ''
     } = options;
 
     const rawType = String(type || '').toLowerCase();
@@ -11130,13 +11331,13 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                         <i class="${iconCls} text-lg ${quizDetails.iconColor}"${iconStyleAttr}></i>
                     </div>
                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-base sm:text-lg font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-base sm:text-lg font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
+                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
                             ${escape(liveTitle)}
                         </h4>
-                        <p class="text-xs font-medium text-black-fade mt-0.5 flex items-center gap-1.5 flex-wrap font-['Inter']">
+                        <p class="sigma-file-panel-meta text-[11px] sm:text-xs font-medium text-black-fade mt-0.5 flex items-center gap-1.5 flex-wrap font-['Inter']">
                             <span>${liveQuestionsCount} Questions</span>
                             <span class="text-slate-300">•</span>
-                            <span class="flex items-center gap-1"><i class="fa-solid fa-star text-[#FFD000] text-[10px]"></i> ${liveMaxScore} Points</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-star text-[#FFD000] text-[9.5px]"></i> ${liveMaxScore} Points</span>
                         </p>
                     </div>
                 </div>
@@ -11285,10 +11486,11 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                     <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
                         <i class="fa-solid ${iconClass} text-xl"></i>
                     </div>
-                    <span class="text-[10px] px-2.5 py-0.5 whitespace-nowrap ${badgeClass} border font-bold rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${escape(typeLabel)}</span>
+                    <span class="text-[9px] sm:text-[9.5px] px-2 py-0.5 whitespace-nowrap ${badgeClass} border font-bold rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${escape(typeLabel)}</span>
                 </div>
                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-base sm:text-lg font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-base sm:text-lg font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
+                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
+                    ${(size || subtitle) ? `<p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${escape(size || subtitle)}</p>` : ''}
                 </div>
             </div>
             ${(rightActionHtml || actionHtml) ? `
@@ -11312,7 +11514,7 @@ window.getSigmaMaterialTypeConfig = function (rawType = '') {
     let iconColorClass = 'text-blue-600';
     let iconBoxClass = 'bg-blue-50 border border-blue-100';
     let badgeClass = 'bg-blue-50 text-blue-600 border-blue-200/70';
-    let badgeTextClass = 'text-[10px] px-2.5 py-0.5 whitespace-nowrap';
+    let badgeTextClass = 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap';
 
     if (t.includes('video')) {
         type = 'Video';
@@ -11320,28 +11522,28 @@ window.getSigmaMaterialTypeConfig = function (rawType = '') {
         iconColorClass = 'text-red-600';
         iconBoxClass = 'bg-red-50 border border-red-100';
         badgeClass = 'bg-red-50 text-red-600 border-red-200/70';
-        badgeTextClass = 'text-[10px] px-2.5 py-0.5 whitespace-nowrap';
+        badgeTextClass = 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap';
     } else if (t.includes('quiz')) {
         type = 'Quiz';
         typeIcon = 'fa-stopwatch';
         iconColorClass = 'text-emerald-600';
         iconBoxClass = 'bg-emerald-50 border border-emerald-100';
         badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200/70';
-        badgeTextClass = 'text-[10px] px-2.5 py-0.5 whitespace-nowrap';
-    } else if (t === 'task' || t === 'tasks' || t.startsWith('task') || t === 'add task' || t.includes('assign') || t.includes('activ') || t.includes('perf') || t === 'pt') {
+        badgeTextClass = 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap';
+    } else if (t === 'task' || t === 'tasks' || t.startsWith('task') || t === 'add task' || t.includes('assign') || t.includes('activ') || t.includes('perf') || t === 'pt' || t.includes('assess')) {
         type = 'Task';
         typeIcon = 'fa-clipboard-list';
         iconColorClass = 'text-amber-600';
         iconBoxClass = 'bg-amber-50 border border-amber-100';
         badgeClass = 'bg-amber-50 text-amber-700 border-amber-200/70';
-        badgeTextClass = 'text-[9px] px-2 py-0.5 tracking-tight leading-tight whitespace-nowrap';
+        badgeTextClass = 'text-[8.5px] sm:text-[9.5px] px-1.5 py-0.5 tracking-tight leading-tight whitespace-nowrap';
     } else {
         type = 'Lesson';
         typeIcon = 'fa-file-lines';
         iconColorClass = 'text-blue-600';
         iconBoxClass = 'bg-blue-50 border border-blue-100';
         badgeClass = 'bg-blue-50 text-blue-600 border-blue-200/70';
-        badgeTextClass = 'text-[10px] px-2.5 py-0.5 whitespace-nowrap';
+        badgeTextClass = 'text-[9px] sm:text-[10px] px-2 py-0.5 whitespace-nowrap';
     }
 
     return {
@@ -11464,18 +11666,19 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
                     <div class="flex items-start gap-3 sm:gap-4">
                         <div class="min-w-0 flex-1 space-y-6">
                             <!-- Material Title & Badge -->
-                            <div class="space-y-3">
-                                <div class="flex items-start gap-2">
-                                    <button type="button" onclick="window.history.back()" title="Back" aria-label="Back"
-                                        class="w-8 h-8 -ml-1 mt-0.5 shrink-0 rounded-lg flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer">
-                                        <i class="fa-solid fa-chevron-left text-sm text-black"></i>
-                                    </button>
+                            <div class="flex items-start gap-2.5 sm:gap-3">
+                                <button type="button" onclick="if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('handouts', null); } else { window.history.back(); }" title="Back to Handouts" aria-label="Back"
+                                    class="material-detail-back-btn flex w-7 h-7 sm:w-8 sm:h-8 -ml-1 mt-0.5 shrink-0 rounded-lg items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-arrow-left text-sm text-black"></i>
+                                    <i class="fa-solid fa-chevron-left text-sm text-black"></i>
+                                </button>
+                                <div class="space-y-2 flex-1 min-w-0">
                                     <h2 class="text-xl sm:text-2xl font-bold text-black font-['Inter'] leading-snug break-words min-w-0">${escapeHtml(displayTitle)}</h2>
-                                </div>
-                                <div class="flex items-center gap-3 text-xs flex-wrap">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md ${cfg.badgeClass} border font-bold text-[11px] capitalize">
-                                        <i class="fa-solid ${cfg.typeIcon}"></i> ${typeLabel}
-                                    </span>
+                                    <div class="flex items-center gap-2 text-xs flex-wrap">
+                                        <span class="material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${cfg.badgeClass} border font-bold text-[10px] capitalize leading-tight">
+                                            <i class="fa-solid ${cfg.typeIcon} text-[9px]"></i> ${typeLabel}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -11512,7 +11715,7 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
                                     const isLongHandoutDesc = lessonDescText.length > 200 || (lessonDescText.match(/\n/g) || []).length >= 3;
                                     return `
                                     <div class="space-y-2">
-                                        <h3 class="text-base font-bold text-black font-['Inter']">Description</h3>
+                                        <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2">Description</h3>
                                         <div class="sigma-collapsible-desc-wrapper relative">
                                             <p class="sigma-collapsible-desc-text ${isLongHandoutDesc ? 'is-collapsed' : ''} text-sm md:text-base font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words m-0">${escapeHtml(lessonDescText)}</p>
                                             ${isLongHandoutDesc ? `
@@ -11529,7 +11732,7 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
                                 <!-- Attached Document Section -->
                                 ${attachedFileHtml ? `
                                     <div class="border-t border-slate-200 pt-6">
-                                        <h3 class="text-base font-bold text-black font-['Inter'] mb-4">Attached Document</h3>
+                                        <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">Attached Document</h3>
                                         ${attachedFileHtml}
                                     </div>
                                 ` : ''}
@@ -11564,12 +11767,9 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
                                         </div>
                                         <span class="${cfg.badgeTextClass} ${cfg.badgeClass} border font-bold text-[9px] sm:text-xs rounded px-1.5 py-0.5 leading-tight inline-flex items-center justify-center text-center capitalize">${escapeHtml(typeLabel)}</span>
                                     </div>
-                                    <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1">
-                                            <h4 onclick="openTopicContent('${subjectId}', ${topicIdx}, 'handouts', ${i})" class="text-sm sm:text-base font-bold text-black hover:text-[#15803d] transition-colors line-clamp-3 font-['Inter'] cursor-pointer w-fit max-w-full m-0">${escapeHtml(displayTitle)}</h4>
-                                            ${statusBadgeHtml}
-                                        </div>
-                                        <p class="text-[11px] sm:text-xs text-black-fade font-normal font-['Inter'] m-0">${(typeof window.formatMaterialReleaseDate === 'function') ? window.formatMaterialReleaseDate(h, subjectId, targetSection) : (h.releaseDate || h.date || (h.createdAt ? new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''))}</p>
+                                    <div class="min-w-0 flex-1 flex flex-col justify-center gap-1">
+                                        <h4 onclick="openTopicContent('${subjectId}', ${topicIdx}, 'handouts', ${i})" class="text-sm sm:text-base font-bold text-black hover:text-[#15803d] transition-colors line-clamp-3 font-['Inter'] cursor-pointer w-fit max-w-full m-0 leading-snug">${escapeHtml(displayTitle)}</h4>
+                                        ${statusBadgeHtml ? `<div class="flex items-center">${statusBadgeHtml}</div>` : ''}
                                     </div>
                                 </div>
                             </div>
@@ -16335,6 +16535,14 @@ window.paintTeacherScorePanel = function (score, opts) {
     if (statusSelect) {
         statusSelect.disabled = false;
         statusSelect.removeAttribute('title');
+        const triggerBtn = document.getElementById('teacher-grading-status-trigger-btn');
+        if (triggerBtn) {
+            triggerBtn.disabled = false;
+            triggerBtn.removeAttribute('title');
+        }
+        const currentVal = statusSelect.value || 'None';
+        const labelEl = document.getElementById('teacher-grading-status-current-label');
+        if (labelEl) labelEl.textContent = (currentVal && currentVal !== 'none') ? (currentVal === 'excused' ? 'Excuse' : (currentVal.charAt(0).toUpperCase() + currentVal.slice(1))) : 'None';
     }
     const card = document.getElementById('topic-content-class-panel-card') || document.querySelector('.topic-score-sticky');
     if (card) {
@@ -16446,6 +16654,28 @@ window.holdTopicRailSticky = function () {
     const rail = document.getElementById('topic-right-section');
     if (!rail) return;
     if (!rail.classList.contains('topic-rail-follow') && !rail.classList.contains('topic-rail-score-follow')) return;
+    if (window.innerWidth <= 768) {
+        rail.style.removeProperty('position');
+        rail.style.removeProperty('top');
+        rail.style.removeProperty('bottom');
+        rail.style.removeProperty('left');
+        rail.style.removeProperty('right');
+        rail.style.removeProperty('width');
+        rail.style.removeProperty('max-width');
+        rail.style.removeProperty('align-self');
+        rail.style.removeProperty('max-height');
+        rail.style.removeProperty('z-index');
+        return;
+    }
+    // On desktop, ensure the score panel is never collapsed
+    const card = rail.querySelector('.topic-score-sticky, [id$="-class-panel-card"]');
+    if (card) {
+        card.classList.remove('is-collapsed');
+        card.classList.add('is-expanded');
+    }
+    const backdrop = document.getElementById('mobile-score-sheet-backdrop');
+    if (backdrop) backdrop.classList.add('hidden');
+
     const pin = () => {
         rail.style.setProperty('position', 'sticky', 'important');
         rail.style.setProperty('top', 'calc(var(--shell-offset, 82px) + 1rem)', 'important');
@@ -16595,6 +16825,12 @@ window.syncGradeScoreDraft = function () {
     if (flag) flag.hidden = !dirty;
     if (display) display.classList.toggle('is-draft', dirty);
     window._gradeDraftPageUrl = dirty ? window.location.href : '';
+
+    const mobileSummaryVal = document.querySelector('.mobile-score-summary-val');
+    if (mobileSummaryVal) {
+        const valText = (display && display.textContent) ? display.textContent.trim() : (input ? input.value : '');
+        mobileSummaryVal.textContent = (valText !== '' && valText !== null && valText !== undefined) ? valText : '—';
+    }
 };
 
 window.askToLeaveUnsavedGrade = function (onLeave) {
@@ -17527,6 +17763,11 @@ window.syncSharedScoreAndStatus = function (params) {
             }
             badge.textContent = badgeText;
             badge.className = `inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold font-['Inter'] ${badgeClass}`;
+            const mobileSummaryBadge = document.querySelector('.mobile-score-summary-badge');
+            if (mobileSummaryBadge) {
+                mobileSummaryBadge.textContent = badgeText;
+                mobileSummaryBadge.className = `mobile-score-summary-badge text-[10px] font-bold px-2 py-0.5 rounded-md ${badgeClass} shrink-0 leading-tight`;
+            }
         }
         const progressScoreEl = document.querySelector('.topic-progress-card .text-4xl, .topic-progress-card .text-3xl');
         if (progressScoreEl) {
@@ -17964,6 +18205,9 @@ window.navigateTopicStudent = function (direction) {
 
 window.selectTopicStudent = function (name) {
     window._gradingStudentListOpen = false;
+    document.querySelectorAll('.topic-student-cover, [id$="-grading-student-list-tray"]').forEach(tray => {
+        tray.classList.remove('is-open');
+    });
     document.querySelectorAll('body > .topic-student-cover').forEach(tray => tray.remove());
     const isAll = (!name || name === 'All');
     const studentVal = isAll ? 'All' : name;
@@ -18124,8 +18368,30 @@ window.renderGradingStudentCoverHtml = function (options = {}) {
 };
 
 window.placeGradingStudentCover = function (tray) {
+    if (!tray) return;
+    const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 768);
+    if (isMobile) {
+        if (tray.parentElement !== document.body) document.body.appendChild(tray);
+        tray.style.setProperty('position', 'fixed', 'important');
+        tray.style.setProperty('inset', '0', 'important');
+        tray.style.setProperty('top', '0', 'important');
+        tray.style.setProperty('left', '0', 'important');
+        tray.style.setProperty('right', '0', 'important');
+        tray.style.setProperty('bottom', '0', 'important');
+        tray.style.setProperty('width', '100vw', 'important');
+        tray.style.setProperty('max-width', '100vw', 'important');
+        tray.style.setProperty('height', '100dvh', 'important');
+        tray.style.setProperty('max-height', '100dvh', 'important');
+        tray.style.setProperty('margin', '0', 'important');
+        tray.style.setProperty('border-radius', '0', 'important');
+        tray.style.setProperty('border', 'none', 'important');
+        tray.style.setProperty('z-index', '10000', 'important');
+        tray.style.setProperty('background', '#ffffff', 'important');
+        tray.style.setProperty('display', 'flex', 'important');
+        return;
+    }
     const rail = document.getElementById('topic-right-section');
-    if (!tray || !rail) return;
+    if (!rail) return;
     if (tray.parentElement !== document.body) document.body.appendChild(tray);
     const rect = rail.getBoundingClientRect();
     const header = document.getElementById('teacher-header')
@@ -18135,6 +18401,11 @@ window.placeGradingStudentCover = function (tray) {
     const top = Math.round(header ? header.getBoundingClientRect().bottom : 82);
     const left = Math.round(rect.left);
     const rightEdge = document.documentElement.clientWidth;
+    tray.style.removeProperty('inset');
+    tray.style.removeProperty('right');
+    tray.style.removeProperty('bottom');
+    tray.style.removeProperty('max-height');
+    tray.style.removeProperty('border');
     tray.style.setProperty('position', 'fixed', 'important');
     tray.style.setProperty('top', top + 'px', 'important');
     tray.style.setProperty('left', left + 'px', 'important');
@@ -18143,13 +18414,15 @@ window.placeGradingStudentCover = function (tray) {
     tray.style.setProperty('margin', '0', 'important');
     tray.style.setProperty('border-radius', '0', 'important');
     tray.style.setProperty('z-index', '80', 'important');
+    tray.style.setProperty('background', '#ffffff', 'important');
+    tray.style.setProperty('display', 'flex', 'important');
 };
 
 if (!window._gradingStudentCoverBound) {
     window._gradingStudentCoverBound = true;
     const repositionGradingStudentCover = () => {
         if (!window._gradingStudentListOpen) return;
-        document.querySelectorAll('.topic-student-cover.is-open').forEach(tray => {
+        document.querySelectorAll('.topic-student-cover.is-open, [id$="-grading-student-list-tray"].is-open').forEach(tray => {
             window.placeGradingStudentCover?.(tray);
         });
     };
@@ -18163,7 +18436,7 @@ window.toggleGradingStudentList = function (forceVal) {
     } else {
         window._gradingStudentListOpen = !window._gradingStudentListOpen;
     }
-    const trays = document.querySelectorAll('[id$="-grading-student-list-tray"]');
+    const trays = document.querySelectorAll('[id$="-grading-student-list-tray"], .topic-student-cover');
     if (trays.length > 0) {
         trays.forEach(tray => {
             if (window._gradingStudentListOpen) {
@@ -18175,6 +18448,7 @@ window.toggleGradingStudentList = function (forceVal) {
                 }, 30);
             } else {
                 tray.classList.remove('is-open');
+                tray.style.removeProperty('display');
             }
         });
         return;
@@ -18198,12 +18472,112 @@ window.toggleGradingStudentList = function (forceVal) {
     }
 };
 
-window.handleGradingStatusChange = function (newStatus) {
-    if (!newStatus) return;
+window.toggleGradingStatusDropdown = function (event) {
+    if (event) {
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const menu = document.getElementById('teacher-grading-status-menu');
+    if (!menu) return;
+    const trigger = document.getElementById('teacher-grading-status-trigger-btn');
+    const wrapper = document.getElementById('teacher-grading-status-dropdown-wrapper');
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const willOpen = menu.classList.contains('hidden');
+
+    if (willOpen && isMobile && trigger && wrapper) {
+        if (!menu._gradingStatusOriginalParent) {
+            menu._gradingStatusOriginalParent = wrapper;
+            menu._gradingStatusNextSibling = menu.nextSibling;
+        }
+        const triggerBounds = trigger.getBoundingClientRect();
+        const menuWidth = Math.min(112, Math.max(96, window.innerWidth - 24));
+        const menuLeft = Math.max(12, Math.min(triggerBounds.right - menuWidth, window.innerWidth - menuWidth - 12));
+        const menuBottom = Math.max(12, window.innerHeight - triggerBounds.top + 4);
+        document.body.appendChild(menu);
+        menu.classList.add('mobile-status-menu-portal');
+        menu.style.setProperty('left', `${menuLeft}px`, 'important');
+        menu.style.setProperty('right', 'auto', 'important');
+        menu.style.setProperty('top', 'auto', 'important');
+        menu.style.setProperty('bottom', `${menuBottom}px`, 'important');
+        menu.style.setProperty('width', `${menuWidth}px`, 'important');
+    }
+
+    const isHidden = menu.classList.toggle('hidden');
+    if (isHidden) window.closeGradingStatusDropdown?.();
+    const chevron = document.getElementById('teacher-grading-status-chevron');
+    if (chevron) {
+        chevron.className = `fa-solid ${isHidden ? 'fa-chevron-down' : 'fa-chevron-up'} text-[8.5px] text-slate-500 shrink-0`;
+    }
+    if (trigger) trigger.setAttribute('aria-expanded', String(!isHidden));
+};
+
+window.closeGradingStatusDropdown = function () {
+    const menu = document.getElementById('teacher-grading-status-menu');
+    if (menu) {
+        menu.classList.add('hidden');
+        if (menu._gradingStatusOriginalParent) {
+            const parent = menu._gradingStatusOriginalParent;
+            const sibling = menu._gradingStatusNextSibling;
+            if (sibling && sibling.parentNode === parent) {
+                parent.insertBefore(menu, sibling);
+            } else {
+                parent.appendChild(menu);
+            }
+            delete menu._gradingStatusOriginalParent;
+            delete menu._gradingStatusNextSibling;
+        }
+        menu.classList.remove('mobile-status-menu-portal');
+        ['left', 'right', 'top', 'bottom', 'width'].forEach(prop => menu.style.removeProperty(prop));
+    }
+    const chevron = document.getElementById('teacher-grading-status-chevron');
+    if (chevron) {
+        chevron.className = 'fa-solid fa-chevron-down text-[8.5px] text-slate-500 shrink-0';
+    }
+    const trigger = document.getElementById('teacher-grading-status-trigger-btn');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+};
+
+window.selectGradingStatusOption = function (val) {
+    window.closeGradingStatusDropdown?.();
+    const labelEl = document.getElementById('teacher-grading-status-current-label');
+    if (labelEl) {
+        labelEl.textContent = val;
+    }
     const select = document.getElementById('teacher-grading-status-select');
     if (select) {
-        select.className = "w-28 text-center text-xs font-bold text-black py-1.5 px-3 bg-white hover:bg-slate-100 hover:border-slate-400 focus:bg-white focus:border-slate-400 active:bg-slate-100 border border-slate-300 rounded-xl outline-none cursor-pointer appearance-none font-['Inter'] transition-all";
+        select.value = val;
+    }
+    if (typeof window.handleGradingStatusChange === 'function') {
+        window.handleGradingStatusChange(val);
+    }
+};
+
+if (!window._hasGradingStatusOutsideListener) {
+    window._hasGradingStatusOutsideListener = true;
+    const dismissGradingStatusOnOutsidePress = function (e) {
+        const wrapper = document.getElementById('teacher-grading-status-dropdown-wrapper');
+        const menu = document.getElementById('teacher-grading-status-menu');
+        if (!wrapper?.contains(e.target) && !menu?.contains(e.target)) {
+            window.closeGradingStatusDropdown?.();
+        }
+    };
+    document.addEventListener('pointerdown', dismissGradingStatusOnOutsidePress);
+    document.addEventListener('click', dismissGradingStatusOnOutsidePress);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') window.closeGradingStatusDropdown?.();
+    });
+}
+
+window.handleGradingStatusChange = function (newStatus) {
+    if (!newStatus) return;
+    window.closeGradingStatusDropdown?.();
+    const select = document.getElementById('teacher-grading-status-select');
+    if (select) {
         select.value = newStatus;
+    }
+    const labelEl = document.getElementById('teacher-grading-status-current-label');
+    if (labelEl) {
+        labelEl.textContent = (newStatus && newStatus !== 'none') ? (newStatus === 'excused' ? 'Excuse' : (newStatus.charAt(0).toUpperCase() + newStatus.slice(1))) : 'None';
     }
 
     const saveBtn = document.getElementById('teacher-grading-save-btn');
@@ -23780,7 +24154,7 @@ window.parseAssessmentFactDateTime = function (rawVal, fallbackTime = '') {
 window.renderAssessmentDateCell = function (raw, fallbackTime = '') {
     const parsed = window.parseAssessmentFactDateTime(raw, fallbackTime);
     if (!parsed) {
-        return '<span class="text-black-fade font-normal text-[13px] select-none font-[\'Inter\']" style="color: rgba(0, 0, 0, 0.4) !important;">-</span>';
+        return '<span class="text-black-fade font-normal text-[13px] select-none font-[\'Inter\']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
     }
     if (parsed.timeStr) {
         return `
@@ -23793,11 +24167,27 @@ window.renderAssessmentDateCell = function (raw, fallbackTime = '') {
     return `<div class="text-[13px] font-normal text-black text-center font-['Inter'] select-none" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(parsed.dateStr) : parsed.dateStr}</div>`;
 };
 
+window.renderAssessmentDateMobileCell = function (raw, fallbackTime = '') {
+    const parsed = window.parseAssessmentFactDateTime(raw, fallbackTime);
+    if (!parsed) {
+        return '<span class="text-black-fade font-normal text-xs select-none font-[\'Inter\']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
+    }
+    if (parsed.timeStr) {
+        return `
+            <div class="flex flex-col items-center justify-center font-['Inter'] leading-tight py-0.5 select-none">
+                <span class="text-xs font-normal text-black font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(parsed.dateStr) : parsed.dateStr}</span>
+                <span class="text-[10px] font-normal text-black-fade mt-0.5 leading-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${window.escapeHtml ? window.escapeHtml(parsed.timeStr) : parsed.timeStr}</span>
+            </div>
+        `;
+    }
+    return `<span class="text-xs font-normal text-black text-center font-['Inter'] select-none" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(parsed.dateStr) : parsed.dateStr}</span>`;
+};
+
 window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicIdx, index, section) {
     const details = (typeof window.resolveStudentAssessmentSubmissionDetails === 'function')
         ? window.resolveStudentAssessmentSubmissionDetails(ass, subjectId, topicIdx, index, section)
         : {};
-    const { cat = '', tab = 'assessments' } = details;
+    const { cat = '', tab = 'assessments', sub, numericScore, turnedIn, isGraded, statusName: detailStatusName } = details;
 
     const startText = (typeof window.formatMaterialReleaseDate === 'function')
         ? (window.formatMaterialReleaseDate(ass, subjectId, section) || '')
@@ -23815,46 +24205,13 @@ window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
     }
     const dueFallbackTime = ass?.dueTime || ass?.time || '';
 
-    // Resolve Highest Possible Score (HPS)
-    let maxScore = details.maxScore || null;
-    if (!maxScore && typeof window.resolveAssessmentHPS === 'function') {
-        const resolvedHps = window.resolveAssessmentHPS(ass, subjectId, section, cat, index);
-        if (resolvedHps && resolvedHps.points) maxScore = Number(resolvedHps.points);
-    }
-    if (!maxScore) {
-        const directMax = ass?.max || ass?.points || ass?.totalPoints || ass?.maxScore || ass?.highestPossibleScore;
-        if (directMax !== undefined && directMax !== null && directMax !== '' && !isNaN(Number(directMax))) {
-            maxScore = Number(directMax);
-        } else if (Array.isArray(ass?.questions) && ass.questions.length > 0) {
-            maxScore = ass.questions.length;
-        } else {
-            maxScore = 100;
-        }
-    }
-    const hpsText = `${maxScore} pts`;
+    // Determine if this is a Task or Quiz
+    const rawKind = String(ass?.category || ass?.type || ass?.kind || tab || cat || '').toLowerCase();
+    const rawTitle = String(ass?.title || ass?.name || '').toLowerCase();
+    const isTask = rawTitle.startsWith('task') || rawKind === 'task' || rawKind === 'tasks' || rawKind === 'assignment' || rawKind === 'activity' || rawKind === 'performance task' || rawKind === 'perf. task' || ass?.category === 'Task';
+    const isQuiz = !isTask && (rawKind.includes('quiz') || (rawTitle.includes('quiz') && !rawTitle.startsWith('task')) || Boolean(ass?.quizId || ass?.selectedQuizId));
 
-    // Resolve Weight (%)
-    let weightText = '';
-    const directWeight = ass?.weight !== undefined ? ass.weight : (ass?.weightPercentage !== undefined ? ass.weightPercentage : ass?.weightage);
-    if (directWeight !== undefined && directWeight !== null && String(directWeight).trim() !== '') {
-        const cleanW = String(directWeight).replace('%', '').trim();
-        weightText = `${cleanW}%`;
-    } else {
-        const isPerf = cat.includes('perf') || tab.includes('perf') || String(ass?.title || '').toLowerCase().includes('performance') || String(ass?.title || '').toLowerCase().includes('perf');
-        weightText = `${isPerf ? 50 : 25}%`;
-    }
-
-    // Determine if this is a Quiz
-    const isQuiz = Boolean(
-        ass?.isQuiz === true ||
-        ass?.quizId ||
-        ass?.selectedQuizId ||
-        cat.includes('quiz') ||
-        tab.includes('quiz') ||
-        String(ass?.title || ass?.name || '').toLowerCase().includes('quiz')
-    );
-
-    // Resolve Time Limit (if Quiz)
+    // Resolve Time Limit (for Quiz)
     let timeLimitText = 'No Limit';
     const rawLimit = ass?.timeLimit || ass?.duration || ass?.timeLimitMinutes || ass?.assessmentTimeLimitMinutes || ass?.timer;
     if (rawLimit !== undefined && rawLimit !== null && String(rawLimit).trim() !== '' && String(rawLimit).trim() !== '0') {
@@ -23868,39 +24225,131 @@ window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
         timeLimitText = 'No Limit';
     }
 
-    const startParsed = (typeof window.parseAssessmentFactDateTime === 'function') ? window.parseAssessmentFactDateTime(startText) : null;
-    const startDisplayMobile = startParsed ? `${startParsed.dateStr}${startParsed.timeStr ? ' • ' + startParsed.timeStr : ''}` : (startText || '-');
-
-    const dueParsed = (typeof window.parseAssessmentFactDateTime === 'function') ? window.parseAssessmentFactDateTime(dueText, dueFallbackTime) : null;
-    const dueDisplayMobile = dueParsed ? `${dueParsed.dateStr}${dueParsed.timeStr ? ' • ' + dueParsed.timeStr : ''}` : (dueText || '-');
-
-    // Student Submitted text
-    const { sub, numericScore, turnedIn, isGraded } = details;
-    let studentSubmittedText = 'Not Submitted';
-    let studentSubmittedColor = 'text-slate-500';
-    if (turnedIn) {
-        studentSubmittedText = (sub && sub.status === 'Pending') ? 'Pending' : 'Submitted';
-        studentSubmittedColor = 'text-[#15803d]';
-    } else if (dueMs && Date.now() > dueMs) {
-        studentSubmittedText = 'Overdue';
-        studentSubmittedColor = 'text-red-600';
+    // Submitted (date only)
+    let subDateRaw = '';
+    if (turnedIn || isGraded) {
+        subDateRaw = sub?.submittedAt || sub?.submissionDate || sub?.completedAt || sub?.date || ass?.submittedAt || ass?.submissionDate || '';
+        if (!subDateRaw && Array.isArray(sub?.attempts) && sub.attempts.length > 0) {
+            const lastAtt = sub.attempts[sub.attempts.length - 1];
+            subDateRaw = lastAtt?.submittedAt || lastAtt?.completedAt || lastAtt?.date || '';
+        }
     }
 
-    // Student Graded text
-    const hasValidNumericScore = numericScore !== null && numericScore !== undefined && numericScore !== '' && numericScore !== '-' && !isNaN(Number(numericScore));
-    let studentGradedText = '-';
-    let studentGradedColor = 'text-black';
-    if (hasValidNumericScore) {
-        studentGradedText = `${numericScore} / ${maxScore}`;
-        studentGradedColor = 'text-black font-bold';
-    } else if (isGraded) {
-        studentGradedText = 'Graded';
-        studentGradedColor = 'text-[#15803d] font-bold';
+    let submittedDateStr = '-';
+    let isSubDateDash = true;
+    if (subDateRaw) {
+        const parsedSub = (typeof window.parseAssessmentFactDateTime === 'function')
+            ? window.parseAssessmentFactDateTime(subDateRaw)
+            : null;
+        if (parsedSub && parsedSub.dateStr) {
+            submittedDateStr = parsedSub.dateStr;
+            isSubDateDash = false;
+        } else {
+            const d = new Date(subDateRaw);
+            if (!isNaN(d.getTime())) {
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                submittedDateStr = `${months[d.getMonth()]} ${d.getDate()}`;
+                isSubDateDash = false;
+            }
+        }
     }
 
+    const studentSubmittedDesktop = isSubDateDash
+        ? `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(submittedDateStr) : submittedDateStr}</span>`;
+    const studentSubmittedMobile = isSubDateDash
+        ? `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(submittedDateStr) : submittedDateStr}</span>`;
+
+    // Status
+    let studentStatusText = detailStatusName || '';
+    const normStatus = String(studentStatusText).trim().toLowerCase();
+    if (!studentStatusText || normStatus === 'none' || normStatus === 'cleared' || normStatus === '-' || normStatus === 'not graded' || normStatus === 'not submitted') {
+        if (isGraded || (numericScore !== null && numericScore !== undefined && numericScore !== '' && numericScore !== '-')) {
+            studentStatusText = 'Graded';
+        } else if (turnedIn) {
+            studentStatusText = (sub && sub.status === 'Pending') ? 'Pending' : 'Submitted';
+        } else if (dueMs && Date.now() > dueMs) {
+            studentStatusText = 'Overdue';
+        } else {
+            studentStatusText = 'Not Submitted';
+        }
+    }
+
+    const isStatusDash = !studentStatusText || studentStatusText === '-';
+    const studentStatusDesktop = isStatusDash
+        ? `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(studentStatusText) : studentStatusText}</span>`;
+    const studentStatusMobile = isStatusDash
+        ? `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(studentStatusText) : studentStatusText}</span>`;
+
+    // Time Limit elements (for Quiz)
+    const quizTimeLimitDesktop = `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(timeLimitText) : timeLimitText}</span>`;
+    const quizTimeLimitMobile = `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(timeLimitText) : timeLimitText}</span>`;
+
+    if (isQuiz) {
+        return `
+            <div class="student-assessment-facts-panel assessment-facts-panel mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                <!-- Desktop Table (Start, Due, Submitted, Time Limit, Status) -->
+                <div class="assessment-desktop-facts-table hidden md:block w-full">
+                    <table class="w-full table-fixed" style="border-collapse: separate !important; border-spacing: 0 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;">
+                        <thead style="background-color: #15803d !important;">
+                            <tr class="select-none" style="background-color: #15803d !important;">
+                                <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/5 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Start</th>
+                                <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/5 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Due</th>
+                                <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/5 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Submitted</th>
+                                <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/5 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Time Limit</th>
+                                <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/5 whitespace-nowrap" style="background-color: #15803d !important; color: #ffffff !important; border-bottom: 1px solid #166534 !important; border-right: none !important;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/5" style="border-right: none !important;">${window.renderAssessmentDateCell(startText)}</td>
+                                <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/5 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${window.renderAssessmentDateCell(dueText, dueFallbackTime)}</td>
+                                <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/5 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${studentSubmittedDesktop}</td>
+                                <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/5 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${quizTimeLimitDesktop}</td>
+                                <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/5" style="border-right: none !important;">${studentStatusDesktop}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile 2-Column Table (Green Left Column, White Right Column - Centered) -->
+                <div class="assessment-mobile-facts-panel block md:hidden w-full overflow-hidden font-['Inter']">
+                    <table class="assessment-mobile-facts-table w-full table-fixed border-collapse" style="font-family: 'Inter', sans-serif !important;">
+                        <tbody>
+                            <tr>
+                                <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Start</th>
+                                <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(startText)}</td>
+                            </tr>
+                            <tr>
+                                <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Due</th>
+                                <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(dueText, dueFallbackTime)}</td>
+                            </tr>
+                            <tr>
+                                <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Submitted</th>
+                                <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${studentSubmittedMobile}</td>
+                            </tr>
+                            <tr>
+                                <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Time Limit</th>
+                                <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${quizTimeLimitMobile}</td>
+                            </tr>
+                            <tr>
+                                <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: none !important; text-align: center !important;">Status</th>
+                                <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: none !important; text-align: center !important;">${studentStatusMobile}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // Default: Tasks (Start, Due, Submitted, Status)
     return `
         <div class="student-assessment-facts-panel assessment-facts-panel mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-            <!-- Desktop Table (Start, Due, Submitted, Graded) -->
+            <!-- Desktop Table (Start, Due, Submitted, Status) -->
             <div class="assessment-desktop-facts-table hidden md:block w-full">
                 <table class="w-full table-fixed" style="border-collapse: separate !important; border-spacing: 0 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;">
                     <thead style="background-color: #15803d !important;">
@@ -23908,40 +24357,42 @@ window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
                             <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/4 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Start</th>
                             <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/4 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Due</th>
                             <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/4 whitespace-nowrap fact-title-divider" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important;">Submitted</th>
-                            <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/4 whitespace-nowrap" style="background-color: #15803d !important; color: #ffffff !important; border-bottom: 1px solid #166534 !important; border-right: none !important;">Graded</th>
+                            <th class="py-2.5 px-2 text-xs md:text-sm font-bold text-white tracking-normal text-center font-['Inter'] w-1/4 whitespace-nowrap" style="background-color: #15803d !important; color: #ffffff !important; border-bottom: 1px solid #166534 !important; border-right: none !important;">Status</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
                         <tr class="hover:bg-slate-50/50 transition-colors">
                             <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;">${window.renderAssessmentDateCell(startText)}</td>
                             <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${window.renderAssessmentDateCell(dueText, dueFallbackTime)}</td>
-                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;"><span class="text-[13px] font-bold ${studentSubmittedColor} font-['Inter'] select-none">${studentSubmittedText}</span></td>
-                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;"><span class="text-[13px] font-bold ${studentGradedColor} font-['Inter'] select-none">${studentGradedText}</span></td>
+                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${studentSubmittedDesktop}</td>
+                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;">${studentStatusDesktop}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- Mobile Key-Value Panel -->
-            <div class="assessment-mobile-facts-panel block md:hidden w-full bg-slate-50/80 p-3 sm:p-3.5 font-['Inter']">
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">start</span>
-                        <span class="font-bold text-black text-right">${startDisplayMobile}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">due</span>
-                        <span class="font-bold text-black text-right">${dueDisplayMobile}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">submitted</span>
-                        <span class="font-bold text-right ${studentSubmittedColor}">${studentSubmittedText}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1">
-                        <span class="font-medium text-black/60 capitalize">graded</span>
-                        <span class="font-bold text-right ${studentGradedColor}">${studentGradedText}</span>
-                    </div>
-                </div>
+            <!-- Mobile 2-Column Table (Green Left Column, White Right Column - Centered) -->
+            <div class="assessment-mobile-facts-panel block md:hidden w-full overflow-hidden font-['Inter']">
+                <table class="assessment-mobile-facts-table w-full table-fixed border-collapse" style="font-family: 'Inter', sans-serif !important;">
+                    <tbody>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Start</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(startText)}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Due</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(dueText, dueFallbackTime)}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Submitted</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${studentSubmittedMobile}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: none !important; text-align: center !important;">Status</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-center bg-white" style="border-bottom: none !important; text-align: center !important;">${studentStatusMobile}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     `;
@@ -23951,26 +24402,7 @@ window.buildStudentDesktopAssessmentTopStatusHtml = function (ass, subjectId, to
     const details = (typeof window.resolveStudentAssessmentSubmissionDetails === 'function')
         ? window.resolveStudentAssessmentSubmissionDetails(ass, subjectId, topicIdx, index, section)
         : {};
-    const { sub, numericScore, turnedIn, isGraded, statusName: detailStatusName } = details;
-
-    const dueMs = (typeof window.getAssessmentDeadlineMs === 'function')
-        ? (window.getAssessmentDeadlineMs(subjectId, 'assessments', index, topicIdx, ass)
-            || window.getAssessmentDeadlineMs(subjectId, ass?.tab || ass?.category || 'assessments', index, topicIdx, ass))
-        : null;
-
-    let statusName = detailStatusName || '';
-    const normStatus = String(statusName).trim().toLowerCase();
-    if (!statusName || normStatus === 'none' || normStatus === 'cleared' || normStatus === '-' || normStatus === 'not graded' || normStatus === 'not submitted') {
-        if (isGraded || (numericScore !== null && numericScore !== undefined && numericScore !== '' && numericScore !== '-')) {
-            statusName = 'Graded';
-        } else if (turnedIn) {
-            statusName = (sub && sub.status === 'Pending') ? 'Pending' : 'Submitted';
-        } else if (dueMs && Date.now() > dueMs) {
-            statusName = 'Overdue';
-        } else {
-            statusName = 'Not Submitted';
-        }
-    }
+    const { sub, numericScore, turnedIn, isGraded, statusName: detailStatusName, attendanceTone } = details;
 
     let maxScore = details.maxScore || null;
     if (!maxScore && typeof window.resolveAssessmentHPS === 'function') {
@@ -23988,40 +24420,41 @@ window.buildStudentDesktopAssessmentTopStatusHtml = function (ass, subjectId, to
         }
     }
 
-    let statusColorClass = 'text-[#15803d]';
-
-    if (statusName === 'Overdue' || statusName === 'Missing' || statusName === 'Absent') {
-        statusColorClass = 'text-red-600';
-    } else if (statusName === 'Incomplete') {
-        statusColorClass = 'text-amber-600';
-    } else if (statusName === 'Excuse') {
-        statusColorClass = 'text-blue-600';
-    } else if (statusName === 'Submitted') {
-        statusColorClass = 'text-[#15803d]';
-    } else if (statusName === 'Pending') {
-        statusColorClass = 'text-amber-600';
-    } else if (statusName === 'Not Submitted') {
-        statusColorClass = 'text-slate-500';
-    } else if (statusName === '-') {
-        statusColorClass = 'text-black-fade';
-    }
-
     const hasValidNumericScore = numericScore !== null && numericScore !== undefined && numericScore !== '' && numericScore !== '-' && !isNaN(Number(numericScore));
-    const isExcuseWithoutScore = (normStatus === 'excuse') && (!hasValidNumericScore || Number(numericScore) === 0);
 
-    if (hasValidNumericScore && !isExcuseWithoutScore) {
-        const scoreDisplay = maxScore ? `${numericScore} / ${maxScore}` : `${numericScore}`;
-        return `
-            <div class="student-assessment-desktop-status flex flex-col items-end justify-center shrink-0 text-right pl-3 select-none">
-                <span class="student-assessment-desktop-score font-extrabold font-['Inter'] leading-tight text-black" style="color: #000000 !important;">${scoreDisplay}</span>
-                <span class="student-assessment-desktop-status-text font-bold font-['Inter'] leading-tight mt-0.5 ${statusColorClass}">${statusName}</span>
-            </div>
-        `;
+    const normTone = String(attendanceTone || details.attendanceTone || '').trim().toLowerCase();
+    const normStatus = String(detailStatusName || '').trim().toLowerCase();
+
+    let scoreDisplay = '-';
+    let scoreColorStyle = 'color: #000000 !important;';
+
+    if (normTone === 'missing' || normStatus === 'missing') {
+        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'M';
+        scoreColorStyle = 'color: #dc2626 !important;';
+    } else if (normTone === 'absent' || normStatus === 'absent') {
+        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'A';
+        scoreColorStyle = 'color: #dc2626 !important;';
+    } else if (normTone === 'incomplete' || normStatus === 'incomplete') {
+        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'I';
+        scoreColorStyle = 'color: #d97706 !important;';
+    } else if (normTone === 'excuse' || normTone === 'excused' || normStatus === 'excuse' || normStatus === 'excused') {
+        scoreDisplay = 'E';
+        scoreColorStyle = 'color: #2563eb !important;';
+    } else if (isGraded || (hasValidNumericScore && normStatus === 'graded')) {
+        scoreDisplay = hasValidNumericScore ? String(numericScore) : '0';
+        scoreColorStyle = 'color: #15803d !important;';
+    } else if (turnedIn || normStatus === 'submitted' || normStatus === 'pending') {
+        scoreDisplay = hasValidNumericScore ? String(numericScore) : '-';
+        scoreColorStyle = 'color: #000000 !important;';
+    } else {
+        scoreDisplay = '-';
+        scoreColorStyle = 'color: #000000 !important;';
     }
 
     return `
-        <div class="student-assessment-desktop-status flex flex-col items-end justify-center shrink-0 text-right pl-3 select-none">
-            <span class="student-assessment-desktop-status-text student-assessment-desktop-status-text--single font-bold font-['Inter'] leading-tight ${statusColorClass}">${statusName}</span>
+        <div class="student-assessment-desktop-status flex items-baseline justify-end shrink-0 text-right gap-1 pl-2 sm:pl-3 select-none font-['Inter']">
+            <span class="student-assessment-desktop-score text-base sm:text-lg md:text-xl font-extrabold leading-none font-['Inter']" style="${scoreColorStyle}">${window.escapeHtml ? window.escapeHtml(scoreDisplay) : scoreDisplay}</span>
+            <span class="student-assessment-desktop-hps text-xs sm:text-[12px] font-normal leading-none font-['Inter'] select-none" style="color: #000000 !important;">/ ${maxScore}</span>
         </div>
     `;
 };
@@ -24046,130 +24479,165 @@ window.resolveTeacherAssessmentSubmissionStats = function (ass, subjectId, topic
         }
     }
 
-    // 1. Resolve real students enrolled in this specific section and subject
-    let students = [];
-    if (targetSection && typeof window.getStudentsForSection === 'function') {
-        try {
-            const s = window.getStudentsForSection(targetSection, subjectId);
-            if (Array.isArray(s) && s.length > 0) students = s;
-        } catch (_) {}
+    const assId = String(ass?.id || ass?.quizId || ass?.materialId || ass?.origId || index || '').trim().toLowerCase();
+    const wantTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
+
+    // Ultra-fast memoization cache per render
+    window._teacherStatsCache = window._teacherStatsCache || new Map();
+    window._teacherStatsCacheTime = window._teacherStatsCacheTime || 0;
+    if (Date.now() - window._teacherStatsCacheTime > 2500) {
+        window._teacherStatsCache.clear();
+        window._teacherStatsCacheTime = Date.now();
     }
-    if ((!students || !students.length) && targetSection && typeof window.getUnifiedSectionStudents === 'function') {
-        try {
-            const s = window.getUnifiedSectionStudents(targetSection, subjectId);
-            if (Array.isArray(s) && s.length > 0) students = s;
-        } catch (_) {}
-    }
-    if (!students || !students.length) {
-        try {
-            const rawSecs = localStorage.getItem('sigma-admin-sections');
-            if (rawSecs) {
-                const adminSecs = JSON.parse(rawSecs);
-                if (Array.isArray(adminSecs)) {
-                    const normSec = targetSection.toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
-                    const cleanSubj = String(subjectId || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
-                    const matchedSec = adminSecs.find(s => {
-                        if (!s || s.status === 'Draft') return false;
-                        const sName = String(s.name || s.sectionName || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
-                        const sSubj = String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').toLowerCase();
-                        const secMatch = !normSec || sName === normSec;
-                        const subjMatch = !cleanSubj || sSubj.includes(cleanSubj) || cleanSubj.includes(sSubj);
-                        return secMatch && subjMatch;
-                    }) || adminSecs.find(s => {
-                        if (!s || s.status === 'Draft') return false;
-                        const sName = String(s.name || s.sectionName || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
-                        return !normSec || sName === normSec;
-                    });
-                    if (matchedSec && Array.isArray(matchedSec.students) && matchedSec.students.length > 0) {
-                        students = matchedSec.students;
-                    }
-                }
-            }
-        } catch (_) {}
+    const cacheKey = `${assId}_${wantTitle}_${subjectId}_${topicIdx}_${index}_${targetSection}`;
+    if (window._teacherStatsCache.has(cacheKey)) {
+        return window._teacherStatsCache.get(cacheKey);
     }
 
-    const totalStudents = Array.isArray(students) ? students.length : 0;
+    // 1. Resolve real students enrolled in this specific section and subject (cached)
+    window._teacherSecStudentsCache = window._teacherSecStudentsCache || new Map();
+    window._teacherSecStudentsCacheTime = window._teacherSecStudentsCacheTime || 0;
+    if (Date.now() - window._teacherSecStudentsCacheTime > 2500) {
+        window._teacherSecStudentsCache.clear();
+        window._teacherSecStudentsCacheTime = Date.now();
+    }
+    const secCacheKey = `${targetSection}_${subjectId}`;
+    let students = window._teacherSecStudentsCache.get(secCacheKey);
+    if (!students) {
+        if (targetSection && typeof window.getStudentsForSection === 'function') {
+            try {
+                const s = window.getStudentsForSection(targetSection, subjectId);
+                if (Array.isArray(s) && s.length > 0) students = s;
+            } catch (_) {}
+        }
+        if ((!students || !students.length) && targetSection && typeof window.getUnifiedSectionStudents === 'function') {
+            try {
+                const s = window.getUnifiedSectionStudents(targetSection, subjectId);
+                if (Array.isArray(s) && s.length > 0) students = s;
+            } catch (_) {}
+        }
+        if (!students || !students.length) {
+            try {
+                const rawSecs = localStorage.getItem('sigma-admin-sections');
+                if (rawSecs) {
+                    const adminSecs = JSON.parse(rawSecs);
+                    if (Array.isArray(adminSecs)) {
+                        const normSec = targetSection.toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
+                        const cleanSubj = String(subjectId || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+                        const matchedSec = adminSecs.find(s => {
+                            if (!s || s.status === 'Draft') return false;
+                            const sName = String(s.name || s.sectionName || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
+                            const sSubj = String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').toLowerCase();
+                            const secMatch = !normSec || sName === normSec;
+                            const subjMatch = !cleanSubj || sSubj.includes(cleanSubj) || cleanSubj.includes(sSubj);
+                            return secMatch && subjMatch;
+                        }) || adminSecs.find(s => {
+                            if (!s || s.status === 'Draft') return false;
+                            const sName = String(s.name || s.sectionName || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
+                            return !normSec || sName === normSec;
+                        });
+                        if (matchedSec && Array.isArray(matchedSec.students) && matchedSec.students.length > 0) {
+                            students = matchedSec.students;
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+        students = Array.isArray(students) ? students : [];
+        window._teacherSecStudentsCache.set(secCacheKey, students);
+    }
+
+    const totalStudents = students.length;
     let submittedCount = 0;
     let gradedCount = 0;
 
     if (totalStudents > 0) {
-        const assId = String(ass?.id || ass?.quizId || ass?.materialId || ass?.origId || '').trim().toLowerCase();
-        const wantTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
+        if (!window._cachedAllSubsData || Date.now() - (window._cachedAllSubsDataTime || 0) > 2500) {
+            try {
+                const rawSubs = localStorage.getItem('sigma_student_assessment_submissions');
+                window._cachedAllSubsData = rawSubs ? JSON.parse(rawSubs) : {};
+            } catch (_) {
+                window._cachedAllSubsData = {};
+            }
+            window._cachedAllSubsDataTime = Date.now();
+        }
+        const allSubs = window._cachedAllSubsData || {};
 
-        let allSubs = {};
-        try {
-            const rawSubs = localStorage.getItem('sigma_student_assessment_submissions');
-            if (rawSubs) allSubs = JSON.parse(rawSubs);
-        } catch (_) {}
-
-        students.forEach((st, sIdx) => {
+        for (let sIdx = 0; sIdx < students.length; sIdx++) {
+            const st = students[sIdx];
             let isSubmitted = false;
             let isGraded = false;
 
             const sId = String(typeof st === 'object' ? (st.id || st.uid || st.lrn || st.studentNumber || `STD-${String(sIdx + 1).padStart(3, '0')}`) : st).trim();
             const sName = String(typeof st === 'object' ? (st.name || st.fullName || `${st.lastName || ''}, ${st.firstName || ''}`.trim()) : st).trim().toLowerCase();
 
-            // Check via resolveStudentAssessmentSubmissionDetails for this specific student
-            if (typeof window.resolveStudentAssessmentSubmissionDetails === 'function') {
-                const details = window.resolveStudentAssessmentSubmissionDetails(ass, subjectId, topicIdx, index, targetSection, st);
-                if (details) {
-                    const sub = details.sub;
-                    const hasWork = (typeof window.studentHasTurnedInWork === 'function') ? window.studentHasTurnedInWork(sub) : false;
-                    const tone = String(details.attendanceTone || '').toLowerCase();
-                    const stat = String(details.statusName || '').toLowerCase();
-                    const isMissingOrAbsent = tone === 'missing' || tone === 'absent' || stat === 'missing' || stat === 'absent';
+            // 1. Fast check in allSubs object
+            const userSubBuckets = [
+                allSubs[sId],
+                allSubs[sName],
+                allSubs[sId.toLowerCase()]
+            ].filter(Boolean);
 
-                    if (hasWork || (details.turnedIn && !isMissingOrAbsent)) {
-                        isSubmitted = true;
-                    }
-                    if (details.isGraded || (details.numericScore !== null && details.numericScore !== undefined && details.numericScore !== '' && details.numericScore !== '-' && !isNaN(Number(details.numericScore)))) {
-                        isGraded = true;
+            for (const uBucket of userSubBuckets) {
+                if (isSubmitted && isGraded) break;
+                if (!uBucket || typeof uBucket !== 'object') continue;
+                for (const [key, row] of Object.entries(uBucket)) {
+                    if (!row || typeof row !== 'object') continue;
+                    const rTitle = String(row.assessmentTitle || row.title || row.quizTitle || row.materialTitle || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
+                    const rId = String(row.quizId || row.assessmentId || row.materialId || row.id || row.origId || '').trim().toLowerCase();
+                    const idMatch = (assId && rId === assId) || (assId && key.includes(assId));
+                    const titleMatch = (wantTitle && rTitle === wantTitle);
+                    if (idMatch || titleMatch) {
+                        const hasWork = (typeof window.studentHasTurnedInWork === 'function') ? window.studentHasTurnedInWork(row) : false;
+                        const isSub = hasWork || Boolean(row.status === 'Submitted' || row.status === 'Graded' || row.submittedAt || row.completedAt || row.fileName || row.file || row.fileUrl || row.score !== undefined);
+                        if (isSub) {
+                            isSubmitted = true;
+                            if (row.status === 'Graded' || row.teacherSaved === true || (row.score !== undefined && row.score !== null && row.score !== '' && row.score !== '--' && row.score !== '-')) {
+                                isGraded = true;
+                            }
+                            break;
+                        }
                     }
                 }
             }
 
-            // Fallback: check allSubs for this student only
-            if (!isSubmitted) {
-                const userSubBuckets = [
-                    allSubs[sId],
-                    allSubs[sName],
-                    allSubs[sId.toLowerCase()]
+            // 2. Fast check direct key in localStorage
+            if (!isSubmitted && sId) {
+                const cleanSubj = String(subjectId || 'default').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+                const checkKeys = [
+                    `sigma_sub_${sId}_${subjectId}_top_${topicIdx}_assessments_${index}`,
+                    `sigma_sub_${sId}_${cleanSubj}_top_${topicIdx}_assessments_${index}`,
+                    assId ? `sigma_sub_${sId}_${subjectId}_top_${topicIdx}_mat_${assId}` : null
                 ].filter(Boolean);
-
-                for (const uBucket of userSubBuckets) {
-                    if (isSubmitted) break;
-                    if (!uBucket || typeof uBucket !== 'object') continue;
-                    for (const [key, row] of Object.entries(uBucket)) {
-                        if (!row || typeof row !== 'object') continue;
-                        const rTitle = String(row.assessmentTitle || row.title || row.quizTitle || row.materialTitle || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-                        const rId = String(row.quizId || row.assessmentId || row.materialId || row.id || row.origId || '').trim().toLowerCase();
-                        const idMatch = (assId && rId === assId) || (assId && key.includes(assId));
-                        const titleMatch = (wantTitle && rTitle === wantTitle);
-                        if (idMatch || titleMatch) {
-                            const hasWork = (typeof window.studentHasTurnedInWork === 'function') ? window.studentHasTurnedInWork(row) : false;
-                            const isSub = hasWork || Boolean(row.status === 'Submitted' || row.status === 'Graded' || row.submittedAt || row.completedAt || row.fileName || row.file || row.fileUrl || row.score !== undefined);
-                            if (isSub) {
+                for (const dk of checkKeys) {
+                    const raw = localStorage.getItem(dk);
+                    if (raw) {
+                        try {
+                            const p = JSON.parse(raw);
+                            if (p && typeof p === 'object') {
                                 isSubmitted = true;
-                                if (row.status === 'Graded' || (row.score !== undefined && row.score !== null && row.score !== '' && row.score !== '--' && row.score !== '-')) {
+                                if (p.status === 'Graded' || p.teacherSaved === true || (p.score !== undefined && p.score !== null && p.score !== '' && p.score !== '-')) {
                                     isGraded = true;
                                 }
                                 break;
                             }
-                        }
+                        } catch (_) {}
                     }
                 }
             }
 
             if (isSubmitted) submittedCount++;
             if (isGraded) gradedCount++;
-        });
+        }
     }
 
-    return {
+    const result = {
         submittedCount,
         gradedCount,
         totalStudents
     };
+    window._teacherStatsCache.set(cacheKey, result);
+    return result;
 };
 
 /**
@@ -24199,7 +24667,9 @@ window.toggleAssessmentTableCollapse = function (btn, event) {
         || (wrapper && (wrapper.classList.contains('hidden') || wrapper.style.display === 'none' || wrapper.classList.contains('is-collapsed')))
         || factsPanels.some(p => p.classList.contains('hidden') || p.style.display === 'none' || p.classList.contains('is-collapsed'));
 
-    if (isCurrentlyCollapsed) {
+    const willBeCollapsed = !isCurrentlyCollapsed;
+
+    if (!willBeCollapsed) {
         card.classList.remove('is-collapsed');
         allTargets.forEach(t => {
             t.classList.remove('hidden', 'is-collapsed');
@@ -24223,6 +24693,17 @@ window.toggleAssessmentTableCollapse = function (btn, event) {
             icon.classList.remove('rotate-180');
         }
     }
+
+    // Autosave collapse preference to localStorage
+    try {
+        const assKey = card.getAttribute('data-assessment-key') || card.dataset.assessmentKey || card.querySelector('h4')?.textContent?.trim()?.toLowerCase();
+        if (assKey) {
+            const rawPrefs = localStorage.getItem('sigma_assessment_collapsed_prefs');
+            const prefs = rawPrefs ? JSON.parse(rawPrefs) : {};
+            prefs[assKey] = willBeCollapsed;
+            localStorage.setItem('sigma_assessment_collapsed_prefs', JSON.stringify(prefs));
+        }
+    } catch (_) {}
 };
 
 /**
@@ -24257,13 +24738,24 @@ window.buildTeacherDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
         : { submittedCount: 0, gradedCount: 0, totalStudents: 0 };
 
     const { submittedCount, gradedCount, totalStudents } = stats;
-    const gradedDisplay = `${gradedCount} / ${totalStudents}`;
+    const teacherSubmittedDisplay = `${submittedCount} / ${totalStudents}`;
+    const teacherGradedDisplay = `${gradedCount} / ${totalStudents}`;
 
-    const startParsed = (typeof window.parseAssessmentFactDateTime === 'function') ? window.parseAssessmentFactDateTime(startText) : null;
-    const startDisplayMobile = startParsed ? `${startParsed.dateStr}${startParsed.timeStr ? ' • ' + startParsed.timeStr : ''}` : (startText || '-');
+    const isTeacherSubDash = !teacherSubmittedDisplay || teacherSubmittedDisplay === '-';
+    const teacherSubmittedDesktop = isTeacherSubDash
+        ? `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(teacherSubmittedDisplay) : teacherSubmittedDisplay}</span>`;
+    const teacherSubmittedMobile = isTeacherSubDash
+        ? `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(teacherSubmittedDisplay) : teacherSubmittedDisplay}</span>`;
 
-    const dueParsed = (typeof window.parseAssessmentFactDateTime === 'function') ? window.parseAssessmentFactDateTime(dueText, dueFallbackTime) : null;
-    const dueDisplayMobile = dueParsed ? `${dueParsed.dateStr}${dueParsed.timeStr ? ' • ' + dueParsed.timeStr : ''}` : (dueText || '-');
+    const isTeacherGradedDash = !teacherGradedDisplay || teacherGradedDisplay === '-';
+    const teacherGradedDesktop = isTeacherGradedDash
+        ? `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(teacherGradedDisplay) : teacherGradedDisplay}</span>`;
+    const teacherGradedMobile = isTeacherGradedDash
+        ? `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
+        : `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(teacherGradedDisplay) : teacherGradedDisplay}</span>`;
 
     return `
         <div class="teacher-assessment-facts-panel assessment-facts-panel mt-3.5 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
@@ -24282,33 +24774,35 @@ window.buildTeacherDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
                         <tr class="hover:bg-slate-50/50 transition-colors">
                             <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;">${window.renderAssessmentDateCell(startText)}</td>
                             <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${window.renderAssessmentDateCell(dueText, dueFallbackTime)}</td>
-                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;"><span class="text-[13px] font-bold text-black font-['Inter'] select-none" style="color: #000000 !important;">${submittedCount} / ${totalStudents}</span></td>
-                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;"><span class="text-[13px] font-bold text-black font-['Inter'] select-none" style="color: #000000 !important;">${gradedDisplay}</span></td>
+                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4 fact-group-divider" style="border-right: 1px solid #e2e8f0 !important;">${teacherSubmittedDesktop}</td>
+                            <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap font-['Inter'] w-1/4" style="border-right: none !important;">${teacherGradedDesktop}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- Mobile Key-Value Panel -->
-            <div class="assessment-mobile-facts-panel block md:hidden w-full bg-slate-50/80 p-3 sm:p-3.5 font-['Inter']">
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">start</span>
-                        <span class="font-bold text-black text-right">${startDisplayMobile}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">due</span>
-                        <span class="font-bold text-black text-right">${dueDisplayMobile}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-200/60">
-                        <span class="font-medium text-black/60 capitalize">submitted</span>
-                        <span class="font-bold text-black text-right">${submittedCount} / ${totalStudents}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-xs py-1">
-                        <span class="font-medium text-black/60 capitalize">graded</span>
-                        <span class="font-bold text-black text-right">${gradedDisplay}</span>
-                    </div>
-                </div>
+            <!-- Mobile 2-Column Table (Green Left Column, White Right Column - Centered) -->
+            <div class="assessment-mobile-facts-panel block md:hidden w-full overflow-hidden font-['Inter']">
+                <table class="assessment-mobile-facts-table w-full table-fixed border-collapse" style="font-family: 'Inter', sans-serif !important;">
+                    <tbody>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Start</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-black text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(startText)}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Due</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-black text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${window.renderAssessmentDateMobileCell(dueText, dueFallbackTime)}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: 1px solid #166534 !important; text-align: center !important;">Submitted</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-black text-center bg-white" style="border-bottom: 1px solid #e2e8f0 !important; text-align: center !important;">${teacherSubmittedMobile}</td>
+                        </tr>
+                        <tr>
+                            <th class="mobile-fact-label w-[36%] py-2 px-2 text-xs font-bold text-white tracking-normal text-center capitalize select-none" style="background-color: #15803d !important; color: #ffffff !important; border-right: 1px solid #166534 !important; border-bottom: none !important; text-align: center !important;">Graded</th>
+                            <td class="mobile-fact-value w-[64%] py-2 px-2 text-xs font-normal text-black text-center bg-white" style="border-bottom: none !important; text-align: center !important;">${teacherGradedMobile}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     `;
@@ -25000,8 +25494,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         const rubricHtml = hasRubric ? `
-            <div class="border-t border-slate-200 pt-6">
-                <h3 class="text-base font-bold text-black font-['Inter'] mb-4">Grading Rubric</h3>
+            <div class="border-t border-black/10 pt-6">
+                <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">Grading Rubric</h3>
                 ${window.renderSharedAttachedFilePanelHtml({
             title: rubricTitle,
             url: rubricUrl,
@@ -25959,30 +26453,38 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             </div>
         ` : '';
 
+        const resolvedScorePanelHtml = options.scorePanelHtml || (typeof window.renderSharedAssessmentScorePanelHtml === 'function' && role === 'student' && !isUnassignedToStudent ? window.renderSharedAssessmentScorePanelHtml({
+            ass,
+            subjectId,
+            topicIdx,
+            tab: 'assessments',
+            activeIdx,
+            role: 'student',
+            section: targetSection
+        }) : '');
+
         return `
-            <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-0 px-0 space-y-6">
+            <div class="assessment-material-detail-view font-['Inter'] animate-in fade-in duration-300 pb-12 pt-0 px-0 space-y-6">
                 <!-- 1. Center Assessment Panel (Title, Description, Attached Quiz/Resource, Rubric) -->
-                <div class="bg-white border border-black/15 rounded-3xl p-6 sm:p-8 shadow-sm">
+                <div class="assessment-material-main-card bg-white border border-black/15 rounded-3xl p-6 sm:p-8 shadow-sm">
                     <div class="flex items-start gap-3 sm:gap-4">
                         <div class="space-y-6 flex-1 min-w-0">
                             <!-- Material Title & Meta Badges -->
-                            <div class="space-y-3">
-                                <div class="flex items-start gap-2">
-                                    <button type="button" onclick="${isViewSubmissionMode ? `if (typeof window.exitStudentViewSubmissionMode === 'function') { window.exitStudentViewSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}); } else if (typeof window.openMaterialTask === 'function') { window.openMaterialTask(${activeIdx}); } else if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', ${activeIdx}); } else { window.history.back(); }` : (isStudentSubmissionMode ? `window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})` : `if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', null); } else { window.history.back(); }`)}" title="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}" aria-label="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}"
-                                        class="w-8 h-8 -ml-1 mt-0.5 shrink-0 rounded-lg flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer">
-                                        ${(isViewSubmissionMode || isStudentSubmissionMode) ? '<i class="fa-solid fa-chevron-left text-sm text-black"></i>' : '<i class="fa-solid fa-arrow-left text-sm text-black"></i>'}
-                                    </button>
+                            <div class="flex items-start gap-2.5 sm:gap-3">
+                                <button type="button" onclick="${isViewSubmissionMode ? `if (typeof window.exitStudentViewSubmissionMode === 'function') { window.exitStudentViewSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}); } else if (typeof window.openMaterialTask === 'function') { window.openMaterialTask(${activeIdx}); } else if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', ${activeIdx}); } else { window.history.back(); }` : (isStudentSubmissionMode ? `window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})` : `if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', null); } else { window.history.back(); }`)}" title="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}" aria-label="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}"
+                                    class="material-detail-back-btn flex w-7 h-7 sm:w-8 sm:h-8 -ml-1 mt-0.5 shrink-0 rounded-lg items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-arrow-left text-sm text-black"></i>
+                                    <i class="fa-solid fa-chevron-left text-sm text-black"></i>
+                                </button>
+                                <div class="space-y-2 flex-1 min-w-0">
                                     <h2 class="text-xl sm:text-2xl font-bold text-black font-['Inter'] leading-snug break-words min-w-0">
                                         ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}
                                     </h2>
-                                </div>
-                                <div class="flex items-center gap-3 text-xs flex-wrap">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md ${detailBadgeClass} border font-bold text-[11px] capitalize">
-                                        <i class="${detailIconClass}"></i> ${typeLabel}
-                                    </span>
-                                    ${(role === 'teacher' || role === 'admin') && typeof window.renderReleaseStatusBadgeHtml === 'function' && typeof window.getStudentAssessmentReleaseStatus === 'function'
-                                        ? window.renderReleaseStatusBadgeHtml(window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, activeIdx, tab, targetSection))
-                                        : ''}
+                                    <div class="flex items-center gap-2 text-xs flex-wrap">
+                                        <span class="material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${detailBadgeClass} border font-bold text-[10px] capitalize leading-tight">
+                                            <i class="${detailIconClass} text-[9px]"></i> ${typeLabel}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -26017,7 +26519,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 <!-- Description / Instructions Section (Hidden if no description) -->
                             ${((ass.description && ass.description.trim() && ass.description.trim() !== 'No instructions provided.' && ass.description.trim() !== 'Assessment instructions and coursework materials.') || (ass.instructions && ass.instructions.trim() && ass.instructions.trim() !== 'No instructions provided.' && ass.instructions.trim() !== 'Assessment instructions and coursework materials.')) ? `
                                 <div class="space-y-2">
-                                    <h3 class="text-base font-bold text-black font-['Inter']">Instructions</h3>
+                                    <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2">Instructions</h3>
                                     <p class="text-sm md:text-base font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words">${window.escapeHtml ? window.escapeHtml(ass.description || ass.instructions) : (ass.description || ass.instructions)}</p>
                                 </div>
                             ` : ''}
@@ -26027,7 +26529,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     <!-- Attached Resource / Quiz Section -->
                                     ${((!isQuizSubmitted || isRetakeActive) && Boolean(attachedFileHtml)) ? `
                                         <div class="border-t border-black/10 pt-6" id="attached-quiz-resource-section">
-                                            <h3 class="text-base font-bold text-black font-['Inter'] mb-4">${attachedSectionTitle}</h3>
+                                            <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">${attachedSectionTitle}</h3>
                                             ${attachedFileHtml}
                                         </div>
                                     ` : ''}
@@ -26448,13 +26950,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                    <i class="fa-solid fa-xmark text-xs"></i>
                                                </button>
                                            </div>
-                                           <div class="flex items-center gap-2.5 pt-2 border-t border-slate-100">
+                                           <div class="flex items-center gap-2.5 pt-2 border-t border-slate-100 w-full">
                                                <div class="flex-shrink-0">
                                                    ${userAvatarHtml}
                                                </div>
-                                               <div class="sigma-comment-input-pill flex-1">
-                                                    <textarea id="submission-comment-input-${subjectId}-${tab}-${activeIdx}" rows="1" class="sigma-comment-textarea flex-1" placeholder="${window.escapeHtml ? window.escapeHtml(placeholderText) : placeholderText}" maxlength="1000" oninput="this.style.height='36px'; if(this.scrollHeight > 36) this.style.height=(this.scrollHeight)+'px';" onkeydown="if((event.key==='Enter'||event.keyCode===13||event.which===13)&&!event.shiftKey&&!event.isComposing){event.preventDefault();event.stopPropagation();window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx});}"></textarea>
-                                                   <button type="button" class="w-7 h-7 flex items-center justify-center text-emerald-700 hover:text-emerald-800 transition-transform hover:scale-110 cursor-pointer shrink-0" onclick="window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Post comment">
+                                               <div class="sigma-comment-input-pill flex-1 w-full min-w-0 bg-slate-50 border border-slate-200 rounded-[22px] px-3.5 sm:px-4 py-1.5 flex items-center gap-2.5 transition-all focus-within:border-[#FFD000] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#FFD000]/20 min-h-[44px] box-border">
+                                                   <textarea id="submission-comment-input-${subjectId}-${tab}-${activeIdx}" rows="1" class="sigma-comment-textarea flex-1 w-full bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none resize-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 font-['Inter'] leading-relaxed m-0 p-0" style="border: none !important; outline: none !important; box-shadow: none !important; resize: none !important; background: transparent !important; min-height: 28px !important; border-radius: 0 !important; width: 100% !important;" placeholder="${window.escapeHtml ? window.escapeHtml(placeholderText) : placeholderText}" maxlength="1000" oninput="this.style.height='28px'; if(this.scrollHeight > 28) this.style.height=Math.min(this.scrollHeight, 120)+'px';" onkeydown="if((event.key==='Enter'||event.keyCode===13||event.which===13)&&!event.shiftKey&&!event.isComposing){event.preventDefault();event.stopPropagation();window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx});}"></textarea>
+                                                   <button type="button" class="w-8 h-8 rounded-full flex items-center justify-center text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer shrink-0" onclick="window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Post comment">
                                                        <i class="fa-solid fa-paper-plane text-xs"></i>
                                                    </button>
                                                </div>
@@ -26471,7 +26973,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     <div class="space-y-3">
                                         <div class="flex items-center justify-between">
                                             <div class="flex items-center gap-2">
-                                                <h3 class="text-base font-bold text-black font-['Inter']">Answer / Attachment</h3>
+                                                <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-0">Answer / Attachment</h3>
                                                 <span class="text-xs text-black-fade font-normal font-['Inter']">(Max file size: 500 MB)</span>
                                             </div>
                                         </div>
@@ -26548,140 +27050,147 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
                 ${(!isStudentSubmissionMode && !isUnassignedToStudent) ? `
                     <!-- 2. Below the Assessment Panel: Real Grading Details Panel & Submission Details Panel with Visible Black Fade Borderlines -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="assessment-material-details-grid grid grid-cols-1 md:grid-cols-2 gap-5">
+                        ${resolvedScorePanelHtml ? `
+                            <!-- Mobile Score Panel (Directly below Main Assessment Panel on Mobile) -->
+                            <div class="assessment-mobile-score-panel-slot md:hidden">
+                                ${resolvedScorePanelHtml}
+                            </div>
+                        ` : ''}
+
                         <!-- Grading Details Panel -->
-                        <div class="bg-white border border-black/15 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between font-['Inter']">
+                        <div class="assessment-grading-details-card bg-white border border-black/15 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between font-['Inter']">
                             <div>
-                                <p class="text-xs font-bold text-[#15803d] font-['Inter'] capitalize tracking-normal mb-3 flex items-center gap-1.5">
+                                <p class="text-xs font-semibold text-[#15803d] font-['Inter'] capitalize tracking-normal mb-3 flex items-center gap-1.5">
                                     <i class="fa-solid fa-circle-info text-xs text-[#15803d]"></i><span>Grading Details</span>
                                 </p>
                                 <div class="space-y-1.5">
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-trophy text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Highest Possible Score</span>
                                         </span>
-                                        <span class="font-bold text-black font-['Inter']">${assMaxScore} pts</span>
+                                        <span class="font-normal text-black font-['Inter']">${assMaxScore} pts</span>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-layer-group text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Component</span>
                                         </span>
-                                        <span class="font-bold text-black font-['Inter']">${compLabel} (${assWeightFormatted})</span>
+                                        <span class="font-normal text-black font-['Inter']">${compLabel} (${assWeightFormatted})</span>
                                     </div>
                                     ${(isAnyQuiz || isQuizItem || isQuiz || isRealQuiz) ? `
                                         <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                            <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                            <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                                 <i class="fa-solid fa-stopwatch text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                                 <span>Time Limit</span>
                                             </span>
-                                            <span class="font-bold text-black font-['Inter']">${quizHasTimer ? window.formatQuizTimeLimit(quizTimeLimit) : 'No time limit'}</span>
+                                            <span class="font-normal text-black font-['Inter']">${quizHasTimer ? window.formatQuizTimeLimit(quizTimeLimit) : 'No time limit'}</span>
                                         </div>
                                     ` : ''}
                                     ${(role !== 'student' && !(isAnyQuiz || isQuizItem || isQuiz || isRealQuiz)) ? `
                                         <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                            <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                            <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                                 <i class="fa-solid fa-sliders text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                                 <span>Scoring Method</span>
                                             </span>
-                                            <span class="font-bold text-black font-['Inter']">${gradingModeTitle}</span>
+                                            <span class="font-normal text-black font-['Inter']">${gradingModeTitle}</span>
                                         </div>
                                     ` : ''}
                                     ${((role !== 'student' && hasAiAssistant) || (role === 'student' && !isAnyQuiz && isGraded)) ? `
                                         <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                            <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                            <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                                 <i class="fa-solid fa-bolt text-sm text-amber-500 w-4 text-center shrink-0"></i>
                                                 <span>SIGMA AI Assistance</span>
                                             </span>
                                             <button type="button" id="toggle-ai-assistance-card-btn" onclick="window.toggleAiAssistancePanel?.('${aiMatKey}')"
-                                                class="text-xs font-bold ${isAiPanelExplicitlyHidden ? 'text-black bg-[#FFD000] hover:bg-[#e6bc00]' : 'text-white bg-[#15803d] hover:bg-[#166534]'} px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-xs active:scale-[0.98]">
-                                                <i class="${isAiPanelExplicitlyHidden ? 'fa-solid fa-sparkles text-xs text-black' : 'fa-solid fa-eye-slash text-xs text-white'}" id="toggle-ai-card-btn-icon"></i>
+                                                class="text-[10px] sm:text-[10.5px] font-bold ${isAiPanelExplicitlyHidden ? 'text-black bg-[#FFD000] hover:bg-[#e6bc00]' : 'text-white bg-[#15803d] hover:bg-[#166534]'} px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight">
+                                                <i class="${isAiPanelExplicitlyHidden ? 'fa-solid fa-sparkles text-[9px] sm:text-[9.5px] text-black' : 'fa-solid fa-eye-slash text-[9px] sm:text-[9.5px] text-white'}" id="toggle-ai-card-btn-icon"></i>
                                                 <span id="toggle-ai-card-btn-text">${isAiPanelExplicitlyHidden ? 'View SIGMA AI Panel' : 'Hide SIGMA AI Panel'}</span>
                                             </button>
                                         </div>
                                     ` : ''}
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-calendar text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Start</span>
                                         </span>
-                                        <span class="font-bold text-black font-['Inter']">${assStartDate}</span>
+                                        <span class="font-normal text-black font-['Inter']">${assStartDate}</span>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-calendar-check text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Due</span>
                                         </span>
-                                        <span class="font-bold text-black font-['Inter']">${assDueDate}</span>
+                                        <span class="font-normal text-black font-['Inter']">${assDueDate}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Submission Details Panel -->
-                        <div class="bg-white border border-black/15 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between font-['Inter']">
+                        <div class="assessment-submission-details-card bg-white border border-black/15 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between font-['Inter']">
                             <div>
                                 <div class="flex items-center justify-between mb-3">
-                                    <p class="text-xs font-bold text-[#15803d] font-['Inter'] capitalize tracking-normal flex items-center gap-1.5">
+                                    <p class="text-xs font-semibold text-[#15803d] font-['Inter'] capitalize tracking-normal flex items-center gap-1.5">
                                         <i class="fa-solid fa-cloud-arrow-up text-xs text-[#15803d]"></i><span>Submission Details</span>
                                     </p>
                                 </div>
                                 <div class="space-y-1.5">
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-bullseye text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Max Attempts</span>
                                         </span>
-                                        <span class="font-bold text-black font-['Inter']">${baseMaxAttempts}${hasUnusedGrantedExtraAttempt ? ` (+${studentExtraAttempts})` : ''}</span>
+                                        <span class="font-normal text-black font-['Inter']">${baseMaxAttempts}${hasUnusedGrantedExtraAttempt ? ` (+${studentExtraAttempts})` : ''}</span>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-clock-rotate-left text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Attempts Used</span>
                                         </span>
-                                        <span id="student-submission-attempts-count" class="font-bold text-black font-['Inter']">${effectiveAttemptsUsed}</span>
+                                        <span id="student-submission-attempts-count" class="font-normal text-black font-['Inter']">${effectiveAttemptsUsed}</span>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-hourglass-half text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Late Permission</span>
                                         </span>
-                                        <span class="font-bold font-['Inter'] ${lateColor}">${lateLabel}</span>
+                                        <span class="font-normal font-['Inter'] ${lateColor}">${lateLabel}</span>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10" id="submission-details-submitted-row">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid ${isSubmitted ? 'fa-circle-check text-[#15803d]' : (isPastDue ? 'fa-circle-xmark text-red-500' : 'fa-file-arrow-up text-black-fade')} text-sm w-4 text-center shrink-0"></i>
                                             <span>Submitted</span>
                                         </span>
                                         <div class="text-right flex items-center justify-end gap-1.5">
                                             ${isSubmitted ? `
-                                                <span class="font-bold text-black font-['Inter']" id="submission-details-submitted-time">${submittedDateFormatted}</span>
+                                                <span class="font-normal text-black font-['Inter']" id="submission-details-submitted-time">${submittedDateFormatted}</span>
                                                 ${isLateSubmit ? `
-                                                    <span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none flex items-center gap-1 shrink-0" title="Submitted after due date">
+                                                    <span class="text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded leading-none flex items-center gap-1 shrink-0" title="Submitted after due date">
                                                         <i class="fa-solid fa-clock-rotate-left text-[9px] text-amber-600"></i>
                                                         <span>Late</span>
                                                     </span>
                                                 ` : ''}
                                             ` : (isPastDue ? `
-                                                <span class="font-bold text-red-600 font-['Inter']" id="submission-details-submitted-time">${assLatePermission ? 'Overdue' : 'Missing (Overdue)'}</span>
+                                                <span class="font-normal text-red-600 font-['Inter']" id="submission-details-submitted-time">${assLatePermission ? 'Overdue' : 'Missing (Overdue)'}</span>
                                             ` : `
-                                                <span class="font-bold text-black-fade font-['Inter']" id="submission-details-submitted-time">No submission</span>
+                                                <span class="font-normal text-black-fade font-['Inter']" id="submission-details-submitted-time">No submission</span>
                                             `)}
                                         </div>
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1" id="submission-details-graded-row">
-                                        <span class="text-black font-medium flex items-center gap-2 font-['Inter']">
+                                        <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-circle-check text-sm ${(isGraded && (studentRawScore !== null || rawGradedDate)) ? 'text-[#15803d]' : (isPastDue && !isSubmitted && !assLatePermission ? 'text-red-500' : 'text-black-fade')} w-4 text-center shrink-0"></i>
                                             <span>Graded</span>
                                         </span>
                                         <div class="text-right">
                                             ${(isGraded && (studentRawScore !== null || rawGradedDate)) ? `
-                                                <span class="font-bold text-black font-['Inter']" id="submission-details-graded-time">${gradedDateFormatted || (isSubmitted ? submittedDateFormatted : 'Graded')}</span>
+                                                <span class="font-normal text-black font-['Inter']" id="submission-details-graded-time">${gradedDateFormatted || (isSubmitted ? submittedDateFormatted : 'Graded')}</span>
                                             ` : (isPastDue && !isSubmitted && !assLatePermission ? `
-                                                <span class="font-bold text-red-600 font-['Inter']" id="submission-details-graded-time">Missing (0 pts)</span>
+                                                <span class="font-normal text-red-600 font-['Inter']" id="submission-details-graded-time">Missing (0 pts)</span>
                                             ` : `
-                                                <span class="font-bold text-black-fade font-['Inter']" id="submission-details-graded-time">Not graded</span>
+                                                <span class="font-normal text-black-fade font-['Inter']" id="submission-details-graded-time">Not graded</span>
                                             `)}
                                         </div>
                                     </div>
@@ -26845,36 +27354,36 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
                     <!-- 3. SIGMA AI Assistance Panel (Teacher only) -->
                     ${(role !== 'student' && hasAiAssistant) ? `
-                        <div id="teacher-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}bg-white border border-black/15 rounded-3xl p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
+                        <div id="teacher-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}sigma-ai-assistance-panel bg-white border border-black/15 rounded-none w-full max-w-full p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
                             <!-- Panel Header & Final Grade Recommendation (Top Right) -->
-                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-black/10 pb-5 sm:pb-6">
-                                <div class="space-y-1.5 flex-1 min-w-0">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-xs text-white"></i></span>
-                                        <h3 class="text-base sm:text-lg font-bold text-black font-['Inter'] tracking-tight">SIGMA AI Assistance</h3>
-                                    </div>
-                                    <p class="text-xs font-normal text-black-fade leading-relaxed max-w-xl">
-                                        Automated qualitative criterion assessment and score recommendations aligned with the attached grading rubric.
-                                    </p>
+                            <div class="ai-panel-header-grid border-b border-black/10 pb-3 sm:pb-4">
+                                <div class="ai-header-title-area flex items-center gap-2 sm:gap-2.5 min-w-0" style="grid-area: title;">
+                                    <span class="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-[11px] sm:text-xs text-white"></i></span>
+                                    <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Assistance</h3>
                                 </div>
                                 ${isViewSubmissionMode ? `
-                                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap shrink-0">
-                                    <div class="flex items-baseline gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-2xl bg-[#15803d]/10 border border-[#15803d]/20 text-[#15803d] font-['Inter'] shadow-2xs">
-                                        <span class="text-xs sm:text-sm font-semibold text-black/70">AI Suggested Score:</span>
-                                        <span class="text-sm sm:text-base font-black text-[#15803d]">${aiScoreLabel} / ${assMaxScore}</span>
+                                <div class="ai-header-score-area flex items-center justify-end shrink-0" style="grid-area: badge;">
+                                    <div class="flex items-baseline gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl bg-[#15803d]/10 border border-[#15803d]/20 text-[#15803d] font-['Inter'] shadow-2xs">
+                                        <span class="text-[10px] sm:text-xs font-semibold text-black/70">AI Suggested Score:</span>
+                                        <span class="text-[11px] sm:text-xs font-bold text-[#15803d]">${aiScoreLabel} / ${assMaxScore}</span>
                                     </div>
+                                </div>
+                                <div class="ai-header-btn-area flex items-center justify-start sm:justify-end shrink-0" style="grid-area: btn;">
                                     <button type="button" id="ai-review-action-btn"
                                         data-ai-score="${aiCalculatedScore !== null ? aiCalculatedScore : ''}"
                                         data-ai-max="${assMaxScore}"
                                         data-ack-key="${encodeURIComponent(aiReviewAckKey)}"
                                         data-acknowledged="${aiReviewAcknowledged ? '1' : '0'}"
                                         onclick="window.handleAiReviewAction(this)"
-                                        class="sigma-btn sigma-btn-primary sigma-btn-sm font-['Inter'] flex items-center gap-2 text-xs font-bold py-2 px-4 rounded-xl shadow-2xs cursor-pointer hover:bg-[#166534] active:scale-[0.98] transition-all">
-                                        <i class="fa-solid ${aiReviewAcknowledged ? 'fa-arrow-right-to-bracket' : 'fa-circle-check'} text-xs"></i>
+                                        class="sigma-btn sigma-btn-primary font-['Inter'] inline-flex items-center gap-1.5 text-[10.5px] sm:text-xs font-bold py-1 px-2.5 sm:py-1.5 sm:px-3 rounded-lg sm:rounded-xl shadow-2xs cursor-pointer hover:bg-[#166534] active:scale-[0.98] transition-all">
+                                        <i class="fa-solid ${aiReviewAcknowledged ? 'fa-arrow-right-to-bracket' : 'fa-circle-check'} text-[10px] sm:text-xs"></i>
                                         <span>${aiReviewAcknowledged ? 'Transfer Score' : 'Finished Reviewed'}</span>
                                     </button>
                                 </div>
                                 ` : ''}
+                                <p class="ai-header-desc-area text-[11px] sm:text-xs font-normal text-black-fade leading-relaxed max-w-2xl m-0 pt-0.5" style="grid-area: desc;">
+                                    Automated qualitative criterion assessment and score recommendations aligned with the attached grading rubric.
+                                </p>
                             </div>
 
                             <!-- 1. Assessment Criteria Section (Dynamic 1-4 Explanatory Cards) -->
@@ -26960,7 +27469,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
                     <!-- 3b. SIGMA AI Commentary Panel (Student only - shown ONLY after teacher grades submission) -->
                     ${(role === 'student' && !isAnyQuiz && isGraded) ? `
-                        <div id="student-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}bg-white border border-black/15 rounded-3xl p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
+                        <div id="student-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}sigma-ai-assistance-panel bg-white border border-black/15 rounded-none w-full max-w-full p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
                             <!-- Panel Header -->
                             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-black/10 pb-5 sm:pb-6">
                                 <div class="space-y-1.5 flex-1 min-w-0">
@@ -27035,9 +27544,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
             <div class="space-y-4 font-['Inter']" id="assessment-list">
                 ${assessments.map((ass, i) => {
-                    const cfg = window.getSigmaMaterialTypeConfig(ass.category || ass.type || tab);
-                    const typeLabel = ass.category || cfg.type;
-                    const displayTitle = (ass.title || `${typeLabel} #${i + 1}`).replace(/\.(pdf|docx|pptx|ppt)$/i, '');
+                    const rawKind = String(ass?.category || ass?.type || ass?.kind || tab || '').toLowerCase();
+                    const rawTitle = String(ass?.title || ass?.name || '').toLowerCase();
+                    const isTaskItem = rawTitle.startsWith('task') || rawKind === 'task' || rawKind === 'tasks' || rawKind === 'assignment' || rawKind === 'activity' || rawKind === 'performance task' || rawKind === 'perf. task' || ass?.category === 'Task';
+                    const isQuizItem = !isTaskItem && (rawKind.includes('quiz') || (rawTitle.includes('quiz') && !rawTitle.startsWith('task')) || Boolean(ass?.quizId || ass?.selectedQuizId));
+                    const typeLabel = isQuizItem ? 'Quiz' : 'Task';
+                    const cfg = window.getSigmaMaterialTypeConfig(typeLabel);
+                    const displayTitle = (ass?.title || `${typeLabel} #${i + 1}`).replace(/\.(pdf|docx|pptx|ppt)$/i, '');
                     const clickHandler = onCardClick ? (typeof onCardClick === 'function' ? onCardClick(tab, i) : onCardClick) : `window.switchTopicTab('${tab}', ${i})`;
                     const desktopFacts = role === 'student' && typeof window.buildStudentDesktopAssessmentFactsHtml === 'function'
                         ? window.buildStudentDesktopAssessmentFactsHtml(ass, subjectId, topicIdx, i, targetSection)
@@ -27052,20 +27565,33 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     const statusBadgeHtml = (role === 'teacher' || role === 'admin') && typeof window.renderReleaseStatusBadgeHtml === 'function'
                         ? window.renderReleaseStatusBadgeHtml(window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, i, tab, targetSection))
                         : '';
+                    // Collapse / Expand state: DEFAULT IS EXPANDED (false) unless user saved collapsed preference
+                    const assKey = String(ass?.id || ass?.title || displayTitle || `ass-${i}`).trim().toLowerCase();
+                    let isCardCollapsed = false; // DEFAULT EXPANDED
+                    try {
+                        const rawPrefs = localStorage.getItem('sigma_assessment_collapsed_prefs');
+                        if (rawPrefs) {
+                            const prefs = JSON.parse(rawPrefs);
+                            if (prefs[assKey] !== undefined) {
+                                isCardCollapsed = Boolean(prefs[assKey]);
+                            }
+                        }
+                    } catch (_) {}
+
                     const toggleButtonHtml = desktopFacts ? `
                         <button type="button"
                                 onclick="window.toggleAssessmentTableCollapse(this, event)"
                                 class="assessment-collapse-btn flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-black hover:bg-slate-100 transition-all cursor-pointer shrink-0 border border-transparent select-none"
-                                title="Expand table"
+                                title="${isCardCollapsed ? 'Expand table' : 'Collapse table'}"
                                 aria-label="Toggle assessment details"
-                                aria-expanded="false">
-                            <i class="fa-solid fa-chevron-down text-xs text-black transition-transform duration-200"></i>
+                                aria-expanded="${isCardCollapsed ? 'false' : 'true'}">
+                            <i class="fa-solid fa-chevron-down text-xs text-black transition-transform duration-200 ${isCardCollapsed ? '' : 'rotate-180'}"></i>
                         </button>
                     ` : '';
 
                     return `
                         <div class="${role === 'student' ? 'student-assessment-list-item' : 'teacher-assessment-list-item'}">
-                            <div class="assessment-card-panel is-collapsed sigma-black-fade-panel relative rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs transition-all flex flex-col font-['Inter'] bg-white border border-slate-200">
+                            <div class="assessment-card-panel ${isCardCollapsed ? 'is-collapsed' : ''} sigma-black-fade-panel relative rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs transition-all flex flex-col font-['Inter'] bg-white border border-slate-200" data-assessment-key="${window.escapeHtml ? window.escapeHtml(assKey) : assKey}">
                                 <div class="flex items-center gap-2.5 sm:gap-4 min-w-0">
                                     <div class="w-11 sm:w-16 md:w-20 flex flex-col items-center gap-1 shrink-0 select-none">
                                         <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${cfg.iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
@@ -27073,20 +27599,18 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </div>
                                         <span class="${cfg.badgeTextClass} ${cfg.badgeClass} border font-bold text-[9px] sm:text-xs rounded px-1.5 py-0.5 leading-tight inline-flex items-center justify-center text-center capitalize">${window.escapeHtml ? window.escapeHtml(typeLabel) : typeLabel}</span>
                                     </div>
-                                    <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                            <h4 onclick="${clickHandler}" class="text-sm sm:text-base font-bold text-black hover:text-[#15803d] hover:underline cursor-pointer transition-colors truncate font-['Inter'] w-fit max-w-full m-0" title="Open ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}">
-                                                ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}
-                                            </h4>
-                                            ${statusBadgeHtml}
-                                        </div>
+                                    <div class="min-w-0 flex-1 flex flex-col justify-center gap-1">
+                                        <h4 onclick="${clickHandler}" class="text-sm sm:text-base font-bold text-black hover:text-[#15803d] hover:underline cursor-pointer transition-colors line-clamp-3 font-['Inter'] w-fit max-w-full m-0 leading-snug" title="Open ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}">
+                                            ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}
+                                        </h4>
+                                        ${statusBadgeHtml ? `<div class="flex items-center">${statusBadgeHtml}</div>` : ''}
                                     </div>
                                     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                         ${desktopTopStatus}
                                         ${toggleButtonHtml}
                                     </div>
                                 </div>
-                                <div class="assessment-collapsible-table-wrapper is-collapsed w-full" style="display: none;">
+                                <div class="assessment-collapsible-table-wrapper ${isCardCollapsed ? 'is-collapsed' : ''} w-full" ${isCardCollapsed ? 'style="display: none;"' : ''}>
                                     ${desktopFacts}
                                 </div>
                             </div>
@@ -27310,10 +27834,10 @@ window.renderSharedVideosTabHtml = function (options) {
                                         <span class="video-badge-bottom-right" ${isMp4Item ? `data-dynamic-video-src="${rawVideoUrl}"` : ''} style="position: absolute !important; bottom: 8px !important; right: 8px !important; z-index: 20; font-size: 10.5px !important; padding: 2px 7px !important;"><i class="fa-regular fa-clock" style="font-size: 9.5px;"></i> ${durationStr}</span>
                                     </div>
                                     <div class="video-card-text-container px-0 w-full text-left">
-                                        <div class="flex items-start justify-between gap-2 mb-1">
+                                        <div class="mb-1">
                                             <h4 class="text-xs sm:text-sm md:text-base font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors m-0">${escapeHtml(video.title)}</h4>
-                                            ${statusBadgeHtml}
                                         </div>
+                                        ${statusBadgeHtml ? `<div class="mb-1.5 flex items-center">${statusBadgeHtml}</div>` : ''}
                                         <p class="text-[11px] sm:text-xs md:text-sm font-normal text-black-fade leading-relaxed font-['Inter'] line-clamp-2 m-0 break-words">${escapeHtml(cleanDesc)}</p>
                                     </div>
                                 </div>
@@ -27354,14 +27878,15 @@ window.renderSharedVideosTabHtml = function (options) {
                             <div class="space-y-2.5">
                                 <div class="flex items-center gap-2 sm:gap-3">
                                     <button type="button" onclick="if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('videos', null); } else { window.history.back(); }" title="Back to Videos" aria-label="Back"
-                                        class="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded md:rounded-lg flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer p-0 m-0">
+                                        class="material-detail-back-btn flex w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded md:rounded-lg items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer p-0 m-0">
                                         <i class="fa-solid fa-arrow-left text-xs sm:text-sm md:text-base text-black"></i>
+                                        <i class="fa-solid fa-chevron-left text-xs sm:text-sm md:text-base text-black"></i>
                                     </button>
                                     <h2 class="text-sm sm:text-base md:text-xl lg:text-2xl font-bold text-black font-['Inter'] leading-snug break-words min-w-0 m-0">${escapeHtml(videoTitle)}</h2>
                                 </div>
-                                <div class="flex items-center gap-2 text-xs flex-wrap pl-8 sm:pl-9 md:pl-11">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80 font-bold text-xs capitalize">
-                                        <i class="fa-solid fa-circle-play"></i> Video Lesson
+                                <div class="flex items-center gap-2 text-xs flex-wrap pl-0 sm:pl-9 md:pl-11">
+                                    <span class="material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80 font-bold text-[10px] capitalize leading-tight">
+                                        <i class="fa-solid fa-circle-play text-[9px]"></i> Video Lesson
                                     </span>
                                 </div>
                             </div>
@@ -27459,16 +27984,17 @@ window.renderSharedVideosTabHtml = function (options) {
                     <!-- Back Button & Video Title -->
                     <div class="flex items-center gap-2 md:gap-3">
                         <button type="button" onclick="if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('videos', null); } else { window.history.back(); }" title="Back to Videos" aria-label="Back"
-                            class="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded md:rounded-lg flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer p-0 m-0">
+                            class="material-detail-back-btn flex w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 shrink-0 rounded md:rounded-lg items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer p-0 m-0">
                             <i class="fa-solid fa-arrow-left text-[11px] sm:text-xs md:text-sm text-black"></i>
+                            <i class="fa-solid fa-chevron-left text-[11px] sm:text-xs md:text-sm text-black"></i>
                         </button>
                         <h2 class="text-xs sm:text-sm md:text-xl lg:text-2xl font-bold text-black font-['Inter'] leading-normal md:leading-snug break-words min-w-0 m-0">${escapeHtml(videoTitle)}</h2>
                     </div>
 
                     <!-- Badge -->
-                    <div class="flex items-center gap-2 text-xs flex-wrap pl-8 sm:pl-9 md:pl-11">
-                        <span class="inline-flex items-center gap-1.5 px-2 md:px-2.5 py-0.5 rounded md:rounded-md bg-rose-50 text-rose-700 border border-rose-200/80 font-bold text-[10px] md:text-xs capitalize">
-                            <i class="fa-solid fa-circle-play text-[9px] md:text-xs"></i> Video Lesson
+                    <div class="flex items-center gap-2 text-xs flex-wrap pl-0 sm:pl-9 md:pl-11">
+                        <span class="material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80 font-bold text-[10px] capitalize leading-tight">
+                            <i class="fa-solid fa-circle-play text-[9px]"></i> Video Lesson
                         </span>
                     </div>
 
@@ -27476,7 +28002,7 @@ window.renderSharedVideosTabHtml = function (options) {
                         const isLongDesc = instructionsText.length > 160 || (instructionsText.match(/\n/g) || []).length >= 3;
                         return `
                         <!-- Description -->
-                        <div class="space-y-1 md:space-y-1.5 pl-8 sm:pl-9 md:pl-11 pt-1 md:pt-2">
+                        <div class="space-y-1 md:space-y-1.5 pl-0 sm:pl-9 md:pl-11 pt-1 md:pt-2">
                             <h3 class="text-xs sm:text-sm md:text-base font-bold text-black font-['Inter'] m-0">Description</h3>
                             <div class="sigma-collapsible-desc-wrapper relative">
                                 <p class="sigma-collapsible-desc-text ${isLongDesc ? 'is-collapsed' : ''} text-[11px] sm:text-xs md:text-sm font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words m-0">${escapeHtml(instructionsText)}</p>
@@ -31924,11 +32450,11 @@ window.toggleAiAssistancePanel = function (explicitKey) {
         // Teacher wants to SHOW it
         panel.classList.remove('hidden');
         if (cardBtn) {
-            cardBtn.className = "text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-xs active:scale-[0.98]";
+            cardBtn.className = "text-[10px] sm:text-[10.5px] font-bold text-white bg-[#15803d] hover:bg-[#166534] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight";
         }
         if (cardBtnText) cardBtnText.textContent = 'Hide SIGMA AI Panel';
         if (cardBtnIcon) {
-            cardBtnIcon.className = "fa-solid fa-eye-slash text-xs text-white";
+            cardBtnIcon.className = "fa-solid fa-eye-slash text-[9px] sm:text-[9.5px] text-white";
         }
         if (headerBtnText) headerBtnText.textContent = 'Hide';
         if (headerBtnIcon) {
@@ -31946,11 +32472,11 @@ window.toggleAiAssistancePanel = function (explicitKey) {
         // Teacher wants to HIDE it
         panel.classList.add('hidden');
         if (cardBtn) {
-            cardBtn.className = "text-xs font-bold text-black bg-[#FFD000] hover:bg-[#e6bc00] px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-xs active:scale-[0.98]";
+            cardBtn.className = "text-[10px] sm:text-[10.5px] font-bold text-black bg-[#FFD000] hover:bg-[#e6bc00] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight";
         }
         if (cardBtnText) cardBtnText.textContent = 'View SIGMA AI Panel';
         if (cardBtnIcon) {
-            cardBtnIcon.className = "fa-solid fa-sparkles text-xs text-black";
+            cardBtnIcon.className = "fa-solid fa-sparkles text-[9px] sm:text-[9.5px] text-black";
         }
         if (headerBtnText) headerBtnText.textContent = 'Show';
         if (headerBtnIcon) {
@@ -34707,5 +35233,4 @@ window.flushTeacherReleaseToastQueue = function () {
         }, idx * 220);
     });
 };
-
 

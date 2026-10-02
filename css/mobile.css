@@ -409,8 +409,8 @@
         max-height: clamp(38px, 9.8vw, 44px) !important;
         margin-top: 0 !important;
         background: #ffffff !important;
-        border-bottom: none !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         align-items: center !important;
         justify-content: space-around !important;
         padding: 0 clamp(4px, 1.5vw, 10px) !important;
@@ -449,7 +449,7 @@
     header.subbar-hidden .admin-topbar__inner,
     body.subbar-hidden .admin-topbar__inner {
         border-bottom: 2px solid #15803d !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     }
 
     .mobile-subbar-btn {
@@ -1552,25 +1552,28 @@
         font-size: 12.5px !important;
         font-weight: 600 !important;
         letter-spacing: -0.01em !important;
-        padding: 0 6px !important;
-        height: 28px !important;
+        padding: 0 !important;
+        width: 30px !important;
+        min-width: 30px !important;
+        height: 30px !important;
         line-height: 1 !important;
         display: inline-flex !important;
         align-items: center !important;
-        gap: 0.35rem !important;
+        justify-content: center !important;
+        gap: 0 !important;
     }
 
     .canonical-back-btn span,
     .topic-page-tabs-header button:has(i.fa-chevron-left) span,
     #topic-content-header button:has(i.fa-chevron-left) span {
-        font-size: 12.5px !important;
-        font-weight: 600 !important;
+        display: none !important;
     }
 
     .canonical-back-btn i,
     .topic-page-tabs-header button:has(i.fa-chevron-left) i,
     #topic-content-header button:has(i.fa-chevron-left) i {
-        font-size: 10.5px !important;
+        font-size: 11px !important;
+        margin: 0 !important;
     }
 
     .topic-detail-grid,
@@ -1955,6 +1958,579 @@
         line-height: 1.4 !important;
     }
 
+    /* ─── Mobile Assessment Material Detail View: Full Width Edge-to-Edge Main Card & Closed Gap to Icon Panels ─── */
+    .student-topic-page-shell:has(.assessment-material-detail-view),
+    .teacher-topic-page-shell:has(.assessment-material-detail-view),
+    .topic-page-shell:has(.assessment-material-detail-view),
+    #main-content:has(.assessment-material-detail-view) {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    .topic-detail-grid:has(.assessment-material-detail-view),
+    .teacher-topic-page-grid:has(.assessment-material-detail-view),
+    .teacher-topic-page-grid.has-topic-rail-score-follow,
+    .teacher-topic-page-grid.is-detail-view {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        gap: 0 !important;
+    }
+
+    #topic-content-main:has(.assessment-material-detail-view),
+    .topic-detail-grid:has(.assessment-material-detail-view) #topic-content-main,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) #topic-content-main,
+    .teacher-topic-page-grid.has-topic-rail-score-follow #topic-content-main,
+    .teacher-topic-page-grid.is-detail-view #topic-content-main {
+        display: contents !important;
+        padding-top: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .assessment-material-detail-view,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) .assessment-material-detail-view,
+    .teacher-topic-page-grid.has-topic-rail-score-follow .assessment-material-detail-view {
+        display: contents !important;
+        padding-top: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 0 !important;
+    }
+
+    /* 1. Main Assessment Panel: Full width, no radius, positioned FIRST (on top) */
+    .assessment-material-main-card,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) .assessment-material-main-card,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) .assessment-material-main-card,
+    .topic-detail-grid:has(.assessment-material-detail-view) .assessment-material-main-card {
+        order: 1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        border-radius: 0 !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        padding: 16px 14px 20px 14px !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+    }
+
+    /* 2. Panels below main panel: Padded and not full width, retain radius */
+    .assessment-material-detail-view > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0 !important;
+    }
+
+    .assessment-material-details-grid,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) .assessment-material-details-grid,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) .assessment-material-details-grid,
+    .topic-detail-grid:has(.assessment-material-detail-view) .assessment-material-details-grid {
+        order: 3 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 14px 14px 24px 14px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+    }
+
+    /* 2b. SIGMA AI Assistance Panel on Mobile: Full Width, No Radius, Order 4 (Directly below Grading and Submission Details Panel) */
+    #teacher-ai-assistance-panel,
+    #student-ai-assistance-panel,
+    .sigma-ai-assistance-panel,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) #teacher-ai-assistance-panel,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) #teacher-ai-assistance-panel,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) .sigma-ai-assistance-panel,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) .sigma-ai-assistance-panel {
+        order: 4 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: 1px solid #e2e8f0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        padding: 18px 14px 28px 14px !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+    }
+
+    /* 2c. Mobile Submission View: Score Panel at the BOTTOM of the screen, follows the screen, full width, collapsible & expandable */
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) #topic-right-section,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) .teacher-topic-progress-rail,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) #topic-right-section,
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) .teacher-topic-progress-rail,
+    .teacher-topic-page-grid #topic-right-section.topic-rail-score-follow,
+    .teacher-topic-page-grid .teacher-topic-progress-rail.topic-rail-score-follow,
+    .teacher-topic-page-grid.has-topic-rail-score-follow #topic-right-section,
+    .teacher-topic-page-grid.has-topic-rail-score-follow .teacher-topic-progress-rail,
+    .teacher-topic-page-shell.has-topic-rail-score-follow #topic-right-section,
+    .teacher-topic-page-shell.has-topic-rail-score-follow .teacher-topic-progress-rail,
+    .teacher-topic-page-grid.is-detail-view #topic-right-section.topic-rail-score-follow,
+    .teacher-topic-page-grid.is-detail-view .teacher-topic-progress-rail.topic-rail-score-follow,
+    #topic-right-section.topic-rail-score-follow,
+    #topic-right-section:has(.topic-score-sticky) {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 85 !important;
+        pointer-events: none !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        align-items: stretch !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        transform: translateZ(0) !important;
+    }
+
+    #topic-right-section.topic-rail-score-follow > .space-y-6,
+    #topic-right-section:has(.topic-score-sticky) > .space-y-6,
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) #topic-right-section > .space-y-6 {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        height: auto !important;
+        pointer-events: none !important;
+    }
+
+    /* Score Panel Card inside the fixed bottom rail */
+    .teacher-topic-page-grid:has(.assessment-material-detail-view) #topic-right-section [id$="-class-panel-card"],
+    .teacher-topic-page-shell:has(.assessment-material-detail-view) #topic-right-section [id$="-class-panel-card"],
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"],
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"],
+    #topic-right-section.topic-rail-score-follow .topic-score-sticky,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky,
+    .topic-score-sticky {
+        pointer-events: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        margin: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+        border-top: 1.5px solid #cbd5e1 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        border-radius: 0 !important;
+        box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.18), 0 -2px 6px rgba(0, 0, 0, 0.08) !important;
+        transition: max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), padding 0.25s ease !important;
+        overflow: hidden !important;
+    }
+
+    /* Collapsed State: retain the student switcher for quick grading navigation. */
+    #topic-right-section [id$="-class-panel-card"].is-collapsed,
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"].is-collapsed,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky.is-collapsed,
+    .topic-score-sticky.is-collapsed {
+        height: auto !important;
+        max-height: none !important;
+        padding: 5px 12px calc(6px + env(safe-area-inset-bottom, 0px)) 12px !important;
+        border-radius: 0 !important;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12), 0 -1px 3px rgba(0, 0, 0, 0.06) !important;
+        overflow: visible !important;
+    }
+
+    .topic-score-sticky.is-collapsed .desktop-grading-collapsible-controls {
+        display: none !important;
+    }
+
+    /* Expanded State: Full grading sheet */
+    #topic-right-section [id$="-class-panel-card"].is-expanded,
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"].is-expanded,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky.is-expanded,
+    .topic-score-sticky.is-expanded {
+        max-height: min(85dvh, 520px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 5px 12px calc(14px + env(safe-area-inset-bottom, 0px)) 12px !important;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18), 0 -2px 6px rgba(0, 0, 0, 0.08) !important;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .mobile-score-sheet-body {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+        width: 100% !important;
+    }
+
+    .desktop-grading-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        padding-bottom: 3px !important;
+        cursor: default !important;
+    }
+
+    .desktop-grading-toggle-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-left: auto !important;
+        width: 22px !important;
+        min-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #15803d !important;
+        cursor: pointer !important;
+    }
+
+    .desktop-grading-toggle-btn i,
+    #desktop-grading-panel-chevron {
+        color: #15803d !important;
+        font-size: 11px !important;
+    }
+
+    .mobile-score-sheet-handle-pill,
+    .mobile-score-sheet-toggle {
+        display: none !important;
+    }
+
+    #topic-right-section [id$="-class-panel-card"].is-expanded .desktop-grading-collapsible-section,
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"].is-expanded .desktop-grading-collapsible-section,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky.is-expanded .desktop-grading-collapsible-section,
+    .topic-score-sticky.is-expanded .desktop-grading-collapsible-section,
+    #topic-right-section [id$="-class-panel-card"].is-expanded .desktop-grading-collapsible-controls,
+    #topic-right-section.topic-rail-score-follow [id$="-class-panel-card"].is-expanded .desktop-grading-collapsible-controls,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky.is-expanded .desktop-grading-collapsible-controls,
+    .topic-score-sticky.is-expanded .desktop-grading-collapsible-controls {
+        display: flex !important;
+    }
+
+    /* Hide right rail tasks panel when fixed score panel is active */
+    #topic-right-section.topic-rail-score-follow .topic-tasks-panel,
+    #topic-right-section:has(.topic-score-sticky) .topic-tasks-panel {
+        display: none !important;
+    }
+
+    .mobile-score-sheet-backdrop {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Page bottom padding so content can be scrolled fully above the docked bottom bar */
+    .teacher-topic-page-grid:has(.assessment-material-detail-view),
+    .teacher-topic-page-shell:has(.assessment-material-detail-view),
+    .teacher-topic-page-grid.has-topic-rail-score-follow,
+    .teacher-topic-page-shell.has-topic-rail-score-follow,
+    .teacher-topic-page-grid:has(#topic-right-section.topic-rail-score-follow),
+    .teacher-topic-page-shell:has(#topic-right-section.topic-rail-score-follow) {
+        padding-bottom: 180px !important;
+    }
+
+    .assessment-mobile-score-panel-slot {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Keep the teacher score sheet attached to the viewport instead of the
+       desktop-sized topic rail. These selectors deliberately outrank the
+       shared rail rules that cap a rail at 300px. */
+    #section-topic-content .teacher-topic-page-grid #topic-right-section.topic-rail-score-follow,
+    #section-topic-content .teacher-topic-page-grid:has(.topic-score-sticky) #topic-right-section,
+    #section-topic-content .teacher-topic-page-shell:has(.topic-score-sticky) #topic-right-section {
+        position: fixed !important;
+        inset: auto 0 0 0 !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        z-index: 300 !important;
+    }
+
+    #section-topic-content #topic-right-section.topic-rail-score-follow > .space-y-6,
+    #section-topic-content #topic-right-section:has(.topic-score-sticky) > .space-y-6 {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #section-topic-content #topic-right-section.topic-rail-score-follow .topic-score-sticky,
+    #section-topic-content #topic-right-section:has(.topic-score-sticky) .topic-score-sticky {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    #section-topic-content #topic-right-section .topic-score-sticky.is-collapsed {
+        height: auto !important;
+        max-height: none !important;
+        padding: 5px 12px calc(6px + env(safe-area-inset-bottom, 0px)) 12px !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+    }
+
+    #section-topic-content #topic-right-section .topic-score-sticky.is-expanded {
+        max-height: min(85dvh, 520px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 5px 12px calc(14px + env(safe-area-inset-bottom, 0px)) 12px !important;
+        overscroll-behavior: contain;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .assessment-mobile-score-panel-slot .topic-progress-card,
+    .assessment-mobile-score-panel-slot .assessment-score-panel-card,
+    .assessment-material-details-grid .topic-progress-card,
+    .assessment-material-details-grid .assessment-score-panel-card,
+    .assessment-material-details-grid .assessment-grading-details-card,
+    .assessment-material-details-grid .assessment-submission-details-card,
+    .assessment-grading-details-card,
+    .assessment-submission-details-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 20px !important;
+        padding: 16px 16px !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .topic-score-sticky,
+    .topic-progress-card.topic-score-sticky,
+    [id$="-class-panel-card"].topic-score-sticky,
+    #topic-right-section .topic-progress-card.topic-score-sticky {
+        border-radius: 0 !important;
+    }
+
+    /* On mobile, student score panel is displayed in main column; hide student right rail to prevent duplication */
+    .topic-detail-grid:has(.assessment-material-detail-view) #topic-right-section,
+    .student-topic-page-shell:has(.assessment-material-detail-view) #topic-right-section {
+        display: none !important;
+    }
+
+    /* 3. Scaled-down Typography, Badges, Icons, and Buttons (Aligned with Lesson Scale) */
+    .assessment-material-main-card h2 {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        line-height: 1.35 !important;
+        letter-spacing: -0.01em !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: left !important;
+        word-break: break-word !important;
+    }
+
+    .assessment-material-main-card button[title*="Back"],
+    .assessment-material-main-card button[aria-label*="Back"],
+    .assessment-material-detail-view .material-detail-back-btn,
+    .material-detail-back-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        margin-left: -4px !important;
+        margin-top: 1px !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 6px !important;
+        color: #000000 !important;
+        cursor: pointer !important;
+    }
+
+    .material-detail-back-btn i.fa-chevron-left,
+    .material-detail-back-btn i[class*="fa-chevron"] {
+        display: inline-block !important;
+        font-size: 13.5px !important;
+        color: #000000 !important;
+    }
+
+    .material-detail-back-btn i.fa-arrow-left,
+    .material-detail-back-btn i[class*="fa-arrow"] {
+        display: none !important;
+    }
+
+    .assessment-material-main-card span.capitalize,
+    .assessment-material-main-card span[class*="badge"] {
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        padding: 1.5px 6.5px !important;
+        border-radius: 5px !important;
+    }
+
+    .assessment-material-main-card span.capitalize i,
+    .assessment-material-main-card span[class*="badge"] i {
+        font-size: 9px !important;
+    }
+
+    .assessment-material-main-card h3,
+    .assessment-material-main-card .material-detail-section-title,
+    .material-detail-section-title {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        margin: 0 0 6px 0 !important;
+        padding: 0 !important;
+        text-align: left !important;
+        color: #000000 !important;
+    }
+
+    .assessment-material-main-card p.text-sm,
+    .assessment-material-main-card p.text-xs,
+    .assessment-material-main-card .sigma-collapsible-desc-text {
+        font-size: 12px !important;
+        line-height: 1.5 !important;
+        color: #334155 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: left !important;
+    }
+
+    /* Scale down Attached Document & Rubric panels in main card on mobile */
+    .assessment-material-main-card .sigma-black-fade-panel,
+    .assessment-material-main-card .material-detail-attached-file {
+        padding: 10px 12px !important;
+        border-radius: 12px !important;
+    }
+
+    .assessment-material-main-card .sigma-file-panel-title,
+    .sigma-black-fade-panel .sigma-file-panel-title,
+    .sigma-black-fade-panel h4.sigma-file-panel-title,
+    .sigma-file-panel-title {
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        line-height: 1.35 !important;
+    }
+
+    .assessment-material-main-card .sigma-file-panel-meta,
+    .sigma-black-fade-panel .sigma-file-panel-meta,
+    .sigma-file-panel-meta {
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+    }
+
+    .assessment-material-main-card .sigma-black-fade-panel .w-16,
+    .assessment-material-main-card .sigma-black-fade-panel .sm\:w-20 {
+        width: 38px !important;
+        min-width: 38px !important;
+    }
+
+    .assessment-material-main-card .sigma-black-fade-panel .w-12.h-12 {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        border-radius: 9px !important;
+    }
+
+    .assessment-material-main-card .sigma-black-fade-panel .w-12.h-12 i {
+        font-size: 14px !important;
+    }
+
+    .assessment-material-main-card .sigma-black-fade-panel span.text-\[10px\] {
+        font-size: 9px !important;
+        padding: 1px 4px !important;
+    }
+
+    /* Scale down Score Panel on mobile */
+    .assessment-mobile-score-panel-slot .topic-progress-title {
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+    }
+
+    .assessment-mobile-score-panel-slot .topic-progress-title i {
+        font-size: 11px !important;
+    }
+
+    .assessment-mobile-score-panel-slot .text-4xl,
+    .assessment-mobile-score-panel-slot .text-3xl {
+        font-size: 24px !important;
+        line-height: 1 !important;
+    }
+
+    .assessment-mobile-score-panel-slot span.text-xs {
+        font-size: 11px !important;
+    }
+
+    /* Scale down Grading & Submission Details on mobile */
+    .assessment-grading-details-card p,
+    .assessment-submission-details-card p {
+        font-size: 11.5px !important;
+    }
+
+    .assessment-grading-details-card .space-y-1\.5 > div,
+    .assessment-submission-details-card .space-y-1\.5 > div {
+        font-size: 11.5px !important;
+        padding-top: 3px !important;
+        padding-bottom: 3px !important;
+    }
+
+    .assessment-grading-details-card i,
+    .assessment-submission-details-card i {
+        font-size: 11.5px !important;
+    }
+
+    /* Scale down buttons on mobile */
+    .assessment-submission-details-card .sigma-btn,
+    .assessment-submission-details-card button {
+        font-size: 11.5px !important;
+        padding: 7px 12px !important;
+        border-radius: 10px !important;
+    }
+
+    .assessment-submission-details-card .sigma-btn i,
+    .assessment-submission-details-card button i {
+        font-size: 11px !important;
+    }
+
     /* Cut / remove empty spaces at the bottom in mobile */
     .teacher-topic-page-shell,
     .student-topic-page-shell,
@@ -1998,6 +2574,8 @@
         border-radius: 0 !important;
     }
 
+    /* Note: In assessment detail & submission views, score rail is fixed at the bottom as a collapsible sheet */
+
     .room-embedded-topics .student-topic-progress-rail {
         order: 2 !important;
         width: 100% !important;
@@ -2034,17 +2612,24 @@
         z-index: 10 !important;
     }
 
+    #topic-task-progress-card,
+    .student-topic-progress-rail #topic-task-progress-card,
+    .student-topic-progress-rail .topic-progress-card,
+    #topic-right-section #topic-task-progress-card,
+    .topic-detail-grid #topic-task-progress-card,
+    .teacher-topic-page-grid .student-topic-progress-rail .topic-progress-card,
     .room-embedded-topics .student-topic-progress-rail .topic-progress-card,
     .room-embedded-topics #topic-task-progress-card {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;
-        border-radius: 18px !important;
+        border-radius: 20px !important;
         border: 1px solid #e2e8f0 !important;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
         padding: 14px 16px !important;
         background: #ffffff !important;
         box-sizing: border-box !important;
+        overflow: hidden !important;
         gap: 6px !important;
     }
 
@@ -2095,12 +2680,12 @@
         flex-shrink: 0 !important;
     }
 
-    .room-embedded-topics .topic-progress-card button,
-    .teacher-topic-progress-rail .topic-progress-card button,
-    [id$="-class-panel-card"] button,
-    #topic-detail-class-panel-card button,
-    #topic-content-class-panel-card button,
-    #assessments-class-panel-card button {
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-detail-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-content-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #assessments-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit) {
         width: 100% !important;
         height: auto !important;
         min-height: 32px !important;
@@ -2123,25 +2708,25 @@
         text-overflow: ellipsis !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:hover,
-    .teacher-topic-progress-rail .topic-progress-card button:hover,
-    [id$="-class-panel-card"] button:hover {
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover,
+    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover {
         background: #f1f5f9 !important;
         border-color: transparent !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:active,
-    .teacher-topic-progress-rail .topic-progress-card button:active,
-    [id$="-class-panel-card"] button:active {
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
+    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active {
         background: #e2e8f0 !important;
     }
 
-    .room-embedded-topics .topic-progress-card button span.truncate,
-    .room-embedded-topics .topic-progress-card button span:last-child,
-    .teacher-topic-progress-rail .topic-progress-card button span.truncate,
-    .teacher-topic-progress-rail .topic-progress-card button span:last-child,
-    [id$="-class-panel-card"] button span.truncate,
-    [id$="-class-panel-card"] button span:last-child {
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn) span.truncate,
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn) span:last-child,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn) span.truncate,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn) span:last-child,
+    [id$="-class-panel-card"] button:not(.grading-nav-btn) span.truncate,
+    [id$="-class-panel-card"] button:not(.grading-nav-btn) span:last-child {
         font-size: 11.5px !important;
         font-weight: 500 !important;
         color: #0f172a !important;
@@ -2152,14 +2737,524 @@
         flex: 1 1 auto !important;
     }
 
-    .room-embedded-topics .topic-progress-card button i,
-    .teacher-topic-progress-rail .topic-progress-card button i,
-    [id$="-class-panel-card"] button i {
+    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
+    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i {
         font-size: 11.5px !important;
         color: #15803d !important;
         width: 14px !important;
         text-align: center !important;
         flex-shrink: 0 !important;
+    }
+
+    /* ─── Mobile Grading Panel Controls Overrides ─── */
+    [id$="-class-panel-card"] .desktop-grading-toggle-btn,
+    .topic-score-sticky .desktop-grading-toggle-btn {
+        width: 22px !important;
+        min-width: 22px !important;
+        max-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        margin-left: auto !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #15803d !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+    }
+
+    [id$="-class-panel-card"] .desktop-grading-toggle-btn i,
+    .topic-score-sticky .desktop-grading-toggle-btn i,
+    #desktop-grading-panel-chevron {
+        color: #15803d !important;
+        font-size: 11px !important;
+        width: auto !important;
+        margin: 0 !important;
+    }
+
+    /* Compact Student Card on Mobile */
+    [id$="-class-panel-card"] .grading-student-card,
+    .topic-score-sticky .grading-student-card,
+    .grading-student-card {
+        padding: 4px 6px !important;
+        gap: 3px !important;
+        border-radius: 8px !important;
+    }
+
+    /* Centered Student Picker Button */
+    [id$="-class-panel-card"] .grading-student-picker-btn,
+    .topic-score-sticky .grading-student-picker-btn {
+        width: 100% !important;
+        min-height: 28px !important;
+        padding: 3px 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        gap: 6px !important;
+    }
+
+    [id$="-class-panel-card"] .grading-student-picker-btn .grading-student-identity-wrap,
+    .topic-score-sticky .grading-student-picker-btn .grading-student-identity-wrap {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        gap: 6px !important;
+        width: auto !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .grading-student-picker-btn .grading-student-avatar-wrap,
+    .topic-score-sticky .grading-student-picker-btn .grading-student-avatar-wrap {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .grading-student-picker-btn .grading-student-avatar-wrap .sigma-user-avatar,
+    .topic-score-sticky .grading-student-picker-btn .grading-student-avatar-wrap .sigma-user-avatar,
+    [id$="-class-panel-card"] .grading-student-picker-btn .grading-student-avatar-wrap img,
+    .topic-score-sticky .grading-student-picker-btn .grading-student-avatar-wrap img,
+    [id$="-class-panel-card"] .grading-student-picker-btn .grading-student-avatar-wrap span,
+    .topic-score-sticky .grading-student-picker-btn .grading-student-avatar-wrap span {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        min-height: 20px !important;
+        max-width: 20px !important;
+        max-height: 20px !important;
+        font-size: 9.5px !important;
+        margin: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .grading-student-picker-btn span.grading-student-name,
+    .topic-score-sticky .grading-student-picker-btn span.grading-student-name {
+        flex: 0 0 auto !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        text-align: left !important;
+        line-height: 1.25 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        display: inline-block !important;
+    }
+
+    /* Prev & Next Navigation: Aligned, Non-overlapping, Scaled down */
+    .grading-nav-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 1px 2px !important;
+    }
+
+    #topic-content-class-panel-card .grading-nav-btn,
+    #topic-detail-class-panel-card .grading-nav-btn,
+    #assessments-class-panel-card .grading-nav-btn,
+    [id$="-class-panel-card"] .grading-nav-btn,
+    .topic-score-sticky .grading-nav-btn {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 0 0 auto !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 1px 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 6px !important;
+        color: #000000 !important;
+        font-size: 10.5px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        box-shadow: none !important;
+    }
+
+    #topic-content-class-panel-card .grading-nav-btn span,
+    #topic-detail-class-panel-card .grading-nav-btn span,
+    #assessments-class-panel-card .grading-nav-btn span,
+    [id$="-class-panel-card"] .grading-nav-btn span,
+    .topic-score-sticky .grading-nav-btn span {
+        flex: 0 0 auto !important;
+        font-size: 10.5px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+        white-space: nowrap !important;
+        line-height: 1 !important;
+    }
+
+    #topic-content-class-panel-card .grading-nav-btn i,
+    #topic-detail-class-panel-card .grading-nav-btn i,
+    #assessments-class-panel-card .grading-nav-btn i,
+    [id$="-class-panel-card"] .grading-nav-btn i,
+    .topic-score-sticky .grading-nav-btn i {
+        flex-shrink: 0 !important;
+        width: auto !important;
+        font-size: 9px !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        line-height: 1 !important;
+    }
+
+    [id$="-class-panel-card"] .grading-nav-btn:hover,
+    .topic-score-sticky .grading-nav-btn:hover {
+        background: #f1f5f9 !important;
+    }
+
+    [id$="-class-panel-card"] .grading-nav-btn:active,
+    .topic-score-sticky .grading-nav-btn:active {
+        background: #e2e8f0 !important;
+    }
+
+    .grading-nav-counter {
+        flex: 0 0 auto !important;
+        font-size: 10.5px !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        white-space: nowrap !important;
+        line-height: 1 !important;
+    }
+
+    /* Collapsible Section Header (Section Name & Label) */
+    .desktop-grading-collapsible-section {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        min-width: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .desktop-grading-collapsible-section i,
+    .topic-score-sticky .desktop-grading-collapsible-section i {
+        font-size: 11px !important;
+        color: #15803d !important;
+        flex-shrink: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .desktop-grading-collapsible-section .desktop-grading-section-label,
+    .topic-score-sticky .desktop-grading-collapsible-section .desktop-grading-section-label {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #15803d !important;
+        line-height: 1.2 !important;
+        flex-shrink: 0 !important;
+    }
+
+    [id$="-class-panel-card"] .desktop-grading-collapsible-section .desktop-grading-section-name,
+    .topic-score-sticky .desktop-grading-collapsible-section .desktop-grading-section-name {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Score Editor Button Override */
+    [id$="-class-panel-card"] #teacher-grading-score-edit,
+    .topic-score-sticky #teacher-grading-score-edit {
+        width: 22px !important;
+        min-width: 22px !important;
+        max-width: 22px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+    }
+
+    [id$="-class-panel-card"] #teacher-grading-score-edit i,
+    .topic-score-sticky #teacher-grading-score-edit i {
+        width: auto !important;
+        font-size: 10px !important;
+        color: #000000 !important;
+    }
+
+    /* Save Grade Button */
+    [id$="-class-panel-card"] .teacher-save-grade-btn,
+    .topic-score-sticky .teacher-save-grade-btn {
+        width: 100% !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 12px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        margin-top: 3px !important;
+        margin-bottom: 1px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    [id$="-class-panel-card"] .teacher-save-grade-btn span,
+    .topic-score-sticky .teacher-save-grade-btn span {
+        flex: 0 0 auto !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+    }
+
+    /* Mobile status control mirrors desktop and keeps its options inside the sheet. */
+    #teacher-grading-status-dropdown-wrapper {
+        position: relative !important;
+        width: 112px !important;
+        z-index: 100 !important;
+    }
+
+    #teacher-grading-status-trigger-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 10px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        background-color: #ffffff !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 4px !important;
+        transition: background-color 0.15s ease, border-color 0.15s ease !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        appearance: none !important;
+    }
+
+    #teacher-grading-status-trigger-btn:focus,
+    #teacher-grading-status-trigger-btn:focus-visible,
+    #teacher-grading-status-trigger-btn:active {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: #cbd5e1 !important;
+    }
+
+    #teacher-grading-status-trigger-btn:hover {
+        background-color: #f1f5f9 !important;
+        border-color: #94a3b8 !important;
+    }
+
+    #teacher-grading-status-trigger-btn:active {
+        background-color: #e2e8f0 !important;
+    }
+
+    #teacher-grading-status-trigger-btn span {
+        flex: 1 1 auto !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+    }
+
+    #teacher-grading-status-trigger-btn i {
+        font-size: 8.5px !important;
+        color: #64748b !important;
+        flex: 0 0 auto !important;
+    }
+
+    #teacher-grading-status-menu:not(.hidden) {
+        position: absolute !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: calc(100% + 4px) !important;
+        width: 112px !important;
+        min-width: 112px !important;
+        max-width: 112px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2px !important;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+        padding: 3px !important;
+        z-index: 150 !important;
+    }
+
+    #teacher-grading-status-menu.hidden {
+        display: none !important;
+    }
+
+    /* While open, the list is moved to <body> so the grading sheet cannot clip it. */
+    #teacher-grading-status-menu.mobile-status-menu-portal:not(.hidden) {
+        position: fixed !important;
+        display: flex !important;
+        flex-direction: column !important;
+        z-index: 10050 !important;
+        max-height: calc(100dvh - 24px) !important;
+        overflow-y: auto !important;
+    }
+
+    #teacher-grading-status-menu button {
+        width: 100% !important;
+        min-height: 28px !important;
+        height: 28px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+        border-radius: 5px !important;
+        border: none !important;
+        background: transparent !important;
+        cursor: pointer !important;
+        text-align: center !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1.2 !important;
+    }
+
+    #teacher-grading-status-menu button:last-child {
+        grid-column: auto !important;
+    }
+
+    #teacher-grading-status-menu button:hover {
+        background: #f1f5f9 !important;
+        color: #000000 !important;
+    }
+
+    /* Mobile Full-Screen Students List Panel */
+    .topic-student-cover:not(.is-open),
+    [id$="-grading-student-list-tray"]:not(.is-open) {
+        display: none !important;
+    }
+
+    .topic-student-cover.is-open,
+    [id$="-grading-student-list-tray"].is-open {
+        position: fixed !important;
+        inset: 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        z-index: 10000 !important;
+        background: #ffffff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        box-shadow: none !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__bar,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__bar {
+        height: 52px !important;
+        min-height: 52px !important;
+        padding: 0 16px !important;
+        border-bottom: 1.5px solid #e2e8f0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background: #ffffff !important;
+        flex-shrink: 0 !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__title,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__title {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        color: #15803d !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__close,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__close {
+        width: 36px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        border: none !important;
+        background: transparent !important;
+        color: #0f172a !important;
+        font-size: 18px !important;
+        cursor: pointer !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__list,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__list {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+        padding: 6px 0 24px 0 !important;
+        background: #ffffff !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__row,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__row {
+        width: 100% !important;
+        padding: 12px 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        border: none !important;
+        background: transparent !important;
+        cursor: pointer !important;
+        text-align: left !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        transition: background-color 0.15s ease !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__row:hover,
+    .topic-student-cover.is-open .topic-student-cover__row:active,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__row:hover,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__row:active {
+        background-color: #f1f5f9 !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__row.is-active,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__row.is-active {
+        background-color: #dcfce7 !important;
+    }
+
+    .topic-student-cover.is-open .topic-student-cover__name,
+    [id$="-grading-student-list-tray"].is-open .topic-student-cover__name {
+        font-size: 13.5px !important;
+        font-weight: 600 !important;
+        color: #0f172a !important;
+        line-height: 1.35 !important;
     }
 
     /* Mobile Manage Topics Green Dropdown Button Override */
@@ -5341,26 +6436,36 @@
     }
 
     #subject-material-detail-view .material-detail-badge,
+    #subject-material-detail-view .material-detail-type-badge,
     .teacher-portal #subject-material-detail-view .material-detail-badge,
+    .teacher-portal #subject-material-detail-view .material-detail-type-badge,
     body:has(#teacher-header) #subject-material-detail-view .material-detail-badge,
+    body:has(#teacher-header) #subject-material-detail-view .material-detail-type-badge,
     #subject-edit-overlay #subject-material-detail-view .material-detail-badge,
-    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-badge {
-        font-size: 11px !important;
+    #subject-edit-overlay #subject-material-detail-view .material-detail-type-badge,
+    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-badge,
+    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-type-badge {
+        font-size: 10px !important;
         font-weight: 600 !important;
-        padding: 3px 8px !important;
-        border-radius: 6px !important;
-        line-height: 1.25 !important;
-        gap: 5px !important;
+        padding: 1.5px 6.5px !important;
+        border-radius: 5px !important;
+        line-height: 1.2 !important;
+        gap: 4px !important;
         display: inline-flex !important;
         align-items: center !important;
     }
 
     #subject-material-detail-view .material-detail-badge i,
+    #subject-material-detail-view .material-detail-type-badge i,
     .teacher-portal #subject-material-detail-view .material-detail-badge i,
+    .teacher-portal #subject-material-detail-view .material-detail-type-badge i,
     body:has(#teacher-header) #subject-material-detail-view .material-detail-badge i,
+    body:has(#teacher-header) #subject-material-detail-view .material-detail-type-badge i,
     #subject-edit-overlay #subject-material-detail-view .material-detail-badge i,
-    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-badge i {
-        font-size: 10px !important;
+    #subject-edit-overlay #subject-material-detail-view .material-detail-type-badge i,
+    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-badge i,
+    #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-type-badge i {
+        font-size: 9px !important;
         margin: 0 !important;
     }
 
@@ -5401,9 +6506,9 @@
     .teacher-portal #subject-material-detail-view .material-detail-section-title,
     body:has(#teacher-header) #subject-material-detail-view .material-detail-section-title,
     #subject-edit-overlay.teacher-mode #subject-material-detail-view .material-detail-section-title {
-        font-size: 13.5px !important;
+        font-size: 12px !important;
         font-weight: 700 !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 6px !important;
         letter-spacing: -0.01em !important;
         color: #000000 !important;
     }
@@ -5467,7 +6572,7 @@
     .teacher-portal #subject-material-detail-view .sigma-file-panel-title,
     body:has(#teacher-header) #subject-material-detail-view .sigma-file-panel-title,
     #subject-edit-overlay.teacher-mode #subject-material-detail-view .sigma-file-panel-title {
-        font-size: 13.5px !important;
+        font-size: 11.5px !important;
         font-weight: 600 !important;
         line-height: 1.35 !important;
     }
@@ -7596,7 +8701,11 @@
     }
     #teacher-topic-schedule-overlay .teacher-schedule-modal-footer,
     #teacher-topic-schedule-overlay .curriculum-hub-panel > div:last-child,
-    #teacher-topic-schedule-overlay .curriculum-release-panel-fixed > div:last-child {
+    #teacher-topic-schedule-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-topics-materials-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-assessments-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-learning-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-topic-picker-overlay .curriculum-release-panel-fixed > div:last-child {
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
@@ -7607,7 +8716,17 @@
     #teacher-topic-schedule-overlay #teacher-save-schedule-btn,
     #teacher-topic-schedule-overlay #teacher-set-grading-btn,
     #teacher-topic-schedule-overlay #teacher-students-done-btn,
-    #teacher-topic-schedule-overlay .sigma-btn-primary {
+    #teacher-topic-schedule-overlay .sigma-btn-primary,
+    #teacher-topics-materials-picker-overlay #topics-materials-picker-submit-btn,
+    #teacher-topics-materials-picker-overlay .sigma-btn-primary,
+    #teacher-assessments-picker-overlay #assessments-picker-submit-btn,
+    #teacher-assessments-picker-overlay .sigma-btn-primary,
+    #teacher-learning-picker-overlay #learning-picker-submit-btn,
+    #teacher-learning-picker-overlay .sigma-btn-primary,
+    #teacher-topic-picker-overlay #topic-picker-submit-btn,
+    #teacher-topic-picker-overlay .sigma-btn-primary,
+    .picker-footer-back-btn ~ .sigma-btn-primary,
+    .picker-footer-back-btn ~ button:last-child {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -7841,5 +8960,85 @@
         font-size: 12.5px !important;
         border-radius: 11px !important;
         padding: 0 12px !important;
+    }
+}
+
+/* ─── Mobile Assessment Card Titles & Facts Panel (Center & Scaled Down) ─── */
+@media (max-width: 768px) {
+    #topic-content-main h4,
+    #handout-list h4,
+    #assessment-list h4,
+    .assessment-card-panel h4,
+    .student-assessment-list-item h4,
+    .teacher-assessment-list-item h4 {
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+    }
+
+    .assessment-desktop-facts-table {
+        display: none !important;
+    }
+
+    .assessment-mobile-facts-panel {
+        display: block !important;
+    }
+
+    .assessment-mobile-facts-table th.mobile-fact-label {
+        text-align: center !important;
+        border-bottom: 1px solid #166534 !important;
+    }
+
+    .assessment-mobile-facts-table td.mobile-fact-value {
+        text-align: center !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .assessment-mobile-facts-table tr:last-child th.mobile-fact-label,
+    .assessment-mobile-facts-table tr:last-child td.mobile-fact-value {
+        border-bottom: none !important;
+    }
+
+    /* ─── SIGMA AI Assistance Header Layout & Scaled Controls (Mobile) ─── */
+    .ai-panel-header-grid {
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        grid-template-areas:
+            "title badge"
+            "desc desc"
+            "btn btn" !important;
+        row-gap: 8px !important;
+        column-gap: 8px !important;
+        align-items: center !important;
+    }
+
+    .ai-header-score-area > div {
+        padding: 2px 7px !important;
+        border-radius: 7px !important;
+        gap: 4px !important;
+    }
+
+    .ai-header-score-area span:first-child {
+        font-size: 10px !important;
+    }
+
+    .ai-header-score-area span:last-child {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+    }
+
+    #ai-review-action-btn {
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        padding: 3.5px 9px !important;
+        height: 25px !important;
+        min-height: 25px !important;
+        border-radius: 7px !important;
+        gap: 5px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+
+    #ai-review-action-btn i {
+        font-size: 9.5px !important;
     }
 }

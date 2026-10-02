@@ -765,7 +765,7 @@ textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline
     border-color: #94a3b8 !important; /* All 4 borders hover: slate-400 */
 }
 
-textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):focus,
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):focus,
 .sigma-textarea:focus,
 .sigma-form-textarea:focus,
 #topic-editor-desc-input:focus,
@@ -2569,7 +2569,7 @@ textarea[class*="sigma-underline"]:focus,
 /* Boxed text fields & description boxes: flat 1px yellow border when selected (#FFD000) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
 select:not(.sigma-subject-select):not(.sigma-form-select):not(.sigma-underline-select):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
-textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
+textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
 .sigma-composer-editor-box:focus-within,
 .sigma-composer-body .sigma-composer-editor-box:focus-within,
 .sigma-composer-editor-box.focused,
@@ -2734,7 +2734,7 @@ input.bg-transparent:hover:not(:disabled):not([readonly]),
 
 /* Also eliminate grey focus highlight inside text boxes */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):focus,
-textarea:focus,
+textarea:not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):focus,
 .sigma-input:focus,
 .sigma-textarea:focus,
 .sigma-subject-input:focus,

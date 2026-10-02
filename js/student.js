@@ -2234,6 +2234,15 @@ if (overlay) overlay.classList.add('hidden');
             } else {
                 _showTopicContent(subjectId, topicIdx, tab, videoIdx);
             }
+            if (videoIdx !== null || isSubmissionSubMode || isSubmitSubMode) {
+                try {
+                    window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    const mc = document.getElementById('main-content');
+                    if (mc) mc.scrollTop = 0;
+                } catch (_) { }
+            }
         }
         else if (page.startsWith('classroom:') || page.startsWith('classroom-')) {
             const raw = page.replace(/^classroom[-:]/, '');
@@ -5023,6 +5032,15 @@ if (overlay) overlay.classList.add('hidden');
         }
         window.noteStudentHistoryScreen?.();
         _showTopicContent(subjectId, topicIdx, tab, videoIdx);
+        if (videoIdx !== null) {
+            try {
+                window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                const mc = document.getElementById('main-content');
+                if (mc) mc.scrollTop = 0;
+            } catch (_) { }
+        }
         if (isSubMode) {
             window.scrollSubmissionViewToTop?.();
         }
@@ -5117,6 +5135,15 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
         window.noteStudentHistoryScreen?.();
+        if (assessmentIdx !== null || isMediaTab || isSubMode) {
+            try {
+                window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                const mc = document.getElementById('main-content');
+                if (mc) mc.scrollTop = 0;
+            } catch (_) { }
+        }
         _renderTopicContentMain(_tcSubjectId, _tcTopicIdx, tab);
         if (isSubMode) {
             window.scrollSubmissionViewToTop?.();
@@ -5373,9 +5400,30 @@ if (overlay) overlay.classList.add('hidden');
                 </div>
             </div>`;
 
-        try {
-            window.scrollTo({ left: _scrollX, top: _scrollY, behavior: 'instant' });
-        } catch (_) { }
+        if (isDetailView) {
+            const _resetDetailScrollToTop = () => {
+                try {
+                    window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    const mainContent = document.getElementById('main-content');
+                    if (mainContent) mainContent.scrollTop = 0;
+                    const layoutWrapper = document.getElementById('layout-wrapper');
+                    if (layoutWrapper) layoutWrapper.scrollTop = 0;
+                    const contentSection = document.getElementById('section-topic-content');
+                    if (contentSection) contentSection.scrollTop = 0;
+                    const pageShell = document.querySelector('.student-topic-page-shell');
+                    if (pageShell) pageShell.scrollTop = 0;
+                } catch (_) { }
+            };
+            _resetDetailScrollToTop();
+            requestAnimationFrame(_resetDetailScrollToTop);
+            setTimeout(_resetDetailScrollToTop, 50);
+        } else {
+            try {
+                window.scrollTo({ left: _scrollX, top: _scrollY, behavior: 'instant' });
+            } catch (_) { }
+        }
 
         if (window._studentSubmissionMode && typeof window.armStudentSubmitDeadlineWatch === 'function') {
             const watchIdx = (window._scAssessmentDetailIdx !== null && window._scAssessmentDetailIdx !== undefined)
@@ -5585,30 +5633,8 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
 
-        let mainHtml = typeof window.renderSharedAssessmentsTabHtml === 'function'
-            ? window.renderSharedAssessmentsTabHtml({
-                tab: 'assessments',
-                assessments,
-                activeIdx: window._scAssessmentDetailIdx,
-                subjectId,
-                topicIdx,
-                role: 'student',
-                section: studentSec,
-                showThreeDots: false,
-                topicTitle: topic?.title || topic?.name || '',
-                topicNumber: (Number(topicIdx || 0) + 1),
-                onCardClick: (t, i) => `window.switchTopicTab('assessments', ${i})`,
-                onBackClick: `window.switchTopicTab('assessments', null)`
-            })
-            : '';
-
-        if (!mainHtml) {
-            mainHtml = (typeof window.renderTopicEmptyStateHtml === 'function')
-                ? window.renderTopicEmptyStateHtml('assessments')
-                : `<div class="py-24 text-center font-['Inter'] select-none"><div class="w-20 h-20 md:w-24 md:h-24 rounded-[28px] bg-slate-100 flex items-center justify-center mx-auto mb-6"><i class="fa-solid fa-clipboard-check text-4xl md:text-5xl" style="color: rgba(0, 0, 0, 0.3) !important;"></i></div><h3 class="text-xl md:text-2xl font-bold text-slate-800 mb-2">No Assessments Available</h3><p class="text-xs md:text-sm text-black/40 max-w-sm mx-auto">Assessments and coursework items will appear here once posted.</p></div>`;
-        }
-
-        let rightHtml = null;
+        let scorePanelHtml = '';
+        let tasksPanelHtml = '';
         if (activeAss && !isUnassignedTarget) {
             const isSubmissionPage = Boolean(
                 window._studentViewSubmissionMode ||
@@ -5623,7 +5649,7 @@ if (overlay) overlay.classList.add('hidden');
                 if (!studentUser || typeof window.studentHasAssessmentSubmission !== 'function') return false;
                 return window.studentHasAssessmentSubmission(studentUser, a, subjectId, a._category || a.category || a.type || 'assessments');
             });
-            const tasksPanelHtml = (typeof window.renderSharedTasksPanelHtml === 'function')
+            tasksPanelHtml = (typeof window.renderSharedTasksPanelHtml === 'function')
                 ? window.renderSharedTasksPanelHtml({
                     forceShow: true,
                     items: taskRows.map(({ a, i }) => ({
@@ -5634,7 +5660,7 @@ if (overlay) overlay.classList.add('hidden');
                 })
                 : '';
 
-            const scorePanelHtml = (typeof window.renderSharedAssessmentScorePanelHtml === 'function')
+            scorePanelHtml = (typeof window.renderSharedAssessmentScorePanelHtml === 'function')
                 ? window.renderSharedAssessmentScorePanelHtml({
                     ass: activeAss,
                     subjectId,
@@ -5645,7 +5671,34 @@ if (overlay) overlay.classList.add('hidden');
                     section: studentSec
                 })
                 : '';
+        }
 
+        let mainHtml = typeof window.renderSharedAssessmentsTabHtml === 'function'
+            ? window.renderSharedAssessmentsTabHtml({
+                tab: 'assessments',
+                assessments,
+                activeIdx: window._scAssessmentDetailIdx,
+                subjectId,
+                topicIdx,
+                role: 'student',
+                section: studentSec,
+                showThreeDots: false,
+                topicTitle: topic?.title || topic?.name || '',
+                topicNumber: (Number(topicIdx || 0) + 1),
+                scorePanelHtml,
+                onCardClick: (t, i) => `window.switchTopicTab('assessments', ${i})`,
+                onBackClick: `window.switchTopicTab('assessments', null)`
+            })
+            : '';
+
+        if (!mainHtml) {
+            mainHtml = (typeof window.renderTopicEmptyStateHtml === 'function')
+                ? window.renderTopicEmptyStateHtml('assessments')
+                : `<div class="py-24 text-center font-['Inter'] select-none"><div class="w-20 h-20 md:w-24 md:h-24 rounded-[28px] bg-slate-100 flex items-center justify-center mx-auto mb-6"><i class="fa-solid fa-clipboard-check text-4xl md:text-5xl" style="color: rgba(0, 0, 0, 0.3) !important;"></i></div><h3 class="text-xl md:text-2xl font-bold text-slate-800 mb-2">No Assessments Available</h3><p class="text-xs md:text-sm text-black/40 max-w-sm mx-auto">Assessments and coursework items will appear here once posted.</p></div>`;
+        }
+
+        let rightHtml = null;
+        if (activeAss && !isUnassignedTarget) {
             rightHtml = `
                 <div class="space-y-6 font-['Inter']">
                     ${scorePanelHtml}

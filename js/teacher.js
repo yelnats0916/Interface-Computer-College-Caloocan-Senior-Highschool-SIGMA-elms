@@ -129,7 +129,8 @@ function initTeacherPortal() {
         }
     }
     window.deduplicateTeacherMaterialCopies = deduplicateTeacherMaterialCopies;
-    // Run immediately on portal init to clear existing duplicates
+    // Run immediately on portal init to clear existing duplicates and fake items
+    try { if (typeof window.purgeFakeAssessments === 'function') window.purgeFakeAssessments(); } catch (_) {}
     deduplicateTeacherMaterialCopies();
 
     function cleanupLegacySectionReleaseContamination() {
@@ -6170,6 +6171,9 @@ function initTeacherPortal() {
         localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
 
         _renderTopicContentMain();
+        if (assessmentIdx !== null || isMediaTab || isSubMode) {
+            scrollToTop();
+        }
 
         // Keep sticky rail without auto-scrolling
         window.holdTopicRailSticky?.();
@@ -6467,6 +6471,9 @@ function initTeacherPortal() {
 
     window.selectTopicStudent = function (name) {
         window._gradingStudentListOpen = false;
+        document.querySelectorAll('.topic-student-cover, [id$="-grading-student-list-tray"]').forEach(tray => {
+            tray.classList.remove('is-open');
+        });
         document.querySelectorAll('body > .topic-student-cover').forEach(tray => tray.remove());
         const isAll = (!name || name === 'All');
         const studentVal = isAll ? 'All' : name;
@@ -6582,7 +6589,7 @@ function initTeacherPortal() {
         } else {
             window._gradingStudentListOpen = !window._gradingStudentListOpen;
         }
-        const trays = document.querySelectorAll('[id$="-grading-student-list-tray"]');
+        const trays = document.querySelectorAll('[id$="-grading-student-list-tray"], .topic-student-cover');
         if (trays.length > 0) {
             trays.forEach(tray => {
                 if (window._gradingStudentListOpen) {
@@ -6594,6 +6601,7 @@ function initTeacherPortal() {
                     }, 30);
                 } else {
                     tray.classList.remove('is-open');
+                    tray.style.removeProperty('display');
                 }
             });
             return;
@@ -8395,7 +8403,7 @@ function initTeacherPortal() {
                     </button>
                     <button type="button" id="topic-picker-submit-btn" onclick="window.saveTeacherTopicPickerSelection?.()"
                         ${draftPendingIds.length > 0 ? '' : 'disabled'}
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl ${draftPendingIds.length > 0 ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'} font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl ${draftPendingIds.length > 0 ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'} font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -15609,7 +15617,7 @@ function initTeacherPortal() {
                     </button>
                     <button type="button" id="learning-picker-submit-btn" onclick="window.submitLearningMaterialsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -16831,7 +16839,7 @@ function initTeacherPortal() {
                     </button>
                     <button type="button" id="topics-materials-picker-submit-btn" onclick="window.submitTopicsAndMaterialsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -17309,7 +17317,7 @@ function initTeacherPortal() {
                     </button>
                     <button type="button" id="assessments-picker-submit-btn" onclick="window.submitAssessmentsPicker?.()"
                         disabled
-                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 ml-auto sm:ml-0">
+                        class="sigma-btn sigma-btn-primary h-9 sm:h-[42px] px-5 sm:px-7 text-xs sm:text-sm font-semibold rounded-xl opacity-40 cursor-not-allowed pointer-events-none font-['Inter'] inline-flex items-center gap-2 order-2 ml-auto">
                         <span>Set Schedule</span>
                     </button>
                 </div>
@@ -17868,7 +17876,7 @@ function initTeacherPortal() {
             : '';
 
         page.innerHTML = `
-            <div class="teacher-topic-page-shell pt-0 px-0 pb-0 overflow-visible">
+            <div class="teacher-topic-page-shell pt-0 px-0 pb-0 overflow-visible ${isDetailView ? 'is-detail-view' : ''} ${railModeClass ? 'has-' + railModeClass : ''}">
                 <!-- Top Header: Category Selection Tabs (Hidden inside material panel / detail view) -->
                 ${!isDetailView ? `
                 <div class="topic-page-tabs-header">
@@ -17881,7 +17889,7 @@ function initTeacherPortal() {
                 ${mobileToolbarHtml}
 
                 <!-- Main Content Grid -->
-                <div class="teacher-topic-page-grid ${!rightHtml ? 'no-rail' : ''}">
+                <div class="teacher-topic-page-grid ${!rightHtml ? 'no-rail' : ''} ${isDetailView ? 'is-detail-view' : ''} ${railModeClass ? 'has-' + railModeClass : ''}">
                     <div id="topic-content-main" class="w-full flex-1">
                         ${html}
                     </div>
@@ -18013,48 +18021,19 @@ function initTeacherPortal() {
                     const aTTitle = String(a.topicTitle || a.topicName || a.topic || '').trim().toLowerCase();
                     if (curTopicId && aTId && (aTId === curTopicId || aTId === `topic-${Number(topicIdx) + 1}` || aTId === `topic-${topicIdx}`)) return true;
                     if (curTopicTitle && curTopicTitle !== 'unknown topic' && aTTitle && aTTitle === curTopicTitle) return true;
-                    if (isFirstTopic && (!aTTitle || aTTitle === 'basic syntax and data types' || aTTitle === 'topic 1' || aTId === '0' || aTId === '1' || aTId === 'topic-1' || aTId === 'topic-0')) return true;
+                    if (isFirstTopic && (aTTitle === 'basic syntax and data types' || aTTitle === 'topic 1' || aTId === '0' || aTId === '1' || aTId === 'topic-1' || aTId === 'topic-0')) return true;
                     return false;
                 });
 
                 if (matched.length > 0) {
                     assessments = [...assessments, ...matched];
-                } else if (assessments.length === 0 && (isFirstTopic || curTopicTitle === 'unknown topic')) {
-                    assessments = [...assessments, ...tAssessments];
                 }
             }
         }
 
-        // Default assessments fallback for Computer Programming 1
-        if (assessments.length === 0 && (String(subjectId).includes('prog1') || String(subjectId) === 'card-prog1')) {
-            assessments = [
-                {
-                    id: 'assess-task-1',
-                    title: 'Task 1 - Variable Declaration Practice',
-                    category: 'Task',
-                    type: 'DOCX',
-                    topicId: 'topic-1',
-                    topicTitle: 'Basic Syntax and Data Types',
-                    max: 100,
-                    attempts: 1,
-                    date: 'Sep 27, 2026',
-                    description: 'Practice declaring and initializing variables of different data types in Java.'
-                },
-                {
-                    id: 'assess-task-2',
-                    title: 'Task 2 - Basic Syntax and Data Types Quiz',
-                    category: 'Quiz',
-                    type: 'quiz',
-                    topicId: 'topic-1',
-                    topicTitle: 'Basic Syntax and Data Types',
-                    max: 20,
-                    attempts: 1,
-                    date: 'Sep 30, 2026',
-                    description: 'Short quiz assessing core knowledge on primitive data types and naming conventions.'
-                }
-            ];
+        if (typeof window.isFakeAssessment === 'function') {
+            assessments = assessments.filter(it => !window.isFakeAssessment(it));
         }
-
         if (typeof window.deduplicateMaterialsArray === 'function') {
             assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });
         }
@@ -21089,7 +21068,7 @@ function initTeacherPortal() {
                         <div class="min-w-0 flex-1 flex flex-col justify-center">
                             <h3 class="text-base sm:text-lg font-bold text-black group-hover:text-yellow-500 transition-colors truncate leading-snug font-['Inter']">${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}</h3>
                             <div class="flex items-center gap-2 text-xs font-normal text-black/45 mt-2 flex-wrap font-['Inter']">
-                                <span class="px-2.5 py-0.5 ${badgeClass} border font-bold rounded-md text-[11px] leading-tight inline-flex items-center shrink-0 capitalize">${window.escapeHtml ? window.escapeHtml(typeLabel) : typeLabel}</span>
+                                <span class="material-detail-type-badge px-2 py-0.5 ${badgeClass} border font-bold rounded-md text-[10px] leading-tight inline-flex items-center shrink-0 capitalize">${window.escapeHtml ? window.escapeHtml(typeLabel) : typeLabel}</span>
                                 <span class="text-slate-300">•</span>
                                 <span class="text-[11px] text-black/45 font-medium">${dateStr}</span>
                             </div>
@@ -24559,37 +24538,21 @@ function initTeacherPortal() {
     }
     window.calculateGradebookCategoryPercentage = calculateCategoryPercentage;
 
-    function isFakeAssessment(item) {
+    const isFakeAssessment = (item) => {
+        if (typeof window.isFakeAssessment === 'function' && window.isFakeAssessment !== isFakeAssessment) {
+            return window.isFakeAssessment(item);
+        }
         if (!item) return true;
         const title = String(item.title || item.name || '').trim();
         if (!title) return true;
-        if (title.startsWith('"') || title.startsWith("'")) return true;
-
-        // If item has an explicit fake/sample flag, always treat as fake
-        if (item.isFake === true || item.isSample === true) return true;
-
-        const id = String(item.id || '').trim().toLowerCase();
-        const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-        const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-        if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) {
-            return true;
-        }
-
-        // If item has real author attribution, ID, rubric, or quizMode, NEVER treat as fake
-        if (id.startsWith('mat-') || id.startsWith('subj-') || item.fileUrl || item.fileName || item.quizId || item.selectedQuizId || item.authorRole || item.authorId || item.authorName) {
-            return false;
-        }
-
         const lower = title.toLowerCase();
-        if (lower.includes('sample assessment') ||
-            lower.includes('mock assessment') ||
-            lower.includes('fake assessment') ||
-            lower.includes('dummy')) {
-            return true;
-        }
+        if (lower.includes('variable declaration practice') || lower.includes('basic syntax and data types')) return false;
+        if (lower === 'fgdfhd' || lower.includes('fgdfhd') || lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') || lower === 'scdad' || lower.includes('scdad')) return true;
         return false;
+    };
+    if (typeof window.isFakeAssessment !== 'function') {
+        window.isFakeAssessment = isFakeAssessment;
     }
-    window.isFakeAssessment = isFakeAssessment;
 
     function getAssessmentsForSubject(subjectId, category, specifiedQ = null, specifiedSection = null) {
         if (!subjectId) return [];

@@ -11973,6 +11973,15 @@ window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) 
     if (typeof window.renderAdminTopicContentWorkstation === 'function') {
         window.renderAdminTopicContentWorkstation();
     }
+    if (effItemIdx !== null || isMediaTab || isSubMode) {
+        try {
+            window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+            const mc = document.getElementById('main-content');
+            if (mc) mc.scrollTop = 0;
+        } catch (_) { }
+    }
     if (isSubMode) {
         window.scrollSubmissionViewToTop?.();
     }

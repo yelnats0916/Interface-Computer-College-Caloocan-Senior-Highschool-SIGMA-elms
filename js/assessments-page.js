@@ -362,27 +362,16 @@
     }
 
     function isFakeAssessment(item) {
+        if (typeof window.isFakeAssessment === 'function' && window.isFakeAssessment !== isFakeAssessment) {
+            return window.isFakeAssessment(item);
+        }
         if (!item) return true;
         if (item.isFake === true || item.isSample === true) return true;
-        const id = String(item.id || '').trim().toLowerCase();
-        const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-        const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-        if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-
-        if (id.startsWith('mat-') || id.startsWith('subj-') || item.fileUrl || item.fileName || item.quizId || item.selectedQuizId || item.authorRole || item.authorId || item.authorName) {
-            return false;
-        }
-
         const title = String(item.title || item.name || '').trim();
         if (!title) return true;
-        if (title.startsWith('"') || title.startsWith("'")) return true;
         const lower = title.toLowerCase();
-        if (lower.includes('sample assessment') ||
-            lower.includes('mock assessment') ||
-            lower.includes('fake assessment') ||
-            lower.includes('dummy')) {
-            return true;
-        }
+        if (lower.includes('variable declaration practice') || lower.includes('basic syntax and data types')) return false;
+        if (lower === 'fgdfhd' || lower.includes('fgdfhd') || lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') || lower === 'scdad' || lower.includes('scdad')) return true;
         return false;
     }
 

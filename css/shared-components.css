@@ -593,10 +593,67 @@ body:has(#dashboard-view:not(.hidden)) {
 }
 
 
+/* Section titles for Attached Document, Grading Rubric, Attached Quiz, Instructions, etc. */
+.material-detail-section-title,
+.assessment-material-main-card h3,
+.assessment-material-detail-view h3 {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.5 !important;
+    letter-spacing: -0.01em !important;
+    color: #000000 !important;
+    margin-top: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+@media (max-width: 639.98px) {
+    .material-detail-section-title,
+    .assessment-material-main-card h3,
+    .assessment-material-detail-view h3 {
+        font-size: 12px !important;
+        margin-bottom: 6px !important;
+    }
+}
+
 /* Material & Attached File title: black at rest, yellow only while that panel is hovered */
-.sigma-file-panel-title {
+.sigma-file-panel-title,
+.sigma-black-fade-panel .sigma-file-panel-title,
+.sigma-black-fade-panel h4.sigma-file-panel-title,
+.material-detail-attached-file .sigma-file-panel-title,
+#student-submitted-answer-section .sigma-file-panel-title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    letter-spacing: normal !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
+}
+
+@media (max-width: 639.98px) {
+    .sigma-file-panel-title,
+    .sigma-black-fade-panel .sigma-file-panel-title,
+    .sigma-black-fade-panel h4.sigma-file-panel-title,
+    .material-detail-attached-file .sigma-file-panel-title,
+    #student-submitted-answer-section .sigma-file-panel-title {
+        font-size: 11.5px !important;
+    }
+}
+
+.sigma-file-panel-meta,
+.sigma-black-fade-panel .sigma-file-panel-meta,
+.sigma-black-fade-panel p.sigma-file-panel-meta,
+.sigma-black-fade-panel p.text-black-fade {
+    font-size: 12.5px !important;
+    line-height: 1.4 !important;
+}
+
+@media (max-width: 639.98px) {
+    .sigma-file-panel-meta,
+    .sigma-black-fade-panel .sigma-file-panel-meta,
+    .sigma-black-fade-panel p.sigma-file-panel-meta,
+    .sigma-black-fade-panel p.text-black-fade {
+        font-size: 11px !important;
+    }
 }
 
 .sigma-black-fade-panel:hover .sigma-file-panel-title.cursor-pointer {
@@ -613,8 +670,8 @@ body:has(#dashboard-view:not(.hidden)) {
     cursor: pointer !important;
 }
 
-.sigma-black-fade-panel h4,
-.sigma-black-fade-panel h4:hover,
+.sigma-black-fade-panel h4:not(.sigma-file-panel-title),
+.sigma-black-fade-panel h4:not(.sigma-file-panel-title):hover,
 .sigma-black-fade-panel a,
 .sigma-black-fade-panel a:hover,
 .material-card-title,
@@ -2311,7 +2368,7 @@ td:has(.gradebook-dash) {
 /* Boxed text fields: flat yellow border when selected. Underline fields stay black. */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):focus,
 select:not(.sigma-subject-select):not(.sigma-form-select):not(.sigma-underline-select):not(.border-b):not(.border-b-2):not(.input-error):focus,
-textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.border-b):not(.border-b-2):not(.input-error):focus {
+textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(.border-b):not(.border-b-2):not(.input-error):focus {
     border-color: #FFD000 !important;
     background-color: #ffffff !important;
     box-shadow: none !important;
@@ -2632,7 +2689,11 @@ button.sigma-btn.hidden,
     }
     .teacher-schedule-modal-footer,
     #teacher-topic-schedule-overlay .curriculum-hub-panel > div:last-child,
-    #teacher-topic-schedule-overlay .curriculum-release-panel-fixed > div:last-child {
+    #teacher-topic-schedule-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-topics-materials-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-assessments-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-learning-picker-overlay .curriculum-release-panel-fixed > div:last-child,
+    #teacher-topic-picker-overlay .curriculum-release-panel-fixed > div:last-child {
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
@@ -2643,7 +2704,17 @@ button.sigma-btn.hidden,
     #teacher-topic-schedule-overlay #teacher-save-schedule-btn,
     #teacher-topic-schedule-overlay #teacher-set-grading-btn,
     #teacher-topic-schedule-overlay #teacher-students-done-btn,
-    #teacher-topic-schedule-overlay .sigma-btn-primary {
+    #teacher-topic-schedule-overlay .sigma-btn-primary,
+    #teacher-topics-materials-picker-overlay #topics-materials-picker-submit-btn,
+    #teacher-topics-materials-picker-overlay .sigma-btn-primary,
+    #teacher-assessments-picker-overlay #assessments-picker-submit-btn,
+    #teacher-assessments-picker-overlay .sigma-btn-primary,
+    #teacher-learning-picker-overlay #learning-picker-submit-btn,
+    #teacher-learning-picker-overlay .sigma-btn-primary,
+    #teacher-topic-picker-overlay #topic-picker-submit-btn,
+    #teacher-topic-picker-overlay .sigma-btn-primary,
+    .picker-footer-back-btn ~ .sigma-btn-primary,
+    .picker-footer-back-btn ~ button:last-child {
         display: inline-flex !important;
         margin-left: auto !important;
         margin-right: 0 !important;
@@ -3052,7 +3123,7 @@ textarea[class*="sigma-underline"]:focus,
     background: #15803d;
     color: #ffffff;
     border-radius: 16px;
-    box-shadow: 0 12px 32px -4px rgba(21, 128, 61, 0.38), 0 4px 12px -2px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     border: 1px solid #166534;
     padding: 0.85rem 1.25rem;
     display: flex;
@@ -3061,13 +3132,14 @@ textarea[class*="sigma-underline"]:focus,
     cursor: pointer;
     user-select: none;
     animation: sigmaReleaseToastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, filter 0.15s ease;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     box-sizing: border-box;
 }
 
 .sigma-release-toast-panel:hover {
-    filter: brightness(1.06);
+    filter: none !important;
     transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .sigma-release-toast-panel:active {
@@ -3077,7 +3149,7 @@ textarea[class*="sigma-underline"]:focus,
 .sigma-release-toast-panel.is-unreleased {
     background: #b45309;
     border-color: #92400e;
-    box-shadow: 0 12px 32px -4px rgba(180, 83, 9, 0.38), 0 4px 12px -2px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .sigma-release-toast-panel.hide {
@@ -3229,3 +3301,307 @@ textarea[class*="sigma-underline"]:focus,
     }
 }
 
+/* Comment Description Box & Input Pill */
+.sigma-comment-input-pill {
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 6px 12px 6px 16px !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.sigma-comment-input-pill:focus-within {
+    background: #ffffff !important;
+    border-color: #FFD000 !important;
+    box-shadow: 0 0 0 2px rgba(255, 208, 0, 0.25) !important;
+}
+
+.sigma-comment-textarea,
+textarea.sigma-comment-textarea,
+textarea#sigma-dialog-comment-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    resize: none !important;
+    border-radius: 0 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+    color: #0f172a !important;
+    padding: 2px 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.sigma-comment-textarea::placeholder,
+textarea#sigma-dialog-comment-input::placeholder {
+    color: #94a3b8 !important;
+    font-size: 13.5px !important;
+    font-weight: 400 !important;
+}
+
+/* Scaled down material label badges across all material views */
+.material-detail-type-badge,
+.material-detail-badge,
+span.material-detail-type-badge,
+span.material-detail-badge {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    padding: 1.5px 6.5px !important;
+    border-radius: 5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    text-transform: capitalize !important;
+    box-sizing: border-box !important;
+}
+
+.material-detail-type-badge i,
+.material-detail-badge i {
+    font-size: 9px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+}
+
+.material-detail-back-btn,
+button.material-detail-back-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.material-detail-back-btn:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.material-detail-back-btn:active {
+    background-color: #e2e8f0 !important;
+}
+
+@media (min-width: 640px) {
+    .material-detail-back-btn,
+    button.material-detail-back-btn {
+        display: inline-flex !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        margin-left: -4px !important;
+        margin-top: 2px !important;
+    }
+
+    .material-detail-back-btn i.fa-arrow-left,
+    .material-detail-back-btn i[class*="fa-arrow"] {
+        display: inline-block !important;
+        font-size: 15px !important;
+        color: #000000 !important;
+    }
+
+    .material-detail-back-btn i.fa-chevron-left,
+    .material-detail-back-btn i[class*="fa-chevron"] {
+        display: none !important;
+    }
+}
+
+@media (max-width: 639.98px) {
+    .material-detail-back-btn,
+    button.material-detail-back-btn {
+        display: inline-flex !important;
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        margin-left: -4px !important;
+        margin-top: 1px !important;
+    }
+
+    .material-detail-back-btn i.fa-chevron-left,
+    .material-detail-back-btn i[class*="fa-chevron"] {
+        display: inline-block !important;
+        font-size: 13.5px !important;
+        color: #000000 !important;
+    }
+
+    .material-detail-back-btn i.fa-arrow-left,
+    .material-detail-back-btn i[class*="fa-arrow"] {
+        display: none !important;
+    }
+}
+
+/* Scaled down SIGMA AI Assistance toggle button and icon */
+#toggle-ai-assistance-card-btn {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    padding: 2.5px 9px !important;
+    border-radius: 7px !important;
+    line-height: 1.25 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    box-sizing: border-box !important;
+}
+
+#toggle-ai-assistance-card-btn i,
+#toggle-ai-card-btn-icon {
+    font-size: 9.5px !important;
+    line-height: 1 !important;
+}
+
+@media (max-width: 639.98px) {
+    #toggle-ai-assistance-card-btn {
+        font-size: 10px !important;
+        padding: 2px 7.5px !important;
+        border-radius: 6px !important;
+    }
+
+    #toggle-ai-assistance-card-btn i,
+    #toggle-ai-card-btn-icon {
+        font-size: 9px !important;
+    }
+}
+
+/* SIGMA AI Assistance Panel: Full Width & No Radius */
+#teacher-ai-assistance-panel,
+#student-ai-assistance-panel,
+.sigma-ai-assistance-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
+}
+
+@media (min-width: 769px) {
+    #teacher-ai-assistance-panel,
+    #student-ai-assistance-panel,
+    .sigma-ai-assistance-panel {
+        border-radius: 16px !important;
+    }
+
+    /* Desktop AI controls share a deliberate, readable control scale. */
+    #toggle-ai-assistance-card-btn {
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+        gap: 6px !important;
+        line-height: 1 !important;
+    }
+
+    #toggle-ai-assistance-card-btn i,
+    #toggle-ai-card-btn-icon {
+        font-size: 11px !important;
+    }
+
+    .ai-header-score-area > div,
+    #ai-review-action-btn {
+        min-height: 32px !important;
+        box-sizing: border-box !important;
+    }
+
+    .ai-header-score-area > div {
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+        gap: 5px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1 !important;
+    }
+
+    .ai-header-score-area span:first-child,
+    .ai-header-score-area span:last-child,
+    #ai-review-action-btn {
+        font-size: 12px !important;
+    }
+
+    #ai-review-action-btn {
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+        gap: 6px !important;
+        line-height: 1 !important;
+    }
+
+    #ai-review-action-btn i {
+        font-size: 11px !important;
+    }
+
+    .ai-panel-header-grid {
+        align-items: center !important;
+    }
+
+    .ai-header-score-area,
+    .ai-header-btn-area {
+        align-self: center !important;
+        height: 32px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #teacher-ai-assistance-panel,
+    #student-ai-assistance-panel,
+    .sigma-ai-assistance-panel {
+        order: 4 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-top: 1px solid #e2e8f0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* ═══ SIGMA AI Assistance Header Layout & Scaled Controls ═══ */
+.ai-panel-header-grid {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+        "title badge"
+        "desc desc"
+        "btn btn" !important;
+    row-gap: 8px !important;
+    column-gap: 10px !important;
+    align-items: center !important;
+}
+
+.ai-panel-header-grid:not(:has(.ai-header-score-area)) {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+        "title"
+        "desc" !important;
+}
+
+@media (min-width: 640px) {
+    .ai-panel-header-grid {
+        grid-template-columns: 1fr auto auto !important;
+        grid-template-areas:
+            "title badge btn"
+            "desc desc desc" !important;
+        row-gap: 6px !important;
+        column-gap: 10px !important;
+    }
+}

@@ -96,7 +96,7 @@
     height: 100% !important;
     width: 0%;
     background: #FFD000 !important; /* Pure solid ICC Gold/Yellow */
-    box-shadow: 0 0 8px rgba(255, 208, 0, 0.75) !important;
+    box-shadow: none !important;
     transition: width 0.28s cubic-bezier(0.1, 0.8, 0.3, 1) !important;
     will-change: width !important;
 }
@@ -1452,8 +1452,8 @@
         max-height: clamp(38px, 9.8vw, 44px) !important;
         margin-top: 0 !important;
         background: #ffffff !important;
-        border-bottom: none !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         align-items: center !important;
         justify-content: space-around !important;
         padding: 0 clamp(4px, 1.5vw, 10px) !important;
@@ -1493,7 +1493,7 @@
     header.subbar-hidden .admin-topbar__inner,
     body.subbar-hidden .admin-topbar__inner {
         border-bottom: 2px solid #15803d !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     }
 
     #student-header,
