@@ -21,3 +21,10 @@ desktop.ini
 
 # ─── Sensitive / private ──────────────────────────────────
 config/database.php
+
+# ─── Scratch & Verification Scripts ───────────────────────
+scratch/
+
+# ─── Database Backups / Dumps ─────────────────────────────
+database/backups/*.sql
+!database/backups/.gitkeep

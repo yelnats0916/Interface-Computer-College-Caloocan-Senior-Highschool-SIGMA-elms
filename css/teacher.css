@@ -5961,9 +5961,9 @@ input:active,
 .attendance-month-table .student-name-col.is-students-expanded,
 .attendance-month-table th.student-name-col.is-students-expanded,
 .attendance-month-table tbody td.student-name-col.is-students-expanded {
-    width: 320px !important;
-    min-width: 320px !important;
-    max-width: 320px !important;
+    width: 270px !important;
+    min-width: 270px !important;
+    max-width: 270px !important;
 }
 
 .attendance-month-table th.student-name-col {
@@ -5975,7 +5975,7 @@ input:active,
     letter-spacing: normal;
     border-right: none !important;
     border-bottom: 2px solid #166534 !important;
-    z-index: 30 !important;
+    z-index: 35 !important;
     cursor: pointer !important;
     padding: 0 0.75rem !important;
     user-select: none !important;
@@ -6000,39 +6000,138 @@ input:active,
 }
 
 .attendance-month-table th.student-name-col .attendance-students-expand-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transition: background-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.attendance-month-table th.student-name-col:hover .attendance-students-expand-btn,
+.attendance-month-table th.student-name-col .attendance-students-expand-btn:hover {
+    background: rgba(255, 255, 255, 0.45) !important;
+    transform: scale(1.08) !important;
+}
+
+.attendance-month-table th.student-name-col .attendance-students-expand-btn i {
+    font-size: 10px !important;
+    color: #ffffff !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+}
+
+/* Responsive labels for summary headers */
+.attendance-summary-label-full {
+    display: inline !important;
+}
+.attendance-summary-label-short {
     display: none !important;
 }
 
 @media (max-width: 768px) {
-    .attendance-month-table th.student-name-col .attendance-students-expand-btn {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 22px !important;
-        min-width: 22px !important;
-        height: 22px !important;
-        border-radius: 9999px !important;
-        background: rgba(255, 255, 255, 0.25) !important;
-        color: #ffffff !important;
-        cursor: pointer !important;
-        flex-shrink: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        transition: background-color 0.15s ease !important;
+    .attendance-summary-label-full {
+        display: none !important;
     }
-
-    .attendance-month-table th.student-name-col:hover .attendance-students-expand-btn,
-    .attendance-month-table th.student-name-col .attendance-students-expand-btn:hover {
-        background: rgba(255, 255, 255, 0.45) !important;
-    }
-
-    .attendance-month-table th.student-name-col .attendance-students-expand-btn i {
-        font-size: 11px !important;
-        color: #ffffff !important;
-        line-height: 1 !important;
-        display: inline-block !important;
+    .attendance-summary-label-short {
+        display: inline !important;
+        font-weight: 700 !important;
     }
 }
+
+/* Attendance Summary Columns (Present, Absent, Late / P, A, L) */
+.attendance-month-table th.attendance-summary-th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 34 !important;
+    background: #15803d !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid #166534 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 0 4px !important;
+    user-select: none !important;
+    height: 3.25rem;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+.attendance-month-table td.attendance-summary-td {
+    position: sticky !important;
+    z-index: 24 !important;
+    background: #ffffff !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    border-right: 1px solid #f1f5f9 !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 0 4px !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    color: #000000 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    height: 3.25rem;
+    box-sizing: border-box !important;
+}
+
+.attendance-month-table tbody tr:nth-child(even) td.attendance-summary-td {
+    background: #f8fafc !important;
+}
+
+.attendance-count-num {
+    color: #000000 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+}
+
+@media (min-width: 769px) {
+    .attendance-month-table th.attendance-summary-th,
+    .attendance-month-table td.attendance-summary-td {
+        height: 3.25rem !important;
+        min-height: 3.25rem !important;
+        max-height: 3.25rem !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--p,
+    .attendance-month-table td.attendance-summary-td--p {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 270px !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--a,
+    .attendance-month-table td.attendance-summary-td--a {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 334px !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--l,
+    .attendance-month-table td.attendance-summary-td--l {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 398px !important;
+        border-right: 2px solid #cbd5e1 !important;
+        box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
+    }
+}
+
 
 .attendance-month-table .student-name-col::after {
     content: "";
@@ -6112,7 +6211,7 @@ input:active,
     width: 72px;
     min-width: 72px;
     max-width: 72px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     text-align: center;
     vertical-align: middle;
 }
@@ -6328,9 +6427,9 @@ input:active,
     .attendance-month-table .student-name-col.is-students-expanded,
     .attendance-month-table tbody td.student-name-col.is-students-expanded,
     .attendance-month-table th.student-name-col.is-students-expanded {
-        width: 250px !important;
-        min-width: 250px !important;
-        max-width: 250px !important;
+        width: 220px !important;
+        min-width: 220px !important;
+        max-width: 220px !important;
         padding: 0 0.6rem !important;
     }
 
@@ -6382,8 +6481,13 @@ input:active,
     }
 
     .attendance-month-table th,
-    .attendance-month-table td {
+    .attendance-month-table td,
+    .attendance-month-table th.attendance-summary-th,
+    .attendance-month-table td.attendance-summary-td {
         height: 2.65rem !important;
+        min-height: 2.65rem !important;
+        max-height: 2.65rem !important;
+        box-sizing: border-box !important;
     }
 
     .attendance-month-table .day-col {
@@ -6621,31 +6725,31 @@ input:active,
         min-height: 0 !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
-        scrollbar-width: thin !important;
-        scrollbar-color: transparent transparent !important;
+        scrollbar-width: auto !important;
+        scrollbar-color: #888888 #f1f1f1 !important;
     }
 
     #section-topic-content #topic-right-section.topic-rail-follow:hover,
     #section-topic-content #topic-right-section.topic-rail-score-follow:hover {
-        scrollbar-color: rgba(0, 0, 0, 0.28) transparent !important;
+        scrollbar-color: #888888 #f1f1f1 !important;
     }
 
     #section-topic-content #topic-right-section.topic-rail-follow::-webkit-scrollbar,
     #section-topic-content #topic-right-section.topic-rail-score-follow::-webkit-scrollbar {
         display: block !important;
-        width: 6px !important;
-        height: 6px !important;
+        width: 16px !important;
+        height: 16px !important;
     }
 
     #section-topic-content #topic-right-section.topic-rail-follow::-webkit-scrollbar-thumb,
     #section-topic-content #topic-right-section.topic-rail-score-follow::-webkit-scrollbar-thumb {
-        background: transparent !important;
+        background: #888888 !important;
         border-radius: 10px !important;
     }
 
     #section-topic-content #topic-right-section.topic-rail-follow:hover::-webkit-scrollbar-thumb,
     #section-topic-content #topic-right-section.topic-rail-score-follow:hover::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.28) !important;
+        background: #888888 !important;
     }
 }
 
@@ -10162,9 +10266,9 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] > div:first-child > div:f
     font-size: 11px !important;
 }
 
-.teacher-portal [id^="subject-topic-panel-"] h4,
-#subject-edit-overlay.teacher-mode [id^="subject-topic-panel-"] h4,
-body:has(#teacher-header) [id^="subject-topic-panel-"] h4 {
+.teacher-portal [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title),
+#subject-edit-overlay.teacher-mode [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title),
+body:has(#teacher-header) [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title) {
     font-size: 13.5px !important;
     font-weight: 500 !important;
     white-space: normal !important;
@@ -10527,10 +10631,10 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
     }
 
     /* Topic Title - Not bold with multi-line wrap up to 3 lines */
-    [id^="subject-topic-panel-"] h4,
-    .teacher-portal [id^="subject-topic-panel-"] h4,
-    body:has(#teacher-header) [id^="subject-topic-panel-"] h4,
-    #subject-edit-overlay.teacher-mode [id^="subject-topic-panel-"] h4 {
+    [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title),
+    .teacher-portal [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title),
+    body:has(#teacher-header) [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title),
+    #subject-edit-overlay.teacher-mode [id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title) {
         font-size: 11.5px !important;
         font-weight: 500 !important;
         color: #000000 !important;
@@ -10605,8 +10709,8 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         gap: 8px !important;
     }
 
-    [id^="topic-dropdown-"] .sigma-black-fade-panel h4,
-    .teacher-portal [id^="topic-dropdown-"] .sigma-black-fade-panel h4 {
+    [id^="topic-dropdown-"] .sigma-black-fade-panel h4:not(.sigma-file-panel-title),
+    .teacher-portal [id^="topic-dropdown-"] .sigma-black-fade-panel h4:not(.sigma-file-panel-title) {
         font-size: 11.5px !important;
         font-weight: 500 !important;
         line-height: 1.3 !important;
@@ -11019,9 +11123,9 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
     .teacher-portal #subject-material-detail-view .sigma-file-panel-title,
     body:has(#teacher-header) #subject-material-detail-view .sigma-file-panel-title,
     #subject-edit-overlay.teacher-mode #subject-material-detail-view .sigma-file-panel-title {
-        font-size: 13.5px !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
-        line-height: 1.35 !important;
+        line-height: 1.3 !important;
     }
 
     .teacher-portal #subject-material-detail-view .sigma-black-fade-panel p.text-xs,

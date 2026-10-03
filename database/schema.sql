@@ -10,27 +10,50 @@ USE `sigma_elms_db`;
 -- Table: users (Admins, Teachers, and Students)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `users` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `school_id` VARCHAR(50) NOT NULL UNIQUE,
-    `name` VARCHAR(100) NOT NULL,
-    `email` VARCHAR(100) NOT NULL UNIQUE,
+    `id` VARCHAR(50) NOT NULL PRIMARY KEY,
+    `first_name` VARCHAR(100) NOT NULL,
+    `middle_name` VARCHAR(100) NULL DEFAULT '',
+    `last_name` VARCHAR(100) NOT NULL,
+    `full_name` VARCHAR(255) NULL,
+    `email` VARCHAR(150) NOT NULL UNIQUE,
     `password` VARCHAR(255) NOT NULL,
-    `role` ENUM('admin', 'teacher', 'student') NOT NULL DEFAULT 'student',
-    `grade_level` VARCHAR(20) NULL,
-    `status` ENUM('active', 'inactive', 'pending') NOT NULL DEFAULT 'active',
-    `avatar` VARCHAR(255) NULL,
+    `role` VARCHAR(50) NOT NULL DEFAULT 'Student',
+    `status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+    `gender` VARCHAR(20) NULL DEFAULT '',
+    `branch` VARCHAR(100) NULL DEFAULT 'Main Campus',
+    `department` VARCHAR(150) NULL DEFAULT '',
+    `grade_level` VARCHAR(50) NULL DEFAULT '',
+    `grade_section` VARCHAR(100) NULL DEFAULT '',
+    `strand` VARCHAR(100) NULL DEFAULT '',
+    `avatar` LONGTEXT NULL,
+    `permissions` JSON NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ------------------------------------------------------------------------------
 -- Table: school_years
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `school_years` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `year_label` VARCHAR(50) NOT NULL UNIQUE, -- e.g. "SY 2026-2027"
-    `is_active` TINYINT(1) NOT NULL DEFAULT 0,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `year_start` INT UNSIGNED NOT NULL,
+    `year_end` INT UNSIGNED NOT NULL,
+    `q1_start` VARCHAR(20) NULL,
+    `q1_end` VARCHAR(20) NULL,
+    `q2_start` VARCHAR(20) NULL,
+    `q2_end` VARCHAR(20) NULL,
+    `q3_start` VARCHAR(20) NULL,
+    `q3_end` VARCHAR(20) NULL,
+    `q4_start` VARCHAR(20) NULL,
+    `q4_end` VARCHAR(20) NULL,
+    `status` VARCHAR(30) NOT NULL DEFAULT 'Inactive',
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `archived_at` VARCHAR(40) NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_year_range` (`year_start`, `year_end`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------

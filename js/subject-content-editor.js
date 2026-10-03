@@ -24,6 +24,9 @@
 
     function sharedContentSubjectId(explicitId) {
         if (explicitId) return explicitId;
+        if (typeof window.currentClassroomSubject !== 'undefined' && window.currentClassroomSubject) {
+            return window.currentClassroomSubject;
+        }
         if (typeof window.resolveTeacherActiveSubjectId === 'function') {
             const resolved = window.resolveTeacherActiveSubjectId();
             if (resolved) return resolved;
@@ -41,6 +44,18 @@
     function sharedContentSection(options) {
         const opts = options || {};
         if (opts.section || opts.selectedSection) return opts.section || opts.selectedSection;
+        if (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName) {
+            return window.currentClassroomSectionName;
+        }
+        if (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName) {
+            return currentClassroomSectionName;
+        }
+        if (typeof currentTopicState !== 'undefined' && currentTopicState && currentTopicState.selectedSection) {
+            return currentTopicState.selectedSection;
+        }
+        if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState && window.currentTopicState.selectedSection) {
+            return window.currentTopicState.selectedSection;
+        }
         if (typeof window.resolveTeacherActiveSection === 'function') {
             const resolved = window.resolveTeacherActiveSection();
             if (resolved) return resolved;

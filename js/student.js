@@ -4906,6 +4906,25 @@ if (overlay) overlay.classList.add('hidden');
 
     const topicVideos = {};
 
+        function showUnavailableStudentMaterial(subjectId) {
+            hideAllSections();
+            showSection('section-topic-content');
+            const page = document.getElementById('section-topic-content');
+            if (!page) return;
+            page.innerHTML = `<section class="bg-white p-6 sm:p-8">
+                <i class="fa-solid fa-lock text-xl text-black-fade" aria-hidden="true"></i>
+                <h2 class="text-lg font-bold mt-4">This content is currently unavailable</h2>
+                <p class="material-detail-body-text">Your teacher may have unpublished this content or changed its availability for your class. Return to your room to see the topics and materials you can access.</p>
+                <button type="button" class="sigma-btn sigma-btn-primary mt-5"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Back to Room</span></button>
+            </section>`;
+            page.querySelector('button').onclick = () => {
+                activeStudentClassroomId = '';
+                sessionStorage.removeItem('sigma-last-active-classroom');
+                window.returnToStudentRoomFromTopic(subjectId);
+            };
+            window.scrollTo({ top: 0 });
+        }
+
         window.openTopicContent = function (subjectId, topicIdx, tab = 'videos', videoIdx = null, _fromCard = false, options = null) {
         const pickedSection = options && (options.selectedSection || options.section);
         if (pickedSection && typeof window.rememberStudentTopicSection === 'function') {
@@ -4932,6 +4951,8 @@ if (overlay) overlay.classList.add('hidden');
         if (typeof window.getStudentTopicReleaseStatus === 'function') {
             const releaseStatus = window.getStudentTopicReleaseStatus(subjectId, topic, topicIdx);
             if (releaseStatus.isLocked) {
+                showUnavailableStudentMaterial(subjectId);
+                return;
                 const formattedDate = releaseStatus.releaseDate ? new Date(releaseStatus.releaseDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
                 const lockMsg = releaseStatus.reason === 'scheduled' && formattedDate
                     ? `Available on ${formattedDate}`
@@ -5232,6 +5253,22 @@ if (overlay) overlay.classList.add('hidden');
         const studentSection = (typeof window.resolveStudentReleaseSection === 'function')
             ? window.resolveStudentReleaseSection('')
             : '';
+        const topicAccess = window.getStudentTopicReleaseStatus?.(effectiveSubjectId, topic, queryIdx, studentSection);
+        let materialAccess = null;
+        const selectedIdx = isAssessment ? (window._scAssessmentDetailIdx ?? hashItemIdx) : (_tcVideoIdx ?? hashItemIdx);
+        if (selectedIdx !== null && selectedIdx !== undefined) {
+            const items = isAssessment
+                ? window.getUnifiedTopicAssessments?.('assessments', effectiveSubjectId, queryIdx, [], studentSection, topic)
+                : (effectiveTab === 'videos' ? topic.videos : topic.handouts);
+            const item = items?.[Number(selectedIdx)];
+            materialAccess = !item ? { isLocked: true } : (isAssessment
+                ? window.getStudentAssessmentReleaseStatus?.(effectiveSubjectId, item, queryIdx, Number(selectedIdx), 'assessments', studentSection)
+                : window.getStudentLearningMaterialReleaseStatus?.(effectiveSubjectId, item, queryIdx, Number(selectedIdx), effectiveTab === 'videos' ? 'video' : 'lesson', studentSection));
+        }
+        if ([topicAccess, materialAccess].some(status => status && (status.isLocked || status.isHidden || status.isUnreleased))) {
+            showUnavailableStudentMaterial(effectiveSubjectId);
+            return;
+        }
         if (studentSection && typeof window.rememberStudentTopicSection === 'function') {
             window.rememberStudentTopicSection(studentSection, effectiveSubjectId);
         }
@@ -5384,6 +5421,8 @@ if (overlay) overlay.classList.add('hidden');
                     </div>` : ''}
                 </div>
             </div>`;
+
+        window.relocateAssessmentPrimaryAction?.(page);
 
         if (isDetailView) {
             const _resetDetailScrollToTop = () => {

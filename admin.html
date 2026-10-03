@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interface Computer College - Admin</title>
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
 
@@ -19,14 +19,14 @@
     <link rel="stylesheet" href="css/topbar.css?v=20261001noglow1">
     <link rel="stylesheet" href="css/forms.css?v=20261001commentpill1">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261002backicon1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261003responsivetoast1">
     <link rel="stylesheet" href="css/classroom-room.css?v=20260929quartersize2">
     <link rel="stylesheet" href="css/settings-view.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/topic-detail.css?v=20261002desktoptextnorm1">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20261002filetitlescale3">
     <link rel="stylesheet" href="css/sidebar.css?v=20260928studentgradespanel1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/sigma-analytics.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/mobile.css?v=20261002backicon1">
+    <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003metricsnormbtn3">
+    <link rel="stylesheet" href="css/mobile.css?v=20261002mobilesafearea1">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1915,6 +1915,18 @@
                     </span>
                     <span class="sigma-settings-cat-text text-inherit">System Access &amp; Maintenance</span>
                 </button>
+                <button type="button" 
+                    id="nav-settings-database"
+                    class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
+                    data-settings-target="sec-database-panel"
+                    onclick="window.scrollToSettingsSection('sec-database-panel', this)"
+                    role="tab"
+                    aria-selected="false">
+                    <span class="sigma-settings-cat-icon">
+                        <i class="fa-solid fa-database text-inherit"></i>
+                    </span>
+                    <span class="sigma-settings-cat-text text-inherit">Database &amp; Backups</span>
+                </button>
             </nav>
         </aside>
 
@@ -2035,8 +2047,180 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Card 4: Database Health, Backups & Disaster Recovery -->
+                <div id="sec-database-panel" class="sigma-settings-panel-card">
+                    <div class="sigma-panel-header">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                                <div class="flex items-center gap-2.5">
+                                    <h2 class="sigma-panel-title">Database &amp; Backups</h2>
+                                    <span id="db-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online
+                                    </span>
+                                </div>
+                                <p class="sigma-panel-subtitle">Manage automated backups, monitor live database health, and restore system snapshots.</p>
+                            </div>
+                            <button type="button" onclick="window.refreshDatabaseHealthStats()" class="px-3 py-1.5 bg-transparent hover:bg-slate-100 text-black text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer" title="Refresh Live Database Health">
+                                <i class="fa-solid fa-arrows-rotate text-xs" id="db-refresh-spinner"></i>
+                                <span>Refresh Status</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Live Database Status Grid (2 Columns, Shared GWA Green Gradient, Title Case) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 py-2">
+                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                                <span class="text-xs font-semibold text-white/90 mb-2">Server Status</span>
+                                <div class="text-base font-bold text-white tracking-wide" id="db-engine-version">MySQL / MariaDB</div>
+                                <span class="text-[11px] text-white/80" id="db-latency-text">Ping: <strong class="text-white">0.7 ms</strong></span>
+                            </div>
+
+                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                                <span class="text-xs font-semibold text-white/90 mb-2">Database Instance</span>
+                                <div class="text-base font-bold text-white truncate" id="db-name-text">sigma_elms_db</div>
+                                <span class="text-[11px] text-white/80">Host: <strong class="text-white">127.0.0.1:3306</strong></span>
+                            </div>
+
+                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                                <span class="text-xs font-semibold text-white/90 mb-2">Database Records</span>
+                                <div class="text-base font-bold text-white" id="db-tables-count">2 Tables</div>
+                                <span class="text-[11px] text-white/80" id="db-rows-count">Total Rows: <strong class="text-white">4</strong></span>
+                            </div>
+
+                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                                <span class="text-xs font-semibold text-white/90 mb-2">Disk Usage</span>
+                                <div class="text-base font-bold text-white" id="db-size-text">64 KB</div>
+                                <span class="text-[11px] text-white/80">Storage Engine: <strong class="text-white">InnoDB</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Card to Dedicated Backup & Restore Page -->
+                        <div class="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-server text-[#15803d] text-base"></i>
+                                    <h3 class="text-sm font-bold text-black font-['Inter']">Backup &amp; Restore</h3>
+                                </div>
+                                <p class="text-xs text-black-fade font-normal max-w-xl">
+                                    Create backups, view backup history, and restore system data.
+                                </p>
+                            </div>
+                            <button type="button" onclick="window.openDatabaseSnapshotsView()"
+                                class="shrink-0 px-5 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+                                <span>Manage Backups</span>
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
+    </div>
+</section>
+
+<!-- ═══ DEDICATED DATABASE SNAPSHOTS & DISASTER RECOVERY VIEW (FULL PAGE) ═══ -->
+<section id="database-snapshots-view" class="dynamic-section hidden bg-white min-h-screen p-6 sm:p-8 font-['Inter']">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header Bar with Action Controls -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Backup &amp; Restore</h1>
+            </div>
+
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <button type="button" onclick="window.createDatabaseSnapshot()" id="btn-create-snapshot" class="px-4 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-down"></i>
+                    <span>Create Backup Now</span>
+                </button>
+                <button type="button" onclick="document.getElementById('external-db-restore-file').click()" class="px-4 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-upload text-emerald-700"></i>
+                    <span>Upload .SQL File</span>
+                </button>
+                <input type="file" id="external-db-restore-file" accept=".sql" class="hidden" onchange="window.handleExternalSnapshotUpload(this)">
+            </div>
+        </div>
+
+        <!-- KPI / Overview Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Backups</span>
+                <div class="text-lg font-bold text-slate-900" id="stat-total-snapshots">0</div>
+                <span class="text-[11px] text-slate-500">Stored on Server</span>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Latest Backup</span>
+                <div class="text-lg font-bold text-slate-900 truncate" id="stat-latest-snapshot">--</div>
+                <span class="text-[11px] text-slate-500" id="stat-latest-time">No checkpoints yet</span>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Retention Schedule</span>
+                <div class="text-lg font-bold text-[#15803d]">Automated Daily</div>
+                <span class="text-[11px] text-slate-500">7-Day Rolling Retention</span>
+            </div>
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Live Database</span>
+                <div class="text-lg font-bold text-slate-900">sigma_elms_db</div>
+                <span class="text-[11px] text-slate-500">MySQL 10.4 · 127.0.0.1</span>
+            </div>
+        </div>
+
+        <!-- Snapshots Table Card -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            <!-- Table Action Toolbar -->
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div class="relative flex-1 max-w-md">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="snapshot-search-input" oninput="window.filterSnapshotsTable()" placeholder="Search backups by name, date, or type..." class="w-full pl-9 pr-4 py-2 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#15803d]/20 focus:border-[#15803d]">
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="window.loadDatabaseSnapshots()" class="px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer" title="Refresh backups list">
+                        <i class="fa-solid fa-arrows-rotate text-xs" id="snapshot-refresh-icon"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/75 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <th class="py-3.5 px-4 sm:px-6">Backup Name / File</th>
+                            <th class="py-3.5 px-4">Date Created</th>
+                            <th class="py-3.5 px-4">Backup Type</th>
+                            <th class="py-3.5 px-4">Size</th>
+                            <th class="py-3.5 px-4">Status</th>
+                            <th class="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="snapshots-table-body" class="divide-y divide-slate-100 text-xs">
+                        <!-- Populated by window.renderDatabaseSnapshotsTable() -->
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-slate-400">
+                                <i class="fa-solid fa-circle-notch fa-spin text-lg text-emerald-600 mb-2 block"></i>
+                                Loading database backups...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State (Hidden by default) -->
+            <div id="snapshots-empty-state" class="hidden p-12 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3 text-lg">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 mb-1">No Database Backups Found</h3>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Create your first database backup to ensure a clean recovery point is always available.</p>
+                <button type="button" onclick="window.createDatabaseSnapshot()" class="px-4 py-2 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm inline-flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-plus"></i> Create First Backup
+                </button>
+            </div>
+        </div>
+
     </div>
 </section>
 
@@ -5704,7 +5888,20 @@
                             </div>
                             <div id="perm-admin-security-sub" class="pl-2 space-y-2.5 transition-all duration-300">
                                 <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
-                                    <label for="perm-security-logs" class="text-sm font-semibold text-slate-900 pr-4 cursor-pointer">View System Activity Logs</label>
+                                    <div class="pr-4">
+                                        <div class="flex items-center gap-2">
+                                            <label for="perm-database-manage" class="text-sm font-semibold text-slate-900 block cursor-pointer">Database &amp; Backups Management</label>
+                                            <i id="perm-database-manage-lock" class="fa-solid fa-lock text-[11px] text-amber-500 hidden" title="Only Master Admin can grant this permission"></i>
+                                        </div>
+                                        <span class="text-xs text-slate-500 font-normal">Can view database health, download SQL backup snapshots, and restore system data</span>
+                                    </div>
+                                    <input type="checkbox" id="perm-database-manage" aria-label="Can view database health, download SQL backup snapshots, and restore database" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
+                                    <div class="pr-4">
+                                        <label for="perm-security-logs" class="text-sm font-semibold text-slate-900 block cursor-pointer">View System Activity Logs</label>
+                                        <span class="text-xs text-slate-500 font-normal">Can inspect administrative actions, audit trails, and system access history</span>
+                                    </div>
                                     <input type="checkbox" id="perm-security-logs" aria-label="View System Activity Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
                                 </div>
                             </div>
@@ -6038,7 +6235,7 @@
     </div>
 
     <!-- SCRIPTS -->
-    <script src="js/shared-components.js?v=20261002scrollreset1"></script>
+    <script src="js/shared-components.js?v=20261003topicclick1"></script>
     <script src="js/topbar.js?v=20260928scrolllock1"></script>
     <script src="js/sidebar.js?v=20260923calmonthfix1"></script>
     <script src="js/notifications.js?v=20260930studallnotif1"></script>
@@ -6051,13 +6248,13 @@
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
     <script src="js/settings-view.js?v=20260923calmonthfix1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/sigma-analytics.js?v=20260928panelpolish1"></script>
-    <script src="js/subject-content-editor.js?v=20260929reorderdesktopscale1"></script>
-    <script src="js/subject-editor.js?v=20261001sigmaaifull1"></script>
+    <script src="js/sigma-analytics.js?v=20261003metricsnormbtn3"></script>
+    <script src="js/subject-content-editor.js?v=20261002sectionsplit1"></script>
+    <script src="js/subject-editor.js?v=20261003sharedmaterialbody1"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/classroom-room.js?v=20260928bannerradius1"></script>
-    <script src="js/curriculum-release.js?v=20260930footerbtn1"></script>
-    <script src="js/admin.js?v=20261002scrollreset1"></script>
+    <script src="js/curriculum-release.js?v=20261003scopednotify2"></script>
+    <script src="js/admin.js?v=20261003backupapi1"></script>
 </body>
 </html>

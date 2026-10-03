@@ -1368,6 +1368,10 @@ window.collectCurrentPermissionsState = function () {
         settingsBranding: document.getElementById('perm-settings-branding')?.checked ?? true,
         settingsApi: document.getElementById('perm-settings-api')?.checked ?? true,
         settingsSecurity: document.getElementById('perm-settings-security')?.checked ?? true,
+        // Security & Database
+        securityMain: document.getElementById('perm-admin-security-main')?.checked ?? true,
+        databaseManage: document.getElementById('perm-database-manage')?.checked === true,
+        securityLogs: document.getElementById('perm-security-logs')?.checked ?? true,
         // Teacher
         teacherGrades: document.getElementById('perm-teacher-grades')?.checked ?? true,
         teacherAttendance: document.getElementById('perm-teacher-attendance')?.checked ?? true,
@@ -1669,6 +1673,32 @@ window.editUserPermissions = function (userId) {
     setCheck('perm-settings-security', getVal('settingsSecurity', true));
     window.togglePermCategory('settings');
 
+    // Security & Activity Logs Category
+    setCheck('perm-admin-security-main', getVal('securityMain', true));
+    setCheck('perm-security-logs', getVal('securityLogs', true));
+
+    // Database & Backups Management:
+    // Only Master Admin role has this by default. Regular admins can only access if explicitly granted by Master Admin.
+    const permDatabaseVal = isTargetMaster ? true : (perms.databaseManage === true);
+    setCheck('perm-database-manage', permDatabaseVal);
+
+    const permDatabaseManageEl = document.getElementById('perm-database-manage');
+    const permDatabaseManageLock = document.getElementById('perm-database-manage-lock');
+    if (permDatabaseManageEl) {
+        // Can only be edited if current viewer is Master Admin AND target account is NOT Master Admin
+        const canEditDbPerm = isMaster && !isTargetMaster;
+        permDatabaseManageEl.disabled = !canEditDbPerm;
+        permDatabaseManageEl.classList.toggle('cursor-not-allowed', !canEditDbPerm);
+        permDatabaseManageEl.classList.toggle('opacity-60', !canEditDbPerm);
+        permDatabaseManageEl.title = isTargetMaster
+            ? 'Master Admin role always has full Database & Backups permissions'
+            : (isMaster ? 'Permit access to Database & Backups' : 'Only Master Admin can grant Database permissions');
+    }
+    if (permDatabaseManageLock) {
+        permDatabaseManageLock.classList.toggle('hidden', isMaster && !isTargetMaster);
+    }
+    window.togglePermCategory('security');
+
     // Set User Account Moderation Actions Toggles
     setCheck('perm-action-password', getVal('actionPassword', true));
     setCheck('perm-action-lock', getVal('actionLock', true));
@@ -1818,6 +1848,13 @@ window.saveUserPermissions = function () {
         if (!isEditorMaster) {
             // Non-master admins CANNOT grant or toggle School Profile permissions
             perms.schoolProfile = users[userIndex].permissions?.schoolProfile === true;
+            // Non-master admins CANNOT grant or toggle Database Management permissions
+            perms.databaseManage = users[userIndex].permissions?.databaseManage === true;
+        }
+
+        // Master Admin role always retains full database permissions
+        if (users[userIndex].role === 'Master Admin' || String(users[userIndex].id || users[userIndex].uid) === '0000000') {
+            perms.databaseManage = true;
         }
 
         users[userIndex].permissions = perms;
@@ -2742,6 +2779,29 @@ function updateSettingsPanel(tabId, overrides = {}) {
 
 
 window.scrollToSettingsSection = function (panelId, btnEl) {
+    if (panelId === 'sec-database-panel') {
+        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+        const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
+        const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
+        const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
+        if (!canDatabaseManage) {
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: 'Access Restricted',
+                    desc: 'Database and Disaster Recovery management is restricted to Master Admin role.',
+                    icon: 'fa-solid fa-lock text-amber-500',
+                    confirmText: 'Understood',
+                    isNotification: true
+                });
+            }
+            return;
+        }
+
+        if (typeof window.refreshDatabaseHealthStats === 'function') {
+            window.refreshDatabaseHealthStats();
+        }
+    }
+
     const target = document.getElementById(panelId);
     if (!target) return;
 
@@ -2750,10 +2810,10 @@ window.scrollToSettingsSection = function (panelId, btnEl) {
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
         if (isActive) {
-            btn.classList.add('bg-icc-yellow', 'text-white');
+            btn.classList.add('bg-icc-yellow', 'text-white', 'shadow-sm');
             btn.classList.remove('text-black', 'hover:bg-slate-100');
         } else {
-            btn.classList.remove('bg-icc-yellow', 'text-white');
+            btn.classList.remove('bg-icc-yellow', 'text-white', 'shadow-sm');
             btn.classList.add('text-black', 'hover:bg-slate-100');
         }
     }
@@ -2813,22 +2873,27 @@ window.setupSettingsScrollSpy = function (viewId) {
         if (!panels.length) return;
 
         let activePanelId = panels[0].id;
-        const paneTop = mainPane ? mainPane.getBoundingClientRect().top : 82;
+        const isScrollablePane = mainPane && (mainPane.scrollHeight > mainPane.clientHeight + 20);
+        const paneRect = isScrollablePane ? mainPane.getBoundingClientRect() : { top: 0, height: window.innerHeight };
+        const paneTop = paneRect.top;
+        const paneHeight = isScrollablePane ? mainPane.clientHeight : window.innerHeight;
 
         // Check if user scrolled near the bottom of main container
-        const isNearBottom = mainPane && (mainPane.scrollHeight > mainPane.clientHeight) && 
-                             (mainPane.scrollTop + mainPane.clientHeight >= mainPane.scrollHeight - 50);
+        const isNearBottom = isScrollablePane 
+            ? (Math.ceil(mainPane.scrollTop + mainPane.clientHeight) >= mainPane.scrollHeight - 60)
+            : (window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 60);
 
         if (isNearBottom) {
             activePanelId = panels[panels.length - 1].id;
         } else {
-            // Pick the panel currently active in the reading viewport
+            // Halfway trigger: as soon as the user is halfway and can see the next panel, switch immediately
+            const triggerLine = paneTop + (paneHeight * 0.5);
+
             for (let i = 0; i < panels.length; i++) {
                 const rect = panels[i].el.getBoundingClientRect();
-                const relTop = rect.top - paneTop;
-                const relBottom = rect.bottom - paneTop;
-                if (relTop <= 160 && relBottom > 40) {
+                if (rect.top <= triggerLine) {
                     activePanelId = panels[i].id;
+                } else {
                     break;
                 }
             }
@@ -2839,10 +2904,10 @@ window.setupSettingsScrollSpy = function (viewId) {
             btn.classList.toggle('active', isMatch);
             btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
             if (isMatch) {
-                btn.classList.add('bg-icc-yellow', 'text-white');
+                btn.classList.add('bg-icc-yellow', 'text-white', 'shadow-sm');
                 btn.classList.remove('text-black', 'hover:bg-slate-100');
             } else {
-                btn.classList.remove('bg-icc-yellow', 'text-white');
+                btn.classList.remove('bg-icc-yellow', 'text-white', 'shadow-sm');
                 btn.classList.add('text-black', 'hover:bg-slate-100');
             }
         });
@@ -2856,7 +2921,18 @@ window.setupSettingsScrollSpy = function (viewId) {
     if (!view._scrollSpyAttached) {
         view._scrollSpyAttached = true;
         let ticking = false;
+        const clearAccidentalDragSelection = () => {
+            const sel = window.getSelection();
+            if (sel && sel.toString().length > 0) {
+                const active = document.activeElement;
+                if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && !active.isContentEditable)) {
+                    sel.removeAllRanges();
+                }
+            }
+        };
+
         const onScroll = () => {
+            clearAccidentalDragSelection();
             if (!ticking) {
                 requestAnimationFrame(() => {
                     updateActiveButton();
@@ -2866,7 +2942,15 @@ window.setupSettingsScrollSpy = function (viewId) {
             }
         };
 
-        if (mainPane) mainPane.addEventListener('scroll', onScroll, { passive: true });
+        if (mainPane) {
+            mainPane.addEventListener('scroll', onScroll, { passive: true });
+            mainPane.addEventListener('mousedown', (e) => {
+                const rect = mainPane.getBoundingClientRect();
+                if (e.clientX >= rect.right - 24) {
+                    clearAccidentalDragSelection();
+                }
+            });
+        }
         window.addEventListener('scroll', onScroll, { passive: true });
     }
 };
@@ -4026,6 +4110,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return perms.settingsMain !== false && perms.settingsBranding !== false;
             case 'settings-integrations-view':
                 return perms.settingsMain !== false && perms.settingsApi !== false;
+            case 'sec-database-panel':
+            case 'database-view':
+            case 'database-snapshots-view':
+                return perms.databaseManage === true;
             case 'users-view':
                 return perms.manageAdmins !== false || perms.manageTeachers !== false || perms.manageStudents !== false;
             default:
@@ -4113,6 +4201,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (typeof window.renderSettingsView === 'function') {
                 window.renderSettingsView('user-settings-view', 'notifications');
+            }
+        } else if (sectionId === 'database-snapshots-view') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Database & Backups');
             }
         } else if (sectionId === 'settings-view' || (navId && navId.startsWith('nav-settings'))) {
             if (typeof window.setPortalHeader === 'function') {
@@ -6405,38 +6497,7 @@ window.onSchoolYearPageChange = function (page) {
     if (adminMain) adminMain.scrollTop = 0;
 };
 
-const defaultSchoolYearRecords = [
-    {
-        id: 'sy-2026-2027',
-        yearStart: 2026,
-        yearEnd: 2027,
-        q1Start: '2026-08-03',
-        q1End: '2026-10-16',
-        q2Start: '2026-10-19',
-        q2End: '2027-01-08',
-        q3Start: '2027-01-11',
-        q3End: '2027-03-19',
-        q4Start: '2027-03-22',
-        q4End: '2027-06-04',
-        status: 'Active',
-        isDeleted: false
-    },
-    {
-        id: 'sy-2025-2026',
-        yearStart: 2025,
-        yearEnd: 2026,
-        q1Start: '2025-08-04',
-        q1End: '2025-10-17',
-        q2Start: '2025-10-20',
-        q2End: '2026-01-09',
-        q3Start: '2026-01-12',
-        q3End: '2026-03-20',
-        q4Start: '2026-03-23',
-        q4End: '2026-06-05',
-        status: 'Inactive',
-        isDeleted: false
-    }
-];
+const defaultSchoolYearRecords = [];
 
 // Persistence Helpers
 const saveSYToStorage = () => {
@@ -6454,6 +6515,44 @@ const isRecordOngoingToday = (record) => {
     const earliestStart = new Date(`${starts[0]}T00:00:00`);
     const latestEnd = new Date(`${ends[ends.length - 1]}T23:59:59`);
     return today >= earliestStart && today <= latestEnd;
+};
+
+const resolveSchoolYearApiUrl = () => {
+    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+        return 'http://localhost/sigma-elms/php/api/school_years.php';
+    }
+    return 'php/api/school_years.php';
+};
+
+const syncSchoolYearToDB = async (payload) => {
+    try {
+        const url = resolveSchoolYearApiUrl();
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.warn('School year DB sync offline or unavailable, cached in localStorage.');
+    }
+};
+
+const fetchSchoolYearsFromDB = async () => {
+    try {
+        const url = resolveSchoolYearApiUrl();
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+            schoolYearRecords = data.records;
+            saveSYToStorage();
+            if (typeof renderSchoolYearTable === 'function') renderSchoolYearTable();
+            if (typeof renderSchoolYearSummaryBar === 'function') renderSchoolYearSummaryBar();
+            if (typeof updateGlobalSYDisplay === 'function') updateGlobalSYDisplay();
+        }
+    } catch (err) {
+        // Fallback silently to existing browser storage if server is offline
+    }
 };
 
 const loadSYFromStorage = () => {
@@ -6481,12 +6580,729 @@ const loadSYFromStorage = () => {
     }
 
     // Default seed when no records or storage empty
-    schoolYearRecords = [...defaultSchoolYearRecords];
+    schoolYearRecords = [];
     saveSYToStorage();
 };
 
-// Initial Load
+// Initial Load: local storage immediately preserved, then async sync with database
 loadSYFromStorage();
+fetchSchoolYearsFromDB();
+
+// --- DATABASE INTEGRATION: USERS TABLE API ---
+const resolveUsersApiUrl = () => {
+    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+        return 'http://localhost/sigma-elms/php/api/users.php';
+    }
+    return 'php/api/users.php';
+};
+
+const syncUserToDB = async (payload, action = 'save') => {
+    try {
+        const url = resolveUsersApiUrl();
+        const bodyObj = (action === 'save')
+            ? { action: 'save', user: payload }
+            : { action: action, ...payload };
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
+        });
+    } catch (e) {
+        console.warn('User DB sync offline or unavailable, cached in localStorage.');
+    }
+};
+
+const fetchUsersFromDB = async () => {
+    try {
+        const url = resolveUsersApiUrl();
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+            let currentLocal = getStoredJson(USER_STORAGE_KEY, []);
+            const map = new Map();
+            // Start with DB records (authoritative)
+            data.records.forEach(u => {
+                const id = String(u.id || u.uid || '');
+                if (id) map.set(id, u);
+            });
+            // Merge any local-only users created offline
+            currentLocal.forEach(u => {
+                const id = String(u.id || u.uid || '');
+                if (id && !map.has(id)) {
+                    map.set(id, u);
+                }
+            });
+            const merged = Array.from(map.values());
+            window.saveStoredJson(USER_STORAGE_KEY, merged);
+            if (typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
+            if (typeof updateUserMetricCards === 'function') updateUserMetricCards();
+        }
+    } catch (err) {
+        // Fallback silently to existing browser storage if server is offline
+    }
+};
+
+// Initial DB Fetch for users
+fetchUsersFromDB();
+
+// --- DATABASE HEALTH, BACKUP & DISASTER RECOVERY CONTROLLER ---
+const resolveBackupApiUrl = () => {
+    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+        return 'http://localhost/sigma-elms/php/api/backup.php';
+    }
+    return 'php/api/backup.php';
+};
+
+window.refreshDatabaseHealthStats = async function () {
+    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
+    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
+    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
+    if (!canDatabaseManage) return;
+
+    const spinner = document.getElementById('db-refresh-spinner');
+    if (spinner) spinner.classList.add('fa-spin');
+
+    try {
+        const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
+        const url = `${resolveBackupApiUrl()}?action=status&requester_id=${requesterId}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Status returned ' + res.status);
+        const data = await res.json();
+
+        if (data && data.success) {
+            const badge = document.getElementById('db-status-badge');
+            if (badge) {
+                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online';
+            }
+            const engineVer = document.getElementById('db-engine-version');
+            if (engineVer) engineVer.textContent = data.version ? `MySQL ${data.version}` : 'MySQL / MariaDB';
+
+            const latency = document.getElementById('db-latency-text');
+            if (latency) latency.innerHTML = `Ping: <strong class="text-white">${data.pingMs || 0.7} ms</strong>`;
+
+            const dbName = document.getElementById('db-name-text');
+            if (dbName) dbName.textContent = data.database || 'sigma_elms_db';
+
+            const tablesCount = document.getElementById('db-tables-count');
+            if (tablesCount) tablesCount.textContent = `${data.tableCount || 0} Tables`;
+
+            const rowsCount = document.getElementById('db-rows-count');
+            if (rowsCount) rowsCount.innerHTML = `Total Rows: <strong class="text-white">${data.totalRows || 0}</strong>`;
+
+            const sizeText = document.getElementById('db-size-text');
+            if (sizeText) sizeText.textContent = data.totalSize || '64 KB';
+        }
+    } catch (err) {
+        const badge = document.getElementById('db-status-badge');
+        if (badge) {
+            badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
+            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Local / Offline';
+        }
+    } finally {
+        if (spinner) {
+            setTimeout(() => spinner.classList.remove('fa-spin'), 400);
+        }
+    }
+};
+
+window.downloadDatabaseBackup = function () {
+    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
+    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
+    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
+
+    if (!canDatabaseManage) {
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: 'Access Restricted',
+                desc: 'Downloading database backup snapshots is restricted to Master Admin role.',
+                icon: 'fa-solid fa-lock text-amber-500',
+                confirmText: 'Understood',
+                isNotification: true
+            });
+        }
+        return;
+    }
+
+    const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
+    const url = `${resolveBackupApiUrl()}?action=download&requester_id=${requesterId}`;
+    const tempLink = document.createElement('a');
+    tempLink.href = url;
+    tempLink.setAttribute('download', '');
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    document.body.removeChild(tempLink);
+
+    if (window.showToast) {
+        window.showToast('Generating snapshot... Your database backup (.sql) is downloading.');
+    } else if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: 'Backup Download Started',
+            desc: 'Your full MySQL database backup snapshot (.sql) is downloading. Keep this file safe for disaster recovery.',
+            icon: 'fa-solid fa-cloud-arrow-down text-emerald-600',
+            confirmText: 'Done',
+            isNotification: true
+        });
+    }
+};
+
+window.handleBackupFileSelected = function (input) {
+    const file = input && input.files && input.files[0];
+    const filenameLabel = document.getElementById('db-restore-filename');
+    const restoreBtn = document.getElementById('db-restore-btn');
+
+    if (file) {
+        if (filenameLabel) filenameLabel.textContent = file.name;
+        if (restoreBtn) restoreBtn.disabled = false;
+    } else {
+        if (filenameLabel) filenameLabel.textContent = 'Choose .SQL Backup File...';
+        if (restoreBtn) restoreBtn.disabled = true;
+    }
+};
+
+window.confirmAndRestoreDatabase = function () {
+    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
+    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
+    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
+
+    if (!canDatabaseManage) {
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: 'Access Restricted',
+                desc: 'Restoring database snapshots requires Master Admin authorization.',
+                icon: 'fa-solid fa-lock text-amber-500',
+                confirmText: 'Understood',
+                isNotification: true
+            });
+        }
+        return;
+    }
+
+    const input = document.getElementById('db-restore-file-input');
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+
+    const performRestore = async () => {
+        const restoreBtn = document.getElementById('db-restore-btn');
+        if (restoreBtn) {
+            restoreBtn.disabled = true;
+            restoreBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Restoring Database...';
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'restore');
+            formData.append('backup_file', file);
+            formData.append('requester_id', String(currentUser?.uid || currentUser?.id || '0000000'));
+
+            const res = await fetch(resolveBackupApiUrl(), {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            if (data && data.success) {
+                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
+                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
+                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
+
+                if (window.showToast) {
+                    window.showToast('Database successfully restored from backup snapshot!');
+                } else if (typeof window.showSigmaDialog === 'function') {
+                    window.showSigmaDialog({
+                        title: 'Database Restored Successfully',
+                        desc: 'All database tables and records have been successfully restored to the snapshot state.',
+                        icon: 'fa-solid fa-circle-check text-emerald-600',
+                        confirmText: 'Great',
+                        isNotification: true
+                    });
+                }
+            } else {
+                throw new Error(data.error || 'Restore failed');
+            }
+        } catch (err) {
+            console.error('Database restore error:', err);
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: 'Restore Failed',
+                    desc: 'Could not restore database from this file: ' + err.message,
+                    icon: 'fa-solid fa-circle-exclamation text-rose-600',
+                    confirmText: 'OK',
+                    isNotification: true
+                });
+            } else {
+                alert('Database restore failed: ' + err.message);
+            }
+        } finally {
+            if (restoreBtn) {
+                restoreBtn.disabled = false;
+                restoreBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> <span>Restore Database Now</span>';
+            }
+        }
+    };
+
+    if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: 'Confirm Database Restoration',
+            desc: `Are you sure you want to restore the database using "${file.name}"? Current database tables will be replaced with the snapshot data.`,
+            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
+            confirmText: 'Yes, Restore Database',
+            cancelText: 'Cancel',
+            onConfirm: performRestore
+        });
+    } else if (confirm(`Are you sure you want to restore database from ${file.name}? Current records will be replaced with the snapshot contents.`)) {
+        performRestore();
+    }
+};
+
+// Initial Database Health Check
+window.refreshDatabaseHealthStats();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DEDICATED DATABASE SNAPSHOTS & DISASTER RECOVERY CONTROLLER
+// ══════════════════════════════════════════════════════════════════════════════
+window.currentDatabaseSnapshots = [];
+
+window.openDatabaseSnapshotsView = function (pushHistory = true) {
+    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
+    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
+    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
+
+    if (!canDatabaseManage) {
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: 'Access Restricted',
+                desc: 'Database and Disaster Recovery management is restricted to Master Admin role.',
+                icon: 'fa-solid fa-lock text-amber-500',
+                confirmText: 'Understood',
+                isNotification: true
+            });
+        }
+        return;
+    }
+
+    if (typeof window.showSection === 'function') {
+        window.showSection('database-snapshots-view', 'nav-settings');
+    }
+    if (typeof window.setPortalHeader === 'function') {
+        window.setPortalHeader('System Settings', 'Database & Backups');
+    }
+    if (pushHistory && window.location.hash !== '#database-snapshots') {
+        window.location.hash = 'database-snapshots';
+    }
+    window.loadDatabaseSnapshots();
+};
+
+window.closeDatabaseSnapshotsView = function (pushHistory = true) {
+    if (typeof window.showSection === 'function') {
+        window.showSection('settings-security-view', 'nav-settings');
+    }
+    if (typeof window.setPortalHeader === 'function') {
+        window.setPortalHeader('System Settings');
+    }
+    if (pushHistory && window.location.hash === '#database-snapshots') {
+        window.location.hash = 'nav-settings-security';
+    }
+    if (typeof window.scrollToSettingsSection === 'function') {
+        setTimeout(() => window.scrollToSettingsSection('sec-database-panel'), 80);
+    }
+};
+
+window.loadDatabaseSnapshots = async function () {
+    const tableBody = document.getElementById('snapshots-table-body');
+    const emptyState = document.getElementById('snapshots-empty-state');
+    const refreshIcon = document.getElementById('snapshot-refresh-icon');
+
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="py-12 text-center text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin text-lg text-emerald-600 mb-2 block"></i>
+                    Loading database snapshots...
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+        const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
+        const res = await fetch(`${resolveBackupApiUrl()}?action=list_snapshots&requester_id=${requesterId}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data && data.success && Array.isArray(data.snapshots)) {
+            window.currentDatabaseSnapshots = data.snapshots;
+            window.renderDatabaseSnapshotsTable(data.snapshots);
+        } else {
+            throw new Error(data.error || 'Failed to list snapshots');
+        }
+    } catch (err) {
+        console.error('Error loading snapshots:', err);
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="py-8 text-center text-rose-500">
+                        <i class="fa-solid fa-triangle-exclamation mb-1 text-base block"></i>
+                        Could not load snapshots: ${err.message}
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        if (refreshIcon) {
+            setTimeout(() => refreshIcon.classList.remove('fa-spin'), 350);
+        }
+    }
+};
+
+window.renderDatabaseSnapshotsTable = function (snapshots = []) {
+    const tableBody = document.getElementById('snapshots-table-body');
+    const emptyState = document.getElementById('snapshots-empty-state');
+    if (!tableBody) return;
+
+    // Update KPI stats
+    const totalEl = document.getElementById('stat-total-snapshots');
+    const latestEl = document.getElementById('stat-latest-snapshot');
+    const latestTimeEl = document.getElementById('stat-latest-time');
+
+    if (totalEl) totalEl.textContent = snapshots.length;
+    if (latestEl) latestEl.textContent = snapshots[0] ? snapshots[0].filename : 'None yet';
+    if (latestTimeEl) latestTimeEl.textContent = snapshots[0] ? snapshots[0].createdAtFormatted : 'No checkpoints yet';
+
+    if (!snapshots || snapshots.length === 0) {
+        tableBody.innerHTML = '';
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
+
+    tableBody.innerHTML = snapshots.map(s => {
+        const isAuto = s.type && s.type.includes('Auto');
+        const isBaseline = s.type && s.type.includes('Baseline');
+        const badgeClass = isBaseline 
+            ? 'bg-blue-50 text-blue-800 border-blue-200' 
+            : (isAuto ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200');
+
+        return `
+            <tr class="hover:bg-slate-50/70 transition-colors">
+                <td class="py-3.5 px-4 sm:px-6">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 text-xs">
+                            <i class="fa-solid fa-file-code"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-slate-900 truncate font-mono text-xs" title="${s.filename}">${s.filename}</div>
+                            <div class="text-[11px] text-slate-400">Database: sigma_elms_db</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3.5 px-4 whitespace-nowrap text-slate-700 font-medium">${s.createdAtFormatted || s.createdAt}</td>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeClass}">
+                        ${s.type || 'Manual Snapshot'}
+                    </span>
+                </td>
+                <td class="py-3.5 px-4 whitespace-nowrap text-slate-600 font-mono">${s.sizeHuman || '64 KB'}</td>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Verified
+                    </span>
+                </td>
+                <td class="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                    <div class="inline-flex items-center gap-1.5">
+                        <button type="button" onclick="window.downloadSpecificSnapshot('${s.filename}')" class="px-2.5 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer" title="Download .SQL Snapshot">
+                            <i class="fa-solid fa-download"></i>
+                            <span class="hidden sm:inline">Download</span>
+                        </button>
+                        <button type="button" onclick="window.confirmRestoreFromSnapshot('${s.filename}')" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer" title="Restore this checkpoint">
+                            <i class="fa-solid fa-rotate-left text-amber-700"></i>
+                            <span>Restore</span>
+                        </button>
+                        <button type="button" onclick="window.confirmDeleteSnapshot('${s.filename}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs transition-colors cursor-pointer" title="Delete Snapshot">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.filterSnapshotsTable = function () {
+    const query = (document.getElementById('snapshot-search-input')?.value || '').trim().toLowerCase();
+    if (!query) {
+        window.renderDatabaseSnapshotsTable(window.currentDatabaseSnapshots);
+        return;
+    }
+    const filtered = window.currentDatabaseSnapshots.filter(s => {
+        return (s.filename && s.filename.toLowerCase().includes(query)) ||
+               (s.createdAt && s.createdAt.toLowerCase().includes(query)) ||
+               (s.type && s.type.toLowerCase().includes(query));
+    });
+    window.renderDatabaseSnapshotsTable(filtered);
+};
+
+window.createDatabaseSnapshot = async function (tag = 'manual') {
+    const btn = document.getElementById('btn-create-snapshot');
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Creating Backup...</span>';
+    }
+
+    try {
+        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+        const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
+
+        const formData = new FormData();
+        formData.append('action', 'create_snapshot');
+        formData.append('tag', tag);
+        formData.append('requester_id', requesterId);
+
+        const res = await fetch(resolveBackupApiUrl(), {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data && data.success) {
+            await window.loadDatabaseSnapshots();
+            if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
+
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: 'Database Backup Created',
+                    desc: `Successfully generated new database backup: "${data.snapshot?.filename || 'Backup'}" (${data.snapshot?.sizeHuman || ''}).`,
+                    icon: 'fa-solid fa-circle-check text-emerald-600',
+                    confirmText: 'Great',
+                    isNotification: true
+                });
+            } else if (window.showToast) {
+                window.showToast('Backup created successfully!');
+            }
+        } else {
+            throw new Error(data.error || 'Failed to create backup');
+        }
+    } catch (err) {
+        console.error('Create backup error:', err);
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: 'Backup Failed',
+                desc: 'Could not create database backup: ' + err.message,
+                icon: 'fa-solid fa-triangle-exclamation text-rose-600',
+                confirmText: 'OK',
+                isNotification: true
+            });
+        } else {
+            alert('Failed to create snapshot: ' + err.message);
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+};
+
+window.downloadSpecificSnapshot = function (filename) {
+    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+    const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
+    const safeName = encodeURIComponent(filename);
+    const url = `${resolveBackupApiUrl()}?action=download&filename=${safeName}&requester_id=${requesterId}`;
+
+    const tempLink = document.createElement('a');
+    tempLink.href = url;
+    tempLink.setAttribute('download', filename);
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    document.body.removeChild(tempLink);
+
+    if (window.showToast) {
+        window.showToast(`Downloading snapshot: ${filename}`);
+    }
+};
+
+window.confirmRestoreFromSnapshot = function (filename) {
+    const doRestore = async () => {
+        try {
+            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
+
+            const formData = new FormData();
+            formData.append('action', 'restore_snapshot');
+            formData.append('filename', filename);
+            formData.append('requester_id', requesterId);
+
+            const res = await fetch(resolveBackupApiUrl(), {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data && data.success) {
+                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
+                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
+                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
+                await window.loadDatabaseSnapshots();
+
+                if (typeof window.showSigmaDialog === 'function') {
+                    window.showSigmaDialog({
+                        title: 'Database Restored Successfully',
+                        desc: `Database has been rewound to checkpoint "${filename}". All records and tables have been restored.`,
+                        icon: 'fa-solid fa-circle-check text-emerald-600',
+                        confirmText: 'Done',
+                        isNotification: true
+                    });
+                } else if (window.showToast) {
+                    window.showToast('Database restored successfully!');
+                }
+            } else {
+                throw new Error(data.error || 'Restore failed');
+            }
+        } catch (err) {
+            console.error('Restore error:', err);
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: 'Restoration Failed',
+                    desc: 'Could not restore from this snapshot: ' + err.message,
+                    icon: 'fa-solid fa-triangle-exclamation text-rose-600',
+                    confirmText: 'OK',
+                    isNotification: true
+                });
+            } else {
+                alert('Restore failed: ' + err.message);
+            }
+        }
+    };
+
+    if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: 'Confirm Database Restoration',
+            desc: `Are you sure you want to restore the system to "${filename}"? Current MySQL records will be replaced with this snapshot.`,
+            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
+            confirmText: 'Yes, Restore Now',
+            cancelText: 'Cancel',
+            onConfirm: doRestore
+        });
+    } else if (confirm(`Restore database to ${filename}? Current records will be replaced.`)) {
+        doRestore();
+    }
+};
+
+window.confirmDeleteSnapshot = function (filename) {
+    const doDelete = async () => {
+        try {
+            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
+
+            const formData = new FormData();
+            formData.append('action', 'delete_snapshot');
+            formData.append('filename', filename);
+            formData.append('requester_id', requesterId);
+
+            const res = await fetch(resolveBackupApiUrl(), {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data && data.success) {
+                await window.loadDatabaseSnapshots();
+                if (window.showToast) {
+                    window.showToast(`Snapshot "${filename}" deleted.`);
+                }
+            } else {
+                throw new Error(data.error || 'Failed to delete snapshot');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Could not delete snapshot: ' + err.message);
+        }
+    };
+
+    if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: 'Delete Database Snapshot',
+            desc: `Are you sure you want to permanently delete snapshot "${filename}" from server storage?`,
+            icon: 'fa-solid fa-trash text-rose-500',
+            confirmText: 'Delete Snapshot',
+            cancelText: 'Cancel',
+            onConfirm: doDelete
+        });
+    } else if (confirm(`Delete snapshot ${filename}?`)) {
+        doDelete();
+    }
+};
+
+window.handleExternalSnapshotUpload = function (input) {
+    const file = input && input.files && input.files[0];
+    if (!file) return;
+
+    const performUploadRestore = async () => {
+        try {
+            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
+            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
+
+            const formData = new FormData();
+            formData.append('action', 'restore');
+            formData.append('backup_file', file);
+            formData.append('requester_id', requesterId);
+
+            const res = await fetch(resolveBackupApiUrl(), {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data && data.success) {
+                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
+                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
+                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
+                await window.loadDatabaseSnapshots();
+
+                if (typeof window.showSigmaDialog === 'function') {
+                    window.showSigmaDialog({
+                        title: 'Database Restored from File',
+                        desc: `Successfully restored database tables from uploaded file "${file.name}".`,
+                        icon: 'fa-solid fa-circle-check text-emerald-600',
+                        confirmText: 'Great',
+                        isNotification: true
+                    });
+                }
+            } else {
+                throw new Error(data.error || 'Restore failed');
+            }
+        } catch (err) {
+            console.error('File restore error:', err);
+            alert('Database restore failed: ' + err.message);
+        } finally {
+            input.value = '';
+        }
+    };
+
+    if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: 'Restore Database from File',
+            desc: `Are you sure you want to restore the database using "${file.name}"? Current database tables will be replaced.`,
+            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
+            confirmText: 'Yes, Restore Database',
+            cancelText: 'Cancel',
+            onConfirm: performUploadRestore
+        });
+    } else if (confirm(`Restore database using ${file.name}?`)) {
+        performUploadRestore();
+    }
+};
+
+
 
 window.resetSchoolYearData = function () {
     localStorage.removeItem('sigma_sy_zero_reset_v4');
@@ -8279,6 +9095,7 @@ window.performSYSave = function (formValues) {
             renderSchoolYearTable();
             updateGlobalSYDisplay();
             saveSYToStorage(); // Save to localStorage
+            syncSchoolYearToDB(savedRecord); // Sync to MySQL database
             window.checkQuarterEndReminders();
             initialSYValues = {};
             saveBtn.disabled = false;
@@ -8547,6 +9364,7 @@ window.executeArchiveAndActivate = function (archiveRecordId, activateRecordId) 
 
     // 5. Persist & Update UI (Panel and badges transfer now)
     saveSYToStorage();
+    syncSchoolYearToDB({ action: 'archive', id: archiveRecordId, activateNextId: activateRecordId });
     renderSchoolYearTable();
     renderSchoolYearSummaryBar();
     updateGlobalSYDisplay();
@@ -8669,6 +9487,7 @@ window.executeRestoreSchoolYear = function (recordId) {
 
     // Persist & Update UI
     saveSYToStorage();
+    syncSchoolYearToDB({ action: 'activate', id: recordId });
     renderSchoolYearTable();
     renderSchoolYearSummaryBar();
     updateGlobalSYDisplay();
@@ -16173,6 +16992,7 @@ window.handleUserSave = function () {
                 settingsBranding: true,
                 settingsApi: true,
                 settingsSecurity: true,
+                databaseManage: isNewMaster,
                 bio: true,
                 achievements: isNewMaster || role === 'Student',
                 subjects: isNewMaster || role === 'Teacher' || role === 'Student',
@@ -16228,6 +17048,7 @@ window.handleUserSave = function () {
             }
 
             saveStoredJson(USER_STORAGE_KEY, users);
+            syncUserToDB(existingIndex !== -1 ? users[existingIndex] : userData, 'save');
 
             // Propagate user changes to all connected sections, subjects, rosters, and session
             if (typeof window.propagateUserUpdateToAllConnected === 'function') {
@@ -16722,6 +17543,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const tab = hash.replace('account-settings-', '').replace('account-settings', '').replace('user-settings', '') || 'notifications';
             if (typeof window.navigateToAccountSettings === 'function') {
                 window.navigateToAccountSettings(tab);
+            }
+        } else if (hash === 'database-snapshots' || hash === 'snapshots' || hash === 'database-backups') {
+            if (typeof window.openDatabaseSnapshotsView === 'function') {
+                window.openDatabaseSnapshotsView(false);
             }
         } else if (hash === 'settings' || hash.startsWith('settings-') || hash === 'system-settings') {
             const tab = hash.replace('settings-', '').replace('settings', '') || 'security';
@@ -17829,6 +18654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userIndex !== -1) {
                 users[userIndex].password = newPass;
                 window.saveStoredJson('sigma-admin-users', users);
+                syncUserToDB({ id: userId, password: newPass }, 'change_password');
             }
 
             if (loading) loading.classList.add('hidden');
@@ -17895,6 +18721,7 @@ window.confirmDeactivateUser = function () {
     if (userIndex !== -1) {
         users[userIndex].status = 'Inactive';
         window.saveStoredJson('sigma-admin-users', users);
+        syncUserToDB({ id: userId }, 'deactivate');
 
         if (window.currentUserProfileData && String(window.currentUserProfileData.id) === String(userId)) {
             window.currentUserProfileData.status = 'Inactive';
@@ -17945,6 +18772,7 @@ window.confirmActivateUser = function () {
     if (userIndex !== -1) {
         users[userIndex].status = 'Active';
         window.saveStoredJson('sigma-admin-users', users);
+        syncUserToDB({ id: userId }, 'activate');
 
         if (window.currentUserProfileData && String(window.currentUserProfileData.id) === String(userId)) {
             window.currentUserProfileData.status = 'Active';
@@ -18379,6 +19207,12 @@ window.applyCurrentAdminPermissions = function () {
     if (canSeeMaintenance && typeof window.updateMaintenanceAccessControls === 'function') {
         window.updateMaintenanceAccessControls();
     }
+
+    // 7b. Database & Backups Management panel visibility
+    // Only Master Admin role or accounts explicitly granted databaseManage can access Database & Backups
+    const canDatabaseManage = isMaster || (perms.databaseManage === true);
+    toggleElement('sec-database-panel', canDatabaseManage);
+    toggleElement('nav-settings-database', canDatabaseManage);
 
     // 8. Active View Protection: Redirect if on a forbidden section
     const activeSection = document.querySelector('.dynamic-section:not(.hidden)');

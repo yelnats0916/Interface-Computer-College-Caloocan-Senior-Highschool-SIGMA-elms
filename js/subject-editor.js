@@ -656,6 +656,37 @@
     window.isCurrentEditorTeacher = isCurrentEditorTeacher;
     window.isCurrentUserAuthor = isCurrentUserAuthor;
 
+    function resolveSubjectItemSection(item) {
+        if (!item) return '';
+        let sec = String(item.section || item.roomSection || item.selectedSection || '').trim();
+        if (sec) return sec;
+        try {
+            const adminSections = (typeof _getStored === 'function')
+                ? _getStored('sigma-admin-sections', [])
+                : JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
+            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
+            if ((authorId || authorName) && Array.isArray(adminSections)) {
+                const matches = adminSections.filter(s => {
+                    if (!s) return false;
+                    const sTeacher = String(s.teacher || '').trim().toLowerCase();
+                    const sTeachers = Array.isArray(s.teachers) ? s.teachers : [];
+                    const hasTeacherName = (authorName && (sTeacher === authorName || sTeachers.some(t => {
+                        const tName = String(t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase();
+                        return tName === authorName;
+                    })));
+                    const hasTeacherId = (authorId && sTeachers.some(t => String(t.id || t.uid || '').trim().toLowerCase() === authorId));
+                    return hasTeacherName || hasTeacherId;
+                });
+                if (matches.length === 1) {
+                    return String(matches[0].name || matches[0].sectionName || '').trim();
+                }
+            }
+        } catch (_) {}
+        return '';
+    }
+    window.resolveSubjectItemSection = resolveSubjectItemSection;
+
     function formatSubjectTimestamp(val) {
         if (!val) return 'Just now';
         if (typeof val === 'string') {
@@ -1910,7 +1941,7 @@
      * @param {object|null} options - Optional flags { standalone, title, hideBars, standaloneStep }
      */
     window.openSubjectEditor = function (subjectDataOrId, initialStep = 1, options = null) {
-        window.activeSubjectEditorSection = options?.section || options?.selectedSection || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '';
+        window.activeSubjectEditorSection = options?.section || options?.selectedSection || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName) || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName) || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '';
         window.originalEditingSubjectId = (typeof subjectDataOrId === 'string') 
             ? subjectDataOrId 
             : (subjectDataOrId?.id || subjectDataOrId?.code || null);
@@ -3828,7 +3859,16 @@
 
         let topics = [];
         if (isTeacher) {
-            const activeSection = String(window.activeSubjectEditorSection || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '').trim().toLowerCase();
+            const activeSection = String(
+                window.activeSubjectEditorSection
+                || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+                || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+                || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+                || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+                || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+                || localStorage.getItem('sigma-active-classroom-section')
+                || ''
+            ).trim().toLowerCase();
             const currentUserId = currentUser ? String(currentUser.id || currentUser.uid || currentUser.username || '').trim().toLowerCase() : '';
             const myFullName = currentUser ? (`${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.name || '').trim().toLowerCase() : '';
 
@@ -3837,11 +3877,11 @@
                 const authorRole = normalizeSubjectAuthorRole(rawRole);
                 if (authorRole === 'Admin') return true;
 
-                const tSection = String(t.section || t.roomSection || '').trim().toLowerCase();
+                const tSection = String(resolveSubjectItemSection(t)).trim().toLowerCase();
                 const tAuthorId = String(t.authorId || t.uid || '').trim().toLowerCase();
                 const tAuthorName = String(t.authorName || t.author || '').trim().toLowerCase();
 
-                if (tSection && activeSection) {
+                if (activeSection) {
                     return tSection === activeSection;
                 }
                 if (isCurrentUserAuthor(t.authorId, t.authorName, 'Teacher')) return true;
@@ -4812,7 +4852,16 @@ window.addSubjectTopic = function () {
         }
         const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Teacher');
         const authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || '');
-        const activeSection = (authorRole === 'Teacher') ? (window.activeSubjectEditorSection || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '') : '';
+        const activeSection = (authorRole === 'Teacher') ? (
+            window.activeSubjectEditorSection
+            || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+            || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+            || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+            || localStorage.getItem('sigma-active-classroom-section')
+            || ''
+        ) : '';
 
         window.currentSubjectTopics = Array.isArray(window.currentSubjectTopics) ? window.currentSubjectTopics : [];
         window.currentSubjectAllTopics = Array.isArray(window.currentSubjectAllTopics) ? window.currentSubjectAllTopics : [];
@@ -5934,7 +5983,16 @@ window.addSubjectTopic = function () {
         let scopeTopics = [];
 
         if (isTeacher) {
-            const activeSection = String(window.activeSubjectEditorSection || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '').trim().toLowerCase();
+            const activeSection = String(
+                window.activeSubjectEditorSection
+                || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+                || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+                || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+                || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+                || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+                || localStorage.getItem('sigma-active-classroom-section')
+                || ''
+            ).trim().toLowerCase();
             const currentUserId = currentUser ? String(currentUser.id || currentUser.uid || currentUser.username || '').trim().toLowerCase() : '';
             const myFullName = currentUser ? (`${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.name || '').trim().toLowerCase() : '';
 
@@ -5944,11 +6002,11 @@ window.addSubjectTopic = function () {
                 const isA = normalizeSubjectAuthorRole(r) === 'Admin';
                 if (isA) return true;
 
-                const mSection = String(m.section || m.roomSection || '').trim().toLowerCase();
+                const mSection = String(resolveSubjectItemSection(m)).trim().toLowerCase();
                 const mAuthorId = String(m.authorId || m.uid || '').trim().toLowerCase();
                 const mAuthorName = String(m.authorName || m.author || '').trim().toLowerCase();
 
-                if (mSection && activeSection) {
+                if (activeSection) {
                     return mSection === activeSection;
                 }
                 if (isCurrentUserAuthor(m.authorId, m.authorName, 'Teacher')) return true;
@@ -5963,6 +6021,10 @@ window.addSubjectTopic = function () {
                 const r = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
                 const isT = normalizeSubjectAuthorRole(r) === 'Teacher';
                 if (isT) {
+                    if (activeSection) {
+                        const mSec = String(resolveSubjectItemSection(m)).trim().toLowerCase();
+                        if (mSec !== activeSection) return;
+                    }
                     if (m.originalAdminId) teacherMatMap.set(String(m.originalAdminId), m);
                     if (m.title) teacherMatMap.set(String(m.title).trim().toLowerCase(), m);
                 }
@@ -5985,11 +6047,11 @@ window.addSubjectTopic = function () {
                 const authorRole = normalizeSubjectAuthorRole(rawRole);
                 if (authorRole === 'Admin') return true;
 
-                const tSection = String(t.section || t.roomSection || '').trim().toLowerCase();
+                const tSection = String(resolveSubjectItemSection(t)).trim().toLowerCase();
                 const tAuthorId = String(t.authorId || t.uid || '').trim().toLowerCase();
                 const tAuthorName = String(t.authorName || t.author || '').trim().toLowerCase();
 
-                if (tSection && activeSection) {
+                if (activeSection) {
                     return tSection === activeSection;
                 }
                 if (isCurrentUserAuthor(t.authorId, t.authorName, 'Teacher')) return true;
@@ -6452,7 +6514,7 @@ window.addSubjectTopic = function () {
                                     return `
                                         <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
                                             <div class="mat-card-left flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-                                                <div class="mat-icon-col w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
+                                                <div class="material-panel-icon-group mat-icon-col w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                                                     <div class="mat-icon-box w-12 h-12 rounded-2xl ${iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
                                                         <i class="fa-solid ${typeIcon} text-xl ${iconColorClass}"></i>
                                                     </div>
@@ -7075,7 +7137,7 @@ window.addSubjectTopic = function () {
                                 <span class="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200/70 text-[#15803d] font-bold rounded-md text-[10px] leading-tight inline-flex items-center justify-center text-center uppercase whitespace-nowrap">${_escape('RUBRIC')}</span>
                             </div>
                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
+                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
                             </div>
                         </div>
                         ${canAdminDeleteRubric ? `
@@ -7147,7 +7209,7 @@ window.addSubjectTopic = function () {
                         </div>
                         ${hasDescription ? `
                             <div class="material-detail-desc pt-3 border-t border-slate-100">
-                                <p class="text-xs sm:text-sm font-normal text-slate-700 leading-relaxed font-['Inter'] whitespace-pre-line break-words">${_escape(instructions)}</p>
+                                ${window.renderMaterialBodyText(instructions)}
                             </div>
                         ` : ''}
                     </div>
@@ -7245,7 +7307,7 @@ window.addSubjectTopic = function () {
                 <!-- Description / Instructions Section (Hidden if empty) -->
                 ${hasDescription ? `
                     <div class="material-detail-desc border-t border-slate-100 pt-3.5 sm:pt-4">
-                        <p class="text-xs sm:text-sm font-normal text-slate-700 leading-relaxed font-['Inter'] whitespace-pre-line break-words">${_escape(instructions)}</p>
+                        ${window.renderMaterialBodyText(instructions)}
                     </div>
                 ` : ''}
 
@@ -9477,7 +9539,7 @@ window.addSubjectTopic = function () {
                                     <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || rawExt.toUpperCase()}</span>
                                 </div>
                                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                    <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                    <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
                                     <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || (rawExt.toUpperCase() + ' Document')}</p>
                                 </div>
                             </div>
@@ -9526,7 +9588,7 @@ window.addSubjectTopic = function () {
                                         <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || 'DOCX'}</span>
                                     </div>
                                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                        <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                        <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
                                         <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || 'Attached File'}</p>
                                     </div>
                                 </div>
@@ -9573,7 +9635,7 @@ window.addSubjectTopic = function () {
                                                 <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap bg-emerald-50 text-[#15803d] border border-emerald-200/70 font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">RUBRIC</span>
                                             </div>
                                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                                <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black hover:text-[#FFD000] transition-colors truncate">${_escape(state.rubricFileName)}</p>
+                                                <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate">${_escape(state.rubricFileName)}</p>
                                                 <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.rubricFileSize || 'Rubric File'}</p>
                                             </div>
                                         </div>
@@ -9637,7 +9699,7 @@ window.addSubjectTopic = function () {
                                                 <i class="${formIconCls} text-sm sm:text-base ${quizDetails.iconColor}"${formIconStyleAttr}></i>
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <p class="sigma-file-panel-title text-xs sm:text-sm font-semibold text-black truncate group-hover:text-[#FFD000] transition-colors">${_escape(quizTitle)}</p>
+                                                <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black truncate group-hover:text-[#FFD000] transition-colors">${_escape(quizTitle)}</p>
                                                 <p class="sigma-file-panel-meta text-[10.5px] sm:text-xs text-black-fade font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
                                                     <span>${quizQuestions} ${quizQuestions === 1 ? 'Question' : 'Questions'}</span>
                                                     <span class="text-slate-300">•</span>
@@ -10043,7 +10105,16 @@ window.addSubjectTopic = function () {
         let finalOriginalAdminId = existingMat?.originalAdminId || null;
         let finalId = existingMat?.id || null;
 
-        const activeSection = (authorRole === 'Teacher' || isTeacher) ? (window.activeSubjectEditorSection || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '') : '';
+        const activeSection = (authorRole === 'Teacher' || isTeacher) ? (
+            window.activeSubjectEditorSection
+            || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+            || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+            || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+            || localStorage.getItem('sigma-active-classroom-section')
+            || ''
+        ) : '';
 
         if (isTeacher) {
             authorRole = 'Teacher';

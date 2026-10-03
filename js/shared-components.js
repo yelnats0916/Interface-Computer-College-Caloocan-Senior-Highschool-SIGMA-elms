@@ -5633,11 +5633,17 @@ window.readStudentVisibleGradebookScore = function (studentUser, subjectId, sect
 window._studentAssessmentDetailsCache = window._studentAssessmentDetailsCache || new Map();
 window._studentAssessmentDetailsCacheTime = window._studentAssessmentDetailsCacheTime || 0;
 
+window.renderMaterialBodyText = function (text) {
+    const escaped = window.escapeHtml ? window.escapeHtml(String(text || '')) : String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<p class="material-detail-body-text">${escaped}</p>`;
+};
+
 window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, topicIdx, index, section, studentUserOverride = null) {
     let studentUser = studentUserOverride;
     if (!studentUser && typeof window.getLoggedInStudentUser === 'function') {
         studentUser = window.getLoggedInStudentUser();
     }
+    if (studentUser && section) studentUser = { ...studentUser, section };
     const targetStudentId = studentUser ? String(studentUser.id || studentUser.uid || studentUser.lrn || studentUser.studentNumber || '').trim() : '';
     const targetStudentName = studentUser ? String(studentUser.name || studentUser.fullName || '').trim() : '';
 
@@ -5713,7 +5719,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     }
 
     // 4. Resolve status and numeric score (Gradebook and teacher overrides have highest authority)
-    const quarterRaw = (typeof window.currentSelectedTopicQuarter !== 'undefined' && window.currentSelectedTopicQuarter)
+    const quarterRaw = ass?.quarter || (typeof window.currentSelectedTopicQuarter !== 'undefined' && window.currentSelectedTopicQuarter)
         || (typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter)
         || 1;
     const scoreQuarter = parseInt(String(quarterRaw).replace(/\D/g, ''), 10) || 1;
@@ -6006,27 +6012,6 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         statusName = 'Pending';
     }
 
-    if (!isQuizPending && numericScore === null && ass && normalizedTone !== 'missing' && normalizedTone !== 'absent' && normalizedTone !== 'incomplete') {
-        for (const sid of [targetStudentId, targetStudentName]) {
-            if (sid && ass.grades && ass.grades[sid] !== undefined && ass.grades[sid] !== null && ass.grades[sid] !== '') {
-                numericScore = Number(ass.grades[sid]);
-                isGraded = true;
-                turnedIn = true;
-                break;
-            }
-            if (sid && ass.scores && ass.scores[sid] !== undefined && ass.scores[sid] !== null && ass.scores[sid] !== '') {
-                numericScore = Number(ass.scores[sid]);
-                isGraded = true;
-                turnedIn = true;
-                break;
-            }
-        }
-        if (numericScore === null && ass.score !== undefined && ass.score !== null && ass.score !== '' && !isNaN(Number(ass.score))) {
-            numericScore = Number(ass.score);
-            isGraded = true;
-            turnedIn = true;
-        }
-    }
 
     if (!turnedIn && !isGraded) numericScore = null;
 
@@ -6218,8 +6203,10 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
     const currentNormStatus = String(statusLabel || '').toLowerCase();
     // Badge styling matching the status
     let statusBadgeClass = 'text-black bg-slate-100 border border-slate-200/80';
-    if (currentNormStatus === 'missing' || currentNormStatus === 'absent' || currentNormStatus === 'overdue') {
+    if (currentNormStatus === 'missing' || currentNormStatus === 'overdue') {
         statusBadgeClass = 'text-red-700 bg-red-50 border border-red-200';
+    } else if (currentNormStatus === 'absent') {
+        statusBadgeClass = 'text-gray-700 bg-gray-100 border border-gray-300';
     } else if (currentNormStatus === 'incomplete' || currentNormStatus === 'pending') {
         statusBadgeClass = 'text-amber-700 bg-amber-50 border border-amber-200';
     } else if (currentNormStatus === 'excuse' || currentNormStatus === 'excused') {
@@ -6260,7 +6247,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
             <!-- Progress bar -->
             <div class="w-full" style="margin-top: 20px !important;">
                 <div class="w-full h-2 rounded-full score-progress-track overflow-hidden bg-slate-100">
-                    <div class="h-full ${currentNormStatus === 'missing' || currentNormStatus === 'absent' ? 'bg-red-500' : 'bg-[#15803d]'} rounded-full score-progress-fill transition-all duration-700" style="--score-pct: ${isGraded ? scorePct : 0}%; width: ${isGraded ? scorePct : 0}%;"></div>
+                    <div class="h-full bg-[#15803d] rounded-full score-progress-fill transition-all duration-700" style="--score-pct: ${isGraded ? scorePct : 0}%; width: ${isGraded ? scorePct : 0}%;"></div>
                 </div>
             </div>
         </div>
@@ -7992,8 +7979,9 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
 
     const statusIcon = formatStatusIconClass(rawStatusIcon);
 
-    const secEscaped = section ? String(section).replace(/'/g, "\\'") : '';
-    let clickHandler = `if (typeof window.openTopicContent === 'function') { window.openTopicContent('${subjectId}', ${actualIdx}, 'videos', null, true, { selectedSection: '${secEscaped}' }); } else if (typeof window.switchToTopicContent === 'function') { window.switchToTopicContent('${subjectId}', ${actualIdx}); }`;
+    const topicSubjectArg = JSON.stringify(String(subjectId));
+    const topicSectionArg = JSON.stringify(String(section || ''));
+    let clickHandler = `if (typeof window.openTopicContent === 'function') { window.openTopicContent(${topicSubjectArg}, ${actualIdx}, 'videos', null, true, { selectedSection: ${topicSectionArg} }); } else if (typeof window.switchToTopicContent === 'function') { window.switchToTopicContent(${topicSubjectArg}, ${actualIdx}); }`;
 
     if (isLockedByTeacher) {
         const formattedDate = releaseStatus.releaseDate ? new Date(releaseStatus.releaseDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -8014,7 +8002,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
     const overview = topic.overview || topic.description || topic.summary || 'Explore the fundamental principles, key concepts, and practical applications in this comprehensive module.';
 
     return `
-        <div class="topic-card student-topic-card teacher-topic-card cursor-default ${isLockedByTeacher ? 'opacity-80' : ''}">
+        <div class="topic-card student-topic-card teacher-topic-card cursor-pointer ${isLockedByTeacher ? 'opacity-80' : ''}" role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
             <div class="topic-card__image-container">
                 <img src="${imgSrc}" alt="" class="topic-card__image" onerror="this.onerror=null; this.src='image/Topic.jpg';">
             </div>
@@ -8026,7 +8014,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
                     </div>
                     <i class="${statusIcon} text-xl ml-auto"></i>
                 </div>
-                <h3 onclick="${clickHandler}" class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
+                <h3 class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
                 <p>${escapeHtml(overview)}</p>
             </div>
         </div>
@@ -8507,8 +8495,11 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                         : (isStudentGraded || (effectiveScore !== null && effectiveScore !== '') ? 'Graded' : (isStudentSubmitted ? 'Pending' : 'Not Graded')))));
         const isListOpen = Boolean(window._gradingStudentListOpen);
 
+        const selectedStudentAccount = window.innerWidth <= 767 && typeof window.findMatchedUserAccount === 'function'
+            ? window.findMatchedUserAccount(studentId, studentName)
+            : null;
             const avatarHtml = typeof window.renderUserAvatarHtml === 'function'
-                ? window.renderUserAvatarHtml(activeStudentObj, 'xs')
+                ? window.renderUserAvatarHtml(selectedStudentAccount || activeStudentObj, 'xs')
                 : `<span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-[11px] font-bold text-slate-700 leading-none">${window.escapeHtml ? window.escapeHtml(studentName.charAt(0)) : studentName.charAt(0)}</span>`;
 
         let badgeStyleClass = 'text-black bg-slate-100 border border-slate-200/80';
@@ -8533,15 +8524,18 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             : false;
 
         return `
-                <div id="${prefix}-class-panel-card" onclick="event.stopPropagation()" class="topic-progress-card topic-score-sticky ${isPanelCollapsed ? 'is-collapsed is-desktop-collapsed' : 'is-expanded'} flex flex-col font-['Inter'] w-full box-border relative z-[75]">
+                <div id="${prefix}-class-panel-card" onclick="event.stopPropagation()" class="topic-progress-card topic-score-sticky ${isMobileScreen && window._mobileGradePanelMinimized ? 'is-minimized' : ''} ${isPanelCollapsed ? 'is-collapsed is-desktop-collapsed' : 'is-expanded'} flex flex-col font-['Inter'] w-full box-border relative z-[75]">
                     <!-- Grading Controls Body (Unified layout on Mobile and Desktop) -->
                     <div class="mobile-score-sheet-body flex flex-col gap-3 font-['Inter'] w-full pt-1 sm:pt-0">
                         <!-- Grading Title Header (Chevron-only click for expand/collapse) -->
-                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none cursor-default w-full">
+                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none cursor-default w-full" onclick="if (this.closest('.topic-score-sticky').classList.contains('is-minimized')) window.toggleMobileGradePanelMinimize(event)" onkeydown="if ((event.key === 'Enter' || event.key === ' ') && this.closest('.topic-score-sticky').classList.contains('is-minimized')) window.toggleMobileGradePanelMinimize(event)" tabindex="${isMobileScreen && window._mobileGradePanelMinimized ? '0' : '-1'}">
                             <span class="topic-progress-title home-dashboard-panel-title flex items-center gap-1.5 sm:gap-2 text-[11.5px] sm:text-xs font-bold text-[#15803d]">
                                 <i class="fa-solid fa-award text-[#15803d] text-[11px] sm:text-xs"></i>
                                 <span>Grade</span>
                             </span>
+                            <button type="button" class="mobile-grade-minimize-btn" title="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" aria-label="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" onclick="window.toggleMobileGradePanelMinimize(event)">
+                                <i class="fa-solid ${window._mobileGradePanelMinimized ? 'fa-plus' : 'fa-minus'}" aria-hidden="true"></i>
+                            </button>
                             <button type="button" onclick="event.stopPropagation(); window.toggleGradingPanelCollapse?.(event)"
                                 class="desktop-grading-toggle-btn ml-auto w-6 h-6 flex items-center justify-center text-[#15803d] hover:text-[#166534] bg-transparent border-0 cursor-pointer shrink-0 transition-colors"
                                 title="${isPanelCollapsed ? 'Expand grading panel' : 'Collapse grading panel'}">
@@ -8651,9 +8645,9 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     placeholder="-"
                                     ${scorePanelLocked ? `disabled title="${isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading'}"` : ''}
                                     onfocus="this.dataset.ph = this.placeholder; this.placeholder = '';"
-                                    oninput="window.syncGradeScoreDraft?.();"
-                                    onchange="window.syncGradeScoreDraft?.();"
-                                    onblur="const draft = String(this.dataset.draftStatus || ''); if (!this.value && this.value !== 0 && this.value !== '0' && draft !== 'excuse' && draft !== 'missing' && draft !== 'absent' && draft !== 'none') { this.value = this.dataset.savedScore || ''; } this.placeholder = this.dataset.ph || '-'; window.syncGradeScoreDraft?.();"
+                                    oninput="window.handleGradingScoreInput?.(this);"
+                                    onchange="window.handleGradingScoreInput?.(this);"
+                                    onblur="const draft = String(this.dataset.draftStatus || ''); if (!this.value && this.value !== 0 && this.value !== '0' && draft !== 'excuse' && draft !== 'missing' && draft !== 'absent' && draft !== 'none') { this.value = this.dataset.savedScore || ''; } this.placeholder = this.dataset.ph || '-'; window.handleGradingScoreInput?.(this);"
                                     onkeydown="if(['-','+','e','E'].includes(event.key)){ event.preventDefault(); } else if(event.key === 'Enter'){ event.preventDefault(); event.stopPropagation(); window.saveTeacherGradingScore?.(); }"
                                     class="w-14 sm:w-16 h-7 sm:h-8 px-1.5 sm:px-2 text-center text-[11px] sm:text-xs font-bold text-slate-900 placeholder:text-black/40 placeholder:opacity-100 ${scorePanelLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-slate-400'} border rounded-lg sm:rounded-xl outline-none focus:placeholder-transparent" style="display:none; outline: none !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s ease, background-color 0.15s ease;">
                                 <span class="text-[11px] sm:text-xs font-bold text-black select-none">/ ${maxScoreVal} pts</span>
@@ -8661,7 +8655,11 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                         </div>
 
                         <button type="button" id="teacher-grading-save-btn" class="sigma-btn sigma-btn-primary teacher-save-grade-btn" disabled title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked until student submits their work') : 'Enter a score to save grade'}" data-student-id="${window.escapeHtml ? window.escapeHtml(String(studentId || '')) : String(studentId || '')}" data-student-name="${window.escapeHtml ? window.escapeHtml(String(studentName || '')) : String(studentName || '')}" onclick="window.saveTeacherGradingScore?.()">
-                            <span>Save Grade</span>
+                            <span>Save Score</span>
+                        </button>
+                        <button type="button" class="sigma-btn sigma-btn-primary teacher-view-gradebook-btn" onclick="const target = document.getElementById('teacher-submission-action-area'); if (target?.dataset.gradebookTarget) window.navigateToGradebookFromSubmission(...JSON.parse(decodeURIComponent(target.dataset.gradebookTarget)));">
+                            <i class="fa-solid fa-table-list" aria-hidden="true"></i>
+                            <span>View Gradebook</span>
                         </button>
                         </div>
                     </div>
@@ -8731,6 +8729,22 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             </div>
         </div>
     `;
+};
+
+window.toggleMobileGradePanelMinimize = function (event) {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (window.innerWidth > 767) return;
+    const card = event?.target?.closest('.topic-score-sticky');
+    if (!card) return;
+    const minimized = card.classList.toggle('is-minimized');
+    window._mobileGradePanelMinimized = minimized;
+    window.closeGradingStatusDropdown?.();
+    const button = card.querySelector('.mobile-grade-minimize-btn');
+    button.title = minimized ? 'Restore Grade panel' : 'Minimize Grade panel';
+    button.setAttribute('aria-label', button.title);
+    button.querySelector('i').className = minimized ? 'fa-solid fa-plus' : 'fa-solid fa-minus';
+    card.querySelector('.desktop-grading-header').tabIndex = minimized ? 0 : -1;
 };
 
 window.toggleGradingPanelCollapse = function (event, forceState) {
@@ -9107,6 +9121,19 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
     const isTeacherOrAdmin = Boolean(isTeacher || window._isAdminPreview || (typeof role !== 'undefined' && (role === 'teacher' || role === 'admin')));
     if (isTeacherOrAdmin) {
         visibleTopics = [...q1Topics];
+        if (isTeacher && section && section.toLowerCase() !== 'all') {
+            const normSec = section.trim().toLowerCase();
+            visibleTopics = visibleTopics.filter(t => {
+                if (!t) return false;
+                const rawRole = t.authorRole || t.role || (t.isAdmin ? 'Admin' : (t.isTeacher ? 'Teacher' : 'Admin'));
+                const authorRole = (typeof window.normalizeSubjectAuthorRole === 'function')
+                    ? window.normalizeSubjectAuthorRole(rawRole)
+                    : (rawRole === 'Teacher' ? 'Teacher' : 'Admin');
+                if (authorRole === 'Admin') return true;
+                const tSec = String(t.section || t.roomSection || t.selectedSection || '').trim().toLowerCase();
+                return tSec === normSec;
+            });
+        }
     } else {
         const isSpecificSection = Boolean(section && section.toLowerCase() !== 'all');
         if (config && Array.isArray(config.releasedTopicIds) && config.releasedTopicIds.length > 0) {
@@ -11446,7 +11473,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                         <i class="${iconCls} text-lg ${quizDetails.iconColor}"${iconStyleAttr}></i>
                     </div>
                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
+                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
                             ${escape(liveTitle)}
                         </h4>
                         <p class="sigma-file-panel-meta text-[11px] sm:text-xs font-medium text-black-fade mt-0.5 flex items-center gap-1.5 flex-wrap font-['Inter']">
@@ -11597,14 +11624,14 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
     return `
         <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
             <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-                <div class="w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
+                <div class="material-panel-icon-group w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                     <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
                         <i class="fa-solid ${iconClass} text-xl"></i>
                     </div>
                     <span class="text-[9px] sm:text-[9.5px] px-2 py-0.5 whitespace-nowrap ${badgeClass} border font-bold rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${escape(typeLabel)}</span>
                 </div>
                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-xs sm:text-sm font-semibold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
+                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
                     ${(size || subtitle) ? `<p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${escape(size || subtitle)}</p>` : ''}
                 </div>
             </div>
@@ -11827,18 +11854,11 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
                             ` : `
                                 <!-- Description Section (Shown only if real description was written) -->
                                 ${hasLessonDesc ? (() => {
-                                    const isLongHandoutDesc = lessonDescText.length > 200 || (lessonDescText.match(/\n/g) || []).length >= 3;
                                     return `
                                     <div class="space-y-2">
                                         <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2">Description</h3>
                                         <div class="sigma-collapsible-desc-wrapper relative">
-                                            <p class="sigma-collapsible-desc-text ${isLongHandoutDesc ? 'is-collapsed' : ''} text-sm md:text-base font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words m-0">${escapeHtml(lessonDescText)}</p>
-                                            ${isLongHandoutDesc ? `
-                                                <button type="button" onclick="window.toggleCollapsibleDesc?.(this)" class="sigma-collapsible-desc-toggle font-['Inter']">
-                                                    <span>Show more</span>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </button>
-                                            ` : ''}
+                                            ${window.renderMaterialBodyText(lessonDescText)}
                                         </div>
                                     </div>
                                 `;
@@ -11876,7 +11896,7 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
         return `
                             <div class="sigma-black-fade-panel relative rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-3 sm:gap-4 font-['Inter']">
                                 <div class="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
-                                    <div class="w-11 sm:w-16 md:w-20 flex flex-col items-center gap-1 shrink-0 select-none">
+                                    <div class="material-panel-icon-group w-11 sm:w-16 md:w-20 flex flex-col items-center gap-1 shrink-0 select-none">
                                         <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${cfg.iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
                                             <i class="fa-solid ${cfg.typeIcon} text-base sm:text-xl ${cfg.iconColorClass}"></i>
                                         </div>
@@ -15873,21 +15893,26 @@ window.getSharedAssessmentSubmissionsStorage = function (forceRefresh = false) {
     } catch (e) {
         data = {};
     }
-    try {
-        const sessData = JSON.parse(sessionStorage.getItem('sigma_student_assessment_submissions') || '{}');
-        if (sessData && typeof sessData === 'object') {
-            for (const sid of Object.keys(sessData)) {
-                data[sid] = Object.assign({}, data[sid] || {}, sessData[sid]);
+    const mergeFallback = (fallback) => {
+        if (!fallback || typeof fallback !== 'object') return;
+        for (const [sid, bucket] of Object.entries(fallback)) {
+            if (!bucket || typeof bucket !== 'object') continue;
+            if (!data[sid]) data[sid] = {};
+            for (const [key, row] of Object.entries(bucket)) {
+                const persisted = data[sid][key];
+                const persistedAt = Date.parse(persisted?.gradedAt || persisted?.submittedAt || '') || 0;
+                const fallbackAt = Date.parse(row?.gradedAt || row?.submittedAt || '') || 0;
+                if (!persisted || fallbackAt > persistedAt) data[sid][key] = row;
             }
         }
+    };
+    try {
+        const sessData = JSON.parse(sessionStorage.getItem('sigma_student_assessment_submissions') || '{}');
+        mergeFallback(sessData);
     } catch (e) {}
     if (window._sharedAssessmentSubmissionsMemoryCache && window._sharedAssessmentSubmissionsMemoryCache['sigma_student_assessment_submissions']) {
         const memData = window._sharedAssessmentSubmissionsMemoryCache['sigma_student_assessment_submissions'];
-        if (memData && typeof memData === 'object') {
-            for (const sid of Object.keys(memData)) {
-                data[sid] = Object.assign({}, data[sid] || {}, memData[sid]);
-            }
-        }
+        mergeFallback(memData);
     }
     _sharedSubsCache.data = data;
     _sharedSubsCache.ts = now;
@@ -15922,328 +15947,11 @@ window._getTeacherGradebookCached = function (force = false) {
     _sharedGbCache = { ts: now, scores: allScores, statuses: allStatuses };
     return _sharedGbCache;
 };
-window.sanitizeGradebookCollisions = function () {
-    try {
-        const scoreStorageKeys = ['sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores'];
-        const scrubNode = (node) => {
-            if (!node || typeof node !== 'object') return false;
-            let changed = false;
-            ['ww', 'written works', 'written-works', 'written_works'].forEach(badKey => {
-                if (node[badKey] !== undefined) {
-                    delete node[badKey];
-                    changed = true;
-                }
-            });
-            Object.keys(node).forEach(childKey => {
-                if (node[childKey] && typeof node[childKey] === 'object' && !Array.isArray(node[childKey])) {
-                    if (scrubNode(node[childKey])) changed = true;
-                }
-            });
-            return changed;
-        };
-
-        const allGbStorageKeys = [
-            'sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores',
-            'sigma-teacher-gradebook-statuses-v2', 'sigma_gradebook_statuses', 'gradebookStatuses', 'sigma-gradebook-statuses'
-        ];
-        allGbStorageKeys.forEach(storageKey => {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return;
-            try {
-                const data = JSON.parse(raw);
-                if (data && typeof data === 'object') {
-                    if (scrubNode(data)) {
-                        localStorage.setItem(storageKey, JSON.stringify(data));
-                    }
-                }
-            } catch (_) {}
-        });
-
-        if (typeof window.gradebookScores !== 'undefined' && window.gradebookScores) {
-            scrubNode(window.gradebookScores);
-        }
-        if (typeof window.gradebookStatuses !== 'undefined' && window.gradebookStatuses) {
-            scrubNode(window.gradebookStatuses);
-        }
-
-        const scrubCollidedSlotZero = (scores, statuses) => {
-            if (!scores || typeof scores !== 'object') return false;
-            let changed = false;
-            const checkAndClean = (scNode, stNode) => {
-                if (!scNode || typeof scNode !== 'object') return;
-                Object.keys(scNode).forEach(stdKey => {
-                    const stdSc = scNode[stdKey];
-                    const stdSt = stNode?.[stdKey];
-                    if (!stdSc || typeof stdSc !== 'object') return;
-                    ['assignment', 'assignments', 'task', 'tasks'].forEach(ck => {
-                        if (stdSc[ck] && (stdSc[ck][0] === 28 || stdSc[ck]['0'] === 28 || stdSc[ck][0] === '28' || stdSc[ck]['0'] === '28')) {
-                            if (stdSt?.[ck]?.[0] === 'incomplete' || stdSt?.[ck]?.['0'] === 'incomplete' || !stdSt?.[ck]?.[0]) {
-                                delete stdSc[ck][0];
-                                delete stdSc[ck]['0'];
-                                if (stdSt?.[ck]) {
-                                    delete stdSt[ck][0];
-                                    delete stdSt[ck]['0'];
-                                }
-                                changed = true;
-                            }
-                        }
-                    });
-                    // Scrub leaked 28 or unsubmitted quiz scores in slot 1 or collided categories
-                    ['quiz', 'quizzes', 'Quiz', 'Quizzes', 'assignment', 'assignments', 'task', 'tasks', 'assessments', 'ww'].forEach(ck => {
-                        if (stdSc[ck]) {
-                            if (stdSc[ck][1] === 28 || stdSc[ck]['1'] === 28 || stdSc[ck][1] === '28' || stdSc[ck]['1'] === '28') {
-                                delete stdSc[ck][1];
-                                delete stdSc[ck]['1'];
-                                if (stdSt?.[ck]) {
-                                    delete stdSt[ck][1];
-                                    delete stdSt[ck]['1'];
-                                }
-                                changed = true;
-                            }
-                        }
-                    });
-
-                    if (stdSc['quiz'] && (stdSc['quiz'][0] === stdSc['quiz'][1] || stdSc['quiz']['0'] === stdSc['quiz']['1'])) {
-                        delete stdSc['quiz'][0];
-                        delete stdSc['quiz']['0'];
-                        if (stdSt?.['quiz']) {
-                            delete stdSt['quiz'][0];
-                            delete stdSt['quiz']['0'];
-                        }
-                        changed = true;
-                    }
-                });
-            };
-            Object.keys(scores).forEach(sb => {
-                if (!scores[sb] || typeof scores[sb] !== 'object') return;
-                Object.keys(scores[sb]).forEach(qk => {
-                    const qkScores = scores[sb][qk];
-                    const qkStatuses = statuses?.[sb]?.[qk];
-                    if (!qkScores || typeof qkScores !== 'object') return;
-                    checkAndClean(qkScores, qkStatuses);
-                    Object.keys(qkScores).forEach(secKey => {
-                        if (secKey.startsWith('sec:')) {
-                            checkAndClean(qkScores[secKey], qkStatuses?.[secKey]);
-                        }
-                    });
-                });
-            });
-            return changed;
-        };
-
-        const scrubStatusesDirectly = (stObj) => {
-            return false;
-        };
-
-        if (typeof window.gradebookScores !== 'undefined' && window.gradebookScores) {
-            scrubCollidedSlotZero(window.gradebookScores, window.gradebookStatuses);
-        }
-        if (typeof window.gradebookStatuses !== 'undefined' && window.gradebookStatuses) {
-            scrubStatusesDirectly(window.gradebookStatuses);
-        }
-
-        scoreStorageKeys.forEach(storageKey => {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return;
-            try {
-                const data = JSON.parse(raw);
-                if (data && typeof data === 'object') {
-                    if (scrubCollidedSlotZero(data, window.gradebookStatuses)) {
-                        localStorage.setItem(storageKey, JSON.stringify(data));
-                    }
-                }
-            } catch (_) {}
-        });
-
-        const statusStorageKeys = ['sigma-teacher-gradebook-statuses-v2', 'sigma_gradebook_statuses', 'gradebookStatuses', 'sigma-gradebook-statuses'];
-        statusStorageKeys.forEach(storageKey => {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return;
-            try {
-                const data = JSON.parse(raw);
-                if (data && typeof data === 'object') {
-                    if (scrubStatusesDirectly(data)) {
-                        localStorage.setItem(storageKey, JSON.stringify(data));
-                    }
-                }
-            } catch (_) {}
-        });
-
-        const subsRaw = localStorage.getItem('sigma_student_assessment_submissions');
-        if (subsRaw) {
-            try {
-                const allSubs = JSON.parse(subsRaw);
-                let subsChanged = false;
-                if (allSubs && typeof allSubs === 'object') {
-                    Object.keys(allSubs).forEach(sid => {
-                        const stdSubs = allSubs[sid];
-                        if (!stdSubs || typeof stdSubs !== 'object') return;
-                        Object.keys(stdSubs).forEach(subKey => {
-                            const sub = stdSubs[subKey];
-                            if (!sub || typeof sub !== 'object') return;
-                            const title = String(sub.title || '').trim().toLowerCase();
-                            const isTaskTitle = title.includes('task') || title.includes('variable declaration') || title.includes('practice');
-                            const isQuizTitle = title.includes('quiz') || String(subKey).toLowerCase().includes('quiz');
-                            if (isTaskTitle && !isQuizTitle) {
-                                if (sub.quizId || sub.answers || sub.quizAnswers || sub.userAnswers || sub.essayScores || sub.enumItemScores) {
-                                    delete sub.quizId;
-                                    delete sub.answers;
-                                    delete sub.quizAnswers;
-                                    delete sub.userAnswers;
-                                    delete sub.essayScores;
-                                    delete sub.enumItemScores;
-                                    delete sub.questions;
-                                    subsChanged = true;
-                                }
-                                const hasFile = Boolean(sub.fileName || sub.file || sub.fileData || (Array.isArray(sub.files) && sub.files.length));
-                                if (!hasFile && !sub.submittedAt && (sub.score === 28 || sub.score === '28' || sub.attendance === 'incomplete' || (sub.score !== undefined && sub.score !== '' && sub.score !== null))) {
-                                    delete sub.score;
-                                    delete sub.grade;
-                                    delete sub.earnedPoints;
-                                    delete sub.status;
-                                    delete sub.attendance;
-                                    sub.teacherSaved = false;
-                                    sub.teacherEditedScore = false;
-                                    subsChanged = true;
-                                }
-                            }
-                            if (subKey.includes('top_0_assessments_0') && (sub.quizId || isQuizTitle)) {
-                                delete stdSubs[subKey];
-                                subsChanged = true;
-                            }
-                            // If submission is a quiz (or slot 1) and has no real submitted answers/attempts, clear its attendance and status
-                            const isSubQuiz = Boolean(sub.quizId || isQuizTitle || (Number(sub.topicIdx) === 0 && Number(sub.topicItemIdx ?? sub.activeIdx) === 1));
-                            const hasRealSub = Boolean(sub.submittedAt || sub.completedAt || (sub.fileName && sub.fileName !== 'quiz') || (sub.fileUrl && sub.fileUrl !== 'quiz') || (Array.isArray(sub.files) && sub.files.length) || (sub.answers && Object.keys(sub.answers).length) || (sub.userAnswers && Object.keys(sub.userAnswers).length) || (Array.isArray(sub.attempts) && sub.attempts.length));
-                            if (isSubQuiz && !hasRealSub) {
-                                delete sub.attendance;
-                                delete sub.status;
-                                delete sub.score;
-                                delete sub.grade;
-                                delete sub.earnedPoints;
-                                sub.teacherSaved = false;
-                                sub.teacherEditedScore = false;
-                                subsChanged = true;
-                            }
-                            // Clean up stale attendance tone on any submission that has a saved score
-                            const hasSubScore = sub && sub.score !== undefined && sub.score !== null && sub.score !== '' && sub.score !== '-' && !isNaN(Number(sub.score));
-                            if ((sub?.teacherSaved || hasSubScore) && (sub.attendance === 'incomplete' || sub.attendance === 'missing' || sub.attendance === 'absent')) {
-                                sub.attendance = '';
-                                if (sub.status === 'Incomplete' || sub.status === 'Missing' || sub.status === 'Absent' || sub.status === 'Pending') {
-                                    sub.status = 'Graded';
-                                }
-                                sub.isPending = false;
-                                subsChanged = true;
-                            }
-                        });
-                    });
-                    if (subsChanged) {
-                        localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
-                    }
-                }
-            } catch (_) {}
-        }
-
-        // Clean up sigma_gradebook_attendance_v1 for quiz items
-        try {
-            const rawV1 = localStorage.getItem('sigma_gradebook_attendance_v1');
-            if (rawV1) {
-                const store = JSON.parse(rawV1);
-                if (store && typeof store === 'object') {
-                    let changed = false;
-                    Object.keys(store).forEach(sid => {
-                        const bucket = store[sid];
-                        if (!bucket || typeof bucket !== 'object') return;
-                        Object.keys(bucket).forEach(k => {
-                            const row = bucket[k];
-                            if (!row || typeof row !== 'object') return;
-                            const rTitle = String(row.title || '').toLowerCase();
-                            const rId = String(row.itemId || k || '').toLowerCase();
-                            const isQuiz = rTitle.includes('quiz') || rTitle.includes('basic syntax') || rId.includes('quiz') || rId.includes('qz-9301') || (Number(row.topicIdx) === 0 && Number(row.slot) === 1);
-                            if (isQuiz) {
-                                delete bucket[k];
-                                changed = true;
-                            }
-                        });
-                    });
-                    if (changed) localStorage.setItem('sigma_gradebook_attendance_v1', JSON.stringify(store));
-                }
-            }
-        } catch (_) {}
-
-        // Clean up sigma_gradebook_attendance for quiz items
-        try {
-            const rawAtt = localStorage.getItem('sigma_gradebook_attendance');
-            if (rawAtt) {
-                const attList = JSON.parse(rawAtt);
-                if (Array.isArray(attList)) {
-                    let attChanged = false;
-                    const filteredAtt = attList.filter(item => {
-                        const title = String(item?.assessmentTitle || item?.title || '').toLowerCase();
-                        if (title.includes('quiz 1') || title.includes('basic syntax') || title.includes('qz-9301')) {
-                            attChanged = true;
-                            return false;
-                        }
-                        return true;
-                    });
-                    if (attChanged) {
-                        localStorage.setItem('sigma_gradebook_attendance', JSON.stringify(filteredAtt));
-                    }
-                }
-            }
-        } catch (_) {}
-
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (!k) continue;
-            if (k.startsWith('sigma_sub_') && (k.includes('_top_0_assessments_1') || k.includes('_top_0_quiz_1') || k.includes('quiz_1') || k.includes('basic_syntax'))) {
-                try {
-                    const raw = localStorage.getItem(k);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        const hasRealSub = Boolean(parsed && (parsed.submittedAt || parsed.completedAt || (parsed.fileName && parsed.fileName !== 'quiz') || (parsed.fileUrl && parsed.fileUrl !== 'quiz') || (Array.isArray(parsed.files) && parsed.files.length) || (parsed.answers && Object.keys(parsed.answers).length) || (parsed.userAnswers && Object.keys(parsed.userAnswers).length)));
-                        if (!hasRealSub) {
-                            localStorage.removeItem(k);
-                        }
-                    }
-                } catch (_) {}
-            }
-            if (k.startsWith('sigma_sub_') && k.includes('_top_0_assessments_0')) {
-                try {
-                    const raw = localStorage.getItem(k);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && (parsed.quizId || (parsed.title && String(parsed.title).toLowerCase().includes('quiz')) || (!parsed.fileName && (parsed.score === 28 || parsed.score === '28')))) {
-                            localStorage.removeItem(k);
-                        }
-                    }
-                } catch (_) {}
-            }
-        }
-        try {
-            const rawDrafts = localStorage.getItem('sigma_teacher_score_panel_drafts');
-            if (rawDrafts) {
-                const drafts = JSON.parse(rawDrafts);
-                if (drafts && typeof drafts === 'object') {
-                    let draftChanged = false;
-                    Object.keys(drafts).forEach(dk => {
-                        if (dk.includes('quiz') || dk.includes('assessments_1') || dk.includes('top_0_1') || dk.includes('basic_syntax')) {
-                            delete drafts[dk];
-                            draftChanged = true;
-                        }
-                    });
-                    if (draftChanged) localStorage.setItem('sigma_teacher_score_panel_drafts', JSON.stringify(drafts));
-                }
-            }
-        } catch (_) {}
-    } catch (_) {}
-};
-try { window.sanitizeGradebookCollisions(); } catch (_) {}
 
 window.invalidateTeacherGradebookCache = function () {
     _sharedGbCache.ts = 0;
     _sharedGbCache.scores = null;
     _sharedGbCache.statuses = null;
-    try { window.sanitizeGradebookCollisions?.(); } catch (_) {}
 };
 window.invalidateSharedAssessmentSubmissionsStorage = function () {
     _sharedSubsCache.ts = 0;
@@ -16402,12 +16110,23 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
             e.key.startsWith('sigma_submission_')
         );
         if (isScoreOrGradeKey) {
+            // Cross-tab writes supersede this tab's submission fallback copies.
+            window._sharedAssessmentSubmissionsMemoryCache = {};
+            window._latestSubmissionForScorePanel = null;
+            window.invalidateTeacherGradebookCache?.();
+            window.invalidateSharedAssessmentSubmissionsStorage?.();
             let meta = null;
             if (e.key === 'sigma-assessment-scored-broadcast') {
                 try { meta = JSON.parse(e.newValue || '{}')?.meta; } catch (_) {}
             }
             window.refreshAllScorePanelsAndTables(meta, true);
         }
+    });
+    window.addEventListener('focus', function () {
+        if (!window.location.pathname.includes('student')) return;
+        window._sharedAssessmentSubmissionsMemoryCache = {};
+        window._latestSubmissionForScorePanel = null;
+        window.refreshAllScorePanelsAndTables({ source: 'student_tab_focus' }, true);
     });
 }
 
@@ -16745,6 +16464,7 @@ window.persistReviewTotalToScorePanel = function (score, maxScore) {
         });
         localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
         window.invalidateSharedAssessmentSubmissionsStorage?.();
+        window._studentAssessmentDetailsCache?.clear();
     } catch (e) { }
     if (typeof window.saveStudentQuizFileCopy === 'function') {
         try { window.saveStudentQuizFileCopy(payload); } catch (e) { }
@@ -17152,6 +16872,11 @@ window.saveOfficialQuizGradebook = function (subData, meta) {
 window.syncSharedScoreAndStatus = function (params) {
     if (!params || typeof params !== 'object') return null;
 
+    // Start from persisted data so shared scoring and portal-local state agree.
+    const storedGradebook = window._getTeacherGradebookCached(true);
+    const gradebookScores = storedGradebook.scores || {};
+    const gradebookStatuses = storedGradebook.statuses || {};
+
     const source = params.source || 'direct'; // 'score_panel' | 'gradebook_table' | 'attendance' | 'direct'
     let rawScore = params.score;
     let rawStatus = params.status;
@@ -17202,7 +16927,8 @@ window.syncSharedScoreAndStatus = function (params) {
         }
     });
 
-    const section = String(params.section || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof gradebookState !== 'undefined' ? gradebookState?.selectedSection : '') || (window.sigmaGradesState && (window.sigmaGradesState.selectedSection || window.sigmaGradesState.selectedSubjectSection?.sectionName)) || '').trim();
+    const tableState = source === 'gradebook_table' ? (window.sigmaGradesState || {}) : {};
+    const section = String(tableState.selectedSubjectSection?.sectionName || tableState.selectedSection || params.section || window.currentTopicState?.selectedSection || '').trim();
 
     // Look up section students to add any other alias
     const secStudents = (typeof window.getUnifiedSectionStudents === 'function' ? window.getUnifiedSectionStudents(section) : null)
@@ -17246,14 +16972,17 @@ window.syncSharedScoreAndStatus = function (params) {
             }
         }
     }
-    const sKeysToSave = Array.from(sKeysSet).filter(Boolean);
+    const studentAliases = Array.from(sKeysSet).filter(Boolean);
+    const canonicalStudentId = String(matchedRoster?.id || matchedRoster?.uid || sId).replace(/^std-/i, '').trim();
+    if (!canonicalStudentId || canonicalStudentId === sName) throw new Error('A student account ID is required to save a grade.');
+    const sKeysToSave = [canonicalStudentId];
 
     // 2. Resolve subject
     const subjectId = String(params.subjectId || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '') || (typeof gradebookState !== 'undefined' ? gradebookState?.selectedSubject : '') || '').trim();
     const subAliases = (typeof window.getUnifiedSubjectAliases === 'function' && subjectId) ? window.getUnifiedSubjectAliases(subjectId) : [subjectId];
 
     // 3. Resolve quarter
-    const quarter = Number(params.quarter || (typeof gradebookState !== 'undefined' ? gradebookState?.currentQuarter : 1) || (typeof currentTopicState !== 'undefined' ? currentTopicState?.quarter : 1) || 1);
+    const quarter = Number(tableState.activeQuarter || params.quarter || window.currentTopicState?.quarter || 1);
     const qKeys = Array.from(new Set([quarter, `Q${quarter}`, `q${quarter}`, String(quarter)])).filter(Boolean);
 
     // 4. Resolve section keys (clean, raw, and unsectioned root)
@@ -17278,6 +17007,8 @@ window.syncSharedScoreAndStatus = function (params) {
     const catKeysSet = new Set();
     const normCat = (item?._category || item?.category || item?.type || (item?.quizId ? 'quiz' : '') || category || '').toLowerCase();
     const isQuizTarget = Boolean(normCat.includes('quiz') || item?.quizId || (itemId && String(itemId).startsWith('qz-')) || /quiz/i.test(taskTitle));
+    const isQuizItem = isQuizTarget;
+    const tabKey = isQuizItem ? 'quiz' : (category === 'activity' ? 'activity' : 'assessments');
     if (isQuizTarget) {
         catKeysSet.add('quiz'); catKeysSet.add('quizzes'); catKeysSet.add('Quiz'); catKeysSet.add('Quizzes');
     }
@@ -17318,9 +17049,9 @@ window.syncSharedScoreAndStatus = function (params) {
         if (typeof gradebookStatuses !== 'undefined') {
             searchExisting: for (const sb of subAliases) {
                 for (const qk of qKeys) {
-                    for (const sk of sKeysToSave) {
+                    for (const sk of studentAliases) {
                         for (const ck of catKeys) {
-                            for (const sec of ['', ...secKeys]) {
+                            for (const sec of secKeys.length ? secKeys : ['']) {
                                 const root = sec ? gradebookStatuses?.[sb]?.[qk]?.[sec] : gradebookStatuses?.[sb]?.[qk];
                                 const st = root?.[sk]?.[ck]?.[itemIdx] || root?.[sk]?.[ck]?.[String(itemIdx)];
                                 if (st) {
@@ -17358,6 +17089,7 @@ window.syncSharedScoreAndStatus = function (params) {
                     for (const k of Object.keys(bucket)) {
                         const row = bucket[k];
                         if (!row || typeof row !== 'object') continue;
+                        if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(row.quarter) !== quarter)) continue;
                         const matchId = itemId && [row.id, row.materialId, row.quizId, row.origId].some(id => id && String(id).toLowerCase() === itemId.toLowerCase());
                         const matchTopic = (Number(row.topicIdx) === topicIdx && Number(row.topicItemIdx ?? row.activeIdx) === topicItemIdx);
                         const matchTitle = taskTitle && row.title && String(row.title).toLowerCase() === taskTitle.toLowerCase();
@@ -17392,17 +17124,51 @@ window.syncSharedScoreAndStatus = function (params) {
     if (typeof gradebookScores === 'undefined') window.gradebookScores = {};
     if (typeof gradebookStatuses === 'undefined') window.gradebookStatuses = {};
 
-    subAliases.forEach(sb => {
+    // Consolidate only the explicitly edited slot. Keep a backup before removing aliases.
+    const canonicalCategory = isQuizTarget ? 'quiz' : normCat.includes('perf') || normCat === 'pt' ? 'perf. task' : normCat.includes('activ') ? 'activity' : normCat.includes('exam') || normCat === 'qa' ? 'qa' : normCat === 'ww' || normCat === 'written works' ? 'ww' : 'assignment';
+    const legacyCopies = [];
+    for (const [kind, data] of [['scores', gradebookScores], ['statuses', gradebookStatuses]]) {
+        for (const sb of subAliases) {
+            for (const qk of qKeys) {
+                const bucket = data[sb]?.[qk];
+                if (!bucket) continue;
+                for (const sectionKey of secKeys.length ? secKeys : ['']) {
+                    const root = sectionKey ? bucket[sectionKey] : bucket;
+                    for (const sk of studentAliases) {
+                        for (const ck of catKeys) {
+                            const value = root?.[sk]?.[ck]?.[itemIdx];
+                            if (value === undefined) continue;
+                            if (sb === subjectId && String(qk) === String(quarter) && sectionKey === (rawSec ? `sec:${rawSec}` : '') && sk === canonicalStudentId && ck === canonicalCategory) continue;
+                            legacyCopies.push({ kind, subject: sb, quarter: qk, section: sectionKey, student: sk, category: ck, slot: itemIdx, value });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (legacyCopies.length) {
+        const backupKey = 'sigma_grade_alias_migration_backup_v1';
+        const backup = JSON.parse(localStorage.getItem(backupKey) || '[]');
+        backup.push({ at: new Date().toISOString(), subjectId, section, quarter, studentId: canonicalStudentId, itemId, records: legacyCopies });
+        localStorage.setItem(backupKey, JSON.stringify(backup));
+        for (const record of legacyCopies) {
+            const data = record.kind === 'scores' ? gradebookScores : gradebookStatuses;
+            const bucket = data[record.subject][record.quarter];
+            const root = record.section ? bucket[record.section] : bucket;
+            delete root[record.student][record.category][record.slot];
+        }
+    }
+    [subjectId].forEach(sb => {
         if (!gradebookScores[sb]) gradebookScores[sb] = {};
         if (!gradebookStatuses[sb]) gradebookStatuses[sb] = {};
-        qKeys.forEach(qk => {
+        [String(quarter)].forEach(qk => {
             if (!gradebookScores[sb][qk]) gradebookScores[sb][qk] = {};
             if (!gradebookStatuses[sb][qk]) gradebookStatuses[sb][qk] = {};
 
-            // Store in all section keys AND in direct root
-            const roots = [gradebookScores[sb][qk]];
-            const statusRoots = [gradebookStatuses[sb][qk]];
-            secKeys.forEach(skKey => {
+            // Section-specific grades must never be copied to an unsectioned root.
+            const roots = secKeys.length ? [] : [gradebookScores[sb][qk]];
+            const statusRoots = secKeys.length ? [] : [gradebookStatuses[sb][qk]];
+            (secKeys.length ? [`sec:${rawSec}`] : []).forEach(skKey => {
                 if (!gradebookScores[sb][qk][skKey]) gradebookScores[sb][qk][skKey] = {};
                 if (!gradebookStatuses[sb][qk][skKey]) gradebookStatuses[sb][qk][skKey] = {};
                 roots.push(gradebookScores[sb][qk][skKey]);
@@ -17414,7 +17180,7 @@ window.syncSharedScoreAndStatus = function (params) {
                 sKeysToSave.forEach(sk => {
                     if (!scoreRoot[sk]) scoreRoot[sk] = {};
                     if (!statusRoot[sk]) statusRoot[sk] = {};
-                    catKeys.forEach(ck => {
+                    [canonicalCategory].forEach(ck => {
                         if (!scoreRoot[sk][ck]) scoreRoot[sk][ck] = {};
                         if (!statusRoot[sk][ck]) statusRoot[sk][ck] = {};
 
@@ -17433,7 +17199,7 @@ window.syncSharedScoreAndStatus = function (params) {
                             // Write status strictly to target category and slot
                             if (tone === 'none') {
                                 if (statusRoot[sk]?.[ck]) {
-                                    const clearSlots = Array.from(new Set([slot, itemIdx, topicItemIdx, params.colIdx, 0])).filter(v => v !== undefined && v !== null && !isNaN(Number(v)));
+                                    const clearSlots = [slot];
                                     clearSlots.forEach(s => {
                                         delete statusRoot[sk][ck][s];
                                         delete statusRoot[sk][ck][String(s)];
@@ -17450,21 +17216,18 @@ window.syncSharedScoreAndStatus = function (params) {
         });
     });
 
-    // 8. Save gradebook storage
-    if (typeof saveGradebookData === 'function') {
-        saveGradebookData();
-    } else {
-        try {
-            const scJson = JSON.stringify(gradebookScores);
-            const stJson = JSON.stringify(gradebookStatuses);
-            localStorage.setItem('sigma-teacher-gradebook-scores-v2', scJson);
-            localStorage.setItem('sigma_gradebook_scores', scJson);
-            localStorage.setItem('gradebookScores', scJson);
-            localStorage.setItem('sigma-teacher-gradebook-statuses-v2', stJson);
-            localStorage.setItem('sigma_gradebook_statuses', stJson);
-            localStorage.setItem('gradebookStatuses', stJson);
-        } catch (e) {}
+    // 8. Persist before updating the UI; storage failures must reach the caller.
+    {
+        const scJson = JSON.stringify(gradebookScores);
+        const stJson = JSON.stringify(gradebookStatuses);
+        localStorage.setItem('sigma-teacher-gradebook-scores-v2', scJson);
+        localStorage.setItem('sigma-teacher-gradebook-statuses-v2', stJson);
+        localStorage.setItem('sigma_gradebook_scores', scJson);
+        localStorage.setItem('gradebookScores', scJson);
+        localStorage.setItem('sigma_gradebook_statuses', stJson);
+        localStorage.setItem('gradebookStatuses', stJson);
     }
+    window.loadGradebookData?.();
     window.invalidateTeacherGradebookCache?.();
     window.clearCategoryDetailsCache?.();
 
@@ -17475,7 +17238,8 @@ window.syncSharedScoreAndStatus = function (params) {
             tone,
             item || { id: itemId, title: taskTitle },
             topicIdx,
-            topicItemIdx
+            topicItemIdx,
+            { subjectId, section, quarter }
         );
     }
 
@@ -17489,8 +17253,6 @@ window.syncSharedScoreAndStatus = function (params) {
             ? (tone === 'excuse' ? 'Excuse' : (tone.charAt(0).toUpperCase() + tone.slice(1)))
             : (finalScore !== '' ? 'Graded' : 'Submitted');
 
-        const isQuizItem = category.includes('quiz') || Boolean(item?.quizId) || Boolean(itemId && String(itemId).startsWith('qz-')) || /quiz/i.test(taskTitle);
-        const tabKey = isQuizItem ? 'quiz' : (category === 'activity' ? 'activity' : 'assessments');
         const nowIso = new Date().toISOString();
         sKeysToSave.forEach(sk => {
             if (!allSubs[sk] || typeof allSubs[sk] !== 'object') allSubs[sk] = {};
@@ -17498,7 +17260,8 @@ window.syncSharedScoreAndStatus = function (params) {
             const matKey = itemId ? `${cleanSubj}_sec_${cleanSec}_mat_${itemId.toLowerCase()}` : '';
             const topKey = `${cleanSubj}_sec_${cleanSec}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
             const unsecTopKey = `${cleanSubj}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
-            const targetKeys = Array.from(new Set([matKey, topKey, unsecTopKey, itemId, taskTitle].filter(Boolean)));
+            const legacyKeys = [unsecTopKey, itemId, taskTitle].filter(key => key && allSubs[sk][key]?.section === section);
+            const targetKeys = Array.from(new Set([matKey, topKey, ...legacyKeys].filter(Boolean)));
 
             targetKeys.forEach(tKey => {
                 if (!allSubs[sk][tKey]) allSubs[sk][tKey] = {};
@@ -17518,6 +17281,8 @@ window.syncSharedScoreAndStatus = function (params) {
                 target.studentId = sId || sk;
                 target.studentName = sName;
                 target.section = section;
+                target.subjectId = subjectId;
+                target.quarter = quarter;
                 target.topicIdx = topicIdx;
                 target.topicItemIdx = topicItemIdx;
                 if (taskTitle) target.title = taskTitle;
@@ -17537,6 +17302,7 @@ window.syncSharedScoreAndStatus = function (params) {
             Object.keys(allSubs[sk]).forEach(k => {
                 const row = allSubs[sk][k];
                 if (!row || typeof row !== 'object') return;
+                if (row.section !== section || (row.subjectId && !subAliases.includes(row.subjectId)) || (row.quarter && Number(row.quarter) !== quarter)) return;
                 const rowCat = String(row.category || row.type || row.materialType || (row.quizId ? 'quiz' : '')).toLowerCase();
                 const rowTitle = String(row.title || row.quizTitle || row.assessmentTitle || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
                 const rowIsQuiz = Boolean(rowCat.includes('quiz') || row.quizId || row.selectedQuizId || /quiz/i.test(rowTitle) || row.type === 'quiz');
@@ -17603,6 +17369,10 @@ window.syncSharedScoreAndStatus = function (params) {
                     const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
                     if (raw) existingSub = JSON.parse(raw);
                 } catch (_) {}
+                if (existingSub.section && existingSub.section !== section) return;
+                existingSub.section = section;
+                existingSub.subjectId = subjectId;
+                existingSub.quarter = quarter;
                 existingSub.score = finalScore === '' ? '' : finalScore;
                 existingSub.grade = finalScore === '' ? '' : finalScore;
                 existingSub.earnedPoints = finalScore === '' ? '' : finalScore;
@@ -17645,6 +17415,7 @@ window.syncSharedScoreAndStatus = function (params) {
                 if (!raw) continue;
                 const obj = JSON.parse(raw);
                 if (!obj || typeof obj !== 'object') continue;
+                if (obj.section !== section || (obj.subjectId && !subAliases.includes(obj.subjectId)) || (obj.quarter && Number(obj.quarter) !== quarter)) continue;
                 const objStd = String(obj.studentId || obj.studentName || '').toLowerCase();
                 const stdMatch = matchesStdKey || sKeysToSave.some(sk => objStd.includes(String(sk).toLowerCase()));
                 if (!stdMatch) continue;
@@ -17689,55 +17460,6 @@ window.syncSharedScoreAndStatus = function (params) {
             } catch (_) {}
         }
 
-        // Guarantee submission record exists in sigma_student_assessment_submissions and sigma_sub_
-        try {
-            const allSubs = JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
-            const targetStatus = (tone && tone !== 'none') ? (tone === 'excuse' ? 'Excuse' : (tone.charAt(0).toUpperCase() + tone.slice(1))) : (finalScore !== '' ? 'Graded' : 'None');
-            sKeysToSave.forEach(sid => {
-                if (!sid) return;
-                const cleanSid = String(sid).trim();
-                if (!allSubs[cleanSid]) allSubs[cleanSid] = {};
-                
-                const subItemKey1 = `${cleanSubj}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
-                const subItemKey2 = `${cleanSubj}_top_${topicIdx}_${tabKey}_${itemIdx}`;
-                const subItemKey3 = itemId ? `${cleanSubj}_mat_${itemId}` : null;
-                const subItemKey4 = (tabKey === 'quiz' && itemId) ? `${cleanSubj}_quizfile_${itemId}` : null;
-
-                const existingSub = allSubs[cleanSid][subItemKey1] || allSubs[cleanSid][subItemKey2] || (subItemKey3 ? allSubs[cleanSid][subItemKey3] : null) || {};
-                const mergedSub = Object.assign({}, existingSub, {
-                    studentId: studentId || cleanSid,
-                    studentName: studentName || cleanSid,
-                    subjectId: subjectId,
-                    topicIdx: topicIdx,
-                    topicItemIdx: topicItemIdx,
-                    itemIdx: itemIdx,
-                    id: itemId || existingSub.id || '',
-                    title: taskTitle || existingSub.title || '',
-                    category: category,
-                    tab: tabKey,
-                    score: finalScore === '' ? '' : finalScore,
-                    grade: finalScore === '' ? '' : finalScore,
-                    earnedPoints: finalScore === '' ? '' : finalScore,
-                    status: targetStatus,
-                    attendance: (tone && tone !== 'none') ? tone : '',
-                    teacherSaved: true,
-                    teacherEditedScore: true,
-                    isPending: false,
-                    gradedAt: new Date().toISOString()
-                });
-                allSubs[cleanSid][subItemKey1] = mergedSub;
-                allSubs[cleanSid][subItemKey2] = mergedSub;
-                if (subItemKey3) allSubs[cleanSid][subItemKey3] = mergedSub;
-                if (subItemKey4) allSubs[cleanSid][subItemKey4] = mergedSub;
-
-                const directKey = `sigma_sub_${cleanSid}_${cleanSubj}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
-                try {
-                    const curDirect = JSON.parse(localStorage.getItem(directKey) || '{}');
-                    localStorage.setItem(directKey, JSON.stringify(Object.assign({}, curDirect, mergedSub)));
-                } catch (_) {}
-            });
-            localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
-        } catch (_) {}
     } catch (e) {}
 
     // 11. Live DOM Sync: Score Panel
@@ -17865,7 +17587,7 @@ window.syncSharedScoreAndStatus = function (params) {
             let badgeClass = 'text-black bg-slate-100 border border-slate-200/80';
             if (tone === 'missing' || tone === 'absent') {
                 badgeText = tone === 'missing' ? 'Missing' : 'Absent';
-                badgeClass = 'text-red-700 bg-red-50 border border-red-200';
+                badgeClass = tone === 'absent' ? 'text-gray-700 bg-gray-100 border border-gray-300' : 'text-red-700 bg-red-50 border border-red-200';
             } else if (tone === 'incomplete') {
                 badgeText = 'Incomplete';
                 badgeClass = 'text-amber-700 bg-amber-50 border border-amber-200';
@@ -17885,6 +17607,16 @@ window.syncSharedScoreAndStatus = function (params) {
             }
         }
         const progressScoreEl = document.querySelector('.topic-progress-card .text-4xl, .topic-progress-card .text-3xl');
+        const scoreProgressFill = document.querySelector('.topic-progress-card .score-progress-fill');
+        if (scoreProgressFill) {
+            const hasNumericScore = displayVal !== '' && Number.isFinite(Number(displayVal));
+            const percentage = hasNumericScore && maxScore > 0
+                ? Math.min(100, Math.max(0, Number(displayVal) / maxScore * 100)) : 0;
+            scoreProgressFill.style.setProperty('--score-pct', `${percentage}%`);
+            scoreProgressFill.style.width = `${percentage}%`;
+            scoreProgressFill.classList.remove('bg-red-500');
+            scoreProgressFill.classList.add('bg-[#15803d]');
+        }
         if (progressScoreEl) {
             const hasNum = displayVal !== '' && displayVal !== null && displayVal !== undefined && displayVal !== '-' && displayVal !== '—';
             progressScoreEl.textContent = hasNum ? displayVal : '-';
@@ -17969,7 +17701,14 @@ window.syncSharedScoreAndStatus = function (params) {
 
                 const colIndexMatch = catMatch && !isNaN(Number(cell.dataset.itemIdx)) && !isNaN(Number(itemIdx)) && Number(cell.dataset.itemIdx) === Number(itemIdx);
 
-                const isColumnMatch = idMatch || titleMatch || topicMatch || colIndexMatch;
+                const cellSubject = String(cell.dataset.subject || '').replace(/^(card-|subj-)/, '').toLowerCase();
+                const targetSubject = String(subjectId || '').replace(/^(card-|subj-)/, '').toLowerCase();
+                if (cellSubject && cellSubject !== targetSubject) return;
+                const exactIdMatch = hasTargetId && hasCellId && String(itemId).toLowerCase() === cId;
+                const exactTitleMatch = Boolean(taskTitle && cTitle && taskTitle.trim().toLowerCase() === cTitle.trim().toLowerCase());
+                const isColumnMatch = hasTargetId && hasCellId
+                    ? exactIdMatch
+                    : (isCellQuiz === isQuizTarget && catMatch && (exactTitleMatch || (!taskTitle && !cTitle && colIndexMatch && topicMatch)));
                 if (!isColumnMatch) return;
 
                 const displayVal = (finalScore !== '' && finalScore !== null && finalScore !== undefined) ? String(finalScore) : '';
@@ -18083,8 +17822,9 @@ window.saveTeacherGradingScore = function () {
         return;
     }
 
-    const section = (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '') || '';
-    let student = (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedStudent : '') || '';
+    const topicState = window.currentTopicState || {};
+    const section = topicState.selectedSection || '';
+    let student = topicState.selectedStudent || '';
     if ((!student || student === 'All') && saveBtn) {
         student = saveBtn.dataset.studentName || saveBtn.dataset.studentId || '';
         if (student && typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = student;
@@ -18095,10 +17835,14 @@ window.saveTeacherGradingScore = function () {
         return;
     }
 
-    const subjectId = (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '') || '';
-    const topicIdx = (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : ((typeof currentTopicState !== 'undefined' ? currentTopicState?.topicIdx : 0) || 0));
-    const actIdx = (typeof _tcAssessmentDetailIdx !== 'undefined' && _tcAssessmentDetailIdx !== null) ? Number(_tcAssessmentDetailIdx) : ((typeof currentTopicState !== 'undefined' ? currentTopicState?.assessmentIdx : 0) || 0);
-    const tab = (typeof currentTopicState !== 'undefined' ? currentTopicState?.activeTab : '') || 'assessments';
+    const subjectId = topicState.subjectId || '';
+    const topicIdx = Number(topicState.topicIdx || 0);
+    const actIdx = Number(window._tcAssessmentDetailIdx ?? topicState.assessmentIdx ?? 0);
+    const tab = topicState.activeTab || 'assessments';
+    if (!subjectId || !section) {
+        window.showToast?.('Open an assessment in a class before saving a grade', 'warning');
+        return;
+    }
 
     let currentItem = null;
     if (typeof window.getCurrentTopicAssessment === 'function') {
@@ -18121,7 +17865,7 @@ window.saveTeacherGradingScore = function () {
     const studentId = String(saveBtn?.dataset?.studentId || studentObj.id || studentObj.uid || studentObj.lrn || student).trim();
     const studentName = String(saveBtn?.dataset?.studentName || studentObj.name || studentObj.fullName || student).trim();
 
-    const quarter = (typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter) ? gradebookState.currentQuarter : 1;
+    const quarter = Number(String(currentItem?.quarter || topicState.quarter || window.currentSelectedTopicQuarter || window.sigmaGradesState?.activeQuarter || 1).replace(/\D/g, '')) || 1;
     const resolvedColumn = (typeof window.resolveGradebookScoreColumn === 'function')
         ? window.resolveGradebookScoreColumn(subjectId, section, quarter, currentItem, topicIdx, actIdx)
         : null;
@@ -18161,6 +17905,7 @@ window.saveTeacherGradingScore = function () {
     const valueToStore = (numScore !== null && !isNaN(numScore)) ? numScore : '';
 
     // Call unified shared grading sync
+    try {
     window.syncSharedScoreAndStatus({
         source: 'score_panel',
         studentId: studentId,
@@ -18179,6 +17924,11 @@ window.saveTeacherGradingScore = function () {
         status: attendance,
         maxScore: maxAllowed || 100
     });
+    } catch (error) {
+        console.error('Failed to save grade:', error);
+        window.showToast?.('Grade could not be saved. Browser storage may be full; keep this score open and try again.', 'error');
+        return;
+    }
 
     window.closeTeacherScoreEditor?.(input);
     window.syncGradeScoreDraft?.();
@@ -18812,8 +18562,8 @@ window.handleGradingStatusChange = function (newStatus) {
         });
     }
 
-    // Direct attendance save guarantee
-    if (typeof window.saveGradebookAttendance === 'function') {
+    // Only older callers without the shared writer need this fallback.
+    if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof window.saveGradebookAttendance === 'function') {
         window.saveGradebookAttendance(
             { id: studentId, name: studentName, fullName: studentName },
             normStatus,
@@ -18904,7 +18654,7 @@ window.handleGradingStatusChange = function (newStatus) {
         let badgeClass = 'text-black bg-slate-100 border border-slate-200/80';
         if (normStatus === 'missing' || normStatus === 'absent') {
             badgeText = normStatus === 'missing' ? 'Missing' : 'Absent';
-            badgeClass = 'text-red-700 bg-red-50 border border-red-200';
+            badgeClass = normStatus === 'absent' ? 'text-gray-700 bg-gray-100 border border-gray-300' : 'text-red-700 bg-red-50 border border-red-200';
         } else if (normStatus === 'incomplete') {
             badgeText = 'Incomplete';
             badgeClass = 'text-amber-700 bg-amber-50 border border-amber-200';
@@ -19041,7 +18791,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
 
     const subj = subjectId || (typeof gradebookState !== 'undefined' ? gradebookState.selectedSubject : '') || (window.sigmaGradesState && (window.sigmaGradesState.selectedSubject || window.sigmaGradesState.selectedSubjectSection?.subject)) || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '') || '';
     const q = currentQ || (typeof gradebookState !== 'undefined' ? gradebookState.currentQuarter : 1) || (window.sigmaGradesState && window.sigmaGradesState.activeQuarter) || (typeof window.currentSelectedTopicQuarter !== 'undefined' && window.currentSelectedTopicQuarter ? parseInt(String(window.currentSelectedTopicQuarter).replace(/\D/g, ''), 10) : 1);
-    const section = (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof gradebookState !== 'undefined' ? gradebookState?.selectedSection : '') || (window.sigmaGradesState && (window.sigmaGradesState.selectedSection || window.sigmaGradesState.selectedSubjectSection?.sectionName)) || (typeof student === 'object' ? (student.section || student.gradeSection || '') : '');
+    const section = item?.section || student?.section || student?.gradeSection || (window.sigmaGradesState && (window.sigmaGradesState.selectedSubjectSection?.sectionName || window.sigmaGradesState.selectedSection)) || window.currentTopicState?.selectedSection || '';
 
     const getCatDetailsFn = (typeof getCategoryDetails === 'function') ? getCategoryDetails : (typeof window.getCategoryDetails === 'function' ? window.getCategoryDetails : null);
     const categoryItemList = getCatDetailsFn ? (getCatDetailsFn(cat, q, subj, section) || getCatDetailsFn(cat) || []) : [];
@@ -19253,12 +19003,8 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
                 : String(key).slice(4).trim().toLowerCase();
             if (want && keySec === want) found.push(bucket);
         });
-        if (!found.length) {
-            secBuckets.forEach((bucket) => {
-                if (found.indexOf(bucket) === -1) found.push(bucket);
-            });
-        }
-        if (found.indexOf(quarterMap) === -1) found.push(quarterMap);
+        // Read legacy unsectioned grades only when no scoped sections exist.
+        if (!secBuckets.length) found.push(quarterMap);
         return found;
     };
 
@@ -19357,6 +19103,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
                 const lowStored = String(storedKey || '').toLowerCase().trim();
                 if (!lowStored) return false;
                 if (sKeys.some(sk => String(sk).toLowerCase().trim() === lowStored)) return true;
+                if (student?.id || student?.uid || student?.lrn || student?.studentNumber) return false;
                 if (lName && fName) {
                     const lowL = String(lName).toLowerCase().trim();
                     const lowF = String(fName).toLowerCase().trim();
@@ -19412,14 +19159,6 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         savedStatus = bestZeroHit.status || savedStatus;
     }
 
-    if (savedScore === undefined && foundItem && typeof foundItem === 'object') {
-        for (const sk of sKeys) {
-            if (foundItem.grades && foundItem.grades[sk] !== undefined && foundItem.grades[sk] !== '' && foundItem.grades[sk] !== '-') {
-                savedScore = foundItem.grades[sk];
-                break;
-            }
-        }
-    }
 
     // Direct in-memory / storage fallback for gradebookStatuses (works in both teacher and student views)
     const statusesSource = (typeof gradebookStatuses !== 'undefined' && gradebookStatuses && Object.keys(gradebookStatuses).length)
@@ -19430,10 +19169,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
             for (const qk of qKeys) {
                 const stMap = statusesSource[sb]?.[qk];
                 if (!stMap || typeof stMap !== 'object') continue;
-                const secBuckets = [stMap];
-                Object.keys(stMap).forEach(k => {
-                    if (String(k).startsWith('sec:') && typeof stMap[k] === 'object') secBuckets.push(stMap[k]);
-                });
+                const secBuckets = sectionBuckets(stMap);
                 for (const bucket of secBuckets) {
                     for (const sk of sKeys) {
                         for (const ck of catKeys) {
@@ -19455,7 +19191,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
             if (savedStatus) break;
         }
     }
-    if (!savedStatus && statusesSource && typeof statusesSource === 'object') {
+    if (!section && !savedStatus && statusesSource && typeof statusesSource === 'object') {
         for (const qk of qKeys) {
             const stMap = statusesSource[qk];
             if (!stMap || typeof stMap !== 'object') continue;
@@ -19873,6 +19609,10 @@ window.gradebookAttendanceMark = function (student, item, category, itemIdx, sub
         }
 
         const source = (item && item.rawItem) || item || {};
+        const scopeSection = item?.section || student?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || window.currentTopicState?.selectedSection || '';
+        const scopeSubject = subjectId || item?.subjectId || window.currentTopicState?.subjectId || '';
+        const scopeQuarter = quarter || item?.quarter || window.sigmaGradesState?.activeQuarter || 1;
+        const matchesScope = row => String(row.subjectId || '') === String(scopeSubject) && String(row.section || '') === String(scopeSection) && String(row.quarter || '') === String(scopeQuarter);
         const isQuizItem = Boolean(
             category === 'quiz' || source.quizId || source.category === 'quiz' || source.type === 'quiz' ||
             item.quizId || item.category === 'quiz' || item.type === 'quiz' ||
@@ -19896,7 +19636,7 @@ window.gradebookAttendanceMark = function (student, item, category, itemIdx, sub
                 if (!bucket || typeof bucket !== 'object') continue;
                 for (const key of Object.keys(bucket)) {
                     const row = bucket[key];
-                    if (!row || typeof row !== 'object') return;
+                    if (!row || typeof row !== 'object' || !matchesScope(row)) continue;
                     const rowRawTitle = String(row.title || '').trim().toLowerCase();
                     const rowCleanTitle = rowRawTitle.replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^(quiz|task|assignment|activity|perf\.?\s*task)\s*\d*[:\s-]+/i, '').trim();
                     const rowId = String(row.itemId || key || '').trim().toLowerCase();
@@ -19972,7 +19712,7 @@ window.gradebookAttendanceChipHtml = function (mark) {
     return '';
 };
 
-window.saveGradebookAttendance = function (student, status, item, topicIdx, slot) {
+window.saveGradebookAttendance = function (student, status, item, topicIdx, slot, context = {}) {
     const key = String(status || '').trim().toLowerCase();
     const allowed = key === 'missing' || key === 'absent' || key === 'incomplete' || key === 'excuse' || key === 'excused' || key === 'none' || key === '';
     if (!allowed) return;
@@ -19984,7 +19724,10 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
     const itemId = String(source.id || source.materialId || source.origId || source.quizId || source.selectedQuizId || (item && (item.id || item.origId || item.quizId)) || '').trim();
     const title = String(source.title || source.name || (item && (item.title || item.name)) || '').trim();
     const isQuizSource = Boolean(source.quizId || source.category === 'quiz' || source.type === 'quiz' || (item && (item.quizId || item.category === 'quiz' || item.type === 'quiz')) || /quiz/i.test(title));
-    const rowKey = itemId || `${isQuizSource ? 'quiz' : 'task'}_${Number(topicIdx) || 0}_${Number(slot) || 0}_${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const subjectId = context.subjectId || item?.subjectId || window.sigmaGradesState?.selectedSubjectSection?.subject || window.sigmaGradesState?.selectedSubject || window.currentTopicState?.subjectId || '';
+    const section = context.section || student?.section || item?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || window.currentTopicState?.selectedSection || '';
+    const quarter = context.quarter || item?.quarter || window.sigmaGradesState?.activeQuarter || window.currentTopicState?.quarter || 1;
+    const rowKey = JSON.stringify([subjectId, section, String(quarter), itemId, Number(topicIdx) || 0, Number(slot) || 0]);
     let store = {};
     try { store = JSON.parse(localStorage.getItem('sigma_gradebook_attendance_v1') || '{}') || {}; } catch (e) { store = {}; }
     const titleClean = title.toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^(quiz|task|assignment|activity|perf\.?\s*task)\s*\d*[:\s-]+/i, '').trim();
@@ -19996,6 +19739,7 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
 
     const rowMatches = (rowKeyName, row) => {
         if (!row || typeof row !== 'object') return false;
+        if (row.subjectId !== subjectId || row.section !== section || String(row.quarter) !== String(quarter)) return false;
         const rowId = String(row.itemId || rowKeyName || '').trim().toLowerCase();
         const rowTitle = String(row.title || '').trim().toLowerCase();
         const rowClean = rowTitle.replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^(quiz|task|assignment|activity|perf\.?\s*task)\s*\d*[:\s-]+/i, '').trim();
@@ -20019,10 +19763,7 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
         const lk = k.toLowerCase().trim();
         if (ids.some(alias => String(alias).toLowerCase().trim() === lk)) allStoreStudentKeys.add(k);
         if (sId && (lk === sId || lk === `std-${sId}` || lk.replace(/^std-/, '') === sId.replace(/^std-/, ''))) allStoreStudentKeys.add(k);
-        if (sName && (lk === sName || (sName.includes(',') && lk.includes(sName.split(',')[0].trim())))) allStoreStudentKeys.add(k);
-        const kTokens = lk.split(/[^a-z0-9]+/).filter(w => w.length > 2);
-        const hits = kTokens.filter(w => nameTokens.has(w));
-        if (hits.length >= 2) allStoreStudentKeys.add(k);
+        if (sName && lk === sName) allStoreStudentKeys.add(k);
     });
 
     allStoreStudentKeys.forEach(sid => {
@@ -20037,7 +19778,13 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
             if (Object.keys(store[sid]).length === 0) delete store[sid];
             return;
         }
+        const canonicalId = String(student?.id || student?.uid || student?.lrn || '').replace(/^std-/i, '');
+        if (canonicalId && sid !== canonicalId) {
+            if (Object.keys(store[sid]).length === 0) delete store[sid];
+            return;
+        }
         store[sid][rowKey] = {
+            subjectId, section, quarter,
             status: key === 'excused' ? 'excuse' : key,
             itemId: itemId,
             title: title,
@@ -20676,8 +20423,8 @@ window.applyOpenGradebookStatus = function (btn) {
         });
     }
 
-    // Direct attendance save as secondary guarantee
-    if (typeof window.saveGradebookAttendance === 'function') {
+    // Legacy fallback only; the shared writer already persists the scoped record.
+    if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof window.saveGradebookAttendance === 'function') {
         window.saveGradebookAttendance(
             { id: studentId, name: studentName, fullName: studentName },
             next,
@@ -20687,7 +20434,7 @@ window.applyOpenGradebookStatus = function (btn) {
         );
     }
 
-    if (typeof saveGradebookData === 'function') {
+    if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof saveGradebookData === 'function') {
         try { saveGradebookData(); } catch (_) {}
     }
 
@@ -20974,6 +20721,9 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
     const topicItemIdx = Number(input.dataset.topicItemIdx !== undefined && input.dataset.topicItemIdx !== '' ? input.dataset.topicItemIdx : ((cell && cell.dataset.topicItemIdx) || itemIdx || 0));
     const priorAttendance = String((cell && cell.dataset.attendance) || '').trim().toLowerCase();
     let applyAttendance = String(input.dataset.applyAttendance !== undefined ? input.dataset.applyAttendance : (cell && cell.dataset.attendance) || '').trim().toLowerCase();
+    if (!['missing', 'absent', 'incomplete', 'excuse', 'excused'].includes(applyAttendance)) {
+        applyAttendance = 'none';
+    }
     if (typeof window.syncSharedScoreAndStatus === 'function') {
         const itemMax = Number(input.max || cell?.dataset?.max) || 100;
         window.syncSharedScoreAndStatus({
@@ -20989,7 +20739,7 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
             section: (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection) || '',
             quarter: (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1,
             score: input.value,
-            status: applyAttendance || (cell && cell.dataset.attendance) || undefined,
+            status: applyAttendance,
             maxScore: itemMax,
             item: {
                 id: input.dataset.itemId || (cell && cell.dataset.itemId) || '',
@@ -21001,13 +20751,13 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
             }
         });
     }
-    if (typeof window.updateStudentScore === 'function' && !Number.isNaN(itemIdx)) {
+    if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof window.updateStudentScore === 'function' && !Number.isNaN(itemIdx)) {
         window._gradebookApplyAttendance = applyAttendance;
         try { window.updateStudentScore(studentId, category, itemIdx, input.value, studentName); } catch (e) {}
         window._gradebookApplyAttendance = '';
     }
-    window.syncScorePanelFromGradebook?.(input, applyAttendance);
-    if (applyAttendance && typeof window.saveGradebookAttendance === 'function') {
+    if (typeof window.syncSharedScoreAndStatus !== 'function') window.syncScorePanelFromGradebook?.(input, applyAttendance);
+    if (typeof window.syncSharedScoreAndStatus !== 'function' && applyAttendance && typeof window.saveGradebookAttendance === 'function') {
         const directItemId = input.dataset.itemId || (cell && cell.dataset.itemId) || '';
         const directTitle = input.dataset.taskTitle || (cell && cell.dataset.taskTitle) || '';
         window.saveGradebookAttendance(
@@ -21023,7 +20773,7 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
         );
     }
     try {
-        if (applyAttendance && typeof gradebookStatuses !== 'undefined') {
+        if (typeof window.syncSharedScoreAndStatus !== 'function' && applyAttendance && typeof gradebookStatuses !== 'undefined') {
             const subjectId = input.dataset.subject || (typeof gradebookState !== 'undefined' && gradebookState.selectedSubject) || '';
             const quarter = (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1;
             const sectionName = (typeof gradebookState !== 'undefined' && gradebookState.selectedSection) || '';
@@ -21117,7 +20867,7 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
         })
         : '';
     cell.innerHTML = `<div class="gb-score-stack">${shown === '-' ? '<span class="gradebook-dash">-</span>' : `<span class="gradebook-score-value">${shown}</span>`}${chip}</div>`;
-    window.persistGradebookScorePanelRecord?.(input);
+    if (typeof window.syncSharedScoreAndStatus !== 'function') window.persistGradebookScorePanelRecord?.(input);
     window.syncOpenGradebookStatusToScorePanel?.(input || cell, applyAttendance, shown);
     window._gradebookScoreHandoff = false;
 };
@@ -21229,7 +20979,7 @@ window.syncOpenGradebookStatusToScorePanel = function (inputOrCell, applyAttenda
         let badgeClass = 'text-black bg-slate-100 border border-slate-200/80';
         if (tone === 'missing' || tone === 'absent') {
             badgeText = tone === 'missing' ? 'Missing' : 'Absent';
-            badgeClass = 'text-red-700 bg-red-50 border border-red-200';
+            badgeClass = tone === 'absent' ? 'text-gray-700 bg-gray-100 border border-gray-300' : 'text-red-700 bg-red-50 border border-red-200';
         } else if (tone === 'incomplete') {
             badgeText = 'Incomplete';
             badgeClass = 'text-amber-700 bg-amber-50 border border-amber-200';
@@ -21317,8 +21067,19 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
         const cleanTitle = matTitle ? String(matTitle).trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '') : '';
         const itemCat = matItem && typeof matItem === 'object' ? String(matItem.category || matItem.type || '').toLowerCase() : '';
 
+        const targetSection = matItem?.section || targetStudent?.section || targetStudent?.sectionName || window.currentTopicState?.selectedSection || '';
+        const targetQuarter = Number(String(matItem?.quarter || window.currentSelectedTopicQuarter || window.currentTopicState?.quarter || 1).replace(/\D/g, '')) || 1;
+        const subjectAliases = typeof window.getUnifiedSubjectAliases === 'function' ? window.getUnifiedSubjectAliases(subjectId) : [subjectId, cleanSubj];
+        const matchesScope = sub => {
+            if (!sub || typeof sub !== 'object') return false;
+            if (sub.section && targetSection && String(sub.section).trim().toLowerCase() !== String(targetSection).trim().toLowerCase()) return false;
+            if (sub.subjectId && !subjectAliases.some(alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase() === String(sub.subjectId).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase())) return false;
+            if (sub.quarter && Number(sub.quarter) !== targetQuarter) return false;
+            return !targetStudent || typeof window.isSubmissionMatchForStudent !== 'function' || window.isSubmissionMatchForStudent(sub, targetStudent);
+        };
+
         const finalizeSubmission = (sub) => {
-            if (!sub || typeof sub !== 'object') return null;
+            if (!matchesScope(sub)) return null;
             if (matItem && typeof matItem === 'object' && typeof window.submissionMatchesAssessment === 'function'
                 && !window.submissionMatchesAssessment(sub, matItem)) {
                 return null;
@@ -21366,9 +21127,25 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             return sub;
         };
 
+        // The shared grading writer's section-specific records are authoritative.
+        if (targetSection && targetIdStr) {
+            const cleanSection = String(targetSection).trim().toLowerCase().replace(/^grade\s*\d+\s*[--]?\s*/i, '').replace(/^g\d+\s*[--]?\s*/i, '').trim();
+            const aliases = typeof window.getStudentFullAliases === 'function' ? window.getStudentFullAliases(targetStudent) : [targetIdStr, targetIdStr.replace(/^std-/, ''), `std-${targetIdStr}`];
+            const all = typeof window.getSharedAssessmentSubmissionsStorage === 'function' ? window.getSharedAssessmentSubmissionsStorage() : JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
+            const keys = [matId ? `${cleanSubj}_sec_${cleanSection}_mat_${String(matId).toLowerCase()}` : '', `${cleanSubj}_sec_${cleanSection}_top_${topIdx}_${tabStr}_${actIdx}`, `${cleanSubj}_sec_${cleanSection}_top_${topIdx}_assessments_${actIdx}`].filter(Boolean);
+            for (const alias of aliases) {
+                for (const key of keys) {
+                    const candidate = all[alias]?.[key];
+                    if (!candidate?.teacherSaved) continue;
+                    const resolved = finalizeSubmission(candidate);
+                    if (resolved) return resolved;
+                }
+            }
+        }
+
         let bestSub = null;
         const considerSubmission = (sub) => {
-            if (!sub || typeof sub !== 'object') return;
+            if (!matchesScope(sub)) return;
             if (!bestSub) {
                 bestSub = sub;
                 return;
@@ -21625,11 +21402,10 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
         }
 
         for (const k of candidateKeys) {
-            let raw = null;
-            if (window._sharedAssessmentSubmissionsMemoryCache && window._sharedAssessmentSubmissionsMemoryCache[k]) {
+            let raw = localStorage.getItem(k);
+            if (!raw && window._sharedAssessmentSubmissionsMemoryCache && window._sharedAssessmentSubmissionsMemoryCache[k]) {
                 try { raw = JSON.stringify(window._sharedAssessmentSubmissionsMemoryCache[k]); } catch (_) {}
             }
-            if (!raw) raw = localStorage.getItem(k);
             if (!raw) {
                 try { raw = sessionStorage.getItem(k); } catch (_) {}
             }
@@ -22188,7 +21964,9 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
             return ok;
         };
 
-        safeSaveSub(key, subData);
+        if (!safeSaveSub(key, subData)) {
+            throw new Error('Submission could not be saved to shared storage. Please try again.');
+        }
 
         const sKeys = Array.from(new Set([
             studentId,
@@ -22329,7 +22107,9 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         const toastMsg = attemptsUsed > 1
             ? `Attempt #${attemptsUsed} submitted successfully!${filesCountText}`
             : `Assessment submitted successfully!${filesCountText}`;
-        if (typeof window.showToast === 'function') {
+        if (typeof window.showTeacherReleaseToast === 'function') {
+            window.showTeacherReleaseToast(toastMsg, 'submitted');
+        } else if (typeof window.showToast === 'function') {
             window.showToast(toastMsg, 'success');
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast(toastMsg, 'success');
@@ -22337,8 +22117,32 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         if (typeof window.renderStudentHomeDashboardPanels === 'function') {
             window.renderStudentHomeDashboardPanels();
         }
+        try {
+            if (currentSection && window.SigmaNotifications?.sendToRole) {
+                const subject = window.getSubjectById?.(subjectId) || window.getTopicSubject?.(subjectId);
+                window.SigmaNotifications.sendToRole('teacher', {
+                    id: `submission_${key}_${attemptsUsed}_${subData.submittedAt}`,
+                    senderName: studentName,
+                    senderId: studentId,
+                    avatarImg: studentAvatar,
+                    icon: 'fa-file-arrow-up',
+                    senderColor: '#15803d',
+                    title: 'New Task Submission',
+                    body: `${studentName} submitted ${currentAssessmentTitle || 'an assessment'} in ${currentSection}.`,
+                    timestamp: subData.submittedAt,
+                    read: false,
+                    assignmentScope: { section: currentSection, subjectId, subjectName: subject?.name || subject?.title || subject?.text || subjectId },
+                    target: { subjectId, topicIdx: topIdx, tab, itemIdx: activeIdx, selectedSection: currentSection, selectedStudent: studentId }
+                });
+            }
+        } catch (error) {
+            console.warn('Submission saved, but teacher notification could not be sent:', error);
+        }
+        return subData;
     } catch (e) {
         console.error('Error submitting student assessment:', e);
+        window.showTeacherReleaseToast?.('Submission could not be saved. Please try again.', 'unreleased');
+        return null;
     }
 };
 
@@ -24126,16 +23930,11 @@ window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxA
 
     const commentInput = document.getElementById('student-answer-comment-input');
     const comment = commentInput ? commentInput.value.trim() : '';
-    window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, comment, topIdx, materialId || null);
+    const submitted = window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, comment, topIdx, materialId || null);
+    if (!submitted) return;
     window._studentSubmissionMode = false;
     window._studentPendingAnswerFiles = [];
     window._studentPendingAnswerFile = null;
-
-    if (typeof window.showToast === 'function') {
-        window.showToast('Answer submitted successfully!', 'success');
-    } else if (typeof window.showGlobalToast === 'function') {
-        window.showGlobalToast('Answer submitted successfully!', 'success');
-    }
 
     if (typeof window.enterStudentViewSubmissionMode === 'function') {
         window.enterStudentViewSubmissionMode(subjectId, topIdx, tab, activeIdx);
@@ -24289,9 +24088,9 @@ window.renderAssessmentDateMobileCell = function (raw, fallbackTime = '') {
     }
     if (parsed.timeStr) {
         return `
-            <div class="flex flex-col items-center justify-center font-['Inter'] leading-tight py-0.5 select-none">
-                <span class="text-xs font-normal text-black font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(parsed.dateStr) : parsed.dateStr}</span>
-                <span class="text-[10px] font-normal text-black-fade mt-0.5 leading-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${window.escapeHtml ? window.escapeHtml(parsed.timeStr) : parsed.timeStr}</span>
+            <div class="assessment-mobile-date-time flex flex-row flex-nowrap items-baseline justify-center gap-1 font-['Inter'] leading-tight py-0.5 select-none whitespace-nowrap" style="align-items: baseline; gap: 4px;">
+                <span class="text-xs font-normal text-black font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(parsed.dateStr) : parsed.dateStr},</span>
+                <span class="text-[10px] font-normal text-black-fade leading-tight font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${window.escapeHtml ? window.escapeHtml(parsed.timeStr) : parsed.timeStr}</span>
             </div>
         `;
     }
@@ -24540,29 +24339,22 @@ window.buildStudentDesktopAssessmentTopStatusHtml = function (ass, subjectId, to
     const normTone = String(attendanceTone || details.attendanceTone || '').trim().toLowerCase();
     const normStatus = String(detailStatusName || '').trim().toLowerCase();
 
-    let scoreDisplay = '-';
+    const scoreDisplay = hasValidNumericScore ? String(numericScore) : '-';
     let scoreColorStyle = 'color: #000000 !important;';
 
     if (normTone === 'missing' || normStatus === 'missing') {
-        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'M';
         scoreColorStyle = 'color: #dc2626 !important;';
     } else if (normTone === 'absent' || normStatus === 'absent') {
-        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'A';
         scoreColorStyle = 'color: #dc2626 !important;';
     } else if (normTone === 'incomplete' || normStatus === 'incomplete') {
-        scoreDisplay = (hasValidNumericScore && Number(numericScore) > 0) ? String(numericScore) : 'I';
         scoreColorStyle = 'color: #d97706 !important;';
     } else if (normTone === 'excuse' || normTone === 'excused' || normStatus === 'excuse' || normStatus === 'excused') {
-        scoreDisplay = 'E';
         scoreColorStyle = 'color: #2563eb !important;';
     } else if (isGraded || (hasValidNumericScore && normStatus === 'graded')) {
-        scoreDisplay = hasValidNumericScore ? String(numericScore) : '0';
         scoreColorStyle = 'color: #15803d !important;';
     } else if (turnedIn || normStatus === 'submitted' || normStatus === 'pending') {
-        scoreDisplay = hasValidNumericScore ? String(numericScore) : '-';
         scoreColorStyle = 'color: #000000 !important;';
     } else {
-        scoreDisplay = '-';
         scoreColorStyle = 'color: #000000 !important;';
     }
 
@@ -24921,6 +24713,29 @@ window.buildTeacherDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
             </div>
         </div>
     `;
+};
+
+window.relocateAssessmentPrimaryAction = function (root = document) {
+    const slot = root?.querySelector?.('.assessment-primary-action-slot');
+    if (!slot) return;
+
+    const studentArea = root.querySelector('#student-submission-action-area');
+    const teacherArea = root.querySelector('#teacher-submission-action-area');
+    const adminArea = root.querySelector('#admin-submission-action-area');
+    const actionArea = studentArea || teacherArea || adminArea;
+    if (!actionArea) return;
+
+    const primaryAction = studentArea
+        ? actionArea.querySelector(
+            'button[onclick*="enterStudentViewSubmissionMode"], ' +
+            'button#student-assessment-submit-btn'
+        )
+        : actionArea.querySelector('button[onclick*="enterTeacherViewSubmissionMode"]');
+
+    if (!primaryAction) return;
+    primaryAction.classList.remove('flex-1');
+    primaryAction.classList.add('assessment-relocated-primary-action');
+    slot.appendChild(primaryAction);
 };
 
 window.renderSharedAssessmentsTabHtml = function (options = {}) {
@@ -26141,7 +25956,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     attemptNumber: 1,
                     status: subData?.status || 'Submitted',
                     submittedAt: subData?.submittedAt || ass.submittedAt || ass.submissionDate,
-                    score: subData?.score !== undefined ? subData.score : ass.score,
+                    score: subData?.score ?? null,
                     aiScore: subData?.aiScore !== undefined ? subData.aiScore : ass.aiScore,
                     isLate: Boolean(subData?.isLate),
                     comment: subData?.comment || '',
@@ -26166,7 +25981,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         size: 0
                     }] : []),
                     submittedAt: subData?.submittedAt || ass.submittedAt || ass.submissionDate,
-                    score: subData?.score !== undefined ? subData.score : ass.score,
+                    score: subData?.score ?? null,
                     aiScore: subData?.aiScore !== undefined ? subData.aiScore : ass.aiScore,
                     isLate: Boolean(subData?.isLate),
                     comment: subData?.comment || '',
@@ -26194,7 +26009,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     attemptNumber: 1,
                     status: subData?.status || 'Submitted',
                     submittedAt: subData?.submittedAt || ass.submittedAt || ass.submissionDate,
-                    score: subData?.score !== undefined ? subData.score : ass.score,
+                    score: subData?.score ?? null,
                     aiScore: subData?.aiScore !== undefined ? subData.aiScore : ass.aiScore,
                     isLate: Boolean(subData?.isLate),
                     comment: subData?.comment || '',
@@ -26311,18 +26126,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 ? Number(subData.aiScore)
                 : (gbScore !== null
                     ? Number(gbScore)
-                    : ((ass?.score !== undefined && ass?.score !== null && ass?.score !== '')
-                        ? Number(ass.score)
-                        : ((ass?.aiScore !== undefined && ass?.aiScore !== null && ass?.aiScore !== '')
-                            ? Number(ass.aiScore)
-                            : null)))));
+                    : null)));
 
         const readOwnAiScore = (value) => {
             if (value === undefined || value === null || value === '' || Number.isNaN(Number(value))) return null;
             return Number(value);
         };
         const teacherOwnedScore = readOwnAiScore(subData?.score)
-            ?? readOwnAiScore(ass?.score)
             ?? (gbScore !== null && gbScore !== undefined && !Number.isNaN(Number(gbScore)) ? Number(gbScore) : null);
         const explicitAiScore = readOwnAiScore(subData?.aiSuggestedScore) ?? readOwnAiScore(ass?.aiSuggestedScore);
         const storedAiScore = readOwnAiScore(subData?.aiScore) ?? readOwnAiScore(ass?.aiScore);
@@ -26635,7 +26445,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             ${((ass.description && ass.description.trim() && ass.description.trim() !== 'No instructions provided.' && ass.description.trim() !== 'Assessment instructions and coursework materials.') || (ass.instructions && ass.instructions.trim() && ass.instructions.trim() !== 'No instructions provided.' && ass.instructions.trim() !== 'Assessment instructions and coursework materials.')) ? `
                                 <div class="space-y-2">
                                     <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2">Instructions</h3>
-                                    <p class="text-sm md:text-base font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words">${window.escapeHtml ? window.escapeHtml(ass.description || ass.instructions) : (ass.description || ass.instructions)}</p>
+                                    ${window.renderMaterialBodyText(ass.description || ass.instructions)}
                                 </div>
                             ` : ''}
 
@@ -27159,6 +26969,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 </div>
                             `}
                         `}
+                        <div class="assessment-primary-action-slot" aria-label="Primary assessment action"></div>
                         </div>
                     </div>
                 </div>
@@ -27437,8 +27248,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                          </button>
                                      </div>
                                  ` : `
-                                     <!-- When in submission review mode: Show Gradebook button (full width if alone) + Allow Resubmit if submitted -->
-                                     <div id="teacher-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-3 w-full flex-wrap">
+                                     <div id="teacher-submission-action-area" data-gradebook-target="${encodeURIComponent(JSON.stringify([subjectId, section, encodeURIComponent(displayTitle), encodeURIComponent(compLabel), tab, activeIdx]))}" class="${isSubmitted ? "pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-start gap-3 w-full flex-wrap" : 'hidden'}">
                                          ${isSubmitted ? `
                                              ${window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({
                                                  subjectId,
@@ -27449,18 +27259,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                  displayTitle,
                                                  hasUnusedGrantedExtraAttempt
                                              }) : ''}
-                                             <button type="button" onclick="window.navigateToGradebookFromSubmission('${subjectId}', '${section}', '${encodeURIComponent(displayTitle)}', '${encodeURIComponent(compLabel)}', '${tab}', ${activeIdx})"
-                                                 class="sigma-btn sigma-btn-primary text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer font-['Inter'] flex items-center gap-1.5 shadow-2xs hover:bg-[#166534] active:scale-[0.98] transition-all">
-                                                 <i class="fa-solid fa-table-list text-xs text-white"></i>
-                                                 <span>Gradebook</span>
-                                             </button>
-                                         ` : `
-                                             <button type="button" onclick="window.navigateToGradebookFromSubmission('${subjectId}', '${section}', '${encodeURIComponent(displayTitle)}', '${encodeURIComponent(compLabel)}', '${tab}', ${activeIdx})"
-                                                 class="sigma-btn sigma-btn-primary w-full py-2.5 px-4 rounded-xl text-xs font-bold font-['Inter'] flex items-center justify-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs">
-                                                 <i class="fa-solid fa-table-list text-xs text-white"></i>
-                                                 <span>Gradebook</span>
-                                             </button>
-                                         `}
+                                         ` : ''}
                                      </div>
                                  `}
                             `}
@@ -27708,7 +27507,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         <div class="${role === 'student' ? 'student-assessment-list-item' : 'teacher-assessment-list-item'}">
                             <div class="assessment-card-panel ${isCardCollapsed ? 'is-collapsed' : ''} sigma-black-fade-panel relative rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs transition-all flex flex-col font-['Inter'] bg-white border border-slate-200" data-assessment-key="${window.escapeHtml ? window.escapeHtml(assKey) : assKey}">
                                 <div class="flex items-center gap-2.5 sm:gap-4 min-w-0">
-                                    <div class="w-11 sm:w-16 md:w-20 flex flex-col items-center gap-1 shrink-0 select-none">
+                                    <div class="material-panel-icon-group w-11 sm:w-16 md:w-20 flex flex-col items-center gap-1 shrink-0 select-none">
                                         <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${cfg.iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
                                             <i class="fa-solid ${cfg.typeIcon} text-base sm:text-xl ${cfg.iconColorClass}"></i>
                                         </div>
@@ -27943,7 +27742,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                     <div class="video-thumbnail-panel bg-slate-950 rounded-xl md:rounded-lg overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center relative w-full aspect-video shadow-xs" style="width: 100% !important; max-width: 100% !important; aspect-ratio: 16/9 !important; height: auto !important; position: relative; margin: 0 0 12px 0;">
                                         <img src="${video.thumb || 'image/ICC logo.jpg'}" alt="School Logo" class="absolute inset-0 w-full h-full object-contain opacity-30 filter brightness-95 group-hover:scale-105 transition-transform duration-300 pointer-events-none">
                                         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/25 pointer-events-none"></div>
-                                        <div class="video-play-btn w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/45 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg relative z-10 group-hover:scale-110 group-hover:bg-[#15803d] group-hover:border-[#15803d] transition-all duration-200">
+                                        <div class="material-panel-play-icon video-play-btn w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/45 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg relative z-10 group-hover:scale-110 group-hover:bg-[#15803d] group-hover:border-[#15803d] transition-all duration-200">
                                             <i class="fa-solid fa-play text-sm sm:text-base ml-0.5 text-white"></i>
                                         </div>
                                         <span class="video-badge-bottom-right" ${isMp4Item ? `data-dynamic-video-src="${rawVideoUrl}"` : ''} style="position: absolute !important; bottom: 8px !important; right: 8px !important; z-index: 20; font-size: 10.5px !important; padding: 2px 7px !important;"><i class="fa-regular fa-clock" style="font-size: 9.5px;"></i> ${durationStr}</span>
@@ -28114,19 +27913,12 @@ window.renderSharedVideosTabHtml = function (options) {
                     </div>
 
                     ${hasDescription ? (() => {
-                        const isLongDesc = instructionsText.length > 160 || (instructionsText.match(/\n/g) || []).length >= 3;
                         return `
                         <!-- Description -->
                         <div class="space-y-1 md:space-y-1.5 pl-0 sm:pl-9 md:pl-11 pt-1 md:pt-2">
                             <h3 class="text-xs sm:text-sm md:text-base font-bold text-black font-['Inter'] m-0">Description</h3>
                             <div class="sigma-collapsible-desc-wrapper relative">
-                                <p class="sigma-collapsible-desc-text ${isLongDesc ? 'is-collapsed' : ''} text-[11px] sm:text-xs md:text-sm font-normal text-black leading-relaxed font-['Inter'] whitespace-pre-line break-words m-0">${escapeHtml(instructionsText)}</p>
-                                ${isLongDesc ? `
-                                    <button type="button" onclick="window.toggleCollapsibleDesc?.(this)" class="sigma-collapsible-desc-toggle font-['Inter']">
-                                        <span>Show more</span>
-                                        <i class="fa-solid fa-chevron-down"></i>
-                                    </button>
-                                ` : ''}
+                                ${window.renderMaterialBodyText(instructionsText)}
                             </div>
                         </div>
                     `;
@@ -32543,9 +32335,9 @@ window.transferAiScoreToGradebook = function (score, maxScore) {
     }
 
     if (typeof window.showToast === 'function') {
-        window.showToast(`AI score ${numScore}/${max} is on the points row. Save Grade to keep it.`, 'success');
+        window.showToast(`AI score ${numScore}/${max} is on the points row. Save Score to keep it.`, 'success');
     } else if (typeof window.showToastNotification === 'function') {
-        window.showToastNotification(`AI score ${numScore}/${max} is on the points row. Save Grade to keep it.`, 'success');
+        window.showToastNotification(`AI score ${numScore}/${max} is on the points row. Save Score to keep it.`, 'success');
     }
 };
 
@@ -34333,6 +34125,42 @@ window.getCategoryDetails = function (category, specifiedQ = null, specifiedSubj
     return result;
 };
 
+window.withGradebookReadCache = function (render) {
+    if (window._gradebookReadCacheActive) return render();
+    const originals = new Map();
+    const objectIds = new WeakMap();
+    let nextId = 0;
+    const keyPart = value => {
+        if (value && typeof value === 'object') {
+            if (!objectIds.has(value)) objectIds.set(value, ++nextId);
+            return `object:${objectIds.get(value)}`;
+        }
+        return `${typeof value}:${String(value)}`;
+    };
+    window._gradebookReadCacheActive = true;
+    try {
+        for (const name of ['getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore']) {
+            const original = window[name];
+            if (typeof original !== 'function') continue;
+            originals.set(name, original);
+            const cache = new Map();
+            window[name] = function (...args) {
+                // Recursive status probes must not cache the recursion guard's empty result.
+                if (window._inEffectiveAssessmentStatusLookup && name === 'getEffectiveAssessmentStatusAndScore') {
+                    return original.apply(this, args);
+                }
+                const key = JSON.stringify(args.map(keyPart));
+                if (!cache.has(key)) cache.set(key, original.apply(this, args));
+                return cache.get(key);
+            };
+        }
+        return render();
+    } finally {
+        for (const [name, original] of originals) window[name] = original;
+        window._gradebookReadCacheActive = false;
+    }
+};
+
 window.calculateGradebookCategoryPercentage = function (studentOrId, category, explicitSubjectId = null, explicitQ = null, explicitSection = null) {
     const subjectId = explicitSubjectId || (typeof gradebookState !== 'undefined' ? gradebookState.selectedSubject : '') || (window.sigmaGradesState && (window.sigmaGradesState.selectedSubject || window.sigmaGradesState.selectedSubjectSection?.subject)) || '';
     const currentQ = (explicitQ !== null && explicitQ !== undefined) ? explicitQ : ((typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) ? gradebookState.currentQuarter : ((window.sigmaGradesState && window.sigmaGradesState.activeQuarter) ? window.sigmaGradesState.activeQuarter : 1));
@@ -34350,19 +34178,16 @@ window.calculateGradebookCategoryPercentage = function (studentOrId, category, e
     details.forEach((item, index) => {
         const itemCat = item._category || item.category || category;
         const itemIdx = (item.itemIdx !== undefined) ? item.itemIdx : index;
-        const hasSub = (typeof window.studentHasAssessmentSubmission === 'function')
-            ? window.studentHasAssessmentSubmission(student, item, subjectId, itemCat)
-            : false;
         let score = null;
         if (typeof window.getAdminGradebookStudentItemScore === 'function') {
             score = window.getAdminGradebookStudentItemScore(student, itemCat, itemIdx, item, subjectId, currentQ);
-        } else if (hasSub && typeof window.readScorePanelPoints === 'function') {
+        } else if (window.studentHasAssessmentSubmission?.(student, item, subjectId, itemCat) && typeof window.readScorePanelPoints === 'function') {
             score = window.readScorePanelPoints(student, item, subjectId);
         }
         if ((score === null || score === undefined || score === '' || score === '-' || isNaN(Number(score))) && typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
             const eff = window.getEffectiveAssessmentStatusAndScore(student, itemCat, itemIdx, subjectId, currentQ, item);
             if (eff && !eff.isAutoMissing && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
-                if (eff.isManualOverride || hasSub || eff.status === 'missing' || eff.status === 'absent') {
+                if (eff.isManualOverride || eff.status === 'missing' || eff.status === 'absent' || window.studentHasAssessmentSubmission?.(student, item, subjectId, itemCat)) {
                     score = eff.score;
                 }
             }
@@ -34561,6 +34386,92 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
  * Full Reset Utility: Resets all student task submissions, uploaded file panels,
  * attempt records, quiz results, and teacher gradebook scores/statuses across all storage locations.
  */
+window.resetTask = function (reload = true) {
+    const report = { recordsRemoved: 0, storesUpdated: 0 };
+    const taskCategories = new Set(['assignment', 'assignments', 'task', 'tasks', 'activity', 'activities', 'perf. task', 'performance', 'performancetasks', 'performance task', 'pt']);
+    const gradeKeys = new Set(['sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores', 'sigma-teacher-gradebook-statuses-v2', 'sigma_gradebook_statuses', 'gradebookStatuses', 'sigma-gradebook-statuses']);
+    // Confirmed Task 1 ID from the user's storage diagnostic; old rows lack reliable type metadata.
+    const confirmedTaskId = 'mat-teacher-teacher-1790115175696';
+    const isConfirmedTask = (key, row) => key.includes(`_mat_${confirmedTaskId}_std_`)
+        || [row?.id, row?.materialId, row?.itemId].includes(confirmedTaskId);
+    const isQuiz = (key, row) => {
+        if (isConfirmedTask(key, row)) return false;
+        const type = String(row?.category || row?.type || row?.tab || '').toLowerCase();
+        return /quiz/.test(type) || Boolean(row?.quizId || row?.selectedQuizId || row?.isQuiz || row?.answers || row?.userAnswers)
+            || /(?:^|_)quiz(?:_|$)|quiz_result|student_quiz_file/.test(key);
+    };
+    const isTask = (key, row) => !isQuiz(key, row) && (isConfirmedTask(key, row) || taskCategories.has(String(row?.category || row?.type || '').toLowerCase())
+        || /(?:^|_)(?:assessments|assignments?|tasks?|activity|activities)(?:_|$)/.test(key)
+        || /^(?:task|assignment|activity)\s*\d*\b/i.test(row?.title || row?.assessmentTitle || ''));
+    const prune = (node, grades = false) => {
+        if (!node || typeof node !== 'object') return;
+        for (const key of Object.keys(node)) {
+            const row = node[key];
+            if (grades && taskCategories.has(key.toLowerCase())) {
+                delete node[key];
+                report.recordsRemoved++;
+            } else if (!grades && isQuiz(key, row)) {
+                continue;
+            } else if (!grades && isTask(key, row)) {
+                delete node[key];
+                report.recordsRemoved++;
+            } else if (row && typeof row === 'object') prune(row, grades);
+        }
+    };
+    const plans = [];
+    for (const storage of [localStorage, sessionStorage]) {
+        const writes = [];
+        const removes = [];
+        const backup = {};
+        for (let i = 0; i < storage.length; i++) {
+            const key = storage.key(i);
+            if (!key) continue;
+            const grades = gradeKeys.has(key);
+            const master = ['sigma_student_assessment_submissions', 'sigma_student_assessment_attempts', 'sigma_gradebook_attendance_v1'].includes(key);
+            const individual = /^sigma_(?:sub_|submission_|attempts_|extra_attempts_|draft_submission_)/.test(key) || key === 'sigma-assessment-scored-broadcast';
+            if (!grades && !master && !individual) continue;
+            const raw = storage.getItem(key);
+            let data;
+            try { data = JSON.parse(raw); } catch (_) { data = null; }
+            if (individual) {
+                if (!isTask(key, data)) continue;
+                backup[key] = raw;
+                removes.push(key);
+                report.recordsRemoved++;
+            } else {
+                if (!data || typeof data !== 'object') continue;
+                prune(data, grades);
+                const updated = JSON.stringify(data);
+                if (updated === raw) continue;
+                backup[key] = raw;
+                writes.push([key, updated]);
+            }
+        }
+        plans.push({ storage, writes, removes, backup });
+    }
+    // Back up every affected store before deleting any submission.
+    const backupKey = `sigma_task_reset_backup_${Date.now()}`;
+    localStorage.setItem(backupKey, JSON.stringify(plans.map(plan => plan.backup)));
+    for (const plan of plans) {
+        for (const [key, value] of plan.writes) plan.storage.setItem(key, value);
+        for (const key of plan.removes) plan.storage.removeItem(key);
+        report.storesUpdated += plan.writes.length + plan.removes.length;
+    }
+    window._sharedAssessmentSubmissionsMemoryCache = {};
+    window._studentAssessmentDetailsCache?.clear();
+    window._uploadedSubmissionFileCache = {};
+    window._studentPendingAnswerFiles = [];
+    window._studentPendingAnswerFile = null;
+    window._studentSubmissionMode = false;
+    window._studentViewSubmissionMode = false;
+    window.invalidateSharedAssessmentSubmissionsStorage?.();
+    window.invalidateTeacherGradebookCache?.();
+    window.loadGradebookData?.();
+    console.log('Task submissions reset; quizzes preserved.', report);
+    if (reload) window.location.reload();
+    return report;
+};
+
 window.resetAllSubmissionsAndGradebook = function (options = {}) {
     const isSilent = options && options.silent === true;
     try {

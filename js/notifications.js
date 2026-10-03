@@ -243,7 +243,7 @@
             const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) return parsed;
+                if (Array.isArray(parsed)) return parsed.filter(isVisibleNotification);
             }
         } catch (e) {
             console.error('[SIGMA Notifications] Storage read error:', e);
@@ -251,9 +251,42 @@
         return [];
     }
 
+    function isVisibleNotification(notif) {
+        if (!notif.assignmentScope) return !notif.target?.subjectId;
+        const normalize = value => String(value || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^(card-|subj-)/, '').replace(/[^a-z0-9]/g, '');
+        const scope = notif.assignmentScope;
+        if (!scope.section || !scope.subjectId) return false;
+        if (currentRole === 'student') {
+            const student = window.getLoggedInStudentUser?.();
+            if (!student) return false;
+            const sections = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+            const subject = window.getSubjectById?.(scope.subjectId) || window.getTopicSubject?.(scope.subjectId);
+            const wanted = [scope.subjectId, scope.subjectName, subject?.name, subject?.title].map(normalize).filter(Boolean);
+            return Array.isArray(sections) && sections.some(section => {
+                if (section.status === 'Archived') return false;
+                if (normalize(section.name || section.sectionName) !== normalize(scope.section) && normalize(section.id) !== normalize(scope.section)) return false;
+                const subjects = [section.subject, section.subjectId, section.assignedSubject, ...(section.assignedSubjects || [])]
+                    .map(value => normalize(typeof value === 'object' ? value.id || value.name || value.title : value)).filter(Boolean);
+                return subjects.some(value => wanted.includes(value))
+                    && window.isSectionAssignedToStudent?.(section, student) === true;
+            });
+        }
+        if (currentRole !== 'teacher') return false;
+        const teacher = window.getEffectiveTeacher?.();
+        if (!teacher || typeof window.getTeacherAssignedSubjectsAndSections !== 'function') return false;
+        return (window.getTeacherAssignedSubjectsAndSections(teacher) || []).some(assignment => {
+            const section = normalize(assignment.sectionName || assignment.section);
+            const subjects = [assignment.subject, assignment.subjectId, assignment.name].map(normalize).filter(Boolean);
+            return section && section === normalize(scope.section)
+                && [scope.subjectId, scope.subjectName].map(normalize).filter(Boolean).some(subject => subjects.includes(subject));
+        });
+    }
+
     function saveNotifications(notifs) {
         try {
-            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(notifs));
+            const existing = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
+            const otherRecipients = Array.isArray(existing) ? existing.filter(n => !isVisibleNotification(n)) : [];
+            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify([...notifs, ...otherRecipients]));
         } catch (e) {
             console.error('[SIGMA Notifications] Storage save error:', e);
         }
@@ -336,7 +369,11 @@
 
         // Support FontAwesome icon, image avatar, or initials
         let avatarInner = '';
-        if (notif.icon) {
+        if (notif.avatarImg) {
+            avatarInner = '<img alt="Sender profile">';
+        } else if (notif.assignmentScope) {
+            avatarInner = '<i class="fa-solid fa-user text-[15px] text-white"></i>';
+        } else if (notif.icon) {
             avatarInner = `<i class="fa-solid ${notif.icon} text-[15px] text-white"></i>`;
         } else if (notif.avatarImg) {
             avatarInner = `<img src="${notif.avatarImg}" alt="${notif.senderName || 'Avatar'}">`;
@@ -357,6 +394,15 @@
                 <span class="notif-item__time">${formatTime(notif.timestamp)}</span>
             </div>
         `;
+        const avatarImage = item.querySelector('.notif-item__avatar img');
+        if (avatarImage) {
+            avatarImage.src = notif.avatarImg;
+            avatarImage.alt = notif.senderName || 'Sender profile';
+            avatarImage.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            avatarImage.onerror = () => {
+                avatarImage.parentElement.innerHTML = '<i class="fa-solid fa-user text-[15px] text-white"></i>';
+            };
+        }
 
         item.addEventListener('click', () => {
             const notifs = getNotifications();
@@ -377,6 +423,14 @@
             }
 
             // Navigate if notification points to a material / coursework
+            if (currentRole === 'teacher' && notif.assignmentScope && typeof window.openTopicContent === 'function') {
+                const target = notif.target || {};
+                window.openTopicContent(target.subjectId, target.topicIdx, target.tab || 'assessments', target.itemIdx, true, {
+                    selectedSection: target.selectedSection,
+                    selectedStudent: target.selectedStudent,
+                    viewSubmission: true
+                });
+            }
             if (currentRole === 'student' && typeof window.openTopicContent === 'function') {
                 const navTarget = notif.target || {};
                 const subjId = navTarget.subjectId || window._activeSubjectId || 'card-prog1';
@@ -393,7 +447,7 @@
                 );
 
                 if (isCourseworkNotif) {
-                    window.openTopicContent(subjId, topicIdx, tab, itemIdx);
+                    window.openTopicContent(subjId, topicIdx, tab, itemIdx, false, { selectedSection: notif.assignmentScope?.section });
                 }
             }
         });
@@ -612,6 +666,15 @@
             })
         },
         sendToRole(targetRole, notif) {
+            if (notif.assignmentScope && !notif.senderId) {
+                try {
+                    const sender = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+                    const profile = currentRole === 'teacher' ? (window.getEffectiveTeacher?.() || sender) : sender;
+                    notif = { ...notif, senderId: profile.id || profile.uid || sender.id || sender.uid,
+                        senderName: profile.fullName || profile.name || sender.fullName || sender.name || notif.senderName,
+                        avatarImg: profile.avatar || profile.profilePicture || sender.avatar || sender.profilePicture || '' };
+                } catch (_) {}
+            }
             const targetKey = `sigma-notifications-${targetRole}-v3`;
             let list = [];
             try {

@@ -1516,6 +1516,46 @@ function initTeacherPortal() {
                 const currentTeacherName = currentTeacher ? String(currentTeacher.name || `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`).trim().toLowerCase() : '';
                 const isTeacherUser = currentTeacher ? (String(currentTeacher.role || currentTeacher.type || '').toLowerCase() === 'teacher') : false;
 
+                const activeSection = String(
+                    (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+                    || window.currentClassroomSectionName
+                    || (typeof currentTopicState !== 'undefined' && currentTopicState?.selectedSection)
+                    || (typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedSection)
+                    || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+                    || localStorage.getItem('sigma-active-classroom-section')
+                    || ''
+                ).trim().toLowerCase();
+
+                const resolveItemSection = (item) => {
+                    if (!item) return '';
+                    let sec = String(item.section || item.roomSection || item.selectedSection || '').trim().toLowerCase();
+                    if (sec) return sec;
+                    try {
+                        const adminSections = (typeof getStoredJson === 'function') 
+                            ? getStoredJson('sigma-admin-sections', [])
+                            : JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+                        const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
+                        const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
+                        if ((authorId || authorName) && Array.isArray(adminSections)) {
+                            const matches = adminSections.filter(s => {
+                                if (!s) return false;
+                                const sTeacher = String(s.teacher || '').trim().toLowerCase();
+                                const sTeachers = Array.isArray(s.teachers) ? s.teachers : [];
+                                const hasTeacherName = (authorName && (sTeacher === authorName || sTeachers.some(t => {
+                                    const tName = String(t.name || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase();
+                                    return tName === authorName;
+                                })));
+                                const hasTeacherId = (authorId && sTeachers.some(t => String(t.id || t.uid || '').trim().toLowerCase() === authorId));
+                                return hasTeacherName || hasTeacherId;
+                            });
+                            if (matches.length === 1) {
+                                return String(matches[0].name || matches[0].sectionName || '').trim().toLowerCase();
+                            }
+                        }
+                    } catch (_) {}
+                    return '';
+                };
+
                 const isFakeSampleTopic = (t) => {
                     if (!t) return false;
                     if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic(t)) return true;
@@ -1567,7 +1607,19 @@ function initTeacherPortal() {
                     };
                 });
 
-                data.q1Topics = rawTopicsMapped.filter(t => !isFakeSampleTopic(t));
+                data.q1Topics = rawTopicsMapped.filter(t => {
+                    if (isFakeSampleTopic(t)) return false;
+                    const rawRole = t.authorRole || t.role || (t.isAdmin ? 'Admin' : (t.isTeacher ? 'Teacher' : 'Admin'));
+                    const authorRole = (typeof window.normalizeSubjectAuthorRole === 'function')
+                        ? window.normalizeSubjectAuthorRole(rawRole)
+                        : (rawRole === 'Teacher' ? 'Teacher' : 'Admin');
+                    if (authorRole === 'Admin') return true;
+                    if (activeSection) {
+                        const tSec = resolveItemSection(t);
+                        return tSec === activeSection;
+                    }
+                    return true;
+                });
 
                 if (adminSubj.bg || adminSubj.cover) data.bg = adminSubj.bg || adminSubj.cover;
                 
@@ -1593,13 +1645,17 @@ function initTeacherPortal() {
                     }
                 } catch (e) {}
 
-                // Suppress Admin materials if a Teacher copy exists for this topic/assessment
+                // Suppress Admin materials if a Teacher copy exists for this topic/assessment IN THIS SECTION
                 const teacherMatMap = new Map();
                 loadedMaterials.forEach(m => {
                     if (!m) return;
                     const r = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
                     const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(r) : r) === 'Teacher';
                     if (isT) {
+                        if (activeSection) {
+                            const mSec = resolveItemSection(m);
+                            if (mSec !== activeSection) return;
+                        }
                         if (m.originalAdminId) teacherMatMap.set(String(m.originalAdminId).trim().toLowerCase(), m);
                         if (m.title) teacherMatMap.set(String(m.title).trim().toLowerCase(), m);
                     }
@@ -1616,6 +1672,11 @@ function initTeacherPortal() {
                         if ((mId && teacherMatMap.has(mId)) || (mTitle && teacherMatMap.has(mTitle))) {
                             return false;
                         }
+                        return true;
+                    }
+                    if (activeSection) {
+                        const mSec = resolveItemSection(m);
+                        return mSec === activeSection;
                     }
                     return true;
                 });
@@ -2167,7 +2228,21 @@ function initTeacherPortal() {
             event.preventDefault();
             event.stopPropagation();
         }
+        const slider = document.querySelector('.attendance-grid-container');
+        const oldScrollLeft = slider ? slider.scrollLeft : (attendanceLastScrollLeft >= 0 ? attendanceLastScrollLeft : 0);
+        const isMobile = window.innerWidth <= 768;
+        const palWidth = isMobile ? Math.max(114, window.innerWidth - 220) : 192;
+
         isAttendanceStudentColExpanded = !isAttendanceStudentColExpanded;
+
+        if (isAttendanceStudentColExpanded) {
+            // Compensate scrollLeft so the date columns don't shift to the right
+            attendanceLastScrollLeft = oldScrollLeft + palWidth;
+        } else {
+            // Restore scrollLeft so the date columns don't shift to the left
+            attendanceLastScrollLeft = Math.max(0, oldScrollLeft - palWidth);
+        }
+
         renderClassroomAttendanceTab(false);
     };
 
@@ -2251,11 +2326,20 @@ function initTeacherPortal() {
             event.preventDefault();
             event.stopPropagation();
         }
+        const now = new Date();
+        const isCurrentDateSelection = (
+            now.getFullYear() === year &&
+            now.getMonth() === month &&
+            now.getDate() === day
+        );
+        const existingSlider = document.querySelector('#detail-section-attendance .attendance-grid-container');
+        const previousScrollLeft = existingSlider ? existingSlider.scrollLeft : attendanceLastScrollLeft;
+
         attendanceViewingYear = year;
         attendanceViewingMonth = month;
         attendanceSelectedDay = day;
         expandedAttendanceCol = -1;
-        attendanceLastScrollLeft = -1;
+        attendanceLastScrollLeft = isCurrentDateSelection ? -1 : Math.max(0, previousScrollLeft || 0);
 
         window.closeTeacherAttendanceCalendarPopup();
         renderClassroomAttendanceTab(false);
@@ -2263,14 +2347,20 @@ function initTeacherPortal() {
         const container = document.getElementById('detail-section-attendance');
         const slider = container ? container.querySelector('.attendance-grid-container') : null;
         if (slider) {
-            const doSlide = (smooth = true) => {
-                slideToBesideStudentCol(slider, day, smooth);
-            };
-            doSlide(false);
-            requestAnimationFrame(() => {
-                doSlide(true);
-                setTimeout(() => doSlide(false), 50);
-            });
+            if (isCurrentDateSelection) {
+                const doSlide = (smooth = true) => {
+                    slideToBesideStudentCol(slider, day, smooth);
+                };
+                doSlide(false);
+                requestAnimationFrame(() => {
+                    doSlide(true);
+                    setTimeout(() => doSlide(false), 50);
+                });
+            } else {
+                requestAnimationFrame(() => {
+                    slideAttendanceDayIntoView(slider, day, true);
+                });
+            }
         }
     };
 
@@ -2528,6 +2618,11 @@ function initTeacherPortal() {
             cancelAnimationFrame(attendanceScrollAnimationId);
             attendanceScrollAnimationId = null;
         }
+
+        const now = new Date();
+        const isCurrentMonth = (attendanceViewingMonth === now.getMonth() && attendanceViewingYear === now.getFullYear());
+        const isToday = (day === now.getDate() && isCurrentMonth);
+
         let shouldSlide = false;
         attendanceSelectedDay = day; // Always record clicked day as selected
         if (expandedAttendanceCol === day) {
@@ -2535,7 +2630,7 @@ function initTeacherPortal() {
             shouldSlide = false;
         } else {
             expandedAttendanceCol = day;
-            shouldSlide = true; // Slide column directly beside student column
+            shouldSlide = !isToday; // Slide smoothly directly beside student column only if NOT current date
         }
         renderClassroomAttendanceTab(shouldSlide);
     };
@@ -2658,6 +2753,47 @@ function initTeacherPortal() {
         const isCurrentMonth = (todayNow.getMonth() === attendanceViewingMonth && todayNow.getFullYear() === attendanceViewingYear);
         const todayDay = todayNow.getDate();
         const BLANK_ATTENDANCE_COLS_COUNT = 24;
+
+        // Pre-compute attendance data and monthly P, A, L totals per student
+        const dailyStatuses = [];
+        const studentTotals = {};
+        if (students.length > 0) {
+            students.forEach(st => {
+                const sKey = st.id || st.name;
+                studentTotals[sKey] = { P: 0, A: 0, L: 0 };
+            });
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const localDateString = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const currentStatuses = getCurrentAttendanceStatuses(localDateString);
+                dailyStatuses[d] = { dateStr: localDateString, statuses: currentStatuses };
+
+                if (isAttendanceStudentColExpanded) {
+                    students.forEach(student => {
+                        const sKey = student.id || student.name;
+                        let displayName = student.name;
+                        if (student.middleName && !student.name.includes(student.middleName)) {
+                            displayName = `${student.name} ${student.middleName}`;
+                        }
+                        let status = currentStatuses[student.name] || 
+                                     (student.id && currentStatuses[student.id]) ||
+                                     currentStatuses[displayName] || '';
+                        if (!status) {
+                            for (const k of Object.keys(currentStatuses)) {
+                                if ((student.id && String(k) === String(student.id)) || studentNamesMatch(k, student.name)) {
+                                    status = currentStatuses[k];
+                                    break;
+                                }
+                            }
+                        }
+                        if (status === 'P') studentTotals[sKey].P++;
+                        else if (status === 'A') studentTotals[sKey].A++;
+                        else if (status === 'L') studentTotals[sKey].L++;
+                    });
+                }
+            }
+        }
+
         let html = `
             <div class="attendance-monthly-card">
                 <div class="attendance-monthly-header flex items-center justify-between w-full relative px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100 bg-white">
@@ -2688,14 +2824,25 @@ function initTeacherPortal() {
                     <table class="attendance-month-table font-['Inter'] text-black">
                         <thead>
                             <tr>
-                                <th class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}" onclick="if (window.innerWidth <= 768) window.toggleAttendanceStudentCol(event)" style="cursor: default;" title="${isAttendanceStudentColExpanded ? 'Collapse student names' : 'Expand to see full student names'}">
-                                    <div class="attendance-th-students-inner flex items-center justify-between gap-1 h-full w-full select-none cursor-default">
+                                <th class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}" onclick="window.toggleAttendanceStudentCol(event)" style="cursor: pointer;" title="${isAttendanceStudentColExpanded ? 'Collapse Present, Absent, Late columns' : 'Expand to see Present, Absent, Late summary columns'}">
+                                    <div class="attendance-th-students-inner flex items-center justify-between gap-1 h-full w-full select-none cursor-pointer">
                                         <span class="attendance-th-title" style="font-size: clamp(11px, 2.8vw, 13.5px); white-space: nowrap;">Students</span>
-                                        <span class="attendance-students-expand-btn md:hidden w-5 h-5 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-[10.5px] transition-all cursor-pointer shrink-0 ml-1">
+                                        <span class="attendance-students-expand-btn w-5 h-5 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white text-[10.5px] transition-all cursor-pointer shrink-0 ml-1">
                                             <i class="fa-solid ${isAttendanceStudentColExpanded ? 'fa-chevron-left' : 'fa-chevron-right'}"></i>
                                         </span>
                                     </div>
                                 </th>
+                                ${isAttendanceStudentColExpanded ? `
+                                    <th class="attendance-summary-th attendance-summary-th--p" title="Total Present days this month">
+                                        <span class="attendance-summary-label-full">Present</span><span class="attendance-summary-label-short">P</span>
+                                    </th>
+                                    <th class="attendance-summary-th attendance-summary-th--a" title="Total Absent days this month">
+                                        <span class="attendance-summary-label-full">Absent</span><span class="attendance-summary-label-short">A</span>
+                                    </th>
+                                    <th class="attendance-summary-th attendance-summary-th--l" title="Total Late days this month">
+                                        <span class="attendance-summary-label-full">Late</span><span class="attendance-summary-label-short">L</span>
+                                    </th>
+                                ` : ''}
                                 ${Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const date = new Date(attendanceViewingYear, attendanceViewingMonth, day);
@@ -2705,7 +2852,7 @@ function initTeacherPortal() {
             const isExpanded = expandedAttendanceCol === day;
             const isToday = (todayNow.getDate() === day && isCurrentMonth);
             const isSelected = (attendanceSelectedDay === day);
-            return `<th class="day-col ${isExpanded ? 'is-expanded' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" onclick="window.toggleAttendanceExpansion(${day})"><span class="attendance-th-date">${label}</span></th>`;
+            return `<th class="day-col ${isExpanded ? 'is-expanded' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" data-day="${day}" onclick="window.toggleAttendanceExpansion(${day})"><span class="attendance-th-date">${label}</span></th>`;
         }).join('')}
                                 ${Array.from({ length: BLANK_ATTENDANCE_COLS_COUNT }, () => `<th class="day-col blank-col"></th>`).join('')}
                             </tr>
@@ -2716,7 +2863,7 @@ function initTeacherPortal() {
         if (students.length === 0) {
             html += `
                 <tr>
-                    <td colspan="${daysInMonth + 1 + BLANK_ATTENDANCE_COLS_COUNT}" class="py-16 text-center text-slate-500">
+                    <td colspan="${daysInMonth + 1 + BLANK_ATTENDANCE_COLS_COUNT + (isAttendanceStudentColExpanded ? 3 : 0)}" class="py-16 text-center text-slate-500">
                         <div class="flex flex-col items-center justify-center gap-2">
                             <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                 <i class="fa-solid fa-user-slash text-base"></i>
@@ -2736,20 +2883,34 @@ function initTeacherPortal() {
                 const studentAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
                     ? window.renderUserAvatarHtml(student.name, 'sm')
                     : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`;
+                const sKey = student.id || student.name;
+                const totals = studentTotals[sKey] || { P: 0, A: 0, L: 0 };
 
                 html += `
                     <tr>
-                        <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''} overflow-hidden whitespace-nowrap">
+                        <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
-                                <span class="attendance-student-name font-medium text-black ${isAttendanceStudentColExpanded ? '' : 'truncate'} max-w-full block whitespace-nowrap overflow-hidden" 
-                                      style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ${isAttendanceStudentColExpanded ? 'clip' : 'ellipsis'} !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
+                                <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
+                                      style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
                                       title="${escapeHtml(displayName)}">${displayName}</span>
                             </div>
-                        </td>`;
+                        </td>
+                        ${isAttendanceStudentColExpanded ? `
+                            <td class="attendance-summary-td attendance-summary-td--p">
+                                <span class="attendance-count-num">${totals.P}</span>
+                            </td>
+                            <td class="attendance-summary-td attendance-summary-td--a">
+                                <span class="attendance-count-num">${totals.A}</span>
+                            </td>
+                            <td class="attendance-summary-td attendance-summary-td--l">
+                                <span class="attendance-count-num">${totals.L}</span>
+                            </td>
+                        ` : ''}`;
                 for (let d = 1; d <= daysInMonth; d++) {
-                    const localDateString = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const currentStatuses = getCurrentAttendanceStatuses(localDateString);
+                    const dayData = dailyStatuses[d] || {};
+                    const localDateString = dayData.dateStr || `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const currentStatuses = dayData.statuses || getCurrentAttendanceStatuses(localDateString);
                     let status = currentStatuses[student.name] || 
                                    (student.id && currentStatuses[student.id]) ||
                                    currentStatuses[displayName] || '';
@@ -2805,12 +2966,19 @@ function initTeacherPortal() {
                 if (attendanceLastScrollLeft >= 0) {
                     slider.scrollLeft = attendanceLastScrollLeft;
                 }
-                if (shouldSlide) {
+                const now = new Date();
+                const isCurrentMonth = (attendanceViewingMonth === now.getMonth() && attendanceViewingYear === now.getFullYear());
+                const isToday = (expandedAttendanceCol === now.getDate() && isCurrentMonth);
+
+                if (shouldSlide && !isToday) {
                     requestAnimationFrame(() => {
                         slideToBesideStudentCol(slider, expandedAttendanceCol, true);
                     });
                 } else {
-                    slideToBesideStudentCol(slider, expandedAttendanceCol, false);
+                    // Do NOT slide or jump beside student column for current date or in-place toggles
+                    if (attendanceLastScrollLeft >= 0) {
+                        slider.scrollLeft = attendanceLastScrollLeft;
+                    }
                 }
             } else if (attendanceLastScrollLeft === -1) {
                 // Fresh open / month navigation: align current date directly beside student column
@@ -2833,6 +3001,16 @@ function initTeacherPortal() {
         }
 
         initAttendanceDragScroll();
+        updateAttendanceMobileSummaryWidth();
+    }
+
+    function updateAttendanceMobileSummaryWidth() {
+        const table = document.querySelector('.attendance-month-table');
+        if (!table) return;
+        const gridContainer = table.closest('.attendance-grid-container') || table.parentElement;
+        const visibleWidth = gridContainer ? gridContainer.clientWidth : (window.innerWidth || 360);
+        const colWidth = Math.max(38, (visibleWidth - 220) / 3);
+        table.style.setProperty('--attendance-mobile-summary-col-width', `${colWidth}px`);
     }
 
     let attendanceScrollAnimationId = null;
@@ -2878,17 +3056,32 @@ function initTeacherPortal() {
         attendanceScrollAnimationId = requestAnimationFrame(step);
     }
 
+    function getEffectiveAttendanceZoom(elem) {
+        let zoom = 1;
+        let curr = elem;
+        while (curr && curr !== document.documentElement) {
+            const z = parseFloat(window.getComputedStyle(curr).zoom);
+            if (!isNaN(z) && z > 0) {
+                zoom *= z;
+            }
+            curr = curr.parentElement;
+        }
+        return zoom || 1;
+    }
+
     function slideToBesideStudentCol(slider, day, smooth = true) {
         if (!slider) return;
-        const ths = slider.querySelectorAll('thead th');
-        if (!ths || !ths[day]) return;
+        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
+        if (!dayTh) return;
 
-        const expandedTh = ths[day]; // index 0 is Students, index day is Day day
-        const stickyTh = ths[0];
-        const stickyWidth = stickyTh ? stickyTh.offsetWidth : 270;
+        const lastStickyTh = slider.querySelector('thead th.attendance-summary-th--l') || slider.querySelector('thead th.student-name-col');
+        if (!lastStickyTh) return;
 
-        // Perfectly align the left edge of the selected date column right next to the sticky student column
-        const perfectTarget = Math.max(0, expandedTh.offsetLeft - stickyWidth);
+        const dayRect = dayTh.getBoundingClientRect();
+        const stickyRight = lastStickyTh.getBoundingClientRect().right;
+        const zoomFactor = getEffectiveAttendanceZoom(slider);
+        const offsetDiff = (dayRect.left - stickyRight) / zoomFactor;
+        const perfectTarget = Math.max(0, Math.round(slider.scrollLeft + offsetDiff));
 
         if (smooth) {
             smoothScrollAttendance(slider, perfectTarget, 300);
@@ -2902,7 +3095,46 @@ function initTeacherPortal() {
         }
     }
 
+    function slideAttendanceDayIntoView(slider, day, smooth = true) {
+        if (!slider) return;
+        const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
+        if (!dayTh) return;
+
+        const stickyTh = slider.querySelector('thead th.attendance-summary-th--l') || slider.querySelector('thead th.student-name-col');
+        const sliderRect = slider.getBoundingClientRect();
+        const dayRect = dayTh.getBoundingClientRect();
+        const stickyRight = stickyTh ? stickyTh.getBoundingClientRect().right : sliderRect.left;
+        const visibleLeft = Math.max(stickyRight, sliderRect.left);
+        const visibleRight = sliderRect.right;
+        const visibleWidth = Math.max(1, visibleRight - visibleLeft);
+        const safeGap = Math.min(32, Math.max(16, visibleWidth * 0.06));
+        let target = slider.scrollLeft;
+
+        if (dayRect.left < visibleLeft + safeGap || dayRect.right > visibleRight - safeGap) {
+            const zoomFactor = getEffectiveAttendanceZoom(slider);
+            target += ((dayRect.left + (dayRect.width / 2)) - (visibleLeft + (visibleWidth / 2))) / zoomFactor;
+        } else {
+            attendanceLastScrollLeft = slider.scrollLeft;
+            return;
+        }
+
+        const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
+        target = Math.min(maxScroll, Math.max(0, target));
+
+        if (smooth) {
+            smoothScrollAttendance(slider, target, 300);
+        } else {
+            if (attendanceScrollAnimationId) {
+                cancelAnimationFrame(attendanceScrollAnimationId);
+                attendanceScrollAnimationId = null;
+            }
+            slider.scrollLeft = target;
+            attendanceLastScrollLeft = target;
+        }
+    }
+
     window.addEventListener('resize', () => {
+        updateAttendanceMobileSummaryWidth();
         if (expandedAttendanceCol !== -1) {
             const container = document.getElementById('detail-section-attendance');
             const slider = container ? container.querySelector('.attendance-grid-container') : null;
@@ -3098,24 +3330,39 @@ function initTeacherPortal() {
                             <p class="text-base text-black font-semibold leading-relaxed font-['Inter']">Choose which attendance records you would like to export to Microsoft Excel (.xlsx):</p>
                             
                             <div class="space-y-4">
-                                <!-- Option 1: Current Month (Recommended) -->
+                                <!-- Option 1: Current Month (Full Month) -->
                                 <label class="export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80" id="export-option-month-label">
                                     <input type="radio" name="attendance-export-scope" value="month" checked class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center gap-2.5 flex-wrap">
                                             <span class="export-scope-title text-base font-bold text-black font-['Inter']">Current Month (${currentMonthName} ${attendanceViewingYear})</span>
-                                            <span class="export-scope-badge px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">Recommended</span>
+                                            <span class="export-scope-badge px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">Days 1–31</span>
                                         </div>
-                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports full monthly register (Days 1–30/31) with daily status (P, A, L, E) and summary totals.</p>
+                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports full monthly register (Days 1–30/31) including non-school and empty day columns.</p>
                                     </div>
                                 </label>
 
-                                <!-- Option 2: All Inputted Records -->
+                                <!-- Option 2: Current Month - Recorded Dates Only (No Blank Columns) -->
+                                <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-month-active-label">
+                                    <input type="radio" name="attendance-export-scope" value="month-active" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2.5 flex-wrap">
+                                            <span class="export-scope-title text-base font-bold text-black font-['Inter']">Current Month - Recorded Dates Only</span>
+                                            <span class="export-scope-badge px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">No Blank Columns</span>
+                                        </div>
+                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports only dates in ${currentMonthName} that have at least 1 student attendance entry. Completely blank day columns are omitted.</p>
+                                    </div>
+                                </label>
+
+                                <!-- Option 3: All Recorded Dates to Date (No Blank Columns) -->
                                 <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-all-label">
                                     <input type="radio" name="attendance-export-scope" value="all" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
                                     <div class="flex-1 min-w-0">
-                                        <span class="export-scope-title text-base font-bold text-black font-['Inter']">All Inputted Records to Date</span>
-                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports only the specific dates across all months that contain recorded attendance entries.</p>
+                                        <div class="flex items-center gap-2.5 flex-wrap">
+                                            <span class="export-scope-title text-base font-bold text-black font-['Inter']">All Recorded Dates to Date</span>
+                                            <span class="export-scope-badge px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">All Months • No Blanks</span>
+                                        </div>
+                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports all recorded dates across all months that contain at least 1 student attendance entry. Completely blank day columns are excluded.</p>
                                     </div>
                                 </label>
                             </div>
@@ -3138,21 +3385,17 @@ function initTeacherPortal() {
     };
 
     window.updateAttendanceExportOptionUI = function () {
-        const monthOption = document.querySelector('input[name="attendance-export-scope"][value="month"]');
-        const monthLabel = document.getElementById('export-option-month-label');
-        const allLabel = document.getElementById('export-option-all-label');
-        if (!monthLabel || !allLabel || !monthOption) return;
-
         const activeClass = 'export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80';
         const inactiveClass = 'export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50';
 
-        if (monthOption.checked) {
-            monthLabel.className = activeClass;
-            allLabel.className = inactiveClass;
-        } else {
-            monthLabel.className = inactiveClass;
-            allLabel.className = activeClass;
-        }
+        document.querySelectorAll('.export-scope-option').forEach(label => {
+            const radio = label.querySelector('input[name="attendance-export-scope"]');
+            if (radio && radio.checked) {
+                label.className = activeClass;
+            } else {
+                label.className = inactiveClass;
+            }
+        });
     };
 
     window.closeAttendanceExportModal = function () {
@@ -3174,17 +3417,49 @@ function initTeacherPortal() {
         refreshAttendanceRecords();
         const classroomData = attendanceRecordsByClassroom[currentClassroomKey] || {};
 
-        // Helper to build worksheet for a specific month
-        function buildMonthSheet(year, monthIdx, periodLabel) {
-            const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-            const datesToExport = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                datesToExport.push({
-                    dateStr: dateStr,
-                    label: `${String(monthIdx + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
-                    dayNum: d
-                });
+        // Helper: checks if a given date string has at least 1 student with an attendance status
+        function dateHasAnyStudentAttendance(dateStr) {
+            const currentStatuses = getCurrentAttendanceStatuses(dateStr);
+            if (!currentStatuses || typeof currentStatuses !== 'object') return false;
+            const keys = Object.keys(currentStatuses);
+            if (keys.length === 0) return false;
+
+            for (let s = 0; s < students.length; s++) {
+                const student = students[s];
+                let displayName = student.name;
+                if (student.middleName && !student.name.includes(student.middleName)) {
+                    displayName = `${student.name} ${student.middleName}`;
+                }
+                let status = currentStatuses[student.name] || 
+                             (student.id && currentStatuses[student.id]) ||
+                             currentStatuses[displayName] || '';
+                if (!status) {
+                    for (const k of keys) {
+                        if ((student.id && String(k) === String(student.id)) || (typeof studentNamesMatch === 'function' && studentNamesMatch(k, student.name))) {
+                            status = currentStatuses[k];
+                            break;
+                        }
+                    }
+                }
+                if (status && String(status).trim() !== '') {
+                    return true;
+                }
+            }
+
+            // Fallback in case student list is empty or status keys match differently
+            for (const k of keys) {
+                const val = currentStatuses[k];
+                if (val && ['P', 'A', 'L', 'E'].includes(String(val).trim().toUpperCase())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Helper to build worksheet for an arbitrary list of dates
+        function buildAttendanceWorksheet(datesToExport, periodLabel) {
+            if (!datesToExport || datesToExport.length === 0) {
+                return { ws: null, sheetData: [] };
             }
 
             // Build Excel data array (rows)
@@ -3221,7 +3496,7 @@ function initTeacherPortal() {
                                    currentStatuses[displayName] || '';
                     if (!status) {
                         for (const k of Object.keys(currentStatuses)) {
-                            if ((student.id && String(k) === String(student.id)) || studentNamesMatch(k, student.name)) {
+                            if ((student.id && String(k) === String(student.id)) || (typeof studentNamesMatch === 'function' && studentNamesMatch(k, student.name))) {
                                 status = currentStatuses[k];
                                 break;
                             }
@@ -3250,10 +3525,16 @@ function initTeacherPortal() {
                 const currentStatuses = getCurrentAttendanceStatuses(d.dateStr);
                 let dayP = 0, dayA = 0, dayL = 0, dayE = 0;
                 students.forEach(student => {
-                    let status = currentStatuses[student.name] || (student.id && currentStatuses[student.id]) || '';
+                    let displayName = student.name;
+                    if (student.middleName && !student.name.includes(student.middleName)) {
+                        displayName = `${student.name} ${student.middleName}`;
+                    }
+                    let status = currentStatuses[student.name] || 
+                                   (student.id && currentStatuses[student.id]) ||
+                                   currentStatuses[displayName] || '';
                     if (!status) {
                         for (const k of Object.keys(currentStatuses)) {
-                            if ((student.id && String(k) === String(student.id)) || studentNamesMatch(k, student.name)) {
+                            if ((student.id && String(k) === String(student.id)) || (typeof studentNamesMatch === 'function' && studentNamesMatch(k, student.name))) {
                                 status = currentStatuses[k];
                                 break;
                             }
@@ -3354,39 +3635,111 @@ function initTeacherPortal() {
             return { ws: null, sheetData };
         }
 
-        // Determine which months to generate
-        let monthsToGenerate = [];
+        // Determine which sheets to generate
+        const sheetsToExport = []; // array of { sheetName, periodLabel, datesToExport }
+
         if (scope === 'month') {
-            monthsToGenerate.push({
-                year: attendanceViewingYear,
-                monthIdx: attendanceViewingMonth,
-                name: currentMonthName,
-                periodLabel: `${currentMonthName} ${attendanceViewingYear}`
+            // Current Month (Full Month: Days 1–30/31)
+            const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
+            const datesToExport = [];
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                datesToExport.push({
+                    dateStr: dateStr,
+                    label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
+                    dayNum: d
+                });
+            }
+            sheetsToExport.push({
+                sheetName: currentMonthName,
+                periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
+                datesToExport: datesToExport
+            });
+        } else if (scope === 'month-active') {
+            // Current Month (Recorded Dates Only - No Blank Columns)
+            const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
+            const datesToExport = [];
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                if (dateHasAnyStudentAttendance(dateStr)) {
+                    datesToExport.push({
+                        dateStr: dateStr,
+                        label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
+                        dayNum: d
+                    });
+                }
+            }
+
+            if (datesToExport.length === 0) {
+                if (typeof window.showToastNotification === 'function') {
+                    window.showToastNotification(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`, 'warning');
+                } else {
+                    alert(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
+                }
+                window.closeAttendanceExportModal();
+                return;
+            }
+
+            sheetsToExport.push({
+                sheetName: currentMonthName,
+                periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
+                datesToExport: datesToExport
             });
         } else {
-            // All dates that have any records
-            const allDateKeys = Object.keys(classroomData).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && classroomData[k].statuses && Object.keys(classroomData[k].statuses).length > 0).sort();
+            // All Recorded Dates to Date (No Blank Columns)
+            const allDateKeys = Object.keys(classroomData)
+                .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && dateHasAnyStudentAttendance(k))
+                .sort();
+
             if (allDateKeys.length === 0) {
-                // Fallback to viewing month if no records found
-                monthsToGenerate.push({
-                    year: attendanceViewingYear,
-                    monthIdx: attendanceViewingMonth,
-                    name: currentMonthName,
-                    periodLabel: `${currentMonthName} ${attendanceViewingYear}`
-                });
-            } else {
-                // Extract unique YYYY-MM strings in chronological order (e.g., 2026-08, 2026-09)
-                const uniqueMonths = [...new Set(allDateKeys.map(d => d.slice(0, 7)))].sort();
-                uniqueMonths.forEach(ym => {
-                    const [yStr, mStr] = ym.split('-');
-                    const y = parseInt(yStr, 10);
-                    const m = parseInt(mStr, 10) - 1;
-                    monthsToGenerate.push({
-                        year: y,
-                        monthIdx: m,
-                        name: monthNames[m],
-                        periodLabel: `${monthNames[m]} ${y}`
+                if (typeof window.showToastNotification === 'function') {
+                    window.showToastNotification('No recorded attendance entries found to export.', 'warning');
+                } else {
+                    alert('No recorded attendance entries found to export.');
+                }
+                window.closeAttendanceExportModal();
+                return;
+            }
+
+            const uniqueMonths = [...new Set(allDateKeys.map(d => d.slice(0, 7)))].sort();
+            uniqueMonths.forEach(ym => {
+                const [yStr, mStr] = ym.split('-');
+                const y = parseInt(yStr, 10);
+                const m = parseInt(mStr, 10) - 1;
+                const monthActiveDates = allDateKeys
+                    .filter(d => d.startsWith(ym))
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        return {
+                            dateStr: dateStr,
+                            label: `${parts[1]}/${parts[2]}`,
+                            dayNum: parseInt(parts[2], 10)
+                        };
                     });
+
+                if (monthActiveDates.length > 0) {
+                    sheetsToExport.push({
+                        sheetName: monthNames[m],
+                        periodLabel: `${monthNames[m]} ${y}`,
+                        datesToExport: monthActiveDates
+                    });
+                }
+            });
+
+            // If there are multiple months, also prepend a consolidated "All Records" sheet
+            if (uniqueMonths.length > 1) {
+                const allActiveDatesList = allDateKeys.map(dateStr => {
+                    const parts = dateStr.split('-');
+                    return {
+                        dateStr: dateStr,
+                        label: `${parts[1]}/${parts[2]}`,
+                        dayNum: parseInt(parts[2], 10)
+                    };
+                });
+                sheetsToExport.unshift({
+                    sheetName: 'All Records',
+                    periodLabel: `All Recorded Dates (${allDateKeys[0]} to ${allDateKeys[allDateKeys.length - 1]})`,
+                    datesToExport: allActiveDatesList
                 });
             }
         }
@@ -3394,17 +3747,23 @@ function initTeacherPortal() {
         // Safe Filename
         const safeSubj = subjName.replace(/[^a-zA-Z0-9_-]/g, '_');
         const safeSec = secName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const fileName = `Attendance_${safeSubj}_${safeSec}_${scope === 'month' ? `${currentMonthName}_${attendanceViewingYear}` : 'All_Months'}.xlsx`;
+        let fileScopeTag = `${currentMonthName}_${attendanceViewingYear}`;
+        if (scope === 'month-active') {
+            fileScopeTag = `${currentMonthName}_${attendanceViewingYear}_Active_Dates`;
+        } else if (scope === 'all' || scope === 'all-active') {
+            fileScopeTag = 'All_Recorded_Dates';
+        }
+        const fileName = `Attendance_${safeSubj}_${safeSec}_${fileScopeTag}.xlsx`;
 
         // Check if XLSX library is loaded
         if (typeof XLSX !== 'undefined') {
             const wb = XLSX.utils.book_new();
             const usedSheetNames = new Set();
 
-            monthsToGenerate.forEach(mObj => {
-                let sheetName = mObj.name;
+            sheetsToExport.forEach(item => {
+                let sheetName = item.sheetName;
                 if (usedSheetNames.has(sheetName)) {
-                    sheetName = `${mObj.name} ${mObj.year}`;
+                    sheetName = `${item.sheetName}_${item.periodLabel.slice(-4)}`;
                 }
                 if (usedSheetNames.has(sheetName)) {
                     sheetName = `${sheetName}_1`;
@@ -3413,7 +3772,7 @@ function initTeacherPortal() {
                 sheetName = sheetName.replace(/[:\\/?*\[\]]/g, '').substring(0, 31);
                 usedSheetNames.add(sheetName);
 
-                const { ws } = buildMonthSheet(mObj.year, mObj.monthIdx, mObj.periodLabel);
+                const { ws } = buildAttendanceWorksheet(item.datesToExport, item.periodLabel);
                 if (ws) {
                     XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 }
@@ -3421,9 +3780,9 @@ function initTeacherPortal() {
 
             XLSX.writeFile(wb, fileName);
         } else {
-            // Fallback CSV download for first month
-            const firstMonth = monthsToGenerate[0];
-            const { sheetData } = buildMonthSheet(firstMonth.year, firstMonth.monthIdx, firstMonth.periodLabel);
+            // Fallback CSV download for first sheet
+            const firstSheet = sheetsToExport[0];
+            const { sheetData } = buildAttendanceWorksheet(firstSheet.datesToExport, firstSheet.periodLabel);
             const csvContent = sheetData.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(',')).join('\n');
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -5987,12 +6346,7 @@ function initTeacherPortal() {
             const currentHash = window.location.hash || '';
             if (currentHash !== hash) {
                 const historyState = { type: 'topic-content', subjectId, topicIdx, tab, subIdx, selectedSection: preservedSection, viewSubmission: isSubMode };
-                const bothSubmission = /:(submission|submit)$/.test(currentHash) && /:(submission|submit)$/.test(hash);
-                if (bothSubmission) {
-                    history.replaceState(historyState, '', hash);
-                } else {
-                    history.pushState(historyState, '', hash);
-                }
+                history.pushState(historyState, '', hash);
                 localStorage.setItem('sigma-teacher-nav-state', JSON.stringify(historyState));
             }
         }
@@ -6162,12 +6516,7 @@ function initTeacherPortal() {
         if ((window.location.hash || '') !== hash) {
             const historyState = { type: 'topic-content', subjectId, topicIdx, tab, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode };
             const currentHash = window.location.hash || '';
-            const bothSubmission = /:(submission|submit)$/.test(currentHash) && /:(submission|submit)$/.test(hash);
-            if (bothSubmission) {
-                history.replaceState(historyState, '', hash);
-            } else {
-                history.pushState(historyState, '', hash);
-            }
+            history.pushState(historyState, '', hash);
         }
         sigmaLastNavHash = window.location.hash || '';
         localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
@@ -6864,7 +7213,25 @@ function initTeacherPortal() {
         const returnToMain = function () {
             window.closeManageCurriculumHub?.();
         };
+        const activeSec = (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+            || window.currentClassroomSectionName
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+            || (typeof currentClassroomKey !== 'undefined' && currentClassroomKey ? currentClassroomKey.split('::')[0] : '')
+            || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+            || localStorage.getItem('sigma-active-classroom-section')
+            || '';
+        const activeSubj = window.currentClassroomSubject
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.subjectId : '')
+            || (typeof currentClassroomKey !== 'undefined' && currentClassroomKey ? currentClassroomKey.split('::')[1] : '')
+            || (typeof resolveTeacherActiveSubjectId === 'function' ? resolveTeacherActiveSubjectId() : '')
+            || localStorage.getItem('sigma-active-classroom-subject')
+            || '';
         window.openSharedTopicsAndMaterials?.({
+            subjectId: activeSubj,
+            section: activeSec,
+            selectedSection: activeSec,
             onBack: returnToMain,
             onExit: returnToMain,
             onSave: returnToMain
@@ -14260,6 +14627,7 @@ function initTeacherPortal() {
                     const studentNotif = {
                         id: 'notif_rel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                         senderName: senderTeacherName,
+                        assignmentScope: { section, subjectId, subjectName: window.getTopicSubject?.(subjectId)?.name || subjectId },
                         senderInitials: senderTeacherInitials,
                         senderColor: '#1d4ed8',
                         title: `New ${notifTypeStr} Posted`,
@@ -17903,6 +18271,8 @@ function initTeacherPortal() {
             </div>
         `;
 
+        window.relocateAssessmentPrimaryAction?.(page);
+
         if (typeof _bindTopicContentEvents === 'function') {
             _bindTopicContentEvents();
         }
@@ -19238,69 +19608,6 @@ function initTeacherPortal() {
             return;
         }
 
-        const cameFromSubmission = /:(submission|submit)$/.test(fromHash);
-        if (cameFromSubmission) {
-            const materialHash = fromHash.replace(/:(submission|submit)$/, '');
-            const hashParts = (value) => String(value || '').replace(/:(submission|submit)$/, '').split(':');
-            const fromParts = hashParts(materialHash);
-            const landedParts = hashParts(landedHash);
-            const landedIsMaterial = fromParts.length >= 5 && landedParts.length >= 5
-                && !/:(submission|submit)$/.test(landedHash)
-                && fromParts[1] === landedParts[1]
-                && fromParts[2] === landedParts[2]
-                && fromParts[3] === landedParts[3]
-                && fromParts[4] === landedParts[4];
-            if (!landedIsMaterial) {
-                const skips = Number(window._submissionBackSkips || 0);
-                const canSkip = skips < 8 && (
-                    /:(submission|submit)$/.test(landedHash)
-                    || landedHash === fromHash
-                    || landedHash.startsWith('#topic-content:')
-                    || landedHash.startsWith('#topic_content:')
-                );
-                if (canSkip) {
-                    window._submissionBackSkips = skips + 1;
-                    window._skipSubmissionBackHistory = true;
-                    sigmaLastNavHash = fromHash;
-                    history.back();
-                    return;
-                }
-                if (materialHash.startsWith('#topic-content:') || materialHash.startsWith('#topic_content:')) {
-                    window._submissionBackSkips = 0;
-                    const parts = materialHash.split(':');
-                    const subjectId = parts[1];
-                    const topicIdx = parseInt(parts[2], 10);
-                    const tab = parts[3];
-                    const vIdxStr = parts[4];
-                    const videoIdx = (vIdxStr === 'null' || vIdxStr === 'undefined' || !vIdxStr) ? null : parseInt(vIdxStr, 10);
-                    const targetSection = (parts.length >= 6 && parts[5] !== 'submit') ? decodeURIComponent(parts[5]) : '';
-                    try {
-                        history.replaceState({
-                            type: 'topic-content',
-                            subjectId,
-                            topicIdx,
-                            tab,
-                            videoIdx,
-                            assessmentIdx: videoIdx,
-                            selectedSection: targetSection,
-                            viewSubmission: false
-                        }, '', materialHash);
-                    } catch (e) {}
-                    sigmaLastNavHash = materialHash;
-                    window._studentViewSubmissionMode = false;
-                    window._sharedViewSubmissionMode = false;
-                    window._studentSubmissionMode = false;
-                    window.openTopicContent(subjectId, topicIdx, tab, videoIdx, false, {
-                        selectedSection: targetSection,
-                        viewSubmission: false
-                    });
-                    return;
-                }
-            }
-            window._submissionBackSkips = 0;
-        } else {
-            window._submissionBackSkips = 0;
-        }
 
         const hash = window.location.hash || '';
 
@@ -22810,45 +23117,6 @@ function initTeacherPortal() {
 
     gradebookState.weights = loadGradebookWeights(gradebookState.selectedSubject);
 
-    // loadGradebookData and saveGradebookData are initialized early at script startup and handle all storage keys
-    function loadGradebookData() {
-        if (typeof window.loadGradebookData === 'function' && window.loadGradebookData !== loadGradebookData) {
-            return window.loadGradebookData();
-        }
-        try {
-            const s = localStorage.getItem(SCORES_STORAGE_KEY) || localStorage.getItem('sigma_gradebook_scores') || localStorage.getItem('gradebookScores');
-            const st = localStorage.getItem(STATUSES_STORAGE_KEY) || localStorage.getItem('sigma_gradebook_statuses') || localStorage.getItem('gradebookStatuses');
-            if (s) {
-                const parsed = JSON.parse(s);
-                if (parsed && typeof parsed === 'object') gradebookScores = parsed;
-            }
-            if (st) {
-                const parsedSt = JSON.parse(st);
-                if (parsedSt && typeof parsedSt === 'object') gradebookStatuses = parsedSt;
-            }
-        } catch (e) {
-            console.error('Failed to load gradebook data:', e);
-        }
-    }
-
-    function saveGradebookData() {
-        if (typeof window.saveGradebookData === 'function' && window.saveGradebookData !== saveGradebookData) {
-            return window.saveGradebookData();
-        }
-        try {
-            const scoresJson = JSON.stringify(gradebookScores);
-            const statusesJson = JSON.stringify(gradebookStatuses);
-            localStorage.setItem(SCORES_STORAGE_KEY, scoresJson);
-            localStorage.setItem(STATUSES_STORAGE_KEY, statusesJson);
-            localStorage.setItem('sigma_gradebook_scores', scoresJson);
-            localStorage.setItem('gradebookScores', scoresJson);
-            localStorage.setItem('sigma_gradebook_statuses', statusesJson);
-            localStorage.setItem('gradebookStatuses', statusesJson);
-            window.invalidateTeacherGradebookCache?.();
-        } catch (e) {
-            console.error('Failed to save gradebook data:', e);
-        }
-    }
 
     window.addEventListener('storage', (e) => {
         if (!e || !e.key) return;

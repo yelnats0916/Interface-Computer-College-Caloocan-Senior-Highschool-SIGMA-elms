@@ -18,6 +18,13 @@
     display: block !important;
 }
 
+#admin-main:has(#database-snapshots-view:not(.hidden)),
+#database-snapshots-view {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+}
+
 .sigma-settings-layout {
     display: flex;
     flex-direction: row;
@@ -30,6 +37,10 @@
     color: #000000;
     overflow: hidden;
     box-sizing: border-box;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .sigma-settings-sidebar {
@@ -45,6 +56,8 @@
     height: 100%;
     overflow-y: auto;
     box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .sigma-settings-main {
@@ -56,6 +69,11 @@
     overflow-y: auto;
     scroll-behavior: auto;
     box-sizing: border-box;
+    scrollbar-width: auto;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .sigma-settings-inner {
@@ -73,6 +91,36 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     scroll-margin-top: 1.5rem;
     margin-bottom: 2.5rem;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Ensure buttons, badges, titles never highlight as text selection on drag */
+.sigma-settings-layout button,
+.sigma-settings-layout [role="button"],
+.sigma-settings-layout h1,
+.sigma-settings-layout h2,
+.sigma-settings-layout h3,
+.sigma-settings-layout h4,
+.sigma-settings-layout .gwa-card {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Allow text selection ONLY on form inputs, textareas, and explicit editable fields */
+.sigma-settings-main input,
+.sigma-settings-main textarea,
+.sigma-settings-main select,
+.sigma-settings-main [contenteditable="true"],
+.sigma-settings-main .allow-text-select {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
 }
 
 @media (max-width: 768px) {

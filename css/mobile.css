@@ -21,6 +21,11 @@
    1. GLOBAL RESPONSIVE CORE & LAYOUT WRAPPER (< 1024px)
    ========================================================================== */
 @media (max-width: 1023px) {
+    :root {
+        --mobile-browser-safe-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+        --mobile-page-bottom-space: calc(16px + var(--mobile-browser-safe-bottom));
+    }
+
     html, body {
         overflow-x: hidden !important;
         width: 100% !important;
@@ -86,7 +91,7 @@
     .admin-main-content,
     .quiz-creator-shell,
     #paper-canvas {
-        padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: var(--mobile-page-bottom-space) !important;
     }
 
     #main-content::after,
@@ -99,13 +104,8 @@
     .student-topic-page-shell::after,
     .teacher-topic-page-shell::after,
     .quiz-creator-shell::after {
-        content: "" !important;
-        display: block !important;
-        width: 100% !important;
-        height: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
-        min-height: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
-        flex-shrink: 0 !important;
-        pointer-events: none !important;
+        content: none !important;
+        display: none !important;
     }
 }
 
@@ -615,7 +615,8 @@
     .mobile-pull-up-content,
     #mobile-sigma-sheet .mobile-sigma-cards {
         padding: 0 !important;
-        padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: var(--mobile-page-bottom-space) !important;
+        scroll-padding-bottom: var(--mobile-page-bottom-space) !important;
         margin-bottom: 0 !important;
         gap: 0 !important;
         width: 100% !important;
@@ -631,14 +632,8 @@
     #calendar-dropdown #mobile-calendar-container::after,
     .mobile-pull-up-content::after,
     #mobile-sigma-sheet .mobile-sigma-cards::after {
-        content: "" !important;
-        display: block !important;
-        width: 100% !important;
-        height: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
-        min-height: calc(110px + env(safe-area-inset-bottom, 0px)) !important;
-        flex-shrink: 0 !important;
-        pointer-events: none !important;
-        background: transparent !important;
+        content: none !important;
+        display: none !important;
     }
 
     #schedule-dropdown-cards > div:last-child,
@@ -2443,12 +2438,18 @@
     }
 
     .assessment-material-main-card .sigma-file-panel-title,
+    .assessment-material-main-card .sigma-black-fade-panel .sigma-file-panel-title,
+    .assessment-material-main-card .sigma-black-fade-panel h4.sigma-file-panel-title,
+    #topic-content-main .sigma-file-panel-title,
+    #topic-content-main .sigma-black-fade-panel .sigma-file-panel-title,
+    #topic-content-main .sigma-black-fade-panel h4.sigma-file-panel-title,
     .sigma-black-fade-panel .sigma-file-panel-title,
-    .sigma-black-fade-panel h4.sigma-file-panel-title,
     .sigma-file-panel-title {
-        font-size: 11.5px !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
-        line-height: 1.35 !important;
+        line-height: 1.3 !important;
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
     }
 
     .assessment-material-main-card .sigma-file-panel-meta,
@@ -2528,6 +2529,41 @@
 
     .assessment-submission-details-card .sigma-btn i,
     .assessment-submission-details-card button i {
+        font-size: 11px !important;
+    }
+
+    /* Scale down Submit Answer / primary action buttons in coursework detail view (Mobile) */
+    .assessment-primary-action-slot {
+        margin-top: 14px !important;
+    }
+
+    .assessment-primary-action-slot .assessment-relocated-primary-action,
+    .assessment-primary-action-slot #student-assessment-submit-btn,
+    .assessment-primary-action-slot button,
+    .assessment-material-main-card #student-assessment-submit-btn,
+    .assessment-material-main-card #student-submit-answer-btn,
+    .assessment-material-main-card .assessment-primary-action-slot .sigma-btn {
+        width: 100% !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        max-height: 34px !important;
+        padding: 0 14px !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+    }
+
+    .assessment-primary-action-slot .assessment-relocated-primary-action i,
+    .assessment-primary-action-slot #student-assessment-submit-btn i,
+    .assessment-primary-action-slot button i,
+    .assessment-material-main-card #student-assessment-submit-btn i,
+    .assessment-material-main-card #student-submit-answer-btn i,
+    .assessment-material-main-card .assessment-primary-action-slot .sigma-btn i {
         font-size: 11px !important;
     }
 
@@ -2680,12 +2716,12 @@
         flex-shrink: 0 !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #topic-detail-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #topic-content-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #assessments-class-panel-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit) {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-detail-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-content-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #assessments-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit) {
         width: 100% !important;
         height: auto !important;
         min-height: 32px !important;
@@ -2708,25 +2744,25 @@
         text-overflow: ellipsis !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover,
-    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):hover {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover {
         background: #f1f5f9 !important;
         border-color: transparent !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
-    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active {
         background: #e2e8f0 !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn) span.truncate,
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn) span:last-child,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn) span.truncate,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn) span:last-child,
-    [id$="-class-panel-card"] button:not(.grading-nav-btn) span.truncate,
-    [id$="-class-panel-card"] button:not(.grading-nav-btn) span:last-child {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn) span.truncate,
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn) span:last-child,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn) span.truncate,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn) span:last-child,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn) span.truncate,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn) span:last-child {
         font-size: 11.5px !important;
         font-weight: 500 !important;
         color: #0f172a !important;
@@ -2737,9 +2773,9 @@
         flex: 1 1 auto !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
-    [id$="-class-panel-card"] button:not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i {
         font-size: 11.5px !important;
         color: #15803d !important;
         width: 14px !important;
@@ -2935,7 +2971,6 @@
         flex: 0 0 auto !important;
         font-size: 10.5px !important;
         font-weight: 600 !important;
-        color: #64748b !important;
         white-space: nowrap !important;
         line-height: 1 !important;
     }
@@ -3020,6 +3055,29 @@
         font-size: 11px !important;
         font-weight: 700 !important;
         line-height: 1 !important;
+    }
+
+    [id$="-class-panel-card"] button.teacher-save-grade-btn:not(:disabled),
+    .topic-score-sticky button.teacher-save-grade-btn:not(:disabled) {
+        background: #15803d !important;
+        background-color: #15803d !important;
+        color: #ffffff !important;
+        border: 1px solid #15803d !important;
+        opacity: 1 !important;
+    }
+
+    [id$="-class-panel-card"] button.teacher-save-grade-btn:not(:disabled) span,
+    .topic-score-sticky button.teacher-save-grade-btn:not(:disabled) span {
+        color: #ffffff !important;
+    }
+
+    [id$="-class-panel-card"] button.teacher-save-grade-btn:disabled,
+    .topic-score-sticky button.teacher-save-grade-btn:disabled {
+        background: #f1f5f9 !important;
+        background-color: #f1f5f9 !important;
+        color: rgba(0, 0, 0, 0.4) !important;
+        border: 1px solid #e2e8f0 !important;
+        opacity: 1 !important;
     }
 
     /* Mobile status control mirrors desktop and keeps its options inside the sheet. */
@@ -3793,6 +3851,14 @@
         padding: 3px 6px !important;
     }
 
+    /* Scale down the whole attendance table card on mobile so more dates are visible */
+    .attendance-monthly-card {
+        zoom: 0.80 !important;
+        -webkit-zoom: 0.80 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
     .attendance-grid-container {
         border-radius: 0 !important;
         width: 100% !important;
@@ -3805,24 +3871,66 @@
 
     /* Teacher Attendance: Mobile Student Column & Single-Row Name */
     .attendance-month-table .student-name-col,
-    .attendance-month-table tbody td.student-name-col {
-        width: 130px !important;
-        min-width: 130px !important;
-        max-width: 130px !important;
-        padding: 0 0.4rem !important;
+    .attendance-month-table tbody td.student-name-col,
+    .attendance-month-table th.student-name-col {
+        width: 220px !important;
+        min-width: 220px !important;
+        max-width: 220px !important;
+        padding: 0 0.6rem !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease;
+        transition: none !important;
     }
 
     .attendance-month-table .student-name-col.is-students-expanded,
     .attendance-month-table tbody td.student-name-col.is-students-expanded,
     .attendance-month-table th.student-name-col.is-students-expanded {
-        width: 250px !important;
-        min-width: 250px !important;
-        max-width: 250px !important;
+        width: 220px !important;
+        min-width: 220px !important;
+        max-width: 220px !important;
         padding: 0 0.6rem !important;
+    }
+
+    /* Mobile Attendance Summary Columns (P, A, L) - Full Remaining Width to completely cover dates */
+    .attendance-month-table th.attendance-summary-th,
+    .attendance-month-table td.attendance-summary-td {
+        width: var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3)) !important;
+        min-width: var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3)) !important;
+        max-width: var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3)) !important;
+        height: 2.65rem !important;
+        min-height: 2.65rem !important;
+        max-height: 2.65rem !important;
+        box-sizing: border-box !important;
+        padding: 0 1px !important;
+        font-size: 11px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th {
+        line-height: 2.65rem !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--p,
+    .attendance-month-table td.attendance-summary-td--p {
+        left: 220px !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--a,
+    .attendance-month-table td.attendance-summary-td--a {
+        left: calc(220px + var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3))) !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--l,
+    .attendance-month-table td.attendance-summary-td--l {
+        left: calc(220px + 2 * var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3))) !important;
+        border-right: 2px solid #cbd5e1 !important;
+        box-shadow: 2px 0 5px -1px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .attendance-count-num {
+        font-size: 11.5px !important;
     }
 
     /* Hide Student Profile Avatars on Mobile in Attendance Grid */
@@ -3880,8 +3988,8 @@
     .attendance-month-table tbody td.student-name-col .truncate,
     .attendance-month-table .attendance-student-name,
     .attendance-student-name {
-        font-size: 10px !important;
-        font-weight: 600 !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
         color: #000000 !important;
         white-space: nowrap !important;
         word-break: keep-all !important;
@@ -3890,6 +3998,16 @@
         display: block !important;
         width: 100% !important;
         max-width: 100% !important;
+        line-height: 1.15 !important;
+    }
+
+    /* Keep the name rendering identical in both column-width states. */
+    .attendance-month-table tbody td.student-name-col .attendance-student-name {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #000000 !important;
+        letter-spacing: 0 !important;
         line-height: 1.15 !important;
     }
 
@@ -3910,6 +4028,7 @@
         width: 52px !important;
         min-width: 52px !important;
         max-width: 52px !important;
+        transition: none !important;
     }
 
     .attendance-month-table th.day-col {
@@ -3937,6 +4056,7 @@
         width: 128px !important;
         min-width: 128px !important;
         max-width: 128px !important;
+        transition: none !important;
     }
 
     .attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) {
@@ -4595,6 +4715,26 @@
     }
 }
 
+@media (max-width: 767px) {
+    #section-topic-content .topic-score-sticky button.teacher-save-grade-btn,
+    #section-topic-content .topic-score-sticky button.teacher-view-gradebook-btn {
+        width: 100% !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 12px !important;
+        font-size: 11px !important;
+        border-radius: 8px !important;
+    }
+
+    #section-topic-content .topic-score-sticky button.teacher-save-grade-btn span,
+    #section-topic-content .topic-score-sticky button.teacher-view-gradebook-btn span,
+    #section-topic-content .topic-score-sticky button.teacher-view-gradebook-btn i {
+        font-size: 11px !important;
+        line-height: 1 !important;
+        font-weight: 700 !important;
+    }
+}
+
 /* ==========================================================================
    8. MOBILE & TABLET ANNOUNCEMENT POST CARD SYSTEM (< 1024px)
    Aligns date, author name, profile avatar, role subtitle, badges, and post text.
@@ -5019,19 +5159,35 @@
    ========================================================================== */
 @media (max-width: 768px) {
     #mainNav {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        z-index: 9999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background-color: #ffffff !important;
         height: clamp(56px, 14vw, 64px) !important;
         padding-left: 14px !important;
         padding-right: 14px !important;
         border-bottom: 2px solid var(--primary, #006738) !important;
         box-sizing: border-box !important;
+        margin: 0 !important;
+        transform: none !important;
     }
 
-    #backToLoginLogo img {
+    #backToLoginLogo img,
+    #mainNav img {
         width: 38px !important;
         height: 38px !important;
         max-width: 38px !important;
         max-height: 38px !important;
         object-fit: contain !important;
+        flex-shrink: 0 !important;
+        display: block !important;
     }
 
     #helpCenterNavMenuBtn {
@@ -6567,14 +6723,6 @@
         padding: 1px 5px !important;
         border-radius: 4px !important;
         line-height: 1.2 !important;
-    }
-
-    .teacher-portal #subject-material-detail-view .sigma-file-panel-title,
-    body:has(#teacher-header) #subject-material-detail-view .sigma-file-panel-title,
-    #subject-edit-overlay.teacher-mode #subject-material-detail-view .sigma-file-panel-title {
-        font-size: 11.5px !important;
-        font-weight: 600 !important;
-        line-height: 1.35 !important;
     }
 
     .teacher-portal #subject-material-detail-view .sigma-black-fade-panel p.text-xs,
@@ -8965,7 +9113,7 @@
 
 /* ─── Mobile Assessment Card Titles & Facts Panel (Center & Scaled Down) ─── */
 @media (max-width: 768px) {
-    #topic-content-main h4,
+    #topic-content-main h4:not(.sigma-file-panel-title),
     #handout-list h4,
     #assessment-list h4,
     .assessment-card-panel h4,
@@ -9041,4 +9189,69 @@
     #ai-review-action-btn i {
         font-size: 9.5px !important;
     }
+
+    /* Final mobile Save Grade state: match the desktop primary button. */
+    button#teacher-grading-save-btn.teacher-save-grade-btn:not(:disabled) {
+        display: inline-flex !important;
+        background: #15803d !important;
+        background-color: #15803d !important;
+        color: #ffffff !important;
+        border: 1px solid #15803d !important;
+        opacity: 1 !important;
+        cursor: pointer !important;
+    }
+
+    button#teacher-grading-save-btn.teacher-save-grade-btn:not(:disabled) span,
+    button#teacher-grading-save-btn.teacher-save-grade-btn:not(:disabled) i {
+        color: #ffffff !important;
+    }
+
+    button#teacher-grading-save-btn.teacher-save-grade-btn:disabled {
+        display: inline-flex !important;
+        background: #f1f5f9 !important;
+        background-color: #f1f5f9 !important;
+        color: rgba(0, 0, 0, 0.4) !important;
+        border: 1px solid #e2e8f0 !important;
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Browser-toolbar safe area for fullscreen panels, forms, dialogs and sticky footers. */
+    body.mobile-panel-open #noti-dropdown:not(.hidden),
+    body.mobile-panel-open #calendar-dropdown:not(.hidden),
+    body.mobile-panel-open #sigmaAiPanel:not(.hidden),
+    body.mobile-panel-open #analytics-dropdown:not(.hidden),
+    body.mobile-panel-open #schedule-dropdown:not(.hidden),
+    .sigma-post-dialog-modal,
+    .sigma-composer-modal,
+    .topic-student-cover.is-open,
+    [id$="-grading-student-list-tray"].is-open {
+        max-height: 100dvh !important;
+        box-sizing: border-box !important;
+    }
+
+    .sigma-post-dialog-body,
+    .sigma-composer-body,
+    .sigma-modal-body,
+    [role="dialog"] .overflow-y-auto,
+    [class*="modal"] .overflow-y-auto,
+    [class*="overlay"] .overflow-y-auto,
+    form[class*="overflow-y-auto"] {
+        scroll-padding-bottom: var(--mobile-page-bottom-space) !important;
+    }
+
+    .sigma-post-dialog-footer,
+    .sigma-composer-footer,
+    .sigma-modal-footer,
+    [role="dialog"] footer,
+    [class*="modal"] footer,
+    [class*="overlay"] footer {
+        padding-bottom: var(--mobile-browser-safe-bottom) !important;
+    }
+
+    #topic-right-section.topic-rail-score-follow .topic-score-sticky,
+    #topic-right-section:has(.topic-score-sticky) .topic-score-sticky {
+        scroll-padding-bottom: var(--mobile-browser-safe-bottom) !important;
+    }
 }
+

@@ -477,7 +477,7 @@
         backdrop.innerHTML = `
             <div class="metrics-config-modal relative">
                 <!-- Dynamic Confirmation Prompt Overlay -->
-                <div id="metrics-config-confirm-prompt" class="hidden absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center z-20 rounded-[20px] font-['Inter']">
+                <div id="metrics-config-confirm-prompt" class="hidden absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center z-20 rounded-3xl font-['Inter']">
                     <div id="prompt-icon-container" class="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3 text-black border border-slate-100">
                         <i id="prompt-icon" class="fa-solid fa-rotate-left text-base"></i>
                     </div>
@@ -495,29 +495,26 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between p-5 border-b border-slate-100 font-['Inter']">
+                <div class="px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                     <div>
-                        <h3 class="text-sm font-black text-black uppercase tracking-wider">Configure System Metrics</h3>
-                        <p class="text-[11px] text-black-fade font-medium">Select which metric cards to display on your dashboard rail</p>
+                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Configure System Metrics</h2>
+                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Select which metric cards to display on your dashboard rail</p>
                     </div>
-                    <button type="button" id="btn-close-metrics-config" class="w-8 h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 transition-colors cursor-pointer" title="Close">
-                        <i class="fa-solid fa-xmark text-sm text-black"></i>
-                    </button>
                 </div>
 
-                <div class="p-5 overflow-y-auto max-h-[380px] space-y-2.5 custom-scrollbar" id="metrics-config-options-list">
+                <div class="p-6 sm:p-8 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="metrics-config-options-list" style="flex: 1 1 0%; min-height: 0;">
                     <!-- Populated dynamically -->
                 </div>
 
-                <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                    <button type="button" id="btn-reset-metrics-config" class="text-[11px] font-normal text-black-fade hover:text-black hover:underline transition-all cursor-pointer" style="font-family: 'Inter', sans-serif !important;">
-                        Reset
+                <div class="sigma-modal-footer flex items-center justify-between shrink-0 bg-slate-50 border-t border-slate-100 font-['Inter']">
+                    <button type="button" id="btn-cancel-metrics-config" class="sigma-btn sigma-btn-white sigma-modal-btn">
+                        Cancel
                     </button>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="btn-cancel-metrics-config" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-black-fade hover:text-black hover:bg-slate-100 transition-colors cursor-pointer">
-                            Cancel
+                    <div class="flex items-center gap-2.5 sm:gap-3">
+                        <button type="button" id="btn-reset-metrics-config" class="sigma-modal-btn" style="background: transparent; border: none;">
+                            Reset
                         </button>
-                        <button type="button" id="btn-save-metrics-config" disabled class="px-4 py-2 bg-[#15803d] text-white rounded-xl text-[11px] font-bold transition-all shadow-xs opacity-40 cursor-not-allowed pointer-events-none">
+                        <button type="button" id="btn-save-metrics-config" disabled class="sigma-btn sigma-btn-primary sigma-modal-btn opacity-40 cursor-not-allowed pointer-events-none">
                             Save Changes
                         </button>
                     </div>
@@ -665,11 +662,11 @@
             const isChecked = activeIds.includes(metric.id);
             return `
                 <label class="metrics-config-option ${isChecked ? 'is-active' : ''}">
-                    <div class="pr-3">
-                        <p class="text-xs font-black text-black">${metric.title}</p>
-                        <p class="text-[10px] text-black-fade font-medium">${metric.desc}</p>
+                    <div class="pr-4">
+                        <p class="text-sm font-bold text-black font-['Inter']">${metric.title}</p>
+                        <p class="text-xs text-black-fade font-medium font-['Inter'] mt-0.5 leading-snug">${metric.desc}</p>
                     </div>
-                    <div class="metrics-toggle-switch">
+                    <div class="metrics-toggle-switch shrink-0">
                         <input type="checkbox" data-metric-id="${metric.id}" ${isChecked ? 'checked' : ''}>
                         <span class="metrics-toggle-slider"></span>
                     </div>
@@ -2826,6 +2823,7 @@
     }
 
     window.renderAdminAnalyticsWorkspace = function () {
+        if (window.sigmaGradesState.activeTab !== 'analytics') return;
         const workspaceContainer = document.getElementById('admin-analytics-workspace-content');
         if (!workspaceContainer) return;
 
@@ -3376,8 +3374,9 @@
         }
         try {
             const storageKeys = ['sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores'];
-            let scoresObj = null;
-            for (const k of storageKeys) {
+            let scoresObj = typeof window._getTeacherGradebookCached === 'function'
+                ? window._getTeacherGradebookCached().scores : null;
+            for (const k of scoresObj ? [] : storageKeys) {
                 const raw = localStorage.getItem(k);
                 if (raw) {
                     try {
@@ -3426,7 +3425,9 @@
                     for (const qk of qKeys) {
                         for (const sk of sKeys) {
                             for (const ck of catKeys) {
-                                const directScores = scoresObj[sb]?.[qk]?.[sk];
+                                const quarterScores = scoresObj[sb]?.[qk];
+                                const hasSections = Object.keys(quarterScores || {}).some(key => key.startsWith('sec:'));
+                                const directScores = hasSections ? undefined : quarterScores?.[sk];
                                 let val = directScores?.[ck]?.[itemIdx] ?? directScores?.[ck]?.[String(itemIdx)];
                                 for (const secK of secKeys) {
                                     const secScores = scoresObj[sb]?.[qk]?.[secK]?.[sk];
@@ -3530,7 +3531,7 @@
     window.setGradebookView = window.setSigmaGradebookView;
 
     window.renderAdminGradebookWorkspace = function () {
-        try { window.sanitizeGradebookCollisions?.(); } catch (_) {}
+        if (window.sigmaGradesState.activeTab !== 'gradebook') return;
         const workspaceContainer = document.getElementById('admin-gradebook-workspace-content');
         if (!workspaceContainer) return;
 
@@ -3680,8 +3681,9 @@
 
                 try {
                     const storageKeys = ['sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores'];
-                    let scoresObj = null;
-                    for (const k of storageKeys) {
+                    let scoresObj = typeof window._getTeacherGradebookCached === 'function'
+                        ? window._getTeacherGradebookCached().scores : null;
+                    for (const k of scoresObj ? [] : storageKeys) {
                         const raw = localStorage.getItem(k);
                         if (raw) {
                             try {
@@ -3707,7 +3709,11 @@
                             for (const qk of qKeys) {
                                 if (foundSpecificScores) break;
                                 for (const sk of sKeys) {
-                                    const subScores = scoresObj[sb]?.[qk]?.[sk];
+                                    const quarterScores = scoresObj[sb]?.[qk];
+                                    const sectionKey = `sec:${String(window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || '').trim().toLowerCase()}`;
+                                    const scoped = quarterScores?.[sectionKey];
+                                    const hasSections = Object.keys(quarterScores || {}).some(key => key.startsWith('sec:'));
+                                    const subScores = (hasSections ? scoped : quarterScores)?.[sk];
                                     if (subScores) {
                                         if (wwVal === null && subScores.ww !== undefined && subScores.ww !== null && subScores.ww !== '' && !isNaN(Number(subScores.ww))) { wwVal = Number(subScores.ww); foundSpecificScores = true; }
                                         if (ptVal === null && subScores.pt !== undefined && subScores.pt !== null && subScores.pt !== '' && !isNaN(Number(subScores.pt))) { ptVal = Number(subScores.pt); foundSpecificScores = true; }
@@ -3883,12 +3889,14 @@
         const rowsHtml = students.map((s) => {
             let rowScoreSum = 0;
             let rowHasAny = false;
+            const itemScores = new Map();
 
             // Calculate total across all items in component
             items.forEach((it, allIdx) => {
                 const itCat = it._category || it.category || detailCategory;
                 const itIdx = (it.itemIdx !== undefined) ? it.itemIdx : allIdx;
                 const sc = getAdminGradebookStudentItemScore(s, itCat, itIdx, it, subSec.subject, currentQ);
+                itemScores.set(it, sc);
                 if (sc !== null && sc !== undefined && !isNaN(Number(sc))) {
                     rowScoreSum += Number(sc);
                     rowHasAny = true;
@@ -3902,7 +3910,7 @@
                 if (it) {
                     const itCat = it._category || it.category || detailCategory;
                     const itIdx = (it.itemIdx !== undefined) ? it.itemIdx : (startIndex + slotIdx);
-                    const sc = getAdminGradebookStudentItemScore(s, itCat, itIdx, it, subSec.subject, currentQ);
+                    const sc = itemScores.get(it);
                     const hasSubmission = (typeof window.studentHasAssessmentSubmission === 'function')
                         ? window.studentHasAssessmentSubmission(s, it, subSec.subject, itCat)
                         : false;
@@ -4189,6 +4197,15 @@
     };
 
     window.switchTeacherGradesTab = window.switchAdminGradesTab;
+
+    for (const name of ['renderAdminGradebookWorkspace', 'renderAdminAnalyticsWorkspace']) {
+        const render = window[name];
+        window[name] = function (...args) {
+            const run = () => render.apply(this, args);
+            return typeof window.withGradebookReadCache === 'function'
+                ? window.withGradebookReadCache(run) : run();
+        };
+    }
 
     window.renderSigmaGradesView = function (targetContainerId, options = {}) {
         const container = document.getElementById(targetContainerId);

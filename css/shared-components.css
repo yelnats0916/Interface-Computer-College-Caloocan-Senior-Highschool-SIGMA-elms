@@ -615,30 +615,6 @@ body:has(#dashboard-view:not(.hidden)) {
     }
 }
 
-/* Material & Attached File title: black at rest, yellow only while that panel is hovered */
-.sigma-file-panel-title,
-.sigma-black-fade-panel .sigma-file-panel-title,
-.sigma-black-fade-panel h4.sigma-file-panel-title,
-.material-detail-attached-file .sigma-file-panel-title,
-#student-submitted-answer-section .sigma-file-panel-title {
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 1.4 !important;
-    letter-spacing: normal !important;
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
-}
-
-@media (max-width: 639.98px) {
-    .sigma-file-panel-title,
-    .sigma-black-fade-panel .sigma-file-panel-title,
-    .sigma-black-fade-panel h4.sigma-file-panel-title,
-    .material-detail-attached-file .sigma-file-panel-title,
-    #student-submitted-answer-section .sigma-file-panel-title {
-        font-size: 11.5px !important;
-    }
-}
-
 .sigma-file-panel-meta,
 .sigma-black-fade-panel .sigma-file-panel-meta,
 .sigma-black-fade-panel p.sigma-file-panel-meta,
@@ -680,9 +656,9 @@ body:has(#dashboard-view:not(.hidden)) {
     font-weight: 700 !important;
 }
 
-.sigma-black-fade-panel h4,
-[id^="topic-dropdown-"] .sigma-black-fade-panel h4,
-[id^="subject-topic-panel-"] h4 {
+.sigma-black-fade-panel h4:not(.sigma-file-panel-title),
+[id^="topic-dropdown-"] .sigma-black-fade-panel h4:not(.sigma-file-panel-title),
+[id^="subject-topic-panel-"] h4:not(.sigma-file-panel-title) {
     font-weight: 700 !important;
 }
 
@@ -706,6 +682,58 @@ input#curriculum-scope-search-input::placeholder {
 }
 
 /* Shared Resubmit Action Buttons (Material & Submission details) */
+.assessment-primary-action-slot {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.assessment-primary-action-slot:empty {
+    display: none;
+}
+
+.assessment-primary-action-slot .assessment-relocated-primary-action {
+    width: min(100%, 320px) !important;
+    min-height: 44px;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .assessment-primary-action-slot {
+        margin-top: 14px !important;
+    }
+
+    .assessment-primary-action-slot .assessment-relocated-primary-action,
+    .assessment-primary-action-slot #student-assessment-submit-btn,
+    .assessment-primary-action-slot button,
+    .assessment-material-main-card #student-assessment-submit-btn,
+    .assessment-material-main-card #student-submit-answer-btn,
+    .assessment-material-main-card .assessment-primary-action-slot .sigma-btn {
+        width: 100% !important;
+        height: 34px !important;
+        min-height: 34px !important;
+        max-height: 34px !important;
+        padding: 0 14px !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+    }
+
+    .assessment-primary-action-slot .assessment-relocated-primary-action i,
+    .assessment-primary-action-slot #student-assessment-submit-btn i,
+    .assessment-primary-action-slot button i,
+    .assessment-material-main-card #student-assessment-submit-btn i,
+    .assessment-material-main-card #student-submit-answer-btn i,
+    .assessment-material-main-card .assessment-primary-action-slot .sigma-btn i {
+        font-size: 11px !important;
+    }
+}
+
 .sigma-resubmit-action-btn {
     cursor: pointer !important;
     background: transparent !important;
@@ -2977,7 +3005,7 @@ textarea[class*="sigma-underline"]:focus,
         gap: 8px !important;
     }
 
-    [id^="topic-dropdown-"] .sigma-black-fade-panel h4 {
+    [id^="topic-dropdown-"] .sigma-black-fade-panel h4:not(.sigma-file-panel-title) {
         font-size: 11.5px !important;
         font-weight: 500 !important;
         line-height: 1.3 !important;
@@ -3036,6 +3064,46 @@ textarea[class*="sigma-underline"]:focus,
 
     [id^="topic-dropdown-"] .sigma-black-fade-panel .text-black-fade i {
         font-size: 8.5px !important;
+    }
+}
+
+/* Final shared file-title scale for teacher + student material pages.
+   Keep this after generic topic-card rules so file panels do not inherit list-card sizing. */
+body .sigma-file-panel-title,
+body .sigma-black-fade-panel .sigma-file-panel-title,
+body .sigma-black-fade-panel h4.sigma-file-panel-title,
+body .sigma-black-fade-panel p.sigma-file-panel-title,
+body .material-detail-attached-file .sigma-file-panel-title,
+body #student-submitted-answer-section .sigma-file-panel-title,
+body #subject-material-detail-view .sigma-file-panel-title,
+body .assessment-material-main-card .sigma-file-panel-title,
+body #topic-content-main .sigma-file-panel-title,
+body #topic-content-main .sigma-black-fade-panel .sigma-file-panel-title,
+body #topic-content-main .sigma-black-fade-panel h4.sigma-file-panel-title {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 19px !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    letter-spacing: -0.01em !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+@media (max-width: 768px) {
+    body .sigma-file-panel-title,
+    body .sigma-black-fade-panel .sigma-file-panel-title,
+    body .sigma-black-fade-panel h4.sigma-file-panel-title,
+    body .sigma-black-fade-panel p.sigma-file-panel-title,
+    body .material-detail-attached-file .sigma-file-panel-title,
+    body #student-submitted-answer-section .sigma-file-panel-title,
+    body #subject-material-detail-view .sigma-file-panel-title,
+    body .assessment-material-main-card .sigma-file-panel-title,
+    body #topic-content-main .sigma-file-panel-title,
+    body #topic-content-main .sigma-black-fade-panel .sigma-file-panel-title,
+    body #topic-content-main .sigma-black-fade-panel h4.sigma-file-panel-title {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 1.3 !important;
     }
 }
 
@@ -3102,33 +3170,24 @@ textarea[class*="sigma-underline"]:focus,
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: 460px;
+    max-width: 400px;
     width: calc(100vw - 48px);
     pointer-events: none;
     font-family: 'Inter', sans-serif !important;
-}
-
-@media (max-width: 640px) {
-    .sigma-release-toast-container {
-        bottom: 16px;
-        left: 16px;
-        right: 16px;
-        max-width: calc(100vw - 32px);
-        width: auto;
-    }
 }
 
 .sigma-release-toast-panel {
     pointer-events: auto;
     background: #15803d;
     color: #ffffff;
-    border-radius: 16px;
+    border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1) !important;
     border: 1px solid #166534;
-    padding: 0.85rem 1.25rem;
+    padding: 12px 16px;
+    min-height: 48px;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 10px;
     cursor: pointer;
     user-select: none;
     animation: sigmaReleaseToastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -3174,14 +3233,52 @@ textarea[class*="sigma-underline"]:focus,
     min-width: 0;
 }
 
+.sigma-release-toast-panel > div:first-child:not(.sigma-release-toast-content) {
+    width: 24px !important;
+    height: 24px !important;
+    flex: 0 0 24px;
+    font-size: 11px !important;
+}
+
 .sigma-release-toast-text {
-    font-size: 13.5px !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
     color: #ffffff !important;
     line-height: 1.35 !important;
     margin: 0 !important;
     word-break: break-word;
+    overflow-wrap: anywhere;
+    letter-spacing: 0 !important;
     font-family: 'Inter', sans-serif !important;
+}
+
+@media (max-width: 767px) {
+    .sigma-release-toast-container {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        left: calc(12px + env(safe-area-inset-left, 0px));
+        right: calc(12px + env(safe-area-inset-right, 0px));
+        width: auto;
+        max-width: 340px;
+        gap: 8px;
+    }
+
+    .sigma-release-toast-panel {
+        min-height: 40px;
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .sigma-release-toast-panel > div:first-child:not(.sigma-release-toast-content) {
+        width: 20px !important;
+        height: 20px !important;
+        flex-basis: 20px;
+        font-size: 10px !important;
+    }
+
+    .sigma-release-toast-text {
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+    }
 }
 
 /* ==========================================================================
@@ -3603,5 +3700,260 @@ button.material-detail-back-btn {
             "desc desc desc" !important;
         row-gap: 6px !important;
         column-gap: 10px !important;
+    }
+}
+.topic-score-sticky button.teacher-view-gradebook-btn,
+[id$="-class-panel-card"] button.teacher-view-gradebook-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px !important;
+    padding: 10px 16px !important;
+    margin: 0 !important;
+    white-space: normal !important;
+}
+
+.teacher-view-gradebook-btn span {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: inherit !important;
+}
+
+.teacher-view-gradebook-btn i {
+    flex-shrink: 0;
+    color: inherit !important;
+}
+
+.teacher-view-gradebook-btn:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+    #section-topic-content .topic-score-sticky .grading-student-avatar-wrap .sigma-user-avatar {
+        background-color: #f1f5f9 !important;
+        color: #94a3b8 !important;
+    }
+
+    #section-topic-content .topic-score-sticky .grading-student-avatar-wrap .sigma-user-avatar i {
+        color: #94a3b8 !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .topic-score-sticky button.teacher-save-grade-btn,
+    .topic-score-sticky button.teacher-view-gradebook-btn,
+    [id$="-class-panel-card"] button.teacher-save-grade-btn,
+    [id$="-class-panel-card"] button.teacher-view-gradebook-btn {
+        width: 100% !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 16px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+}
+.mobile-grade-minimize-btn {
+    display: none !important;
+}
+
+@media (max-width: 767px) {
+    #section-topic-content .topic-score-sticky .desktop-grading-header .mobile-grade-minimize-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        margin-left: auto !important;
+        background: transparent !important;
+        border: none !important;
+        color: #15803d !important;
+        cursor: pointer;
+    }
+
+    #section-topic-content .topic-score-sticky.is-minimized .mobile-score-sheet-body > :not(.desktop-grading-header),
+    #section-topic-content .topic-score-sticky.is-minimized > :not(.mobile-score-sheet-body),
+    #section-topic-content .topic-score-sticky.is-minimized .desktop-grading-toggle-btn {
+        display: none !important;
+    }
+
+    #section-topic-content .topic-score-sticky.is-minimized .desktop-grading-header {
+        border: none !important;
+        padding-bottom: 0 !important;
+        cursor: pointer !important;
+    }
+}
+body p.material-detail-body-text {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+    color: #000 !important;
+    margin: 0 !important;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    body button.sigma-btn[onclick*="openStudentQuizReviewPlayer"] {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 10px !important;
+        gap: 6px !important;
+        border-radius: 6px !important;
+        font-size: 12px !important;
+        line-height: 16px !important;
+        max-width: 100%;
+    }
+
+    body button.sigma-btn[onclick*="openStudentQuizReviewPlayer"] span {
+        font-size: 12px !important;
+        line-height: 16px !important;
+    }
+
+    body button.sigma-btn[onclick*="openStudentQuizReviewPlayer"] i {
+        font-size: 11px !important;
+    }
+
+    body p.material-detail-body-text {
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+        font-weight: 400 !important;
+        letter-spacing: 0 !important;
+        overflow-wrap: anywhere;
+    }
+
+    body .topic-page-tabs-header nav button,
+    body .topic-page-tabs-header nav button span,
+    body #topic-content-header nav button,
+    body #topic-content-header nav button span,
+    body #topic-main-header nav button,
+    body #topic-main-header nav button span {
+        font-size: 12px !important;
+    }
+
+    body .topic-page-tabs-header .canonical-tabs-bar,
+    body #topic-content-header .canonical-tabs-bar,
+    body #topic-main-header .canonical-tabs-bar,
+    body .topic-page-tabs-header > div,
+    body #topic-content-header > div,
+    body #topic-main-header > div {
+        height: 44px !important;
+        min-height: 44px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    body .topic-page-tabs-header nav,
+    body #topic-content-header nav,
+    body #topic-main-header nav {
+        gap: 4px !important;
+    }
+
+    body .topic-page-tabs-header nav button,
+    body #topic-content-header nav button,
+    body #topic-main-header nav button {
+        padding: 0 8px !important;
+        line-height: 18px !important;
+        border-bottom-width: 3px !important;
+    }
+}
+
+/* Keep the submission rail scrollbar at normal desktop thickness. */
+@media (min-width: 768px) {
+    body #section-topic-content #topic-right-section.teacher-topic-progress-rail,
+    body #section-topic-content #topic-right-section {
+        scrollbar-width: auto !important;
+        scrollbar-color: transparent transparent !important;
+    }
+
+    body #section-topic-content #topic-right-section.teacher-topic-progress-rail:hover,
+    body #section-topic-content #topic-right-section:hover {
+        scrollbar-color: rgba(0, 0, 0, .18) transparent !important;
+    }
+
+    body #section-topic-content #topic-right-section::-webkit-scrollbar {
+        display: block !important;
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    body #section-topic-content #topic-right-section::-webkit-scrollbar-track {
+        background: transparent !important;
+    }
+
+    body #section-topic-content #topic-right-section.teacher-topic-progress-rail::-webkit-scrollbar-thumb,
+    body #section-topic-content #topic-right-section::-webkit-scrollbar-thumb {
+        background: transparent !important;
+        border: 3px solid transparent !important;
+        background-clip: padding-box !important;
+        border-radius: 8px !important;
+    }
+
+    body #section-topic-content #topic-right-section.teacher-topic-progress-rail:hover::-webkit-scrollbar-thumb,
+    body #section-topic-content #topic-right-section:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, .18) !important;
+    }
+
+    body #section-topic-content #topic-right-section.teacher-topic-progress-rail::-webkit-scrollbar-thumb:hover,
+    body #section-topic-content #topic-right-section::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0, 0, 0, .32) !important;
+    }
+}
+
+/* Shared desktop material icons: portal lists and the admin/teacher editor. */
+@media (min-width: 768px) {
+    .material-panel-icon-group {
+        width: 60px !important;
+        min-width: 60px !important;
+        gap: 4px !important;
+    }
+
+    .material-panel-icon-group > div,
+    .material-panel-play-icon {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    .material-panel-icon-group > div {
+        border-radius: 8px !important;
+    }
+
+    .material-panel-icon-group > div > i {
+        font-size: 22px !important;
+    }
+
+    .material-panel-icon-group > span,
+    .material-detail-type-badge {
+        box-sizing: border-box !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 16px !important;
+        padding: 2px 0 !important;
+        border-radius: 4px !important;
+        border-width: 1px !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .material-panel-icon-group > span {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        font-size: 12px !important;
+        padding: 2px 6px !important;
+    }
+
+    .material-detail-type-badge {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+    }
+
+    .material-detail-type-badge > i {
+        font-size: 10px !important;
     }
 }

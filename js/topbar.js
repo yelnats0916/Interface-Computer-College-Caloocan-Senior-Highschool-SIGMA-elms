@@ -244,16 +244,45 @@ window.revisitActivePanel = function (panelName) {
 /**
  * Unified portal header setter — edit all navbar header behavior in this single file.
  */
-window.setPortalHeader = function (title) {
-    const text = String(title || 'Interface Computer College').trim();
+window.setPortalHeader = function (title, subtitle) {
+    let parentText = '';
+    let childText = '';
+
+    if (typeof title === 'object' && title !== null) {
+        parentText = title.parent || '';
+        childText = title.title || title.child || '';
+    } else if (subtitle) {
+        parentText = String(title).trim();
+        childText = String(subtitle).trim();
+    } else {
+        childText = String(title || 'Interface Computer College').trim();
+    }
+
+    const escapeText = (str) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
     
     // 1. Primary brand/section context title (beside the logo)
     const brandTitle = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
     if (brandTitle) {
-        brandTitle.className = 'admin-topbar__brand-label text-black';
-        brandTitle.classList.remove('has-breadcrumb', 'cursor-pointer', 'pointer-events-auto');
-        brandTitle.onclick = null;
-        brandTitle.textContent = text;
+        if (parentText && childText) {
+            brandTitle.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+            brandTitle.classList.remove('cursor-pointer', 'pointer-events-auto');
+            brandTitle.onclick = null;
+            brandTitle.innerHTML = `
+                <div class="breadcrumb-line-group">
+                    <span class="breadcrumb-subject">${escapeText(parentText)}</span>
+                    <span class="breadcrumb-topic">${escapeText(childText)}</span>
+                </div>
+            `;
+        } else {
+            brandTitle.className = 'admin-topbar__brand-label text-black';
+            brandTitle.classList.remove('has-breadcrumb', 'cursor-pointer', 'pointer-events-auto');
+            brandTitle.onclick = null;
+            brandTitle.textContent = childText;
+        }
     }
 
     // 2. Clear/hide any redundant secondary main-content-header in the topbar
@@ -264,8 +293,9 @@ window.setPortalHeader = function (title) {
     }
 
     // 3. Keep document tab title synchronized across all role pages
-    if (text && text !== 'Interface Computer College') {
-        document.title = `${text} - Interface Computer College`;
+    const fullDocTitle = parentText && childText ? `${childText} - ${parentText}` : childText;
+    if (fullDocTitle && fullDocTitle !== 'Interface Computer College') {
+        document.title = `${fullDocTitle} - Interface Computer College`;
     } else {
         const path = window.location.pathname.toLowerCase();
         let role = '';

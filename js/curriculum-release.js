@@ -7284,6 +7284,7 @@
                     const studentNotif = {
                         id: 'notif_rel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                         senderName: senderTeacherName,
+                        assignmentScope: { section, subjectId, subjectName: window.getTopicSubject?.(subjectId)?.name || window.getSubjectById?.(subjectId)?.name || subjectId },
                         senderInitials: senderTeacherInitials,
                         senderColor: '#1d4ed8',
                         title: `New ${notifTypeStr} Posted`,

@@ -1138,6 +1138,25 @@ button[class*="bg-[#15803d]"]:focus,
     box-sizing: border-box;
 }
 
+button.teacher-save-grade-btn:not(:disabled) {
+    background: #15803d !important;
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    border: 1px solid #15803d !important;
+    opacity: 1 !important;
+}
+
+button.teacher-save-grade-btn:not(:disabled) span,
+button.teacher-save-grade-btn:not(:disabled) i {
+    color: #ffffff !important;
+}
+
+button.teacher-save-grade-btn:not(:disabled):hover {
+    background: #166534 !important;
+    background-color: #166534 !important;
+    border-color: #166534 !important;
+}
+
 .teacher-save-grade-btn:disabled {
     background-color: #f1f5f9 !important;
     color: rgba(0, 0, 0, 0.4) !important;
