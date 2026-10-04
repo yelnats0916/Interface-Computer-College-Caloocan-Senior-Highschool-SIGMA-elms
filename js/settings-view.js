@@ -24,7 +24,6 @@
         };
 
     const NOTIFICATION_STORAGE_PREFIX = 'sigma_settings_notifications_';
-    const PREFERENCES_STORAGE_PREFIX = 'sigma_settings_preferences_';
 
     function _esc(str) {
         if (str === null || str === undefined) return '';
@@ -108,40 +107,29 @@
         return merged;
     }
 
-    function getGeneralPreferences(userId) {
-        const defaultPrefs = {
-            lang: 'en',
-            timefmt: '12h',
-            canModerateComments: true
-        };
-        try {
-            const raw = localStorage.getItem(PREFERENCES_STORAGE_PREFIX + (userId || 'default'));
-            if (raw) return { ...defaultPrefs, ...JSON.parse(raw) };
-        } catch (e) {}
-        return defaultPrefs;
-    }
 
-    function saveGeneralPreferences(userId, prefs) {
-        try {
-            localStorage.setItem(PREFERENCES_STORAGE_PREFIX + (userId || 'default'), JSON.stringify(prefs));
-            return true;
-        } catch (e) {
-            console.error('Failed to save general preferences', e);
-            return false;
-        }
-    }
-
-    function getNotificationPreferences(userId) {
-        const defaultPrefs = {
-            announcements: true,
+    const DEFAULT_NOTIFICATION_PREFERENCES = {
+            schoolAnnouncements: true,
+            classAnnouncements: true,
+            topicReleases: true,
+            materialReleases: true,
+            assessmentReleases: true,
             dueDates: true,
             grades: true,
-            sounds: true,
-            email: false
-        };
+    };
+    function getNotificationPreferences(userId) {
+        const defaultPrefs = { ...DEFAULT_NOTIFICATION_PREFERENCES };
         try {
             const raw = localStorage.getItem(NOTIFICATION_STORAGE_PREFIX + (userId || 'default'));
-            if (raw) return { ...defaultPrefs, ...JSON.parse(raw) };
+            if (raw) {
+                const saved = JSON.parse(raw);
+                return { ...defaultPrefs, ...saved,
+                    schoolAnnouncements: saved.schoolAnnouncements ?? saved.announcements ?? true,
+                    classAnnouncements: saved.classAnnouncements ?? saved.announcements ?? true,
+                    topicReleases: saved.topicReleases ?? saved.coursework ?? true,
+                    materialReleases: saved.materialReleases ?? saved.coursework ?? true,
+                    assessmentReleases: saved.assessmentReleases ?? saved.coursework ?? true };
+            }
         } catch (e) {}
         return defaultPrefs;
     }
@@ -183,7 +171,7 @@
         if (currentTab.startsWith('account-settings-')) currentTab = currentTab.replace('account-settings-', '');
         if (currentTab.startsWith('settings-')) currentTab = currentTab.replace('settings-', '');
 
-        const validTabs = ['notifications', 'account', 'security', 'preferences'];
+        const validTabs = ['notifications', 'account', 'security'];
 
         if (!validTabs.includes(currentTab)) {
             currentTab = 'notifications';
@@ -197,22 +185,22 @@
             { id: 'notifications', label: 'Notifications', icon: 'fa-bell', title: 'Notifications' },
             { id: 'account', label: 'Account Information', icon: 'fa-user', title: 'Account Information' },
             { id: 'security', label: 'Security & Password', icon: 'fa-lock', title: 'Security & Password' },
-            { id: 'preferences', label: 'Preferences', icon: 'fa-sliders', title: 'General Preferences' }
         ];
 
         const activeMeta = tabs.find(t => t.id === currentTab) || tabs[0];
 
         let html = `
-        <div class="sigma-settings-layout">
+        <div class="sigma-settings-layout sigma-account-settings ${container.dataset.mobileSettingsView === 'detail' ? 'sigma-settings-detail' : ''}">
             <!-- Left Categories Sidebar -->
             <aside class="sigma-settings-sidebar">
+                <h2 class="sigma-account-settings-title">Account Settings</h2>
                 <nav class="flex flex-col gap-2" role="tablist" aria-label="Account Settings Categories">
                     ${tabs.map(t => {
                         const isActive = t.id === currentTab;
                         return `
                             <button type="button" 
                                 class="sigma-settings-cat-btn ${isActive ? 'active bg-icc-yellow text-white' : 'text-black hover:bg-slate-100'}" 
-                                onclick="window.renderSettingsView('${container.id}', '${t.id}')"
+                                onclick="window.openSettingsCategory('${container.id}', '${t.id}')"
                                 role="tab"
                                 aria-selected="${isActive}">
                                 <span class="sigma-settings-cat-icon">
@@ -245,20 +233,38 @@
                         <!-- Announcements -->
                         <div class="flex items-center justify-between py-4 gap-4">
                             <div>
-                                <h3 class="text-sm font-bold text-black">Announcements & Bulletins</h3>
-                                <p class="text-xs text-black-fade font-medium mt-0.5">Receive alerts when campus, department, or section bulletins are published.</p>
+                                <h3 class="text-sm font-bold text-black">School Announcements</h3>
+                                <p class="text-xs text-black-fade font-medium mt-0.5">Receive alerts for announcements posted by administrators.</p>
                             </div>
                             <label class="sigma-toggle-switch shrink-0 ml-4">
-                                <input type="checkbox" id="notif-pref-announcements" ${notifPrefs.announcements ? 'checked' : ''}>
+                                <input type="checkbox" id="notif-pref-schoolAnnouncements" aria-label="School Announcements" ${notifPrefs.schoolAnnouncements ? 'checked' : ''}>
                                 <span class="sigma-toggle-slider"></span>
                             </label>
                         </div>
 
+                        <div class="flex items-center justify-between py-4 gap-4">
+                            <div>
+                                <h3 class="text-sm font-bold text-black">Class Announcements</h3>
+                                <p class="text-xs text-black-fade font-medium mt-0.5">Receive alerts for announcements posted by teachers in your ${getActivePortal() === 'student' ? 'enrolled' : 'assigned'} classes.</p>
+                            </div>
+                            <label class="sigma-toggle-switch shrink-0 ml-4">
+                                <input type="checkbox" id="notif-pref-classAnnouncements" aria-label="Class Announcements" ${notifPrefs.classAnnouncements ? 'checked' : ''}>
+                                <span class="sigma-toggle-slider"></span>
+                            </label>
+                        </div>
+                        ${getActivePortal() === 'student' ? [
+                            ['topicReleases', 'Released Topics', 'Receive alerts when a topic becomes available in your enrolled classes.'],
+                            ['materialReleases', 'Released Learning Materials', 'Receive alerts when lessons, handouts, or videos become available in your enrolled classes.'],
+                            ['assessmentReleases', 'Released Assessments', 'Receive alerts when tasks, assignments, or quizzes become available in your enrolled classes.']
+                        ].map(([key, title, description]) => `<div class="flex items-center justify-between py-4 gap-4">
+                            <div><h3 class="text-sm font-bold text-black">${title}</h3><p class="text-xs text-black-fade font-medium mt-0.5">${description}</p></div>
+                            <label class="sigma-toggle-switch shrink-0 ml-4"><input type="checkbox" id="notif-pref-${key}" aria-label="${title}" ${notifPrefs[key] ? 'checked' : ''}><span class="sigma-toggle-slider"></span></label>
+                        </div>`).join('') : ''}
                         <!-- Due Dates / Submissions -->
                         <div class="flex items-center justify-between py-4 gap-4">
                             <div>
-                                <h3 class="text-sm font-bold text-black">Due Date & Submission Reminders</h3>
-                                <p class="text-xs text-black-fade font-medium mt-0.5">Get timely reminders for assignment deadlines and upcoming quizzes.</p>
+                                <h3 class="text-sm font-bold text-black">Upcoming Due Dates</h3>
+                                <p class="text-xs text-black-fade font-medium mt-0.5">Receive reminders for unfinished assessments due within 24 hours.</p>
                             </div>
                             <label class="sigma-toggle-switch shrink-0 ml-4">
                                 <input type="checkbox" id="notif-pref-dueDates" ${notifPrefs.dueDates ? 'checked' : ''}>
@@ -269,8 +275,8 @@
                         <!-- Grades & Assessments -->
                         <div class="flex items-center justify-between py-4 gap-4">
                             <div>
-                                <h3 class="text-sm font-bold text-black">Grade & Evaluation Updates</h3>
-                                <p class="text-xs text-black-fade font-medium mt-0.5">Notify when teachers post quiz results, activity scores, or quarterly grade cards.</p>
+                                <h3 class="text-sm font-bold text-black">Graded Submissions</h3>
+                                <p class="text-xs text-black-fade font-medium mt-0.5">Receive alerts when your teacher grades a submission or updates its score.</p>
                             </div>
                             <label class="sigma-toggle-switch shrink-0 ml-4">
                                 <input type="checkbox" id="notif-pref-grades" ${notifPrefs.grades ? 'checked' : ''}>
@@ -278,38 +284,11 @@
                             </label>
                         </div>
 
-                        <!-- Sound Alerts -->
-                        <div class="flex items-center justify-between py-4 gap-4">
-                            <div>
-                                <h3 class="text-sm font-bold text-black">Audio Chimes & Sound Effects</h3>
-                                <p class="text-xs text-black-fade font-medium mt-0.5">Play a subtle audio chime when new notifications and messages arrive.</p>
-                            </div>
-                            <label class="sigma-toggle-switch shrink-0 ml-4">
-                                <input type="checkbox" id="notif-pref-sounds" ${notifPrefs.sounds ? 'checked' : ''}>
-                                <span class="sigma-toggle-slider"></span>
-                            </label>
-                        </div>
 
-                        <!-- Email Notifications -->
-                        <div class="flex items-center justify-between py-4 gap-4">
-                            <div>
-                                <h3 class="text-sm font-bold text-black">Email Digest & Urgent Alerts</h3>
-                                <p class="text-xs text-black-fade font-medium mt-0.5">Send high-priority notifications and summaries to your registered email address.</p>
-                            </div>
-                            <label class="sigma-toggle-switch shrink-0 ml-4">
-                                <input type="checkbox" id="notif-pref-email" ${notifPrefs.email ? 'checked' : ''}>
-                                <span class="sigma-toggle-slider"></span>
-                            </label>
-                        </div>
                     </div>
-
-                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold transition-all cursor-pointer" onclick="window.renderSettingsView('${container.id}', 'notifications')">
-                            <span>Reset</span>
-                        </button>
-                        <button type="button" class="px-6 py-2.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer" onclick="window.handleSaveNotificationSettings('${userId}')">
-                            <i class="fa-solid fa-check text-xs"></i>
-                            <span>Save Preferences</span>
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button type="button" data-notification-reset class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-transparent text-[#15803d] hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-[#15803d] text-xs font-bold transition-colors" title="Reset notification preferences">
+                            <i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i><span>Reset</span>
                         </button>
                     </div>
                 </div>
@@ -361,54 +340,10 @@
                         </div>
                     </div>
 
-                    <!-- EDIT MODE (hidden by default) -->
-                    <div id="acc-edit-mode" class="hidden" style="display:none;">
-                        <div class="sm:col-span-2">
-                            <label for="settings-acc-fullname" class="block text-xs font-bold text-black mb-2">Name</label>
-                            <input type="text" id="settings-acc-fullname" maxlength="60" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all" value="${_esc(fullName)}" placeholder="Enter full name">
-                        </div>
-                        <div>
-                            <label for="settings-acc-gender" class="block text-xs font-bold text-black mb-2">Gender</label>
-                            <select id="settings-acc-gender" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all">
-                                <option value="Male" ${user.gender === 'Male' ? 'selected' : ''}>Male</option>
-                                <option value="Female" ${user.gender === 'Female' ? 'selected' : ''}>Female</option>
-                                <option value="Prefer not to say" ${user.gender === 'Prefer not to say' ? 'selected' : ''}>Prefer not to say</option>
-                            </select>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label for="settings-acc-email" class="block text-xs font-bold text-black mb-2">Email Address</label>
-                            <input type="email" id="settings-acc-email" maxlength="64" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all" value="${_esc(user.email || '')}">
-                        </div>
-                    </div>
-
-                    <!-- FOOTER BUTTONS -->
-                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                        <!-- View mode: Edit button -->
-                        <button id="acc-edit-btn" type="button"
-                            class="px-6 py-2.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                            onclick="
-                                document.getElementById('acc-view-mode').style.display='none';
-                                var em=document.getElementById('acc-edit-mode'); em.style.display=''; em.style.display='grid'; em.className='grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2';
-                                document.getElementById('acc-edit-btn').style.display='none';
-                                var sa=document.getElementById('acc-save-actions'); sa.style.display='flex'; sa.className='flex items-center gap-3';
-                            ">
-                            <i class="fa-solid fa-pen text-xs"></i>
-                            <span>Edit Profile</span>
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button type="button" class="sigma-btn sigma-btn-md sigma-btn-primary flex items-center gap-2 cursor-pointer" onclick="window.openSelfEditInformation()">
+                            <i class="fa-solid fa-pen"></i><span>Edit Information</span>
                         </button>
-                        <!-- Edit mode: Discard + Save (hidden by default) -->
-                        <div id="acc-save-actions" style="display:none;" class="flex items-center gap-3">
-                            <button type="button"
-                                class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold transition-all cursor-pointer"
-                                onclick="window.renderSettingsView('${container.id}', 'account')">
-                                <span>Discard</span>
-                            </button>
-                            <button type="button"
-                                class="px-6 py-2.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                                onclick="window.handleSaveAccountInfo('${userId}')">
-                                <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                <span>Save Changes</span>
-                            </button>
-                        </div>
                     </div>
                 </div>
             `;
@@ -428,69 +363,17 @@
                     <!-- Clickable row — opens modal -->
                     <div class="flex items-center gap-3.5 px-4 py-3 -mx-4 rounded-2xl hover:bg-slate-100 transition-all cursor-pointer"
                         onclick="window.openSettingsPasswordModal ? window.openSettingsPasswordModal() : (document.getElementById('pw-modal').style.display='flex');">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 shrink-0">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-black-fade shrink-0">
                             <i class="fa-solid fa-lock text-xs"></i>
                         </span>
                         <span class="text-sm font-semibold text-black">Change Password</span>
-                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-300 ml-auto"></i>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-black-fade ml-auto"></i>
                     </div>
                 </div>
 
             `;
         }
 
-        // ═════════════════════════════════════════════════════════════════════
-        // TAB 4: GENERAL PREFERENCES
-        // ═════════════════════════════════════════════════════════════════════
-        else if (currentTab === 'preferences') {
-            const generalPrefs = getGeneralPreferences(userId);
-            html += `
-                <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                    <div>
-                        <h2 class="text-lg font-bold text-black">Display & Regional Preferences</h2>
-                        <p class="text-xs text-black-fade font-medium mt-1">Configure your personal localization, clock format, and display options.</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-                        <div>
-                            <label for="settings-pref-lang" class="block text-xs font-bold text-black mb-2">Interface Language</label>
-                            <select id="settings-pref-lang" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all">
-                                <option value="en" ${generalPrefs.lang === 'en' ? 'selected' : ''}>English (en)</option>
-                                <option value="fil" ${generalPrefs.lang === 'fil' ? 'selected' : ''}>Filipino (fil)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="settings-pref-timefmt" class="block text-xs font-bold text-black mb-2">Time Format Standard</label>
-                            <select id="settings-pref-timefmt" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all">
-                                <option value="12h" ${generalPrefs.timefmt === '12h' ? 'selected' : ''}>12-Hour AM/PM (e.g. 3:30 PM)</option>
-                                <option value="24h" ${generalPrefs.timefmt === '24h' ? 'selected' : ''}>24-Hour Military Format (e.g. 15:30)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="settings-pref-datefmt" class="block text-xs font-bold text-black mb-2">Date Format Standard</label>
-                            <select id="settings-pref-datefmt" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all">
-                                <option value="mdy" ${generalPrefs.datefmt !== 'dmy' ? 'selected' : ''}>MM/DD/YYYY (e.g. 09/25/2026)</option>
-                                <option value="dmy" ${generalPrefs.datefmt === 'dmy' ? 'selected' : ''}>DD/MM/YYYY (e.g. 25/09/2026)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="settings-pref-startview" class="block text-xs font-bold text-black mb-2">Default Start View</label>
-                            <select id="settings-pref-startview" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-black outline-none focus:border-[#15803d] transition-all">
-                                <option value="home" ${generalPrefs.startView !== 'sections' ? 'selected' : ''}>Home & Announcements Feed</option>
-                                <option value="sections" ${generalPrefs.startView === 'sections' ? 'selected' : ''}>My Sections & Subjects</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" class="px-6 py-2.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer" onclick="window.handleSaveGeneralPreferences('${userId}')">
-                            <i class="fa-solid fa-check text-xs"></i>
-                            <span>Save Preferences</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
 
         html += `
                 </div>
@@ -499,6 +382,49 @@
         `;
 
         container.innerHTML = html;
+        const detailHeading = container.querySelector('.sigma-settings-inner h2');
+        if (detailHeading) {
+            const headingRow = document.createElement('div');
+            headingRow.className = 'sigma-settings-detail-heading';
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'sigma-settings-mobile-back';
+            back.setAttribute('aria-label', 'Back to Account Settings');
+            back.title = 'Back';
+            back.innerHTML = '<i class="fa-solid fa-chevron-left" aria-hidden="true"></i>';
+            back.addEventListener('click', () => window.showSettingsCategories(container.id));
+            detailHeading.before(headingRow);
+            headingRow.append(back, detailHeading);
+        }
+        requestAnimationFrame(updateMobileSettingsHeight);
+        if (currentTab === 'notifications') {
+            container.querySelector('[data-notification-reset]')?.addEventListener('click', () => {
+                const reset = () => {
+                if (saveNotificationPreferences(userId, { ...DEFAULT_NOTIFICATION_PREFERENCES })) {
+                    container.querySelectorAll('input[id^="notif-pref-"]').forEach(toggle => {
+                        toggle.checked = DEFAULT_NOTIFICATION_PREFERENCES[toggle.id.replace('notif-pref-', '')];
+                    });
+                } else {
+                    showToast('Unable to reset notification preferences. Please try again.', 'fa-circle-exclamation');
+                }
+                };
+                if (typeof window.showSigmaDialog === 'function') {
+                    window.showSigmaDialog({
+                        title: 'Reset Notification Preferences',
+                        desc: 'Restore your notification preferences to their defaults? This will save immediately.',
+                        icon: 'fa-solid fa-arrow-rotate-left text-[#15803d]',
+                        confirmText: 'Reset', cancelText: 'Cancel', onConfirm: reset
+                    });
+                } else if (window.confirm('Reset notification preferences to their defaults?')) {
+                    reset();
+                }
+            });
+            container.querySelectorAll('input[id^="notif-pref-"]').forEach(toggle => {
+                toggle.addEventListener('change', () => {
+                    if (!window.handleSaveNotificationSettings(userId)) toggle.checked = !toggle.checked;
+                });
+            });
+        }
 
         // ── Inject password modal directly into document.body ──────────────────
         // Must be a direct child of <body> so position:fixed covers the full
@@ -617,8 +543,20 @@
         // Expose forgot-password handler so the inline onclick can reach it
         window.__openForgotPw = function () {
             const modal = document.getElementById('pw-modal');
-            if (modal) modal.style.display = 'none';
-            renderForgotPasswordInfo(container, getActiveUser());
+            if (!modal) return;
+            const panelSize = modal.firstElementChild.getBoundingClientRect();
+            modal.firstElementChild.style.display = 'none';
+            let recovery = modal.querySelector('#pw-recovery-view');
+            if (!recovery) {
+                recovery = document.createElement('div');
+                recovery.id = 'pw-recovery-view';
+                recovery.className = "bg-white rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.18)] w-full max-w-[480px] mx-4 p-8 font-['Inter'] relative";
+                modal.appendChild(recovery);
+            }
+            recovery.style.cssText = `height:${panelSize.height}px;max-height:calc(100dvh - 32px);overflow:auto;display:flex;flex-direction:column;`;
+            renderForgotPasswordInfo(recovery, getActiveUser());
+            recovery.style.display = 'flex';
+            recovery.querySelector('button')?.focus();
         };
     }
 
@@ -632,23 +570,21 @@
         const defaultPassword = lastName && cleanId ? `${lastName}${cleanId}` : (cleanId || 'your school ID');
 
         container.innerHTML = `
-        <div style="min-height:100vh;background:#f8fafc;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;">
-            <div style="background:#fff;border-radius:1rem;box-shadow:0 4px 24px rgba(0,0,0,0.09);padding:36px 32px;max-width:460px;width:100%;">
                 <!-- Header -->
                 <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;">
-                    <div style="width:44px;height:44px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i class="fa-solid fa-key" style="color:#15803d;font-size:1.1rem;"></i>
-                    </div>
+                    <button type="button" class="pw-recovery-header-back" aria-label="Back to Change Password" title="Back to Change Password" onclick="window.__backToPassword && window.__backToPassword()">
+                        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    </button>
                     <div>
-                        <h2 style="margin:0;font-size:1.15rem;font-weight:700;color:#000;">Forgot Password</h2>
+                        <h2 class="text-2xl font-bold text-black" style="margin:0;">Forgot Password</h2>
                         <p style="margin:2px 0 0;font-size:0.8rem;color:rgba(0,0,0,0.45);">Your account recovery info</p>
                     </div>
                 </div>
 
                 <!-- Default Password Card -->
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0.75rem;padding:18px 20px;margin-bottom:16px;">
-                    <p style="margin:0 0 6px;font-size:0.75rem;font-weight:600;color:rgba(0,0,0,0.55);text-transform:uppercase;letter-spacing:0.05em;">Your Default Password</p>
-                    <p style="margin:0;font-size:1.25rem;font-weight:700;color:#15803d;letter-spacing:0.04em;font-family:monospace;">${_esc(defaultPassword)}</p>
+                <div style="background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.08);border-radius:8px;padding:18px 20px;margin-bottom:16px;">
+                    <p style="margin:0 0 6px;font-size:0.75rem;font-weight:600;color:rgba(0,0,0,0.55);letter-spacing:0;">Your Default Password</p>
+                    <p style="margin:0;font-size:1.25rem;font-weight:700;color:#000;letter-spacing:0;font-family:monospace;overflow-wrap:anywhere;">${_esc(defaultPassword)}</p>
                     <p style="margin:8px 0 0;font-size:0.75rem;color:rgba(0,0,0,0.45);">This is the initial password assigned to your account.</p>
                 </div>
 
@@ -661,53 +597,218 @@
                 </div>
 
                 <!-- Back Button -->
+                <div class="pw-recovery-footer" style="margin-top:auto;display:flex;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid #f1f5f9;">
                 <button type="button"
-                    class="sigma-btn sigma-btn-sm sigma-btn-secondary"
-                    style="display:flex;align-items:center;gap:8px;"
-                    onclick="window.__backToSettings && window.__backToSettings()">
-                    <i class="fa-solid fa-arrow-left" style="font-size:0.75rem;"></i>
-                    <span>Back to Settings</span>
+                    class="sigma-btn sigma-btn-md sigma-btn-secondary"
+                    onclick="window.__backToPassword && window.__backToPassword()">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                    <span>Back</span>
                 </button>
-            </div>
-        </div>
+                </div>
         `;
         // Register a one-shot back-navigation helper
-        window.__backToSettings = function () {
-            window.__backToSettings = null;
-            renderSettingsView(container, 'security');
+        window.__backToPassword = function () {
+            const modal = document.getElementById('pw-modal');
+            if (!modal) return;
+            modal.querySelector('#pw-recovery-view').style.display = 'none';
+            modal.firstElementChild.style.display = '';
+            document.getElementById('pw-forgot-btn')?.focus();
         };
     }
 
     // ─── Handlers ───
     window.handleSaveNotificationSettings = function (userId) {
         const prefs = {
-            announcements: document.getElementById('notif-pref-announcements')?.checked ?? true,
+            schoolAnnouncements: document.getElementById('notif-pref-schoolAnnouncements')?.checked ?? true,
+            classAnnouncements: document.getElementById('notif-pref-classAnnouncements')?.checked ?? true,
+            topicReleases: document.getElementById('notif-pref-topicReleases')?.checked ?? getNotificationPreferences(userId).topicReleases,
+            materialReleases: document.getElementById('notif-pref-materialReleases')?.checked ?? getNotificationPreferences(userId).materialReleases,
+            assessmentReleases: document.getElementById('notif-pref-assessmentReleases')?.checked ?? getNotificationPreferences(userId).assessmentReleases,
             dueDates: document.getElementById('notif-pref-dueDates')?.checked ?? true,
             grades: document.getElementById('notif-pref-grades')?.checked ?? true,
-            sounds: document.getElementById('notif-pref-sounds')?.checked ?? true,
-            email: document.getElementById('notif-pref-email')?.checked ?? false
         };
 
         if (saveNotificationPreferences(userId, prefs)) {
-            showToast('Notification preferences saved successfully!');
+            window.SigmaNotifications?.refresh();
+            return true;
         }
+        showToast('Unable to save notification preferences. Please try again.');
+        return false;
+    };
+
+    let editInformationReturnFocus;
+    window.closeSelfEditInformation = function () {
+        document.getElementById('self-edit-information')?.remove();
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        editInformationReturnFocus?.focus();
+    };
+
+    window.openSelfEditInformation = function () {
+        window.closeSelfEditInformation();
+        const user = getActiveUser();
+        editInformationReturnFocus = document.activeElement;
+
+        const branchDisplay = user.schoolBranch || user.branch || 'Interface Computer College Caloocan';
+        const rawRole = user.role || user.type || (getActivePortal() === 'student' ? 'Student' : (getActivePortal() === 'teacher' ? 'Teacher' : 'Admin'));
+        const roleDisplay = rawRole.charAt(0).toUpperCase() + rawRole.slice(1);
+        const cleanUserId = String(user.id || user.uid || '').replace(/^#/, '');
+        const rawEmail = user.email || '';
+        const gmailUsername = rawEmail.replace(/@gmail\.com$/i, '').replace(/@.*$/i, '');
+
+        const overlay = document.createElement('div');
+        overlay.id = 'self-edit-information';
+        overlay.className = 'sigma-modal-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'self-edit-information-title');
+        overlay.style.zIndex = '100000';
+
+        overlay.innerHTML = `
+            <!-- Exit Control (Far Right) -->
+            <button type="button" onclick="window.closeSelfEditInformation()"
+                class="self-edit-exit fixed top-10 right-10 w-12 h-12 rounded-full hover:bg-slate-200 flex items-center justify-center text-black transition-all z-[1001] cursor-pointer"
+                title="Exit Editor">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="sigma-modal-shell animate-in slide-in-from-top-4 duration-300">
+                <div class="sigma-modal-panel">
+                    <!-- Header -->
+                    <div class="border-b border-slate-100 sticky top-0 bg-white z-20">
+                        <div class="self-edit-header px-10 py-5 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <button type="button" class="self-edit-back" onclick="window.closeSelfEditInformation()" title="Back" aria-label="Back"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+                                <h2 id="self-edit-information-title" class="text-2xl font-bold text-black tracking-tight font-['Inter']">Edit Information</h2>
+                                <span class="text-xs font-bold px-2.5 py-1 rounded-full font-['Inter'] bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Body -->
+                    <form id="self-edit-form" class="flex-1 custom-scrollbar px-10 py-6 space-y-6">
+                        <!-- Name Fields (3 Columns) -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-3">
+                                <label for="self-edit-firstname" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Firstname <span class="text-red-500">*</span></label>
+                                <input type="text" id="self-edit-firstname" placeholder="Enter first name"
+                                    maxlength="40" required autocomplete="given-name"
+                                    value="${_esc(user.firstName || '')}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase())"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+                            <div class="space-y-3">
+                                <label for="self-edit-middlename" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Middlename <span class="text-red-500">*</span></label>
+                                <input type="text" id="self-edit-middlename" placeholder="Enter middle name"
+                                    maxlength="40" autocomplete="additional-name"
+                                    value="${_esc(user.middleName || '')}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase())"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+                            <div class="space-y-3">
+                                <label for="self-edit-lastname" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Lastname <span class="text-red-500">*</span></label>
+                                <input type="text" id="self-edit-lastname" placeholder="Enter last name"
+                                    maxlength="40" required autocomplete="family-name"
+                                    value="${_esc(user.lastName || '')}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase())"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+                        </div>
+
+                        <!-- Gender Field -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-3">
+                                <label for="self-edit-gender" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Gender <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <select id="self-edit-gender" required
+                                        class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
+                                        <option value="" disabled ${!user.gender ? 'selected' : ''} hidden>Select Gender</option>
+                                        <option value="Male" ${user.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                        <option value="Female" ${user.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                        ${user.gender && user.gender !== 'Male' && user.gender !== 'Female' ? `<option value="${_esc(user.gender)}" selected>${_esc(user.gender)}</option>` : ''}
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ID Number & Gmail Symmetrically Paired in 2 Columns -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-3">
+                                <label for="self-edit-id" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">ID Number</label>
+                                <input type="text" id="self-edit-id" placeholder="ID Number"
+                                    maxlength="10"
+                                    value="${_esc(cleanUserId)}"
+                                    readonly disabled
+                                    class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-4 text-base font-bold text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
+                            </div>
+
+                            <div class="space-y-3">
+                                <label for="self-edit-email" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Gmail <span class="text-red-500">*</span></label>
+                                <div class="relative flex items-center">
+                                    <input type="text" id="self-edit-email" placeholder="gmail username"
+                                        value="${_esc(gmailUsername)}"
+                                        readonly disabled
+                                        class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none pl-4 pr-28 py-4 text-base font-medium text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
+                                    <span class="absolute right-4 text-sm font-bold text-black pointer-events-none select-none">@gmail.com</span>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Pinned Modal Footer -->
+                    <div class="sigma-modal-footer flex items-center justify-end gap-3 px-10 py-5 border-t border-slate-200 bg-white sticky bottom-0 z-30 font-['Inter']">
+                        <button type="submit" form="self-edit-form" id="self-edit-save-btn"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md !h-[48px] !px-8 !rounded-xl !text-base !font-bold transition-all cursor-pointer">
+                            <span>Save Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        overlay.querySelector('#self-edit-form').addEventListener('submit', event => {
+            event.preventDefault();
+            window.handleSaveAccountInfo(String(user.id || user.uid || ''));
+        });
+
+        overlay.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                window.closeSelfEditInformation();
+            }
+            if (event.key === 'Tab') {
+                const controls = [...overlay.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled])')];
+                if (controls.length > 0) {
+                    const first = controls[0], last = controls[controls.length - 1];
+                    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                }
+            }
+        });
+
+        document.body.appendChild(overlay);
+        overlay.querySelector('#self-edit-firstname')?.focus();
     };
 
     window.handleSaveAccountInfo = function (userId) {
-        const fullName = (document.getElementById('settings-acc-fullname')?.value || '').trim();
-        const gender = document.getElementById('settings-acc-gender')?.value;
-        const email = document.getElementById('settings-acc-email')?.value.trim();
+        const activeUser = getActiveUser();
+        const effectiveId = userId || activeUser.id || activeUser.uid;
+        if (!effectiveId) return;
 
-        if (!fullName) {
-            alert('Name cannot be empty.');
+        const fname = (document.getElementById('self-edit-firstname')?.value || document.getElementById('settings-acc-firstname')?.value || '').trim();
+        const mname = (document.getElementById('self-edit-middlename')?.value || document.getElementById('settings-acc-middlename')?.value || '').trim();
+        const lname = (document.getElementById('self-edit-lastname')?.value || document.getElementById('settings-acc-lastname')?.value || '').trim();
+        const fullName = [fname, mname, lname].filter(Boolean).join(' ');
+        const gender = (document.getElementById('self-edit-gender')?.value || document.getElementById('settings-acc-gender')?.value || activeUser.gender || '');
+        const email = activeUser.email;
+
+        if (!fname || !lname) {
+            alert('First name and last name cannot be empty.');
             return;
         }
-
-        // Parse full name into parts
-        const nameParts = fullName.split(/\s+/).filter(Boolean);
-        const fname = nameParts[0] || '';
-        const lname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-        const mname = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
 
         // Capture previous user state
         let previousUser = null;
@@ -717,12 +818,12 @@
         } catch (e) {}
         if (!previousUser) {
             const adminUsers = getStoredJson('sigma-admin-users', []);
-            previousUser = adminUsers.find(u => String(u.id || u.uid) === String(userId)) || null;
+            previousUser = adminUsers.find(u => String(u.id || u.uid) === String(effectiveId)) || null;
         }
 
         const updatedUser = {
-            id: userId,
-            uid: userId,
+            id: effectiveId,
+            uid: effectiveId,
             firstName: fname,
             middleName: mname,
             lastName: lname,
@@ -744,6 +845,7 @@
         } catch (e) {}
 
         // Update in localStorage users list
+        const cleanEffectiveId = String(effectiveId).replace(/^#/, '').trim();
         const storageKeys = ['sigma-admin-users', 'sigma-teacher-users', 'sigma-student-users', 'sigma-users-list'];
         storageKeys.forEach(k => {
             try {
@@ -751,7 +853,8 @@
                 if (Array.isArray(list)) {
                     let updated = false;
                     list.forEach(u => {
-                        if (String(u.uid || u.id) === String(userId)) {
+                        const cleanUId = String(u.uid || u.id || '').replace(/^#/, '').trim();
+                        if (cleanUId === cleanEffectiveId) {
                             u.firstName = fname;
                             u.middleName = mname;
                             u.lastName = lname;
@@ -766,6 +869,19 @@
             } catch (e) {}
         });
 
+        // Also update sigma_user_profile if present
+        try {
+            const userProfile = getStoredJson('sigma_user_profile', null);
+            if (userProfile && typeof userProfile === 'object') {
+                userProfile.firstName = fname;
+                userProfile.middleName = mname;
+                userProfile.lastName = lname;
+                userProfile.fullName = fullName;
+                userProfile.gender = gender;
+                window.saveStoredJson('sigma_user_profile', userProfile);
+            }
+        } catch (e) {}
+
         // Propagate across all connected sections, subjects, rosters, and session
         if (typeof window.propagateUserUpdateToAllConnected === 'function') {
             window.propagateUserUpdateToAllConnected(updatedUser, previousUser);
@@ -777,21 +893,22 @@
         if (headerFname) headerFname.textContent = fname;
         if (headerLname) headerLname.textContent = lname;
 
+        // Sync Admin table and profile views if present
+        if (typeof window.renderUserAccountsTable === 'function') {
+            window.renderUserAccountsTable();
+        }
+        if (typeof window.syncUserProfileData === 'function') {
+            window.syncUserProfileData();
+        }
+        window.dispatchEvent(new CustomEvent('sigma:user-profile-updated', { detail: updatedUser }));
+
+        window.closeSelfEditInformation();
         showToast('Account details updated successfully!');
 
         // Refresh settings account tab to view mode
         const settingsContainer = document.querySelector('[data-settings-container]');
         if (settingsContainer && typeof window.renderSettingsView === 'function') {
             window.renderSettingsView(settingsContainer.id, 'account');
-        } else {
-            const vMode = document.getElementById('acc-view-mode');
-            const eMode = document.getElementById('acc-edit-mode');
-            const eBtn = document.getElementById('acc-edit-btn');
-            const sActions = document.getElementById('acc-save-actions');
-            if (vMode) vMode.style.display = '';
-            if (eMode) eMode.style.display = 'none';
-            if (eBtn) eBtn.style.display = '';
-            if (sActions) sActions.style.display = 'none';
         }
     };
 
@@ -917,7 +1034,11 @@
 
     window.closeSettingsPasswordModal = function () {
         const modal = document.getElementById('pw-modal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.style.display = 'none';
+            modal.querySelector('#pw-recovery-view')?.remove();
+            if (modal.firstElementChild) modal.firstElementChild.style.display = '';
+        }
 
         const cur = document.getElementById('settings-sec-current-pw');
         const nxt = document.getElementById('settings-sec-new-pw');
@@ -1067,25 +1188,32 @@
         }, 1200);
     };
 
-    window.handleSaveGeneralPreferences = function (userId) {
-        const lang = document.getElementById('settings-pref-lang')?.value || 'en';
-        const timefmt = document.getElementById('settings-pref-timefmt')?.value || '12h';
-        const datefmt = document.getElementById('settings-pref-datefmt')?.value || 'mdy';
-        const startView = document.getElementById('settings-pref-startview')?.value || 'home';
-
-        const prefs = {
-            lang,
-            timefmt,
-            datefmt,
-            startView
-        };
-
-        if (saveGeneralPreferences(userId, prefs)) {
-            showToast('Preferences saved successfully!');
-        }
-    };
 
     // ─── Global Navigation Triggers ───
+    function updateMobileSettingsHeight() {
+        document.querySelectorAll('.sigma-account-settings').forEach(layout => {
+            if (!layout.getClientRects().length) return;
+            const top = Math.max(0, layout.getBoundingClientRect().top + window.scrollY);
+            layout.style.setProperty('--settings-mobile-top', `${top}px`);
+        });
+    }
+    window.addEventListener('resize', updateMobileSettingsHeight);
+
+    window.openSettingsCategory = function (containerId, tab) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.dataset.mobileSettingsView = 'detail';
+        renderSettingsView(container, tab);
+        container.querySelector('.sigma-settings-mobile-back')?.focus();
+    };
+    window.showSettingsCategories = function (containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.dataset.mobileSettingsView = 'list';
+        container.querySelector('.sigma-account-settings')?.classList.remove('sigma-settings-detail');
+        container.querySelector('[aria-selected="true"]')?.focus();
+    };
+
     window.navigateToAccountSettings = function (tabName = 'notifications') {
         if (typeof window.hideHeaderOverlays === 'function') {
             window.hideHeaderOverlays();
@@ -1131,6 +1259,7 @@
             history.pushState({ type: 'tab', navId: 'nav-settings', page: 'settings', tab: tabName }, '', hash);
         }
 
+        settingsView.dataset.mobileSettingsView = 'list';
         renderSettingsView('user-settings-view', tabName);
 
         // Scroll to top

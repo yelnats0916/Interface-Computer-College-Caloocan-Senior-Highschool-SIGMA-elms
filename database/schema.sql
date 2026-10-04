@@ -60,27 +60,55 @@ CREATE TABLE IF NOT EXISTS `school_years` (
 -- Table: sections
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `sections` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(50) NOT NULL,
-    `grade_level` VARCHAR(20) NOT NULL,
-    `room` VARCHAR(20) NULL,
+    `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL,
+    `grade_level` VARCHAR(50) NOT NULL,
+    `room` VARCHAR(50) NULL,
     `school_year` VARCHAR(50) NOT NULL,
-    `adviser_id` INT UNSIGNED NULL,
+    `start_time` VARCHAR(20) NULL,
+    `end_time` VARCHAR(20) NULL,
+    `days` VARCHAR(100) NULL,
+    `schedule` VARCHAR(255) NULL,
+    `daily_schedules` LONGTEXT NULL,
+    `teacher` VARCHAR(100) NULL,
+    `teacher_role` VARCHAR(50) NULL,
+    `teachers` LONGTEXT NULL,
+    `adviser` VARCHAR(100) NULL,
+    `adviser_id` VARCHAR(50) NULL,
+    `subject` VARCHAR(150) NULL,
+    `subjects` LONGTEXT NULL,
+    `students` LONGTEXT NULL,
+    `students_count` INT UNSIGNED DEFAULT 0,
+    `status` VARCHAR(30) DEFAULT 'Deployed',
+    `is_deleted` TINYINT(1) DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`adviser_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_section_name` (`name`),
+    INDEX `idx_section_school_year` (`school_year`),
+    INDEX `idx_section_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
 -- Table: subjects
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `subjects` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `code` VARCHAR(30) NOT NULL UNIQUE,
-    `title` VARCHAR(100) NOT NULL,
-    `grade_level` VARCHAR(20) NOT NULL,
-    `semester` VARCHAR(30) NOT NULL,
-    `cover_image` VARCHAR(255) NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL UNIQUE,
+    `name` VARCHAR(150) NOT NULL,
+    `units` VARCHAR(10) NULL,
+    `type` VARCHAR(50) NULL,
+    `strand` VARCHAR(50) NULL,
+    `weights` LONGTEXT NULL,
+    `active_quarters` LONGTEXT NULL,
+    `status` VARCHAR(30) DEFAULT 'Published',
+    `topics` LONGTEXT NULL,
+    `materials` LONGTEXT NULL,
+    `is_deleted` TINYINT(1) DEFAULT 0,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_subject_code` (`code`),
+    INDEX `idx_subject_name` (`name`),
+    INDEX `idx_subject_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -127,22 +155,26 @@ ON DUPLICATE KEY UPDATE `status` = 'active';
 -- Table: quizzes (Quiz Library / Storage)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `quizzes` (
-    `id`              VARCHAR(36)  NOT NULL PRIMARY KEY,  -- UUID v4 (or JS timestamp ID)
-    `title`           VARCHAR(255) NOT NULL,
-    `description`     TEXT         NULL,
-    `status`          ENUM('draft','published') NOT NULL DEFAULT 'draft',
-    `author_id`       INT UNSIGNED NOT NULL,
-    `author_name`     VARCHAR(100) NULL,
-    `author_role`     VARCHAR(50)  NULL,
-    `questions`       JSON         NULL,                  -- Full question array
+    `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `code` VARCHAR(50) NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `status` VARCHAR(30) NOT NULL DEFAULT 'published',
+    `author_id` VARCHAR(50) NULL,
+    `author_name` VARCHAR(100) NULL,
+    `author_role` VARCHAR(50) NULL,
+    `questions` LONGTEXT NULL,
     `total_questions` INT UNSIGNED NOT NULL DEFAULT 0,
-    `total_points`    INT UNSIGNED NOT NULL DEFAULT 0,
-    `icon`            VARCHAR(50)  NULL,
-    `color`           VARCHAR(20)  NULL,
-    `is_ai`           TINYINT(1)   NOT NULL DEFAULT 0,
-    `code`            VARCHAR(20)  NULL,                  -- e.g. #QZ-0042
-    `created_at`      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `deleted_at`      TIMESTAMP    NULL DEFAULT NULL,
-    FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+    `total_points` INT UNSIGNED NOT NULL DEFAULT 0,
+    `time_limit` INT UNSIGNED NULL DEFAULT 0,
+    `icon` VARCHAR(50) NULL,
+    `color` VARCHAR(30) NULL,
+    `is_ai` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_quiz_code` (`code`),
+    INDEX `idx_quiz_status` (`status`),
+    INDEX `idx_quiz_author` (`author_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -418,15 +418,15 @@ require_once __DIR__ . "/includes/topbar.php";
                                     <col style="width: 11%;"> <!-- Date Created -->
                                     <col style="width: 8%;">  <!-- Action -->
                                 </colgroup>
-                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                     <tr>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">No.</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">ID</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Name</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Email</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Role</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Status</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Date Created</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">No.</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">ID</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Name</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Email</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Role</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Status</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Date Created</th>
                                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Action</th>
                                     </tr>
                                 </thead>
@@ -923,7 +923,7 @@ require_once __DIR__ . "/includes/topbar.php";
                                 <!-- Attendance Table -->
                                 <div class="border border-slate-200 rounded-2xl overflow-hidden">
                                     <table class="w-full text-left border-collapse">
-                                        <thead class="bg-[#15803d] border-b border-[#166534]">
+                                        <thead class="bg-[#15803d] border-b border-[#137638]">
                                             <tr>
                                                 <th
                                                     class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
@@ -1097,7 +1097,7 @@ require_once __DIR__ . "/includes/topbar.php";
                                     </div>
                                     <div class="border border-slate-200 rounded-2xl overflow-hidden">
                                         <table class="w-full text-left border-collapse">
-                                            <thead class="bg-[#15803d] border-b border-[#166534]">
+                                            <thead class="bg-[#15803d] border-b border-[#137638]">
                                                 <tr>
                                                     <th
                                                         class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">

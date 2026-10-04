@@ -2641,16 +2641,34 @@ function initTeacherPortal() {
 
     function studentNamesMatch(name1, name2) {
         if (!name1 || !name2) return false;
+        const s1 = String(name1).trim().toLowerCase();
+        const s2 = String(name2).trim().toLowerCase();
+        if (s1 === s2) return true;
+
         const t1 = normalizeAttendanceTokens(name1);
         const t2 = normalizeAttendanceTokens(name2);
         if (t1.length === 0 || t2.length === 0) return false;
-        if (t1.join(' ') === t2.join(' ')) return true;
+
+        // Exact tokens match in any order (e.g. "Herald Jamero Kalipungan" vs "Kalipungan, Herald Jamero")
         if (t1.slice().sort().join(' ') === t2.slice().sort().join(' ')) return true;
+
+        // Filter out single-letter initials (like middle initial 'J' or 'A')
+        const full1 = t1.filter(t => t.length > 1);
+        const full2 = t2.filter(t => t.length > 1);
+        if (full1.length > 0 && full2.length > 0 && full1.slice().sort().join(' ') === full2.slice().sort().join(' ')) {
+            return true;
+        }
+
+        // Check if one is a subset of the other (e.g. "Juan Dela Cruz" in "Juan Abad Dela Cruz")
         const set1 = new Set(t1);
         const set2 = new Set(t2);
-        const common = t1.filter(x => set2.has(x));
-        if (common.length >= 2) return true;
-        return t1.every(x => set2.has(x)) || t2.every(x => set1.has(x));
+        const isSubset1 = t1.every(t => set2.has(t));
+        const isSubset2 = t2.every(t => set1.has(t));
+        if (isSubset1 || isSubset2) {
+            return true;
+        }
+
+        return false;
     }
 
     window.setAttendanceStatus = function (studentName, dateString, status, event, studentId = null) {
@@ -2684,10 +2702,45 @@ function initTeacherPortal() {
             }
         });
 
+        // Collect all name variants for this student so Teacher, Admin, and Student match directly
+        const namesToAssign = new Set([studentName]);
+        if (studentName.includes(',')) {
+            const [last, firstMiddle] = studentName.split(',').map(s => s.trim());
+            if (firstMiddle && last) namesToAssign.add(`${firstMiddle} ${last}`);
+        } else {
+            const tokens = studentName.trim().split(/\s+/);
+            if (tokens.length >= 2) {
+                const last = tokens[tokens.length - 1];
+                const firstMiddle = tokens.slice(0, -1).join(' ');
+                namesToAssign.add(`${last}, ${firstMiddle}`);
+            }
+        }
+
+        try {
+            const allUsers = (typeof getStoredJson === 'function')
+                ? getStoredJson('sigma-admin-users', getStoredJson('sigma-users-list', []))
+                : [];
+            if (Array.isArray(allUsers)) {
+                const u = allUsers.find(user => (studentId && (String(user.id) === String(studentId) || String(user.uid) === String(studentId))) || studentNamesMatch(user.fullName || `${user.lastName}, ${user.firstName}`, studentName));
+                if (u) {
+                    if (u.id) { if (isClearing) delete statuses[u.id]; else statuses[u.id] = status; }
+                    if (u.uid) { if (isClearing) delete statuses[u.uid]; else statuses[u.uid] = status; }
+                    if (u.fullName) namesToAssign.add(u.fullName);
+                    if (u.name) namesToAssign.add(u.name);
+                    if (u.lastName && u.firstName) {
+                        namesToAssign.add(`${u.lastName}, ${u.firstName}${u.middleName ? ' ' + u.middleName : ''}`);
+                        namesToAssign.add(`${u.firstName} ${u.middleName ? u.middleName + ' ' : ''}${u.lastName}`);
+                    }
+                }
+            }
+        } catch (_) {}
+
         if (!isClearing) {
-            // Assign active status
-            statuses[studentName] = status;
+            namesToAssign.forEach(n => { statuses[n] = status; });
             if (studentId) statuses[studentId] = status;
+        } else {
+            namesToAssign.forEach(n => { delete statuses[n]; });
+            if (studentId) delete statuses[studentId];
         }
 
         // Clean excuses if clearing or not Absent
@@ -2695,6 +2748,7 @@ function initTeacherPortal() {
         if (isClearing || status !== 'A') {
             delete excuses[studentName];
             if (studentId) delete excuses[studentId];
+            namesToAssign.forEach(n => { delete excuses[n]; });
             Object.keys(excuses).forEach(k => {
                 if ((studentId && String(k) === String(studentId)) || studentNamesMatch(k, studentName)) {
                     delete excuses[k];
@@ -2816,7 +2870,7 @@ function initTeacherPortal() {
                     <div class="flex items-center justify-end shrink-0">
                         <button type="button" class="attendance-export-excel-btn flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 text-[11px] sm:text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer select-none" onclick="window.openAttendanceExportModal()" title="Export Attendance to Excel">
                             <i class="fa-solid fa-file-excel text-emerald-600 text-xs sm:text-sm"></i>
-                            <span class="hidden sm:inline">Export Excel</span>
+                            <span style="display:inline !important; line-height:16px;">Export</span>
                         </button>
                     </div>
                 </div>
@@ -2929,7 +2983,7 @@ function initTeacherPortal() {
                     const isDaySelected = (attendanceSelectedDay === d);
 
                     html += `
-                        <td class="day-col ${isExpanded ? 'is-expanded' : ''}">
+                        <td class="day-col ${isExpanded ? 'is-expanded' : ''} ${!isExpanded && status ? 'status-' + status.toLowerCase() : ''}">
                             <div class="attendance-day-cell ${isExpanded ? 'is-expanded' : ''} ${statusClass}" 
                                  onclick="${!isExpanded ? `window.toggleAttendanceExpansion(${d})` : ''}">
                                 ${isExpanded ? `
@@ -3230,9 +3284,87 @@ function initTeacherPortal() {
         return `${y}-${m}-${d}`;
     }
 
-    function getCurrentAttendanceStatuses(dateString = getTodayLocalDateString()) {
+    function findAttendanceClassroomRecord(secName, subjName) {
+        if (typeof window.findAttendanceClassroomRecord === 'function') {
+            return window.findAttendanceClassroomRecord(secName, subjName);
+        }
         refreshAttendanceRecords();
-        const classroomData = attendanceRecordsByClassroom[currentClassroomKey] || {};
+        if (!attendanceRecordsByClassroom || typeof attendanceRecordsByClassroom !== 'object') {
+            return { key: null, data: {} };
+        }
+
+        const cleanSec = String(secName || '').trim();
+        const cleanSubj = String(subjName || '').trim();
+        const normalizeSubj = (s) => {
+            const str = String(s || '').trim();
+            const unslug = str.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+            return unslug.replace(/\s*&\s*/g, ' and ');
+        };
+        const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^g\d+\s*[-–]?\s*/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+
+        const baseSec = stripGrade(cleanSec);
+        const normSubj = normalizeSubj(cleanSubj);
+        const canonicalSubj = (typeof window.ClassroomRoom?.formatSubjectTitle === 'function') ? window.ClassroomRoom.formatSubjectTitle(cleanSubj) : cleanSubj;
+
+        const directKey = `${cleanSec}::${cleanSubj}`;
+        const directKeysToCheck = [
+            directKey,
+            `${cleanSec}::${canonicalSubj}`,
+            `${baseSec}::${canonicalSubj}`,
+            `Grade 11 - ${baseSec}::${canonicalSubj}`,
+            `${cleanSec}::${cleanSubj.replace(/\s+/g, '-')}`,
+            `${cleanSec}::${cleanSubj.replace(/[-_]+/g, ' ')}`,
+            `${baseSec}::${cleanSubj.replace(/\s+/g, '-')}`,
+            `${baseSec}::${cleanSubj.replace(/[-_]+/g, ' ')}`
+        ];
+        for (const dk of directKeysToCheck) {
+            if (attendanceRecordsByClassroom[dk] && Object.keys(attendanceRecordsByClassroom[dk]).length > 0) {
+                return { key: dk, data: attendanceRecordsByClassroom[dk] };
+            }
+        }
+
+        const allKeys = Object.keys(attendanceRecordsByClassroom);
+        for (const k of allKeys) {
+            if (!k.includes('::')) continue;
+            const [kSec, kSubj] = k.split('::').map(x => x.trim());
+            const kNormSubj = normalizeSubj(kSubj);
+            const kBaseSec = stripGrade(kSec);
+
+            const secMatches = (kSec.toLowerCase() === cleanSec.toLowerCase() || (kBaseSec && baseSec && kBaseSec === baseSec));
+            const subjMatches = Boolean(kNormSubj && normSubj && kNormSubj === normSubj);
+
+            if (secMatches && subjMatches) {
+                return { key: k, data: attendanceRecordsByClassroom[k] };
+            }
+        }
+
+        const adminSecs = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-sections', []) : [];
+        if (Array.isArray(adminSecs)) {
+            const found = adminSecs.find(s => s && (String(s.id) === cleanSec || stripGrade(s.name || s.sectionName) === baseSec));
+            if (found) {
+                const aliasKeys = [
+                    `${found.id}::${cleanSubj}`,
+                    `${found.id}::${canonicalSubj}`,
+                    `${found.name}::${cleanSubj}`,
+                    `${found.name}::${canonicalSubj}`,
+                    `Grade ${found.grade || found.gradeLevel || 11} - ${found.name}::${cleanSubj}`,
+                    `Grade ${found.grade || found.gradeLevel || 11} - ${found.name}::${canonicalSubj}`
+                ];
+                for (const ak of aliasKeys) {
+                    if (attendanceRecordsByClassroom[ak] && Object.keys(attendanceRecordsByClassroom[ak]).length > 0) {
+                        return { key: ak, data: attendanceRecordsByClassroom[ak] };
+                    }
+                }
+            }
+        }
+
+        return { key: directKey, data: {} };
+    }
+
+    function getCurrentAttendanceStatuses(dateString = getTodayLocalDateString()) {
+        const secName = currentClassroomSectionName || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '');
+        const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
         if (classroomData[dateString] && classroomData[dateString].statuses) {
             return { ...classroomData[dateString].statuses };
         }
@@ -3243,8 +3375,9 @@ function initTeacherPortal() {
     }
 
     function getCurrentAttendanceExcuses(dateString = getTodayLocalDateString()) {
-        refreshAttendanceRecords();
-        const classroomData = attendanceRecordsByClassroom[currentClassroomKey] || {};
+        const secName = currentClassroomSectionName || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '');
+        const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
         if (classroomData[dateString] && classroomData[dateString].excuses) {
             return { ...classroomData[dateString].excuses };
         }
@@ -3255,6 +3388,10 @@ function initTeacherPortal() {
     }
 
     function saveCurrentAttendanceStatuses(statuses, dateString = getTodayLocalDateString(), excuses = null) {
+        if (typeof window.saveCurrentAttendanceStatuses === 'function') {
+            window.saveCurrentAttendanceStatuses(statuses, dateString, excuses);
+            return;
+        }
         if (!currentClassroomKey) return;
         if (typeof dateString === 'object' && dateString !== null) {
             excuses = dateString;
@@ -3264,20 +3401,62 @@ function initTeacherPortal() {
             excuses = getCurrentAttendanceExcuses(dateString);
         }
         refreshAttendanceRecords();
-        if (!attendanceRecordsByClassroom[currentClassroomKey]) {
-            attendanceRecordsByClassroom[currentClassroomKey] = {};
-        }
-        // Clean out legacy root date/statuses/excuses if present
-        if (attendanceRecordsByClassroom[currentClassroomKey].date) {
-            delete attendanceRecordsByClassroom[currentClassroomKey].date;
-            delete attendanceRecordsByClassroom[currentClassroomKey].statuses;
-            delete attendanceRecordsByClassroom[currentClassroomKey].excuses;
-        }
-        attendanceRecordsByClassroom[currentClassroomKey][dateString] = {
+
+        const secName = currentClassroomSectionName || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '');
+        const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+
+        const recordEntry = {
             updatedAt: new Date().toISOString(),
             statuses: { ...statuses },
             excuses: { ...excuses }
         };
+
+        const { key: existingKey } = findAttendanceClassroomRecord(secName, subjName);
+        const keysToSave = new Set([currentClassroomKey]);
+        if (existingKey) keysToSave.add(existingKey);
+
+        const canonicalSubj = (typeof window.ClassroomRoom?.formatSubjectTitle === 'function') ? window.ClassroomRoom.formatSubjectTitle(subjName) : subjName;
+        const unslugSubj = String(subjName || '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const slugSubj = unslugSubj.replace(/\s+/g, '-');
+        const cleanSec = String(secName || '').trim();
+        const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^g\d+\s*[-–]?\s*/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const baseSec = stripGrade(cleanSec);
+
+        const subjectVariants = [subjName, canonicalSubj, unslugSubj, slugSubj].filter(Boolean);
+        const sectionVariants = [cleanSec, baseSec, `Grade 11 - ${baseSec}`].filter(Boolean);
+
+        for (const secVar of sectionVariants) {
+            for (const subVar of subjectVariants) {
+                keysToSave.add(`${secVar}::${subVar}`);
+            }
+        }
+
+        const normalizeSubj = (s) => String(s || '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').replace(/\s*&\s*/g, ' and ').trim().toLowerCase();
+        const normSubj = normalizeSubj(subjName);
+        const normBaseSec = baseSec.toLowerCase();
+
+        for (const k of Object.keys(attendanceRecordsByClassroom)) {
+            if (!k.includes('::')) continue;
+            const [kSec, kSubj] = k.split('::').map(x => x.trim());
+            const kBaseSec = stripGrade(kSec).toLowerCase();
+            const kNormSubj = normalizeSubj(kSubj);
+            if ((kSec.toLowerCase() === cleanSec.toLowerCase() || (kBaseSec && normBaseSec && kBaseSec === normBaseSec)) && kNormSubj === normSubj) {
+                keysToSave.add(k);
+            }
+        }
+
+        keysToSave.forEach(k => {
+            if (!attendanceRecordsByClassroom[k]) {
+                attendanceRecordsByClassroom[k] = {};
+            }
+            if (attendanceRecordsByClassroom[k].date) {
+                delete attendanceRecordsByClassroom[k].date;
+                delete attendanceRecordsByClassroom[k].statuses;
+                delete attendanceRecordsByClassroom[k].excuses;
+            }
+            attendanceRecordsByClassroom[k][dateString] = { ...recordEntry };
+        });
+
         saveSharedState(SHARED_ATTENDANCE_RECORDS_KEY, attendanceRecordsByClassroom);
         try {
             window.dispatchEvent(new CustomEvent('sigma:attendance-changed', {
@@ -3426,10 +3605,9 @@ function initTeacherPortal() {
 
             for (let s = 0; s < students.length; s++) {
                 const student = students[s];
-                let displayName = student.name;
-                if (student.middleName && !student.name.includes(student.middleName)) {
-                    displayName = `${student.name} ${student.middleName}`;
-                }
+                let displayName = (typeof window.formatStudentLastFirstMiddle === 'function')
+                    ? window.formatStudentLastFirstMiddle(student)
+                    : (student.name || '');
                 let status = currentStatuses[student.name] || 
                              (student.id && currentStatuses[student.id]) ||
                              currentStatuses[displayName] || '';
@@ -3477,10 +3655,9 @@ function initTeacherPortal() {
 
             // Student rows
             students.forEach((student, index) => {
-                let displayName = student.name;
-                if (student.middleName && !student.name.includes(student.middleName)) {
-                    displayName = `${student.name} ${student.middleName}`;
-                }
+                let displayName = (typeof window.formatStudentLastFirstMiddle === 'function')
+                    ? window.formatStudentLastFirstMiddle(student)
+                    : (student.name || '');
 
                 let totalP = 0;
                 let totalA = 0;
@@ -3525,10 +3702,9 @@ function initTeacherPortal() {
                 const currentStatuses = getCurrentAttendanceStatuses(d.dateStr);
                 let dayP = 0, dayA = 0, dayL = 0, dayE = 0;
                 students.forEach(student => {
-                    let displayName = student.name;
-                    if (student.middleName && !student.name.includes(student.middleName)) {
-                        displayName = `${student.name} ${student.middleName}`;
-                    }
+                    let displayName = (typeof window.formatStudentLastFirstMiddle === 'function')
+                        ? window.formatStudentLastFirstMiddle(student)
+                        : (student.name || '');
                     let status = currentStatuses[student.name] || 
                                    (student.id && currentStatuses[student.id]) ||
                                    currentStatuses[displayName] || '';
@@ -6143,7 +6319,12 @@ function initTeacherPortal() {
             const newHash = `#topic:${encodeURIComponent(resolvedSubjectId)}${secPart}`;
             const currentHash = window.location.hash || '';
             if (currentHash !== newHash) {
-                history.pushState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
+                const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+                if (hasUserInteracted) {
+                    history.pushState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
+                } else {
+                    history.replaceState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
+                }
                 localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }));
             }
         }
@@ -6346,7 +6527,12 @@ function initTeacherPortal() {
             const currentHash = window.location.hash || '';
             if (currentHash !== hash) {
                 const historyState = { type: 'topic-content', subjectId, topicIdx, tab, subIdx, selectedSection: preservedSection, viewSubmission: isSubMode };
-                history.pushState(historyState, '', hash);
+                const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+                if (hasUserInteracted) {
+                    history.pushState(historyState, '', hash);
+                } else {
+                    history.replaceState(historyState, '', hash);
+                }
                 localStorage.setItem('sigma-teacher-nav-state', JSON.stringify(historyState));
             }
         }
@@ -6516,7 +6702,12 @@ function initTeacherPortal() {
         if ((window.location.hash || '') !== hash) {
             const historyState = { type: 'topic-content', subjectId, topicIdx, tab, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode };
             const currentHash = window.location.hash || '';
-            history.pushState(historyState, '', hash);
+            const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+            if (hasUserInteracted) {
+                history.pushState(historyState, '', hash);
+            } else {
+                history.replaceState(historyState, '', hash);
+            }
         }
         sigmaLastNavHash = window.location.hash || '';
         localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'topic-content', subjectId, topicIdx, activeTab: tab, videoIdx: currentTopicState.videoIdx, assessmentIdx: window._tcAssessmentDetailIdx, selectedSection: activeSection, viewSubmission: isSubMode }));
@@ -7678,7 +7869,9 @@ function initTeacherPortal() {
         window._learningMaterialsPickerWorkingIds = [];
         window._assessmentsPickerWorkingIds = [];
 
-        if (document.getElementById('teacher-topics-materials-picker-overlay')) {
+        if (document.querySelector('#teacher-release-assessments-overlay .release-workspace')) {
+            window.openTeacherReleaseAssessmentsModal?.(true);
+        } else if (document.getElementById('teacher-topics-materials-picker-overlay')) {
             window.openTeacherTopicsAndMaterialsPickerModal?.();
         } else if (document.getElementById('teacher-topic-picker-overlay')) {
             window.openTeacherTopicPickerModal?.();
@@ -16538,7 +16731,7 @@ function initTeacherPortal() {
                         const isTopicExpanded = !isExplicitlyCollapsed;
 
                         return `
-                            <div class="topic-group-block">
+                            <div class="topic-group-block" data-topic-order="${originalIdx}">
                                 <!-- Topic Header Banner with Release Panel & Chevron Dropdown -->
                                 <div class="px-3 sm:px-4 py-2 sm:py-2.5 bg-black/[0.03] border-b border-black/10 flex items-center justify-between cursor-pointer select-none hover:bg-black/[0.05] transition-colors"
                                     onclick="window.toggleReleaseTopicCollapse('${topicSafeId}', event)">
@@ -16811,10 +17004,15 @@ function initTeacherPortal() {
         overlay.style.display = '';
         if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
         overlay.classList.add('curriculum-hub-overlay--visible');
+        window.mountTopicsAndMaterialsReleasePicker?.(overlay);
     };
 
     // ── Dedicated Sub-Modal for Topics and Materials Picker ───────────────────
-    window.openTeacherTopicsAndMaterialsPickerModal = function () {
+    window.openTeacherTopicsAndMaterialsPickerModal = function (embedded = false) {
+        if (!embedded && typeof window.mountTopicsAndMaterialsReleasePicker === 'function') {
+            window.openTeacherReleaseAssessmentsModal?.(true);
+            return;
+        }
         const subjectId = (typeof resolveTeacherActiveSubjectId === 'function')
             ? resolveTeacherActiveSubjectId(typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null)
             : ((typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null) || window.currentTopicState?.subjectId || 'card-prog1');
@@ -17013,7 +17211,7 @@ function initTeacherPortal() {
         overlay.onclick = function (e) { e.stopPropagation(); };
 
         if (typeof window.pushModalHistoryState === 'function') {
-            window.pushModalHistoryState('teacher-topics-materials-picker-overlay');
+            if (!embedded) window.pushModalHistoryState('teacher-topics-materials-picker-overlay');
         }
 
         window._topicsAndMaterialsPickerWorking = new Map();
@@ -17073,11 +17271,6 @@ function initTeacherPortal() {
                                 <i class="fa-solid fa-book-open text-[11px]"></i>
                                 <span>Draft <span class="hidden sm:inline">Learning </span>Materials (${unreleasedMaterials.length})</span>
                             </button>
-                            <button type="button" onclick="window.setTopicsAndMaterialsPickerFilter('assessments')" id="unified-filter-assessments"
-                                class="quiz-storage-filter-chip px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70" data-filter="assessments">
-                                <i class="fa-solid fa-clipboard-check text-[11px]"></i>
-                                <span>Draft Assessments (${unreleasedAssessments.length})</span>
-                            </button>
                         </div>
                         <div class="flex items-center gap-2 text-xs font-semibold shrink-0">
                             <button type="button" onclick="window.selectAllTopicsAndMaterialsPickerItems()" class="px-2 py-1 rounded-lg text-[#15803d] hover:bg-emerald-50 active:bg-emerald-100 transition-colors cursor-pointer" style="color: #15803d;">Select All</button>
@@ -17097,6 +17290,7 @@ function initTeacherPortal() {
 
                                 return `
                                     <div class="topic-picker-card border border-black/10 rounded-xl overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                                        data-topic-order="${originalIdx}"
                                         data-has-topic="${grp.isTopicUnreleased ? '1' : '0'}"
                                         data-has-learning="${grp.learningMaterials.length > 0 ? '1' : '0'}"
                                         data-has-assessments="${grp.assessments.length > 0 ? '1' : '0'}">
@@ -17215,13 +17409,14 @@ function initTeacherPortal() {
         `;
 
         document.body.appendChild(overlay);
-        if (prevModal && prevModal !== overlay) {
+        if (!embedded && prevModal && prevModal !== overlay) {
             prevModal.classList.add('hidden');
         }
         window.syncTopicsAndMaterialsPickerSubmitBtn?.();
     };
 
     window.setTopicsAndMaterialsPickerFilter = function (filter) {
+        if (window.filterTopicsAndMaterialsReleaseWorkspace?.(filter)) return;
         const chips = document.querySelectorAll('#unified-picker-filter-chips .quiz-storage-filter-chip');
         chips.forEach(chip => {
             if (chip.dataset.filter === filter) {
@@ -17297,7 +17492,7 @@ function initTeacherPortal() {
 
     window.selectAllTopicsAndMaterialsPickerItems = function () {
         if (!window._topicsAndMaterialsPickerWorking) window._topicsAndMaterialsPickerWorking = new Map();
-        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"]').forEach(el => {
+        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"], #topics-materials-release-workspace input[name="picker-unified-item"]').forEach(el => {
             const itemRow = el.closest('.picker-item-row') || el.closest('.topic-release-row') || el.closest('.topic-picker-header');
             const card = el.closest('.topic-picker-card');
             if ((!itemRow || itemRow.style.display !== 'none') && (!card || card.style.display !== 'none')) {
@@ -17313,7 +17508,7 @@ function initTeacherPortal() {
 
     window.deselectAllTopicsAndMaterialsPickerItems = function () {
         if (!window._topicsAndMaterialsPickerWorking) window._topicsAndMaterialsPickerWorking = new Map();
-        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"]').forEach(el => {
+        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"], #topics-materials-release-workspace input[name="picker-unified-item"]').forEach(el => {
             el.checked = false;
             const cat = el.dataset.category;
             const id = String(el.dataset.id || el.value);
@@ -17859,13 +18054,7 @@ function initTeacherPortal() {
     }
 
     function _buildTopicHomeRail(data) {
-        const selectorCard = (typeof _buildTopicSectionSelectorCard === 'function')
-            ? _buildTopicSectionSelectorCard(data, true, 'desktop')
-            : (typeof window.buildTopicSectionSelectorCard === 'function' ? window.buildTopicSectionSelectorCard(data, true, 'desktop') : '');
-        const desktopToolbar = selectorCard
-            ? `<div class="teacher-topic-desktop-toolbar mb-4 w-full">${selectorCard}</div>`
-            : '';
-        return `<div class="topic-progress-rail teacher-topic-progress-rail font-['Inter']">${desktopToolbar}${_buildTopicSwitchPanel(data)}</div>`;
+        return window.renderSharedTeacherTopicSelectionRail?.(data, currentTopicState) || '';
     }
 
     window.openTopicVideosPage = function (topicIdx) {
@@ -19154,7 +19343,12 @@ function initTeacherPortal() {
             }
             const currentHash = (window.location.hash || '').replace('#', '');
             if (currentHash !== pageKey) {
-                history.pushState({ type: 'tab', navId, subTab }, '', '#' + pageKey);
+                const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+                if (hasUserInteracted) {
+                    history.pushState({ type: 'tab', navId, subTab }, '', '#' + pageKey);
+                } else {
+                    history.replaceState({ type: 'tab', navId, subTab }, '', '#' + pageKey);
+                }
                 localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'tab', navId, pageKey, subTab }));
             }
         }
@@ -20335,7 +20529,13 @@ function initTeacherPortal() {
 
         if (pushHistory) {
             const hash = `#classroom:${encodeURIComponent(className)}:${encodeURIComponent(subject)}:${initialTab}`;
-            history.pushState({ type: 'classroom', className, subject, initialTab }, '', hash);
+            const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+            const isSameHash = (window.location.hash || '') === hash;
+            if (hasUserInteracted && !isSameHash) {
+                history.pushState({ type: 'classroom', className, subject, initialTab }, '', hash);
+            } else {
+                history.replaceState({ type: 'classroom', className, subject, initialTab }, '', hash);
+            }
             localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className, subject, initialTab }));
         }
 
@@ -20385,8 +20585,12 @@ function initTeacherPortal() {
             foundMeta = classroomMetaBySubject[`${className}::${subject}`] || null;
         }
         currentClassroomMeta = foundMeta;
+        window.currentClassroomMeta = foundMeta;
 
-        const effectiveSubject = subject || currentClassroomMeta?.subject || 'Subject';
+        const rawEffectiveSubject = subject || currentClassroomMeta?.subject || 'Subject';
+        const effectiveSubject = (typeof window.ClassroomRoom?.formatSubjectTitle === 'function')
+            ? window.ClassroomRoom.formatSubjectTitle(rawEffectiveSubject)
+            : rawEffectiveSubject.replace(/[-_]+/g, ' ');
         const effectiveSection = className || currentClassroomMeta?.section || 'Section';
         currentClassroomKey = `${effectiveSection}::${effectiveSubject}`;
         currentClassroomSectionName = effectiveSection;
@@ -20518,7 +20722,7 @@ function initTeacherPortal() {
 
         // Open the section room in the requested tab.
         if (typeof switchClassDetailTab === 'function') {
-            switchClassDetailTab(initialTab || 'room');
+            switchClassDetailTab(initialTab || 'room', false);
         }
 
         // Reset Gradebook highlights when switching sections
@@ -20835,7 +21039,12 @@ function initTeacherPortal() {
             const hash = `#classroom:${encodeURIComponent(currentClassroomSectionName)}:${encodeURIComponent(subject)}:${effectiveTab}`;
             const currentHash = window.location.hash || '';
             if (currentHash !== hash) {
-                history.pushState({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }, '', hash);
+                const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
+                if (hasUserInteracted) {
+                    history.pushState({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }, '', hash);
+                } else {
+                    history.replaceState({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }, '', hash);
+                }
                 localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className: currentClassroomSectionName, subject, initialTab: effectiveTab }));
             }
         }
@@ -21145,7 +21354,10 @@ function initTeacherPortal() {
         }
 
         let existingModal = document.getElementById('teacher-classroom-grades-modal-overlay');
-        if (existingModal) existingModal.remove();
+        if (existingModal) {
+            existingModal.cleanupViewport?.();
+            existingModal.remove();
+        }
 
         const overlay = document.createElement('div');
         overlay.id = 'teacher-classroom-grades-modal-overlay';
@@ -21156,14 +21368,17 @@ function initTeacherPortal() {
             <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden font-['Inter'] rounded-2xl sm:rounded-3xl shadow-2xl" style="height: auto; max-height: min(740px, calc(100dvh - 24px)); max-width: 860px;" onclick="event.stopPropagation()">
                 <!-- Modal Header -->
                 <div class="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 font-['Inter']">
-                    <div class="min-w-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <button type="button" class="teacher-grades-modal-back" aria-label="Back" title="Back" onclick="window.closeTeacherClassroomGradesModal()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+                        <div class="min-w-0">
                         <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">${escapeHtml(subjectName)}</h2>
                         <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)} (${studentRows.length} ${studentRows.length === 1 ? 'student' : 'students'})</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-3.5 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1 custom-scrollbar">
+                <div class="teacher-grades-modal-body p-3.5 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1 custom-scrollbar">
                     <!-- Quick Stats Row (2 Columns, Shared Green Background & White Text) -->
                     <div class="grid grid-cols-2 gap-2.5 sm:gap-4 font-['Inter']">
                         <div class="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-[#15803d] text-white flex flex-col shadow-xs font-['Inter']">
@@ -21178,7 +21393,7 @@ function initTeacherPortal() {
 
 
                     <!-- Students Grades Table -->
-                    <div class="border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
+                    <div class="teacher-grades-modal-table border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
@@ -21193,15 +21408,17 @@ function initTeacherPortal() {
                                 </thead>
                                 <tbody id="teacher-grades-modal-tbody" class="divide-y divide-slate-100">
                                     ${studentRows.map(std => {
-                                        const avatarHtml = (typeof window.renderUserAvatarHtml === 'function')
-                                            ? window.renderUserAvatarHtml(std.rawStudent || std, 'sm')
-                                            : `<div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-700 shrink-0"><i class="fa-solid fa-user text-slate-400 text-xs"></i></div>`;
+                                        const studentObj = (std.rawStudent && typeof std.rawStudent === 'object')
+                                            ? { ...std.rawStudent, id: std.id, name: std.name }
+                                            : { id: std.id, name: std.name };
+                                        const avatarHtml = (typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(studentObj, 'sm'))
+                                            || `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`;
 
                                         return `
                                         <tr class="hover:bg-slate-50/80 transition-colors teacher-grade-row" data-search="${escapeHtml((std.name + ' ' + std.id).toLowerCase())}">
                                             <td class="px-3 sm:px-4 py-2 sm:py-3 align-middle">
                                                 <div class="flex items-center gap-2 sm:gap-2.5">
-                                                    <div class="shrink-0 hidden sm:flex items-center justify-center">
+                                                    <div class="shrink-0 flex items-center justify-center classroom-grades-avatar-wrap">
                                                         ${avatarHtml}
                                                     </div>
                                                     <div class="min-w-0 flex-1">
@@ -21226,20 +21443,18 @@ function initTeacherPortal() {
                 <!-- Modal Footer -->
                 ${typeof window.renderSigmaModalFooter === 'function' ? window.renderSigmaModalFooter({
                     cancelText: 'Close',
+                    cancelBtnClass: 'teacher-grades-modal-close sigma-btn sigma-btn-white sigma-modal-btn',
                     cancelOnClick: 'window.closeTeacherClassroomGradesModal()',
                     confirmText: 'Open Full Gradebook',
                     mobileConfirmText: 'Open gradebook',
-                    hideIconOnMobile: true,
                     confirmOnClick: 'window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomGradebook?.();',
-                    confirmIcon: 'fa-solid fa-table-list',
-                    confirmIconPosition: 'left'
+                    confirmIcon: ''
                 }) : `
                 <div class="sigma-modal-footer">
-                    <button type="button" class="sigma-btn sigma-btn-white sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal()">
+                    <button type="button" class="teacher-grades-modal-close sigma-btn sigma-btn-white sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal()">
                         Close
                     </button>
                     <button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomGradebook?.();">
-                        <i class="fa-solid fa-table-list text-xs sigma-desktop-only"></i>
                         <span class="sigma-desktop-only">Open Full Gradebook</span>
                         <span class="sigma-mobile-only">Open gradebook</span>
                     </button>
@@ -21254,11 +21469,28 @@ function initTeacherPortal() {
 
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
+        const viewport = window.visualViewport;
+        const syncViewport = () => {
+            overlay.style.setProperty('--teacher-grades-viewport-height', `${viewport ? viewport.height : window.innerHeight}px`);
+            overlay.style.setProperty('--teacher-grades-viewport-top', `${viewport ? viewport.offsetTop : 0}px`);
+        };
+        syncViewport();
+        viewport?.addEventListener('resize', syncViewport);
+        viewport?.addEventListener('scroll', syncViewport);
+        window.addEventListener('resize', syncViewport);
+        overlay.cleanupViewport = () => {
+            viewport?.removeEventListener('resize', syncViewport);
+            viewport?.removeEventListener('scroll', syncViewport);
+            window.removeEventListener('resize', syncViewport);
+        };
     };
 
     window.closeTeacherClassroomGradesModal = function () {
         const overlay = document.getElementById('teacher-classroom-grades-modal-overlay');
-        if (overlay) overlay.remove();
+        if (overlay) {
+            overlay.cleanupViewport?.();
+            overlay.remove();
+        }
         document.body.style.overflow = '';
     };
 
@@ -22121,29 +22353,66 @@ function initTeacherPortal() {
     });
 
     window.addEventListener('storage', (event) => {
-        if (!currentClassroomKey) return;
-        if (![SHARED_ANNOUNCEMENTS_KEY, SHARED_ATTENDANCE_RECORDS_KEY, SHARED_COMMENT_MODE_KEY, SHARED_ANNOUNCEMENT_COMMENTS_KEY, ADMIN_SUBJECTS_STORAGE_KEY].includes(event.key)) return;
-        if (event.key === ADMIN_SUBJECTS_STORAGE_KEY && currentClassroomKey) {
-            const [className = '', subjectLabel = ''] = currentClassroomKey.split('::');
+        const activeKey = currentClassroomKey || window.currentClassroomKey || '';
+        if (event.key === SHARED_ATTENDANCE_RECORDS_KEY) {
+            refreshAttendanceRecords();
+            if (typeof renderClassroomAttendanceTab === 'function') {
+                renderClassroomAttendanceTab(false);
+            }
+            if (typeof window.renderClassroomAttendanceTab === 'function') {
+                window.renderClassroomAttendanceTab(false);
+            }
+            return;
+        }
+        if (!activeKey) return;
+        if (![SHARED_ANNOUNCEMENTS_KEY, SHARED_ATTENDANCE_RECORDS_KEY, SHARED_COMMENT_MODE_KEY, SHARED_ANNOUNCEMENT_COMMENTS_KEY, ADMIN_SUBJECTS_STORAGE_KEY, 'sigma-classroom-custom-themes-v1'].includes(event.key)) return;
+        if ((event.key === ADMIN_SUBJECTS_STORAGE_KEY || event.key === 'sigma-classroom-custom-themes-v1') && activeKey) {
+            const [className = '', subjectLabel = ''] = activeKey.split('::');
             if (window.ClassroomRoom) {
                 const bannerWrapper = document.getElementById('teacher-classroom-banner-wrapper');
                 if (bannerWrapper) {
                     bannerWrapper.innerHTML = window.ClassroomRoom.renderBanner({
-                        subject: subjectLabel,
-                        section: className,
+                        subject: currentClassroomSubject || subjectLabel,
+                        section: currentClassroomSectionName || className,
                         room: currentClassroomMeta?.room || '',
-                        teacher: 'Teacher',
+                        teacher: currentClassroomMeta?.teacher || 'Teacher',
                         schedule: currentClassroomMeta?.schedule || '',
                         role: 'teacher'
                     });
                 }
             } else {
-                applyClassroomBannerCover(subjectLabel);
+                applyClassroomBannerCover(currentClassroomSubject || subjectLabel);
             }
         }
         renderRoomAnnouncementsFeed();
         renderAttendanceRecordingRows();
         applyClassroomSettingsUI();
+    });
+
+    window.addEventListener('classroom-banner-theme-changed', (e) => {
+        const activeKey = currentClassroomKey || window.currentClassroomKey || '';
+        const bannerWrapper = document.getElementById('teacher-classroom-banner-wrapper');
+        if (bannerWrapper && window.ClassroomRoom && typeof window.ClassroomRoom.renderBanner === 'function') {
+            const [className = '', subjectLabel = ''] = (activeKey || '').split('::');
+            bannerWrapper.innerHTML = window.ClassroomRoom.renderBanner({
+                subject: currentClassroomSubject || subjectLabel || e.detail?.subject || '',
+                section: currentClassroomSectionName || className || e.detail?.section || '',
+                room: currentClassroomMeta?.room || '',
+                teacher: currentClassroomMeta?.teacher || 'Teacher',
+                schedule: currentClassroomMeta?.schedule || '',
+                role: 'teacher'
+            });
+        }
+    });
+
+    window.addEventListener('sigma:attendance-changed', () => {
+        refreshAttendanceRecords();
+        if (typeof renderClassroomAttendanceTab === 'function') {
+            renderClassroomAttendanceTab(false);
+        }
+        if (typeof window.renderClassroomAttendanceTab === 'function') {
+            window.renderClassroomAttendanceTab(false);
+        }
     });
 
     // --- Sigma AI Insights Carousel ---
@@ -26707,7 +26976,7 @@ function initTeacherPortal() {
         const students = getGradebookStudents();
 
         const modalHtml = `
-            <div id="gradebook-card-modal-backdrop" class="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto font-['Inter']" onclick="if(event.target === this) this.remove();">
+            <div id="gradebook-card-modal-backdrop" style="z-index:99999;" class="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 overflow-y-auto font-['Inter']" onclick="if(event.target === this) this.remove();">
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[88vh] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
                     <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
                         <div class="flex items-center gap-3">
@@ -26902,6 +27171,7 @@ function initTeacherPortal() {
 
     function addAiMessage(content, isUser = false) {
         const msg = document.createElement('div');
+        if (!isUser && content === WELCOME_MSG) msg.dataset.sigmaGreeting = 'true';
         msg.className = `sigma-ai-message ${isUser ? 'sigma-ai-message--user' : 'sigma-ai-message--assistant'}`;
         const stamp = getSigmaAiTimestamp();
         msg.innerHTML = `

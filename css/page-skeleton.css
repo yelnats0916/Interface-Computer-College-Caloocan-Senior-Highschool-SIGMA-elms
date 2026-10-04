@@ -1,0 +1,285 @@
+.student-attendance-heading {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+}
+
+:root {
+    --sigma-skeleton-base: #e2e8f0;
+    --sigma-skeleton-highlight: rgba(255, 255, 255, 0.85);
+}
+
+html.sigma-initial-loading body #main-content .student-attendance-heading {
+    color: transparent !important;
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+}
+
+/* Initial placeholders reuse actual element boxes; shell geometry stays intact. */
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) *:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    color: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: transparent !important;
+    transition: none !important;
+}
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(img, svg):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    visibility: hidden !important;
+}
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) input:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *))::placeholder {
+    color: transparent !important;
+}
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,input,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    background-color: var(--sigma-skeleton-base) !important;
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    background-color: var(--sigma-skeleton-base) !important;
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+}
+html.sigma-initial-loading body .welcome-panel-overlay:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    opacity: 0 !important;
+}
+html.sigma-initial-loading body #sidebar .nav-link:is(a, button),
+html.sigma-initial-loading body #sidebar .nav-sublink:is(a, button) {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+html.sigma-initial-loading body #sidebar .rail-label {
+    color: transparent !important;
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .classroom-room-hero-banner:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
+    background-color: var(--sigma-skeleton-base) !important;
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .classroom-room-hero-banner:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > :is(.absolute, .classroom-banner-watermark) {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.topic-card__image-container, .topic-progress-vertical-bar):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+    box-shadow: none !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .topic-progress-vertical-bar > *,
+html.sigma-initial-loading body :is(#main-content, #admin-main) .score-progress-fill {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(h1,h2,h3,h4,h5) {
+    filter: none !important;
+    box-shadow: none !important;
+}
+
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,i,.full-label,.short-label,.sidebar-label,.rail-label):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *, .header-panel *)) {
+    border-radius: 4px !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .video-thumbnail-panel:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .video-thumbnail-panel:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > * {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.sigma-black-fade-panel,.topic-progress-card,.topic-card,.sigma-card,.home-dashboard-card,.home-overview-card,.announcement-card,.sigma-announcements-empty-state,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.welcome-panel,.classroom-room-hero-banner):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    will-change: background-position !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.sigma-black-fade-panel,.topic-progress-card,.topic-card,.sigma-card,.home-dashboard-card,.home-overview-card,.announcement-card,.sigma-announcements-empty-state,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.welcome-panel,.classroom-room-hero-banner):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > * {
+    visibility: hidden !important;
+}
+
+/* Grades has large structural surfaces that need their own loading geometry. */
+html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) {
+    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    background-size: 200% 100% !important;
+    background-repeat: repeat-x !important;
+    animation: sigma-inline-shimmer 1.4s linear infinite !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.subject-performance-card) {
+    border-radius: 24px !important;
+}
+
+html.sigma-initial-loading body #section-grades #grades-layout .student-grades-summary-panel {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) > * {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body #section-grades #grades-layout .student-grade-teacher-avatar {
+    border-radius: 50% !important;
+}
+
+@keyframes sigma-inline-shimmer {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+/* A physical highlight band avoids background-position resets that read as blinking. */
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar,.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state,.classroom-room-hero-banner,.topic-card__image-container,.topic-progress-vertical-bar,.video-thumbnail-panel,.sigma-black-fade-panel,.topic-progress-card,.topic-card,.home-overview-card,.announcement-card,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+    background-image: none !important;
+    animation: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar,.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state,.classroom-room-hero-banner,.topic-card__image-container,.topic-progress-vertical-bar,.video-thumbnail-panel,.sigma-black-fade-panel,.topic-progress-card,.topic-card,.home-overview-card,.announcement-card,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *))::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    bottom: 0;
+    left: -38%;
+    width: 38%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 22%, rgba(255, 255, 255, 0.72) 50%, rgba(255, 255, 255, 0.08) 78%, transparent 100%);
+    transform: translateX(-100%);
+    animation: sigma-sweep-band 1.4s linear infinite;
+}
+
+@keyframes sigma-sweep-band {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(465%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) * {
+        animation: none !important;
+    }
+}
+
+.sigma-skeleton {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    background: #f8fafc;
+    padding: 0;
+    overflow: hidden;
+    pointer-events: auto;
+}
+.sigma-skeleton-matched { position: absolute; }
+.sigma-skeleton-surface { background: var(--sigma-skeleton-base); }
+.sigma-skeleton[hidden] { display: none !important; }
+.sigma-skeleton-top { display: flex; gap: 16px; align-items: center; height: 72px; border-bottom: 1px solid #e2e8f0; }
+.sigma-skeleton-block { position: relative; overflow: hidden; background: var(--sigma-skeleton-base); border-radius: 4px; }
+.sigma-skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%);
+    animation: sigma-skeleton-wave 1.4s linear infinite;
+    will-change: transform;
+}
+.sigma-skeleton-icon { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; }
+.sigma-skeleton-title { width: 210px; max-width: 45%; height: 20px; }
+.sigma-skeleton-tools { display: flex; gap: 12px; margin-left: auto; }
+.sigma-skeleton-body { padding-top: 28px; display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 24px; }
+.sigma-skeleton-column { display: flex; flex-direction: column; gap: 18px; }
+.sigma-skeleton-line { height: 14px; width: 75%; }
+.sigma-skeleton-panel { height: 180px; }
+.sigma-skeleton-large { height: 240px; }
+.sigma-skeleton[data-layout="table"] .sigma-skeleton-body,
+.sigma-skeleton[data-layout="detail"] .sigma-skeleton-body { grid-template-columns: 1fr; }
+.sigma-skeleton[data-layout="table"] .sigma-skeleton-panel { height: 44px; }
+.sigma-skeleton[data-layout="table"] .sigma-skeleton-large { height: 56px; }
+.sigma-skeleton[data-layout="detail"] .sigma-skeleton-panel { height: 100px; }
+
+@keyframes sigma-skeleton-wave {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@media (max-width: 768px) {
+    .sigma-skeleton { padding: 0; }
+    html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) {
+        border-radius: 16px !important;
+    }
+    html.sigma-initial-loading body #section-grades #grades-layout .student-grade-teacher-avatar {
+        border-radius: 50% !important;
+    }
+    /* The fixed mobile header uses compact icon and search-control shapes. */
+    html.sigma-initial-loading body #student-header :is(#sidebarToggleBtn,#mobileSearchToggleBtn,#mobileSidebarToggleBtn,#nav-logo-btn,.header-icon-btn,.header-profile-btn) {
+        border-radius: 50% !important;
+    }
+    html.sigma-initial-loading body #student-header #logo-container {
+        border-radius: 6px !important;
+    }
+    html.sigma-initial-loading body #student-header :is(.header-search-container,.header-search-shell) {
+        border-radius: 999px !important;
+    }
+    html.sigma-initial-loading body #student-header :is(.admin-topbar__brand-label,.top-nav__lang span) {
+        border-radius: 4px !important;
+    }
+    html.sigma-initial-loading body #mobile-header-subbar .mobile-subbar-btn {
+        border-radius: 8px !important;
+    }
+    .sigma-skeleton-body { grid-template-columns: 1fr; gap: 18px; }
+    .sigma-skeleton-tools .sigma-skeleton-icon:last-child { display: none; }
+    .sigma-skeleton-top { gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .sigma-skeleton-block::after { animation: none; } }

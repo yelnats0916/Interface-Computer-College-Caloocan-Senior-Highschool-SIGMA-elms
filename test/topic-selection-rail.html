@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shared Desktop Topic Selection Rail</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/topic-detail.css">
+</head>
+<body>
+    <div class="teacher-topic-page-grid">
+        <main id="topic-content-main">Lessons and Assessments</main>
+        <aside id="topic-right-section" class="teacher-topic-progress-rail">
+            <div id="desktop" class="admin-topic-selection-desktop"></div>
+            <div class="admin-topic-selection-mobile">Original mobile rail</div>
+        </aside>
+    </div>
+    <script src="../js/shared-components.js"></script>
+    <script>
+        window.currentTopicState = { subjectId: 'fixture', selectedSection: 'Fixture', topicIdx: 0 };
+        window.getTopicData = () => ({ q1Topics: [] });
+        document.getElementById('desktop').innerHTML = window.renderSharedTeacherTopicSelectionRail({ q1Topics: [] });
+    </script>
+</body>
+</html>

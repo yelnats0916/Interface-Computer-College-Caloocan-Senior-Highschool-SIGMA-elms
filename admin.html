@@ -15,24 +15,26 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css?v=20260929nobar1">
+    <link rel="stylesheet" href="css/admin.css?v=20261004cellsize1">
     <link rel="stylesheet" href="css/topbar.css?v=20261001noglow1">
-    <link rel="stylesheet" href="css/forms.css?v=20261001commentpill1">
+    <link rel="stylesheet" href="css/forms.css?v=20261003btnhighlight1">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261003responsivetoast1">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20260929quartersize2">
-    <link rel="stylesheet" href="css/settings-view.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/topic-detail.css?v=20261002filetitlescale3">
-    <link rel="stylesheet" href="css/sidebar.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261004desktopTemplatesLayout1">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261004fullscreenedit5">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
+    <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
     <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003metricsnormbtn3">
-    <link rel="stylesheet" href="css/mobile.css?v=20261002mobilesafearea1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261004visibleModalViewport1">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- SORTABLE -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <!-- XLSX STYLE -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         body {
@@ -141,14 +143,65 @@
     </style>
     <style id="mobile-block-enforcement">
         /* Enforce mobile/tablet block — sits above ALL JS modals and overlays */
-        @media (max-width: 1023px) {
+        @media (max-width: 1023.98px) {
+            html, body {
+                overflow: hidden !important;
+                overscroll-behavior: none;
+            }
             #mobile-blocked-screen {
-                display: flex !important;
+                display: grid !important;
                 z-index: 2147483647 !important;
                 position: fixed !important;
                 inset: 0 !important;
                 pointer-events: all !important;
+                top: var(--sigma-visible-viewport-top, 0px) !important;
+                bottom: auto !important;
+                height: var(--sigma-visible-viewport-height, 100dvh) !important;
+                min-height: 0 !important;
+                max-height: var(--sigma-visible-viewport-height, 100dvh) !important;
+                box-sizing: border-box;
+                overflow-y: hidden !important;
+                overflow-x: hidden !important;
+                overscroll-behavior: none;
+                touch-action: none;
+                place-items: center !important;
+                padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)) !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
             }
+            #mobile-blocked-screen > div {
+                flex: 0 0 auto;
+                margin: 0 !important;
+                width: min(360px, 100%) !important;
+                max-width: 100% !important;
+                min-width: 0;
+                min-height: 0 !important;
+                transform: scale(var(--access-notice-scale, 1));
+                transform-origin: center;
+            }
+            #mobile-blocked-screen * {
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                -webkit-touch-callout: none;
+                overflow-wrap: break-word;
+                letter-spacing: 0 !important;
+            }
+            #mobile-blocked-screen > div > div:first-child {
+                flex-shrink: 0;
+            }
+        }
+        @media (max-width: 1023.98px) and (max-height: 600px) {
+            #mobile-blocked-screen { padding: 12px 20px !important; }
+            #mobile-blocked-screen > div > div:first-child { width: 56px; height: 56px; margin-bottom: 12px; }
+            #mobile-blocked-screen img { width: 40px; height: 40px; }
+            #mobile-blocked-screen h1, #mobile-blocked-screen > div > p:first-of-type { font-size: 22px !important; }
+            #mobile-blocked-screen > div > p:first-of-type { margin-bottom: 12px !important; }
+            #mobile-blocked-screen > div > div:nth-of-type(2) { margin-bottom: 12px !important; }
+            #mobile-blocked-screen > div > p:last-of-type { font-size: 12px !important; line-height: 1.5 !important; }
+            #mobile-blocked-screen > div > div:last-child { margin-top: 16px !important; padding-top: 12px !important; }
+        }
+        @media (max-width: 1023.98px) and (max-height: 400px) {
+            #mobile-blocked-screen > div > div:last-child p:last-child { font-size: 7px !important; }
         }
         @media (min-width: 1024px) {
             #mobile-blocked-screen {
@@ -156,10 +209,12 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261003opaqueshimmer1">
 </head>
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
+    <script src="js/page-skeleton.js?v=20261003panelskeleton1"></script>
     <!-- Blocked Access for Mobile/Tablet -->
-    <div id="mobile-blocked-screen" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
+    <div id="mobile-blocked-screen" role="region" aria-label="Desktop access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
         <div class="flex flex-col items-center w-full max-w-xs text-center">
 
             <!-- Logo -->
@@ -195,6 +250,43 @@
 
         </div>
     </div>
+    <script>
+        (() => {
+            const mobile = window.matchMedia('(max-width: 1023.98px)');
+            const locked = new Set();
+            const screen = document.getElementById('mobile-blocked-screen');
+            const notice = screen.firstElementChild;
+            const fitNotice = () => {
+                if (!mobile.matches) return;
+                const style = getComputedStyle(screen);
+                const availableHeight = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+                const scale = Math.min(1, availableHeight / Math.max(1, notice.offsetHeight));
+                screen.style.setProperty('--access-notice-scale', String(Math.max(0, scale)));
+            };
+            const syncAccessBlock = () => {
+                if (!mobile.matches) {
+                    locked.forEach(element => element.inert = false);
+                    locked.clear();
+                    return;
+                }
+                Array.from(document.body.children).forEach(element => {
+                    if (element.id === 'mobile-blocked-screen' || /^(SCRIPT|STYLE|LINK)$/.test(element.tagName) || element.inert) return;
+                    element.inert = true;
+                    locked.add(element);
+                });
+                fitNotice();
+            };
+            mobile.addEventListener('change', syncAccessBlock);
+            window.addEventListener('resize', fitNotice, { passive: true });
+            window.visualViewport?.addEventListener('resize', fitNotice, { passive: true });
+            document.addEventListener('DOMContentLoaded', () => {
+                syncAccessBlock();
+                new ResizeObserver(fitNotice).observe(screen);
+                new ResizeObserver(fitNotice).observe(notice);
+                new MutationObserver(syncAccessBlock).observe(document.body, { childList: true });
+            }, { once: true });
+        })();
+    </script>
     <header id="admin-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col bg-white standard-panel-shadow"
         style="border-bottom: 2px solid #15803d !important;">
@@ -271,7 +363,7 @@
                         class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline">
                         <i class="fa-solid fa-bell text-[21px] text-black transition-colors"></i>
                         <span id="noti-badge"
-                            class="absolute top-2 right-2 w-2 h-2 bg-[#FFD000] rounded-full border-2 border-white pointer-events-none"></span>
+                            class="hidden"></span>
                     </button>
                 </div>
 
@@ -636,6 +728,8 @@
                                     <div class="flex items-center gap-1 sm:gap-2 h-full overflow-x-auto">
                                         <button type="button" onclick="window.switchAdminClassDetailTab('room')" id="tab-btn-room"
                                             class="teacher-section-tab active"><i class="fa-solid fa-chalkboard"></i><span>Room</span></button>
+                                        <button type="button" onclick="window.switchAdminClassDetailTab('attendance')" id="tab-btn-attendance"
+                                            class="teacher-section-tab"><i class="fa-solid fa-calendar-check"></i><span>Attendance</span></button>
                                         <button type="button" onclick="window.switchAdminClassDetailTab('topics')" id="tab-btn-topics"
                                             class="teacher-section-tab"><i class="fa-solid fa-book"></i><span>Topics</span></button>
                                         <div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>
@@ -645,13 +739,43 @@
                                             <button id="admin-room-menu-btn" class="classroom-quick-btn" title="More options" aria-label="More options" onclick="window.toggleClassroomSettingsMenu && window.toggleClassroomSettingsMenu(event)">
                                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                                             </button>
-                                             <div id="classroom-settings-menu" class="classroom-settings-menu hidden" style="min-width: 140px;">
+                                            <div id="classroom-settings-menu" class="classroom-settings-menu hidden" style="min-width: 140px;">
+                                                <!-- Members Option -->
                                                 <button type="button"
                                                     onclick="window.switchAdminClassDetailTab('members'); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
                                                     class="classroom-settings-item flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
                                                     <i class="fa-solid fa-users text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
                                                     <span class="text-black text-xs">Members</span>
                                                 </button>
+
+                                                <!-- View Grades Option -->
+                                                <button type="button"
+                                                    onclick="(window.openAdminClassroomGradesModal ? window.openAdminClassroomGradesModal() : (window.openAdminClassroomGradebook && window.openAdminClassroomGradebook())); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
+                                                    class="classroom-settings-item flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
+                                                    <i class="fa-solid fa-chart-simple text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                    <span class="text-black text-xs">View Grades</span>
+                                                </button>
+
+                                                <!-- Customize Banner Button -->
+                                                <button type="button"
+                                                    onclick="window.openCurrentClassroomCustomizer && window.openCurrentClassroomCustomizer(); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
+                                                    class="classroom-settings-item flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
+                                                    <i class="fa-solid fa-palette text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                    <span class="text-black text-xs">Customize Banner</span>
+                                                </button>
+
+                                                <!-- Comments Toggle Row -->
+                                                <div class="classroom-settings-item flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer select-none whitespace-nowrap"
+                                                    onclick="window.handleClassroomCommentsRowClick && window.handleClassroomCommentsRowClick(event)">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <i class="fa-regular fa-comments text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
+                                                        <span class="text-xs font-semibold text-black tracking-tight whitespace-nowrap">Student Comment</span>
+                                                    </div>
+                                                    <label class="sigma-toggle-switch ml-2" onclick="event.stopPropagation()">
+                                                        <input type="checkbox" id="classroom-comments-toggle-switch" onchange="window.toggleCurrentClassroomComments && window.toggleCurrentClassroomComments(event)" aria-label="Toggle classroom comments switch">
+                                                        <span class="sigma-toggle-slider"></span>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -666,18 +790,30 @@
                                 <div id="detail-section-room" class="classroom-room-panel classroom-tab-section">
                                     <div class="classroom-room-panel__inner">
                                         <div class="classroom-room-layout">
-                                            <div class="classroom-room-main flex-1 min-w-0 w-full space-y-4">
-                                                <div id="admin-room-announcements-feed" class="room-announcements-feed space-y-3.5 w-full"></div>
+                                            <div class="classroom-room-main flex-1 min-w-0 w-full">
+                                                <!-- Announcement Composer Trigger Card (Matches Teacher / Home Trigger) -->
+                                                <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3 w-full">
+                                                    <button type="button"
+                                                        onclick="window.openAdminClassroomComposer ? window.openAdminClassroomComposer() : (window.openClassroomComposer && window.openClassroomComposer())"
+                                                        class="announcement-trigger-input-btn w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                                        <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
+                                                        <span class="text-black-fade">What do you want to announce?</span>
+                                                    </button>
+                                                </div>
+
+                                                <div id="admin-room-announcements-feed" class="room-announcements-feed w-full"></div>
                                             </div>
+                                            <!-- Right Column: Quick Links Sidebar (Desktop only - Matches Teacher Room) -->
                                             <div class="classroom-room-sidebar w-full lg:w-[280px] xl:w-[320px] flex-shrink-0">
                                                 <div class="space-y-3.5 sticky top-6 classroom-room-sidebar__stack">
-                                                    <div class="home-dashboard-card flex flex-col w-full !gap-1 flex-shrink-0">
+                                                    <!-- Classwork Quick Links (Matches Teacher Room) -->
+                                                    <div class="home-dashboard-card !p-2 !gap-0 rounded-[22px] flex flex-col w-full flex-shrink-0">
                                                         <button type="button"
-                                                            onclick="window.openAdminClassroomGradebook && window.openAdminClassroomGradebook()"
-                                                            class="w-full py-2.5 px-2.5 -mx-2.5 rounded-xl flex items-center justify-between text-left bg-transparent hover:bg-slate-100 cursor-pointer font-['Inter'] transition-colors">
+                                                            onclick="window.openAdminClassroomGradesModal ? window.openAdminClassroomGradesModal() : (window.openAdminClassroomGradebook && window.openAdminClassroomGradebook())"
+                                                            class="w-full py-2.5 px-3.5 rounded-xl flex items-center justify-between text-left bg-transparent hover:bg-slate-100 active:bg-slate-200 cursor-pointer font-['Inter'] transition-all">
                                                             <div class="flex items-center gap-2.5">
-                                                                <i class="fa-solid fa-table-list text-[#15803d] text-sm w-4 text-center shrink-0"></i>
-                                                                <span class="text-sm font-bold text-black">View Gradebook</span>
+                                                                <i class="fa-solid fa-chart-simple text-[#15803d] text-sm w-4 text-center shrink-0"></i>
+                                                                <span class="text-xs sm:text-[13px] font-semibold text-black">View Grades</span>
                                                             </div>
                                                             <i class="fa-solid fa-arrow-right text-xs text-[#15803d]"></i>
                                                         </button>
@@ -687,7 +823,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="detail-section-members" class="hidden classroom-tab-section"></div>
+                                <div id="detail-section-attendance" class="hidden space-y-4 classroom-tab-section"></div>
+                                <div id="detail-section-members" class="hidden space-y-6 classroom-tab-section"></div>
                             </div>
                         </div>
                     </div>
@@ -723,7 +860,7 @@
                             <!-- Announcement Composer Trigger -->
                             <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3">
                                 <button id="trigger-announcement-composer" onclick="window.openComposerModal()"
-                                    class="w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                    class="announcement-trigger-input-btn w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
                                     <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
                                     <span class="text-black-fade">What do you want to announce?</span>
                                 </button>
@@ -1075,15 +1212,15 @@
                                     <col style="width: 11%;"> <!-- Date Created -->
                                     <col style="width: 8%;">  <!-- Action -->
                                 </colgroup>
-                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                     <tr>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">No.</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">ID</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Name</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Email</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Role</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Status</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Date Created</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">No.</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">ID</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Name</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Email</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Role</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Status</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Date Created</th>
                                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Action</th>
                                     </tr>
                                 </thead>
@@ -1850,15 +1987,15 @@
                                     <col style="width: 11%;"> <!-- Status -->
                                     <col style="width: 10%;"> <!-- Action -->
                                 </colgroup>
-                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                     <tr>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">No.</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Year Start</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Year End</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Quarter</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Date Start</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Date End</th>
-                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">Status</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">No.</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Year Start</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Year End</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Quarter</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Date Start</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Date End</th>
+                                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Status</th>
                                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Action</th>
                                     </tr>
                                 </thead>
@@ -1914,18 +2051,6 @@
                         <i class="fa-solid fa-screwdriver-wrench text-inherit"></i>
                     </span>
                     <span class="sigma-settings-cat-text text-inherit">System Access &amp; Maintenance</span>
-                </button>
-                <button type="button" 
-                    id="nav-settings-database"
-                    class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
-                    data-settings-target="sec-database-panel"
-                    onclick="window.scrollToSettingsSection('sec-database-panel', this)"
-                    role="tab"
-                    aria-selected="false">
-                    <span class="sigma-settings-cat-icon">
-                        <i class="fa-solid fa-database text-inherit"></i>
-                    </span>
-                    <span class="sigma-settings-cat-text text-inherit">Database &amp; Backups</span>
                 </button>
             </nav>
         </aside>
@@ -2048,179 +2173,8 @@
                     </div>
                 </div>
 
-                <!-- Card 4: Database Health, Backups & Disaster Recovery -->
-                <div id="sec-database-panel" class="sigma-settings-panel-card">
-                    <div class="sigma-panel-header">
-                        <div class="flex items-center justify-between flex-wrap gap-2">
-                            <div>
-                                <div class="flex items-center gap-2.5">
-                                    <h2 class="sigma-panel-title">Database &amp; Backups</h2>
-                                    <span id="db-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online
-                                    </span>
-                                </div>
-                                <p class="sigma-panel-subtitle">Manage automated backups, monitor live database health, and restore system snapshots.</p>
-                            </div>
-                            <button type="button" onclick="window.refreshDatabaseHealthStats()" class="px-3 py-1.5 bg-transparent hover:bg-slate-100 text-black text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer" title="Refresh Live Database Health">
-                                <i class="fa-solid fa-arrows-rotate text-xs" id="db-refresh-spinner"></i>
-                                <span>Refresh Status</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="space-y-6">
-                        <!-- Live Database Status Grid (2 Columns, Shared GWA Green Gradient, Title Case) -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 py-2">
-                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-                                <span class="text-xs font-semibold text-white/90 mb-2">Server Status</span>
-                                <div class="text-base font-bold text-white tracking-wide" id="db-engine-version">MySQL / MariaDB</div>
-                                <span class="text-[11px] text-white/80" id="db-latency-text">Ping: <strong class="text-white">0.7 ms</strong></span>
-                            </div>
-
-                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-                                <span class="text-xs font-semibold text-white/90 mb-2">Database Instance</span>
-                                <div class="text-base font-bold text-white truncate" id="db-name-text">sigma_elms_db</div>
-                                <span class="text-[11px] text-white/80">Host: <strong class="text-white">127.0.0.1:3306</strong></span>
-                            </div>
-
-                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-                                <span class="text-xs font-semibold text-white/90 mb-2">Database Records</span>
-                                <div class="text-base font-bold text-white" id="db-tables-count">2 Tables</div>
-                                <span class="text-[11px] text-white/80" id="db-rows-count">Total Rows: <strong class="text-white">4</strong></span>
-                            </div>
-
-                            <div class="gwa-card rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-                                <span class="text-xs font-semibold text-white/90 mb-2">Disk Usage</span>
-                                <div class="text-base font-bold text-white" id="db-size-text">64 KB</div>
-                                <span class="text-[11px] text-white/80">Storage Engine: <strong class="text-white">InnoDB</strong></span>
-                            </div>
-                        </div>
-
-                        <!-- Navigation Card to Dedicated Backup & Restore Page -->
-                        <div class="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
-                            <div class="space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-server text-[#15803d] text-base"></i>
-                                    <h3 class="text-sm font-bold text-black font-['Inter']">Backup &amp; Restore</h3>
-                                </div>
-                                <p class="text-xs text-black-fade font-normal max-w-xl">
-                                    Create backups, view backup history, and restore system data.
-                                </p>
-                            </div>
-                            <button type="button" onclick="window.openDatabaseSnapshotsView()"
-                                class="shrink-0 px-5 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-                                <span>Manage Backups</span>
-                                <i class="fa-solid fa-arrow-right text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
-    </div>
-</section>
-
-<!-- ═══ DEDICATED DATABASE SNAPSHOTS & DISASTER RECOVERY VIEW (FULL PAGE) ═══ -->
-<section id="database-snapshots-view" class="dynamic-section hidden bg-white min-h-screen p-6 sm:p-8 font-['Inter']">
-    <div class="max-w-7xl mx-auto space-y-6">
-        
-        <!-- Header Bar with Action Controls -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Backup &amp; Restore</h1>
-            </div>
-
-            <div class="flex items-center gap-2.5 flex-wrap">
-                <button type="button" onclick="window.createDatabaseSnapshot()" id="btn-create-snapshot" class="px-4 py-2.5 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-cloud-arrow-down"></i>
-                    <span>Create Backup Now</span>
-                </button>
-                <button type="button" onclick="document.getElementById('external-db-restore-file').click()" class="px-4 py-2.5 bg-white border border-slate-300 hover:border-slate-400 text-black text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-upload text-emerald-700"></i>
-                    <span>Upload .SQL File</span>
-                </button>
-                <input type="file" id="external-db-restore-file" accept=".sql" class="hidden" onchange="window.handleExternalSnapshotUpload(this)">
-            </div>
-        </div>
-
-        <!-- KPI / Overview Bar -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Total Backups</span>
-                <div class="text-lg font-bold text-slate-900" id="stat-total-snapshots">0</div>
-                <span class="text-[11px] text-slate-500">Stored on Server</span>
-            </div>
-            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Latest Backup</span>
-                <div class="text-lg font-bold text-slate-900 truncate" id="stat-latest-snapshot">--</div>
-                <span class="text-[11px] text-slate-500" id="stat-latest-time">No checkpoints yet</span>
-            </div>
-            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Retention Schedule</span>
-                <div class="text-lg font-bold text-[#15803d]">Automated Daily</div>
-                <span class="text-[11px] text-slate-500">7-Day Rolling Retention</span>
-            </div>
-            <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Live Database</span>
-                <div class="text-lg font-bold text-slate-900">sigma_elms_db</div>
-                <span class="text-[11px] text-slate-500">MySQL 10.4 · 127.0.0.1</span>
-            </div>
-        </div>
-
-        <!-- Snapshots Table Card -->
-        <div class="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-            <!-- Table Action Toolbar -->
-            <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div class="relative flex-1 max-w-md">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="snapshot-search-input" oninput="window.filterSnapshotsTable()" placeholder="Search backups by name, date, or type..." class="w-full pl-9 pr-4 py-2 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#15803d]/20 focus:border-[#15803d]">
-                </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="window.loadDatabaseSnapshots()" class="px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer" title="Refresh backups list">
-                        <i class="fa-solid fa-arrows-rotate text-xs" id="snapshot-refresh-icon"></i>
-                        <span>Refresh</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Table Container -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-50/75 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            <th class="py-3.5 px-4 sm:px-6">Backup Name / File</th>
-                            <th class="py-3.5 px-4">Date Created</th>
-                            <th class="py-3.5 px-4">Backup Type</th>
-                            <th class="py-3.5 px-4">Size</th>
-                            <th class="py-3.5 px-4">Status</th>
-                            <th class="py-3.5 px-4 sm:px-6 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="snapshots-table-body" class="divide-y divide-slate-100 text-xs">
-                        <!-- Populated by window.renderDatabaseSnapshotsTable() -->
-                        <tr>
-                            <td colspan="6" class="py-12 text-center text-slate-400">
-                                <i class="fa-solid fa-circle-notch fa-spin text-lg text-emerald-600 mb-2 block"></i>
-                                Loading database backups...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Empty State (Hidden by default) -->
-            <div id="snapshots-empty-state" class="hidden p-12 text-center">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-3 text-lg">
-                    <i class="fa-solid fa-database"></i>
-                </div>
-                <h3 class="text-sm font-bold text-slate-900 mb-1">No Database Backups Found</h3>
-                <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Create your first database backup to ensure a clean recovery point is always available.</p>
-                <button type="button" onclick="window.createDatabaseSnapshot()" class="px-4 py-2 bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold rounded-xl transition-all shadow-sm inline-flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-plus"></i> Create First Backup
-                </button>
-            </div>
-        </div>
-
     </div>
 </section>
 
@@ -3127,23 +3081,23 @@
                                         <col style="width: 8%;">  <!-- Status -->
                                         <col style="width: 6%;">  <!-- Action -->
                                     </colgroup>
-                                    <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                                    <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                         <tr>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 No.</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Section</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Subject</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Room</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Teacher</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Students</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 School Year</th>
-                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">
+                                            <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">
                                                 Status</th>
                                             <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap">
                                                 Action</th>
@@ -3337,21 +3291,21 @@
                                         <col style="width: 13%;"> <!-- Date Created -->
                                         <col style="width: 6%;">  <!-- Action -->
                                     </colgroup>
-                                    <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                                    <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                         <tr>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 No.</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Code</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Subject</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Type</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Units</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Status</th>
-                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#166534]">
+                                            <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Date Created</th>
                                             <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">
                                                 Action</th>
@@ -5366,7 +5320,7 @@
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between ml-1">
                                         <label for="edit-user-email" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal">Gmail <span class="text-red-500">*</span></label>
-                                        <button type="button" onclick="window.autoGenerateUserEmail()"
+                                        <button type="button" id="edit-user-email-generate-btn" onclick="window.autoGenerateUserEmail()"
                                             class="text-xs font-bold text-[#15803d] hover:text-[#166534] bg-transparent hover:bg-emerald-50 px-2 py-0.5 rounded-md transition-all flex items-center gap-1.5 cursor-pointer border-0 font-['Inter']"
                                             title="Auto-generate a default placeholder Gmail using Name and ID">
                                             <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
@@ -5889,16 +5843,6 @@
                             <div id="perm-admin-security-sub" class="pl-2 space-y-2.5 transition-all duration-300">
                                 <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
                                     <div class="pr-4">
-                                        <div class="flex items-center gap-2">
-                                            <label for="perm-database-manage" class="text-sm font-semibold text-slate-900 block cursor-pointer">Database &amp; Backups Management</label>
-                                            <i id="perm-database-manage-lock" class="fa-solid fa-lock text-[11px] text-amber-500 hidden" title="Only Master Admin can grant this permission"></i>
-                                        </div>
-                                        <span class="text-xs text-slate-500 font-normal">Can view database health, download SQL backup snapshots, and restore system data</span>
-                                    </div>
-                                    <input type="checkbox" id="perm-database-manage" aria-label="Can view database health, download SQL backup snapshots, and restore database" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
-                                </div>
-                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
-                                    <div class="pr-4">
                                         <label for="perm-security-logs" class="text-sm font-semibold text-slate-900 block cursor-pointer">View System Activity Logs</label>
                                         <span class="text-xs text-slate-500 font-normal">Can inspect administrative actions, audit trails, and system access history</span>
                                     </div>
@@ -6235,26 +6179,30 @@
     </div>
 
     <!-- SCRIPTS -->
-    <script src="js/shared-components.js?v=20261003topicclick1"></script>
-    <script src="js/topbar.js?v=20260928scrolllock1"></script>
-    <script src="js/sidebar.js?v=20260923calmonthfix1"></script>
-    <script src="js/notifications.js?v=20260930studallnotif1"></script>
+    <script src="js/shared-components.js?v=20261004sharedSelectionRail1"></script>
+    <script src="js/topbar.js?v=20261003breakpointreset1"></script>
+    <script src="js/sidebar.js?v=20261003viewportreset1"></script>
+    <script src="js/notifications.js?v=20261004separateprefs1"></script>
+    <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
-    <script src="js/announcements.js?v=20261001discardscroll1"></script>
+    <script src="js/announcements.js?v=20261004fixscroll1"></script>
     <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
     <script src="js/calendar.js?v=20260929dateselect1"></script>
-    <script src="js/profile-view.js?v=20260930delusrroute1"></script>
+    <script src="js/profile-view.js?v=20261003signoutlabel1"></script>
+    <script src="js/admin-session-controls.js?v=20261003signoutlabel1"></script>
     <script src="js/dialog.js?v=20260930scaleaskpanel1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/settings-view.js?v=20260923calmonthfix1"></script>
+    <script src="js/settings-view.js?v=20261004recoverychevron1"></script>
+    <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/sigma-analytics.js?v=20261003metricsnormbtn3"></script>
-    <script src="js/subject-content-editor.js?v=20261002sectionsplit1"></script>
-    <script src="js/subject-editor.js?v=20261003sharedmaterialbody1"></script>
+    <script src="js/sigma-analytics.js?v=20261004gradepercent1"></script>
+    <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
+    <script src="js/subject-editor.js?v=20261004desktopTemplatesLayout1"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/classroom-room.js?v=20260928bannerradius1"></script>
-    <script src="js/curriculum-release.js?v=20261003scopednotify2"></script>
-    <script src="js/admin.js?v=20261003backupapi1"></script>
+    <script src="js/classroom-room.js?v=20261004tabAlignExact1"></script>
+    <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
+    <script src="js/curriculum-release.js?v=20261004sharedScheduleDetails1"></script>
+    <script src="js/admin.js?v=20261004gradesTextButtons1"></script>
 </body>
 </html>

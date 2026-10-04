@@ -198,31 +198,13 @@
     }
 
     function renderPocketCardZeroStateHtml() {
-        const isTeacher = document.body.className.includes('teacher') || location.pathname.toLowerCase().includes('teacher') || document.getElementById('user-profile-btn') || document.getElementById('teacher-header');
-        
-        if (isTeacher) {
-            return `
-                <div data-id="pocket-card-empty-state" class="sigma-card pocket-card p-6 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200 bg-slate-50/60 rounded-[20px]">
-                    <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-3 shadow-xs">
-                        <i class="fa-solid fa-chalkboard-user text-sm icon-black-fade"></i>
-                    </div>
-                    <h5 class="text-[12px] font-bold text-black uppercase tracking-wider mb-1.5 leading-snug">
-                        No Assigned Classes to Monitor
-                    </h5>
-                    <p class="text-[11px] font-medium text-black-fade leading-relaxed max-w-[220px]">
-                        Assigned teaching subjects, section class averages, and grading analytics will automatically appear here once classes are assigned to your account.
-                    </p>
-                </div>
-            `;
-        }
-
         return `
             <div data-id="pocket-card-empty-state" class="sigma-card pocket-card p-6 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200 bg-slate-50/60 rounded-[20px]">
                 <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-3 shadow-xs">
                     <i class="fa-solid fa-chart-simple text-sm icon-black-fade"></i>
                 </div>
-                <h5 class="text-[12px] font-bold text-black uppercase tracking-wider mb-1.5 leading-snug">
-                    No Grades or Assessments to Monitor
+                <h5 class="text-[12px] font-bold text-black mb-1.5 leading-snug">
+                    No Analytics Insights Yet
                 </h5>
                 <p class="text-[11px] font-medium text-black-fade leading-relaxed max-w-[220px]">
                     SIGMA AI tracks your performance, quizzes, and coursework. SIGMA Analytics will automatically appear here once grades and assessments are recorded.
@@ -724,170 +706,23 @@
     // 4. STUDENT & TEACHER GRADE MONITORING SIGMA ANALYTICS CATALOG (8 CARDS)
     // Strands: ABM, HE, GAS, HUMSS, ICT
     // ═════════════════════════════════════════════════════════════════════════
-    const STUDENT_POCKET_CARDS_CATALOG = [
-        {
-            id: 'sigma-card-descriptive-1',
-            category: 'descriptive',
-            categoryIcon: 'fa-chart-column',
-            concernTitle: 'Assessments',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'GAS',
-            subject: 'General Mathematics',
-            subjectIcon: 'fa-calculator',
-            subjectBadgeBg: 'bg-blue-50',
-            subjectIconColor: 'text-blue-600',
-            subjectBadgeBorder: 'border-blue-100',
-            concernHighlight: '12 of 14 Requirements Submitted',
-            concernText: 'You have submitted 12 of 14 requirements on time. Overall mastery across functions and business math remains steady at 85% with consistent improvement.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-predictive-1',
-            category: 'predictive',
-            categoryIcon: 'fa-wand-magic-sparkles',
-            concernTitle: 'Grades',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'ABM',
-            subject: 'Fundamentals of ABM 1',
-            subjectIcon: 'fa-coins',
-            subjectBadgeBg: 'bg-amber-50',
-            subjectIconColor: 'text-amber-600',
-            subjectBadgeBorder: 'border-amber-100',
-            concernHighlight: 'Projected 1.25 GPA · Excellence Track',
-            concernText: 'Based on your consistent ledger balance assessments and quarterly performance, you are projected to reach a 1.25 GPA this term and qualify for Academic Excellence.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-prescriptive-1',
-            category: 'prescriptive',
-            categoryIcon: 'fa-compass',
-            concernTitle: 'Subjects',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'ICT',
-            subject: 'Computer Programming 1',
-            subjectIcon: 'fa-code',
-            subjectBadgeBg: 'bg-emerald-50',
-            subjectIconColor: 'text-emerald-600',
-            subjectBadgeBorder: 'border-emerald-100',
-            concernHighlight: 'Focus: Logic Gates & Flowcharts',
-            concernText: "Diagnostic evaluation indicates reviewing Logic Gates will improve your upcoming assessment score by +12%. Complete Module 3 practice sets.",
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-descriptive-2',
-            category: 'descriptive',
-            categoryIcon: 'fa-chart-column',
-            concernTitle: 'Attendance',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'HUMSS',
-            subject: 'Philippine Politics & Governance',
-            subjectIcon: 'fa-landmark',
-            subjectBadgeBg: 'bg-purple-50',
-            subjectIconColor: 'text-purple-600',
-            subjectBadgeBorder: 'border-purple-100',
-            concernHighlight: '98% Class Participation Rate',
-            concernText: 'Your recorded attendance across all synchronous lectures and forum discussions is at 98%, maintaining an exemplary standing with zero unexcused absences.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-predictive-2',
-            category: 'predictive',
-            categoryIcon: 'fa-wand-magic-sparkles',
-            concernTitle: 'Deadlines',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'GAS',
-            subject: 'Understanding Culture & Society',
-            subjectIcon: 'fa-users',
-            subjectBadgeBg: 'bg-rose-50',
-            subjectIconColor: 'text-rose-600',
-            subjectBadgeBorder: 'border-rose-100',
-            concernHighlight: 'Performance Task Due in 2 Days',
-            concernText: 'The community immersion paper is due on May 7th. AI pacing models predict early submission today keeps your subject average at 92%.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-prescriptive-2',
-            category: 'prescriptive',
-            categoryIcon: 'fa-compass',
-            concernTitle: 'Examinations',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'HE',
-            subject: 'Bread & Pastry Production',
-            subjectIcon: 'fa-utensils',
-            subjectBadgeBg: 'bg-orange-50',
-            subjectIconColor: 'text-orange-600',
-            subjectBadgeBorder: 'border-orange-100',
-            concernHighlight: 'Baking Measurements & Safety Review',
-            concernText: 'Quarterly kitchen lab assessments are scheduled. Review recipe scaling and standard food safety sanitation modules to ensure practical readiness.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-descriptive-3',
-            category: 'descriptive',
-            categoryIcon: 'fa-chart-column',
-            concernTitle: 'Grades',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'HUMSS',
-            subject: 'Creative Writing',
-            subjectIcon: 'fa-feather-pointed',
-            subjectBadgeBg: 'bg-pink-50',
-            subjectIconColor: 'text-pink-600',
-            subjectBadgeBorder: 'border-pink-100',
-            concernHighlight: '91.5% Average Subject Score',
-            concernText: 'Midterm grades released: Your literary critique essay portfolio earned a 91.5% average, ranking in the top 10% of the class.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-card-descriptive-4',
-            category: 'descriptive',
-            categoryIcon: 'fa-chart-column',
-            concernTitle: 'Laboratory',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: '05/05/2026',
-            strand: 'ICT',
-            subject: 'Computer Systems Servicing',
-            subjectIcon: 'fa-network-wired',
-            subjectBadgeBg: 'bg-cyan-50',
-            subjectIconColor: 'text-cyan-600',
-            subjectBadgeBorder: 'border-cyan-100',
-            concernHighlight: '3 Hands-on Exercises Scheduled',
-            concernText: '3 hands-on network cabling and OS configuration exercises are scheduled for this week. Review lab safety protocols before Tuesday.',
-            barColor: 'bg-[#15803d]'
-        }
-    ];
 
+    const REMOVED_DEMO_CARD_IDS = new Set(["sigma-card-descriptive-1","sigma-card-predictive-1","sigma-card-prescriptive-1","sigma-card-descriptive-2","sigma-card-predictive-2","sigma-card-prescriptive-2","sigma-card-descriptive-3","sigma-card-descriptive-4","sigma-teacher-card-1","sigma-teacher-card-2","sigma-teacher-card-3"]);
+    function removeSavedDemoCards() {
+        try {
+            const raw = localStorage.getItem('sigma_user_pocket_cards');
+            if (!raw) return;
+            const cards = JSON.parse(raw);
+            if (!Array.isArray(cards)) return;
+            const kept = cards.filter(card => !REMOVED_DEMO_CARD_IDS.has(card.id) && !card.isFake && !card.isMock && !card.isSample);
+            if (kept.length !== cards.length) localStorage.setItem('sigma_user_pocket_cards', JSON.stringify(kept));
+        } catch (error) { console.warn('Unable to remove saved demo analytics cards', error); }
+    }
     function getDynamicUserPocketCards() {
+        removeSavedDemoCards();
+        if (location.pathname.toLowerCase().includes('student')) {
+            return window.SigmaStudentAnalytics?.getCards() || [];
+        }
         try {
             const raw = localStorage.getItem('sigma_user_pocket_cards');
             if (raw) {
@@ -897,8 +732,7 @@
                 }
             }
         } catch (e) {}
-        const isTeacher = document.body.className.includes('teacher') || location.pathname.toLowerCase().includes('teacher') || !!document.getElementById('teacher-header');
-        return isTeacher ? TEACHER_POCKET_CARDS_CATALOG : STUDENT_POCKET_CARDS_CATALOG;
+        return [];
     }
 
     function pushDynamicPocketCard(cardData) {
@@ -930,6 +764,10 @@
             const updatedCards = [newCard, ...currentCards.filter(c => c.id !== newCard.id)];
             localStorage.setItem('sigma_user_pocket_cards', JSON.stringify(updatedCards));
 
+            if (!cardData.isFake && !cardData.isMock && !cardData.isSample) {
+                window.dispatchEvent(new CustomEvent('sigma:analytics-insight', { detail: { id: newCard.id } }));
+            }
+
             // Re-render analytics rails
             initAllPocketCardRails();
         } catch (e) {
@@ -940,67 +778,6 @@
     // ═════════════════════════════════════════════════════════════════════════
     // 5. TEACHER CLASS & SECTION MONITORING SIGMA ANALYTICS CATALOG (3 CARDS)
     // ═════════════════════════════════════════════════════════════════════════
-    const TEACHER_POCKET_CARDS_CATALOG = [
-        {
-            id: 'sigma-teacher-card-1',
-            category: 'descriptive',
-            categoryIcon: 'fa-file-signature',
-            concernTitle: 'Grading Queue',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-            strand: 'STEM 11-A',
-            subject: 'General Mathematics',
-            subjectIcon: 'fa-calculator',
-            subjectBadgeBg: 'bg-blue-50',
-            subjectIconColor: 'text-blue-600',
-            concernHighlight: 'All Submissions Up to Date',
-            concernText: 'No pending submissions awaiting evaluation. Student assessment submissions will appear here automatically when submitted.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-teacher-card-2',
-            category: 'predictive',
-            categoryIcon: 'fa-chart-line',
-            concernTitle: 'Class Performance',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-            strand: 'ICT 11-A',
-            subject: 'Computer Programming 1',
-            subjectIcon: 'fa-code',
-            subjectBadgeBg: 'bg-emerald-50',
-            subjectIconColor: 'text-emerald-600',
-            subjectBadgeBorder: 'border-emerald-100',
-            concernHighlight: '91% Class Average Mastery',
-            concernText: 'Class programming exercise scores show high comprehension in syntax algorithms. 95% of students achieved passing marks.',
-            barColor: 'bg-[#15803d]'
-        },
-        {
-            id: 'sigma-teacher-card-3',
-            category: 'prescriptive',
-            categoryIcon: 'fa-users-viewfinder',
-            concernTitle: 'Attendance Overview',
-            headerBg: 'bg-[#15803d]',
-            headerText: 'text-white',
-            headerIconColor: 'text-[#FFD000]',
-            dateColor: 'text-white/80',
-            date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-            strand: 'GAS 12-A',
-            subject: 'Oral Communication',
-            subjectIcon: 'fa-comments',
-            subjectBadgeBg: 'bg-pink-50',
-            subjectIconColor: 'text-pink-600',
-            subjectBadgeBorder: 'border-pink-100',
-            concernHighlight: '100% Attendance Recorded Today',
-            concernText: 'All 36 enrolled students were present for the Speech Presentation lecture. Attendance log confirmed.',
-            barColor: 'bg-[#15803d]'
-        }
-    ];
 
     const SigmaAnalytics = {
         render: function (containerId) {
@@ -1008,15 +785,6 @@
             if (el) initPocketCardsContainer(el);
         },
         pushCard: pushDynamicPocketCard,
-        loadDemoCards: function () {
-            const isTeacher = document.body.className.includes('teacher') || location.pathname.toLowerCase().includes('teacher') || document.getElementById('user-profile-btn') || document.getElementById('teacher-header');
-            const catalog = isTeacher ? TEACHER_POCKET_CARDS_CATALOG : STUDENT_POCKET_CARDS_CATALOG;
-            localStorage.setItem('sigma_user_pocket_cards', JSON.stringify([...catalog]));
-            initAllPocketCardRails();
-            if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.showToast === 'function') {
-                window.SigmaAnnouncements.showToast('Loaded demo SIGMA Analytics for preview!', 'success');
-            }
-        },
         triggerGradeChange: function (subject, highlight, text, icon = 'fa-coins') {
             pushDynamicPocketCard({
                 category: 'predictive',
@@ -1071,7 +839,6 @@
     // Global Bindings and Aliases
     window.SigmaAnalytics = SigmaAnalytics;
     window.PocketCards = SigmaAnalytics;
-    window.loadDemoPocketCards = () => SigmaAnalytics.loadDemoCards();
     window.clearDemoPocketCards = () => SigmaAnalytics.clearCards();
     window.getDynamicUserPocketCards = getDynamicUserPocketCards;
 
@@ -1166,6 +933,7 @@
 
         // 2. Ensure header exists above container
         let headerEl = container.previousElementSibling;
+        if (headerEl?.classList.contains('sigma-analysis-status')) headerEl = headerEl.previousElementSibling;
         if (!headerEl || (!headerEl.classList.contains('sigma-rail-header') && !headerEl.classList.contains('pocket-rail-header'))) {
             headerEl = document.createElement('div');
             headerEl.className = 'sigma-rail-header pocket-rail-header';
@@ -1182,6 +950,7 @@
             } else {
                 headerEl.innerHTML = `
                     <span class="sigma-rail-header__title pocket-rail-header__title">${title}</span>
+                    <button type="button" class="sigma-analyze-button" title="Analyze Now" aria-label="Analyze Now"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
                     <button type="button" class="sigma-rail-header__see-all pocket-rail-header__see-all" title="View all SIGMA Analytics">See all</button>
                 `;
             }
@@ -1249,7 +1018,7 @@
                         wireInteractiveSwitchers();
                     } else {
                         // Dynamically render extra Student/Teacher SIGMA cards (cards 5-8)
-                        const extraCards = STUDENT_POCKET_CARDS_CATALOG.slice(4);
+                        const extraCards = getDynamicUserPocketCards().slice(4);
                         extraCards.forEach(cardData => {
                             if (!container.querySelector(`[data-id="${cardData.id}"]`)) {
                                 const newCard = createSigmaCardElement(cardData);
@@ -1428,8 +1197,9 @@
                 unpinnedCards.sort((a, b) => {
                     const idA = a.dataset.id || a.id || '';
                     const idB = b.dataset.id || b.id || '';
-                    const idxA = STUDENT_POCKET_CARDS_CATALOG.findIndex(c => c.id === idA);
-                    const idxB = STUDENT_POCKET_CARDS_CATALOG.findIndex(c => c.id === idB);
+                    const cards = getDynamicUserPocketCards();
+                    const idxA = cards.findIndex(c => c.id === idA);
+                    const idxB = cards.findIndex(c => c.id === idB);
                     return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
                 });
             }
@@ -3725,9 +3495,9 @@
                     }
                 } catch (e) {}
 
-                const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${Number(wwVal).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-                const ptDisplay = (ptVal !== null && ptVal !== undefined) ? `${Number(ptVal).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-                const qaDisplay = (qaVal !== null && qaVal !== undefined) ? `${Number(qaVal).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${Number(wwVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const ptDisplay = (ptVal !== null && ptVal !== undefined) ? `${Number(ptVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const qaDisplay = (qaVal !== null && qaVal !== undefined) ? `${Number(qaVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
                 let initialGrade = null;
                 if (wwVal !== null || ptVal !== null || qaVal !== null) {
@@ -3738,7 +3508,7 @@
                     initialGrade = tot;
                 }
 
-                const initialDisplay = initialGrade !== null ? `${Number(initialGrade).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const initialDisplay = initialGrade !== null ? `${Number(initialGrade).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
                 const finalDisplay = initialGrade !== null ? `${Math.round(initialGrade)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
                 return `

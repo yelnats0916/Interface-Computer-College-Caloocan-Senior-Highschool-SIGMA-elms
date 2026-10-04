@@ -18,12 +18,6 @@
     display: block !important;
 }
 
-#admin-main:has(#database-snapshots-view:not(.hidden)),
-#database-snapshots-view {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
-}
 
 .sigma-settings-layout {
     display: flex;
@@ -145,6 +139,149 @@
         overflow: visible;
         padding: 1.5rem 1rem;
     }
+}
+
+.sigma-account-settings-title {
+    margin: 0 0 20px;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+    color: #000;
+    letter-spacing: 0;
+}
+.sigma-settings-detail-heading { display: flex; align-items: center; gap: 8px; }
+.sigma-settings-mobile-back { display: none; }
+.pw-recovery-header-back { display: none; }
+@media (max-width: 768px) {
+    #pw-recovery-view .pw-recovery-footer { display: none !important; }
+    #pw-recovery-view .pw-recovery-header-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #000;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    #pw-recovery-view .pw-recovery-header-back:hover { background: #f1f5f9; }
+    #pw-modal > div {
+        padding: 20px !important;
+        margin-left: 12px !important;
+        margin-right: 12px !important;
+        border-radius: 16px !important;
+        gap: 16px !important;
+    }
+    #pw-modal h2,
+    #pw-modal h3 { font-size: 18px !important; line-height: 24px !important; letter-spacing: 0 !important; }
+    #pw-modal p { font-size: 12px !important; line-height: 18px !important; }
+    #pw-modal label { font-size: 13px !important; line-height: 19px !important; }
+    #pw-modal input {
+        min-height: 44px;
+        padding: 10px 40px 10px 12px !important;
+        font-size: 16px !important;
+    }
+    #pw-modal .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 14px !important; }
+    #pw-modal .sigma-btn {
+        font-size: 12px !important;
+        line-height: 18px !important;
+        min-height: 36px !important;
+        height: 36px !important;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+    }
+    #pw-modal .sigma-btn span { font-size: inherit !important; line-height: inherit !important; }
+    #pw-modal .password-toggle-btn i { font-size: 14px !important; }
+    #pw-recovery-view > div:first-child { margin-bottom: 16px !important; }
+    #pw-recovery-view > div:nth-child(2),
+    #pw-recovery-view > div:nth-child(3) { padding: 14px !important; margin-bottom: 14px !important; }
+    #pw-recovery-view > div:nth-child(2) > p:nth-child(2) { font-size: 18px !important; line-height: 24px !important; }
+    #pw-recovery-view > div:last-child { gap: 8px !important; padding-top: 12px !important; }
+}
+@media (max-width: 768px) {
+    #user-settings-view .sigma-account-settings {
+        min-height: calc(100dvh - var(--settings-mobile-top, var(--shell-offset, 128px))) !important;
+        background: #fff;
+    }
+    #user-settings-view .sigma-account-settings.sigma-settings-detail .sigma-settings-main,
+    #user-settings-view .sigma-account-settings.sigma-settings-detail .sigma-settings-inner {
+        min-height: inherit;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    #user-settings-view .sigma-account-settings.sigma-settings-detail .sigma-settings-inner > div {
+        box-sizing: border-box;
+        min-height: inherit;
+        padding: 16px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    #user-settings-view .sigma-account-settings .sigma-settings-inner h2 {
+        font-size: 15px !important;
+        line-height: 21px !important;
+    }
+    #user-settings-view .sigma-account-settings .sigma-settings-inner h3 {
+        font-size: 13px !important;
+        line-height: 19px !important;
+    }
+    #user-settings-view .sigma-account-settings .sigma-settings-inner p {
+        font-size: 12px !important;
+        line-height: 18px !important;
+    }
+    #user-settings-view .sigma-account-settings .sigma-settings-inner .divide-y > div {
+        padding: 14px 0 !important;
+        gap: 12px;
+    }
+    #user-settings-view .sigma-account-settings .sigma-toggle-switch {
+        margin-left: 0 !important;
+    }
+    .sigma-account-settings:not(.sigma-settings-detail) {
+        min-height: calc(100dvh - var(--settings-mobile-top, var(--shell-offset, 128px)));
+        background: #fff;
+    }
+    .sigma-account-settings:not(.sigma-settings-detail) > .sigma-settings-sidebar {
+        flex: 1;
+        min-height: inherit;
+        border-bottom: 0;
+        padding-top: 16px;
+    }
+    .sigma-account-settings:not(.sigma-settings-detail) > .sigma-settings-main { display: none; }
+    .sigma-account-settings-title { font-size: 14px; line-height: 20px; margin-bottom: 16px; padding: 0 16px; }
+    .sigma-account-settings.sigma-settings-detail > .sigma-settings-sidebar { display: none; }
+    .sigma-account-settings.sigma-settings-detail > .sigma-settings-main { padding: 0; background: #fff; }
+    .sigma-account-settings.sigma-settings-detail .sigma-settings-inner { max-width: none; padding-bottom: 0; }
+    .sigma-account-settings.sigma-settings-detail .sigma-settings-inner > div {
+        width: 100%;
+        min-height: calc(100dvh - var(--settings-mobile-top, var(--shell-offset, 128px)));
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 20px 16px;
+    }
+    .sigma-account-settings .sigma-settings-mobile-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 16px;
+        color: #000;
+    }
+    .sigma-account-settings .sigma-settings-mobile-header h2 { font-size: 16px; font-weight: 700; line-height: 24px; }
+    .sigma-settings-mobile-back {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border-radius: 8px;
+    }
+    .sigma-settings-mobile-back:hover { background: #e5e7eb; }
 }
 
 /* ─── Category Sidebar Buttons (Help Center Standard) ─── */
@@ -517,6 +654,122 @@ button.sigma-settings-cat-btn.bg-icc-yellow .sigma-settings-cat-icon {
     font-size: 0.875rem;
     font-weight: 600;
     animation: slideUpToast 0.25s ease-out;
+}
+
+#self-edit-information .self-edit-back {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #self-edit-information {
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+    #self-edit-information .sigma-modal-shell,
+    #self-edit-information .sigma-modal-panel {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        overflow: hidden !important;
+    }
+    #self-edit-information .sigma-modal-panel > div:first-child {
+        flex-shrink: 0;
+    }
+    #self-edit-information #self-edit-form {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+    #self-edit-information .sigma-modal-footer {
+        flex: 0 0 auto !important;
+        position: static !important;
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    }
+    #self-edit-information .self-edit-exit { display: none; }
+    #self-edit-information .self-edit-back {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        color: #000;
+        border-radius: 8px;
+    }
+    #self-edit-information .self-edit-back:hover { background: #f1f5f9; }
+    #self-edit-information .self-edit-header { padding: 10px 16px !important; }
+    #self-edit-information .self-edit-header > div { gap: 8px; flex-wrap: wrap; }
+    #self-edit-information #self-edit-information-title { font-size: 16px !important; line-height: 22px !important; letter-spacing: 0; }
+    #self-edit-information .self-edit-header span { font-size: 10px !important; padding: 3px 8px !important; }
+    #self-edit-information #self-edit-form { padding: 16px !important; }
+    #self-edit-information #self-edit-form > div { gap: 12px !important; }
+    #self-edit-information #self-edit-form > div + div { margin-top: 12px !important; }
+    #self-edit-information #self-edit-form .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 6px !important; }
+    #self-edit-information .sigma-subject-label { font-size: 12px !important; line-height: 18px !important; }
+    #self-edit-information .sigma-subject-input,
+    #self-edit-information .sigma-subject-select {
+        font-size: 14px !important;
+        line-height: 20px !important;
+        padding: 8px 12px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+    }
+    #self-edit-information .sigma-subject-select { padding-right: 36px !important; }
+    #self-edit-information .sigma-modal-footer { padding: 10px 16px max(10px, env(safe-area-inset-bottom, 0px)) !important; }
+    #user-settings-view .sigma-account-settings .sigma-btn,
+    #self-edit-information #self-edit-save-btn {
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
+        line-height: 18px !important;
+        gap: 6px !important;
+        border-radius: 8px !important;
+    }
+    #user-settings-view .sigma-account-settings .sigma-btn span,
+    #self-edit-information #self-edit-save-btn span { font-size: inherit !important; }
+    #user-settings-view .sigma-account-settings .sigma-btn i { font-size: 12px !important; }
+}
+
+@media (max-width: 768px) {
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-btn {
+        font-size: 13px;
+        font-weight: 700 !important;
+        line-height: 20px;
+        padding: 12px 16px;
+        min-height: 48px;
+        gap: 12px;
+    }
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-btn > span:not(.sigma-settings-cat-icon) {
+        font-weight: 700 !important;
+    }
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-btn.active,
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-btn.active:hover {
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #000 !important;
+    }
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-btn.active * {
+        color: #000 !important;
+    }
+    .sigma-account-settings .sigma-settings-sidebar .sigma-settings-cat-icon {
+        font-size: 14px;
+        width: 24px;
+        flex: 0 0 24px;
+    }
 }
 
 @keyframes slideUpToast {

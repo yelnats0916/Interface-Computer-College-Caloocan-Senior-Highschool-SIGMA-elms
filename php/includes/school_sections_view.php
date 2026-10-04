@@ -146,16 +146,16 @@
                     <col style="width: 8%;">  <!-- Status -->
                     <col style="width: 6%;">  <!-- Action -->
                 </colgroup>
-                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
+                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                     <tr>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">No.</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Section</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Subject</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Room</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Teacher</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Students</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">School Year</th>
-                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#166534]">Status</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">No.</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Section</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Subject</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Room</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Teacher</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Students</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">School Year</th>
+                        <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap border-r border-[#137638]">Status</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap">Action</th>
                     </tr>
                 </thead>

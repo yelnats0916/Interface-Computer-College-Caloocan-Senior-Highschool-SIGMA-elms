@@ -1964,7 +1964,11 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                     library[codeIdx].color = currentQuizColor;
                     library[codeIdx].authorId = library[codeIdx].authorId || authorId;
                     library[codeIdx].authorName = (library[codeIdx].authorName && library[codeIdx].authorName !== 'You' && library[codeIdx].authorName !== 'Self') ? library[codeIdx].authorName : authorName;
-                    library[codeIdx].authorRole = library[codeIdx].authorRole || authorRole;
+                    if (window._quizIsAIGenerated) {
+                        library[codeIdx].source = 'ai';
+                        library[codeIdx].isAi = true;
+                        library[codeIdx].is_ai = 1;
+                    }
                     library[codeIdx].questions = JSON.parse(JSON.stringify(questions));
                 }
                 // else: id was provided but not found and no code match — fall through to else branch below
@@ -1998,7 +2002,9 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                 isDraft: !!isDraft,
                 icon: currentQuizIcon,
                 color: currentQuizColor,
-                source: 'manual',
+                source: window._quizIsAIGenerated ? 'ai' : 'manual',
+                isAi: !!window._quizIsAIGenerated,
+                is_ai: window._quizIsAIGenerated ? 1 : 0,
                 questions: JSON.parse(JSON.stringify(questions))
             };
             library.unshift(newQuiz);
@@ -2782,6 +2788,35 @@ function syncBodyScrollLock() {
 // Assessment materials are strictly excluded.
 // =========================================================================
 
+// --- DATABASE INTEGRATION: FETCH COURSE MATERIALS FROM MYSQL DB ---
+const resolveCourseMaterialsApiUrl = () => {
+    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+        return 'http://localhost/sigma-elms/php/api/subjects.php';
+    }
+    return 'php/api/subjects.php';
+};
+window.resolveCourseMaterialsApiUrl = resolveCourseMaterialsApiUrl;
+
+window.fetchCourseMaterialsFromDB = async function () {
+    try {
+        const url = resolveCourseMaterialsApiUrl();
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+            window._dbCourseSubjects = data.records;
+            if (typeof window.renderMaterialPickerItems === 'function') {
+                window.renderMaterialPickerItems();
+            }
+        }
+    } catch (e) {
+        console.warn('[SIGMA] Course materials DB fetch offline or unavailable:', e);
+    }
+};
+
+// Initial background fetch from MySQL
+window.fetchCourseMaterialsFromDB();
+
 window.getRealCourseMaterials = function () {
     const materialsMap = {};
     const dedupMap = new Map();
@@ -2832,6 +2867,17 @@ window.getRealCourseMaterials = function () {
         const primaryKeys = ['sigma-admin-subjects', 'sigma_subjects_v2', 'sigma-teacher-subjects', 'sigma_subjects'];
         const allSubjects = [];
 
+        // 1. Fetch from database cache (MySQL subjects table)
+        if (Array.isArray(window._dbCourseSubjects) && window._dbCourseSubjects.length > 0) {
+            window._dbCourseSubjects.forEach(s => {
+                if (s) {
+                    s._sourceStorageKey = 'mysql_db';
+                    allSubjects.push(s);
+                }
+            });
+        }
+
+        // 2. Fetch from local storage keys
         primaryKeys.forEach(storageKey => {
             const raw = localStorage.getItem(storageKey);
             if (!raw) return;
@@ -3089,6 +3135,11 @@ window.openMaterialPickerPage = function () {
     if (mainView && borrowView) {
         mainView.classList.add('hidden');
         borrowView.classList.remove('hidden');
+
+        // Always sync with MySQL database
+        if (typeof window.fetchCourseMaterialsFromDB === 'function') {
+            window.fetchCourseMaterialsFromDB();
+        }
 
         // Always reset to DEFAULT STATE when opening borrow panel
         const searchInput = document.getElementById('ai-material-search-input');
@@ -4637,6 +4688,7 @@ window.executeAIQuestionGeneration = async function () {
         const startIndex = questions.length;
         questions.push(...generated);
         activeQuestionIndex = startIndex < questions.length ? startIndex : Math.max(0, questions.length - 1);
+        window._quizIsAIGenerated = true;
 
         renderQuestions();
         updateStats();

@@ -1941,7 +1941,21 @@
      * @param {object|null} options - Optional flags { standalone, title, hideBars, standaloneStep }
      */
     window.openSubjectEditor = function (subjectDataOrId, initialStep = 1, options = null) {
-        window.activeSubjectEditorSection = options?.section || options?.selectedSection || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName) || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName) || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '') || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '') || localStorage.getItem('sigma-active-classroom-section') || '';
+        const hash = String(window.location.hash || '');
+        const isClassroomRoute = hash.startsWith('#classroom:');
+        let resolvedSec = options?.section || options?.selectedSection || '';
+        if (!resolvedSec && isClassroomRoute) {
+            resolvedSec = (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
+                || (typeof window.currentClassroomSectionName !== 'undefined' ? window.currentClassroomSectionName : '')
+                || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '')
+                || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+                || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '');
+        } else if (!resolvedSec && typeof window.isCurrentEditorTeacher === 'function' && window.isCurrentEditorTeacher()) {
+            resolvedSec = (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
+                || localStorage.getItem('sigma-active-classroom-section')
+                || '';
+        }
+        window.activeSubjectEditorSection = resolvedSec || '';
         window.originalEditingSubjectId = (typeof subjectDataOrId === 'string') 
             ? subjectDataOrId 
             : (subjectDataOrId?.id || subjectDataOrId?.code || null);
@@ -4700,7 +4714,7 @@ window.addSubjectTopic = function () {
                     <div class="flex flex-col md:flex-row gap-6 sm:gap-10 items-start">
                         <!-- Cover Image Section -->
                         <div class="shrink-0 space-y-2.5 w-full md:w-64 flex flex-col items-center md:items-start">
-                            <label for="topic-selected-image" class="text-sm sm:text-base font-bold text-black capitalize tracking-normal ml-1 block w-full text-left">Cover Image</label>
+                            <span class="text-sm sm:text-base font-bold text-black capitalize tracking-normal ml-1 block w-full text-left">Cover Image</span>
                             <div class="relative group cursor-pointer w-40 sm:w-48 md:w-full aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-300 hover:border-black flex flex-col items-center justify-center bg-slate-50 transition-all text-center overflow-hidden shadow-xs mx-auto md:mx-0"
                                 onclick="window.openTopicEditorImagePicker()">
                                 <img id="topic-editor-image-preview" src="${topic.image || 'image/Topic.jpg'}" class="absolute inset-0 w-full h-full object-cover rounded-2xl" alt="Topic Cover" onerror="this.onerror=null; this.src='image/Topic.jpg';">
@@ -4852,16 +4866,15 @@ window.addSubjectTopic = function () {
         }
         const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Teacher');
         const authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || '');
-        const activeSection = (authorRole === 'Teacher') ? (
-            window.activeSubjectEditorSection
+        const activeSection = window.activeSubjectEditorSection
+            || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
+            || (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
             || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
             || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
             || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
             || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
-            || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
-            || localStorage.getItem('sigma-active-classroom-section')
-            || ''
-        ) : '';
+            || (authorRole === 'Teacher' ? (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : localStorage.getItem('sigma-active-classroom-section')) : '')
+            || '';
 
         window.currentSubjectTopics = Array.isArray(window.currentSubjectTopics) ? window.currentSubjectTopics : [];
         window.currentSubjectAllTopics = Array.isArray(window.currentSubjectAllTopics) ? window.currentSubjectAllTopics : [];
@@ -4876,7 +4889,7 @@ window.addSubjectTopic = function () {
                 image,
                 quarter: topicQuarter
             };
-            if (authorRole === 'Teacher' && !updatedItem.section && activeSection) {
+            if (!updatedItem.section && activeSection) {
                 updatedItem.section = activeSection;
             }
             window.currentSubjectTopics[window.currentEditingTopicIndex] = updatedItem;
@@ -4975,6 +4988,16 @@ window.addSubjectTopic = function () {
         const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Maria Santos Ramos');
         const authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || 'teacher');
 
+        const activeSection = window.activeSubjectEditorSection
+            || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
+            || (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
+            || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+            || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+            || (authorRole === 'Teacher' ? (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : localStorage.getItem('sigma-active-classroom-section')) : '')
+            || '';
+
         window.currentSubjectTopics = Array.isArray(window.currentSubjectTopics) ? window.currentSubjectTopics : [];
         window.currentSubjectAllTopics = Array.isArray(window.currentSubjectAllTopics) ? window.currentSubjectAllTopics : [];
 
@@ -4987,6 +5010,7 @@ window.addSubjectTopic = function () {
             authorId: authorId,
             authorName: authorName,
             authorRole: authorRole,
+            section: activeSection,
             timestamp: new Date().toISOString(),
             createdAt: new Date().toISOString(),
             status: 'not-started'
@@ -5138,6 +5162,10 @@ window.addSubjectTopic = function () {
         const outsideClickListener = function (e) {
             if (!e.target.closest('.topic-options-trigger') && !e.target.closest('.topic-options-menu')) {
                 document.querySelectorAll('.topic-options-menu').forEach(m => m.classList.add('hidden'));
+                document.querySelectorAll('.topic-template-card').forEach(c => {
+                    c.classList.remove('menu-open');
+                    c.style.zIndex = '';
+                });
             }
         };
         modal.removeEventListener('click', outsideClickListener);
@@ -5307,7 +5335,7 @@ window.addSubjectTopic = function () {
 
                     <!-- Footer -->
                     <div class="px-4 py-2.5 sm:px-6 sm:py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-start shrink-0">
-                        <button type="button" onclick="window.switchTopicPickerView('active')" class="sigma-btn sigma-btn-secondary h-7.5 sm:h-8 px-3.5 sm:px-4 text-xs font-semibold rounded-lg cursor-pointer">
+                        <button type="button" onclick="window.switchTopicPickerView('active')" class="sigma-btn sigma-btn-secondary h-8 px-3.5 sm:px-4 text-xs font-semibold rounded-lg cursor-pointer">
                             <span>Back</span>
                         </button>
                     </div>
@@ -5339,9 +5367,9 @@ window.addSubjectTopic = function () {
                     <!-- Body -->
                     <div class="flex-1 overflow-y-auto p-3.5 sm:p-5 custom-scrollbar space-y-3.5 sm:space-y-4">
                         <!-- Top Section: Upload Panel + Recently Used -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 items-stretch">
+                        <div class="topic-template-top-grid grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 items-stretch">
                             <!-- Upload / Current Selection Card (Left) -->
-                            <div class="relative group cursor-pointer w-32 sm:w-36 md:w-full mx-auto md:mx-0 aspect-[3/4] rounded-xl border-2 border-dashed border-slate-300 hover:border-black flex flex-col items-center justify-center p-2.5 sm:p-4 bg-slate-50 transition-all text-center overflow-hidden">
+                            <div class="topic-template-upload relative group cursor-pointer w-32 sm:w-36 md:w-full mx-auto md:mx-0 aspect-[3/4] rounded-xl border-2 border-dashed border-slate-300 hover:border-black flex flex-col items-center justify-center p-2.5 sm:p-4 bg-slate-50 transition-all text-center overflow-hidden">
                                 ${selectedCover ? `
                                     <img id="topic-picker-active-preview" src="${selectedCover}" class="absolute inset-0 w-full h-full object-cover rounded-xl" alt="Selected Template">
                                     <div class="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2.5 text-white text-center z-10">
@@ -5370,7 +5398,7 @@ window.addSubjectTopic = function () {
                                 <div class="flex items-center justify-between mb-1.5 sm:mb-2">
                                     <h4 class="text-xs font-bold text-black capitalize tracking-normal">Recently Used</h4>
                                 </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 flex-1">
+                                <div class="topic-template-recent-grid grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 flex-1">
                                     ${recentTemplates.map((src, idx) => {
                                         const isSelected = (src === selectedCover);
                                         return `
@@ -5477,10 +5505,10 @@ window.addSubjectTopic = function () {
 
                     <!-- Footer: Cancel on far left, Accept Template on far right -->
                     <div class="px-4 py-2.5 sm:px-6 sm:py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-                        <button type="button" onclick="window.closeTopicEditorImagePicker()" class="sigma-btn sigma-btn-secondary h-7.5 sm:h-8 px-3.5 sm:px-4 text-xs font-semibold rounded-lg cursor-pointer">
+                        <button type="button" onclick="window.closeTopicEditorImagePicker()" class="sigma-btn sigma-btn-secondary h-8 px-3.5 sm:px-4 text-xs font-semibold rounded-lg cursor-pointer">
                             <span>Cancel</span>
                         </button>
-                        <button type="button" onclick="window.applyTopicTemplateSelection()" class="sigma-btn sigma-btn-primary h-7.5 sm:h-8 px-4 sm:px-5 text-xs font-semibold rounded-lg min-w-[110px] sm:min-w-[130px] cursor-pointer">
+                        <button type="button" onclick="window.applyTopicTemplateSelection()" class="sigma-btn sigma-btn-primary h-8 px-4 sm:px-5 text-xs font-semibold rounded-lg min-w-[110px] sm:min-w-[130px] cursor-pointer">
                             <span>Accept Template</span>
                         </button>
                     </div>
@@ -5498,8 +5526,32 @@ window.addSubjectTopic = function () {
         if (!targetMenu) return;
         const isHidden = targetMenu.classList.contains('hidden');
         document.querySelectorAll('.topic-options-menu').forEach(m => m.classList.add('hidden'));
+        document.querySelectorAll('.topic-template-card').forEach(c => {
+            c.classList.remove('menu-open');
+            c.style.zIndex = '';
+        });
         if (isHidden) {
             targetMenu.classList.remove('hidden');
+            const card = targetMenu.closest('.topic-template-card');
+            if (card) {
+                card.classList.add('menu-open');
+                // Only on mobile (< 768px): elevate zIndex and handle edge boundaries so it's always in front
+                if (window.innerWidth < 768) {
+                    card.style.zIndex = '10080';
+                    const cardRect = card.getBoundingClientRect();
+                    const modalEl = card.closest('#topic-image-picker-modal > div') || card.closest('.overflow-y-auto');
+                    if (modalEl) {
+                        const modalRect = modalEl.getBoundingClientRect();
+                        if (cardRect.left - modalRect.left < 90) {
+                            targetMenu.style.left = '0';
+                            targetMenu.style.right = 'auto';
+                        } else {
+                            targetMenu.style.left = 'auto';
+                            targetMenu.style.right = '0';
+                        }
+                    }
+                }
+            }
         }
     };
 
@@ -6512,7 +6564,7 @@ window.addSubjectTopic = function () {
                                     const matIdentifier = m.id || origIdx;
 
                                     return `
-                                        <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+                                        <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
                                             <div class="mat-card-left flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                                                 <div class="material-panel-icon-group mat-icon-col w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                                                     <div class="mat-icon-box w-12 h-12 rounded-2xl ${iconBoxClass} flex items-center justify-center shrink-0 shadow-2xs">
@@ -6522,7 +6574,7 @@ window.addSubjectTopic = function () {
                                                 </div>
                                                 <div class="min-w-0 flex-1 flex flex-col justify-center">
                                                     <h4 onclick="window.viewSubjectMaterial('${matIdentifier}')"
-                                                        class="text-sm sm:text-base font-medium text-black hover:text-[#FFD000] transition-colors line-clamp-3 font-['Inter'] cursor-pointer w-fit max-w-full leading-snug">${_escape(m.title || 'Untitled Material')}</h4>
+                                                        class="sigma-file-panel-title sigma-file-panel-title--clickable text-sm sm:text-base font-medium text-black hover:text-[#FFD000] transition-colors line-clamp-3 font-['Inter'] cursor-pointer w-fit max-w-full leading-snug">${_escape(m.title || 'Untitled Material')}</h4>
                                                     <div class="flex items-center gap-2 text-[11px] font-normal text-black-fade mt-1.5 font-['Inter'] flex-wrap">
                                                         ${isViewOnlyScope ? (
                                                             isTeacherAddition
@@ -7128,7 +7180,7 @@ window.addSubjectTopic = function () {
                     ]
                 })
                 : `
-                    <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+                    <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
                         <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                             <div class="w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                                 <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
@@ -7137,7 +7189,7 @@ window.addSubjectTopic = function () {
                                 <span class="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200/70 text-[#15803d] font-bold rounded-md text-[10px] leading-tight inline-flex items-center justify-center text-center uppercase whitespace-nowrap">${_escape('RUBRIC')}</span>
                             </div>
                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
+                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
                             </div>
                         </div>
                         ${canAdminDeleteRubric ? `
@@ -9036,7 +9088,7 @@ window.addSubjectTopic = function () {
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                             <button type="button" onclick="window.executeQuizStorageSearch()" id="storage-picker-search-btn"
-                                class="h-7.5 sm:h-8.5 px-3 sm:px-4 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
+                                class="h-7 sm:h-[34px] px-3 sm:px-5 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
                                 <span>Search</span>
                             </button>
                         </div>
@@ -9529,8 +9581,7 @@ window.addSubjectTopic = function () {
                     <!-- Handout Dropzone -->
                     <input type="file" id="mat-lesson-file-input" accept=".docx,.pdf,.pptx,.doc,.ppt,.txt" class="hidden" onchange="window.handleMaterialFileSelect(this, 'main')" />
                     ${state.fileName ? `
-                        <div onclick="window.previewMaterialEditorFile('main')"
-                            class="sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] cursor-pointer hover:border-slate-300 transition-all shadow-2xs">
+                        <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs">
                             <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                                 <div class="w-12 sm:w-16 flex flex-col items-center gap-1 shrink-0 select-none">
                                     <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl ${fileMeta.iconBox} border flex items-center justify-center shrink-0">
@@ -9539,7 +9590,7 @@ window.addSubjectTopic = function () {
                                     <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || rawExt.toUpperCase()}</span>
                                 </div>
                                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                    <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                    <p onclick="window.previewMaterialEditorFile('main')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate cursor-pointer w-fit max-w-full">${_escape(state.fileName)}</p>
                                     <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || (rawExt.toUpperCase() + ' Document')}</p>
                                 </div>
                             </div>
@@ -9578,8 +9629,7 @@ window.addSubjectTopic = function () {
                         <!-- Worksheet / Task Dropzone -->
                         <input type="file" id="mat-assign-file-input" accept=".docx,.pdf,.pptx,.doc,.ppt,.txt" class="hidden" onchange="window.handleMaterialFileSelect(this, 'main')" />
                         ${state.fileName ? `
-                            <div onclick="window.previewMaterialEditorFile('main')"
-                                class="sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] cursor-pointer hover:border-slate-300 transition-all shadow-2xs">
+                            <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs">
                                 <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                                     <div class="w-12 sm:w-16 flex flex-col items-center gap-1 shrink-0 select-none">
                                         <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl ${fileMeta.iconBox} border flex items-center justify-center shrink-0">
@@ -9588,7 +9638,7 @@ window.addSubjectTopic = function () {
                                         <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap ${fileMeta.badgeClass || 'bg-blue-50 text-blue-700 border-blue-200/70'} border font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">${fileMeta.badgeText || 'DOCX'}</span>
                                     </div>
                                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                        <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate">${_escape(state.fileName)}</p>
+                                        <p onclick="window.previewMaterialEditorFile('main')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black ${fileMeta.hoverColor} transition-colors truncate cursor-pointer w-fit max-w-full">${_escape(state.fileName)}</p>
                                         <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.fileSize || 'Attached File'}</p>
                                     </div>
                                 </div>
@@ -9625,8 +9675,7 @@ window.addSubjectTopic = function () {
                             <div class="mt-2.5">
                                 <input type="file" id="mat-rubric-file-input" accept=".docx,.pdf,.doc,.txt" class="hidden" onchange="window.handleMaterialFileSelect(this, 'rubric')" />
                                 ${state.rubricFileName ? `
-                                    <div onclick="window.previewMaterialEditorFile('rubric')"
-                                        class="sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] cursor-pointer hover:border-slate-300 transition-all shadow-2xs">
+                                    <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs">
                                         <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                                             <div class="w-12 sm:w-16 flex flex-col items-center gap-1 shrink-0 select-none">
                                                 <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-100 text-[#15803d] flex items-center justify-center shrink-0">
@@ -9635,7 +9684,7 @@ window.addSubjectTopic = function () {
                                                 <span class="text-[8px] sm:text-[9px] px-1.5 py-0.5 whitespace-nowrap bg-emerald-50 text-[#15803d] border border-emerald-200/70 font-bold rounded leading-tight inline-flex items-center justify-center text-center uppercase">RUBRIC</span>
                                             </div>
                                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                                <p class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate">${_escape(state.rubricFileName)}</p>
+                                                <p onclick="window.previewMaterialEditorFile('rubric')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate cursor-pointer w-fit max-w-full">${_escape(state.rubricFileName)}</p>
                                                 <p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${state.rubricFileSize || 'Rubric File'}</p>
                                             </div>
                                         </div>
@@ -10105,16 +10154,15 @@ window.addSubjectTopic = function () {
         let finalOriginalAdminId = existingMat?.originalAdminId || null;
         let finalId = existingMat?.id || null;
 
-        const activeSection = (authorRole === 'Teacher' || isTeacher) ? (
-            window.activeSubjectEditorSection
+        const activeSection = window.activeSubjectEditorSection
+            || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
+            || (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
             || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
             || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
             || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
             || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
-            || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
-            || localStorage.getItem('sigma-active-classroom-section')
-            || ''
-        ) : '';
+            || ((authorRole === 'Teacher' || isTeacher) ? (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : localStorage.getItem('sigma-active-classroom-section')) : '')
+            || '';
 
         if (isTeacher) {
             authorRole = 'Teacher';
@@ -10407,6 +10455,16 @@ window.addSubjectTopic = function () {
         const finalRubricUrlAnother = finalHasRubricAnother ? (state.rubricUrl || '') : '';
         const finalIdAnother = isTeacher ? `mat-teacher-${authorId}-${Date.now()}` : `mat-${Date.now()}`;
 
+        const activeSection = window.activeSubjectEditorSection
+            || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
+            || (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
+            || (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName)
+            || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+            || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
+            || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
+            || ((authorRole === 'Teacher' || isTeacher) ? (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : localStorage.getItem('sigma-active-classroom-section')) : '')
+            || '';
+
         const finalItem = {
             id: finalIdAnother,
             title,
@@ -10439,6 +10497,7 @@ window.addSubjectTopic = function () {
             authorId: authorId,
             authorName: authorName,
             authorRole: authorRole,
+            section: activeSection,
             isTeacher: isTeacher || authorRole === 'Teacher',
             isAdmin: !isTeacher && authorRole === 'Admin',
             rubricSetByAdmin: !isTeacher && authorRole === 'Admin' && finalHasRubricAnother,
@@ -10769,6 +10828,9 @@ window.addSubjectTopic = function () {
         }
 
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
+        if (typeof window.syncSubjectToDB === 'function') {
+            window.syncSubjectToDB(targetSubject);
+        }
 
         syncCustomStorageKeys(targetSubject, window.originalEditingSubjectCode, window.originalEditingSubjectId, window.originalEditingSubjectName);
 
@@ -10839,6 +10901,9 @@ window.addSubjectTopic = function () {
             subjects[index].status = status;
             subjects[index].activeQuarters = getActiveSubjectQuarters();
             _saveStored(SUBJECTS_STORAGE_KEY, subjects);
+            if (typeof window.syncSubjectToDB === 'function') {
+                window.syncSubjectToDB(subjects[index]);
+            }
 
             if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
                 window.saveSubjectGradebookWeights(code, subjectWeights);
@@ -10911,6 +10976,9 @@ window.addSubjectTopic = function () {
         }
 
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
+        if (typeof window.syncSubjectToDB === 'function') {
+            window.syncSubjectToDB(newSubject);
+        }
 
         if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
             window.saveSubjectGradebookWeights(code, subjectWeights);
@@ -11064,6 +11132,9 @@ window.addSubjectTopic = function () {
         const subjects = _getStored(SUBJECTS_STORAGE_KEY, []);
         const newSubjects = subjects.filter(s => (s.code || '').trim().toLowerCase() !== code.trim().toLowerCase());
         _saveStored(SUBJECTS_STORAGE_KEY, newSubjects);
+        if (typeof window.deleteSubjectFromDB === 'function') {
+            window.deleteSubjectFromDB(code);
+        }
 
         window.toggleSubjectOverlay(false);
 

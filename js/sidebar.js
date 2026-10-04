@@ -198,9 +198,21 @@ function restoreShellAfterViewportChange() {
     const onViewportChange = () => {
         if (ticking) return;
         ticking = true;
+        const crossedBreakpoint = (lastShellWidth < 1024) !== (window.innerWidth < 1024);
+        if (crossedBreakpoint) {
+            document.documentElement.classList.add('sidebar-viewport-reset');
+            document.getElementById('sidebar')?.classList.remove('sidebar-visible');
+            document.getElementById('sub-sidebar')?.classList.remove('sub-sidebar-visible');
+            document.getElementById('sidebar-overlay')?.classList.add('hidden');
+        }
         requestAnimationFrame(() => {
             ticking = false;
             restoreShellAfterViewportChange();
+            if (crossedBreakpoint) {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove('sidebar-viewport-reset');
+                });
+            }
         });
     };
 

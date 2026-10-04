@@ -398,12 +398,103 @@
     text-align: left !important;
 }
 
+body [data-id="pocket-card-empty-state"] h5 {
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+
+body [data-id="pocket-card-empty-state"],
+body #analytics-dropdown-cards [data-id="pocket-card-empty-state"],
+body #mobile-sigma-cards [data-id="pocket-card-empty-state"] {
+    padding: 24px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    height: auto !important;
+    min-height: 220px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+
+body [data-id="pocket-card-empty-state"] > div:first-child,
+body #analytics-dropdown-cards [data-id="pocket-card-empty-state"] > div:first-child,
+body #mobile-sigma-cards [data-id="pocket-card-empty-state"] > div:first-child {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    padding: 0 !important;
+    margin: 0 0 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #ffffff !important;
+}
+
+.sigma-analysis-status {
+    margin: 0;
+    padding: 4px 16px 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #64748b;
+}
+
+body .sigma-card-concern-text,
+body .pocket-card-concern-text {
+    color: #000000 !important;
+}
+
+body .sigma-rail-header .sigma-analyze-button,
+body #analytics-dropdown .sigma-analyze-button {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #15803d;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+body .sigma-rail-header .sigma-analyze-button:hover,
+body #analytics-dropdown .sigma-analyze-button:hover {
+    background: #f1f5f9;
+}
+
+body .sigma-rail-header .sigma-rail-header__see-all {
+    margin-left: auto;
+}
+
+body #analytics-dropdown .sigma-panel-see-all {
+    margin-left: auto;
+    padding: 4px 0 4px 8px;
+    border: none;
+    background: transparent;
+    color: #15803d;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
 .sigma-card--student .sigma-card-concern-text,
 .pocket-card--student .pocket-card-concern-text {
     font-size: 13px !important;
     line-height: 1.45 !important;
     font-weight: 500 !important;
-    color: #334155 !important;
+    color: #000000 !important;
     text-align: left !important;
     margin: 0 !important;
     display: -webkit-box !important;

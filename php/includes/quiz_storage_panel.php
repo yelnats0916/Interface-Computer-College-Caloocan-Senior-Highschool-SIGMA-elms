@@ -52,7 +52,7 @@
                 </button>
                 <button type="button" onclick="window.executeQuizStorageSearch()"
                     id="storage-picker-search-btn"
-                    class="h-7.5 sm:h-8.5 px-3 sm:px-4 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center
+                    class="h-7 sm:h-[34px] px-3 sm:px-5 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center
                            justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
                     <span>Search</span>
                 </button>

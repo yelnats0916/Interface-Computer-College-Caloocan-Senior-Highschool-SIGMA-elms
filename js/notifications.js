@@ -243,7 +243,9 @@
             const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) return parsed.filter(isVisibleNotification);
+                if (Array.isArray(parsed)) {
+                    return parsed.filter(isVisibleNotification);
+                }
             }
         } catch (e) {
             console.error('[SIGMA Notifications] Storage read error:', e);
@@ -251,10 +253,37 @@
         return [];
     }
 
+    function isRemovalNotification(notif) {
+        return String(notif?.id || '').startsWith('notif_del_')
+            || ['Announcement Removed', 'Comment Removed'].includes(notif?.title);
+    }
+
     function isVisibleNotification(notif) {
+        const preference = ({ 'school-announcement': 'schoolAnnouncements', 'class-announcement': 'classAnnouncements', 'topic-released': 'topicReleases', 'material-released': 'materialReleases', 'assessment-released': 'assessmentReleases', 'coursework-released': notif.target?.tab === 'assessments' ? 'assessmentReleases' : 'materialReleases', 'due-reminder': 'dueDates', 'submission-graded': 'grades' })[notif.type];
+        if (preference) {
+            try {
+                const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+                const preferences = JSON.parse(localStorage.getItem(`sigma_settings_notifications_${user.id || user.uid || 'default'}`) || '{}');
+                const enabled = preferences[preference] ?? (['topicReleases', 'materialReleases', 'assessmentReleases'].includes(preference) ? preferences.coursework : undefined);
+                if (enabled === false) return false;
+            } catch (_) {}
+        }
+        if (notif.recipientId || notif.recipientName || notif.targetTeacher) {
+            let user;
+            try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch { return false; }
+            if (currentRole === 'student') user = window.getLoggedInStudentUser?.() || user;
+            if (currentRole === 'teacher') user = window.getEffectiveTeacher?.() || user;
+            if (notif.recipientId) {
+                if (![user.id, user.uid, user.lrn, user.studentNumber].some(id => id != null && String(id) === String(notif.recipientId))) return false;
+            } else {
+                const name = String(user.fullName || user.name || `${user.firstName || ''} ${user.lastName || ''}`).trim().toLowerCase();
+                if (!name || name !== String(notif.recipientName || notif.targetTeacher).trim().toLowerCase()) return false;
+            }
+        }
         if (!notif.assignmentScope) return !notif.target?.subjectId;
         const normalize = value => String(value || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^(card-|subj-)/, '').replace(/[^a-z0-9]/g, '');
         const scope = notif.assignmentScope;
+        const normalizeSection = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
         if (!scope.section || !scope.subjectId) return false;
         if (currentRole === 'student') {
             const student = window.getLoggedInStudentUser?.();
@@ -264,7 +293,10 @@
             const wanted = [scope.subjectId, scope.subjectName, subject?.name, subject?.title].map(normalize).filter(Boolean);
             return Array.isArray(sections) && sections.some(section => {
                 if (section.status === 'Archived') return false;
-                if (normalize(section.name || section.sectionName) !== normalize(scope.section) && normalize(section.id) !== normalize(scope.section)) return false;
+                if (scope.sectionId) {
+                    if (String(section.id || '') !== String(scope.sectionId)) return false;
+                } else if (normalizeSection(section.name || section.sectionName) !== normalizeSection(scope.section)
+                    && normalizeSection(section.id) !== normalizeSection(scope.section)) return false;
                 const subjects = [section.subject, section.subjectId, section.assignedSubject, ...(section.assignedSubjects || [])]
                     .map(value => normalize(typeof value === 'object' ? value.id || value.name || value.title : value)).filter(Boolean);
                 return subjects.some(value => wanted.includes(value))
@@ -275,9 +307,9 @@
         const teacher = window.getEffectiveTeacher?.();
         if (!teacher || typeof window.getTeacherAssignedSubjectsAndSections !== 'function') return false;
         return (window.getTeacherAssignedSubjectsAndSections(teacher) || []).some(assignment => {
-            const section = normalize(assignment.sectionName || assignment.section);
+            const section = normalizeSection(assignment.sectionName || assignment.section);
             const subjects = [assignment.subject, assignment.subjectId, assignment.name].map(normalize).filter(Boolean);
-            return section && section === normalize(scope.section)
+            return section && section === normalizeSection(scope.section)
                 && [scope.subjectId, scope.subjectName].map(normalize).filter(Boolean).some(subject => subjects.includes(subject));
         });
     }
@@ -348,14 +380,15 @@
 
     // ─── Badge Management ────────────────────────────────────────────────────
     function updateBadge(notifs) {
-        const badge = document.getElementById('noti-badge');
-        if (!badge) return;
         const unreadCount = notifs.filter(n => !n.read).length;
-        if (unreadCount > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        ['noti-badge', 'mobile-noti-badge'].forEach(id => {
+            const badge = document.getElementById(id);
+            if (!badge) return;
+            badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            badge.classList.toggle('hidden', unreadCount === 0);
+            badge.style.cssText = 'position:absolute;top:-3px;right:-3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:18px;width:max-content;height:18px;padding:0 3px;background:#dc2626;color:#fff;border:2px solid #fff;border-radius:9999px;font-size:10px;font-weight:700;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:center;pointer-events:none;';
+            badge.parentElement.setAttribute('aria-label', `Notifications, ${unreadCount} unread`);
+        });
     }
 
     // ─── Feed Rendering State ────────────────────────────────────────────────
@@ -363,16 +396,40 @@
     let isExpanded = false; // toggled by "Previous Notifications"
 
     function buildNotificationItem(notif) {
+        if (notif.senderId) {
+            try {
+                const senderId = String(notif.senderId);
+                const accounts = ['sigma-admin-users', 'sigma-users-list']
+                    .flatMap(key => {
+                        const records = JSON.parse(localStorage.getItem(key) || '[]');
+                        return Array.isArray(records) ? records : [];
+                    });
+                const account = accounts.find(user =>
+                    [user.id, user.uid].some(id => id != null && String(id) === senderId));
+                const storedAvatar = localStorage.getItem(`sigma_avatar_${senderId}`);
+                const currentAvatar = account
+                    ? account.avatar || account.profilePicture || storedAvatar || ''
+                    : storedAvatar;
+                if (account || currentAvatar) {
+                    notif = { ...notif, avatarImg: currentAvatar || '' };
+                }
+            } catch (error) {
+                console.warn('Unable to resolve notification sender profile', error);
+            }
+        }
         const item = document.createElement('div');
         item.className = `notif-item ${!notif.read ? 'notif-unread' : ''}`;
         item.dataset.id = notif.id;
 
         // Support FontAwesome icon, image avatar, or initials
         let avatarInner = '';
+        const useProfile = !!notif.assignmentScope || isRemovalNotification(notif);
+        const profileFallback = useProfile && !notif.avatarImg;
+        const profileFallbackHtml = '<i class="fa-solid fa-user text-[15px]" style="color:#94a3b8"></i>';
         if (notif.avatarImg) {
             avatarInner = '<img alt="Sender profile">';
-        } else if (notif.assignmentScope) {
-            avatarInner = '<i class="fa-solid fa-user text-[15px] text-white"></i>';
+        } else if (useProfile) {
+            avatarInner = profileFallbackHtml;
         } else if (notif.icon) {
             avatarInner = `<i class="fa-solid ${notif.icon} text-[15px] text-white"></i>`;
         } else if (notif.avatarImg) {
@@ -382,25 +439,30 @@
         }
 
         item.innerHTML = `
-            <div class="notif-item__avatar" style="background-color: ${notif.senderColor || '#1d4ed8'}">
+            <div class="notif-item__avatar" style="background-color: ${profileFallback ? '#f1f5f9' : notif.senderColor || '#1d4ed8'}">
                 ${avatarInner}
             </div>
             <div class="notif-item__body">
                 <div class="notif-item__header">
-                    <span class="notif-item__title">${notif.senderName || 'System'}</span>
-                    ${!notif.read ? '<span class="notif-item__dot"></span>' : ''}
+                    <span class="notif-item__title"></span>
+                    ${!notif.read ? '<span class="notif-item__dot" style="background-color:#dc2626"></span>' : ''}
                 </div>
-                <p class="notif-item__context">${notif.title ? notif.title + ' — ' : ''}${notif.body}</p>
+                <p class="notif-item__context"></p>
                 <span class="notif-item__time">${formatTime(notif.timestamp)}</span>
             </div>
         `;
         const avatarImage = item.querySelector('.notif-item__avatar img');
+        item.querySelector('.notif-item__title').textContent = notif.senderName || 'System';
+        const notificationTitle = notif.type === 'school-announcement' ? 'School Announcement'
+            : notif.type === 'class-announcement' ? 'Class Announcement' : notif.title;
+        item.querySelector('.notif-item__context').textContent = `${notificationTitle ? notificationTitle + ' — ' : ''}${notif.body || ''}`;
         if (avatarImage) {
             avatarImage.src = notif.avatarImg;
             avatarImage.alt = notif.senderName || 'Sender profile';
             avatarImage.style.cssText = 'width:100%;height:100%;object-fit:cover;';
             avatarImage.onerror = () => {
-                avatarImage.parentElement.innerHTML = '<i class="fa-solid fa-user text-[15px] text-white"></i>';
+                avatarImage.parentElement.style.backgroundColor = '#f1f5f9';
+                avatarImage.parentElement.innerHTML = profileFallbackHtml;
             };
         }
 
@@ -687,6 +749,7 @@
             } catch (e) {
                 list = [];
             }
+            if (list.some(item => item.id === notif.id)) return;
             list.unshift(notif);
             try {
                 localStorage.setItem(targetKey, JSON.stringify(list));

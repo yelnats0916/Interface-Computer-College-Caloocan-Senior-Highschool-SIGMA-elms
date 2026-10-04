@@ -19,11 +19,11 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/forms.css?v=20260930greyhover1">
-    <link rel="stylesheet" href="css/shared-components.css?v=20260929nobackdesktop1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261004searchButtonHover1">
 
     <!-- TAILWIND: Compiled CSS -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261001safebottom1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261004closedgapfix1">
 
     <style>
         * {
@@ -130,6 +130,15 @@
             filter: brightness(0.85);
         }
 
+        #quiz-banner-images-list:empty {
+            display: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            border: none !important;
+        }
+
         /* ─── Quiz Creator Mobile Responsive: 3-Line Header, Scaled Buttons & Panels, No Squeezing ─── */
         @media (max-width: 767px) {
             body {
@@ -151,80 +160,84 @@
 
             header#admin-header .admin-topbar__inner {
                 display: flex !important;
-                flex-direction: column !important;
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                padding: 0 !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                height: 44px !important;
+                min-height: 44px !important;
+                max-height: 44px !important;
+                padding: 0 12px !important;
                 border-bottom: none !important;
             }
 
-            /* Line 2: Brand (Logo + Full Title) */
+            /* Brand (Logo + Title) on Left */
             header#admin-header .admin-topbar__brand {
                 display: flex !important;
                 align-items: center !important;
                 justify-content: flex-start !important;
-                width: 100% !important;
-                height: 32px !important;
-                min-height: 32px !important;
-                padding: 0 12px !important;
-                border-bottom: 1px solid #f1f5f9 !important;
+                width: auto !important;
+                height: 100% !important;
+                padding: 0 !important;
+                border-bottom: none !important;
+                gap: 8px !important;
+                flex-shrink: 0 !important;
             }
 
             header#admin-header .admin-topbar__brand #logo-container img {
-                width: 22px !important;
-                height: 22px !important;
+                width: 24px !important;
+                height: 24px !important;
             }
 
             header#admin-header #header-brand-title {
-                font-size: 12.5px !important;
+                font-size: 13.5px !important;
+                font-weight: 700 !important;
                 max-width: none !important;
                 overflow: visible !important;
                 white-space: nowrap !important;
             }
 
-            /* Line 3: Actions (Preview + Save Quiz) */
+            /* Actions (Preview + Save Quiz) on the Same Row on Right */
             header#admin-header #header-actions-mobile-wrap,
             header#admin-header .admin-topbar__inner > .flex.items-center.ml-auto {
                 display: flex !important;
                 align-items: center !important;
                 justify-content: flex-end !important;
-                width: 100% !important;
-                height: 34px !important;
-                min-height: 34px !important;
-                padding: 0 10px !important;
-                margin-left: 0 !important;
+                width: auto !important;
+                height: 100% !important;
+                padding: 0 !important;
+                margin-left: auto !important;
                 gap: 6px !important;
-                background-color: #ffffff !important;
+                background-color: transparent !important;
                 border-bottom: none !important;
+                flex-shrink: 0 !important;
             }
 
-            /* Scaled Down Header Buttons */
+            /* Scaled Down Header Buttons on Same Row */
             header#admin-header button[onclick*="openStudentQuizPreviewModal"] {
-                height: 24px !important;
-                min-height: 24px !important;
-                padding: 0 8px !important;
-                font-size: 10px !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                padding: 0 9px !important;
+                font-size: 11px !important;
                 font-weight: 600 !important;
-                border-radius: 6px !important;
+                border-radius: 8px !important;
                 background-color: #ffffff !important;
                 border: 1px solid #cbd5e1 !important;
                 color: #0f172a !important;
-                gap: 4px !important;
+                gap: 4.5px !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
             }
 
             header#admin-header button[onclick*="openStudentQuizPreviewModal"] i {
-                font-size: 9.5px !important;
+                font-size: 10.5px !important;
                 color: #0f172a !important;
             }
 
             header#admin-header #export-quiz-dropdown-wrap {
-                height: 24px !important;
-                min-height: 24px !important;
-                border-radius: 6px !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                border-radius: 8px !important;
                 overflow: visible !important;
                 position: relative !important;
                 display: inline-flex !important;
@@ -233,18 +246,18 @@
             }
 
             header#admin-header #save-quiz-main-btn {
-                height: 24px !important;
-                min-height: 24px !important;
-                padding: 0 8px !important;
-                font-size: 10px !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                padding: 0 9px !important;
+                font-size: 11px !important;
                 font-weight: 700 !important;
                 background-color: #15803d !important;
                 color: #ffffff !important;
-                border-top-left-radius: 6px !important;
-                border-bottom-left-radius: 6px !important;
-                border-radius: 6px 0 0 6px !important;
+                border-top-left-radius: 8px !important;
+                border-bottom-left-radius: 8px !important;
+                border-radius: 8px 0 0 8px !important;
                 border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
-                gap: 4px !important;
+                gap: 4.5px !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 cursor: pointer !important;
@@ -253,19 +266,19 @@
             }
 
             header#admin-header #save-quiz-main-btn i {
-                font-size: 9px !important;
+                font-size: 10px !important;
                 color: #ffffff !important;
             }
 
             header#admin-header #save-quiz-dropdown-trigger {
-                height: 24px !important;
-                min-height: 24px !important;
-                padding: 0 6px !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                padding: 0 7px !important;
                 background-color: #15803d !important;
                 color: #ffffff !important;
-                border-top-right-radius: 6px !important;
-                border-bottom-right-radius: 6px !important;
-                border-radius: 0 6px 6px 0 !important;
+                border-top-right-radius: 8px !important;
+                border-bottom-right-radius: 8px !important;
+                border-radius: 0 8px 8px 0 !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
@@ -275,7 +288,7 @@
             }
 
             header#admin-header #save-quiz-dropdown-trigger i {
-                font-size: 9px !important;
+                font-size: 10px !important;
                 color: #ffffff !important;
             }
 
@@ -317,17 +330,24 @@
                 margin: 2px 0 !important;
             }
 
-            /* Closed Gap between Nav Bar and Selection Panel */
+            /* Closed Gap between Nav Bar and Selection Panel (Header = 70px) */
+            body:has(#admin-header) main,
             body:has(#admin-header) main.flex-1,
-            main.flex-1 {
-                padding-top: 90px !important;
+            body:has(#quiz-action-bar) main,
+            body:has(#quiz-action-bar) main.flex-1,
+            main.flex-1,
+            main {
+                margin-top: 0 !important;
+                padding-top: 70px !important;
                 padding-bottom: 8px !important;
-                min-height: calc(100dvh - 90px) !important;
+                min-height: calc(100dvh - 70px) !important;
                 display: flex !important;
                 flex-direction: column !important;
             }
 
+            main > div,
             main.flex-1 > div,
+            main > div.flex,
             main.flex-1 > div.flex {
                 display: flex !important;
                 flex-direction: column !important;
@@ -338,7 +358,9 @@
                 padding-top: 0 !important;
             }
 
+            main > div > div:first-child,
             main.flex-1 > div > div:first-child,
+            main .space-y-3\.5,
             main.flex-1 .space-y-3\.5 {
                 display: flex !important;
                 flex-direction: column !important;
@@ -350,6 +372,14 @@
                 padding-bottom: 0 !important;
             }
 
+            main .space-y-3\.5 > *,
+            main .space-y-3\.5 > :not([hidden]) ~ :not([hidden]),
+            main.flex-1 .space-y-3\.5 > *,
+            main.flex-1 .space-y-3\.5 > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
             /* 2. Selection Panel: Sticking to Nav Bar (0 Gap), Full Width, Scaled Down */
             #quiz-action-bar {
                 width: calc(100% + 3rem) !important;
@@ -357,6 +387,7 @@
                 margin-left: -1.5rem !important;
                 margin-right: -1.5rem !important;
                 margin-top: 0 !important;
+                margin-bottom: 0 !important;
                 border-radius: 0 !important;
                 border-left: none !important;
                 border-right: none !important;
@@ -373,7 +404,7 @@
                 justify-content: space-between !important;
                 gap: 5px 6px !important;
                 position: sticky !important;
-                top: 90px !important;
+                top: 70px !important;
                 z-index: 240 !important;
                 background-color: #ffffff !important;
             }
@@ -536,11 +567,15 @@
                 color: #000000 !important;
             }
 
-            /* 3. Question & Add Image Panels: Full-Width, No Radius & Scaled Down Text / Buttons */
+            /* 3. Question & Add Image Panels: Full-Width, No Radius, Closed Gap to Selection Panel */
             #quiz-banner-images-list,
             #active-question-container {
                 width: 100% !important;
                 max-width: 100% !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
             }
 
             #active-question-container {
@@ -553,14 +588,18 @@
             .quiz-general-image-panel,
             #active-question-card-inner,
             .active-question-card,
-            #active-question-container > div {
+            #active-question-container > div,
+            .quiz-empty-question-state {
                 width: calc(100% + 3rem) !important;
                 max-width: calc(100% + 3rem) !important;
                 margin-left: -1.5rem !important;
                 margin-right: -1.5rem !important;
+                margin-top: 0 !important;
                 border-radius: 0 !important;
+                border-top: none !important;
                 border-left: none !important;
                 border-right: none !important;
+                border-bottom: 1px solid #e2e8f0 !important;
                 box-shadow: none !important;
                 padding: 14px 12px !important;
             }
@@ -593,9 +632,10 @@
                 opacity: 1 !important;
             }
 
-            /* Empty Question State Panel: Increased height, vertically centered, auto-sized across mobile screen heights */
+            /* Empty Question State Panel: Closed Gap, full width, borderless top */
             #active-question-container .quiz-empty-question-state,
-            #active-question-container > .active-question-card:not(#active-question-card-inner) {
+            #active-question-container > .active-question-card:not(#active-question-card-inner),
+            .quiz-empty-question-state {
                 flex: 1 1 auto !important;
                 min-height: clamp(230px, 38vh, 480px) !important;
                 display: flex !important;
@@ -603,8 +643,10 @@
                 align-items: center !important;
                 justify-content: center !important;
                 padding: 28px 16px !important;
-                border-bottom: 1px solid #e2e8f0 !important;
+                margin-top: 0 !important;
                 margin-bottom: 0 !important;
+                border-top: none !important;
+                border-bottom: 1px solid #e2e8f0 !important;
             }
 
             #active-question-container .quiz-empty-question-state i.fa-list-check,
@@ -632,10 +674,14 @@
                 color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
             }
 
-            /* Active Question Card (When questions exist, sizes naturally) */
+            /* Active Question Card (Main Panel): Closed Gap to selection panel */
             #active-question-card-inner {
                 flex: 0 0 auto !important;
                 height: auto !important;
+                margin-top: 0 !important;
+                border-top: none !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                box-shadow: none !important;
             }
 
             /* Question Header inside Active Card */
@@ -732,11 +778,20 @@
                 gap: 8px !important;
             }
 
+            #active-question-card-inner .group\/pair > .pair-textbox-col,
+            #active-question-card-inner .group\/enum-row > .enum-textbox-col,
             #active-question-card-inner .group\/pair > .order-3,
             #active-question-card-inner .group\/enum-row > .order-2 {
                 width: 100% !important;
                 max-width: 100% !important;
                 flex: 1 1 100% !important;
+                order: 1 !important;
+            }
+
+            #active-question-card-inner .group\/pair > .pair-points-col,
+            #active-question-card-inner .group\/enum-row > .enum-points-col {
+                order: 2 !important;
+                margin-left: auto !important;
             }
 
             #active-question-card-inner .group\/pair textarea,
@@ -2658,7 +2713,7 @@
                             </button>
                             <button type="button" onclick="window.triggerLibraryModalSearch()"
                                 id="library-modal-search-btn"
-                                class="h-7.5 sm:h-9.5 px-3 sm:px-5 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
+                                class="h-7 sm:h-[34px] px-3 sm:px-5 bg-[#15803d] hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold flex items-center justify-center cursor-pointer transition-colors shrink-0 rounded-lg sm:rounded-xl shadow-none ml-1 sm:ml-1.5">
                                 <span>Search</span>
                             </button>
                         </div>
@@ -2878,9 +2933,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- CORE JAVASCRIPT CONTROLLERS (Consistent with Teacher/Admin Pages) -->
-    <script src="js/shared-components.js?v=20261002scrollreset1"></script>
-    <script src="js/quiz-components.js?v=20260929matchinganskey1"></script>
-    <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
+    <script src="js/shared-components.js?v=20261004modalBackdropLayer1"></script>
+    <script src="js/quiz-components.js?v=20261004alignfix1"></script>
+    <script src="js/quiz-creator.js?v=20261004alignfix1"></script>
     <script src="js/notifications.js?v=20260916strictdef14"></script>
     <script src="js/topbar.js?v=20260916strictdef14"></script>
     <script src="js/sidebar.js?v=20260916strictdef14"></script>

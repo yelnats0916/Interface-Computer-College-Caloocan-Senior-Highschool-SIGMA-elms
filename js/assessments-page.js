@@ -436,6 +436,9 @@
             ] : (Array.isArray(data.topics) ? data.topics : []);
 
             topicArrays.forEach((topic, tIdx) => {
+                const topicQuarter = hasQuarterTopics
+                    ? [1, 2, 3, 4].find(quarter => (data[`q${quarter}Topics`] || []).includes(topic))
+                    : (topic.quarter || topic.term || null);
                 // If topic is scoped to a section, ensure it matches
                 if (sectionName && topic && topic.section) {
                     const cleanSec = String(sectionName).trim().toLowerCase();
@@ -493,6 +496,7 @@
                                 max: Number(ass.max || ass.points || ass.totalPoints || 100),
                                 weight: ass.weight !== undefined ? Number(ass.weight) : undefined,
                                 subjectId: subjectId,
+                                quarter: topicQuarter || ass.quarter || null,
                                 topicIdx: ass.topicIdx !== undefined ? ass.topicIdx : tIdx,
                                 itemIdx: ass.itemIdx !== undefined ? ass.itemIdx : aIdx
                             });
@@ -841,6 +845,14 @@
 
                         const studentSub = (targetStudentName || targetStudentId) ? extractMatchingSub(sub, targetStudentName, targetStudentId) : (isAllSelected ? sub : null);
                         if (!studentSub) return null;
+                        const norm = value => String(value || '').trim().toLowerCase();
+                        if (studentSub.studentId && targetStudentId && norm(studentSub.studentId) !== norm(targetStudentId)) return null;
+                        if (studentSub.section && sectionName && norm(studentSub.section) !== norm(sectionName)) return null;
+                        if (studentSub.subjectId && ![topicSubjectId, cardId, cleanSubj].some(id =>
+                            norm(id).replace(/^(card-|subj-)/, '') === norm(studentSub.subjectId).replace(/^(card-|subj-)/, ''))) return null;
+                        const assessmentIds = [ass.id, ass.materialId, ass.quizId, ass.origId, ass.selectedQuizId].filter(Boolean).map(norm);
+                        const submissionIds = [studentSub.id, studentSub.materialId, studentSub.quizId].filter(Boolean).map(norm);
+                        const matchesStableId = assessmentIds.some(id => submissionIds.includes(id));
 
                         const hasSubStatus = studentSub.status === 'Submitted' || studentSub.status === 'Graded' || studentSub.status === 'Pending' || Boolean(studentSub.submittedAt || studentSub.completedAt || studentSub.fileName || studentSub.submissionDate);
                         if (!hasSubStatus) return null;
@@ -889,7 +901,7 @@
 
                         // 4. Prevent index collision if index is explicitly tagged
                         const subAct = Number(studentSub.activeIdx !== undefined ? studentSub.activeIdx : (studentSub.itemIdx !== undefined ? studentSub.itemIdx : -1));
-                        if (subAct !== -1) {
+                        if (subAct !== -1 && !matchesStableId) {
                             const isAssessmentsTab = !subTab || subTab === 'assessments';
                             if (isAssessmentsTab && unifiedIdx !== undefined && subAct !== unifiedIdx) {
                                 return null;
@@ -994,7 +1006,8 @@
                             try {
                                 for (let kIdx = 0; kIdx < localStorage.length; kIdx++) {
                                     const k = localStorage.key(kIdx);
-                                    if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_'))) continue;
+                                    if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_')
+                                        && !(cat === 'quiz' && k.startsWith('sigma_quiz_result_')))) continue;
                                     const raw = localStorage.getItem(k);
                                     if (!raw) continue;
                                     const sub = JSON.parse(raw);
@@ -1011,7 +1024,11 @@
                                     const matchesKeyIndex = (kLower.includes(`_assessments_${unifiedIdx}`) || kLower.includes(`_${currentTab}_${assItemIdx}`)) && (kLower.includes(cleanSubj) || kLower.includes('default'));
                                     const matchesSubIndex = (subTop === assTopIdx) && ((subTab === 'assessments' && subAct === unifiedIdx) || (subTab === currentTab && subAct === assItemIdx));
 
-                                    if (matchesTitle || matchesKeyIndex || matchesSubIndex) {
+                                    const matchedIds = [match.id, match.materialId, match.quizId].filter(Boolean).map(value => String(value).trim().toLowerCase());
+                                    const matchesId = [ass.id, ass.materialId, ass.quizId, ass.origId, ass.selectedQuizId]
+                                        .filter(Boolean).some(value => matchedIds.includes(String(value).trim().toLowerCase()));
+                                    if (k.startsWith('sigma_quiz_result_') && matchedIds.length && !matchesId) continue;
+                                    if (matchesId || matchesTitle || matchesKeyIndex || matchesSubIndex) {
                                         subData = match;
                                         break;
                                     }
@@ -1073,7 +1090,11 @@
                     let gradedOn = null;
 
                     if (subData && (subData.status === 'Submitted' || subData.status === 'Pending' || subData.status === 'Graded' || subData.status === 'Excuse' || subData.status === 'Missing' || subData.status === 'Absent' || subData.status === 'Incomplete' || subData.attendance || subData.submittedAt || subData.submissionDate || subData.completedAt || subData.fileName)) {
-                        const rawScore = (subData.teacherSaved === true && subData.score !== undefined && subData.score !== null && subData.score !== '')
+                        const finalizedQuiz = cat === 'quiz' && subData.isPending !== true
+                            && (subData.status === 'Graded' || Boolean(subData.gradedAt));
+                        const rawScore = ((subData.teacherSaved === true || subData.teacherEditedScore === true || finalizedQuiz)
+                            && subData.score !== undefined && subData.score !== null
+                            && String(subData.score).trim() !== '' && Number.isFinite(Number(subData.score)))
                             ? Number(subData.score)
                             : (gbScore !== null && !isNaN(gbScore) ? gbScore : null);
                         const isGraded = rawScore !== null && !isNaN(rawScore);
@@ -1115,6 +1136,7 @@
                         subject: rawSubjectName,
                         section: sectionName,
                         activity: ass.title,
+                        quarter: ass.quarter || null,
                         category: cat,
                         tab: currentTab,
                         topicIdx: assTopIdx,
@@ -1122,7 +1144,8 @@
                         unifiedIdx: unifiedIdx,
                         status: status,
                         score: score,
-                        max: maxScore,
+                        max: cat === 'quiz' && !resolvedHps && Number.isFinite(Number(subData?.maxScore))
+                            && Number(subData.maxScore) > 0 ? Number(subData.maxScore) : maxScore,
                         weight: weight,
                         startDate: rawStart,
                         startTime: startTime,

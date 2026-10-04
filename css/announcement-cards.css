@@ -219,7 +219,7 @@
 .sigma-card-audience-badge,
 .sigma-card-section-badge {
     display: inline-flex !important;
-    align-items: flex-start !important;
+    align-items: center !important;
     gap: 5px !important;
     font-size: 11px !important;
     font-weight: 500 !important;
@@ -232,12 +232,12 @@
     text-align: left !important;
     min-width: 0 !important;
     width: max-content !important;
-    max-width: 100% !important;
-    flex: 0 1 max-content !important;
-    flex-shrink: 1 !important;
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
     transition: all 0.15s ease !important;
 }
 
@@ -245,15 +245,15 @@
 .sigma-card-audience-badge i {
     flex-shrink: 0 !important;
     font-size: 9.5px !important;
-    margin-top: 2.5px !important;
+    margin-top: 0 !important;
     line-height: 1 !important;
 }
 
 .sigma-card-badge-label-text {
     display: inline !important;
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
     line-height: 1.25 !important;
     font-weight: 500 !important;
 }
@@ -270,9 +270,9 @@
 
 .sigma-badge-subj-name {
     display: inline !important;
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
     font-weight: 500 !important;
 }
 

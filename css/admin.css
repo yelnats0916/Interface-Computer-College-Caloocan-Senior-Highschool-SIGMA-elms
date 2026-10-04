@@ -2,6 +2,25 @@
     display: none !important;
 }
 
+/* Solid equivalent of 8% black over the green header for collapsed borders. */
+body #users-view table:has(#userTableBody) thead th {
+    border-left: none !important;
+}
+
+body #users-view table:has(#userTableBody) thead th:not(:last-child) {
+    border-right: 1px solid #137638 !important;
+}
+
+/* Keep the account Role and Status body columns visibly separated. */
+body #userTableBody > tr > td:nth-child(5) {
+    border-left: none !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+
+body #userTableBody > tr > td:nth-child(6) {
+    border-right: none !important;
+}
+
 .text-black {
     color: #000 !important;
 }
@@ -78,8 +97,8 @@ table th *,
     font-weight: 600 !important;
 }
 
-table thead th,
-table th,
+table:not(.attendance-month-table) thead th,
+table:not(.attendance-month-table) th,
 .admin-table-striped thead th,
 .admin-table-striped th,
 #users-view thead th,
@@ -98,8 +117,8 @@ table th,
 }
 
 /* No outer edge: remove vertical border on the last column */
-table thead th:last-child,
-table th:last-child,
+table:not(.attendance-month-table) thead th:last-child,
+table:not(.attendance-month-table) th:last-child,
 .admin-table-striped thead th:last-child,
 .admin-table-striped th:last-child,
 #users-view thead th:last-child,
@@ -110,8 +129,8 @@ table th:last-child,
 }
 
 /* Vertical borderline strictly on the first header column (No.) */
-table thead th:first-child,
-table th:first-child,
+table:not(.attendance-month-table) thead th:first-child,
+table:not(.attendance-month-table) th:first-child,
 .admin-table-striped thead th:first-child,
 .admin-table-striped th:first-child,
 #users-view thead th:first-child,
@@ -172,7 +191,21 @@ table:has(#subjectTableBody) thead th:not(:last-child),
 .admin-table thead th:not(:last-child),
 table thead.bg-\[\#15803d\] th:not(:last-child),
 thead.bg-\[\#15803d\] th:not(:last-child) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
+}
+
+#users-view thead,
+#school-year-view thead,
+#school-sections-view thead,
+#school-subjects-view thead,
+table:has(#userTableBody) thead,
+table:has(#schoolYearTableBody) thead,
+table:has(#sectionTableBody) thead,
+table:has(#subjectTableBody) thead,
+.admin-table thead,
+table thead.bg-\[\#15803d\],
+thead.bg-\[\#15803d\] {
+    border-bottom: 1px solid #137638 !important;
 }
 
 #users-view thead th:last-child,
@@ -189,7 +222,7 @@ thead.bg-\[\#15803d\] th:last-child {
 
 
 /* Table body data cells: delete vertical borders */
-table tbody,
+table:not(.attendance-month-table) tbody,
 #users-view tbody,
 #school-year-view tbody,
 #school-sections-view tbody,
@@ -197,7 +230,7 @@ table tbody,
     border-top: none !important;
 }
 
-table tbody td,
+table:not(.attendance-month-table) tbody td,
 .admin-table-striped tbody td,
 .admin-table-striped td,
 #users-view tbody td,
@@ -218,7 +251,7 @@ table tbody td,
 }
 
 /* Vertical borderline strictly on the No. column (first body cell) */
-table tbody td:first-child,
+table:not(.attendance-month-table) tbody td:first-child,
 .admin-table-striped tbody td:first-child,
 .admin-table-striped td:first-child,
 #users-view tbody td:first-child,
@@ -236,7 +269,7 @@ table tbody td:first-child,
 }
 
 /* No outer right edge on last body cell */
-table tbody td:last-child,
+table:not(.attendance-month-table) tbody td:last-child,
 .admin-table-striped tbody td:last-child,
 .admin-table-striped td:last-child,
 #users-view tbody td:last-child,
@@ -266,7 +299,7 @@ table tbody td:last-child,
 #school-year-view tbody tr:nth-child(even) td,
 #school-sections-view tbody tr:nth-child(even) td,
 #school-subjects-view tbody tr:nth-child(even) td,
-table tbody tr:nth-child(even) td {
+table:not(.attendance-month-table) tbody tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
@@ -275,7 +308,7 @@ table tbody tr:nth-child(even) td {
 #school-year-view tbody tr:nth-child(odd) td,
 #school-sections-view tbody tr:nth-child(odd) td,
 #school-subjects-view tbody tr:nth-child(odd) td,
-table tbody tr:nth-child(odd) td {
+table:not(.attendance-month-table) tbody tr:nth-child(odd) td {
     background-color: #ffffff;
 }
 
@@ -288,7 +321,7 @@ table tbody tr:nth-child(odd) td {
 #roles-view tbody td:hover,
 #audit-logs-view tbody td:hover,
 .sigma-table tbody td:hover,
-table tbody td:hover {
+table:not(.attendance-month-table) tbody td:hover {
     background-color: #f1f5f9 !important;
     transition: background-color 0.12s ease;
 }

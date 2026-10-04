@@ -32,12 +32,20 @@
 }
 
 #noti-badge {
+    font-family: 'Inter', sans-serif !important;
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 8px;
-    height: 8px;
-    background-color: #FFD000;
+    top: -3px;
+    right: -3px;
+    min-width: 18px;
+    width: auto;
+    height: 18px;
+    padding: 0 4px;
+    background-color: #dc2626;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
     border-radius: 9999px;
     border: 2px solid #ffffff;
     pointer-events: none;
@@ -222,16 +230,19 @@
     transition: background-color 0.18s ease !important;
 }
 
-.notif-item:hover,
-.notif-item.notif-unread:hover {
+.notif-item:hover {
     background-color: #e2e8f0 !important;
 }
 
 .notif-item.notif-unread {
-    background-color: transparent !important;
+    background-color: #fff9db !important;
     border: none !important;
     border-bottom: 1px solid #f1f5f9 !important;
     border-radius: 0 !important;
+}
+
+.notif-item.notif-unread:hover {
+    background-color: #fff3bd !important;
 }
 
 /* Sender Avatar */
@@ -289,7 +300,7 @@
     width: 7px;
     height: 7px;
     border-radius: 9999px;
-    background-color: #FFD000;
+    background-color: #dc2626;
     flex-shrink: 0;
 }
 

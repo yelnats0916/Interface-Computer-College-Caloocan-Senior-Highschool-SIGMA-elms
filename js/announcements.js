@@ -2793,6 +2793,26 @@
         }
     }
 
+    function notifyModeratedRemoval(author, title, body) {
+        const role = String(author.authorRole || '').toLowerCase();
+        const targetRole = role === 'faculty' ? 'teacher' : role;
+        if (!['teacher', 'student', 'admin'].includes(targetRole) || (!author.authorId && !author.authorName)) return;
+        let sender = {};
+        try { sender = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
+        const senderId = currentUser.id || sender.id || sender.uid;
+        if (author.authorId && String(author.authorId) === String(senderId)) return;
+        if (!author.authorId && author.authorName === currentUser.name) return;
+        const avatar = (senderId && window.getCurrentUserAvatar?.(senderId))
+            || currentUser.avatar || sender.avatar || sender.profilePicture
+            || (senderId && localStorage.getItem(`sigma_avatar_${senderId}`)) || '';
+        window.SigmaNotifications?.sendToRole(targetRole, {
+            id: 'notif_del_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+            senderId, senderName: currentUser.name || sender.fullName || sender.name || 'Moderator',
+            avatarImg: avatar, title, body, timestamp: new Date().toISOString(), read: false,
+            recipientId: author.authorId || null, recipientName: author.authorName || ''
+        });
+    }
+
     function confirmDeletePost(e) {
         if (e && e.preventDefault) e.preventDefault();
         if (e && e.stopPropagation) e.stopPropagation();
@@ -2801,45 +2821,11 @@
             return;
         }
         const posts = getStoredAnnouncements();
-        const postToDelete = posts.find(p => p.id === postToDeleteId);
 
-        if (postToDelete) {
-            // If an administrator deletes a post authored by a teacher
-            const isTeacherPost = postToDelete.authorRole === 'teacher' || postToDelete.authorRole === 'Faculty' || postToDelete.authorRole === 'faculty';
-            if (currentRole === 'admin' && isTeacherPost) {
-                const adminName = currentUser.name || 'Administrator';
-                const postTitleSnippet = postToDelete.title
-                    ? `"${postToDelete.title}"`
-                    : (postToDelete.body ? `"${postToDelete.body.substring(0, 35)}..."` : 'your announcement');
-
-                const notif = {
-                    id: 'notif_del_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                    senderName: adminName,
-                    icon: 'fa-trash-can',
-                    senderColor: '#ef4444',
-                    title: 'Announcement Removed',
-                    body: `Your post ${postTitleSnippet} was removed by ${adminName}.`,
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    targetTeacher: postToDelete.authorName
-                };
-
-                if (window.SigmaNotifications && typeof window.SigmaNotifications.sendToRole === 'function') {
-                    window.SigmaNotifications.sendToRole('teacher', notif);
-                } else {
-                    try {
-                        const tKey = 'sigma-notifications-teacher-v2';
-                        const saved = localStorage.getItem(tKey);
-                        let list = saved ? JSON.parse(saved) : [];
-                        list.unshift(notif);
-                        localStorage.setItem(tKey, JSON.stringify(list));
-                    } catch (e) {
-                        console.error('[Announcements] Failed to dispatch notification to teacher:', e);
-                    }
-                }
-            }
+        const removedPost = posts.find(post => post.id === postToDeleteId);
+        if (removedPost && currentRole === 'admin') {
+            notifyModeratedRemoval(removedPost, 'Announcement Removed', `Your announcement${removedPost.title ? ` "${removedPost.title}"` : ''} was removed by an administrator.`);
         }
-
         const updated = posts.filter(p => p.id !== postToDeleteId);
         saveStoredAnnouncements(updated);
 
@@ -3751,9 +3737,9 @@
             const subj = (activeSubjectFilter || '').toLowerCase().trim();
 
             visiblePosts = visiblePosts.filter(p => {
-                // NEVER show Admin/Public "everyone" announcements inside a Section Room stream
-                if (p.authorRole === 'admin' || p.isAdmin) return false;
+                // NEVER show general schoolwide Admin / Public announcements inside a Section Room stream
                 if (p.audience === 'everyone' || p.audience === 'all' || p.audience === 'all_students') return false;
+                if ((p.authorRole === 'admin' || p.isAdmin) && !p.classroomKey && p.audience !== sec && p.sectionName !== sec) return false;
 
                 const pAud = (p.audience || '').toLowerCase().trim();
                 const pAudLabel = (p.audienceLabel || '').toLowerCase().trim();
@@ -3777,14 +3763,14 @@
                     if (pAud === 'all_my_classes' || pAudLabel === 'all my classes') {
                         const roomTeacher = String(window.currentRoomClassData?.teacher || window.currentClassroom?.teacher || '').toLowerCase().trim();
                         const pAuthor = String(p.authorName || '').toLowerCase().trim();
-                        if (roomTeacher && pAuthor && (roomTeacher === pAuthor || roomTeacher.includes(pAuthor) || pAuthor.includes(roomTeacher))) {
-                            return true;
-                        }
-                        if (currentRole === 'teacher' && pAuthor && currentUser.name && pAuthor === currentUser.name.toLowerCase().trim()) {
-                            return true;
-                        }
+                        const isMyTeacher = Boolean(
+                            (roomTeacher && pAuthor && (roomTeacher === pAuthor || roomTeacher.includes(pAuthor) || pAuthor.includes(roomTeacher))) ||
+                            (currentRole === 'teacher' && pAuthor && currentUser.name && pAuthor === currentUser.name.toLowerCase().trim())
+                        );
+                        if (!isMyTeacher) return false;
+                    } else {
+                        return false;
                     }
-                    return false;
                 }
 
                 // If subject filter is present, ensure post strictly belongs to this subject
@@ -3821,7 +3807,7 @@
             let emptyTitle = 'No Announcements Yet';
             let emptySubtitle = "When announcements are posted, they'll appear here.";
 
-            if (targetContainerId === 'room-announcements-feed') {
+            if (targetContainerId === 'room-announcements-feed' || targetContainerId === 'admin-room-announcements-feed') {
                 emptyIcon = 'fa-regular fa-bell-slash';
                 emptyTitle = 'No Announcements Yet';
                 emptySubtitle = 'Announcements shared with this section will appear here.';
@@ -5172,6 +5158,7 @@
 
             // If deleted by a teacher or admin (moderation of someone else's comment), mark as deleted with an indicator
             if (isTeacherOrAdmin && !isOwnComment) {
+                if (targetComment.isDeleted) return;
                 targetComment.isDeleted = true;
                 targetComment.deletedByRole = currentUser.role || currentRole || 'teacher';
                 targetComment.deletedByName = currentUser.name || (currentUser.role === 'teacher' ? 'Teacher' : 'Administrator');
@@ -5184,6 +5171,9 @@
             }
 
             saveStoredAnnouncements(posts);
+            if (isTeacherOrAdmin && !isOwnComment) {
+                notifyModeratedRemoval(targetComment, 'Comment Removed', `Your comment${post.title ? ` on "${post.title}"` : ''} was removed by ${currentRole === 'admin' ? 'an administrator' : 'a teacher'}.`);
+            }
             renderPostDialogContent(postId);
             updatePostCommentCountUI(postId, post.comments ? post.comments.length : 0);
         };

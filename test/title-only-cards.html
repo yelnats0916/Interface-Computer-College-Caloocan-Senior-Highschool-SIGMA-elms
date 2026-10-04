@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shared Title-Only Cards Regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+</head>
+<body>
+    <div id="cards"></div>
+    <output id="open-count">0</output>
+    <button id="sync-test" onclick="window.dispatchEvent(new CustomEvent('sigma:subjectUpdated'))">Test shared refresh</button>
+    <output id="refresh-count">0</output>
+    <script src="../js/shared-components.js"></script>
+    <script>
+        let opens = 0;
+        let refreshes = 0;
+        window.openTopicContent = () => { document.getElementById('open-count').textContent = ++opens; };
+        const refresh = () => { document.getElementById('refresh-count').textContent = ++refreshes; };
+        window.refreshTeacherTopicUIIfVisible = refresh;
+        window.refreshStudentTopicUIIfVisible = refresh;
+        window.refreshAdminTopicUIIfVisible = refresh;
+        window.getStudentTopicReleaseStatus = () => ({ isLocked: false, isHidden: false, isUnreleased: false });
+        window.getStudentLearningMaterialReleaseStatus = () => ({ isLocked: false, isHidden: false, isUnreleased: false });
+        window.getLearningMaterialReleaseConfig = () => null;
+        document.getElementById('cards').innerHTML = ['admin', 'teacher', 'student'].map((role, index) =>
+            '<section data-role="' + role + '">' +
+            window.renderSharedTopicCard({ id: 'topic-' + index, title: role + ' topic', overview: 'Passive description' }, index, 'fixture', {}, role !== 'student', 'Fixture') +
+            window.renderSharedVideosTabHtml({ videos: [{ title: role + ' video', url: 'fixture.mp4' }], subjectId: 'fixture', role, section: 'Fixture' }) +
+            window.renderSharedAttachedFilePanelHtml({ title: role + ' document.pdf', type: 'PDF', onClick: 'window.openTopicContent()' }) +
+            '</section>'
+        ).join('');
+    </script>
+</body>
+</html>

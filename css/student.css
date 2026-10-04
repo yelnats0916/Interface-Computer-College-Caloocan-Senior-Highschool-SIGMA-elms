@@ -3602,7 +3602,7 @@ header .relative button i {
 
 /* â”€â”€â”€ Student classroom room page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #section-classroom-detail {
-    min-height: calc(100vh - var(--shell-offset));
+    min-height: 0 !important;
 }
 
 .student-room-shell {
@@ -4680,8 +4680,6 @@ header .relative button i {
     }
 
     #section-classroom-detail,
-    #section-classroom-detail>div,
-    #section-classroom-detail>div>div,
     .student-room-shell,
     .student-room-panel,
     .student-room-feed,
@@ -4703,11 +4701,12 @@ header .relative button i {
 
     .student-room-main {
         width: 100% !important;
-        max-width: 100vw !important;
-        display: block !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
         padding: 0 !important;
         margin: 0 !important;
-        padding-bottom: 6rem !important;
+        padding-bottom: 2rem !important;
     }
 
 
@@ -6352,12 +6351,292 @@ body.curriculum-mode .student-topic-progress-rail {
     display: inline-block !important;
 }
 
+.grade-subject-title {
+    color: #000 !important;
+    text-decoration: none !important;
+}
+
+#grades-layout .student-performance-section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+#grades-layout .student-performance-filter { justify-content: flex-start; gap: 12px; }
+@media (max-width: 768px) {
+    #section-grades #grades-layout { font-size: 12px; padding-left: 0 !important; padding-right: 0 !important; }
+    #grades-layout .gwa-card { margin-left: 16px; margin-right: 16px; }
+    #grades-layout .student-performance-filter,
+    #grades-layout .student-performance-section { padding-left: 16px; padding-right: 16px; }
+    #grades-layout .lg\:col-span-3.bg-white {
+        width: 100% !important;
+        border-radius: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        box-shadow: none !important;
+        padding: 20px 16px !important;
+    }
+    #grades-layout .lg\:col-span-3.bg-white > div:last-child { border-radius: 0 !important; }
+    #grades-layout .student-grades-summary-table,
+    #grades-layout div:has(> .student-grades-summary-table) { border-radius: 0 !important; }
+    #grades-layout .gwa-card { padding: 20px !important; border-radius: 16px !important; }
+    #grades-layout .gwa-card h3 { font-size: 12px !important; line-height: 18px !important; }
+    #grades-layout .gwa-value { font-size: 32px !important; line-height: 40px !important; margin-top: 12px !important; }
+    #grades-layout p,
+    #grades-layout .student-performance-filter,
+    #grades-layout .student-performance-filter label,
+    #grades-layout .student-performance-filter span,
+    #grades-layout #student-subject-filter-toggle { font-size: 12px !important; line-height: 18px !important; }
+    #grades-layout .sigma-btn { height: 34px !important; min-height: 34px !important; padding: 0 12px !important; font-size: 12px !important; border-radius: 8px !important; }
+    #grades-layout .sigma-btn span { font-size: inherit !important; }
+    #grades-layout #student-subject-filter-toggle { padding: 6px 8px !important; }
+    #grades-layout .student-grades-summary-table th,
+    #grades-layout .student-grades-summary-table td { padding: 12px !important; font-size: 12px !important; }
+    #grades-layout .student-grades-summary-table { min-width: 700px; }
+    #grades-layout .student-grades-summary-table td span,
+    #grades-layout .student-grades-summary-table td button { font-size: 12px !important; line-height: 18px !important; }
+    #grades-layout .student-grades-summary-table td:nth-child(2) .rounded-full {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px;
+    }
+    #grades-layout .student-grades-summary-table td:nth-child(2) i { font-size: 11px !important; }
+    #grades-layout .grade-subject-title { font-size: 12px !important; line-height: 18px !important; }
+    #grades-layout .student-performance-section h3 { font-size: 16px !important; line-height: 22px !important; }
+    #grades-layout .subject-performance-card { padding: 16px !important; border-radius: 16px !important; }
+    #grades-layout .subject-performance-card button[title="View grades"] { font-size: 12px !important; line-height: 18px !important; }
+    #grades-layout .subject-performance-card select { font-size: 12px !important; padding: 4px 6px !important; }
+    #grades-layout .subject-quarter-change > div:first-child { font-size: 16px !important; line-height: 22px !important; }
+    #grades-layout .subject-quarter-change > div:last-child { font-size: 12px !important; line-height: 18px !important; }
+}
+#grades-layout #student-comparison-all,
+#grades-layout .student-comparison-checkbox {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    flex: 0 0 18px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    accent-color: #15803d;
+}
+#grades-layout #student-subject-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #000;
+    font-size: 13px;
+    line-height: 20px;
+    font-weight: 400 !important;
+    text-transform: none !important;
+    cursor: pointer !important;
+    transition: background-color 150ms ease;
+}
+#grades-layout #student-subject-filter-toggle span { font-weight: 400 !important; }
+#grades-layout #student-subject-filter-toggle:hover { background: #f3f4f6 !important; }
+#grades-layout .student-performance-filter label { flex-shrink: 0; margin: 0; }
+#grades-layout #student-performance-subject-filter {
+    width: 100%;
+    height: 38px;
+    padding: 8px 36px 8px 12px !important;
+    appearance: none !important;
+    background-image: none !important;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+#grades-layout .student-subject-select-wrap { position: relative; width: 260px; max-width: 100%; min-width: 0; }
+#grades-layout .student-subject-select-wrap > i {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+#grades-layout .student-performance-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: start; }
+@media (min-width: 1024px) {
+    #grades-layout .student-performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+#grades-layout .subject-performance-card .grade-mini-chart > div > div:first-child {
+    min-width: 0;
+    flex: 1 1 0%;
+    max-width: none;
+}
+#grades-layout .subject-performance-card .grade-mini-chart > div {
+    justify-content: center;
+}
+#grades-layout .subject-quarter-change {
+    flex: 0 0 auto;
+    align-self: center;
+    padding-left: 16px;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+#grades-layout .subject-quarter-change > div:first-child { font-size: 20px !important; line-height: 28px !important; }
+#grades-layout .subject-quarter-change > div:last-child { font-size: 13px !important; line-height: 20px !important; }
+@media (max-width: 768px) {
+    #grades-layout .subject-performance-card .grade-mini-chart > div { flex-wrap: wrap; }
+    #grades-layout .subject-performance-card .grade-mini-chart > div > div:first-child { flex-basis: 100%; }
+    #grades-layout .subject-quarter-change { width: 100%; border-left: 0; padding: 8px 0 0; }
+}
+#grades-layout .subject-performance-card .grade-mini-chart svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#grades-layout .subject-performance-card .grade-mini-chart > div > div:first-child > div:first-child {
+    height: 180px !important;
+    aspect-ratio: auto;
+    width: 100%;
+}
+#grades-layout .subject-performance-card .grade-mini-chart > div > div:first-child > div:last-child {
+    padding-left: 14.5833% !important;
+    padding-right: 6.25% !important;
+}
+#grades-layout .student-grades-summary-table { min-width: 900px; table-layout: fixed; }
+#grades-layout .student-grades-summary-table th:first-child { width: 27%; }
+#grades-layout .student-grades-summary-table th:nth-child(2) { width: 25%; }
+#grades-layout .student-grades-summary-table th { white-space: normal; overflow-wrap: normal; }
+#grades-layout .student-grades-summary-table td { overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+    #grades-layout .student-performance-section { gap: 16px; }
+    #grades-layout .student-performance-filter { gap: 8px; }
+    #grades-layout .student-subject-select-wrap { flex: 1 1 180px; width: auto; }
+}
+
+.subject-performance-card button[title="View grades"]:hover,
+.subject-performance-card button[title="View grades"]:hover span,
+.subject-performance-card button[title="View grades"]:hover i {
+    color: #FFD000 !important;
+    background: transparent !important;
+    text-decoration: none !important;
+}
+
 .grade-subject-link:hover .grade-subject-title,
 .grade-subject-link:hover span,
 .grade-subject-title:hover {
-    text-decoration: underline !important;
-    text-underline-offset: 3px !important;
-    text-decoration-thickness: 1.5px !important;
-    color: #166534 !important;
+    text-decoration: none !important;
+    color: #FFD000 !important;
+}
+
+.student-room-attendance .attendance-monthly-header {
+    justify-content: center !important;
+}
+
+.student-room-attendance .attendance-monthly-header > div {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: 100%;
+}
+
+.student-room-attendance #student-attendance-month-display {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 32px;
+    letter-spacing: 0;
+}
+
+.student-room-attendance .attendance-monthly-header button {
+    flex-shrink: 0;
+}
+
+.student-grades-modal-back {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #student-classroom-grades-modal-overlay .student-grades-modal-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #000;
+        cursor: pointer;
+    }
+
+    #student-classroom-grades-modal-overlay .student-grades-modal-back:hover {
+        background: #f3f4f6;
+    }
+
+    #student-classroom-grades-modal-overlay .student-grades-modal-close {
+        display: none !important;
+    }
+
+    #student-classroom-grades-modal-overlay .sigma-modal-footer {
+        justify-content: flex-end !important;
+    }
+
+    #student-classroom-grades-modal-overlay {
+        top: var(--grades-viewport-top, 0px) !important;
+        bottom: auto !important;
+        height: var(--grades-viewport-height, 100dvh) !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    #student-classroom-grades-modal-overlay > .curriculum-hub-panel {
+        transform: none !important;
+        transition: none !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-sizing: border-box;
+    }
+
+    #student-classroom-grades-modal-overlay .student-grades-modal-body {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+
+    #student-classroom-grades-modal-overlay .student-assessment-bar-label {
+        display: block;
+        font-size: 10px !important;
+        line-height: 16px !important;
+        font-weight: 400 !important;
+        color: #000000 !important;
+    }
+
+    #student-classroom-grades-modal-overlay .student-assessment-progress-bar {
+        height: 18px !important;
+    }
+
+    #student-classroom-grades-modal-overlay .student-assessment-quarter-select {
+        width: 100px !important;
+        max-width: 100px !important;
+        min-width: 0 !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 3px 6px !important;
+        font-size: 10px !important;
+        line-height: 16px !important;
+        border-radius: 5px !important;
+    }
+
+    #student-classroom-grades-modal-overlay .sigma-modal-footer {
+        position: static !important;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+        padding: 10px 16px max(10px, env(safe-area-inset-bottom)) !important;
+        background: white;
+    }
 }
 

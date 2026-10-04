@@ -1053,7 +1053,7 @@ function renderUserAccountsTable() {
                         ${escapeHtml(email)}
                     </div>
                 </td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-4 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                     <div class="text-[13px] font-normal text-black text-center font-['Inter']">${escapeHtml(role)}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
@@ -1368,9 +1368,8 @@ window.collectCurrentPermissionsState = function () {
         settingsBranding: document.getElementById('perm-settings-branding')?.checked ?? true,
         settingsApi: document.getElementById('perm-settings-api')?.checked ?? true,
         settingsSecurity: document.getElementById('perm-settings-security')?.checked ?? true,
-        // Security & Database
+        // Security & Activity Logs
         securityMain: document.getElementById('perm-admin-security-main')?.checked ?? true,
-        databaseManage: document.getElementById('perm-database-manage')?.checked === true,
         securityLogs: document.getElementById('perm-security-logs')?.checked ?? true,
         // Teacher
         teacherGrades: document.getElementById('perm-teacher-grades')?.checked ?? true,
@@ -1676,27 +1675,6 @@ window.editUserPermissions = function (userId) {
     // Security & Activity Logs Category
     setCheck('perm-admin-security-main', getVal('securityMain', true));
     setCheck('perm-security-logs', getVal('securityLogs', true));
-
-    // Database & Backups Management:
-    // Only Master Admin role has this by default. Regular admins can only access if explicitly granted by Master Admin.
-    const permDatabaseVal = isTargetMaster ? true : (perms.databaseManage === true);
-    setCheck('perm-database-manage', permDatabaseVal);
-
-    const permDatabaseManageEl = document.getElementById('perm-database-manage');
-    const permDatabaseManageLock = document.getElementById('perm-database-manage-lock');
-    if (permDatabaseManageEl) {
-        // Can only be edited if current viewer is Master Admin AND target account is NOT Master Admin
-        const canEditDbPerm = isMaster && !isTargetMaster;
-        permDatabaseManageEl.disabled = !canEditDbPerm;
-        permDatabaseManageEl.classList.toggle('cursor-not-allowed', !canEditDbPerm);
-        permDatabaseManageEl.classList.toggle('opacity-60', !canEditDbPerm);
-        permDatabaseManageEl.title = isTargetMaster
-            ? 'Master Admin role always has full Database & Backups permissions'
-            : (isMaster ? 'Permit access to Database & Backups' : 'Only Master Admin can grant Database permissions');
-    }
-    if (permDatabaseManageLock) {
-        permDatabaseManageLock.classList.toggle('hidden', isMaster && !isTargetMaster);
-    }
     window.togglePermCategory('security');
 
     // Set User Account Moderation Actions Toggles
@@ -1848,13 +1826,6 @@ window.saveUserPermissions = function () {
         if (!isEditorMaster) {
             // Non-master admins CANNOT grant or toggle School Profile permissions
             perms.schoolProfile = users[userIndex].permissions?.schoolProfile === true;
-            // Non-master admins CANNOT grant or toggle Database Management permissions
-            perms.databaseManage = users[userIndex].permissions?.databaseManage === true;
-        }
-
-        // Master Admin role always retains full database permissions
-        if (users[userIndex].role === 'Master Admin' || String(users[userIndex].id || users[userIndex].uid) === '0000000') {
-            perms.databaseManage = true;
         }
 
         users[userIndex].permissions = perms;
@@ -1867,6 +1838,9 @@ window.saveUserPermissions = function () {
         }
 
         saveStoredJson(USER_STORAGE_KEY, users);
+        if (typeof syncUserToDB === 'function') {
+            syncUserToDB(users[userIndex], 'save');
+        }
 
         // Update auth user in sessionStorage if editing self
         const authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
@@ -2032,6 +2006,9 @@ window.toggleUserLock = function (userId) {
             users[userIdx].status = newStatus;
             localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
             localStorage.setItem('sigma-users-list', JSON.stringify(users));
+            if (typeof syncUserToDB === 'function') {
+                syncUserToDB(users[userIdx], 'save');
+            }
 
             // Update local state if currently viewing this user
             if (window.currentUserProfileData && String(window.currentUserProfileData.id) === String(userId)) {
@@ -2779,29 +2756,6 @@ function updateSettingsPanel(tabId, overrides = {}) {
 
 
 window.scrollToSettingsSection = function (panelId, btnEl) {
-    if (panelId === 'sec-database-panel') {
-        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-        const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
-        const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
-        const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
-        if (!canDatabaseManage) {
-            if (typeof window.showSigmaDialog === 'function') {
-                window.showSigmaDialog({
-                    title: 'Access Restricted',
-                    desc: 'Database and Disaster Recovery management is restricted to Master Admin role.',
-                    icon: 'fa-solid fa-lock text-amber-500',
-                    confirmText: 'Understood',
-                    isNotification: true
-                });
-            }
-            return;
-        }
-
-        if (typeof window.refreshDatabaseHealthStats === 'function') {
-            window.refreshDatabaseHealthStats();
-        }
-    }
-
     const target = document.getElementById(panelId);
     if (!target) return;
 
@@ -3650,6 +3604,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function addAiMessage(content, isUser = false) {
         if (!sigmaAiMessages) return;
         const msg = document.createElement('div');
+        if (!isUser && content === WELCOME_MSG) msg.dataset.sigmaGreeting = 'true';
         msg.className = `sigma-ai-message ${isUser ? 'sigma-ai-message--user' : 'sigma-ai-message--assistant'}`;
         const stamp = getSigmaAiTimestamp();
         msg.innerHTML = `
@@ -4110,10 +4065,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return perms.settingsMain !== false && perms.settingsBranding !== false;
             case 'settings-integrations-view':
                 return perms.settingsMain !== false && perms.settingsApi !== false;
-            case 'sec-database-panel':
-            case 'database-view':
-            case 'database-snapshots-view':
-                return perms.databaseManage === true;
             case 'users-view':
                 return perms.manageAdmins !== false || perms.manageTeachers !== false || perms.manageStudents !== false;
             default:
@@ -4201,10 +4152,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (typeof window.renderSettingsView === 'function') {
                 window.renderSettingsView('user-settings-view', 'notifications');
-            }
-        } else if (sectionId === 'database-snapshots-view') {
-            if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader('System Settings', 'Database & Backups');
             }
         } else if (sectionId === 'settings-view' || (navId && navId.startsWith('nav-settings'))) {
             if (typeof window.setPortalHeader === 'function') {
@@ -6611,6 +6558,7 @@ const syncUserToDB = async (payload, action = 'save') => {
         console.warn('User DB sync offline or unavailable, cached in localStorage.');
     }
 };
+window.syncUserToDB = syncUserToDB;
 
 const fetchUsersFromDB = async () => {
     try {
@@ -6646,663 +6594,127 @@ const fetchUsersFromDB = async () => {
 // Initial DB Fetch for users
 fetchUsersFromDB();
 
-// --- DATABASE HEALTH, BACKUP & DISASTER RECOVERY CONTROLLER ---
-const resolveBackupApiUrl = () => {
+// --- DATABASE INTEGRATION: SECTIONS TABLE API ---
+const resolveSectionsApiUrl = () => {
     if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
-        return 'http://localhost/sigma-elms/php/api/backup.php';
+        return 'http://localhost/sigma-elms/php/api/sections.php';
     }
-    return 'php/api/backup.php';
+    return 'php/api/sections.php';
 };
+window.resolveSectionsApiUrl = resolveSectionsApiUrl;
 
-window.refreshDatabaseHealthStats = async function () {
-    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
-    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
-    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
-    if (!canDatabaseManage) return;
-
-    const spinner = document.getElementById('db-refresh-spinner');
-    if (spinner) spinner.classList.add('fa-spin');
-
+const syncSectionToDB = async (sectionData, action = 'save') => {
     try {
-        const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
-        const url = `${resolveBackupApiUrl()}?action=status&requester_id=${requesterId}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Status returned ' + res.status);
-        const data = await res.json();
-
-        if (data && data.success) {
-            const badge = document.getElementById('db-status-badge');
-            if (badge) {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
-                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online';
-            }
-            const engineVer = document.getElementById('db-engine-version');
-            if (engineVer) engineVer.textContent = data.version ? `MySQL ${data.version}` : 'MySQL / MariaDB';
-
-            const latency = document.getElementById('db-latency-text');
-            if (latency) latency.innerHTML = `Ping: <strong class="text-white">${data.pingMs || 0.7} ms</strong>`;
-
-            const dbName = document.getElementById('db-name-text');
-            if (dbName) dbName.textContent = data.database || 'sigma_elms_db';
-
-            const tablesCount = document.getElementById('db-tables-count');
-            if (tablesCount) tablesCount.textContent = `${data.tableCount || 0} Tables`;
-
-            const rowsCount = document.getElementById('db-rows-count');
-            if (rowsCount) rowsCount.innerHTML = `Total Rows: <strong class="text-white">${data.totalRows || 0}</strong>`;
-
-            const sizeText = document.getElementById('db-size-text');
-            if (sizeText) sizeText.textContent = data.totalSize || '64 KB';
-        }
-    } catch (err) {
-        const badge = document.getElementById('db-status-badge');
-        if (badge) {
-            badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
-            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Local / Offline';
-        }
-    } finally {
-        if (spinner) {
-            setTimeout(() => spinner.classList.remove('fa-spin'), 400);
-        }
-    }
-};
-
-window.downloadDatabaseBackup = function () {
-    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
-    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
-    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
-
-    if (!canDatabaseManage) {
-        if (typeof window.showSigmaDialog === 'function') {
-            window.showSigmaDialog({
-                title: 'Access Restricted',
-                desc: 'Downloading database backup snapshots is restricted to Master Admin role.',
-                icon: 'fa-solid fa-lock text-amber-500',
-                confirmText: 'Understood',
-                isNotification: true
-            });
-        }
-        return;
-    }
-
-    const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
-    const url = `${resolveBackupApiUrl()}?action=download&requester_id=${requesterId}`;
-    const tempLink = document.createElement('a');
-    tempLink.href = url;
-    tempLink.setAttribute('download', '');
-    document.body.appendChild(tempLink);
-    tempLink.click();
-    document.body.removeChild(tempLink);
-
-    if (window.showToast) {
-        window.showToast('Generating snapshot... Your database backup (.sql) is downloading.');
-    } else if (typeof window.showSigmaDialog === 'function') {
-        window.showSigmaDialog({
-            title: 'Backup Download Started',
-            desc: 'Your full MySQL database backup snapshot (.sql) is downloading. Keep this file safe for disaster recovery.',
-            icon: 'fa-solid fa-cloud-arrow-down text-emerald-600',
-            confirmText: 'Done',
-            isNotification: true
-        });
-    }
-};
-
-window.handleBackupFileSelected = function (input) {
-    const file = input && input.files && input.files[0];
-    const filenameLabel = document.getElementById('db-restore-filename');
-    const restoreBtn = document.getElementById('db-restore-btn');
-
-    if (file) {
-        if (filenameLabel) filenameLabel.textContent = file.name;
-        if (restoreBtn) restoreBtn.disabled = false;
-    } else {
-        if (filenameLabel) filenameLabel.textContent = 'Choose .SQL Backup File...';
-        if (restoreBtn) restoreBtn.disabled = true;
-    }
-};
-
-window.confirmAndRestoreDatabase = function () {
-    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
-    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
-    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
-
-    if (!canDatabaseManage) {
-        if (typeof window.showSigmaDialog === 'function') {
-            window.showSigmaDialog({
-                title: 'Access Restricted',
-                desc: 'Restoring database snapshots requires Master Admin authorization.',
-                icon: 'fa-solid fa-lock text-amber-500',
-                confirmText: 'Understood',
-                isNotification: true
-            });
-        }
-        return;
-    }
-
-    const input = document.getElementById('db-restore-file-input');
-    const file = input && input.files && input.files[0];
-    if (!file) return;
-
-    const performRestore = async () => {
-        const restoreBtn = document.getElementById('db-restore-btn');
-        if (restoreBtn) {
-            restoreBtn.disabled = true;
-            restoreBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Restoring Database...';
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('action', 'restore');
-            formData.append('backup_file', file);
-            formData.append('requester_id', String(currentUser?.uid || currentUser?.id || '0000000'));
-
-            const res = await fetch(resolveBackupApiUrl(), {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await res.json();
-            if (data && data.success) {
-                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
-                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
-                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
-
-                if (window.showToast) {
-                    window.showToast('Database successfully restored from backup snapshot!');
-                } else if (typeof window.showSigmaDialog === 'function') {
-                    window.showSigmaDialog({
-                        title: 'Database Restored Successfully',
-                        desc: 'All database tables and records have been successfully restored to the snapshot state.',
-                        icon: 'fa-solid fa-circle-check text-emerald-600',
-                        confirmText: 'Great',
-                        isNotification: true
-                    });
-                }
-            } else {
-                throw new Error(data.error || 'Restore failed');
-            }
-        } catch (err) {
-            console.error('Database restore error:', err);
-            if (typeof window.showSigmaDialog === 'function') {
-                window.showSigmaDialog({
-                    title: 'Restore Failed',
-                    desc: 'Could not restore database from this file: ' + err.message,
-                    icon: 'fa-solid fa-circle-exclamation text-rose-600',
-                    confirmText: 'OK',
-                    isNotification: true
-                });
-            } else {
-                alert('Database restore failed: ' + err.message);
-            }
-        } finally {
-            if (restoreBtn) {
-                restoreBtn.disabled = false;
-                restoreBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> <span>Restore Database Now</span>';
-            }
-        }
-    };
-
-    if (typeof window.showSigmaDialog === 'function') {
-        window.showSigmaDialog({
-            title: 'Confirm Database Restoration',
-            desc: `Are you sure you want to restore the database using "${file.name}"? Current database tables will be replaced with the snapshot data.`,
-            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
-            confirmText: 'Yes, Restore Database',
-            cancelText: 'Cancel',
-            onConfirm: performRestore
-        });
-    } else if (confirm(`Are you sure you want to restore database from ${file.name}? Current records will be replaced with the snapshot contents.`)) {
-        performRestore();
-    }
-};
-
-// Initial Database Health Check
-window.refreshDatabaseHealthStats();
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DEDICATED DATABASE SNAPSHOTS & DISASTER RECOVERY CONTROLLER
-// ══════════════════════════════════════════════════════════════════════════════
-window.currentDatabaseSnapshots = [];
-
-window.openDatabaseSnapshotsView = function (pushHistory = true) {
-    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-    const curRole = currentUser ? (typeof normalizeUserRole === 'function' ? normalizeUserRole(currentUser.role || currentUser.type) : currentUser.role) : 'Admin';
-    const isMaster = curRole === 'Master Admin' || String(currentUser?.uid || currentUser?.id) === '0000000' || !!currentUser?.isMaster;
-    const canDatabaseManage = isMaster || (currentUser?.permissions?.databaseManage === true);
-
-    if (!canDatabaseManage) {
-        if (typeof window.showSigmaDialog === 'function') {
-            window.showSigmaDialog({
-                title: 'Access Restricted',
-                desc: 'Database and Disaster Recovery management is restricted to Master Admin role.',
-                icon: 'fa-solid fa-lock text-amber-500',
-                confirmText: 'Understood',
-                isNotification: true
-            });
-        }
-        return;
-    }
-
-    if (typeof window.showSection === 'function') {
-        window.showSection('database-snapshots-view', 'nav-settings');
-    }
-    if (typeof window.setPortalHeader === 'function') {
-        window.setPortalHeader('System Settings', 'Database & Backups');
-    }
-    if (pushHistory && window.location.hash !== '#database-snapshots') {
-        window.location.hash = 'database-snapshots';
-    }
-    window.loadDatabaseSnapshots();
-};
-
-window.closeDatabaseSnapshotsView = function (pushHistory = true) {
-    if (typeof window.showSection === 'function') {
-        window.showSection('settings-security-view', 'nav-settings');
-    }
-    if (typeof window.setPortalHeader === 'function') {
-        window.setPortalHeader('System Settings');
-    }
-    if (pushHistory && window.location.hash === '#database-snapshots') {
-        window.location.hash = 'nav-settings-security';
-    }
-    if (typeof window.scrollToSettingsSection === 'function') {
-        setTimeout(() => window.scrollToSettingsSection('sec-database-panel'), 80);
-    }
-};
-
-window.loadDatabaseSnapshots = async function () {
-    const tableBody = document.getElementById('snapshots-table-body');
-    const emptyState = document.getElementById('snapshots-empty-state');
-    const refreshIcon = document.getElementById('snapshot-refresh-icon');
-
-    if (refreshIcon) refreshIcon.classList.add('fa-spin');
-    if (tableBody) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="py-12 text-center text-slate-400">
-                    <i class="fa-solid fa-circle-notch fa-spin text-lg text-emerald-600 mb-2 block"></i>
-                    Loading database snapshots...
-                </td>
-            </tr>
-        `;
-    }
-
-    try {
-        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-        const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
-        const res = await fetch(`${resolveBackupApiUrl()}?action=list_snapshots&requester_id=${requesterId}`);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-
-        if (data && data.success && Array.isArray(data.snapshots)) {
-            window.currentDatabaseSnapshots = data.snapshots;
-            window.renderDatabaseSnapshotsTable(data.snapshots);
-        } else {
-            throw new Error(data.error || 'Failed to list snapshots');
-        }
-    } catch (err) {
-        console.error('Error loading snapshots:', err);
-        if (tableBody) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="py-8 text-center text-rose-500">
-                        <i class="fa-solid fa-triangle-exclamation mb-1 text-base block"></i>
-                        Could not load snapshots: ${err.message}
-                    </td>
-                </tr>
-            `;
-        }
-    } finally {
-        if (refreshIcon) {
-            setTimeout(() => refreshIcon.classList.remove('fa-spin'), 350);
-        }
-    }
-};
-
-window.renderDatabaseSnapshotsTable = function (snapshots = []) {
-    const tableBody = document.getElementById('snapshots-table-body');
-    const emptyState = document.getElementById('snapshots-empty-state');
-    if (!tableBody) return;
-
-    // Update KPI stats
-    const totalEl = document.getElementById('stat-total-snapshots');
-    const latestEl = document.getElementById('stat-latest-snapshot');
-    const latestTimeEl = document.getElementById('stat-latest-time');
-
-    if (totalEl) totalEl.textContent = snapshots.length;
-    if (latestEl) latestEl.textContent = snapshots[0] ? snapshots[0].filename : 'None yet';
-    if (latestTimeEl) latestTimeEl.textContent = snapshots[0] ? snapshots[0].createdAtFormatted : 'No checkpoints yet';
-
-    if (!snapshots || snapshots.length === 0) {
-        tableBody.innerHTML = '';
-        if (emptyState) emptyState.classList.remove('hidden');
-        return;
-    }
-
-    if (emptyState) emptyState.classList.add('hidden');
-
-    tableBody.innerHTML = snapshots.map(s => {
-        const isAuto = s.type && s.type.includes('Auto');
-        const isBaseline = s.type && s.type.includes('Baseline');
-        const badgeClass = isBaseline 
-            ? 'bg-blue-50 text-blue-800 border-blue-200' 
-            : (isAuto ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200');
-
-        return `
-            <tr class="hover:bg-slate-50/70 transition-colors">
-                <td class="py-3.5 px-4 sm:px-6">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 text-xs">
-                            <i class="fa-solid fa-file-code"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="font-bold text-slate-900 truncate font-mono text-xs" title="${s.filename}">${s.filename}</div>
-                            <div class="text-[11px] text-slate-400">Database: sigma_elms_db</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="py-3.5 px-4 whitespace-nowrap text-slate-700 font-medium">${s.createdAtFormatted || s.createdAt}</td>
-                <td class="py-3.5 px-4 whitespace-nowrap">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeClass}">
-                        ${s.type || 'Manual Snapshot'}
-                    </span>
-                </td>
-                <td class="py-3.5 px-4 whitespace-nowrap text-slate-600 font-mono">${s.sizeHuman || '64 KB'}</td>
-                <td class="py-3.5 px-4 whitespace-nowrap">
-                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Verified
-                    </span>
-                </td>
-                <td class="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                    <div class="inline-flex items-center gap-1.5">
-                        <button type="button" onclick="window.downloadSpecificSnapshot('${s.filename}')" class="px-2.5 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer" title="Download .SQL Snapshot">
-                            <i class="fa-solid fa-download"></i>
-                            <span class="hidden sm:inline">Download</span>
-                        </button>
-                        <button type="button" onclick="window.confirmRestoreFromSnapshot('${s.filename}')" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer" title="Restore this checkpoint">
-                            <i class="fa-solid fa-rotate-left text-amber-700"></i>
-                            <span>Restore</span>
-                        </button>
-                        <button type="button" onclick="window.confirmDeleteSnapshot('${s.filename}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs transition-colors cursor-pointer" title="Delete Snapshot">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-};
-
-window.filterSnapshotsTable = function () {
-    const query = (document.getElementById('snapshot-search-input')?.value || '').trim().toLowerCase();
-    if (!query) {
-        window.renderDatabaseSnapshotsTable(window.currentDatabaseSnapshots);
-        return;
-    }
-    const filtered = window.currentDatabaseSnapshots.filter(s => {
-        return (s.filename && s.filename.toLowerCase().includes(query)) ||
-               (s.createdAt && s.createdAt.toLowerCase().includes(query)) ||
-               (s.type && s.type.toLowerCase().includes(query));
-    });
-    window.renderDatabaseSnapshotsTable(filtered);
-};
-
-window.createDatabaseSnapshot = async function (tag = 'manual') {
-    const btn = document.getElementById('btn-create-snapshot');
-    const originalText = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Creating Backup...</span>';
-    }
-
-    try {
-        const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-        const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
-
-        const formData = new FormData();
-        formData.append('action', 'create_snapshot');
-        formData.append('tag', tag);
-        formData.append('requester_id', requesterId);
-
-        const res = await fetch(resolveBackupApiUrl(), {
+        const url = resolveSectionsApiUrl();
+        const bodyObj = (action === 'save')
+            ? { action: 'save', section: sectionData }
+            : { action: action, ...sectionData };
+        await fetch(url, {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
         });
+    } catch (e) {
+        console.warn('Section DB sync offline or unavailable, cached in localStorage.');
+    }
+};
+window.syncSectionToDB = syncSectionToDB;
+
+const deleteSectionFromDB = async (sectionIdOrName) => {
+    try {
+        const url = resolveSectionsApiUrl();
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', id: sectionIdOrName })
+        });
+    } catch (e) {
+        console.warn('Section DB delete offline or unavailable.');
+    }
+};
+window.deleteSectionFromDB = deleteSectionFromDB;
+
+const fetchSectionsFromDB = async () => {
+    try {
+        const url = resolveSectionsApiUrl();
+        const res = await fetch(url);
+        if (!res.ok) return;
         const data = await res.json();
-
-        if (data && data.success) {
-            await window.loadDatabaseSnapshots();
-            if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
-
-            if (typeof window.showSigmaDialog === 'function') {
-                window.showSigmaDialog({
-                    title: 'Database Backup Created',
-                    desc: `Successfully generated new database backup: "${data.snapshot?.filename || 'Backup'}" (${data.snapshot?.sizeHuman || ''}).`,
-                    icon: 'fa-solid fa-circle-check text-emerald-600',
-                    confirmText: 'Great',
-                    isNotification: true
-                });
-            } else if (window.showToast) {
-                window.showToast('Backup created successfully!');
-            }
-        } else {
-            throw new Error(data.error || 'Failed to create backup');
+        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+            // When database has records, database is authoritative
+            window.saveStoredJson(SECTIONS_STORAGE_KEY, data.records);
+            if (typeof window.renderSectionsTable === 'function') window.renderSectionsTable();
+            if (typeof window.updateSectionMetricCards === 'function') window.updateSectionMetricCards();
         }
     } catch (err) {
-        console.error('Create backup error:', err);
-        if (typeof window.showSigmaDialog === 'function') {
-            window.showSigmaDialog({
-                title: 'Backup Failed',
-                desc: 'Could not create database backup: ' + err.message,
-                icon: 'fa-solid fa-triangle-exclamation text-rose-600',
-                confirmText: 'OK',
-                isNotification: true
-            });
-        } else {
-            alert('Failed to create snapshot: ' + err.message);
-        }
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
+        // Fallback silently if server is offline
     }
 };
+window.fetchSectionsFromDB = fetchSectionsFromDB;
 
-window.downloadSpecificSnapshot = function (filename) {
-    const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-    const requesterId = encodeURIComponent(String(currentUser?.uid || currentUser?.id || '0000000'));
-    const safeName = encodeURIComponent(filename);
-    const url = `${resolveBackupApiUrl()}?action=download&filename=${safeName}&requester_id=${requesterId}`;
+// Initial DB Fetch for sections
+fetchSectionsFromDB();
 
-    const tempLink = document.createElement('a');
-    tempLink.href = url;
-    tempLink.setAttribute('download', filename);
-    document.body.appendChild(tempLink);
-    tempLink.click();
-    document.body.removeChild(tempLink);
-
-    if (window.showToast) {
-        window.showToast(`Downloading snapshot: ${filename}`);
+// --- DATABASE INTEGRATION: SUBJECTS TABLE API ---
+const resolveSubjectsApiUrl = () => {
+    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+        return 'http://localhost/sigma-elms/php/api/subjects.php';
     }
+    return 'php/api/subjects.php';
 };
+window.resolveSubjectsApiUrl = resolveSubjectsApiUrl;
 
-window.confirmRestoreFromSnapshot = function (filename) {
-    const doRestore = async () => {
-        try {
-            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
-
-            const formData = new FormData();
-            formData.append('action', 'restore_snapshot');
-            formData.append('filename', filename);
-            formData.append('requester_id', requesterId);
-
-            const res = await fetch(resolveBackupApiUrl(), {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-
-            if (data && data.success) {
-                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
-                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
-                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
-                await window.loadDatabaseSnapshots();
-
-                if (typeof window.showSigmaDialog === 'function') {
-                    window.showSigmaDialog({
-                        title: 'Database Restored Successfully',
-                        desc: `Database has been rewound to checkpoint "${filename}". All records and tables have been restored.`,
-                        icon: 'fa-solid fa-circle-check text-emerald-600',
-                        confirmText: 'Done',
-                        isNotification: true
-                    });
-                } else if (window.showToast) {
-                    window.showToast('Database restored successfully!');
-                }
-            } else {
-                throw new Error(data.error || 'Restore failed');
-            }
-        } catch (err) {
-            console.error('Restore error:', err);
-            if (typeof window.showSigmaDialog === 'function') {
-                window.showSigmaDialog({
-                    title: 'Restoration Failed',
-                    desc: 'Could not restore from this snapshot: ' + err.message,
-                    icon: 'fa-solid fa-triangle-exclamation text-rose-600',
-                    confirmText: 'OK',
-                    isNotification: true
-                });
-            } else {
-                alert('Restore failed: ' + err.message);
-            }
-        }
-    };
-
-    if (typeof window.showSigmaDialog === 'function') {
-        window.showSigmaDialog({
-            title: 'Confirm Database Restoration',
-            desc: `Are you sure you want to restore the system to "${filename}"? Current MySQL records will be replaced with this snapshot.`,
-            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
-            confirmText: 'Yes, Restore Now',
-            cancelText: 'Cancel',
-            onConfirm: doRestore
+const syncSubjectToDB = async (subjectData, action = 'save') => {
+    try {
+        const url = resolveSubjectsApiUrl();
+        const bodyObj = (action === 'save')
+            ? { action: 'save', subject: subjectData }
+            : { action: action, ...subjectData };
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
         });
-    } else if (confirm(`Restore database to ${filename}? Current records will be replaced.`)) {
-        doRestore();
+    } catch (e) {
+        console.warn('Subject DB sync offline or unavailable, cached in localStorage.');
     }
 };
+window.syncSubjectToDB = syncSubjectToDB;
 
-window.confirmDeleteSnapshot = function (filename) {
-    const doDelete = async () => {
-        try {
-            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
-
-            const formData = new FormData();
-            formData.append('action', 'delete_snapshot');
-            formData.append('filename', filename);
-            formData.append('requester_id', requesterId);
-
-            const res = await fetch(resolveBackupApiUrl(), {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-
-            if (data && data.success) {
-                await window.loadDatabaseSnapshots();
-                if (window.showToast) {
-                    window.showToast(`Snapshot "${filename}" deleted.`);
-                }
-            } else {
-                throw new Error(data.error || 'Failed to delete snapshot');
-            }
-        } catch (err) {
-            console.error('Delete error:', err);
-            alert('Could not delete snapshot: ' + err.message);
-        }
-    };
-
-    if (typeof window.showSigmaDialog === 'function') {
-        window.showSigmaDialog({
-            title: 'Delete Database Snapshot',
-            desc: `Are you sure you want to permanently delete snapshot "${filename}" from server storage?`,
-            icon: 'fa-solid fa-trash text-rose-500',
-            confirmText: 'Delete Snapshot',
-            cancelText: 'Cancel',
-            onConfirm: doDelete
+const deleteSubjectFromDB = async (subjectCodeOrId) => {
+    try {
+        const url = resolveSubjectsApiUrl();
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', code: subjectCodeOrId })
         });
-    } else if (confirm(`Delete snapshot ${filename}?`)) {
-        doDelete();
+    } catch (e) {
+        console.warn('Subject DB delete offline or unavailable.');
     }
 };
+window.deleteSubjectFromDB = deleteSubjectFromDB;
 
-window.handleExternalSnapshotUpload = function (input) {
-    const file = input && input.files && input.files[0];
-    if (!file) return;
-
-    const performUploadRestore = async () => {
-        try {
-            const currentUser = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : null;
-            const requesterId = String(currentUser?.uid || currentUser?.id || '0000000');
-
-            const formData = new FormData();
-            formData.append('action', 'restore');
-            formData.append('backup_file', file);
-            formData.append('requester_id', requesterId);
-
-            const res = await fetch(resolveBackupApiUrl(), {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-
-            if (data && data.success) {
-                if (typeof window.refreshDatabaseHealthStats === 'function') window.refreshDatabaseHealthStats();
-                if (typeof fetchSchoolYearsFromDB === 'function') fetchSchoolYearsFromDB();
-                if (typeof fetchUsersFromDB === 'function') fetchUsersFromDB();
-                await window.loadDatabaseSnapshots();
-
-                if (typeof window.showSigmaDialog === 'function') {
-                    window.showSigmaDialog({
-                        title: 'Database Restored from File',
-                        desc: `Successfully restored database tables from uploaded file "${file.name}".`,
-                        icon: 'fa-solid fa-circle-check text-emerald-600',
-                        confirmText: 'Great',
-                        isNotification: true
-                    });
-                }
-            } else {
-                throw new Error(data.error || 'Restore failed');
-            }
-        } catch (err) {
-            console.error('File restore error:', err);
-            alert('Database restore failed: ' + err.message);
-        } finally {
-            input.value = '';
+const fetchSubjectsFromDB = async () => {
+    try {
+        const url = resolveSubjectsApiUrl();
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+            const subjKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
+            window.saveStoredJson(subjKey, data.records);
+            if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
+            if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
         }
-    };
-
-    if (typeof window.showSigmaDialog === 'function') {
-        window.showSigmaDialog({
-            title: 'Restore Database from File',
-            desc: `Are you sure you want to restore the database using "${file.name}"? Current database tables will be replaced.`,
-            icon: 'fa-solid fa-triangle-exclamation text-amber-500',
-            confirmText: 'Yes, Restore Database',
-            cancelText: 'Cancel',
-            onConfirm: performUploadRestore
-        });
-    } else if (confirm(`Restore database using ${file.name}?`)) {
-        performUploadRestore();
+    } catch (err) {
+        // Fallback silently if server is offline
     }
 };
+window.fetchSubjectsFromDB = fetchSubjectsFromDB;
 
-
+// Initial DB Fetch for subjects
+fetchSubjectsFromDB();
 
 window.resetSchoolYearData = function () {
     localStorage.removeItem('sigma_sy_zero_reset_v4');
@@ -11345,6 +10757,9 @@ window.handleSectionNext = function () {
                         let sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
                         sections = sections.filter(s => String(s.id || s.name) !== String(draft.id || draft.name));
                         saveStoredJson(SECTIONS_STORAGE_KEY, sections);
+                        if (typeof window.deleteSectionFromDB === 'function') {
+                            window.deleteSectionFromDB(draft.id || draft.name);
+                        }
                         window.detectedMatchingDraft = null;
                         if (typeof window.renderSectionsTable === 'function') {
                             window.renderSectionsTable();
@@ -11622,6 +11037,9 @@ window.deleteSection = function (sectionNameToDelete = null) {
             const sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
             const newSections = sections.filter(s => String(s.id) !== String(targetId) && String(s.name) !== String(targetName));
             saveStoredJson(SECTIONS_STORAGE_KEY, newSections);
+            if (typeof window.deleteSectionFromDB === 'function') {
+                window.deleteSectionFromDB(targetId || targetName);
+            }
 
             window.toggleSectionOverlay(false);
             if (typeof renderSectionsTable === 'function') {
@@ -11740,8 +11158,27 @@ window.editSection = function (id) {
 window.currentAdminClassroomSection = null;
 window.currentAdminClassroomTab = 'topics';
 
+const resetAdminClassroomScroll = () => {
+    try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch (_) {
+        window.scrollTo(0, 0);
+    }
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const adminMain = document.getElementById('admin-main');
+    if (adminMain) adminMain.scrollTop = 0;
+    const layoutWrapper = document.getElementById('layout-wrapper');
+    if (layoutWrapper) layoutWrapper.scrollTop = 0;
+    if (typeof window.sigmaResetScrollToTop === 'function') {
+        window.sigmaResetScrollToTop();
+    }
+};
+window.resetAdminClassroomScroll = resetAdminClassroomScroll;
+
 window.viewSection = function (sectionIdOrName, passedSubject, initialTab) {
     if (!sectionIdOrName) return;
+    resetAdminClassroomScroll();
     const sections = (typeof getStoredJson === 'function') ? getStoredJson(SECTIONS_STORAGE_KEY, []) : [];
     let sec = null;
     if (passedSubject) {
@@ -11759,14 +11196,23 @@ window.viewSection = function (sectionIdOrName, passedSubject, initialTab) {
     const subjectName = passedSubject || (sec ? (sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '') : '');
 
     window.showAdminClassroom(sectionName, subjectName, initialTab || 'room', sec);
+    resetAdminClassroomScroll();
 };
 
 window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'room', preResolvedSec = null) {
     if (!sectionName) return;
+    resetAdminClassroomScroll();
     const sections = (typeof getStoredJson === 'function') ? getStoredJson(SECTIONS_STORAGE_KEY, []) : [];
+    let cleanSubjectName = subjectName ? String(subjectName).trim() : '';
+    if (cleanSubjectName && cleanSubjectName.includes('-')) {
+        const unhyphenated = cleanSubjectName.replace(/[-_]+/g, ' ');
+        const catalogNames = ['Empowerment Technologies', 'Computer Programming 1', 'Web Development 1', 'Statistics & Probability', 'General Mathematics', 'Oral Communication', 'Earth and Life Science', 'Contemporary Philippine Arts', '21st Century Literature', 'General Physics 1'];
+        const matchCat = catalogNames.find(c => c.toLowerCase() === unhyphenated.toLowerCase());
+        cleanSubjectName = matchCat || unhyphenated;
+    }
     let sec = preResolvedSec || null;
-    if (!sec && subjectName) {
-        const normSubj = String(subjectName).toLowerCase().trim();
+    if (!sec && cleanSubjectName) {
+        const normSubj = cleanSubjectName.toLowerCase().trim();
         const normSec = String(sectionName).toLowerCase().trim();
         sec = sections.find(s => (String(s.name || '').toLowerCase().trim() === normSec || String(s.id) === String(sectionName)) && String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').toLowerCase().trim() === normSubj);
     }
@@ -11778,7 +11224,24 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
     }
 
     const effectiveSection = sec ? (sec.name || sec.sectionName || sec.id) : sectionName;
-    const effectiveSubject = subjectName || (sec ? (sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '') : '') || 'Computer Programming 1';
+    const rawEffectiveSubject = cleanSubjectName || (sec ? (sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '') : '') || 'Computer Programming 1';
+    const effectiveSubject = (typeof window.ClassroomRoom?.formatSubjectTitle === 'function') ? window.ClassroomRoom.formatSubjectTitle(rawEffectiveSubject) : rawEffectiveSubject.replace(/[-_]+/g, ' ');
+
+    const rawTeachers = (Array.isArray(sec?.teachers) && sec.teachers.length > 0)
+        ? sec.teachers
+        : (sec?.teacher ? [{ name: sec.teacher, role: sec.role || 'Teacher', isPrimary: true }] : []);
+
+    const rawAssigned = (Array.isArray(sec?.students) && sec.students.length > 0)
+        ? sec.students
+        : (typeof window.getUnifiedSectionStudents === 'function' ? window.getUnifiedSectionStudents(effectiveSection, effectiveSubject) : []);
+
+    const assignedStudents = (Array.isArray(rawAssigned) ? rawAssigned : []).map(st => {
+        const formattedName = (typeof window.formatStudentLastFirstMiddle === 'function')
+            ? window.formatStudentLastFirstMiddle(st)
+            : (typeof st === 'string' ? st : (st.name || st.fullName || ''));
+        if (typeof st === 'string') return { name: formattedName, fullName: formattedName };
+        return { ...st, name: formattedName, fullName: formattedName, displayName: formattedName };
+    }).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
     window.currentAdminClassroomSection = {
         id: sec?.id || '',
@@ -11786,9 +11249,9 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
         subject: effectiveSubject,
         room: sec?.room || 'Room 302',
         schedule: sec?.schedule || 'Mon–Fri • 09:00 AM – 10:30 AM',
-        teacher: sec?.teacher || (sec?.teachers && sec?.teachers[0] ? sec?.teachers[0].name : 'Maria Santos Ramos'),
-        teachers: sec?.teachers || (sec?.teacher ? [{ name: sec.teacher, role: sec.role || 'Teacher', isPrimary: true }] : []),
-        students: sec?.students || [],
+        teacher: sec?.teacher || (rawTeachers[0] ? (rawTeachers[0].name || rawTeachers[0]) : 'Teacher'),
+        teachers: rawTeachers,
+        students: assignedStudents,
         gradeLevel: sec?.gradeLevel || sec?.grade || 'Grade 11',
         strand: sec?.strand || 'ICT'
     };
@@ -11796,6 +11259,11 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
     window.currentClassroomSectionName = effectiveSection;
     window.currentClassroomSubject = effectiveSubject;
     window.currentClassroomKey = `${effectiveSection}::${effectiveSubject}`;
+
+    try {
+        localStorage.setItem('sigma-active-classroom-section', effectiveSection);
+        if (effectiveSubject) localStorage.setItem('sigma-active-classroom-subject', effectiveSubject);
+    } catch (_) {}
 
     // 1. Render Hero Banner using shared ClassroomRoom module
     const bannerWrapper = document.getElementById('admin-classroom-banner-wrapper');
@@ -11818,6 +11286,11 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
         window.SigmaAnnouncements.renderFeed('admin-room-announcements-feed', 'all', effectiveSection, effectiveSubject);
     }
 
+    // 2c. Update comment toggle switch state
+    if (typeof window.applyClassroomSettingsUI === 'function') {
+        window.applyClassroomSettingsUI();
+    }
+
     // 3. Render Members tab
     const membersContainer = document.getElementById('detail-section-members');
     if (membersContainer && typeof window.renderRoomMembersTabContent === 'function') {
@@ -11832,24 +11305,32 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
     }
 
     // 4. Show section
+    resetAdminClassroomScroll();
     window.showSection('classroom-detail-view', 'nav-school-sections');
+    resetAdminClassroomScroll();
     const headerTitle = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
     if (headerTitle) {
         headerTitle.textContent = 'School Management';
     }
 
     // 5. Switch to active tab and update URL hash
-    const roomTabs = ['topics', 'room', 'members'];
+    const roomTabs = ['room', 'attendance', 'topics', 'members'];
     const safeTab = roomTabs.includes(initialTab) ? initialTab : 'room';
     window.switchAdminClassDetailTab(safeTab, true);
     const hash = `#classroom:${encodeURIComponent(effectiveSection)}:${encodeURIComponent(effectiveSubject)}:${safeTab}`;
     if (window.location.hash !== hash) {
         history.pushState({ type: 'classroom', section: effectiveSection, subject: effectiveSubject, tab: safeTab }, '', hash);
     }
+    resetAdminClassroomScroll();
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => resetAdminClassroomScroll());
+    }
+    setTimeout(resetAdminClassroomScroll, 30);
+    setTimeout(resetAdminClassroomScroll, 80);
 };
 
 window.switchAdminClassDetailTab = function (tabName, skipHash = false) {
-    const roomTabs = ['topics', 'room', 'members'];
+    const roomTabs = ['room', 'attendance', 'topics', 'members'];
     if (!roomTabs.includes(tabName)) tabName = 'room';
     window.currentAdminClassroomTab = tabName;
     roomTabs.forEach(t => {
@@ -11858,7 +11339,31 @@ window.switchAdminClassDetailTab = function (tabName, skipHash = false) {
         if (btn) btn.classList.toggle('active', t === tabName);
         if (sec) sec.classList.toggle('hidden', t !== tabName);
     });
-    if (tabName === 'topics') window.renderAdminRoomTopicsPanel?.();
+
+    if (tabName === 'attendance') {
+        if (typeof window.renderClassroomAttendanceTab === 'function') {
+            window.renderClassroomAttendanceTab(true);
+        }
+    } else if (tabName === 'topics') {
+        window.renderAdminRoomTopicsPanel?.();
+    } else if (tabName === 'members') {
+        const membersContainer = document.getElementById('detail-section-members');
+        if (membersContainer && typeof window.renderRoomMembersTabContent === 'function') {
+            const current = window.currentAdminClassroomSection || {};
+            membersContainer.innerHTML = window.renderRoomMembersTabContent({
+                teacherName: current.teacher,
+                teachers: current.teachers,
+                students: current.students,
+                section: current.name || window.currentClassroomSectionName,
+                subject: current.subject || window.currentClassroomSubject,
+                role: 'admin'
+            });
+        }
+    } else if (tabName === 'room') {
+        if (typeof window.applyClassroomSettingsUI === 'function') {
+            window.applyClassroomSettingsUI();
+        }
+    }
     window.syncRoomQuarterSwitch?.();
 
     if (!skipHash && window.currentAdminClassroomSection) {
@@ -11866,6 +11371,23 @@ window.switchAdminClassDetailTab = function (tabName, skipHash = false) {
         history.replaceState({ type: 'classroom', section: window.currentAdminClassroomSection.name, subject: window.currentAdminClassroomSection.subject, tab: tabName }, '', hash);
     }
 };
+
+window.openAdminClassroomComposer = function () {
+    const sec = window.currentClassroomSectionName || (window.currentAdminClassroomSection ? window.currentAdminClassroomSection.name : '');
+    const subj = window.currentClassroomSubject || (window.currentAdminClassroomSection ? window.currentAdminClassroomSection.subject : '');
+    if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.openComposer === 'function') {
+        window.SigmaAnnouncements.openComposer(null, sec, subj);
+    } else if (typeof window.openComposerModal === 'function') {
+        window.openComposerModal(null, sec, subj);
+    }
+};
+window.openClassroomComposer = window.openClassroomComposer || window.openAdminClassroomComposer;
+
+window.renderAdminRoomSubmissions = function () {
+    const slot = document.getElementById('admin-room-submissions-panel-slot');
+    if (slot) slot.innerHTML = '';
+};
+
 
 window.renderAdminRoomTopicsPanel = function () {
     const mount = document.getElementById('room-topics-mount');
@@ -11903,9 +11425,251 @@ window.renderAdminRoomTopicsPanel = function () {
 };
 window.renderRoomTopicsPanel = window.renderAdminRoomTopicsPanel;
 
-window.openAdminClassroomGradebook = function () {
-    if (typeof window.switchTab === 'function') window.switchTab('nav-school-grades');
+// ─── Admin Classroom Grades Modal (Displays in-room quick grades popup matching Teacher Room) ───────────
+window.openAdminClassroomGradesModal = function (classroomId) {
+    let section = window.currentClassroomSectionName || (window.currentAdminClassroomSection ? window.currentAdminClassroomSection.name : '');
+    let subject = window.currentClassroomSubject || (window.currentAdminClassroomSection ? window.currentAdminClassroomSection.subject : '');
+
+    if (!section || !subject) {
+        const hash = (window.location.hash || '').replace(/^#/, '');
+        if (hash.startsWith('classroom:')) {
+            const parts = hash.split(':');
+            if (parts[1]) section = decodeURIComponent(parts[1]);
+            if (parts[2] && parts[2] !== 'room' && parts[2] !== 'attendance' && parts[2] !== 'members' && parts[2] !== 'topics') {
+                subject = decodeURIComponent(parts[2]);
+            }
+        }
+    }
+    if (!section) section = localStorage.getItem('sigma-active-classroom-section') || '';
+    if (!subject) subject = localStorage.getItem('sigma-active-classroom-subject') || '';
+
+    if (!subject || !section) {
+        try {
+            const bannerSubj = document.querySelector('#admin-classroom-banner-wrapper h1, #admin-classroom-banner-wrapper .classroom-banner-title');
+            if (bannerSubj && bannerSubj.textContent) subject = bannerSubj.textContent.trim();
+            const bannerSec = document.querySelector('#admin-classroom-banner-wrapper .classroom-banner-section-badge');
+            if (bannerSec && bannerSec.textContent) section = bannerSec.textContent.trim();
+        } catch (_) {}
+    }
+
+    const subjectName = subject || 'Subject Grades';
+    const sectionName = section || 'Grade 11 - Section';
+
+    // 1. Instant non-blocking student resolution
+    let students = [];
+    if (window.currentAdminClassroomSection && Array.isArray(window.currentAdminClassroomSection.students) && window.currentAdminClassroomSection.students.length) {
+        students = window.currentAdminClassroomSection.students;
+    }
+    if (!students.length && typeof window.getUnifiedSectionStudents === 'function') {
+        students = window.getUnifiedSectionStudents(sectionName, subjectName) || [];
+    }
+    if (!students.length) {
+        try {
+            const allAdminStudents = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-students', []) : [];
+            students = allAdminStudents.filter(s => s && (s.section === sectionName || s.sectionName === sectionName));
+        } catch (_) {}
+    }
+
+    // 2. High-performance grade resolution connected to Final Grades
+    const dash = '<span class="text-black-fade font-normal select-none" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
+
+    const fmtScore = (v) => {
+        if (typeof v === 'number' && !isNaN(v) && v > 0) {
+            return v % 1 === 0 ? String(v) : v.toFixed(1);
+        }
+        if (v && v !== '-' && v !== '--') return String(v);
+        return dash;
+    };
+
+    const studentRows = students.map((std, idx) => {
+        const sId = std.id || std.uid || std.lrn || std.studentId || `STD-${idx + 1}`;
+        const sName = std.name || `${std.firstName || ''} ${std.lastName || ''}`.trim() || 'Student';
+
+        // Resolve quarter values from student record or calculations
+        let q1Val = typeof std.q1 === 'number' ? std.q1 : (std.term1Val || std.q1Val || null);
+        let q2Val = typeof std.q2 === 'number' ? std.q2 : (std.term2Val || std.q2Val || null);
+        let q3Val = typeof std.q3 === 'number' ? std.q3 : (std.term3Val || std.q3Val || null);
+        let q4Val = typeof std.q4 === 'number' ? std.q4 : (std.term4Val || std.q4Val || null);
+        let overallVal = typeof std.overall === 'number' ? std.overall : (std.overallVal || std.finalGrade || null);
+
+        const validQs = [q1Val, q2Val, q3Val, q4Val]
+            .map(v => (typeof v === 'number' ? v : parseFloat(v)))
+            .filter(v => !isNaN(v) && v > 0);
+
+        let finalNum = null;
+        if (typeof overallVal === 'number' && !isNaN(overallVal) && overallVal > 0) {
+            finalNum = overallVal;
+        } else if (validQs.length > 0) {
+            finalNum = validQs.reduce((a, b) => a + b, 0) / validQs.length;
+        }
+
+        return {
+            rawStudent: std,
+            id: sId,
+            name: sName,
+            q1: fmtScore(q1Val),
+            q2: fmtScore(q2Val),
+            q3: fmtScore(q3Val),
+            q4: fmtScore(q4Val),
+            overall: fmtScore(finalNum),
+            finalNum: finalNum
+        };
+    });
+
+    // 3. Connect Class Average and Passing Rate directly to Final Grades
+    const gradedStudents = studentRows.filter(s => typeof s.finalNum === 'number' && !isNaN(s.finalNum) && s.finalNum > 0);
+    let classAverage = '-';
+    let passRate = '-';
+
+    if (gradedStudents.length > 0) {
+        const sumFinalGrades = gradedStudents.reduce((acc, s) => acc + s.finalNum, 0);
+        const avgFinalGrade = sumFinalGrades / gradedStudents.length;
+        classAverage = `${avgFinalGrade % 1 === 0 ? avgFinalGrade : avgFinalGrade.toFixed(1)}%`;
+
+        const passedStudentsCount = gradedStudents.filter(s => s.finalNum >= 75).length;
+        const passPercentage = Math.round((passedStudentsCount / gradedStudents.length) * 100);
+        passRate = `${passPercentage}%`;
+    }
+
+    let existingModal = document.getElementById('admin-classroom-grades-modal-overlay');
+    if (existingModal) existingModal.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'admin-classroom-grades-modal-overlay';
+    overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-3 sm:p-6 font-[\'Inter\']';
+    overlay.style.zIndex = '99999';
+
+    overlay.innerHTML = `
+        <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden font-['Inter'] rounded-2xl sm:rounded-3xl shadow-2xl" style="height: auto; max-height: min(740px, calc(100dvh - 24px)); max-width: 860px;" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 font-['Inter']">
+                <div class="min-w-0">
+                    <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">${escapeHtml(subjectName)}</h2>
+                    <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)} (${studentRows.length} ${studentRows.length === 1 ? 'student' : 'students'})</p>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-3.5 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1 custom-scrollbar">
+                <!-- Quick Stats Row (2 Columns, Shared Green Background & White Text) -->
+                <div class="grid grid-cols-2 gap-2.5 sm:gap-4 font-['Inter']">
+                    <div class="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-[#15803d] text-white flex flex-col shadow-xs font-['Inter']">
+                        <span class="text-[11px] sm:text-xs font-semibold text-white/90 font-['Inter']">Class Average</span>
+                        <span class="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-['Inter'] leading-tight">${classAverage}</span>
+                    </div>
+                    <div class="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-[#15803d] text-white flex flex-col shadow-xs font-['Inter']">
+                        <span class="text-[11px] sm:text-xs font-semibold text-white/90 font-['Inter']">Passing Rate</span>
+                        <span class="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-['Inter'] leading-tight">${passRate}</span>
+                    </div>
+                </div>
+
+                <!-- Students Grades Table -->
+                <div class="border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-[#15803d] text-white select-none">
+                                    <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q1</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q2</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q3</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q4</th>
+                                    <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-16 sm:w-24 text-[11px] sm:text-xs" style="border-right: none !important;">Final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-grades-modal-tbody" class="divide-y divide-slate-100">
+                                ${studentRows.map(std => {
+                                    const studentObj = (std.rawStudent && typeof std.rawStudent === 'object')
+                                        ? { ...std.rawStudent, id: std.id, name: std.name }
+                                        : { id: std.id, name: std.name };
+                                    const avatarHtml = (typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(studentObj, 'sm'))
+                                        || `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`;
+
+                                    return `
+                                    <tr class="hover:bg-slate-50/80 transition-colors teacher-grade-row" data-search="${escapeHtml((std.name + ' ' + std.id).toLowerCase())}">
+                                        <td class="px-3 sm:px-4 py-2 sm:py-3 align-middle">
+                                            <div class="flex items-center gap-2 sm:gap-2.5">
+                                                <div class="shrink-0 flex items-center justify-center classroom-grades-avatar-wrap">
+                                                    ${avatarHtml}
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="font-bold text-slate-900 text-[11.5px] sm:text-xs truncate leading-snug font-['Inter']">${escapeHtml(std.name)}</p>
+                                                    <p class="text-[9.5px] sm:text-[10px] text-black-fade font-medium mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(std.id)}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q1}</td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q2}</td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q3}</td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q4}</td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-black gb-summary-green border-l border-slate-200 text-[11.5px] sm:text-xs" style="border-left: 1px solid #e2e8f0 !important;">${std.overall}</td>
+                                    </tr>
+                                `}).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            ${typeof window.renderSigmaModalFooter === 'function' ? window.renderSigmaModalFooter({
+                cancelText: 'Close',
+                cancelOnClick: 'window.closeAdminClassroomGradesModal()',
+                confirmText: 'Open Full Gradebook',
+                mobileConfirmText: 'Open gradebook',
+                confirmOnClick: 'window.closeAdminClassroomGradesModal(); window.openFullAdminGradebookFromModal?.("' + encodeURIComponent(sectionName) + '", "' + encodeURIComponent(subjectName) + '");',
+                confirmIcon: ''
+            }) : `
+            <div class="sigma-modal-footer">
+                <button type="button" class="sigma-btn sigma-btn-white sigma-modal-btn" onclick="window.closeAdminClassroomGradesModal()">
+                    Close
+                </button>
+                <button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" onclick="window.closeAdminClassroomGradesModal(); window.openFullAdminGradebookFromModal?.('${encodeURIComponent(sectionName)}', '${encodeURIComponent(subjectName)}');">
+                    <span class="sigma-desktop-only">Open Full Gradebook</span>
+                    <span class="sigma-mobile-only">Open gradebook</span>
+                </button>
+            </div>
+            `}
+        </div>
+    `;
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) window.closeAdminClassroomGradesModal();
+    });
+
+    const escListener = (e) => {
+        if (e.key === 'Escape') {
+            window.closeAdminClassroomGradesModal();
+            document.removeEventListener('keydown', escListener);
+        }
+    };
+    document.addEventListener('keydown', escListener);
+
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
 };
+
+window.closeAdminClassroomGradesModal = function () {
+    const overlay = document.getElementById('admin-classroom-grades-modal-overlay');
+    if (overlay) overlay.remove();
+    document.body.style.overflow = '';
+};
+
+window.openFullAdminGradebookFromModal = function (encodedSec, encodedSubj) {
+    const sec = encodedSec ? decodeURIComponent(encodedSec) : '';
+    const subj = encodedSubj ? decodeURIComponent(encodedSubj) : '';
+    if (window.sigmaGradesState) {
+        window.sigmaGradesState.activeTab = 'gradebook';
+        if (sec) window.sigmaGradesState.selectedSection = sec;
+        if (subj) window.sigmaGradesState.selectedSubject = subj;
+    }
+    if (typeof window.switchTab === 'function') {
+        window.switchTab('nav-school-grades');
+    }
+};
+
+window.openAdminClassroomGradebook = window.openAdminClassroomGradesModal;
+window.openClassroomGradebook = window.openAdminClassroomGradesModal;
 
 function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
     const subjects = (typeof getStoredJson === 'function') ? getStoredJson(SUBJECTS_STORAGE_KEY, []) : [];
@@ -12113,19 +11877,46 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
         }
     ];
 
-    let q1Topics = [];
-    if (adminSubj && Array.isArray(adminSubj.topics) && adminSubj.topics.length > 0) {
-        const isFakeTopic = (t) => {
-            if (!t) return true;
-            if (typeof window.isFakeSampleTopic === 'function') return window.isFakeSampleTopic(t);
-            return false;
-        };
-        const isFakeMat = (m) => {
-            if (!m) return true;
-            if (typeof window.isFakeSampleMaterial === 'function') return window.isFakeSampleMaterial(m);
-            return false;
-        };
-        q1Topics = adminSubj.topics.filter(t => !isFakeTopic(t)).map((t, idx) => {
+    let _inAdminTopicGather = false;
+    let rawTopicsToProcess = [];
+    if (!_inAdminTopicGather && sectionName && typeof window.getTeacherAllSubjectTopics === 'function') {
+        _inAdminTopicGather = true;
+        try {
+            rawTopicsToProcess = window.getTeacherAllSubjectTopics(effId, sectionName);
+        } catch (e) {
+            console.warn('[getAdminTopicSubjectAndData] Error fetching teacher topics:', e);
+        } finally {
+            _inAdminTopicGather = false;
+        }
+    }
+    if ((!rawTopicsToProcess || rawTopicsToProcess.length === 0) && adminSubj && Array.isArray(adminSubj.topics)) {
+        rawTopicsToProcess = adminSubj.topics;
+    }
+
+    const isFakeTopic = (t) => {
+        if (!t) return true;
+        if (typeof window.isFakeSampleTopic === 'function') return window.isFakeSampleTopic(t);
+        return false;
+    };
+    const isFakeMat = (m) => {
+        if (!m) return true;
+        if (typeof window.isFakeSampleMaterial === 'function') return window.isFakeSampleMaterial(m);
+        return false;
+    };
+    const cleanSecStr = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/[^a-z0-9]/g, '').toLowerCase();
+    const activeSecClean = cleanSecStr(sectionName);
+
+    let q1Topics = (Array.isArray(rawTopicsToProcess) ? rawTopicsToProcess : [])
+        .filter(t => !isFakeTopic(t))
+        .filter(t => {
+            if (!sectionName) return true;
+            const tSec = String(t.section || t.roomSection || '').trim();
+            if (tSec) {
+                return tSec.toLowerCase() === sectionName.toLowerCase() || cleanSecStr(tSec) === activeSecClean;
+            }
+            return true;
+        })
+        .map((t, idx) => {
             const topicTitle = t.title || t.name || `Topic ${idx + 1}`;
             const ass = (Array.isArray(t.assessments) ? t.assessments : []).filter(item => !isFakeMat(item));
             const vids = (Array.isArray(t.videos) ? t.videos : []).filter(item => !isFakeMat(item));
@@ -12148,13 +11939,25 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
                 assessments: ass
             };
         });
-    } else {
-        q1Topics = [];
-    }
 
-    const materials = (adminSubj && Array.isArray(adminSubj.materials))
-        ? adminSubj.materials.filter(m => (typeof window.isFakeSampleMaterial === 'function' ? !window.isFakeSampleMaterial(m) : true))
-        : [];
+    let materials = [];
+    if (typeof window.getTeacherSubjectLearningMaterials === 'function' && sectionName) {
+        try {
+            materials = window.getTeacherSubjectLearningMaterials(effId, sectionName);
+        } catch (_) {}
+    }
+    if ((!materials || materials.length === 0) && adminSubj && Array.isArray(adminSubj.materials)) {
+        materials = adminSubj.materials.filter(m => {
+            if (typeof window.isFakeSampleMaterial === 'function' && window.isFakeSampleMaterial(m)) return false;
+            if (sectionName) {
+                const mSec = String(m.section || m.roomSection || '').trim();
+                if (mSec && mSec.toLowerCase() !== sectionName.toLowerCase() && cleanSecStr(mSec) !== activeSecClean) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
 
     const data = {
         subjectId: effId,
@@ -12183,12 +11986,47 @@ window.getTopicData = function (id) {
 };
 
 window.refreshAdminTopicUIIfVisible = function () {
+    const workstation = document.getElementById('section-topic-content');
+    if (workstation && !workstation.classList.contains('hidden')) {
+        window.renderAdminTopicContentWorkstation?.();
+        return;
+    }
     const classroom = document.getElementById('classroom-detail-view');
     const topics = document.getElementById('detail-section-topics');
     if (classroom && topics && !classroom.classList.contains('hidden') && !topics.classList.contains('hidden')) {
         window.renderAdminRoomTopicsPanel?.();
     }
 };
+
+window.openAdminAddTopicForm = function () {
+    window.closeManageCurriculumHub?.();
+    const current = window.currentAdminClassroomSection || {};
+    const sectionName = current.name || window.currentClassroomSectionName || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || localStorage.getItem('sigma-active-classroom-section') || '';
+    const subjectName = current.subject || window.currentClassroomSubject || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '') || localStorage.getItem('sigma-active-classroom-subject') || '';
+    let subjectId = (typeof window.resolveSubjectTopicId === 'function')
+        ? window.resolveSubjectTopicId(subjectName, subjectName)
+        : '';
+    if (!subjectId) subjectId = subjectName || 'card-prog1';
+
+    const refreshTopics = function () {
+        window.closeManageCurriculumHub?.();
+        if (typeof window.renderAdminRoomTopicsPanel === 'function') {
+            window.renderAdminRoomTopicsPanel();
+        }
+    };
+
+    window.openSharedTopicsAndMaterials?.({
+        subjectId: subjectId,
+        section: sectionName,
+        selectedSection: sectionName,
+        onBack: refreshTopics,
+        onExit: refreshTopics,
+        onSave: refreshTopics
+    });
+};
+if (!window.openTeacherAddTopicForm) {
+    window.openTeacherAddTopicForm = window.openAdminAddTopicForm;
+}
 
 window.switchToAdminTopicPage = function (subjectId, sectionName, subjectName, pushHistory = true, targetSection = null) {
     const page = document.getElementById('section-topic-detail');
@@ -12713,12 +12551,16 @@ window.renderAdminTopicContentWorkstation = function () {
         : '';
     const detailRailTop = (assessmentRailDetail && isViewSubmission) ? baseRailHtml : '';
 
-    const railHtml = `
+    const legacyRailHtml = `
         <div class="space-y-6 font-['Inter'] ${railModeClass === 'topic-rail-score-follow' ? 'h-full' : ''}">
             ${isDetailView ? detailRailTop : baseRailHtml}
             ${tasksHtml}
         </div>
     `;
+
+    const railHtml = !isDetailView && typeof window.renderSharedTeacherTopicSelectionRail === 'function'
+        ? `<div class="admin-topic-selection-desktop">${window.renderSharedTeacherTopicSelectionRail(data, { ...currentTopicState, selectedSection: effSection })}</div><div class="admin-topic-selection-mobile">${legacyRailHtml}</div>`
+        : legacyRailHtml;
 
     page.innerHTML = `
         <div class="topic-page-shell student-topic-page-shell teacher-topic-page-shell font-['Inter']">
@@ -12813,11 +12655,7 @@ window.openAdminClassroomAssessments = function () {
     }
 };
 
-window.openAdminClassroomComposer = function () {
-    if (typeof window.openComposerModal === 'function') {
-        window.openComposerModal();
-    }
-};
+// window.openAdminClassroomComposer is defined above with active section and subject context
 
 window.closeViewSectionModal = function () {
     const overlay = document.getElementById('view-section-overlay');
@@ -13149,6 +12987,9 @@ window.handleSectionSave = function (status, createAnother = false) {
                 }
 
                 saveStoredJson(SECTIONS_STORAGE_KEY, sections);
+                if (typeof window.syncSectionToDB === 'function') {
+                    window.syncSectionToDB(sectionData);
+                }
 
                 // Update connected student and teacher user accounts with their assigned section and subject
                 try {
@@ -15947,6 +15788,7 @@ window.publishSubjectPrompt = function (code) {
         () => {
             sub.status = 'Published';
             saveStoredJson(SUBJECTS_STORAGE_KEY, subjects);
+            if (typeof window.syncSubjectToDB === 'function') window.syncSubjectToDB(sub);
             renderSubjectsTable();
             if (window.showToast) window.showToast(`"${sub.name || sub.code}" published successfully`);
         }
@@ -15965,6 +15807,7 @@ window.unpublishSubjectPrompt = function (code) {
         () => {
             sub.status = 'Draft';
             saveStoredJson(SUBJECTS_STORAGE_KEY, subjects);
+            if (typeof window.syncSubjectToDB === 'function') window.syncSubjectToDB(sub);
             renderSubjectsTable();
             if (window.showToast) window.showToast(`"${sub.name || sub.code}" moved back to draft`);
         }
@@ -16189,6 +16032,18 @@ window.addEventListener('sigma:subjectUpdated', function () {
     if (typeof updateSubjectMetricCards === 'function') {
         updateSubjectMetricCards();
     }
+    window.refreshAdminTopicUIIfVisible?.();
+});
+
+window.addEventListener('sigma:release-config-updated', function () {
+    window.refreshAdminTopicUIIfVisible?.();
+});
+
+window.addEventListener('storage', function (e) {
+    if (!e || !e.key) return;
+    if (e.key === 'sigma-admin-subjects' || e.key.startsWith('sigma_') || e.key.includes('release')) {
+        window.refreshAdminTopicUIIfVisible?.();
+    }
 });
 
 
@@ -16382,6 +16237,9 @@ window.toggleUserOverlay = function (show, userData = null) {
             if (titleEl) titleEl.textContent = 'Edit Information';
             if (saveLabel) saveLabel.textContent = 'Save Changes';
 
+            const emailGenBtn = document.getElementById('edit-user-email-generate-btn');
+            if (emailGenBtn) emailGenBtn.classList.add('hidden');
+
             if (segHeader) segHeader.classList.add('hidden');
             if (statusBadge) {
                 const isInactive = userData.status === 'Inactive' || userData.status === 'Deactivated' || userData.status === 'Locked';
@@ -16423,6 +16281,8 @@ window.toggleUserOverlay = function (show, userData = null) {
             window.originalEditingUserState = null;
             if (titleEl) titleEl.textContent = 'Create User Account';
             if (saveLabel) saveLabel.textContent = 'Create Account';
+            const emailGenBtn = document.getElementById('edit-user-email-generate-btn');
+            if (emailGenBtn) emailGenBtn.classList.remove('hidden');
             if (segHeader) segHeader.classList.remove('hidden');
             if (statusBadge) statusBadge.classList.add('hidden');
 
@@ -16899,16 +16759,16 @@ window.validateUserStep2 = function () {
         dupWarningEl.innerHTML = '';
     }
 
-    let hasChanges = true;
     if (window.isEditingUser) {
-        if (window.originalEditingUserState && typeof window.getUserFormStateSnapshot === 'function') {
-            hasChanges = window.getUserFormStateSnapshot() !== window.originalEditingUserState;
-        } else {
-            hasChanges = false;
+        if (saveBtn) {
+            saveBtn.disabled = !Boolean(emailPrefix);
+            saveBtn.style.opacity = Boolean(emailPrefix) ? '1' : '0.5';
+            saveBtn.style.cursor = Boolean(emailPrefix) ? 'pointer' : 'not-allowed';
         }
+        return Boolean(emailPrefix);
     }
 
-    const canSave = Boolean(emailPrefix) && hasChanges;
+    const canSave = Boolean(emailPrefix);
 
     if (saveBtn) {
         saveBtn.disabled = !canSave;
@@ -16992,7 +16852,6 @@ window.handleUserSave = function () {
                 settingsBranding: true,
                 settingsApi: true,
                 settingsSecurity: true,
-                databaseManage: isNewMaster,
                 bio: true,
                 achievements: isNewMaster || role === 'Student',
                 subjects: isNewMaster || role === 'Teacher' || role === 'Student',
@@ -17078,6 +16937,11 @@ window.handleUserSave = function () {
                     if (typeof window.syncUserProfileData === 'function') {
                         window.syncUserProfileData();
                     }
+                }
+                window.dispatchEvent(new CustomEvent('sigma:user-profile-updated', { detail: updatedUser }));
+                const settingsContainer = document.querySelector('[data-settings-container]');
+                if (settingsContainer && typeof window.renderSettingsView === 'function') {
+                    window.renderSettingsView(settingsContainer.id, 'account');
                 }
             }
 
@@ -17429,6 +17293,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             rawHash = (window.location.hash || '').replace(/^#/, '').trim();
         }
+
+        // Direct handling for classroom routes to preserve spaces in section & subject names
+        if (rawHash.startsWith('classroom:') || rawHash.startsWith('#classroom:')) {
+            const cleanHash = rawHash.replace(/^#/, '');
+            const parts = cleanHash.split(':');
+            const secName = decodeURIComponent(parts[1] || '').trim();
+            let subjName = decodeURIComponent(parts[2] || '').trim();
+            if (subjName && subjName.includes('-')) {
+                const unhyphenated = subjName.replace(/[-_]+/g, ' ');
+                const catalogNames = ['Empowerment Technologies', 'Computer Programming 1', 'Web Development 1', 'Statistics & Probability', 'General Mathematics', 'Oral Communication', 'Earth and Life Science', 'Contemporary Philippine Arts', '21st Century Literature', 'General Physics 1'];
+                const matchCat = catalogNames.find(c => c.toLowerCase() === unhyphenated.toLowerCase());
+                subjName = matchCat || unhyphenated;
+            }
+            const tabName = parts[3] || 'room';
+            if (typeof window.showAdminClassroom === 'function') {
+                window.showAdminClassroom(secName, subjName, tabName);
+                window.resetAdminClassroomScroll?.();
+            }
+            return;
+        }
+
         const hash = rawHash.replace(/[_\s]+/g, '-');
 
         // Close floating overlays when navigating
@@ -17458,18 +17343,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!hash || hash === 'nav-dashboard' || hash === 'dashboard' || hash === 'home') {
             window.switchTab('nav-dashboard', true);
-            return;
-        }
-
-        if (hash.startsWith('classroom:') || hash.startsWith('#classroom:')) {
-            const cleanHash = hash.replace(/^#/, '');
-            const parts = cleanHash.split(':');
-            const secName = decodeURIComponent(parts[1] || '');
-            const subjName = decodeURIComponent(parts[2] || '');
-            const tabName = parts[3] || 'topics';
-            if (typeof window.showAdminClassroom === 'function') {
-                window.showAdminClassroom(secName, subjName, tabName);
-            }
             return;
         }
 
@@ -17543,10 +17416,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const tab = hash.replace('account-settings-', '').replace('account-settings', '').replace('user-settings', '') || 'notifications';
             if (typeof window.navigateToAccountSettings === 'function') {
                 window.navigateToAccountSettings(tab);
-            }
-        } else if (hash === 'database-snapshots' || hash === 'snapshots' || hash === 'database-backups') {
-            if (typeof window.openDatabaseSnapshotsView === 'function') {
-                window.openDatabaseSnapshotsView(false);
             }
         } else if (hash === 'settings' || hash.startsWith('settings-') || hash === 'system-settings') {
             const tab = hash.replace('settings-', '').replace('settings', '') || 'security';
@@ -17954,6 +17823,60 @@ document.addEventListener('DOMContentLoaded', () => {
             const previewImg = document.getElementById('welcome-panel-preview');
             if (previewImg) previewImg.src = e.newValue;
         }
+        if (!e || !e.key) return;
+        if (['sigma-announcements-data', 'sigma-classroom-custom-themes-v1', 'sigma-attendance-records-v1', 'sigma-room-comment-mode-v1', 'sigma-admin-subjects'].includes(e.key)) {
+            if (window.currentAdminClassroomSection) {
+                const sec = window.currentAdminClassroomSection.name;
+                const subj = window.currentAdminClassroomSection.subject;
+                if (e.key === 'sigma-announcements-data' && window.SigmaAnnouncements?.renderFeed) {
+                    window.SigmaAnnouncements.renderFeed('admin-room-announcements-feed', 'all', sec, subj);
+                }
+                if (e.key === 'sigma-classroom-custom-themes-v1' && window.ClassroomRoom?.renderBanner) {
+                    const bannerWrapper = document.getElementById('admin-classroom-banner-wrapper');
+                    if (bannerWrapper) {
+                        bannerWrapper.innerHTML = window.ClassroomRoom.renderBanner({
+                            subject: subj,
+                            section: sec,
+                            role: 'admin'
+                        });
+                    }
+                }
+                if (e.key === 'sigma-attendance-records-v1' && typeof window.renderClassroomAttendanceTab === 'function') {
+                    window.renderClassroomAttendanceTab(false);
+                }
+                if (e.key === 'sigma-room-comment-mode-v1' && typeof window.applyClassroomSettingsUI === 'function') {
+                    window.applyClassroomSettingsUI();
+                }
+                if (e.key === 'sigma-admin-subjects' && window.currentAdminClassroomTab === 'topics' && typeof window.renderAdminRoomTopicsPanel === 'function') {
+                    window.renderAdminRoomTopicsPanel();
+                }
+            }
+        }
+    });
+
+    window.addEventListener('sigma:attendance-changed', () => {
+        if (typeof window.renderClassroomAttendanceTab === 'function') {
+            window.renderClassroomAttendanceTab(false);
+        }
+    });
+
+    window.addEventListener('classroom-banner-theme-changed', () => {
+        if (window.currentAdminClassroomSection && window.ClassroomRoom?.renderBanner) {
+            const bannerWrapper = document.getElementById('admin-classroom-banner-wrapper');
+            if (bannerWrapper) {
+                bannerWrapper.innerHTML = window.ClassroomRoom.renderBanner({
+                    subject: window.currentAdminClassroomSection.subject,
+                    section: window.currentAdminClassroomSection.name,
+                    role: 'admin'
+                });
+            }
+        }
+    });
+
+    window.addEventListener('sigma:classroom-comment-mode-changed', () => {
+        if (typeof window.applyClassroomSettingsUI === 'function') {
+            window.applyClassroomSettingsUI();
+        }
     });
 
     window.addEventListener('sigma:welcome-panel-changed', (e) => {
@@ -18127,11 +18050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMaterialLimits();
 
     // --- AI API KEY VAULT LOGIC ---
-    // Perform a one-time reset as requested by user
-    localStorage.removeItem('sigma-api-vault-pass');
-    localStorage.removeItem('sigma-api-keys');
-
-    let INSTITUTIONAL_PASS = "";
+    let INSTITUTIONAL_PASS = localStorage.getItem('sigma-api-vault-pass') || "INTERFACE-ADMIN-2026";
     let currentVaultId = null;
     let originalKeys = {};
 
@@ -19207,12 +19126,6 @@ window.applyCurrentAdminPermissions = function () {
     if (canSeeMaintenance && typeof window.updateMaintenanceAccessControls === 'function') {
         window.updateMaintenanceAccessControls();
     }
-
-    // 7b. Database & Backups Management panel visibility
-    // Only Master Admin role or accounts explicitly granted databaseManage can access Database & Backups
-    const canDatabaseManage = isMaster || (perms.databaseManage === true);
-    toggleElement('sec-database-panel', canDatabaseManage);
-    toggleElement('nav-settings-database', canDatabaseManage);
 
     // 8. Active View Protection: Redirect if on a forbidden section
     const activeSection = document.querySelector('.dynamic-section:not(.hidden)');

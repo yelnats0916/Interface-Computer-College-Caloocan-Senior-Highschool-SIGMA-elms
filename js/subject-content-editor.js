@@ -24,6 +24,10 @@
 
     function sharedContentSubjectId(explicitId) {
         if (explicitId) return explicitId;
+        if (window.currentAdminClassroomSection && (window.currentAdminClassroomSection.subject || window.currentAdminClassroomSection.name)) {
+            const subj = window.currentAdminClassroomSection.subject || window.currentAdminClassroomSection.name;
+            if (subj) return subj;
+        }
         if (typeof window.currentClassroomSubject !== 'undefined' && window.currentClassroomSubject) {
             return window.currentClassroomSubject;
         }
@@ -38,12 +42,27 @@
         if (stateId) return stateId;
         const hash = String(window.location.hash || '').replace(/^#/, '');
         const card = hash.match(/^(?:topic-card|topic|topics):([^:]+)/);
-        return card ? card[1] : '';
+        if (card) return card[1];
+        if (hash.startsWith('classroom:')) {
+            const parts = hash.split(':');
+            if (parts[2] && parts[2] !== 'room' && parts[2] !== 'attendance' && parts[2] !== 'members' && parts[2] !== 'topics') {
+                return decodeURIComponent(parts[2]);
+            }
+        }
+        return '';
     }
 
     function sharedContentSection(options) {
         const opts = options || {};
         if (opts.section || opts.selectedSection) return opts.section || opts.selectedSection;
+        const hash = String(window.location.hash || '');
+        if (hash.startsWith('#classroom:')) {
+            const parts = hash.replace(/^#classroom:/, '').split(':');
+            if (parts[0]) return decodeURIComponent(parts[0]);
+        }
+        if (window.currentAdminClassroomSection && (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section)) {
+            return window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section;
+        }
         if (typeof window.currentClassroomSectionName !== 'undefined' && window.currentClassroomSectionName) {
             return window.currentClassroomSectionName;
         }
@@ -56,15 +75,18 @@
         if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState && window.currentTopicState.selectedSection) {
             return window.currentTopicState.selectedSection;
         }
-        if (typeof window.resolveTeacherActiveSection === 'function') {
-            const resolved = window.resolveTeacherActiveSection();
-            if (resolved) return resolved;
+        if (typeof window.isCurrentEditorTeacher === 'function' && window.isCurrentEditorTeacher()) {
+            if (typeof window.resolveTeacherActiveSection === 'function') {
+                const resolved = window.resolveTeacherActiveSection();
+                if (resolved) return resolved;
+            }
+            try {
+                return localStorage.getItem('sigma-active-classroom-section') || '';
+            } catch (err) {
+                return '';
+            }
         }
-        try {
-            return localStorage.getItem('sigma-active-classroom-section') || '';
-        } catch (err) {
-            return '';
-        }
+        return '';
     }
 
     window.openSharedTopicsAndMaterials = function (options) {

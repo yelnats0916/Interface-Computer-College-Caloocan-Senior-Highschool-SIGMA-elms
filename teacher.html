@@ -11,18 +11,18 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/teacher.css?v=20261003railscroll3">
-    <link rel="stylesheet" href="css/topbar.css?v=20261001noglow1">
-    <link rel="stylesheet" href="css/forms.css?v=20261002savegradegreen1">
+    <link rel="stylesheet" href="css/teacher.css?v=20261004mobileGradesFullscreen1">
+    <link rel="stylesheet" href="css/topbar.css?v=20261003badgefont1">
+    <link rel="stylesheet" href="css/forms.css?v=20261003btnhighlight1">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261003railhover1">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261002attpal9">
-    <link rel="stylesheet" href="css/settings-view.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/topic-detail.css?v=20261003normalscroll1">
-    <link rel="stylesheet" href="css/sidebar.css?v=20260928studentgradespanel1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261004desktopTemplatesLayout1">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261004fullscreenedit5">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
+    <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/sigma-analytics.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/mobile.css?v=20261003gradecounterfade1">
+    <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003emptystate2">
+    <link rel="stylesheet" href="css/mobile.css?v=20261004visibleModalViewport1">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
@@ -52,9 +52,11 @@
             display: none !important;
         }
     </style>
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261003opaqueshimmer1">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
+    <script src="js/page-skeleton.js?v=20261003panelskeleton1"></script>
 
     <header id="teacher-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
@@ -142,7 +144,7 @@
                         class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline">
                         <i class="fa-solid fa-bell text-[21px] text-black transition-colors"></i>
                         <span id="noti-badge"
-                            class="absolute top-2 right-2 w-2 h-2 bg-[#FFD000] rounded-full border-2 border-white pointer-events-none"></span>
+                            class="hidden"></span>
                     </button>
                 </div>
 
@@ -404,7 +406,9 @@
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
                     <h3 class="notif-header__title mobile-panel-title">SIGMA Analytics</h3>
+                    <button type="button" class="sigma-analyze-button" title="Analyze Now" aria-label="Analyze Now"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
                 </div>
+                <button type="button" class="sigma-panel-see-all">See all</button>
             </div>
             <div id="analytics-dropdown-cards" class="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
                 <!-- Hydrated dynamically -->
@@ -528,7 +532,7 @@
                             <!-- Announcement Composer Trigger -->
                             <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3">
                                 <button id="trigger-announcement-composer" onclick="window.openComposerModal()"
-                                    class="w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                    class="announcement-trigger-input-btn w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
                                     <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
                                     <span class="text-black-fade">What do you want to announce?</span>
                                 </button>
@@ -654,7 +658,7 @@
                                                     <div class="announcement-composer-trigger-card bg-white border border-slate-200 standard-panel-shadow rounded-[22px] p-3 w-full">
                                                         <button type="button"
                                                             onclick="window.openClassroomComposer && window.openClassroomComposer()"
-                                                            class="w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
+                                                            class="announcement-trigger-input-btn w-full h-10 bg-slate-100 hover:bg-slate-200 transition-all rounded-full px-6 text-left text-black-fade text-[13px] font-medium flex items-center gap-3 group cursor-pointer">
                                                             <i class="fa-solid fa-bullhorn text-[12px] icon-black-fade text-black-fade"></i>
                                                             <span class="text-black-fade">What do you want to announce?</span>
                                                         </button>
@@ -703,7 +707,7 @@
                                             <div class="overflow-x-auto">
                                                 <table class="w-full text-left border-collapse">
                                                     <thead>
-                                                        <tr class="bg-[#15803d] border-b border-[#166534] select-none text-white">
+                                                        <tr class="bg-[#15803d] border-b border-[#137638] select-none text-white">
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Student Name</th>
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Status</th>
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] text-right">Action</th>
@@ -1281,25 +1285,30 @@
 
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
-    <script src="js/shared-components.js?v=20261003scorestatus1"></script>
-    <script src="js/topbar.js?v=20260928scrolllock1"></script>
-    <script src="js/sidebar.js?v=20260923calmonthfix1"></script>
-    <script src="js/notifications.js?v=20261003scopednotify2"></script>
+    <script src="js/shared-components.js?v=20261004sharedSelectionRail1"></script>
+    <script src="js/topbar.js?v=20261003breakpointreset1"></script>
+    <script src="js/sidebar.js?v=20261003viewportreset1"></script>
+    <script src="js/notifications.js?v=20261004separateprefs1"></script>
+    <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
+    <script src="js/analytics-unread.js?v=20261003analyticsbadge1"></script>
     <script src="js/calendar.js?v=20260929dateselect1"></script>
     <script src="js/dialog.js?v=20260930scaleaskpanel1"></script>
     <script src="js/profile-view.js?v=20260923accountmenu1"></script>
-    <script src="js/settings-view.js?v=20260923calmonthfix1"></script>
+    <script src="js/settings-view.js?v=20261004recoverychevron1"></script>
+    <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/classroom-room.js?v=20260928hidegradebtn1"></script>
+    <script src="js/classroom-room.js?v=20261004tabAlignExact1"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/announcements.js?v=20261001discardscroll1"></script>
+    <script src="js/announcements.js?v=20261004fixscroll1"></script>
     <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
-    <script src="js/sigma-analytics.js?v=20261003scopedgrading1"></script>
-    <script src="js/subject-content-editor.js?v=20261002sectionsplit1"></script>
-    <script src="js/subject-editor.js?v=20261003sharedmaterialbody1"></script>
+    <script src="js/sigma-analytics.js?v=20261004gradepercent1"></script>
+    <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
+    <script src="js/subject-editor.js?v=20261004desktopTemplatesLayout1"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/teacher.js?v=20261003historysingle1"></script>
+    <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
+    <script src="js/teacher.js?v=20261004sharedSelectionRail1"></script>
+    <script src="js/curriculum-release.js?v=20261004sharedScheduleDetails1" data-initialize-after-dom="true"></script>
 </body>
 </html>

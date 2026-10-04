@@ -503,10 +503,13 @@ require_once __DIR__ . "/includes/topbar.php";
 
                 <!-- ══ CLASSROOM DETAIL ════════════════════════════════ -->
                 <section id="section-classroom-detail" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full standard-panel-shadow">
-                        <div
-                            class="bg-white border-x border-slate-200 min-h-[calc(100vh-var(--shell-offset))] p-0 relative flex flex-col">
-                            <div id="classroom-detail-content"></div>
+                    <div class="classroom-room-container">
+                        <div id="classroom-detail-view" class="classroom-detail-shell">
+                            <!-- Enhanced Header: Shared Classroom Room Banner -->
+                            <div id="student-classroom-banner-wrapper" class="relative mb-0 w-full"></div>
+                            <div id="student-classroom-tabs-wrapper" class="classroom-detail-tabs"></div>
+                            <!-- Tab Contents -->
+                            <div id="class-detail-content" class="classroom-detail-content"></div>
                         </div>
                     </div>
                 </section>

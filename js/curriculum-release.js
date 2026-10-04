@@ -1,5 +1,5 @@
 // ═══ Universal Curriculum Release Module (Shared across Teacher & Admin) ═══
-(function () {
+window.initializeSharedCurriculumRelease = function () {
     const escapeHtml = (typeof window.escapeHtml === 'function') ? window.escapeHtml : (str) => String(str || '').replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[tag] || tag));
     const _escape = escapeHtml;
     const getStoredJson = (typeof window.getStoredJson === 'function') ? window.getStoredJson : (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch(e) { return d; } };
@@ -14,6 +14,45 @@
             return window.getTopicSubject(id);
         }
         return null;
+    }
+    function isSectionMatch(section, cleanSection) {
+        if (!section || !cleanSection) return false;
+        const name = String(section.name || section.sectionName || '').trim().toLowerCase();
+        const id = String(section.id || '').trim().toLowerCase();
+        if (name === cleanSection || id === cleanSection) return true;
+        const normalize = value => value.replace(/^grade\s+\d+\s*[-\u2013\u2014:]\s*/i, '').trim();
+        const normalizedSection = normalize(cleanSection);
+        const normalizedName = normalize(name);
+        if (normalizedSection && normalizedName && normalizedSection === normalizedName) return true;
+        if (normalizedSection && name && (normalizedSection === name || name.includes(normalizedSection) || normalizedSection.includes(name))) return true;
+        if (normalizedName && (normalizedName === cleanSection || cleanSection.includes(normalizedName) || normalizedName.includes(cleanSection))) return true;
+        return !!name && (name.includes(cleanSection) || cleanSection.includes(name));
+    }
+    function isSubjectMatch(subject, candidates) {
+        if (!subject || !candidates?.size) return false;
+        const value = String(subject).trim().toLowerCase();
+        if (candidates.has(value)) return true;
+        const normalize = text => String(text).replace(/^(gen-|subj-|card-)/i, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const normalized = normalize(value);
+        return Array.from(candidates).some(candidate => {
+            const clean = normalize(candidate);
+            return normalized === clean || (normalized && clean && (normalized.includes(clean) || clean.includes(normalized)));
+        });
+    }
+    function getSubjectCandidateStrings(subjectId) {
+        const candidates = new Set();
+        if (!subjectId) return candidates;
+        candidates.add(String(subjectId).trim().toLowerCase());
+        const subject = getTopicSubject(String(subjectId));
+        ['name', 'title', 'text', 'code', 'id'].forEach(key => {
+            if (subject?.[key]) candidates.add(String(subject[key]).trim().toLowerCase());
+        });
+        const subjects = getStoredJson('sigma-admin-subjects', []);
+        if (Array.isArray(subjects)) subjects.forEach(item => {
+            const values = [item.id, item.name || item.title, item.code].filter(Boolean).map(value => String(value).trim().toLowerCase());
+            if (values.some(value => candidates.has(value))) values.forEach(value => candidates.add(value));
+        });
+        return candidates;
     }
     const isTeacherUser = () => {
         try {
@@ -572,7 +611,9 @@
         window._learningMaterialsPickerWorkingIds = [];
         window._assessmentsPickerWorkingIds = [];
 
-        if (document.getElementById('teacher-topics-materials-picker-overlay')) {
+        if (document.querySelector('#teacher-release-assessments-overlay .release-workspace')) {
+            window.openTeacherReleaseAssessmentsModal?.(true);
+        } else if (document.getElementById('teacher-topics-materials-picker-overlay')) {
             window.openTeacherTopicsAndMaterialsPickerModal?.();
         } else if (document.getElementById('teacher-topic-picker-overlay')) {
             window.openTeacherTopicPickerModal?.();
@@ -7283,6 +7324,7 @@
                 if (itemTitle) {
                     const studentNotif = {
                         id: 'notif_rel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        type: category === 'learning' ? 'material-released' : 'assessment-released',
                         senderName: senderTeacherName,
                         assignmentScope: { section, subjectId, subjectName: window.getTopicSubject?.(subjectId)?.name || window.getSubjectById?.(subjectId)?.name || subjectId },
                         senderInitials: senderTeacherInitials,
@@ -9197,7 +9239,7 @@
                         const isTopicExpanded = !isExplicitlyCollapsed;
 
                         return `
-                            <div class="topic-group-block">
+                            <div class="topic-group-block" data-topic-order="${originalIdx}">
                                 <!-- Topic Header Banner with Release Panel & Chevron Dropdown -->
                                 <div class="px-3 sm:px-4 py-2 sm:py-2.5 bg-black/[0.03] border-b border-black/10 flex items-center justify-between cursor-pointer select-none hover:bg-black/[0.05] transition-colors"
                                     onclick="window.toggleReleaseTopicCollapse('${topicSafeId}', event)">
@@ -9470,10 +9512,15 @@
         overlay.style.display = '';
         if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
         overlay.classList.add('curriculum-hub-overlay--visible');
+        window.mountTopicsAndMaterialsReleasePicker?.(overlay);
     };
 
     // ── Dedicated Sub-Modal for Topics and Materials Picker ───────────────────
-    window.openTeacherTopicsAndMaterialsPickerModal = function () {
+    window.openTeacherTopicsAndMaterialsPickerModal = function (embedded = false) {
+        if (!embedded && typeof window.mountTopicsAndMaterialsReleasePicker === 'function') {
+            window.openTeacherReleaseAssessmentsModal?.(true);
+            return;
+        }
         const subjectId = (typeof resolveTeacherActiveSubjectId === 'function')
             ? resolveTeacherActiveSubjectId(typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null)
             : ((typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null) || window.currentTopicState?.subjectId || 'card-prog1');
@@ -9672,7 +9719,7 @@
         overlay.onclick = function (e) { e.stopPropagation(); };
 
         if (typeof window.pushModalHistoryState === 'function') {
-            window.pushModalHistoryState('teacher-topics-materials-picker-overlay');
+            if (!embedded) window.pushModalHistoryState('teacher-topics-materials-picker-overlay');
         }
 
         window._topicsAndMaterialsPickerWorking = new Map();
@@ -9732,11 +9779,6 @@
                                 <i class="fa-solid fa-book-open text-[11px]"></i>
                                 <span>Draft <span class="hidden sm:inline">Learning </span>Materials (${unreleasedMaterials.length})</span>
                             </button>
-                            <button type="button" onclick="window.setTopicsAndMaterialsPickerFilter('assessments')" id="unified-filter-assessments"
-                                class="quiz-storage-filter-chip px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 bg-slate-100 text-black-fade hover:text-black hover:bg-slate-200/70" data-filter="assessments">
-                                <i class="fa-solid fa-clipboard-check text-[11px]"></i>
-                                <span>Draft Assessments (${unreleasedAssessments.length})</span>
-                            </button>
                         </div>
                         <div class="flex items-center gap-2 text-xs font-semibold shrink-0">
                             <button type="button" onclick="window.selectAllTopicsAndMaterialsPickerItems()" class="px-2 py-1 rounded-lg text-[#15803d] hover:bg-emerald-50 active:bg-emerald-100 transition-colors cursor-pointer" style="color: #15803d;">Select All</button>
@@ -9756,6 +9798,7 @@
 
                                 return `
                                     <div class="topic-picker-card border border-black/10 rounded-xl overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                                        data-topic-order="${originalIdx}"
                                         data-has-topic="${grp.isTopicUnreleased ? '1' : '0'}"
                                         data-has-learning="${grp.learningMaterials.length > 0 ? '1' : '0'}"
                                         data-has-assessments="${grp.assessments.length > 0 ? '1' : '0'}">
@@ -9874,13 +9917,14 @@
         `;
 
         document.body.appendChild(overlay);
-        if (prevModal && prevModal !== overlay) {
+        if (!embedded && prevModal && prevModal !== overlay) {
             prevModal.classList.add('hidden');
         }
         window.syncTopicsAndMaterialsPickerSubmitBtn?.();
     };
 
     window.setTopicsAndMaterialsPickerFilter = function (filter) {
+        if (window.filterTopicsAndMaterialsReleaseWorkspace?.(filter)) return;
         const chips = document.querySelectorAll('#unified-picker-filter-chips .quiz-storage-filter-chip');
         chips.forEach(chip => {
             if (chip.dataset.filter === filter) {
@@ -9956,7 +10000,7 @@
 
     window.selectAllTopicsAndMaterialsPickerItems = function () {
         if (!window._topicsAndMaterialsPickerWorking) window._topicsAndMaterialsPickerWorking = new Map();
-        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"]').forEach(el => {
+        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"], #topics-materials-release-workspace input[name="picker-unified-item"]').forEach(el => {
             const itemRow = el.closest('.picker-item-row') || el.closest('.topic-release-row') || el.closest('.topic-picker-header');
             const card = el.closest('.topic-picker-card');
             if ((!itemRow || itemRow.style.display !== 'none') && (!card || card.style.display !== 'none')) {
@@ -9972,7 +10016,7 @@
 
     window.deselectAllTopicsAndMaterialsPickerItems = function () {
         if (!window._topicsAndMaterialsPickerWorking) window._topicsAndMaterialsPickerWorking = new Map();
-        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"]').forEach(el => {
+        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"], #topics-materials-release-workspace input[name="picker-unified-item"]').forEach(el => {
             el.checked = false;
             const cat = el.dataset.category;
             const id = String(el.dataset.id || el.value);
@@ -10501,4 +10545,10 @@
             btn.style.display = name.includes(q) ? '' : 'none';
         });
     };
-})();
+};
+
+if (document.currentScript?.dataset.initializeAfterDom === 'true' && document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initializeSharedCurriculumRelease, { once: true });
+} else {
+    window.initializeSharedCurriculumRelease();
+}

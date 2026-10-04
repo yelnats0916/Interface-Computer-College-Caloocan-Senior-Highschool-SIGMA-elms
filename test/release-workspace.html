@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Release Workspace Regression Fixture</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <button type="button" onclick="window.openTeacherReleaseAssessmentsModal()">Open release workspace</button>
+    <script src="../js/shared-components.js"></script>
+    <script>
+        window.currentTopicState = { subjectId: 'workspace-fixture', selectedSection: 'Fixture Section' };
+        window.getStoredJson = (key, fallback) => key === 'sigma-admin-sections'
+            ? [{ name: 'Fixture Section', grade: 'Grade 11', room: '101', schoolYear: '2026-2027' }]
+            : fallback;
+        window.getTopicData = () => ({ q1Topics: [
+            { id: 'topic-first', title: 'First Released Topic', quarter: 'q1' },
+            { id: 'topic-a', title: 'Released Topic', quarter: 'q1' },
+            { id: 'topic-b', title: 'Draft Topic', quarter: 'q1' },
+            { id: 'topic-draft-only', title: 'Unreleased Topic', quarter: 'q1' },
+            { id: 'topic-c', title: 'Second Quarter Topic', quarter: 'q2' }
+        ] });
+        window.getTopicSubject = () => ({ id: 'workspace-fixture', name: 'Fixture Subject' });
+    </script>
+    <script src="../js/release-workspace.js"></script>
+    <script src="../js/curriculum-release.js"></script>
+    <script>
+        window.getSubjectReleaseQuarters = () => ['q1', 'q2'];
+        let fixtureQuarter = 'q1';
+        window.getActiveReleaseQuarter = () => fixtureQuarter;
+        window.setActiveReleaseQuarter = value => { fixtureQuarter = value; };
+        window.getTopicReleaseConfig = () => ({ releasedTopicIds: ['topic-first', 'topic-a'], hiddenTopicIds: [], topicSchedules: {}, topicReleaseDates: {} });
+        window.getLearningMaterialReleaseConfig = () => ({ releasedMaterialIds: ['lesson-a', 'lesson-d'], hiddenMaterialIds: [], materialSchedules: {}, materialReleaseDates: {} });
+        window.getAssessmentReleaseConfig = () => ({ releasedMaterialIds: ['quiz-a'], hiddenMaterialIds: [], materialSchedules: {}, materialReleaseDates: {} });
+        window.getTeacherSubjectLearningMaterials = () => [
+            { id: 'lesson-b', title: 'Draft Lesson', topicTitle: 'Released Topic', type: 'Lesson', quarter: 'q1' },
+            { id: 'lesson-a', title: 'Released Lesson', topicTitle: 'Released Topic', type: 'Lesson', quarter: 'q1' },
+            { id: 'lesson-c', title: 'New Topic Lesson', topicTitle: 'Draft Topic', type: 'Lesson', quarter: 'q1' },
+            { id: 'lesson-d', title: 'Previously Released Lesson', topicTitle: 'Draft Topic', type: 'Lesson', quarter: 'q1' },
+            { id: 'lesson-long', title: 'A long learning material title that wraps across several lines on mobile screens', topicTitle: 'Unreleased Topic', type: 'Lesson', quarter: 'q1' }
+        ];
+        window.getTeacherSubjectAssessments = () => [
+            { id: 'quiz-a', title: 'Released Quiz', topicTitle: 'Released Topic', type: 'Quiz', quarter: 'q1' },
+            { id: 'task-b', title: 'Draft Task', topicTitle: 'Draft Topic', type: 'Task', quarter: 'q1' }
+        ];
+    </script>
+</body>
+</html>

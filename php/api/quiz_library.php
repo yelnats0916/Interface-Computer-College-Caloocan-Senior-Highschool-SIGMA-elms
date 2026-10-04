@@ -3,229 +3,290 @@
  * SIGMA ELMS — Quiz Library REST API
  * 
  * Endpoint: /php/api/quiz_library.php
- *
  * Methods:
- *   GET    — list quizzes for the current user
- *   POST   — create or update a quiz
- *   DELETE — soft-delete a quiz by ?id=...
- *
- * Auth: session-based ($_SESSION['user_id'] set by login)
- * DB:   uses PDO from /config/database.php
- *
- * Capstone 2 integration guide:
- *   1. Make sure sessions are started in your main entry (login.php / index.php)
- *   2. Run database/quiz_library.sql to create the quizzes table
- *   3. In JS, set window.SIGMA_USE_SERVER_STORAGE = true  (see shared-components.js)
+ *   GET    — List all non-deleted quizzes
+ *   POST   — Create or update a quiz
+ *   DELETE — Soft-delete a quiz by ?id=...
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// ── Bootstrap ─────────────────────────────────────────────────
-$rootDir = dirname(__DIR__, 2); // sigma-elms root
-require_once $rootDir . '/config/database.php'; // provides $pdo
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-// Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if ($requestMethod === 'OPTIONS') {
+    http_response_code(204);
+    exit;
 }
 
-// ── Auth helper ───────────────────────────────────────────────
-function requireAuth(): int {
-    if (empty($_SESSION['user_id'])) {
-        http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Unauthenticated']);
-        exit;
-    }
-    return (int) $_SESSION['user_id'];
+$rootDir = dirname(__DIR__, 2);
+require_once $rootDir . '/config/database.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
 }
 
 function jsonResponse(array $data, int $code = 200): void {
     http_response_code($code);
-    echo json_encode($data);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// ── No DB available — graceful fallback ──────────────────────
 if (!$pdo) {
-    jsonResponse(['success' => false, 'error' => 'Database unavailable', 'quizzes' => []], 503);
+    jsonResponse(['success' => false, 'error' => 'Database connection unavailable', 'quizzes' => []], 503);
 }
 
-// ── Router ────────────────────────────────────────────────────
-$method = $_SERVER['REQUEST_METHOD'];
+// Auto-ensure quizzes table exists
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `quizzes` (
+        `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+        `code` VARCHAR(50) NULL,
+        `title` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `status` VARCHAR(30) NOT NULL DEFAULT 'published',
+        `author_id` VARCHAR(50) NULL,
+        `author_name` VARCHAR(100) NULL,
+        `author_role` VARCHAR(50) NULL,
+        `questions` LONGTEXT NULL,
+        `total_questions` INT UNSIGNED NOT NULL DEFAULT 0,
+        `total_points` INT UNSIGNED NOT NULL DEFAULT 0,
+        `time_limit` INT UNSIGNED NULL DEFAULT 0,
+        `icon` VARCHAR(50) NULL,
+        `color` VARCHAR(30) NULL,
+        `is_ai` TINYINT(1) NOT NULL DEFAULT 0,
+        `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX `idx_quiz_code` (`code`),
+        INDEX `idx_quiz_status` (`status`),
+        INDEX `idx_quiz_author` (`author_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+} catch (Exception $e) {
+    // Ignore if table exists or permission issue
+}
+
+function decodeQuestions($raw) {
+    if (empty($raw)) return [];
+    if (is_array($raw)) return $raw;
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function quizRowToRecord(array $row): array {
+    $questions = decodeQuestions($row['questions'] ?? null);
+    $totalQuestions = (int) ($row['total_questions'] ?? count($questions));
+    $totalPoints = (int) ($row['total_points'] ?? 0);
+    if ($totalPoints === 0 && !empty($questions)) {
+        foreach ($questions as $q) {
+            $totalPoints += (int) ($q['points'] ?? 10);
+        }
+    }
+
+    return [
+        'id'             => (string) $row['id'],
+        'code'           => (string) ($row['code'] ?? ''),
+        'title'          => (string) $row['title'],
+        'description'    => (string) ($row['description'] ?? ''),
+        'desc'           => (string) ($row['description'] ?? ''),
+        'status'         => (string) ($row['status'] ?? 'published'),
+        'isDraft'        => strtolower($row['status'] ?? '') === 'draft',
+        'authorId'       => (string) ($row['author_id'] ?? ''),
+        'authorName'     => (string) ($row['author_name'] ?? 'Admin'),
+        'authorRole'     => (string) ($row['author_role'] ?? 'Admin'),
+        'questions'      => $questions,
+        'questionsCount' => $totalQuestions,
+        'totalQuestions' => $totalQuestions,
+        'totalPoints'    => $totalPoints,
+        'timeLimit'      => (int) ($row['time_limit'] ?? 0),
+        'icon'           => (string) ($row['icon'] ?? ''),
+        'color'          => (string) ($row['color'] ?? ''),
+        'isAi'           => (bool) ($row['is_ai'] ?? 0),
+        'createdAt'      => $row['created_at'] ?? null,
+        'updatedAt'      => $row['updated_at'] ?? null
+    ];
+}
+
+$method = $requestMethod;
 
 try {
-    match ($method) {
-        'GET'    => handleGet($pdo),
-        'POST'   => handlePost($pdo),
-        'DELETE' => handleDelete($pdo),
-        default  => jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405),
-    };
-} catch (Throwable $e) {
-    error_log('[quiz_library.php] ' . $e->getMessage());
-    jsonResponse(['success' => false, 'error' => 'Server error'], 500);
-}
+    if ($method === 'GET') {
+        $quizId = trim($_GET['id'] ?? '');
+        $status = trim($_GET['status'] ?? '');
+        $search = trim($_GET['q'] ?? $_GET['search'] ?? '');
 
-// ══════════════════════════════════════════════════════════════
-// GET  — fetch quizzes
-// ══════════════════════════════════════════════════════════════
-function handleGet(PDO $pdo): void {
-    $userId = requireAuth();
-
-    // Optional filters
-    $status = $_GET['status'] ?? null;   // 'draft' | 'published' | null = all
-    $search = $_GET['q']      ?? null;
-
-    $sql = 'SELECT
-                q.*,
-                u.name   AS author_name,
-                u.role   AS author_role,
-                u.school_id AS author_school_id
-            FROM quizzes q
-            JOIN users u ON u.id = q.author_id
-            WHERE q.deleted_at IS NULL';
-    $params = [];
-
-    // Drafts are private — only the owner can see them
-    if ($status === 'draft') {
-        $sql .= ' AND q.status = :status AND q.author_id = :uid';
-        $params[':status'] = 'draft';
-        $params[':uid']    = $userId;
-    } elseif ($status === 'published') {
-        $sql .= ' AND q.status = :status';
-        $params[':status'] = 'published';
-    } else {
-        // All: published from anyone + own drafts
-        $sql .= ' AND (q.status = \'published\' OR (q.status = \'draft\' AND q.author_id = :uid))';
-        $params[':uid'] = $userId;
-    }
-
-    if ($search) {
-        $sql .= ' AND (q.title LIKE :search OR q.description LIKE :search)';
-        $params[':search'] = '%' . $search . '%';
-    }
-
-    $sql .= ' ORDER BY
-                CASE WHEN q.status = \'draft\' AND q.author_id = :uid2 THEN 0 ELSE 1 END,
-                q.updated_at DESC';
-    $params[':uid2'] = $userId;
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll();
-
-    // Decode JSON questions column for each row
-    $quizzes = array_map(function (array $row) {
-        $row['questions']    = !empty($row['questions']) ? json_decode($row['questions'], true) : [];
-        $row['isDraft']      = ($row['status'] === 'draft');
-        $row['isAi']         = (bool) $row['is_ai'];
-        $row['totalPoints']  = (int)  $row['total_points'];
-        $row['totalQuestions'] = (int) $row['total_questions'];
-        // Normalise timestamps for JS
-        $row['createdAt']    = $row['created_at'];
-        $row['updatedAt']    = $row['updated_at'];
-        return $row;
-    }, $rows);
-
-    jsonResponse(['success' => true, 'quizzes' => $quizzes]);
-}
-
-// ══════════════════════════════════════════════════════════════
-// POST  — create or update a quiz
-// ══════════════════════════════════════════════════════════════
-function handlePost(PDO $pdo): void {
-    $userId = requireAuth();
-    $body   = json_decode(file_get_contents('php://input'), true);
-
-    if (!$body) {
-        jsonResponse(['success' => false, 'error' => 'Invalid JSON body'], 400);
-    }
-
-    // Fetch user info for author fields
-    $userStmt = $pdo->prepare('SELECT name, role FROM users WHERE id = :id');
-    $userStmt->execute([':id' => $userId]);
-    $user = $userStmt->fetch();
-
-    $id            = $body['id']          ?? null;
-    $title         = trim($body['title']  ?? 'Untitled Quiz');
-    $description   = $body['description'] ?? $body['desc'] ?? '';
-    $status        = in_array($body['status'] ?? '', ['draft', 'published']) ? $body['status'] : 'draft';
-    $questions     = json_encode($body['questions'] ?? []);
-    $totalQ        = (int) ($body['totalQuestions'] ?? count($body['questions'] ?? []));
-    $totalPts      = (int) ($body['totalPoints']    ?? ($totalQ * 10));
-    $icon          = $body['icon']  ?? null;
-    $color         = $body['color'] ?? null;
-    $isAi          = (int) !empty($body['isAi'] ?? $body['isAiGenerated'] ?? false);
-
-    if ($id) {
-        // Update — only the owner may update
-        $check = $pdo->prepare('SELECT id FROM quizzes WHERE id = :id AND author_id = :uid AND deleted_at IS NULL');
-        $check->execute([':id' => $id, ':uid' => $userId]);
-        if (!$check->fetch()) {
-            jsonResponse(['success' => false, 'error' => 'Quiz not found or access denied'], 403);
+        if ($quizId !== '') {
+            $stmt = $pdo->prepare("SELECT * FROM `quizzes` WHERE (`id` = :id OR `code` = :code_match) AND `is_deleted` = 0 LIMIT 1");
+            $stmt->execute([':id' => $quizId, ':code_match' => $quizId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                jsonResponse(['success' => false, 'error' => 'Quiz not found'], 404);
+            }
+            jsonResponse(['success' => true, 'quiz' => quizRowToRecord($row)]);
         }
 
-        $stmt = $pdo->prepare('UPDATE quizzes SET
-            title = :title, description = :desc, status = :status,
-            questions = :questions, total_questions = :tq, total_points = :tp,
-            icon = :icon, color = :color, is_ai = :ai,
-            updated_at = NOW()
-            WHERE id = :id');
+        $query = "SELECT * FROM `quizzes` WHERE `is_deleted` = 0";
+        $params = [];
+
+        if ($status !== '') {
+            $query .= " AND `status` = :st";
+            $params[':st'] = $status;
+        }
+
+        if ($search !== '') {
+            $query .= " AND (`title` LIKE :srch OR `code` LIKE :srch OR `description` LIKE :srch)";
+            $params[':srch'] = "%{$search}%";
+        }
+
+        $query .= " ORDER BY `created_at` DESC";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $quizzes = array_map('quizRowToRecord', $rows);
+
+        jsonResponse([
+            'success' => true,
+            'quizzes' => $quizzes,
+            'count'   => count($quizzes)
+        ]);
+    }
+
+    if ($method === 'POST') {
+        $raw = file_get_contents('php://input');
+        $payload = json_decode($raw, true) ?: $_POST;
+
+        $action = $payload['action'] ?? 'save';
+
+        if ($action === 'delete') {
+            $target = trim((string) ($payload['id'] ?? $payload['code'] ?? ''));
+            if (!$target) {
+                jsonResponse(['success' => false, 'error' => 'Missing quiz identifier for deletion'], 400);
+            }
+
+            $stmt = $pdo->prepare("UPDATE `quizzes` SET `is_deleted` = 1, `deleted_at` = NOW() WHERE `id` = :id OR `code` = :code_match");
+            $stmt->execute([':id' => $target, ':code_match' => $target]);
+
+            jsonResponse(['success' => true, 'message' => "Quiz {$target} deleted successfully"]);
+        }
+
+        // Action: SAVE (single quiz)
+        $quiz = $payload['quiz'] ?? $payload;
+        if (!is_array($quiz) || empty($quiz['title'])) {
+            jsonResponse(['success' => false, 'error' => 'Quiz title is required.'], 400);
+        }
+
+        $id = trim((string) ($quiz['id'] ?? ''));
+        if (!$id) {
+            $id = 'quiz-' . time() . '-' . substr(bin2hex(random_bytes(3)), 0, 6);
+        }
+
+        $code = trim((string) ($quiz['code'] ?? ''));
+        if (!$code) {
+            $code = '#QZ-' . substr(preg_replace('/[^0-9]/', '', $id) ?: (string) rand(1000, 9999), -4);
+        }
+
+        $title = trim((string) ($quiz['title'] ?? 'Untitled Quiz'));
+        $description = trim((string) ($quiz['description'] ?? $quiz['desc'] ?? ''));
+        $status = strtolower(trim((string) ($quiz['status'] ?? 'published')));
+        if ($status !== 'draft') $status = 'published';
+
+        $authorId = trim((string) ($quiz['authorId'] ?? $quiz['author_id'] ?? $_SESSION['user_id'] ?? '0000000'));
+        $authorName = trim((string) ($quiz['authorName'] ?? $quiz['author_name'] ?? 'Stanley Garcia'));
+        $authorRole = trim((string) ($quiz['authorRole'] ?? $quiz['author_role'] ?? 'Admin'));
+
+        $questionsArr = $quiz['questions'] ?? [];
+        if (!is_array($questionsArr)) $questionsArr = [];
+        $questionsJson = json_encode($questionsArr);
+
+        $totalQuestions = isset($quiz['totalQuestions']) ? (int) $quiz['totalQuestions'] : count($questionsArr);
+        $totalPoints = isset($quiz['totalPoints']) ? (int) $quiz['totalPoints'] : 0;
+        if ($totalPoints === 0 && !empty($questionsArr)) {
+            foreach ($questionsArr as $q) {
+                $totalPoints += (int) ($q['points'] ?? 10);
+            }
+        }
+
+        $timeLimit = (int) ($quiz['timeLimit'] ?? $quiz['time_limit'] ?? 0);
+        $icon = trim((string) ($quiz['icon'] ?? ''));
+        $color = trim((string) ($quiz['color'] ?? ''));
+        $isAi = (!empty($quiz['isAi']) || !empty($quiz['isAiGenerated']) || !empty($quiz['is_ai']) || (($quiz['source'] ?? '') === 'ai')) ? 1 : 0;
+
+        $upsertSql = "INSERT INTO `quizzes` (
+            `id`, `code`, `title`, `description`, `status`,
+            `author_id`, `author_name`, `author_role`,
+            `questions`, `total_questions`, `total_points`, `time_limit`,
+            `icon`, `color`, `is_ai`, `is_deleted`
+        ) VALUES (
+            :id, :code, :title, :description, :status,
+            :author_id, :author_name, :author_role,
+            :questions, :total_questions, :total_points, :time_limit,
+            :icon, :color, :is_ai, 0
+        ) ON DUPLICATE KEY UPDATE
+            `code`            = VALUES(`code`),
+            `title`           = VALUES(`title`),
+            `description`     = VALUES(`description`),
+            `status`          = VALUES(`status`),
+            `author_id`       = VALUES(`author_id`),
+            `author_name`     = VALUES(`author_name`),
+            `author_role`     = VALUES(`author_role`),
+            `questions`       = VALUES(`questions`),
+            `total_questions` = VALUES(`total_questions`),
+            `total_points`    = VALUES(`total_points`),
+            `time_limit`      = VALUES(`time_limit`),
+            `icon`            = VALUES(`icon`),
+            `color`           = VALUES(`color`),
+            `is_ai`           = VALUES(`is_ai`),
+            `is_deleted`      = 0";
+
+        $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([
-            ':title' => $title, ':desc' => $description, ':status' => $status,
-            ':questions' => $questions, ':tq' => $totalQ, ':tp' => $totalPts,
-            ':icon' => $icon, ':color' => $color, ':ai' => $isAi, ':id' => $id,
+            ':id'              => $id,
+            ':code'            => $code,
+            ':title'           => $title,
+            ':description'     => $description,
+            ':status'          => $status,
+            ':author_id'       => $authorId,
+            ':author_name'     => $authorName,
+            ':author_role'     => $authorRole,
+            ':questions'       => $questionsJson,
+            ':total_questions' => $totalQuestions,
+            ':total_points'    => $totalPoints,
+            ':time_limit'      => $timeLimit,
+            ':icon'            => $icon,
+            ':color'           => $color,
+            ':is_ai'           => $isAi
         ]);
 
-        jsonResponse(['success' => true, 'id' => $id, 'action' => 'updated']);
+        $stmt = $pdo->prepare("SELECT * FROM `quizzes` WHERE `id` = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    } else {
-        // Create — generate UUID v4
-        $newId = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-
-        $stmt = $pdo->prepare('INSERT INTO quizzes
-            (id, title, description, status, author_id, author_name, author_role,
-             questions, total_questions, total_points, icon, color, is_ai, created_at, updated_at)
-            VALUES
-            (:id, :title, :desc, :status, :uid, :aname, :arole,
-             :questions, :tq, :tp, :icon, :color, :ai, NOW(), NOW())');
-        $stmt->execute([
-            ':id' => $newId, ':title' => $title, ':desc' => $description,
-            ':status' => $status, ':uid' => $userId,
-            ':aname' => $user['name'] ?? 'Unknown', ':arole' => $user['role'] ?? 'teacher',
-            ':questions' => $questions, ':tq' => $totalQ, ':tp' => $totalPts,
-            ':icon' => $icon, ':color' => $color, ':ai' => $isAi,
+        jsonResponse([
+            'success' => true,
+            'message' => 'Quiz saved successfully',
+            'quiz'    => $savedRow ? quizRowToRecord($savedRow) : $quiz
         ]);
-
-        jsonResponse(['success' => true, 'id' => $newId, 'action' => 'created'], 201);
-    }
-}
-
-// ══════════════════════════════════════════════════════════════
-// DELETE  — soft-delete a quiz
-// ══════════════════════════════════════════════════════════════
-function handleDelete(PDO $pdo): void {
-    $userId = requireAuth();
-    $id     = $_GET['id'] ?? null;
-
-    if (!$id) {
-        jsonResponse(['success' => false, 'error' => 'Missing ?id'], 400);
     }
 
-    // Only the owner can delete
-    $stmt = $pdo->prepare('UPDATE quizzes SET deleted_at = NOW()
-                           WHERE id = :id AND author_id = :uid AND deleted_at IS NULL');
-    $stmt->execute([':id' => $id, ':uid' => $userId]);
+    if ($method === 'DELETE') {
+        $target = trim((string) ($_GET['id'] ?? ''));
+        if (!$target) {
+            jsonResponse(['success' => false, 'error' => 'Missing ?id parameter'], 400);
+        }
 
-    if ($stmt->rowCount() === 0) {
-        jsonResponse(['success' => false, 'error' => 'Quiz not found or access denied'], 403);
+        $stmt = $pdo->prepare("UPDATE `quizzes` SET `is_deleted` = 1, `deleted_at` = NOW() WHERE `id` = :id OR `code` = :code_match");
+        $stmt->execute([':id' => $target, ':code_match' => $target]);
+
+        jsonResponse(['success' => true, 'message' => "Quiz {$target} deleted successfully"]);
     }
 
-    jsonResponse(['success' => true, 'id' => $id, 'action' => 'deleted']);
+    jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
+} catch (PDOException $e) {
+    jsonResponse(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
+} catch (Exception $e) {
+    jsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
 }

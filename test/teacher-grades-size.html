@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Teacher Grades Desktop Sizing</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <div id="teacher-classroom-grades-modal-overlay" class="fixed inset-0 flex items-center justify-center p-6">
+        <div class="curriculum-hub-panel flex flex-col" style="width:100%;max-width:860px;height:auto;max-height:740px">
+        <header>
+        <button class="teacher-grades-modal-back">Back</button>
+        <h2>Class Grades</h2>
+        </header>
+        <div class="teacher-grades-modal-body">
+        <div class="teacher-grades-modal-table">
+            <div><table class="text-xs"><thead><tr><th class="text-xs">Students</th><th class="text-xs">Q1</th></tr></thead>
+                <tbody><tr><td class="text-xs"><p class="text-xs">Sample Student</p><p class="text-[10px]">12345</p></td><td class="text-xs">90</td></tr></tbody>
+            </table></div>
+        </div>
+        </div>
+        <footer class="sigma-modal-footer"><button class="teacher-grades-modal-close sigma-btn sigma-btn-white">Close</button><button class="sigma-btn sigma-btn-primary">Open Gradebook</button></footer>
+        </div>
+    </div>
+</body>
+</html>

@@ -1831,6 +1831,25 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             '[data-student-absent-panel], ' +
             '#sigma-global-dialog, #sigma-universal-ask-overlay, .sigma-dialog-overlay, .sigma-modal-overlay, .form-overlay, .curriculum-hub-overlay, [data-modal-overlay], [role="dialog"], [aria-modal="true"]'
         );
+        // Legacy dialogs use different z-index values; keep full-screen backdrops above the shell.
+        const backdropCandidates = new Set([
+            ...modalElements,
+            ...document.querySelectorAll('[id*="modal"], [id*="overlay"], [class*="modal-backdrop"]')
+        ]);
+        backdropCandidates.forEach(el => {
+            if (el.id === 'sidebar-overlay' || !isElementVisible(el)) return;
+            const style = getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            if (style.position !== 'fixed' || rect.width < window.innerWidth * 0.9 || rect.height < window.innerHeight * 0.7) return;
+            const layer = Math.max(11000, parseInt(style.zIndex, 10) || 0);
+            const value = String(layer);
+            if (el.style.getPropertyValue('--sigma-modal-layer') !== value) {
+                el.style.setProperty('--sigma-modal-layer', value);
+            }
+            if (!el.classList.contains('sigma-fullscreen-modal-layer')) {
+                el.classList.add('sigma-fullscreen-modal-layer');
+            }
+        });
         modalElements.forEach(el => {
             const isVisible = isElementVisible(el);
             const modalName = el.id || el.getAttribute('data-student-absent-panel') || 'overlay';
@@ -3136,27 +3155,32 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
     });
 })();
 
+const resolveQuizApiUrl = (extra = '') => {
+    const base = (window.location.port && window.location.port !== '80' && window.location.port !== '443')
+        ? 'http://localhost/sigma-elms/php/api/quiz_library.php'
+        : 'php/api/quiz_library.php';
+    return extra ? `${base}${extra}` : base;
+};
+window.resolveQuizApiUrl = resolveQuizApiUrl;
+window.SIGMA_USE_SERVER_STORAGE = true;
+
 /**
  * Fetch quiz library from the PHP REST API (/php/api/quiz_library.php).
  * Only active when window.SIGMA_USE_SERVER_STORAGE === true.
  * Results are stored in window._quizLibraryServerData and automatically
  * merged by getStoredQuizLibrary() on subsequent calls.
- *
- * Call this once after page load (or after login) to prime the cache.
- * The quiz storage UI will re-render after the fetch resolves.
  */
 window.fetchQuizLibraryFromServer = async function () {
     if (!window.SIGMA_USE_SERVER_STORAGE) return;
     try {
-        const res = await fetch('/php/api/quiz_library.php', { credentials: 'same-origin' });
+        const res = await fetch(resolveQuizApiUrl());
         if (!res.ok) {
             console.warn('[SIGMA] Quiz library server fetch HTTP error:', res.status);
             return;
         }
         const data = await res.json();
-        if (data.success && Array.isArray(data.quizzes)) {
+        if (data.success && Array.isArray(data.quizzes) && data.quizzes.length > 0) {
             window._quizLibraryServerData = data.quizzes;
-            // Re-render picker if it is currently visible
             if (typeof window.renderQuizStoragePickerContent === 'function') {
                 window.renderQuizStoragePickerContent();
             }
@@ -3171,22 +3195,18 @@ window.fetchQuizLibraryFromServer = async function () {
 
 /**
  * Save a single quiz object to the server via POST /php/api/quiz_library.php.
- * Only active when window.SIGMA_USE_SERVER_STORAGE === true.
- * Returns the server-assigned id on success, or null on failure.
  */
 window.saveQuizToServer = async function (quizData) {
     if (!window.SIGMA_USE_SERVER_STORAGE) return null;
     try {
-        const res = await fetch('/php/api/quiz_library.php', {
+        const res = await fetch(resolveQuizApiUrl(), {
             method: 'POST',
-            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(quizData)
         });
         if (!res.ok) return null;
         const data = await res.json();
         if (data.success) {
-            // Refresh the in-memory cache
             window.fetchQuizLibraryFromServer();
             return data.id || quizData.id || null;
         }
@@ -3199,16 +3219,13 @@ window.saveQuizToServer = async function (quizData) {
 
 /**
  * Delete a quiz from the server via DELETE /php/api/quiz_library.php?id=...
- * Only active when window.SIGMA_USE_SERVER_STORAGE === true.
  */
 window.deleteQuizFromServer = async function (quizId) {
     if (!window.SIGMA_USE_SERVER_STORAGE) return;
     try {
-        await fetch(`/php/api/quiz_library.php?id=${encodeURIComponent(quizId)}`, {
-            method: 'DELETE',
-            credentials: 'same-origin'
+        await fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
+            method: 'DELETE'
         });
-        // Remove from in-memory cache immediately
         if (Array.isArray(window._quizLibraryServerData)) {
             window._quizLibraryServerData = window._quizLibraryServerData.filter(q => q.id !== quizId);
         }
@@ -3216,6 +3233,9 @@ window.deleteQuizFromServer = async function (quizId) {
         console.warn('[SIGMA] Quiz server delete failed:', e);
     }
 };
+
+// Initial fetch from server
+window.fetchQuizLibraryFromServer();
 
 window.formatPoints = window.formatPoints || function (points) {
     const pts = parseInt(points) || 0;
@@ -4043,6 +4063,73 @@ window.saveStudentQuizFileCopy = function (copy) {
     return savedKey;
 };
 
+window.formatStudentLastFirstMiddle = function formatStudentLastFirstMiddle(student) {
+    if (!student) return '';
+    const allUsers = (typeof window.getStoredJson === 'function')
+        ? window.getStoredJson('sigma-admin-users', window.getStoredJson('sigma-users-list', []))
+        : (function () {
+            try {
+                return JSON.parse(localStorage.getItem('sigma-admin-users')) || JSON.parse(localStorage.getItem('sigma-users-list')) || [];
+            } catch (e) { return []; }
+        })();
+
+    let stObj = typeof student === 'object' ? student : { name: String(student) };
+    let stId = String(stObj.id || stObj.uid || stObj.lrn || '').trim();
+    let rawName = String(stObj.name || stObj.fullName || '').trim();
+
+    let lName = String(stObj.lastName || stObj.lastname || '').trim();
+    let fName = String(stObj.firstName || stObj.firstname || '').trim();
+    let mName = String(stObj.middleName || stObj.middlename || '').trim();
+
+    let matchedUser = null;
+    if (Array.isArray(allUsers) && allUsers.length > 0) {
+        if (stId) {
+            matchedUser = allUsers.find(u => String(u.id || u.uid || u.lrn) === stId);
+        }
+        if (!matchedUser && rawName) {
+            matchedUser = (typeof window.findMatchedUserAccount === 'function')
+                ? window.findMatchedUserAccount(stId, rawName)
+                : allUsers.find(u => (u.fullName && u.fullName.toLowerCase() === rawName.toLowerCase()) || (u.name && u.name.toLowerCase() === rawName.toLowerCase()));
+            if (!matchedUser && typeof window.studentNamesMatch === 'function') {
+                matchedUser = allUsers.find(u => window.studentNamesMatch(u.fullName || `${u.lastName}, ${u.firstName}`, rawName));
+            }
+        }
+    }
+
+    if (matchedUser) {
+        if (!lName) lName = String(matchedUser.lastName || matchedUser.lastname || '').trim();
+        if (!fName) fName = String(matchedUser.firstName || matchedUser.firstname || '').trim();
+        if (!mName) mName = String(matchedUser.middleName || matchedUser.middlename || '').trim();
+    }
+
+    if (lName && fName) {
+        return `${lName}, ${fName}${mName ? ' ' + mName : ''}`;
+    }
+
+    if (rawName.includes(',')) {
+        return rawName;
+    }
+
+    const tokens = rawName.split(/\s+/).filter(Boolean);
+    if (tokens.length <= 1) return rawName;
+
+    const compoundLastPrefixes = ['dela', 'delos', 'de la', 'de los', 'san', 'santa', 'del', 'de'];
+    if (tokens.length >= 3) {
+        const lastTwo = `${tokens[tokens.length - 2]} ${tokens[tokens.length - 1]}`.toLowerCase();
+        if (compoundLastPrefixes.some(p => lastTwo.startsWith(p))) {
+            const compoundLast = `${tokens[tokens.length - 2]} ${tokens[tokens.length - 1]}`;
+            const first = tokens[0];
+            const middle = tokens.slice(1, -2).join(' ');
+            return `${compoundLast}, ${first}${middle ? ' ' + middle : ''}`;
+        }
+    }
+
+    const last = tokens[tokens.length - 1];
+    const first = tokens[0];
+    const middle = tokens.slice(1, -1).join(' ');
+    return `${last}, ${first}${middle ? ' ' + middle : ''}`;
+};
+
 window.getUnifiedSectionStudents = function (sectionName, subjectName) {
     const stripGrade = (value) => String(value || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
     const normSec = String(sectionName || '').trim().toLowerCase();
@@ -4076,7 +4163,7 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
                 return matchSec && matchSubj;
             });
         }
-        if (!matched) {
+        if (!matched && !normSubj) {
             matched = adminSections.find(s => {
                 if (!s) return false;
                 const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
@@ -4088,14 +4175,17 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
             });
         }
         if (matched && Array.isArray(matched.students) && matched.students.length > 0) {
-            return matched.students.map((st, i) => {
-                const sName = typeof st === 'string' ? st : (st.name || st.fullName || `${st.lastName || ''}, ${st.firstName || ''}`.trim());
+            const list = matched.students.map((st, i) => {
+                const rawName = typeof st === 'string' ? st : (st.name || st.fullName || `${st.lastName || ''}, ${st.firstName || ''}`.trim());
                 const sId = typeof st === 'object' ? (st.id || st.uid || st.lrn || '') : '';
-                const u = (typeof window.findMatchedUserAccount === 'function') ? window.findMatchedUserAccount(sId, sName) : null;
-                const avatar = (typeof window.resolveUserAvatar === 'function') ? window.resolveUserAvatar(u || st || { id: sId, name: sName }) : (u?.avatar || '');
+                const u = (typeof window.findMatchedUserAccount === 'function') ? window.findMatchedUserAccount(sId, rawName) : null;
+                const formattedName = window.formatStudentLastFirstMiddle(u || st);
+                const avatar = (typeof window.resolveUserAvatar === 'function') ? window.resolveUserAvatar(u || st || { id: sId, name: formattedName }) : (u?.avatar || '');
                 return {
                     id: u?.id || u?.uid || sId || `STD-${String(i + 1).padStart(3, '0')}`,
-                    name: sName,
+                    name: formattedName,
+                    fullName: formattedName,
+                    displayName: formattedName,
                     firstName: u?.firstName || (typeof st === 'object' ? st.firstName : '') || '',
                     lastName: u?.lastName || (typeof st === 'object' ? st.lastName : '') || '',
                     middleName: u?.middleName || (typeof st === 'object' ? st.middleName : '') || '',
@@ -4103,6 +4193,8 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
                     status: u?.status || (typeof st === 'object' ? st.status : 'Active') || 'Active'
                 };
             }).filter(Boolean);
+            list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            return list;
         }
     }
 
@@ -4116,14 +4208,14 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
             return userSec === normSec || stripGrade(userSec) === normClean;
         });
         if (studentUsers.length > 0) {
-            return studentUsers.map((u, i) => {
-                const displayName = (u.lastName && u.firstName)
-                    ? `${u.lastName}, ${u.firstName}${u.middleName ? ' ' + u.middleName : ''}`
-                    : (u.fullName || u.name || `Student ${i + 1}`);
+            const list = studentUsers.map((u, i) => {
+                const displayName = window.formatStudentLastFirstMiddle(u);
                 const avatar = (typeof window.resolveUserAvatar === 'function') ? window.resolveUserAvatar(u) : (u.avatar || '');
                 return {
                     id: u.id || u.uid || `STD-${String(i + 1).padStart(3, '0')}`,
                     name: displayName,
+                    fullName: displayName,
+                    displayName: displayName,
                     firstName: u.firstName || '',
                     lastName: u.lastName || '',
                     middleName: u.middleName || '',
@@ -4131,12 +4223,26 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
                     status: u.status || 'Active'
                 };
             });
+            list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            return list;
         }
     }
 
-    return (typeof canonicalDefaultStudents !== 'undefined' && Array.isArray(canonicalDefaultStudents))
+    const fallbackList = (typeof canonicalDefaultStudents !== 'undefined' && Array.isArray(canonicalDefaultStudents))
         ? canonicalDefaultStudents
         : [...DEFAULT_SECTION_STUDENTS];
+
+    return fallbackList.map(st => {
+        const displayName = (typeof window.formatStudentLastFirstMiddle === 'function')
+            ? window.formatStudentLastFirstMiddle(st)
+            : (typeof st === 'string' ? st : (st.name || st.fullName || ''));
+        return {
+            ...(typeof st === 'object' ? st : {}),
+            name: displayName,
+            fullName: displayName,
+            displayName: displayName
+        };
+    }).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 };
 
 window.isUserNameMatch = function (target, user) {
@@ -4144,11 +4250,11 @@ window.isUserNameMatch = function (target, user) {
     const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
     // 1. Direct ID / UID / LRN check if target is an object
-    const uId = String(user.id || user.uid || user.lrn || user.employeeId || '').trim().toLowerCase();
+    const uId = String(user.id || user.uid || user.lrn || user.employeeId || '').replace(/^#/, '').trim().toLowerCase();
     const uEmail = String(user.email || '').trim().toLowerCase();
 
     if (typeof target === 'object') {
-        const tId = String(target.id || target.uid || target.lrn || target.employeeId || '').trim().toLowerCase();
+        const tId = String(target.id || target.uid || target.lrn || target.employeeId || '').replace(/^#/, '').trim().toLowerCase();
         if (tId && uId && tId === uId) return true;
         const tEmail = String(target.email || '').trim().toLowerCase();
         if (tEmail && uEmail && tEmail === uEmail) return true;
@@ -4573,6 +4679,8 @@ window.propagateUserUpdateToAllConnected = function (updatedUser, previousUser =
                 u.middleName = mname;
                 u.lastName = lname || u.lastName;
                 u.fullName = fullName;
+                u.name = fullName;
+                if (updatedUser.gender !== undefined) u.gender = updatedUser.gender;
                 if (email) u.email = email;
                 if (role) {
                     u.role = role;
@@ -4599,6 +4707,8 @@ window.propagateUserUpdateToAllConnected = function (updatedUser, previousUser =
                 auth.middleName = mname;
                 auth.lastName = lname || auth.lastName;
                 auth.fullName = fullName;
+                auth.name = fullName;
+                if (updatedUser.gender !== undefined) auth.gender = updatedUser.gender;
                 if (email) auth.email = email;
                 sessionStorage.setItem('sigma-authenticated-user', JSON.stringify(auth));
             }
@@ -4616,6 +4726,8 @@ window.propagateUserUpdateToAllConnected = function (updatedUser, previousUser =
                 cur.middleName = mname;
                 cur.lastName = lname || cur.lastName;
                 cur.fullName = fullName;
+                cur.name = fullName;
+                if (updatedUser.gender !== undefined) cur.gender = updatedUser.gender;
                 if (email) cur.email = email;
                 sessionStorage.setItem('currentUser', JSON.stringify(cur));
             }
@@ -4642,6 +4754,7 @@ window.propagateUserUpdateToAllConnected = function (updatedUser, previousUser =
     // Invalidate cached teacher cards so UI updates immediately
     window._cachedTeacherSectionCards = null;
     window._cachedTeacherSectionCardsTime = 0;
+    window.dispatchEvent(new CustomEvent('sigma:user-profile-updated', { detail: { userId } }));
 };
 
 // Global startup healer: automatically syncs existing users to existing sections
@@ -4870,7 +4983,7 @@ window.resolveRoomFacultyPanels = function (options = {}) {
                 return secMatch && subjMatch;
             });
         }
-        if (!matched && normSec) {
+        if (!matched && !normSubj && normSec) {
             matched = adminSections.find(s => {
                 if (!s) return false;
                 const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
@@ -4936,7 +5049,7 @@ window.resolveRoomFacultyPanels = function (options = {}) {
 window.renderRoomMembersTabContent = function (options = {}) {
     let rawStudents = options.students;
     if (!rawStudents || rawStudents.length === 0) {
-        rawStudents = window.getUnifiedSectionStudents(options.section || options.sectionName);
+        rawStudents = window.getUnifiedSectionStudents(options.section || options.sectionName, options.subject);
     }
     const role = options.role || 'teacher';
     const studentsTitle = role === 'student' ? 'Classmates' : 'Students';
@@ -4977,23 +5090,25 @@ window.renderRoomMembersTabContent = function (options = {}) {
                 </div>`;
     };
 
-    // Normalize students array
-    const studentList = rawStudents.map(s => {
-        if (typeof s === 'string') return { name: s };
-        return s;
+    // Normalize and format students array with full Last, First Middle name
+    const studentList = (Array.isArray(rawStudents) ? rawStudents : []).map(s => {
+        const formattedName = (typeof window.formatStudentLastFirstMiddle === 'function')
+            ? window.formatStudentLastFirstMiddle(s)
+            : (typeof s === 'string' ? s : (s.name || s.fullName || ''));
+        if (typeof s === 'string') return { name: formattedName, fullName: formattedName };
+        return { ...s, name: formattedName, fullName: formattedName };
     }).filter(s => s && s.name);
 
     const classmatesCardsHtml = [...studentList]
         .sort((a, b) => a.name.localeCompare(b.name))
         .map(student => {
-            const parts = student.name.split(', ');
-            const displayName = parts[0] + (parts[1] ? ', ' + parts[1].split(' ')[0] : '');
+            const displayName = student.name;
             const studentAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
-                ? window.renderUserAvatarHtml(student.name, 'md')
+                ? window.renderUserAvatarHtml(displayName, 'md')
                 : `<div class="sigma-user-avatar sigma-user-avatar--md"><i class="fa-solid fa-user text-sm"></i></div>`;
 
             return `
-            <div onclick="window.openUserProfile && window.openUserProfile('${student.name.replace(/'/g, "\\'")}')"
+            <div onclick="window.openUserProfile && window.openUserProfile('${displayName.replace(/'/g, "\\'")}')"
                 class="member-card-bubble">
                 ${studentAvatarHtml}
                 <div class="min-w-0 flex-1">
@@ -5188,9 +5303,9 @@ window.renderSharedTopicsPanelHtml = function (options = {}) {
             const isActive = row.idx === activeIdx;
             const label = typeof window.escapeHtml === 'function' ? window.escapeHtml(row.title) : row.title;
             const jsArg = (value) => `'${String(value || '').replace(/\\/g, '\\\\').replace(/'/g, '\\\'')}'`;
-            return `<div onclick="window.openTopicVideosPage(${row.idx}, ${jsArg(subjectId)}, ${jsArg(section)})" class="flex items-start gap-2.5 py-0.5 rounded-xl cursor-pointer group transition-colors select-none">
+            return `<div class="flex items-start gap-2.5 py-0.5 rounded-xl select-none">
                 <div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#FFD000]' : 'bg-[#15803d] group-hover:bg-[#FFD000]'} mt-1.5 flex-shrink-0 transition-colors"></div>
-                <span class="min-w-0 text-[13px] font-bold leading-snug break-words ${isActive ? 'text-[#FFD000]' : 'text-black group-hover:text-[#FFD000]'} transition-colors">${label}</span>
+                <span role="link" tabindex="0" onclick="window.openTopicVideosPage(${row.idx}, ${jsArg(subjectId)}, ${jsArg(section)})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="min-w-0 text-[13px] font-bold leading-snug break-words cursor-pointer ${isActive ? 'text-[#FFD000]' : 'text-black hover:text-[#FFD000]'} transition-colors">${label}</span>
             </div>`;
         }).join('')}</div>`
         : `<div class="sigma-empty-state sigma-empty-state-black-fade topic-switch-empty">
@@ -5267,9 +5382,9 @@ window.renderSharedTasksPanelHtml = function (options = {}) {
         const isActive = !!item.isActive;
         const clickAttr = item.onClick ? `onclick="${item.onClick}"` : '';
         return `
-                        <div ${clickAttr} class="flex items-start gap-2.5 py-0.5 rounded-xl cursor-pointer group transition-colors select-none">
+                        <div class="flex items-start gap-2.5 py-0.5 rounded-xl select-none">
                             <div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#FFD000]' : 'bg-[#15803d] group-hover:bg-[#FFD000]'} mt-1.5 flex-shrink-0 transition-colors"></div>
-                            <span class="min-w-0 text-[13px] font-bold leading-snug break-words ${isActive ? 'text-[#FFD000]' : 'text-black group-hover:text-[#FFD000]'} transition-colors">${displayTitle}</span>
+                            <span ${clickAttr} ${item.onClick ? `role="link" tabindex="0" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"` : ''} class="min-w-0 text-[13px] font-bold leading-snug break-words ${item.onClick ? 'cursor-pointer' : ''} ${isActive ? 'text-[#FFD000]' : 'text-black hover:text-[#FFD000]'} transition-colors">${displayTitle}</span>
                         </div>
                     `;
     }).join('')}
@@ -6793,6 +6908,12 @@ if (typeof window !== 'undefined') {
     window.addEventListener('sigma:release-config-updated', function () {
         triggerDebouncedReleaseRefresh();
     });
+    window.addEventListener('sigma:subjectUpdated', triggerDebouncedReleaseRefresh);
+    window.addEventListener('storage', function (event) {
+        if (event.key === 'sigma-admin-subjects' || event.key?.startsWith('sigma_custom_assessments_') || event.key?.startsWith('sigma_learning_materials_')) {
+            triggerDebouncedReleaseRefresh();
+        }
+    });
 }
 
 window._sigmaReleaseConfigCache = window._sigmaReleaseConfigCache || new Map();
@@ -8002,7 +8123,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
     const overview = topic.overview || topic.description || topic.summary || 'Explore the fundamental principles, key concepts, and practical applications in this comprehensive module.';
 
     return `
-        <div class="topic-card student-topic-card teacher-topic-card cursor-pointer ${isLockedByTeacher ? 'opacity-80' : ''}" role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }">
+        <div class="topic-card student-topic-card teacher-topic-card ${isLockedByTeacher ? 'opacity-80' : ''}">
             <div class="topic-card__image-container">
                 <img src="${imgSrc}" alt="" class="topic-card__image" onerror="this.onerror=null; this.src='image/Topic.jpg';">
             </div>
@@ -8014,7 +8135,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
                     </div>
                     <i class="${statusIcon} text-xl ml-auto"></i>
                 </div>
-                <h3 class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
+                <h3 role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
                 <p>${escapeHtml(overview)}</p>
             </div>
         </div>
@@ -8729,6 +8850,17 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             </div>
         </div>
     `;
+};
+
+window.renderSharedTeacherTopicSelectionRail = function (data, state = window.currentTopicState || {}) {
+    const selector = window.buildTopicSectionSelectorCard?.(data, true, 'desktop') || '';
+    const topics = window.renderSharedTopicsPanelHtml?.({
+        subjectId: state.subjectId,
+        section: state.selectedSection || '',
+        activeIdx: Number(state.topicIdx),
+        data
+    }) || '';
+    return `<div class="topic-progress-rail teacher-topic-progress-rail font-['Inter']">${selector ? `<div class="teacher-topic-desktop-toolbar mb-4 w-full">${selector}</div>` : ''}${topics}</div>`;
 };
 
 window.toggleMobileGradePanelMinimize = function (event) {
@@ -11467,13 +11599,13 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
         const iconCls = quizDetails.iconCls || 'fa-solid fa-file-signature';
 
         return `
-            <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+            <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
                 <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                     <div class="w-12 h-12 rounded-xl border ${quizDetails.iconBox} flex items-center justify-center shrink-0 shadow-2xs"${iconBoxStyleAttr}>
                         <i class="${iconCls} text-lg ${quizDetails.iconColor}"${iconStyleAttr}></i>
                     </div>
                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
+                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
                             ${escape(liveTitle)}
                         </h4>
                         <p class="sigma-file-panel-meta text-[11px] sm:text-xs font-medium text-black-fade mt-0.5 flex items-center gap-1.5 flex-wrap font-['Inter']">
@@ -11622,7 +11754,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
     }
 
     return `
-        <div class="sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+        <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
             <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                 <div class="material-panel-icon-group w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                     <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
@@ -11631,7 +11763,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                     <span class="text-[9px] sm:text-[9.5px] px-2 py-0.5 whitespace-nowrap ${badgeClass} border font-bold rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${escape(typeLabel)}</span>
                 </div>
                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
+                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
                     ${(size || subtitle) ? `<p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${escape(size || subtitle)}</p>` : ''}
                 </div>
             </div>
@@ -27737,9 +27869,9 @@ window.renderSharedVideosTabHtml = function (options) {
                 : '';
 
             return `
-                            <div class="video-selection-card group rounded-xl pt-3 pb-4 px-3 md:p-4 text-left w-full flex flex-col justify-between cursor-pointer relative bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all shadow-2xs m-0" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${i})">
+                            <div class="video-selection-card rounded-xl pt-3 pb-4 px-3 md:p-4 text-left w-full flex flex-col justify-between relative bg-white border border-slate-200 shadow-2xs m-0">
                                 <div class="w-full">
-                                    <div class="video-thumbnail-panel bg-slate-950 rounded-xl md:rounded-lg overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center relative w-full aspect-video shadow-xs" style="width: 100% !important; max-width: 100% !important; aspect-ratio: 16/9 !important; height: auto !important; position: relative; margin: 0 0 12px 0;">
+                                    <div role="link" tabindex="0" aria-label="Play ${escapeHtml(video.title)}" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${i})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="video-thumbnail-panel group cursor-pointer bg-slate-950 rounded-xl md:rounded-lg overflow-hidden mb-2.5 sm:mb-3 flex items-center justify-center relative w-full aspect-video shadow-xs" style="width: 100% !important; max-width: 100% !important; aspect-ratio: 16/9 !important; height: auto !important; position: relative; margin: 0 0 12px 0;">
                                         <img src="${video.thumb || 'image/ICC logo.jpg'}" alt="School Logo" class="absolute inset-0 w-full h-full object-contain opacity-30 filter brightness-95 group-hover:scale-105 transition-transform duration-300 pointer-events-none">
                                         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/25 pointer-events-none"></div>
                                         <div class="material-panel-play-icon video-play-btn w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/45 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg relative z-10 group-hover:scale-110 group-hover:bg-[#15803d] group-hover:border-[#15803d] transition-all duration-200">
@@ -27749,7 +27881,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                     </div>
                                     <div class="video-card-text-container px-0 w-full text-left">
                                         <div class="mb-1">
-                                            <h4 class="text-xs sm:text-sm md:text-base font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors m-0">${escapeHtml(video.title)}</h4>
+                                            <h4 role="link" tabindex="0" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${i})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="text-xs sm:text-sm md:text-base font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words hover:text-[#FFD000] cursor-pointer w-fit max-w-full transition-colors m-0">${escapeHtml(video.title)}</h4>
                                         </div>
                                         ${statusBadgeHtml ? `<div class="mb-1.5 flex items-center">${statusBadgeHtml}</div>` : ''}
                                         <p class="text-[11px] sm:text-xs md:text-sm font-normal text-black-fade leading-relaxed font-['Inter'] line-clamp-2 m-0 break-words">${escapeHtml(cleanDesc)}</p>
@@ -27915,11 +28047,12 @@ window.renderSharedVideosTabHtml = function (options) {
                     ${hasDescription ? (() => {
                         return `
                         <!-- Description -->
-                        <div class="space-y-1 md:space-y-1.5 pl-0 sm:pl-9 md:pl-11 pt-1 md:pt-2">
-                            <h3 class="text-xs sm:text-sm md:text-base font-bold text-black font-['Inter'] m-0">Description</h3>
-                            <div class="sigma-collapsible-desc-wrapper relative">
+                        <div class="video-material-description pl-0 sm:pl-9 md:pl-11 pt-1 md:pt-2">
+                            <h3 class="text-xs sm:text-sm md:text-base font-bold text-black font-['Inter'] m-0 mb-1">Description</h3>
+                            <div id="video-material-description-body" class="sigma-collapsible-desc-wrapper relative">
                                 ${window.renderMaterialBodyText(instructionsText)}
                             </div>
+                            <button type="button" class="video-material-description-toggle" aria-expanded="false" aria-controls="video-material-description-body" onclick="window.toggleVideoMaterialDescription(this)">More</button>
                         </div>
                     `;
                     })() : ''}
@@ -27943,9 +28076,9 @@ window.renderSharedVideosTabHtml = function (options) {
         const durationStr = (v.duration && v.duration.trim()) ? v.duration.trim() : (isMp4Item ? '03:30' : '15:00');
 
         return `
-                                <div class="video-selection-card group rounded-xl p-2.5 sm:p-3 md:p-3.5 text-left w-full flex flex-col justify-between cursor-pointer relative bg-slate-50/70 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all shadow-2xs" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${originalIdx})">
+                                <div class="video-selection-card rounded-xl p-2.5 sm:p-3 md:p-3.5 text-left w-full flex flex-col justify-between relative bg-slate-50/70 border border-slate-200 shadow-2xs">
                                     <div class="w-full">
-                                        <div class="video-thumbnail-panel w-full aspect-video bg-slate-950 rounded-xl overflow-hidden mb-2 flex items-center justify-center relative shadow-xs" style="aspect-ratio:16/9; position: relative; border-radius: 12px !important; overflow: hidden !important; -webkit-mask-image: -webkit-radial-gradient(white, black);">
+                                        <div role="link" tabindex="0" aria-label="Play ${escapeHtml(v.title)}" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${originalIdx})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="video-thumbnail-panel group cursor-pointer w-full aspect-video bg-slate-950 rounded-xl overflow-hidden mb-2 flex items-center justify-center relative shadow-xs" style="aspect-ratio:16/9; position: relative; border-radius: 12px !important; overflow: hidden !important; -webkit-mask-image: -webkit-radial-gradient(white, black);">
                                             <img src="${v.thumb || 'image/ICC logo.jpg'}" alt="School Logo" class="absolute inset-0 w-full h-full object-contain opacity-30 filter brightness-95 group-hover:scale-105 transition-transform duration-300 pointer-events-none" style="border-radius: 12px !important;">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/25 pointer-events-none" style="border-radius: 12px !important;"></div>
                                             <div class="video-play-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/45 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg relative z-10 group-hover:scale-110 group-hover:bg-[#15803d] group-hover:border-[#15803d] transition-all duration-200">
@@ -27954,7 +28087,7 @@ window.renderSharedVideosTabHtml = function (options) {
                                             <span class="video-badge-bottom-right" ${isMp4Item ? `data-dynamic-video-src="${rawItemUrl}"` : ''} style="position: absolute !important; bottom: 6px !important; right: 6px !important; z-index: 20; font-size: 10px !important; padding: 2px 6px !important;"><i class="fa-regular fa-clock" style="font-size: 9px;"></i> ${durationStr}</span>
                                         </div>
                                         <div class="mb-0.5">
-                                            <h4 class="text-xs sm:text-sm font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words group-hover:text-[#FFD000] transition-colors">${escapeHtml(v.title)}</h4>
+                                            <h4 role="link" tabindex="0" onclick="openTopicContent('${subjectId}', ${topicIdx}, 'videos', ${originalIdx})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="text-xs sm:text-sm font-bold text-black leading-snug font-['Inter'] line-clamp-2 break-words hover:text-[#FFD000] cursor-pointer w-fit max-w-full transition-colors">${escapeHtml(v.title)}</h4>
                                         </div>
                                         <p class="text-[11px] sm:text-xs font-normal text-black-fade leading-relaxed font-['Inter'] line-clamp-2 m-0 break-words">${escapeHtml(cleanDesc)}</p>
                                     </div>
@@ -27966,6 +28099,15 @@ window.renderSharedVideosTabHtml = function (options) {
             ` : ''}
         </div>
     `;
+};
+
+window.toggleVideoMaterialDescription = function (btn) {
+    const description = btn?.closest('.video-material-description');
+    if (!description) return;
+    const expanded = btn.getAttribute('aria-expanded') !== 'true';
+    description.classList.toggle('is-expanded', expanded);
+    btn.setAttribute('aria-expanded', String(expanded));
+    btn.textContent = expanded ? 'Less' : 'More';
 };
 
 window.toggleCollapsibleDesc = function (btn) {
@@ -33591,9 +33733,9 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
                 </linearGradient>
             </defs>
             <path d="${fillPath}" fill="url(#grad-${id})" stroke="none" />
-            <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
             ${points.slice(1).map((p) => `
-                <circle cx="${p.x}" cy="${p.y}" r="2" fill="white" stroke="${strokeColor}" stroke-width="1.5" />
+                <circle cx="${p.x}" cy="${p.y}" r="2" fill="white" stroke="${strokeColor}" stroke-width="1" vector-effect="non-scaling-stroke" />
             `).join('')}
         `;
     } else {
@@ -33604,26 +33746,41 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
 
     return `
         <div class="relative h-[120px] w-full">
-            <svg viewBox="0 0 240 130" class="w-full h-full overflow-visible">
-                <g fill="rgba(0,0,0,0.40)" font-size="6" font-weight="600" text-anchor="end" font-family="'Inter', sans-serif">
-                    ${[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(v => {
-                        const y = bottomY - (v / 100 * h) + 2;
-                        return `<text x="${leftOffset - 5}" y="${y}">${v}</text>`;
-                    }).join('')}
-                </g>
+            ${[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(v => {
+                const y = bottomY - (v / 100 * h);
+                return `<span aria-hidden="true" style="position:absolute;left:${((leftOffset - 5) / 240) * 100}%;top:${(y / 130) * 100}%;transform:translate(-100%,-50%);font-family:'Inter',sans-serif;font-size:10px;font-weight:500;line-height:1;color:rgba(0,0,0,0.45);letter-spacing:0;">${v}</span>`;
+            }).join('')}
+            <svg viewBox="0 0 240 130" preserveAspectRatio="none" class="w-full h-full overflow-visible">
                 ${[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(v => {
                     const y = bottomY - (v / 100 * h);
-                    return `<line x1="${leftOffset}" y1="${y}" x2="${leftOffset + graphWidth}" y2="${y}" stroke="#f1f5f9" stroke-width="0.5" />`;
+                    return `<line x1="${leftOffset}" y1="${y}" x2="${leftOffset + graphWidth}" y2="${y}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5" />`;
                 }).join('')}
                 ${chartSvgBody}
             </svg>
         </div>
-        <div class="flex justify-between mt-3 pl-[35px] pr-[15px] text-[8px] font-semibold uppercase tracking-widest font-['Inter']" style="color: rgba(0,0,0,0.45);">
-            ${labels.map(l => `<span>${l}</span>`).join('')}
+        <div class="relative mt-3 font-['Inter']" style="padding:0 !important;height:16px;color:rgba(0,0,0,0.45);font-family:'Inter',sans-serif;font-size:10px;font-weight:500;line-height:16px;letter-spacing:0;">
+            ${labels.map((label, index) => {
+                const x = leftOffset + ((index + 1) / (values.length - 1)) * graphWidth;
+                return `<span style="position:absolute;left:${(x / 240) * 100}%;transform:translateX(-50%);white-space:nowrap;">${label}</span>`;
+            }).join('')}
         </div>
     `;
 };
 
+const subjectPerformanceOptions = new Map();
+window.openSubjectPerformanceGrades = function (button) {
+    const options = subjectPerformanceOptions.get(button.closest('.subject-performance-card').dataset.performanceKey);
+    if (options && typeof window.openStudentClassroomGradesModal === 'function') {
+        window.openStudentClassroomGradesModal(options.id, options.title);
+    }
+};
+window.selectSubjectPerformanceQuarter = function (select) {
+    const card = select.closest('.subject-performance-card');
+    const options = subjectPerformanceOptions.get(card.dataset.performanceKey);
+    if (!options) return;
+    const expanded = card.querySelector('details')?.open;
+    card.outerHTML = window.renderSharedSubjectPerformanceCardHtml({ ...options, selectedQuarter: Number(select.value), detailsOpen: expanded });
+};
 window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
     const {
         id = '',
@@ -33631,53 +33788,76 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
         subtitle = 'Core',
         overallScore = null,
         quarterValues = [0, 0, 0, 0],
-        strokeColor = '#15803d'
+        strokeColor = '#15803d',
+        previewDetails = false
     } = options;
 
     const validTerms = quarterValues.filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
     const hasData = validTerms.length > 0;
-    const maxVal = hasData ? Math.max(...validTerms) : '--';
-    const maxIdx = hasData ? quarterValues.indexOf(maxVal) : -1;
-    const maxTermLabel = maxIdx >= 0 ? `Q${maxIdx + 1}` : '';
 
     const chartValues = [0, ...(quarterValues.map(v => (typeof v === 'number' && !isNaN(v) ? v : 0)))];
     const safeId = (id || title).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    subjectPerformanceOptions.set(safeId, options);
+    const configuredQuarters = options.activeQuarters || (previewDetails ? ['q1', 'q2'] : ['q1', 'q2', 'q3', 'q4']);
+    const availableQuarters = [...new Set(configuredQuarters.map(q => Number(String(q).replace(/^q/i, ''))))].filter(q => [1, 2, 3, 4].includes(q)).sort();
+    const requestedQuarter = options.selectedQuarter || (previewDetails ? 2 : 1);
+    const selectedQuarter = availableQuarters.includes(requestedQuarter) ? requestedQuarter : availableQuarters[0];
+    const selectedScore = quarterValues[selectedQuarter - 1];
+    const previousScore = quarterValues[selectedQuarter - 2];
+    const canCompare = availableQuarters.includes(selectedQuarter - 1) && Number.isFinite(selectedScore) && Number.isFinite(previousScore);
+    const change = canCompare ? Math.round(selectedScore) - Math.round(previousScore) : null;
+    const changeDisplay = canCompare
+        ? `<div class="subject-quarter-change" style="color:${change > 0 ? '#15803d' : change < 0 ? '#dc2626' : 'rgba(0,0,0,0.45)'};"><div style="font-size:18px;line-height:24px;font-weight:600;white-space:nowrap;" aria-label="${change > 0 ? 'Up' : change < 0 ? 'Down' : 'No change'} ${Math.abs(change)} points">${change !== 0 ? `<i class="fa-solid ${change > 0 ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i> ${change > 0 ? '+' : ''}${change}` : 'No change'}</div><div style="font-size:12px;line-height:18px;font-weight:400;white-space:nowrap;">from Q${selectedQuarter - 1}</div></div>`
+        : '';
+    const recordedScores = availableQuarters.map(q => quarterValues[q - 1]).filter(v => typeof v === 'number' && Number.isFinite(v));
+    const isHighest = Number.isFinite(selectedScore) && recordedScores.length > 0 && selectedScore === Math.max(...recordedScores);
+    const quarterDetail = options.quarterDetails?.[selectedQuarter - 1];
+    const breakdown = quarterDetail?.submitted === true
+        ? [quarterDetail.ww, quarterDetail.pt, quarterDetail.qa] : null;
     const svgChart = window.renderSharedSvgSplineChartHtml({
         values: chartValues,
         id: safeId,
         strokeColor: strokeColor
     });
 
-    const cardOverallDisplay = (typeof overallScore === 'number' && !isNaN(overallScore))
-        ? `<div class="text-xl font-bold text-slate-900 font-['Inter'] flex-shrink-0 leading-none">${overallScore}</div>`
+    const cardOverallDisplay = (typeof selectedScore === 'number' && !isNaN(selectedScore))
+        ? `<div class="text-xl font-bold text-slate-900 font-['Inter'] flex-shrink-0 leading-none">${Math.round(selectedScore)}</div>`
         : `<div class="text-xl font-medium font-['Inter'] flex-shrink-0 leading-none" style="color: rgba(0, 0, 0, 0.45);">--</div>`;
 
     const escTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(title) : title;
     const escSub = (typeof window.escapeHtml === 'function') ? window.escapeHtml(subtitle) : subtitle;
 
     return `
-        <div class="subject-performance-card bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 font-['Inter'] group flex flex-col justify-between h-[220px]">
-            <div class="flex justify-between items-start font-['Inter'] gap-2">
+        <div data-performance-key="${safeId}" class="subject-performance-card bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 font-['Inter'] group flex flex-col justify-between" style="height:auto;min-height:220px;gap:8px;">
+            <div class="flex justify-between items-start flex-wrap font-['Inter'] gap-2">
                 <div class="flex-grow pr-1 min-w-0">
-                    <h4 class="text-sm font-bold text-slate-900 leading-snug font-['Inter'] truncate">${escTitle}</h4>
+                    ${options.openGrades ? `<button type="button" class="flex items-center gap-2 text-left text-sm font-bold text-black hover:text-yellow-400 transition-colors cursor-pointer bg-transparent border-0 p-0" style="cursor:pointer;" title="View grades" onclick="window.openSubjectPerformanceGrades(this)"><i class="fa-solid fa-chart-column shrink-0" aria-hidden="true"></i><span>${escTitle}</span></button>` : `<h4 class="text-sm font-bold text-slate-900 leading-snug font-['Inter'] truncate">${escTitle}</h4>`}
                     <p class="text-[11px] font-medium text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45);">${escSub}</p>
                 </div>
-                ${cardOverallDisplay}
+                <div class="flex items-start gap-2 flex-shrink-0">
+                    <select aria-label="Quarter for ${escTitle}" class="bg-transparent text-black text-xs border border-slate-200 rounded px-2 py-1 cursor-pointer" style="cursor:pointer !important;" onchange="window.selectSubjectPerformanceQuarter(this)">
+                        ${availableQuarters.map(q => `<option value="${q}" ${q === selectedQuarter ? 'selected' : ''}>Q${q}</option>`).join('')}
+                    </select>
+                    <div class="text-right" style="min-width:48px;">
+                    ${cardOverallDisplay}
+                    <div style="min-height:16px;margin-top:4px;font-size:10px;font-weight:600;color:#15803d;letter-spacing:0;">${isHighest ? 'Highest' : ''}</div>
+                    </div>
+                </div>
             </div>
             <div class="grade-mini-chart font-['Inter'] h-auto block mt-2">
                 <div class="flex items-end gap-3 mt-auto font-['Inter'] w-full">
                     <div class="flex-grow">
                         ${svgChart}
                     </div>
-                    <div class="flex flex-col justify-center gap-0.5 min-w-[50px] border-l border-slate-100 pl-4 mb-4 font-['Inter']">
-                        <span class="text-[7px] font-semibold uppercase tracking-wider font-['Inter'] text-black-fade" style="color: rgba(0,0,0,0.45);">Highest</span>
-                        <div class="flex items-baseline gap-1 font-['Inter']">
-                            <span class="text-sm font-semibold font-['Inter']" style="${hasData && maxIdx >= 0 ? 'color: #0f172a;' : 'color: rgba(0,0,0,0.45);'}">${hasData && maxIdx >= 0 ? maxVal : '--'}</span>
-                            ${hasData && maxIdx >= 0 ? `<span class="text-[8px] font-bold text-slate-400 font-['Inter']">${maxTermLabel}</span>` : ''}
-                        </div>
-                    </div>
+                    ${changeDisplay}
                 </div>
             </div>
+            ${breakdown ? `<details class="text-xs border-t border-slate-100 pt-2" ${options.detailsOpen ? 'open' : ''}>
+                <summary class="cursor-pointer font-semibold hover:bg-gray-100 rounded px-2 py-2 transition-colors">Q${selectedQuarter} Breakdown</summary>
+                <div class="space-y-2 pt-3">
+                    ${breakdown ? ['Written Works', 'Performance Tasks', 'Quarterly Assessment'].map((label, i) => `<div class="flex justify-between gap-2"><span>${label}</span><strong>${typeof breakdown[i] === 'number' ? `${Math.round(breakdown[i])}%` : '--'}</strong></div>`).join('') : '<p class="text-black-fade">No breakdown available for this quarter.</p>'}
+                </div>
+            </details>` : ''}
         </div>
     `;
 };
@@ -33692,7 +33872,7 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
     } = options;
 
     const hasGrades = (typeof gwa === 'number' && !isNaN(gwa) && gwa > 0);
-    const displayGwa = hasGrades ? (Math.round(gwa * 10) / 10).toFixed(1) : '--';
+    const displayGwa = hasGrades ? (role === 'student' ? Math.round(gwa) : (Math.round(gwa * 10) / 10).toFixed(1)) : '--';
 
     return `
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 font-['Inter']">
@@ -33703,12 +33883,12 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
                 </div>
             </div>
 
-            <div class="lg:col-span-3 bg-white rounded-[32px] border border-slate-200/80 p-6 shadow-sm flex flex-col justify-center gap-4 font-['Inter']">
+            <div class="student-grades-insights-card lg:col-span-3 bg-white rounded-[32px] border border-slate-200/80 p-6 shadow-sm flex flex-col justify-center gap-4 font-['Inter']">
                 <div class="flex items-center gap-2 font-['Inter']">
                     <div class="w-8 h-8 bg-[#FFD000] rounded-lg flex items-center justify-center shadow-md flex-shrink-0 font-['Inter']">
                         <i class="fa-solid fa-bolt text-black text-sm"></i>
                     </div>
-                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-slate-900 font-['Inter']">SIGMA AI INSIGHTS</span>
+                    <span class="text-xs font-bold tracking-normal text-slate-900 font-['Inter']" style="letter-spacing:0;text-transform:none;">SIGMA AI Insights</span>
                 </div>
 
                 <div class="bg-slate-50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-100 font-['Inter']">
@@ -35224,6 +35404,19 @@ window.showTeacherReleaseToast = function (message, type = 'released') {
     timer = setTimeout(removeToast, 4500);
     container.appendChild(toast);
 };
+
+(function syncMobileModalViewport() {
+    const update = () => {
+        const viewport = window.visualViewport;
+        const root = document.documentElement;
+        root.style.setProperty('--sigma-visible-viewport-height', `${viewport?.height || window.innerHeight}px`);
+        root.style.setProperty('--sigma-visible-viewport-top', `${viewport?.offsetTop || 0}px`);
+    };
+    update();
+    window.addEventListener('resize', update, { passive: true });
+    window.visualViewport?.addEventListener('resize', update, { passive: true });
+    window.visualViewport?.addEventListener('scroll', update, { passive: true });
+})();
 
 window.flushTeacherReleaseToastQueue = function () {
     if (!Array.isArray(window._pendingReleaseToastQueue) || window._pendingReleaseToastQueue.length === 0) {

@@ -14,8 +14,7 @@
 #classroom-detail-view,
 .classroom-detail-shell {
     width: 100%;
-    min-height: calc(100vh - var(--shell-offset, 82px));
-    min-height: calc(100dvh - var(--shell-offset, 82px));
+    min-height: 0 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
     margin: 0;
@@ -56,10 +55,20 @@ body:has(#classroom-detail-view:not(.hidden)) {
     overflow: hidden;
 }
 
-#section-classroom-detail:not(.hidden),
-#classroom-detail-view:not(.hidden) {
+#section-classroom-detail:not(.hidden) {
     display: flex !important;
     flex-direction: column;
+}
+
+#classroom-detail-view:not(.hidden),
+#classroom-detail-view.classroom-detail-shell,
+.classroom-detail-shell {
+    display: block !important;
+}
+
+#teacher-classroom-banner-wrapper,
+#student-classroom-banner-wrapper {
+    margin-bottom: 0 !important;
 }
 
 /* ─── 2. Centered Unified Workspace (1080px Grid) ────────────────────────── */
@@ -71,7 +80,8 @@ body:has(#classroom-detail-view:not(.hidden)) {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    min-height: 0 !important;
     background-color: #ffffff !important;
     background: #ffffff !important;
 }
@@ -834,6 +844,92 @@ body:has(#classroom-detail-view:not(.hidden)) {
     display: flex !important;
 }
 
+@media (min-width: 769px) {
+    body .classroom-settings-menu {
+        width: 224px !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - 32px) !important;
+        padding: 4px !important;
+        border-radius: 8px;
+    }
+
+    body .classroom-settings-menu .classroom-settings-grades-btn {
+        display: none !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item {
+        min-height: 38px;
+        padding: 8px 10px !important;
+        font-size: 14px !important;
+        line-height: 20px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item span {
+        font-size: 14px !important;
+        line-height: 20px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item i {
+        font-size: 14px !important;
+        width: 16px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body .classroom-quick-btn i {
+        font-size: 0.8rem !important;
+    }
+
+    body .classroom-settings-menu {
+        width: 180px !important;
+        min-width: 180px !important;
+        padding: 3px !important;
+        border-radius: 10px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item {
+        min-height: 0;
+        padding: 5px 7px !important;
+        font-size: 11px !important;
+        line-height: 16px !important;
+        gap: 6px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item span {
+        font-size: 11px !important;
+        line-height: 16px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item i {
+        font-size: 10px !important;
+        width: 12px !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-item > div {
+        gap: 6px !important;
+    }
+
+    body .classroom-settings-menu .sigma-toggle-switch {
+        width: 24px !important;
+        height: 14px !important;
+        margin-left: 0 !important;
+        flex-shrink: 0;
+    }
+
+    body .classroom-settings-menu .sigma-toggle-slider::before {
+        width: 10px !important;
+        height: 10px !important;
+    }
+
+    body .classroom-settings-menu .sigma-toggle-switch input:checked + .sigma-toggle-slider::before {
+        transform: translateX(10px) !important;
+    }
+
+    body .classroom-settings-menu .classroom-settings-grades-btn {
+        display: flex !important;
+    }
+}
+
 @media (min-width: 640px) {
     .classroom-settings-grades-btn {
         display: none !important;
@@ -851,11 +947,35 @@ body:has(#classroom-detail-view:not(.hidden)) {
 
 /* ─── 7. Responsive Clean Grid Below ─────────────────────────────────────── */
 .classroom-detail-content,
-#class-detail-content {
-    margin-top: 1rem;
-    width: 100%;
+#class-detail-content,
+#admin-class-detail-content,
+#classroom-detail-content {
+    margin-top: 1rem !important;
+    width: 100% !important;
 }
 
+
+#detail-section-room.classroom-room-panel,
+#detail-section-room.student-room-panel,
+.classroom-room-panel,
+.student-room-panel {
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+}
+
+.classroom-room-panel__inner,
+.student-room-panel__inner {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 0 1.5rem 0 !important;
+    max-width: 100% !important;
+}
 
 .classroom-room-layout,
 .student-room-layout {
@@ -994,14 +1114,21 @@ body:has(#classroom-detail-view:not(.hidden)) {
 }
 
 .classroom-room-layout--full .classroom-room-main,
-.student-room-layout--full .student-room-main,
-#detail-section-room .classroom-room-main,
-#detail-section-room .room-announcements-feed,
-.classroom-room-panel .room-announcements-feed {
+.student-room-layout--full .student-room-main {
     width: 100% !important;
     max-width: 680px !important;
     margin-left: auto !important;
     margin-right: auto !important;
+    box-sizing: border-box !important;
+}
+
+#detail-section-room .classroom-room-main,
+#detail-section-room .room-announcements-feed,
+.classroom-room-panel .room-announcements-feed {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     box-sizing: border-box !important;
 }
 
@@ -1433,24 +1560,182 @@ body > .sortable-drag-clone .card-body-main,
     transform: translateX(16px);
 }
 
-/* Shared Attendance Month Navigation Header (Teacher & Student) */
+/* ─── 15. Unified Classroom Attendance Engine (Shared across Teacher, Admin, & Student) ─── */
+.attendance-monthly-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 20px;
+    overflow: visible !important;
+    position: relative !important;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+.attendance-monthly-card,
+.attendance-monthly-card * {
+    font-family: 'Inter', sans-serif !important;
+}
+
 .attendance-monthly-header {
-    padding: 1rem 1.5rem;
+    padding: 1.25rem 2rem;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
+    justify-content: space-between;
     background: #ffffff;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    position: relative !important;
+    z-index: 80 !important;
+    overflow: visible !important;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+}
+
+.attendance-export-excel-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 6px 12px !important;
+    min-height: 32px;
+    white-space: nowrap;
+}
+
+.attendance-export-excel-btn > i {
+    flex: 0 0 auto;
+    line-height: 1;
 }
 
 .attendance-month-display {
     font-size: 16px;
     font-weight: 700;
-    color: #0f172a !important;
+    color: #000000 !important;
     letter-spacing: -0.01em;
     white-space: nowrap;
+}
+
+/* Attendance Month Navigation Chevrons */
+.attendance-monthly-header button i.fa-chevron-left,
+.attendance-monthly-header button i.fa-chevron-right,
+.attendance-monthly-header button i.fa-chevron-down,
+.teacher-attendance-calendar-popup button i.fa-chevron-left,
+.teacher-attendance-calendar-popup button i.fa-chevron-right,
+.teacher-attendance-calendar-popup button i.fa-chevron-down {
+    color: #000000 !important;
+}
+
+.attendance-monthly-header button:has(.fa-chevron-left):hover,
+.attendance-monthly-header button:has(.fa-chevron-right):hover,
+.teacher-attendance-calendar-popup button:has(.fa-chevron-left):hover,
+.teacher-attendance-calendar-popup button:has(.fa-chevron-right):hover {
+    background-color: #f1f5f9 !important;
+}
+
+/* ─── Teacher Attendance Custom Calendar Popup ──────────────────────────── */
+.teacher-attendance-calendar-popup {
+    position: absolute !important;
+    top: calc(100% + 10px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 300px !important;
+    max-width: calc(100vw - 24px) !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 20px 40px -6px rgba(0, 0, 0, 0.18), 0 4px 14px -2px rgba(0, 0, 0, 0.08) !important;
+    z-index: 9999 !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
     font-family: 'Inter', sans-serif !important;
+}
+
+.teacher-attendance-calendar-popup.hidden {
+    display: none !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-weekday-header {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding-bottom: 4px !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell {
+    width: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    border-radius: 9999px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    border: none !important;
+    outline: none !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+/* Match the home composer band on mobile, including its flat outer edges. */
+@media (max-width: 768px) {
+    #detail-section-room .classroom-room-main .announcement-composer-trigger-card,
+    #detail-section-room .classroom-room-main > div:first-child:has(button[onclick*="openClassroomComposer"]),
+    #detail-section-room .classroom-room-main > div:first-child:has(button[onclick*="openAdminClassroomComposer"]) {
+        border-radius: 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        margin-bottom: 0 !important;
+        padding: clamp(8px, 2.2vw, 12px) clamp(18px, 5.2vw, 24px) !important;
+    }
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell:hover:not(.calendar-day-cell--today):not(.calendar-day-cell--selected):not(.calendar-day-cell--empty) {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell--today {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell--today:hover {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell--selected:not(.calendar-day-cell--today) {
+    border: none !important;
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell--selected:not(.calendar-day-cell--today):hover {
+    background-color: #166534 !important;
+    color: #ffffff !important;
+}
+
+.teacher-attendance-calendar-popup .calendar-day-cell--today.calendar-day-cell--selected,
+.teacher-attendance-calendar-popup .calendar-day-cell--today.calendar-day-cell--selected:hover {
+    background-color: #FFD000 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.attendance-month-nav {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .attendance-month-btn {
@@ -1463,7 +1748,7 @@ body > .sortable-drag-clone .card-body-main,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(21, 128, 61, 0.2);
 }
@@ -1487,17 +1772,24 @@ body > .sortable-drag-clone .card-body-main,
     transition: background-color 0.18s ease, transform 0.15s ease;
     box-shadow: none !important;
     padding: 0;
-    flex-shrink: 0;
-}
-
-.attendance-today-icon-btn:hover {
-    background-color: rgba(21, 128, 61, 0.08) !important;
-    transform: scale(1.08);
 }
 
 .attendance-today-icon-btn i {
-    font-size: 16px;
+    font-size: 18px;
     color: #15803d !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attendance-today-icon-btn:hover {
+    background: rgba(0, 0, 0, 0.08) !important;
+    color: #15803d !important;
+}
+
+.attendance-today-icon-btn:active {
+    background: rgba(0, 0, 0, 0.14) !important;
+    transform: scale(0.92);
 }
 
 .teacher-attendance-month-picker-btn,
@@ -1511,13 +1803,676 @@ body > .sortable-drag-clone .card-body-main,
     transform: scale(0.97);
 }
 
-/* Room only: same 14px space under the announce button as the home feed. */
+/* ─── Grid & Table Container ───────────────────────────────────────────── */
+.attendance-grid-container {
+    overflow-x: auto;
+    width: 100%;
+    cursor: grab;
+    scrollbar-width: auto !important;
+    scrollbar-color: transparent transparent !important;
+    transition: scrollbar-color 0.2s ease;
+}
+
+.attendance-grid-container:hover,
+.attendance-monthly-card:hover .attendance-grid-container {
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent !important;
+}
+
+.attendance-grid-container::-webkit-scrollbar {
+    height: 10px;
+}
+
+.attendance-grid-container::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.attendance-grid-container::-webkit-scrollbar-thumb {
+    background: transparent !important;
+    border-radius: 10px;
+    transition: background-color 0.2s ease;
+}
+
+*:hover > .attendance-grid-container::-webkit-scrollbar-thumb,
+*:hover .attendance-grid-container::-webkit-scrollbar-thumb {
+    background: transparent !important;
+}
+
+.attendance-grid-container:hover::-webkit-scrollbar-thumb,
+.attendance-monthly-card:hover .attendance-grid-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25) !important;
+}
+
+.attendance-grid-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.attendance-grid-container:active,
+.attendance-grid-container.dragging {
+    cursor: grabbing !important;
+    user-select: none;
+}
+
+.attendance-month-table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    table-layout: fixed !important;
+    color: #000000 !important;
+}
+
+.attendance-month-table th,
+.attendance-month-table td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-left: none !important;
+    border-top: none !important;
+    padding: 0 !important;
+    text-align: center;
+    font-size: 0.85rem;
+    height: 3.25rem;
+    box-sizing: border-box !important;
+    vertical-align: middle;
+}
+
+.attendance-month-table thead tr {
+    background: #15803d !important;
+}
+
+.attendance-month-table thead tr th {
+    background: #15803d !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
+    vertical-align: middle !important;
+    height: 3.25rem;
+    padding: 0 !important;
+}
+
+.attendance-month-table th {
+    font-weight: 600 !important;
+    text-transform: normal !important;
+    color: #ffffff !important;
+    font-size: 0.78rem !important;
+    letter-spacing: normal !important;
+    user-select: none !important;
+}
+
+.attendance-th-title {
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+    letter-spacing: normal !important;
+    color: #ffffff !important;
+    user-select: none !important;
+}
+
+.attendance-th-date {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+    color: #ffffff !important;
+    user-select: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Sticky Student Column */
+.attendance-month-table .student-name-col {
+    width: 270px !important;
+    min-width: 270px !important;
+    max-width: 270px !important;
+    position: sticky !important;
+    left: 0 !important;
+    background: #ffffff !important;
+    z-index: 20 !important;
+    text-align: left !important;
+    padding: 0 1.25rem !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 3px 0 8px -2px rgba(0, 0, 0, 0.06) !important;
+    color: #000000 !important;
+    vertical-align: middle !important;
+    cursor: default !important;
+    box-sizing: border-box !important;
+    transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease !important;
+}
+
+.attendance-month-table .student-name-col.is-students-expanded,
+.attendance-month-table th.student-name-col.is-students-expanded,
+.attendance-month-table tbody td.student-name-col.is-students-expanded {
+    width: 270px !important;
+    min-width: 270px !important;
+    max-width: 270px !important;
+}
+
+.attendance-month-table th.student-name-col {
+    background: #15803d !important;
+    color: #ffffff !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: capitalize !important;
+    letter-spacing: normal;
+    border-right: none !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
+    z-index: 35 !important;
+    cursor: pointer !important;
+    padding: 0 0.75rem !important;
+    user-select: none !important;
+}
+
+.attendance-month-table th.student-name-col .attendance-th-students-inner {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    gap: 6px !important;
+}
+
+.attendance-month-table th.student-name-col .attendance-th-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.attendance-month-table th.student-name-col .attendance-students-expand-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transition: background-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.attendance-month-table th.student-name-col:hover .attendance-students-expand-btn,
+.attendance-month-table th.student-name-col .attendance-students-expand-btn:hover {
+    background: rgba(255, 255, 255, 0.45) !important;
+    transform: scale(1.08) !important;
+}
+
+.attendance-month-table th.student-name-col .attendance-students-expand-btn i {
+    font-size: 10px !important;
+    color: #ffffff !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+}
+
+/* Responsive labels for summary headers */
+.attendance-summary-label-full {
+    display: inline !important;
+}
+.attendance-summary-label-short {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .attendance-summary-label-full {
+        display: none !important;
+    }
+    .attendance-summary-label-short {
+        display: inline !important;
+        font-weight: 700 !important;
+    }
+}
+
+/* Attendance Summary Columns (Present, Absent, Late / P, A, L) */
+.attendance-month-table th.attendance-summary-th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 34 !important;
+    background: #15803d !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    padding: 0 4px !important;
+    user-select: none !important;
+    height: 3.25rem;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+}
+
+.attendance-month-table td.attendance-summary-td {
+    position: sticky !important;
+    z-index: 24 !important;
+    background: #ffffff !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    padding: 0 4px !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    color: #000000 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    height: 3.25rem;
+    box-sizing: border-box !important;
+}
+
+.attendance-month-table tbody tr:nth-child(even) td.attendance-summary-td {
+    background: #f8fafc !important;
+}
+
+.attendance-count-num {
+    color: #000000 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+}
+
+@media (min-width: 769px) {
+    .attendance-month-table th.attendance-summary-th,
+    .attendance-month-table td.attendance-summary-td {
+        height: 3.25rem !important;
+        min-height: 3.25rem !important;
+        max-height: 3.25rem !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--p,
+    .attendance-month-table td.attendance-summary-td--p {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 270px !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--a,
+    .attendance-month-table td.attendance-summary-td--a {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 334px !important;
+    }
+
+    .attendance-month-table th.attendance-summary-th--l,
+    .attendance-month-table td.attendance-summary-td--l {
+        width: 64px !important;
+        min-width: 64px !important;
+        max-width: 64px !important;
+        left: 398px !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.18) !important;
+        box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
+    }
+}
+
+.attendance-month-table th.attendance-summary-th--l::after,
+.attendance-month-table td.attendance-summary-td--l::after {
+    content: "" !important;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 1px !important;
+    background: rgba(0, 0, 0, 0.18) !important;
+    pointer-events: none !important;
+}
+
+.attendance-month-table th.attendance-summary-th--l::after {
+    z-index: 40 !important;
+}
+
+.attendance-month-table td.attendance-summary-td--l::after {
+    z-index: 28 !important;
+}
+
+.attendance-month-table .student-name-col::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(0, 0, 0, 0.14);
+    z-index: 25;
+}
+
+/* Connected student avatar inside sticky column */
+.attendance-month-table .student-name-col .sigma-user-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    pointer-events: none !important;
+    cursor: default !important;
+    flex-shrink: 0 !important;
+    user-select: none !important;
+}
+
+.attendance-month-table .student-name-col .sigma-user-avatar i {
+    font-size: 11px !important;
+    color: #94a3b8 !important;
+}
+
+.attendance-student-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #000000;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Zebra row stripes */
+.attendance-month-table tbody tr:nth-child(even) td {
+    background: #fafafa;
+}
+
+.attendance-month-table tbody tr:nth-child(odd) td {
+    background: #ffffff;
+}
+
+/* 1-cell only hover highlight */
+.attendance-month-table tbody td:not(.blank-col):not(.status-p):not(.status-a):not(.status-l):hover {
+    background: #f1f5f9 !important;
+    transition: background 0.12s ease;
+}
+
+/* Blank/Filler Columns */
+.attendance-month-table .blank-col {
+    cursor: default !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+.attendance-month-table th.blank-col {
+    background: #15803d !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    cursor: default !important;
+    pointer-events: none !important;
+}
+
+/* Standard Day Columns */
+.attendance-month-table .day-col {
+    cursor: pointer;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.attendance-month-table th.day-col {
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+.attendance-month-table th.day-col:not(.is-today):not(.is-expanded):hover {
+    background: #166534 !important;
+}
+
+.attendance-month-table th.day-col:not(.is-today):not(.is-expanded):hover .attendance-th-date {
+    color: #ffffff !important;
+}
+
+/* Today Column Header: ICC Yellow highlight so today stands out clearly */
+.attendance-month-table th.day-col.is-today:not(.is-expanded) {
+    background: #FFD000 !important;
+    border-bottom: 2px solid #d97706 !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+.attendance-month-table th.day-col.is-today:not(.is-expanded):hover {
+    background: #facc15 !important;
+}
+
+.attendance-month-table th.day-col.is-today:not(.is-expanded) .attendance-th-date,
+.attendance-month-table th.day-col.is-today:not(.is-expanded):hover .attendance-th-date {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+
+/* Selected Non-Current Day Column Header (ICC Green when day is selected and not today) */
+.attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) {
+    background: #15803d !important;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+.attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded):hover {
+    background: #166534 !important;
+}
+
+.attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) .attendance-th-date,
+.attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded):hover .attendance-th-date {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+/* Selected/Expanded Day Column: Crisp White/Soft Amber highlight */
+.attendance-month-table .day-col.is-expanded {
+    width: 144px !important;
+    min-width: 144px !important;
+    max-width: 144px !important;
+    background: #ffffff !important;
+}
+
+.attendance-month-table th.day-col.is-expanded {
+    background: #fef08a !important;
+    border-bottom: 2px solid #ca8a04 !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+.attendance-month-table th.day-col.is-expanded:hover {
+    background: #fde047 !important;
+}
+
+.attendance-month-table th.day-col.is-expanded .attendance-th-date,
+.attendance-month-table th.day-col.is-expanded:hover .attendance-th-date {
+    color: #854d0e !important;
+    font-weight: 800 !important;
+}
+
+/* Day Cell Contents */
+.attendance-day-cell {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 700;
+    position: relative;
+    font-size: 0.95rem;
+}
+
+.attendance-day-cell:hover:not(.is-expanded) {
+    background-color: transparent;
+}
+
+/* Full-cell Attendance Status Colors (Entire cell is colored when marked) */
+.attendance-month-table td.day-col.status-p:not(.is-expanded),
+.attendance-month-table td.day-col:has(.attendance-day-cell.status-p:not(.is-expanded)) {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+}
+
+.attendance-month-table td.day-col.status-a:not(.is-expanded),
+.attendance-month-table td.day-col:has(.attendance-day-cell.status-a:not(.is-expanded)) {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+.attendance-month-table td.day-col.status-l:not(.is-expanded),
+.attendance-month-table td.day-col:has(.attendance-day-cell.status-l:not(.is-expanded)) {
+    background-color: #f59e0b !important;
+    color: #ffffff !important;
+}
+
+/* Hover over status cells */
+.attendance-month-table tbody td.day-col.status-p:not(.is-expanded):hover,
+.attendance-month-table tbody td.day-col:has(.attendance-day-cell.status-p:not(.is-expanded)):hover {
+    background-color: #059669 !important;
+    color: #ffffff !important;
+}
+
+.attendance-month-table tbody td.day-col.status-a:not(.is-expanded):hover,
+.attendance-month-table tbody td.day-col:has(.attendance-day-cell.status-a:not(.is-expanded)):hover {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+.attendance-month-table tbody td.day-col.status-l:not(.is-expanded):hover,
+.attendance-month-table tbody td.day-col:has(.attendance-day-cell.status-l:not(.is-expanded)):hover {
+    background-color: #d97706 !important;
+    color: #ffffff !important;
+}
+
+.attendance-day-cell.status-p:not(.is-expanded),
+.attendance-day-cell.status-a:not(.is-expanded),
+.attendance-day-cell.status-l:not(.is-expanded) {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+}
+
+.attendance-day-cell.is-expanded {
+    padding: 0 8px;
+    cursor: default;
+    background: transparent !important;
+}
+
+/* P / A / L Option Buttons Inside Expanded Cell */
+.attendance-opt-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+}
+
+.attendance-opt-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    background: #ffffff;
+    color: #475569;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.attendance-opt-btn:hover:not(.active) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    transform: scale(1.05);
+}
+
+.attendance-opt-btn.p-btn.active {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4) !important;
+    transform: scale(1.06);
+}
+
+.attendance-opt-btn.a-btn.active {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4) !important;
+    transform: scale(1.06);
+}
+
+.attendance-opt-btn.l-btn.active {
+    background: #f59e0b !important;
+    color: #ffffff !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4) !important;
+    transform: scale(1.06);
+}
+
+/* Room only: clean card styling and standard spacing for announcement trigger card */
 #detail-section-room .classroom-room-main {
     gap: 0 !important;
 }
 
-#detail-section-room .classroom-room-main > .announcement-composer-trigger-card {
-    margin-bottom: 0 !important;
+#detail-section-room .classroom-room-main > .announcement-composer-trigger-card,
+.classroom-room-main > .announcement-composer-trigger-card,
+#detail-section-room .announcement-composer-trigger-card,
+.classroom-room-main .announcement-composer-trigger-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0.875rem !important;
+    border-radius: 22px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    background: #ffffff !important;
+    padding: 0.75rem 0.875rem !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Classroom Room Announcement Button Hover Highlight */
+#detail-section-room .classroom-room-main .announcement-composer-trigger-card button,
+.classroom-room-main .announcement-composer-trigger-card button,
+#detail-section-room .announcement-composer-trigger-card .announcement-trigger-input-btn,
+.classroom-room-main .announcement-composer-trigger-card .announcement-trigger-input-btn {
+    width: 100% !important;
+    height: 40px !important;
+    border-radius: 9999px !important;
+    background-color: #f1f5f9 !important;
+    cursor: pointer !important;
+    padding: 0 1.25rem !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+#detail-section-room .classroom-room-main .announcement-composer-trigger-card button:hover,
+.classroom-room-main .announcement-composer-trigger-card button:hover,
+#detail-section-room .announcement-composer-trigger-card .announcement-trigger-input-btn:hover,
+.classroom-room-main .announcement-composer-trigger-card .announcement-trigger-input-btn:hover {
+    background-color: #e2e8f0 !important;
+}
+
+#detail-section-room .classroom-room-main .announcement-composer-trigger-card button:active,
+.classroom-room-main .announcement-composer-trigger-card button:active,
+#detail-section-room .announcement-composer-trigger-card .announcement-trigger-input-btn:active,
+.classroom-room-main .announcement-composer-trigger-card .announcement-trigger-input-btn:active {
+    background-color: #cbd5e1 !important;
 }
 
 #detail-section-room .classroom-room-main > :not([hidden]) ~ :not([hidden]) {
@@ -1840,34 +2795,26 @@ body > .sortable-drag-clone .card-body-main,
     .classroom-room-main > .announcement-composer-trigger-card,
     #detail-section-room .classroom-room-main > .announcement-composer-trigger-card {
         margin-top: 0 !important;
-        border-top: none !important;
+        margin-bottom: 0.875rem !important;
+        border-radius: 22px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+        background: #ffffff !important;
     }
 
-    /* Seamless stick & closed gap between announcement button and post panels */
+    /* Proper spacing between announcement cards in feed */
     #detail-section-room .classroom-room-main > :not([hidden]) ~ :not([hidden]),
-    .classroom-room-main > :not([hidden]) ~ :not([hidden]),
-    #room-announcements-feed,
-    #admin-room-announcements-feed,
-    .room-announcements-feed {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        padding-top: 0 !important;
+    .classroom-room-main > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 0.875rem !important;
     }
 
-    /* In Student view: don't stick announcement cards to selection tabs */
+    /* Student room layout alignment matching teacher/admin */
     #student-room-feed,
     .student-room-feed,
     .student-room-main,
     .student-room-panel .room-announcements-feed,
-    #detail-section-room .classroom-room-main:not(:has(.announcement-composer-trigger-card)) {
-        margin-top: 10px !important;
-    }
-
-    #student-room-feed > article:first-child,
-    #student-room-feed > .announcement-card:first-child,
-    #student-room-feed > .sigma-announcement-card:first-child,
-    .student-room-feed > article:first-child {
-        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    #detail-section-room .classroom-room-main {
+        margin-top: 0 !important;
     }
 
     .room-announcements-feed > article,
@@ -2089,7 +3036,7 @@ body > .sortable-drag-clone .card-body-main,
     .attendance-month-table th.day-col {
         padding: 0 !important;
         text-align: center !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
     }
 
     .attendance-month-table th.day-col .attendance-th-date {
@@ -2115,7 +3062,7 @@ body > .sortable-drag-clone .card-body-main,
 
     .attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) {
         background: #15803d !important;
-        border-bottom: 2px solid #166534 !important;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
     }
 
     .attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) .attendance-th-date {
@@ -2464,5 +3411,45 @@ body > .sortable-drag-clone .card-body-main,
     }
 }
 
+/* ─── Classroom Room Announcement Composer Trigger Card Unification ────────── */
+#detail-section-room .announcement-composer-trigger-card,
+.classroom-room-panel .announcement-composer-trigger-card,
+.classroom-room-main .announcement-composer-trigger-card,
+.classroom-room-main > div:first-child:has(button[onclick*="openClassroomComposer"]),
+.classroom-room-main > div:first-child:has(button[onclick*="openAdminClassroomComposer"]) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0.875rem !important;
+    border-radius: 22px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: var(--sigma-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.05)) !important;
+    background: #ffffff !important;
+    padding: 0.75rem 0.875rem !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+}
 
-
+#detail-section-room .announcement-composer-trigger-card button,
+.classroom-room-panel .announcement-composer-trigger-card button,
+.classroom-room-main .announcement-composer-trigger-card button,
+#detail-section-room .announcement-composer-trigger-card .announcement-trigger-input-btn,
+.classroom-room-panel .announcement-composer-trigger-card .announcement-trigger-input-btn,
+.classroom-room-main .announcement-composer-trigger-card .announcement-trigger-input-btn {
+    width: 100% !important;
+    height: 40px !important;
+    border-radius: 9999px !important;
+    background-color: #f1f5f9 !important;
+    cursor: pointer !important;
+    padding: 0 1.25rem !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.75rem !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}

@@ -270,7 +270,7 @@ require_once __DIR__ . "/includes/topbar.php";
                                             <div class="overflow-x-auto">
                                                 <table class="w-full text-left border-collapse">
                                                     <thead>
-                                                        <tr class="bg-[#15803d] border-b border-[#166534] select-none text-white">
+                                                        <tr class="bg-[#15803d] border-b border-[#137638] select-none text-white">
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Student Name</th>
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Status</th>
                                                             <th class="px-6 py-4 text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] text-right">Action</th>

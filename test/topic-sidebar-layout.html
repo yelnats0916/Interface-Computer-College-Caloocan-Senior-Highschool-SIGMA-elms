@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Topic Sidebar Layout Regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/topic-detail.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <div class="relative" style="height: 140px;">
+        <div id="classroom-settings-menu" class="classroom-settings-menu" style="top: 0;">
+            <button class="classroom-settings-item flex w-full">Members</button>
+            <button class="classroom-settings-item classroom-settings-grades-btn w-full">View Grades</button>
+            <button class="classroom-settings-item flex w-full">Customize Banner</button>
+            <div class="classroom-settings-item flex items-center justify-between">
+                <span>Student Comment</span><label class="sigma-toggle-switch"><input type="checkbox"><span class="sigma-toggle-slider"></span></label>
+            </div>
+        </div>
+    </div>
+    <div class="teacher-topic-page-grid">
+        <div id="topic-content-main"><div class="topic-progress-card">Learning Materials</div></div>
+        <div id="topic-right-section" class="teacher-topic-progress-rail">
+            <div class="topic-progress-rail teacher-topic-progress-rail">
+                <div class="teacher-topic-desktop-toolbar mb-4 w-full">
+                    <div class="manage-curriculum-dropdown-container relative inline-flex flex-col w-full">
+                        <button class="manage-curriculum-dropdown-btn w-full inline-flex items-center justify-between gap-2.5 px-4 py-2.5 rounded-xl">
+                            <span>Topics &amp; Materials</span><span>+</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="topic-progress-card topic-switch-panel">Topics</div>
+            </div>
+        </div>
+    </div>
+    <div class="relative" style="height: 100px;">
+        <div id="student-room-dropdown" class="classroom-settings-menu" style="top: 0; min-width: 140px;">
+            <button class="classroom-settings-item flex w-full"><span>Members</span></button>
+            <button class="classroom-settings-item classroom-settings-grades-btn w-full"><span>View Grades</span></button>
+        </div>
+    </div>
+    <div class="relative" style="height: 100px;">
+        <div id="admin-room-dropdown" class="classroom-settings-menu" style="top: 0;">
+            <button class="classroom-settings-item flex w-full"><span>Members</span></button>
+            <button class="classroom-settings-item classroom-settings-grades-btn w-full"><span>View Grades</span></button>
+        </div>
+    </div>
+</body>
+</html>

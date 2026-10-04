@@ -88,9 +88,33 @@
     transition: color 0.15s ease;
 }
 
+.announcement-trigger-input-btn,
+#trigger-announcement-composer,
+.announcement-composer-trigger-card button,
+button[onclick*="openComposerModal"],
+button[onclick*="openClassroomComposer"],
+button[onclick*="openAdminClassroomComposer"] {
+    background-color: #f1f5f9;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
 .announcement-trigger-input-btn:hover,
-#trigger-announcement-composer:hover {
-    background-color: #e2e8f0;
+#trigger-announcement-composer:hover,
+.announcement-composer-trigger-card button:hover,
+button[onclick*="openComposerModal"]:hover,
+button[onclick*="openClassroomComposer"]:hover,
+button[onclick*="openAdminClassroomComposer"]:hover {
+    background-color: #e2e8f0 !important;
+}
+
+.announcement-trigger-input-btn:active,
+#trigger-announcement-composer:active,
+.announcement-composer-trigger-card button:active,
+button[onclick*="openComposerModal"]:active,
+button[onclick*="openClassroomComposer"]:active,
+button[onclick*="openAdminClassroomComposer"]:active {
+    background-color: #cbd5e1 !important;
 }
 
 .announcement-trigger-input-btn:hover span,
@@ -98,7 +122,8 @@
 .announcement-composer-trigger-card button:hover span,
 .announcement-composer-trigger-card:hover button span,
 button[onclick*="openComposerModal"]:hover span,
-button[onclick*="openClassroomComposer"]:hover span {
+button[onclick*="openClassroomComposer"]:hover span,
+button[onclick*="openAdminClassroomComposer"]:hover span {
     color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
 }
 
@@ -107,7 +132,8 @@ button[onclick*="openClassroomComposer"]:hover span {
 .announcement-composer-trigger-card button:hover i,
 .announcement-composer-trigger-card:hover button i,
 button[onclick*="openComposerModal"]:hover i,
-button[onclick*="openClassroomComposer"]:hover i {
+button[onclick*="openClassroomComposer"]:hover i,
+button[onclick*="openAdminClassroomComposer"]:hover i {
     color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
 }
 

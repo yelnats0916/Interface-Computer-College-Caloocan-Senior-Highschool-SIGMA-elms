@@ -649,6 +649,13 @@
                                                 </div>
                                                 <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Change Password</span>
                                             </button>
+                                            <button type="button" id="profile-force-signout-btn" onclick="window.requestForceSignOut(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                class="hidden w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left text-black">
+                                                <div class="w-6 flex items-center justify-center shrink-0">
+                                                    <i class="fa-solid fa-right-from-bracket text-black text-sm"></i>
+                                                </div>
+                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Sign Out</span>
+                                            </button>
                                             <div id="profile-settings-danger-divider" class="h-px bg-slate-200 my-1"></div>
                                             <button type="button" id="profile-lock-btn" onclick="window.toggleUserLock(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
                                                 class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600">
@@ -1138,13 +1145,15 @@
         }
 
         const dangerDivider = document.getElementById('profile-settings-danger-divider');
+        const forceSignOutBtn = document.getElementById('profile-force-signout-btn');
+        if (forceSignOutBtn) forceSignOutBtn.classList.toggle('hidden', portal !== 'admin' || !canEditThisUser || !canActionLock || isTargetMaster || isSelfUser);
         const dangerVisible = (lockBtn && !lockBtn.classList.contains('hidden'))
             || (statusBtn && !statusBtn.classList.contains('hidden'))
             || (deleteBtn && !deleteBtn.classList.contains('hidden'));
         if (dangerDivider) dangerDivider.classList.toggle('hidden', !dangerVisible);
 
         if (settingsBtn) {
-            const gearItems = ['profile-edit-info-btn', 'profile-edit-permissions-btn', 'profile-change-pw-btn', 'profile-lock-btn', 'profile-status-btn', 'profile-delete-btn'];
+            const gearItems = ['profile-edit-info-btn', 'profile-edit-permissions-btn', 'profile-change-pw-btn', 'profile-force-signout-btn', 'profile-lock-btn', 'profile-status-btn', 'profile-delete-btn'];
             const hasGearAction = gearItems.some(function (itemId) {
                 const item = document.getElementById(itemId);
                 return item && !item.classList.contains('hidden');
@@ -2394,6 +2403,10 @@
                         saveStoredJson(storageKey, filteredList);
                     }
                 });
+
+                if (typeof window.syncUserToDB === 'function') {
+                    window.syncUserToDB({ id: targetId }, 'delete');
+                }
 
                 // Purge any avatar or user-specific cache keys
                 try {

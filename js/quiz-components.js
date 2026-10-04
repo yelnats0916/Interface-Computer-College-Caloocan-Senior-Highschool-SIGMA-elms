@@ -133,10 +133,12 @@ window.SigmaQuizComponents = {
 
                 <div class="flex items-center gap-2.5 shrink-0">
                     ${this.renderAnswerKeyButton(idx, isAnswerKeyOpen)}
-                    ${((isMatching || isEnum) && isAnswerKeyOpen) ? '<div class="w-[145px] h-10 shrink-0 invisible pointer-events-none select-none"></div>' : this.renderPointsControl(idx, q.points, isAnswerKeyOpen)}
-                    <div class="flex items-center gap-2.5 shrink-0 ${isAnswerKeyOpen ? 'invisible pointer-events-none select-none' : ''}">
-                        ${this.renderActionButtons(idx, q)}
-                    </div>
+                    ${((isMatching || isEnum) && isAnswerKeyOpen) ? '' : this.renderPointsControl(idx, q.points, isAnswerKeyOpen)}
+                    ${!isAnswerKeyOpen ? `
+                        <div class="flex items-center gap-2.5 shrink-0">
+                            ${this.renderActionButtons(idx, q)}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -485,21 +487,9 @@ window.SigmaQuizComponents = {
 
                             return `
                                 <div class="space-y-1.5 group/enum-block">
-                                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 group/enum-row border-b border-slate-100 sm:border-0 pb-2.5 sm:pb-0">
-                                        <!-- Points Counter: floated right on mobile, on the right on desktop -->
-                                        <div class="order-1 sm:order-2 ml-auto sm:ml-0 w-[130px] sm:w-[145px] flex items-center justify-between bg-slate-50 h-9 sm:h-10 px-2.5 sm:px-3 py-1 rounded-xl border border-slate-200 text-xs sm:text-sm font-normal text-black shrink-0">
-                                            <div class="flex items-center gap-1.5 shrink-0">
-                                                <i class="fa-solid fa-star text-amber-400 text-xs"></i>
-                                                <span class="text-black-fade text-xs sm:text-sm font-normal">Points:</span>
-                                            </div>
-                                            <input type="number" id="enum-item-pts-input-${idx}-${iIdx}" min="0" max="999" value="${itemPts}"
-                                                onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
-                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); let v = parseInt(this.value); if (v > 999) { v = 999; this.value = 999; } if (typeof window.updateEnumItemPoints === 'function') window.updateEnumItemPoints(${idx}, ${iIdx}, v);"
-                                                onblur="let v = parseInt(this.value); if (isNaN(v) || v < 0) { this.value = 0; v = 0; } if (typeof window.updateEnumItemPoints === 'function') window.updateEnumItemPoints(${idx}, ${iIdx}, v);"
-                                                class="w-12 sm:w-14 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
-                                        </div>
-                                        <!-- Left Text Box with Grab, Remove inside renderOptionSlot -->
-                                        <div class="order-2 sm:order-1 w-full sm:w-auto sm:flex-1 sm:max-w-lg min-w-0">
+                                    <div class="flex items-center gap-2.5 sm:gap-3 group/enum-row">
+                                        <!-- Main Text Box with Grab, Remove inside renderOptionSlot -->
+                                        <div class="enum-textbox-col flex-1 max-w-xl min-w-0">
                                             ${window.SigmaQuizComponents.renderOptionSlot({
                                                 draggable: true,
                                                 dragStart: `window.handleEnumDragStart(event, ${idx}, ${iIdx})`,
@@ -521,10 +511,23 @@ window.SigmaQuizComponents = {
                                                 `
                                             })}
                                         </div>
+
+                                        <!-- Points Counter: Placed cleanly on the right -->
+                                        <div class="enum-points-col w-[130px] sm:w-[145px] flex items-center justify-between bg-slate-50 h-10 px-2.5 sm:px-3 py-1 rounded-xl border border-slate-200 text-xs sm:text-sm font-normal text-black shrink-0">
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <i class="fa-solid fa-star text-amber-400 text-xs"></i>
+                                                <span class="text-black-fade text-xs sm:text-sm font-normal">Points:</span>
+                                            </div>
+                                            <input type="number" id="enum-item-pts-input-${idx}-${iIdx}" min="0" max="999" value="${itemPts}"
+                                                onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
+                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); let v = parseInt(this.value); if (v > 999) { v = 999; this.value = 999; } if (typeof window.updateEnumItemPoints === 'function') window.updateEnumItemPoints(${idx}, ${iIdx}, v);"
+                                                onblur="let v = parseInt(this.value); if (isNaN(v) || v < 0) { this.value = 0; v = 0; } if (typeof window.updateEnumItemPoints === 'function') window.updateEnumItemPoints(${idx}, ${iIdx}, v);"
+                                                class="w-12 sm:w-14 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
+                                        </div>
                                     </div>
 
                                     <!-- Alternative Answers List & Add Alternative Button below the Main Text Box -->
-                                    <div class="max-w-lg space-y-1.5 pl-4 sm:pl-5">
+                                    <div class="max-w-xl space-y-1.5 pl-4 sm:pl-5">
                                         ${itemAlts.map((altVal, altIdx) => `
                                             <div class="flex items-center gap-2 group/enum-alt">
                                                 <i class="fa-solid fa-turn-up rotate-90 text-[10px] text-black-fade/60 shrink-0"></i>
@@ -661,27 +664,16 @@ window.SigmaQuizComponents = {
                         ${q.pairs.map((pair, pIdx) => {
                             const pairPts = (pair.points !== undefined && !isNaN(parseInt(pair.points))) ? parseInt(pair.points) : 0;
                             return `
-                                <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 group/pair border-b border-slate-100 sm:border-0 pb-3 sm:pb-0">
-                                    <!-- Row and Number Only on the Left -->
-                                    <div class="order-1 flex items-center shrink-0 min-w-[50px]">
+                                <div class="flex items-center gap-2.5 sm:gap-3 group/pair border-b border-slate-100 sm:border-0 pb-3 sm:pb-0">
+                                    <!-- Row and Number on the Left -->
+                                    <div class="flex items-center shrink-0 min-w-[50px]">
                                         <span class="text-sm font-semibold sm:font-normal text-black-fade select-none">
                                             Row ${pIdx + 1}
                                         </span>
                                     </div>
-                                    <!-- Beside each text box row: Individual Points Counter -->
-                                    <div class="order-2 ml-auto sm:ml-0 sm:order-3 w-[130px] sm:w-[145px] flex items-center justify-between bg-slate-50 h-9 sm:h-10 px-2.5 sm:px-3 py-1 rounded-xl border border-slate-200 text-xs sm:text-sm font-normal text-black shrink-0">
-                                        <div class="flex items-center gap-1.5 shrink-0">
-                                            <i class="fa-solid fa-star text-amber-400 text-xs"></i>
-                                            <span class="text-black-fade text-xs sm:text-sm font-normal">Points:</span>
-                                        </div>
-                                        <input type="number" id="matching-pair-pts-input-${idx}-${pIdx}" min="0" max="999" value="${pairPts}"
-                                            onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
-                                            oninput="this.value = this.value.replace(/[^0-9]/g, ''); let v = parseInt(this.value); if (v > 999) { v = 999; this.value = 999; } if (typeof window.updateMatchingPairPoints === 'function') window.updateMatchingPairPoints(${idx}, ${pIdx}, v);"
-                                            onblur="let v = parseInt(this.value); if (isNaN(v) || v < 0) { this.value = 0; v = 0; } if (typeof window.updateMatchingPairPoints === 'function') window.updateMatchingPairPoints(${idx}, ${pIdx}, v);"
-                                            class="w-12 sm:w-14 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
-                                    </div>
+
                                     <!-- Column B Textbox with Grab and Swap inside via shared renderOptionSlot -->
-                                    <div class="order-3 sm:order-2 w-full sm:w-auto sm:flex-1 sm:max-w-lg min-w-0">
+                                    <div class="pair-textbox-col flex-1 max-w-xl min-w-0">
                                         ${window.SigmaQuizComponents.renderOptionSlot({
                                             draggable: true,
                                             dragStart: `window.handlePairDragStart(event, ${idx}, ${pIdx})`,
@@ -701,6 +693,19 @@ window.SigmaQuizComponents = {
                                                 ` : ''}
                                             `
                                         })}
+                                    </div>
+
+                                    <!-- Individual Points Counter on the Right -->
+                                    <div class="pair-points-col w-[130px] sm:w-[145px] flex items-center justify-between bg-slate-50 h-10 px-2.5 sm:px-3 py-1 rounded-xl border border-slate-200 text-xs sm:text-sm font-normal text-black shrink-0">
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <i class="fa-solid fa-star text-amber-400 text-xs"></i>
+                                            <span class="text-black-fade text-xs sm:text-sm font-normal">Points:</span>
+                                        </div>
+                                        <input type="number" id="matching-pair-pts-input-${idx}-${pIdx}" min="0" max="999" value="${pairPts}"
+                                            onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, ''); let v = parseInt(this.value); if (v > 999) { v = 999; this.value = 999; } if (typeof window.updateMatchingPairPoints === 'function') window.updateMatchingPairPoints(${idx}, ${pIdx}, v);"
+                                            onblur="let v = parseInt(this.value); if (isNaN(v) || v < 0) { this.value = 0; v = 0; } if (typeof window.updateMatchingPairPoints === 'function') window.updateMatchingPairPoints(${idx}, ${pIdx}, v);"
+                                            class="w-12 sm:w-14 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
                                     </div>
                                 </div>
                             `;

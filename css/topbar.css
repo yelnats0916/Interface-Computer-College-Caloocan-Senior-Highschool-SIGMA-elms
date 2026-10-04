@@ -1601,12 +1601,26 @@
     }
 
     .mobile-subbar-badge {
+        font-family: 'Inter', sans-serif !important;
+        box-sizing: border-box !important;
+        display: flex;
+        align-items: center !important;
+        justify-content: center !important;
         position: absolute !important;
-        top: 4px !important;
-        right: 8px !important;
-        width: 8px !important;
-        height: 8px !important;
-        background: #FFD000 !important;
+        top: 0 !important;
+        right: 2px !important;
+        min-width: 16px !important;
+        width: max-content !important;
+        white-space: nowrap !important;
+        height: 16px !important;
+        padding: 0 3px !important;
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+        font-variant-numeric: tabular-nums;
+        text-align: center !important;
         border: 2px solid #ffffff !important;
         border-radius: 9999px !important;
     }

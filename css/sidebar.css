@@ -450,6 +450,13 @@ body.sidebar-collapsed .sidebar-submenu {
     display: none !important;
 }
 
+html.sidebar-viewport-reset body #sidebar,
+html.sidebar-viewport-reset body #sub-sidebar,
+html.sidebar-viewport-reset body #sidebar-overlay {
+    transition: none !important;
+    animation: none !important;
+}
+
 /* ─── 6. Responsive Mobile Mode (<1024px) ───────────────────────────────── */
 @media (max-width: 1023px) {
     #layout-wrapper,

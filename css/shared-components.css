@@ -5,7 +5,7 @@
  * Keep page-specific CSS in admin.css, teacher.css, or student.css.
  */
 
-@import "forms.css";
+@import "forms.css?v=20261004desktopTemplatesLayout1";
 @import "topbar.css?v=20260928cardpadalign1";
 @import "sidebar.css";
 @import "sigma-analytics.css";
@@ -13,14 +13,116 @@
 @import "dashboard-layout.css";
 @import "right-panel.css";
 @import "profile.css";
-@import "notifications.css";
+@import "notifications.css?v=20261003unreadtint1";
 @import "calendar.css?v=20260929dateselect1";
-@import "announcements.css?v=20261001scrolltouchfix1";
-@import "announcement-cards.css?v=20260929badgewrap1";
-@import "classroom-room.css?v=20260927attendscale1";
+@import "announcements.css?v=20261004hovergrey1";
+@import "announcement-cards.css?v=20261004badgenocut1";
+@import "classroom-room.css?v=20261004sharedMobileDots1";
+
 @import "settings-view.css";
-@import "topic-detail.css?v=20260927progresstask1";
+@import "topic-detail.css?v=20261004sharedSelectionRail1";
 @import "mobile.css?v=20261001scrolltouchfix1";
+
+/* Full-screen modal backdrops cover both navigation rails and the page header. */
+.sigma-fullscreen-modal-layer {
+    z-index: var(--sigma-modal-layer, 11000) !important;
+}
+
+.video-material-description-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 4px 8px;
+    margin: 4px 0 0 -8px;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    color: #15803d;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+body .video-material-description:not(.is-expanded) p.material-detail-body-text {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden !important;
+}
+
+.video-material-description-toggle:hover {
+    background: #f1f3f5;
+}
+
+.video-material-description-toggle:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 2px;
+}
+
+#topics-materials-release-workspace .quiz-storage-filter-chip:hover {
+    background-color: #e5e7eb !important;
+    color: #111827 !important;
+}
+
+@media (max-width: 768px) {
+    #teacher-release-assessments-overlay .overflow-y-auto.flex-1 {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    #topics-materials-release-workspace #unified-picker-list-container {
+        width: calc(100% + 24px);
+        max-width: none;
+        margin-left: -12px;
+        margin-right: -12px;
+    }
+
+    #topics-materials-release-workspace input[type="checkbox"] {
+        width: 14px !important;
+        height: 14px !important;
+        min-width: 14px !important;
+        min-height: 14px !important;
+        flex-shrink: 0;
+    }
+
+    #topics-materials-release-workspace .release-workspace-toolbar {
+        flex-wrap: nowrap;
+        gap: 6px;
+        overflow-x: auto;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    #topics-materials-release-workspace #unified-picker-filter-chips {
+        flex-wrap: nowrap !important;
+        flex-shrink: 0;
+        width: auto !important;
+        padding: 0 !important;
+        gap: 3px;
+    }
+
+    #topics-materials-release-workspace #unified-picker-filter-chips .quiz-storage-filter-chip {
+        padding: 5px !important;
+        font-size: 10px;
+        line-height: 14px;
+    }
+
+    #topics-materials-release-workspace .release-workspace-selection-actions {
+        flex-wrap: nowrap;
+        gap: 3px;
+        margin-left: auto;
+        white-space: nowrap;
+        font-size: 10px;
+        line-height: 14px;
+    }
+
+    #topics-materials-release-workspace .release-workspace-selection-actions button {
+        padding: 5px 2px;
+        font-size: inherit;
+        line-height: inherit;
+    }
+}
 
 /* Universal utility classes */
 .hidden {
@@ -106,6 +208,39 @@ input::-webkit-calendar-picker-indicator:hover {
 .sigma-announcement-card,
 .sigma-feed-tabs-container {
     box-shadow: var(--sigma-card-shadow) !important;
+}
+
+/* Announcement Composer Trigger Button Canonical Styling & Hover Highlight */
+.announcement-composer-trigger-card button,
+.announcement-composer-trigger-card .announcement-trigger-input-btn,
+.announcement-composer-trigger-card #trigger-announcement-composer,
+#trigger-announcement-composer,
+button[onclick*="openComposerModal"],
+button[onclick*="openClassroomComposer"],
+button[onclick*="openAdminClassroomComposer"] {
+    background-color: #f1f5f9 !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.announcement-composer-trigger-card button:hover,
+.announcement-composer-trigger-card .announcement-trigger-input-btn:hover,
+.announcement-composer-trigger-card #trigger-announcement-composer:hover,
+#trigger-announcement-composer:hover,
+button[onclick*="openComposerModal"]:hover,
+button[onclick*="openClassroomComposer"]:hover,
+button[onclick*="openAdminClassroomComposer"]:hover {
+    background-color: #e2e8f0 !important;
+}
+
+.announcement-composer-trigger-card button:active,
+.announcement-composer-trigger-card .announcement-trigger-input-btn:active,
+.announcement-composer-trigger-card #trigger-announcement-composer:active,
+#trigger-announcement-composer:active,
+button[onclick*="openComposerModal"]:active,
+button[onclick*="openClassroomComposer"]:active,
+button[onclick*="openAdminClassroomComposer"]:active {
+    background-color: #cbd5e1 !important;
 }
 
 .sigma-announcement-card:hover {
@@ -461,9 +596,9 @@ body:has(#dashboard-view:not(.hidden)) {
         position: relative !important;
         z-index: 1 !important;
         padding: 0.875rem !important;
-        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease !important;
+        transition: none !important;
         text-align: left !important;
-        cursor: pointer !important;
+        cursor: default !important;
     }
 
     .video-selection-card:hover,
@@ -472,11 +607,11 @@ body:has(#dashboard-view:not(.hidden)) {
     #topic-content-main .video-selection-card:hover,
     .video-selection-card:focus-visible,
     button.video-selection-card:focus-visible {
-        z-index: 10 !important;
-        border-color: rgba(0, 0, 0, 0.15) !important;
+        z-index: 1 !important;
+        border-color: rgba(0, 0, 0, 0.08) !important;
         background-color: #ffffff !important;
-        box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.12), 0 10px 15px -5px rgba(0, 0, 0, 0.06) !important;
-        transform: translateY(-4px) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+        transform: none !important;
         outline: none !important;
     }
 
@@ -503,7 +638,8 @@ body:has(#dashboard-view:not(.hidden)) {
     content: none !important;
 }
 
-.video-selection-card:hover .video-thumbnail-panel {
+.video-selection-card .video-thumbnail-panel:hover,
+.video-selection-card .video-thumbnail-panel:focus-visible {
     border-color: rgba(255, 255, 255, 0.25) !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
 }
@@ -520,7 +656,8 @@ body:has(#dashboard-view:not(.hidden)) {
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
-.video-selection-card:hover .video-play-btn {
+.video-selection-card .video-thumbnail-panel:hover .video-play-btn,
+.video-selection-card .video-thumbnail-panel:focus-visible .video-play-btn {
     background: #15803d !important;
     border-color: #15803d !important;
     color: #ffffff !important;
@@ -1573,6 +1710,7 @@ body.sorting-subject-topics * {
 #gradebook-spreadsheet tbody td.gb-summary-green,
 #admin-gradebook-spreadsheet tbody td.gb-summary-green,
 #teacher-grades-modal-tbody td.gb-summary-green,
+#admin-grades-modal-tbody td.gb-summary-green,
 .teacher-grade-row td.gb-summary-green {
     background-color: rgba(16, 185, 129, 0.08) !important;
 }
@@ -1582,10 +1720,42 @@ body.sorting-subject-topics * {
 #gradebook-spreadsheet tbody td.gb-summary-green:hover,
 #admin-gradebook-spreadsheet tbody td.gb-summary-green:hover,
 #teacher-grades-modal-tbody tr:hover td.gb-summary-green,
+#admin-grades-modal-tbody tr:hover td.gb-summary-green,
 .teacher-grade-row:hover td.gb-summary-green,
 #teacher-grades-modal-tbody td.gb-summary-green:hover,
+#admin-grades-modal-tbody td.gb-summary-green:hover,
 .teacher-grade-row td.gb-summary-green:hover {
     background-color: rgba(16, 185, 129, 0.16) !important;
+}
+
+/* Classroom Grades Modal Student Profile Icon */
+#admin-grades-modal-tbody .classroom-grades-avatar-wrap,
+#teacher-grades-modal-tbody .classroom-grades-avatar-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+#admin-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar,
+#teacher-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    border-radius: 9999px !important;
+}
+
+#admin-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar i,
+#teacher-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar i {
+    font-size: 13px !important;
+}
+
+@media (max-width: 480px) {
+    #admin-grades-modal-tbody .classroom-grades-avatar-wrap,
+    #teacher-grades-modal-tbody .classroom-grades-avatar-wrap {
+        display: none !important;
+    }
 }
 
 #gradebook-spreadsheet tbody td.gb-summary-yellow,
@@ -3089,6 +3259,19 @@ body #topic-content-main .sigma-black-fade-panel h4.sigma-file-panel-title {
     -webkit-text-fill-color: #000000 !important;
 }
 
+/* Attached-file cards are informational; only the filename opens the resource. */
+body .sigma-attached-file-panel {
+    cursor: default !important;
+}
+
+body .sigma-attached-file-panel .sigma-file-panel-title--clickable:hover,
+body .sigma-attached-file-panel .sigma-file-panel-title--clickable:focus-visible {
+    color: #FFD000 !important;
+    -webkit-text-fill-color: #FFD000 !important;
+    text-decoration: none !important;
+    outline: none;
+}
+
 @media (max-width: 768px) {
     body .sigma-file-panel-title,
     body .sigma-black-fade-panel .sigma-file-panel-title,
@@ -3145,6 +3328,97 @@ body #topic-content-main .sigma-black-fade-panel h4.sigma-file-panel-title {
     outline: none !important;
     --tw-ring-shadow: 0 0 #0000 !important;
     --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+/* Quiz Storage & Library Search Button Desktop Sizing */
+@media (min-width: 768px) {
+    #storage-picker-search-btn,
+    #library-modal-search-btn {
+        height: 34px !important;
+        min-height: 34px !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+        font-size: 13.5px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        margin-left: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        box-shadow: none !important;
+    }
+}
+
+/* ─── Topic Cover & Design Templates Options Button & Menu ──────────── */
+.topic-template-card {
+    position: relative !important;
+    overflow: visible !important;
+}
+
+.topic-template-card img {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    object-fit: cover !important;
+}
+
+.topic-template-card.menu-open,
+.topic-template-card:has(.topic-options-menu:not(.hidden)) {
+    z-index: 10080 !important;
+    overflow: visible !important;
+}
+
+.topic-options-trigger,
+button.topic-options-trigger {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 9999px !important;
+    background-color: rgba(0, 0, 0, 0.60) !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.20) !important;
+    z-index: 25 !important;
+    transition: background-color 0.15s ease, transform 0.1s ease !important;
+}
+
+.topic-options-trigger:hover,
+button.topic-options-trigger:hover {
+    background-color: rgba(0, 0, 0, 0.85) !important;
+    transform: scale(1.05) !important;
+}
+
+.topic-options-trigger i,
+button.topic-options-trigger i {
+    font-size: 11px !important;
+    color: #ffffff !important;
+    line-height: 1 !important;
+}
+
+.topic-options-menu {
+    position: absolute !important;
+    top: 38px !important;
+    right: 8px !important;
+    min-width: 185px !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.20), 0 5px 15px rgba(0, 0, 0, 0.08) !important;
+    z-index: 10090 !important;
+    padding: 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+}
+
+.topic-options-menu.hidden {
+    display: none !important;
 }
 
 /* AI Generator Borrow View Header Back Button: mobile-only, hidden on desktop */

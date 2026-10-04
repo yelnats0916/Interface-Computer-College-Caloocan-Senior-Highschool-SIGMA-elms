@@ -960,6 +960,19 @@ function initSharedTopbarInteractions() {
     const mobilePanelBackBtn = document.getElementById('mobile-panel-back-btn');
 
     const isMobileViewport = () => window.innerWidth <= 768;
+    const mobilePanelViewport = window.matchMedia('(max-width: 768px)');
+    mobilePanelViewport.addEventListener('change', () => {
+        window.closeMobileTopPanel();
+        window.closeMobileAccountPanel();
+        document.querySelectorAll('.mobile-pull-up-panel, .mobile-sigma-sheet, .mobile-sigma-sheet-backdrop')
+            .forEach(panel => panel.classList.remove('open'));
+        document.querySelectorAll('.header-icon-btn, .header-profile-btn, .mobile-subbar-btn')
+            .forEach(button => button.classList.remove('active', 'selected'));
+        const header = document.getElementById('student-header') || document.getElementById('teacher-header') || document.querySelector('header');
+        header?.classList.remove('subbar-hidden');
+        document.body.classList.remove('subbar-hidden');
+        window.updateMobileAppBarActiveState?.();
+    });
 
     // Back button in mobile panel header (icon only)
     if (mobilePanelBackBtn && !mobilePanelBackBtn.dataset.topbarBound) {

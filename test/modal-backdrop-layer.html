@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modal Backdrop Layer Regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+</head>
+<body class="sidebar-collapsed">
+    <aside id="sidebar">Navigation</aside>
+    <header style="position:fixed;inset:0 0 auto;height:60px;z-index:10000;background:white">Page Header</header>
+    <main style="margin:100px">
+        <button onclick="document.getElementById('sigma-delete-user-modal').classList.remove('hidden')">Open legacy dialog</button>
+        <button onclick="document.getElementById('fixture-other-overlay').classList.remove('hidden')">Open other dialog</button>
+    </main>
+    <div id="sigma-delete-user-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black/60" style="z-index:9999">
+        <div style="background:white;padding:24px">
+            <h1>Legacy Dialog</h1>
+            <button onclick="document.getElementById('fixture-nested-modal').classList.remove('hidden')">Open nested dialog</button>
+            <button onclick="this.closest('#sigma-delete-user-modal').classList.add('hidden')">Close legacy dialog</button>
+        </div>
+    </div>
+    <div id="fixture-nested-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black/60" style="z-index:100060">
+        <div style="background:white;padding:24px">
+            <h1>Nested Dialog</h1>
+            <button onclick="this.closest('#fixture-nested-modal').classList.add('hidden')">Close nested dialog</button>
+        </div>
+    </div>
+    <div id="fixture-other-overlay" class="hidden fixed inset-0 flex items-center justify-center bg-black/50" style="z-index:50">
+        <div style="background:white;padding:24px">
+            <h1>Other Dialog</h1>
+            <button onclick="this.closest('#fixture-other-overlay').classList.add('hidden')">Close other dialog</button>
+        </div>
+    </div>
+    <script src="../js/shared-components.js"></script>
+</body>
+</html>
