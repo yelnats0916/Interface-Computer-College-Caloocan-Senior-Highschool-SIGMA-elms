@@ -18245,6 +18245,173 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initApiVault();
 
+    // ─── GOOGLE DRIVE CLOUD STORAGE MANAGER ───────────────────────────────────────
+    window.openGoogleDriveManagerModal = async function () {
+        const modal = document.getElementById('gdrive-manager-modal');
+        if (!modal) return;
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Fetch current status from upload API
+        try {
+            const res = await fetch('php/api/upload.php');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.google_drive) {
+                    const emailEl = document.getElementById('gdrive-modal-display-email');
+                    const folderEl = document.getElementById('gdrive-modal-folder-input');
+                    const linkEl = document.getElementById('gdrive-modal-open-folder-link');
+                    if (emailEl && data.google_drive.service_account_email) {
+                        emailEl.textContent = data.google_drive.service_account_email;
+                    }
+                    if (folderEl && data.google_drive.folder_id) {
+                        folderEl.value = data.google_drive.folder_id;
+                    }
+                    if (linkEl && data.google_drive.folder_url) {
+                        linkEl.href = data.google_drive.folder_url;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[SIGMA] Google Drive status query error:', e);
+        }
+    };
+
+    window.closeGoogleDriveManagerModal = function () {
+        const modal = document.getElementById('gdrive-manager-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+    };
+
+    window.testGoogleDriveConnection = async function () {
+        const btn = document.getElementById('btn-test-gdrive');
+        const label = document.getElementById('btn-test-gdrive-label');
+        const feedback = document.getElementById('gdrive-test-feedback');
+        const folderInput = document.getElementById('gdrive-modal-folder-input');
+
+        if (btn) btn.disabled = true;
+        if (label) label.textContent = 'Testing...';
+        if (feedback) {
+            feedback.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-red-100', 'text-red-800');
+            feedback.classList.add('bg-slate-100', 'text-slate-700');
+            feedback.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Authenticating handshake with Google Drive API...';
+        }
+
+        try {
+            const res = await fetch('php/api/upload.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'test_connection',
+                    folder_id: folderInput ? folderInput.value.trim() : ''
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (feedback) {
+                    feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-red-100', 'text-red-800');
+                    feedback.classList.add('bg-emerald-100', 'text-emerald-800');
+                    feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i> <strong>Live Handshake Verified!</strong> Folder: "${data.folder_name || 'SIGMA ELMS Storage'}" (${data.project_id})`;
+                }
+                const folderNameEl = document.getElementById('gdrive-modal-display-folder-name');
+                if (folderNameEl && data.folder_name) folderNameEl.textContent = data.folder_name;
+                if (window.showToast) window.showToast('Google Drive API Connection Verified');
+            } else {
+                if (feedback) {
+                    feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-emerald-100', 'text-emerald-800');
+                    feedback.classList.add('bg-red-100', 'text-red-800');
+                    feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i> ${data.error || 'Could not verify connection.'}`;
+                }
+            }
+        } catch (e) {
+            if (feedback) {
+                feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-emerald-100', 'text-emerald-800');
+                feedback.classList.add('bg-red-100', 'text-red-800');
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i> Network error connecting to upload API.`;
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = 'Test Connection';
+        }
+    };
+
+    window.saveGoogleDriveModalConfig = async function () {
+        const folderInput = document.getElementById('gdrive-modal-folder-input');
+        const saveBtn = document.getElementById('btn-save-gdrive-config');
+        const folderVal = folderInput ? folderInput.value.trim() : '';
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+        }
+
+        try {
+            const res = await fetch('php/api/upload.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_config',
+                    folder_id: folderVal
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const linkEl = document.getElementById('gdrive-modal-open-folder-link');
+                if (linkEl && data.folder_id) {
+                    linkEl.href = 'https://drive.google.com/drive/folders/' + data.folder_id;
+                }
+                if (window.showToast) window.showToast('Google Drive Settings Saved Successfully');
+                else alert('Google Drive Settings Saved Successfully');
+                window.closeGoogleDriveManagerModal();
+            } else {
+                alert(data.error || 'Failed to save Google Drive configuration.');
+            }
+        } catch (e) {
+            alert('Failed to connect to backend upload API.');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Changes';
+            }
+        }
+    };
+
+    window.handleUploadGoogleDriveKeyFile = async function (event) {
+        const file = event.target?.files?.[0];
+        if (!file) return;
+
+        const statusEl = document.getElementById('gdrive-modal-key-status');
+        if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
+
+        const formData = new FormData();
+        formData.append('action', 'upload_key');
+        formData.append('key_file', file);
+
+        try {
+            const res = await fetch('php/api/upload.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (statusEl) statusEl.textContent = `Active: ${file.name} (${data.email || 'Service Account'})`;
+                const emailEl = document.getElementById('gdrive-modal-display-email');
+                if (emailEl && data.email) emailEl.textContent = data.email;
+                if (window.showToast) window.showToast('Service Account Key Updated Successfully');
+            } else {
+                if (statusEl) statusEl.textContent = 'Upload failed: ' + (data.error || 'Invalid file');
+                alert(data.error || 'Failed to upload service account key.');
+            }
+        } catch (e) {
+            if (statusEl) statusEl.textContent = 'Error connecting to upload API';
+            alert('Could not upload key file.');
+        }
+    };
+
     function getUserDefaultInitialPassword(target, userId) {
         if (!target) return 'password';
         if (target.defaultPassword) return target.defaultPassword;

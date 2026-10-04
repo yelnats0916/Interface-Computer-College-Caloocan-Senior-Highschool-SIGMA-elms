@@ -27,8 +27,9 @@ return [
 
     // 4. Google Drive API (Learning Materials Storage)
     'google_drive' => [
-        'client_id'     => getenv('GOOGLE_DRIVE_CLIENT_ID')     ?: '',
-        'client_secret' => getenv('GOOGLE_DRIVE_CLIENT_SECRET') ?: '',
-        'folder_id'     => getenv('GOOGLE_DRIVE_FOLDER_ID')     ?: '',
+        'service_account_email' => 'sigma-drive-storage@sigma-elms.iam.gserviceaccount.com',
+        'key_file'              => __DIR__ . '/google_service_account.json',
+        'folder_id'             => '1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK',
+        'folder_url'            => 'https://drive.google.com/drive/folders/1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK',
     ],
 ];

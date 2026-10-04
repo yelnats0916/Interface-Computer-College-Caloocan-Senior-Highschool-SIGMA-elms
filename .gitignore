@@ -21,6 +21,9 @@ desktop.ini
 
 # ─── Sensitive / private ──────────────────────────────────
 config/database.php
+config/google_service_account.json
+config/*.json
+*.json.key
 
 # ─── Scratch & Verification Scripts ───────────────────────
 scratch/

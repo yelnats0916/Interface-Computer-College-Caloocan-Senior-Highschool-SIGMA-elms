@@ -2696,37 +2696,30 @@
                         <p class="sigma-panel-subtitle">Institutional cloud integration for secure document management, repository access, and lecture materials.</p>
                     </div>
 
-                    <div id="row-drive" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
-                        <div class="flex flex-row items-center p-5 gap-4">
-                            <div class="w-1/4 min-w-0">
-                                <p class="text-sm font-bold text-black font-['Inter']">Google Drive Key</p>
-                                <span class="text-xs text-black-fade font-medium">Service account secret</span>
+                    <div id="row-drive" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden shadow-2xs">
+                        <div class="flex flex-col sm:flex-row sm:items-center p-5 gap-3 sm:gap-4">
+                            <div class="w-full sm:w-1/4 min-w-0">
+                                <p class="text-sm font-bold text-black font-['Inter'] flex items-center gap-2">
+                                    <i class="fa-brands fa-google-drive text-[#15803d]"></i>
+                                    <span>Google Drive Storage</span>
+                                </p>
+                                <span class="text-xs text-black-fade font-medium">Service account & cloud folder</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs text-black-fade font-medium">Institutional storage integration for secure document management and repository asset routing.</p>
+                                <p class="text-xs text-black-fade font-medium">Institutional cloud storage integration for lecture materials, video streaming, and document backups.</p>
                             </div>
-                            <div class="w-1/5 text-center">
-                                <div id="mask-drive" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
+                            <div class="w-auto sm:w-1/5 text-left sm:text-center shrink-0">
+                                <div id="mask-drive" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span id="drive-status-badge-text">Connected (Active)</span>
+                                </div>
                             </div>
-                            <div class="flex justify-end shrink-0">
-                                <button type="button" onclick="window.triggerVault('drive')" id="btn-vault-drive"
-                                    class="flex items-center gap-2 px-5 py-2 bg-slate-50 text-xs font-bold text-black rounded-xl hover:bg-[#FFD000] hover:text-black transition-all cursor-pointer">
-                                    <i class="fa-solid fa-lock text-[10px]"></i>
-                                    <span>Open</span>
+                            <div class="flex justify-start sm:justify-end shrink-0">
+                                <button type="button" onclick="window.openGoogleDriveManagerModal()" id="btn-manage-drive"
+                                    class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-[#FFD000] text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs">
+                                    <i class="fa-solid fa-sliders text-xs"></i>
+                                    <span>Manage Google Drive</span>
                                 </button>
-                            </div>
-                        </div>
-                        <div id="key-field-drive" class="hidden p-6 bg-slate-50/50 border-t border-slate-100">
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <label for="api-key-drive" class="text-xs font-bold text-black">Drive API Key</label>
-                                    <button type="button" onclick="window.triggerPasswordChange('drive')" class="text-xs font-bold text-[#15803d] hover:underline">Change Master Password</button>
-                                </div>
-                                <input type="text" id="api-key-drive" maxlength="200" class="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-mono font-bold text-black outline-none focus:border-[#15803d] transition-all" placeholder="Paste your Google Drive API key here...">
-                                <div class="flex justify-end gap-2 pt-1">
-                                    <button type="button" onclick="window.saveKeyField('drive')" class="px-5 py-2 bg-[#15803d] text-white text-xs font-bold rounded-xl hover:bg-[#166534] transition-all">Save Changes</button>
-                                    <button type="button" onclick="window.cancelKeyField('drive')" class="px-5 py-2 bg-slate-100 text-black text-xs font-bold rounded-xl hover:bg-slate-200 transition-all">Cancel</button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -6174,6 +6167,116 @@
                         <i class="fa-solid fa-arrow-right text-xs"></i>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOOGLE DRIVE CLOUD STORAGE MANAGER MODAL -->
+    <div id="gdrive-manager-modal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div class="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col font-['Inter'] animate-in zoom-in-95 duration-200">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-100/70 text-[#15803d] flex items-center justify-center shadow-2xs text-lg">
+                        <i class="fa-brands fa-google-drive"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-black">Google Drive Storage Manager</h3>
+                        <p class="text-xs text-black-fade font-medium">Configure institutional cloud storage and service account keys</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closeGoogleDriveManagerModal()"
+                    class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-black flex items-center justify-center transition-colors cursor-pointer" title="Close">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+                <!-- Card 1: Live Cloud Connection Status -->
+                <div class="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/70 space-y-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2 text-xs font-bold text-emerald-900">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Cloud Status: Connected (Active)</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 rounded-full bg-emerald-200/60 text-emerald-900 text-[11px] font-mono font-bold">Google Cloud Storage v3</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                        <div class="bg-white/90 p-2.5 rounded-xl border border-emerald-100 space-y-0.5">
+                            <span class="text-[10.5px] font-semibold text-black-fade">Service Account:</span>
+                            <p class="font-mono text-xs font-bold text-black break-all" id="gdrive-modal-display-email">sigma-drive-storage@sigma-elms.iam.gserviceaccount.com</p>
+                        </div>
+                        <div class="bg-white/90 p-2.5 rounded-xl border border-emerald-100 space-y-0.5">
+                            <span class="text-[10.5px] font-semibold text-black-fade">Target Folder:</span>
+                            <p class="font-semibold text-xs text-black" id="gdrive-modal-display-folder-name">SIGMA ELMS Storage</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons inside Status -->
+                    <div class="flex items-center gap-2 pt-1 flex-wrap">
+                        <a href="https://drive.google.com/drive/folders/1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK" target="_blank" rel="noopener noreferrer"
+                            id="gdrive-modal-open-folder-link"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-black border border-slate-200 text-xs font-bold transition-all shadow-2xs">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-[#15803d]"></i>
+                            <span>Open Folder in Google Drive</span>
+                        </a>
+                        <button type="button" onclick="window.testGoogleDriveConnection()" id="btn-test-gdrive"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-bolt text-[10px]"></i>
+                            <span id="btn-test-gdrive-label">Test Connection</span>
+                        </button>
+                    </div>
+
+                    <!-- Live Test Diagnostic Feedback Box -->
+                    <div id="gdrive-test-feedback" class="hidden p-3 rounded-xl text-xs font-semibold transition-all"></div>
+                </div>
+
+                <!-- Card 2: Folder Settings -->
+                <div class="space-y-2">
+                    <label for="gdrive-modal-folder-input" class="text-xs font-bold text-black flex items-center justify-between">
+                        <span>Google Drive Folder ID or Link</span>
+                        <span class="text-[11px] text-black-fade font-normal">Auto-parses URL</span>
+                    </label>
+                    <input type="text" id="gdrive-modal-folder-input"
+                        value="1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK"
+                        placeholder="Paste folder ID or URL (e.g. 1qYTOkYZ13nC1ISF...)"
+                        class="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
+                </div>
+
+                <!-- Card 3: Upload JSON Key -->
+                <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-black">Service Account Key (.json)</p>
+                            <span class="text-[11px] text-black-fade font-medium">Upload new Google Cloud credentials to rotate keys</span>
+                        </div>
+                    </div>
+
+                    <input type="file" id="gdrive-modal-key-file" accept=".json" class="hidden" onchange="window.handleUploadGoogleDriveKeyFile(event)">
+
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="document.getElementById('gdrive-modal-key-file').click()"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-black border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-file-code text-blue-600"></i>
+                            <span>Upload JSON Key File</span>
+                        </button>
+                        <span class="text-xs text-black-fade font-medium" id="gdrive-modal-key-status">Key active: google_service_account.json</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button type="button" onclick="window.closeGoogleDriveManagerModal()"
+                    class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold transition-all cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" onclick="window.saveGoogleDriveModalConfig()" id="btn-save-gdrive-config"
+                    class="px-5 py-2.5 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
+                    Save Changes
+                </button>
             </div>
         </div>
     </div>
