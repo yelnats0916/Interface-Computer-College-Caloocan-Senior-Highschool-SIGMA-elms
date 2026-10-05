@@ -40,7 +40,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (navLogo) navLogo.src = customLoginBarLogo;
     }
 
+    // Returns null on static hosts (GitHub Pages, Live Server) that cannot run PHP.
+    // All callers must skip the fetch when this returns null.
+    const isStaticHost = (() => {
+        const h = window.location.hostname;
+        return h.endsWith('.github.io') || h.endsWith('.githubusercontent.com') ||
+               h === '127.0.0.1' || h === 'localhost' || h === '';
+    })();
+
     const resolveAuthApiUrl = (query = '') => {
+        if (isStaticHost) return null;
         let base = 'php/api/auth.php';
         return query ? `${base}?${query}` : base;
     };
@@ -1143,8 +1152,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Check 2FA requirement
         let backendHandled = false;
+        const authApiUrl = resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`);
         try {
-            const checkRes = await fetch(resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`));
+            if (!authApiUrl) throw new Error('static-host');
+            const checkRes = await fetch(authApiUrl);
             const checkData = await checkRes.json();
             if (checkData && checkData.success) {
                 backendHandled = true;
@@ -1163,7 +1174,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         } catch (e) {
-            console.warn('Backend 2FA check offline / unavailable, enforcing local 2FA:', e);
+            if (!isStaticHost) console.warn('Backend 2FA check offline / unavailable, enforcing local 2FA:', e);
         }
 
         // If backend was not reached or user is in localStorage table (offline / static server)
@@ -1437,52 +1448,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let verified = false;
         let serverRejected = false;
+        const verifyApiUrl = resolveAuthApiUrl();
+
         try {
-            const res = await fetch(resolveAuthApiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'verify_login_2fa',
-                    id: current2faUserId,
-                    code: code
-                })
-            });
-            const data = await res.json();
-            if (data && data.success) {
-                verified = true;
-            } else if (res.status === 401) {
-                // Server checked this user's secret and the code is wrong — final answer.
-                serverRejected = true;
+            if (verifyApiUrl) {
+                try {
+                    const res = await fetch(verifyApiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'verify_login_2fa',
+                            id: current2faUserId,
+                            code: code
+                        })
+                    });
+                    const data = await res.json();
+                    if (data && data.success) {
+                        verified = true;
+                    } else if (res.status === 401) {
+                        // Server checked this user's secret and the code is wrong — final answer.
+                        serverRejected = true;
+                    }
+                } catch (error) {
+                    // Backend offline or unreachable
+                }
             }
-        } catch (error) {
-            // Backend offline or local storage account
-        }
 
-        // Local fallback only when the server is unreachable / doesn't manage this account.
-        // Codes are checked ONLY against this user's own secret. No master/bypass codes.
-        if (!verified && !serverRejected) {
-            const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
-            verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
-        }
-
-        if (verified) {
-            if (typeof current2faSuccessCallback === 'function') {
-                current2faSuccessCallback();
+            // Local fallback only when the server is unreachable / static host.
+            // Codes are checked ONLY against this user's own secret. No master/bypass codes.
+            if (!verified && !serverRejected) {
+                const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
+                verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
             }
-        } else {
+
+            if (verified) {
+                if (typeof current2faSuccessCallback === 'function') {
+                    current2faSuccessCallback();
+                }
+            } else {
+                if (err) {
+                    err.textContent = 'Invalid 6-digit code. Please check Google Authenticator on your phone.';
+                    err.classList.remove('hidden');
+                }
+                if (input) {
+                    input.classList.add('input-error');
+                    input.focus();
+                }
+            }
+        } catch (e) {
+            console.error('2FA verification error:', e);
             if (err) {
-                err.textContent = 'Invalid 6-digit code. Please check Google Authenticator on your phone.';
+                err.textContent = 'An unexpected error occurred. Please try again.';
                 err.classList.remove('hidden');
             }
-            if (input) {
-                input.classList.add('input-error');
-                input.focus();
-            }
+        } finally {
+            if (btn) btn.disabled = false;
+            if (spinner) spinner.classList.add('hidden');
+            if (label) label.textContent = 'Verify & Log In';
         }
-
-        if (btn) btn.disabled = false;
-        if (spinner) spinner.classList.add('hidden');
-        if (label) label.textContent = 'Verify & Log In';
     });
 
     // ── 2FA FIRST-TIME ONBOARDING SETUP VIEW ────────────────────────────────
@@ -1508,22 +1531,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         let setupData = null;
-        try {
-            const res = await fetch(resolveAuthApiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'setup_2fa',
-                    id: userId
-                })
-            });
-            const data = await res.json();
-            if (data && data.success) {
-                setupData = data;
-                current2faSetupFromServer = true;
+        const setupApiUrl = resolveAuthApiUrl();
+        if (setupApiUrl) {
+            try {
+                const res = await fetch(setupApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'setup_2fa',
+                        id: userId
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    setupData = data;
+                    current2faSetupFromServer = true;
+                }
+            } catch (e) {
+                console.warn('Backend 2FA setup unavailable, using local setup:', e);
             }
-        } catch (e) {
-            console.warn('Backend 2FA setup unavailable, using local setup:', e);
         }
 
         current2faSetupFromServer = !!setupData; // false if falling back to local
@@ -1607,52 +1633,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let verified = false;
         let serverRejected = false;
+        const setupVerifyApiUrl = resolveAuthApiUrl();
+
         try {
-            const res = await fetch(resolveAuthApiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'verify_and_enable_2fa',
-                    id: current2faUserId,
-                    code: code
-                })
-            });
-            const data = await res.json();
-            if (data && data.success) {
-                verified = true;
-            } else if (res.status === 401 || current2faSetupFromServer) {
-                serverRejected = true;
+            if (setupVerifyApiUrl) {
+                try {
+                    const res = await fetch(setupVerifyApiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'verify_and_enable_2fa',
+                            id: current2faUserId,
+                            code: code
+                        })
+                    });
+                    const data = await res.json();
+                    if (data && data.success) {
+                        verified = true;
+                    } else if (res.status === 401 || current2faSetupFromServer) {
+                        serverRejected = true;
+                    }
+                } catch (error) {
+                    // Backend offline / unreachable
+                }
             }
-        } catch (error) {
-            // Backend offline / local storage account
-        }
 
-        // Local fallback only for locally-generated setups. No master/bypass codes.
-        if (!verified && !serverRejected && !current2faSetupFromServer) {
-            const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
-            verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
-        }
-
-        if (verified) {
-            localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
-            markLocalUser2faEnabled(current2faUserId, true);
-            if (typeof current2faSuccessCallback === 'function') {
-                current2faSuccessCallback();
+            // Local fallback only for locally-generated setups. No master/bypass codes.
+            if (!verified && !serverRejected && !current2faSetupFromServer) {
+                const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
+                verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
             }
-        } else {
+
+            if (verified) {
+                localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
+                markLocalUser2faEnabled(current2faUserId, true);
+                if (typeof current2faSuccessCallback === 'function') {
+                    current2faSuccessCallback();
+                }
+            } else {
+                if (err) {
+                    err.textContent = 'Invalid 6-digit code. Please verify time in Google Authenticator.';
+                    err.classList.remove('hidden');
+                }
+                if (input) {
+                    input.classList.add('input-error');
+                    input.focus();
+                }
+            }
+        } catch (e) {
+            console.error('2FA setup verification error:', e);
             if (err) {
-                err.textContent = 'Invalid 6-digit code. Please verify time in Google Authenticator.';
+                err.textContent = 'An unexpected error occurred. Please try again.';
                 err.classList.remove('hidden');
             }
-            if (input) {
-                input.classList.add('input-error');
-                input.focus();
-            }
+        } finally {
+            if (btn) btn.disabled = false;
+            if (spinner) spinner.classList.add('hidden');
+            if (label) label.textContent = 'Verify & Log In';
         }
-
-        if (btn) btn.disabled = false;
-        if (spinner) spinner.classList.add('hidden');
-        if (label) label.textContent = 'Verify & Log In';
     });
 
     // ── SECRET KEY ONE-CLICK COPY HANDLER ───────────────────────────────────
@@ -1718,17 +1756,21 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem('sigma-2fa-secret-' + uid);
         markLocalUser2faEnabled(uid, false);
 
+        // Save the ORIGINAL success callback before open2faSetupModal overwrites it.
+        // Using current2faSuccessCallback inside the new callback causes infinite recursion.
+        const originalSuccessCallback = current2faSuccessCallback;
+
         // Immediately transition to 2FA QR barcode setup wizard
         open2faSetupModal(uid, () => {
-            const localTerms = localStorage.getItem('sigma-terms-accepted-' + uid) === 'true';
-            if (typeof current2faSuccessCallback === 'function') {
-                current2faSuccessCallback();
-            } else if (!localTerms) {
-                openTermsAgreementModal(uid, () => {
-                    window.location.reload();
-                });
+            if (typeof originalSuccessCallback === 'function') {
+                originalSuccessCallback();
             } else {
-                window.location.reload();
+                const localTerms = localStorage.getItem('sigma-terms-accepted-' + uid) === 'true';
+                if (!localTerms) {
+                    openTermsAgreementModal(uid, () => { window.location.reload(); });
+                } else {
+                    window.location.reload();
+                }
             }
         });
 

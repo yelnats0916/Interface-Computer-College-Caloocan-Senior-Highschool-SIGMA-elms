@@ -133,6 +133,14 @@
             logoLink.setAttribute('tabindex', '-1');
             logoLink.style.cursor = 'default';
             logoLink.style.pointerEvents = 'none';
+            logoLink.style.userSelect = 'none';
+            logoLink.style.webkitUserSelect = 'none';
+            // Also disable text selection on every child (logo image + text spans)
+            logoLink.querySelectorAll('*').forEach(function (el) {
+                el.style.userSelect = 'none';
+                el.style.webkitUserSelect = 'none';
+                el.style.cursor = 'default';
+            });
             logoLink.onclick = function (e) { e.preventDefault(); };
         } else if (logoLink) {
             logoLink.href = ctx.file;
