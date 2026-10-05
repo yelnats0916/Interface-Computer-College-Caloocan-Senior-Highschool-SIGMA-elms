@@ -248,8 +248,9 @@ require_once __DIR__ . '/../config/app.php';
                     <a href="https://home1.interface.edu.ph/index.php/contact-us"
                         class="hover:text-icc-yellow transition-colors">Contact Us</a>
                     <span class="text-white/40 px-1 opacity-70">|</span>
-                    <a href="https://home1.interface.edu.ph/index.php/home/college-privacy-policy"
-                        class="hover:text-icc-yellow transition-colors">Privacy Policy</a>
+                    <a href="../terms.html" class="hover:text-icc-yellow transition-colors">Terms of Use</a>
+                    <span class="text-white/40 px-1 opacity-70">|</span>
+                    <a href="../privacy.html" class="hover:text-icc-yellow transition-colors">Privacy</a>
                     <span class="text-white/40 px-1 opacity-70 lg:hidden text-[10px] self-center">|</span>
                     <div class="flex gap-2 lg:hidden">
                         <a href="https://www.facebook.com/pages/Interface-Computer-College-Caloocan/102080169834167/" target="_blank"

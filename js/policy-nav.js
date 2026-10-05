@@ -46,6 +46,21 @@
             sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
             return ctx;
         }
+        if (fromParam === 'admin') {
+            const ctx = { file: 'admin.html', label: 'Back to Dashboard', role: 'admin' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
+        if (fromParam === 'teacher') {
+            const ctx = { file: 'teacher.html', label: 'Back to Portal', role: 'teacher' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
+        if (fromParam === 'student') {
+            const ctx = { file: 'student.html', label: 'Back to Portal', role: 'student' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
 
         // 2. Check if active logged-in role user (Admin / Teacher / Student)
         const roleHome = getActiveRoleHome();
@@ -107,21 +122,34 @@
         }
 
         // 2. Update Top-Left Logo / Home button
-        // Logo always goes back to the login page (index.html)
         const logoLink = document.getElementById('backToLoginLogo');
         if (logoLink) {
-            logoLink.href = 'index.html';
-            logoLink.title = 'Back to Login';
+            logoLink.href = ctx.file;
+            logoLink.title = ctx.label;
             logoLink.onclick = function (e) {
                 e.preventDefault();
+                if (isHelpOrigin) {
+                    sessionStorage.setItem('sigma_target_view', 'help');
+                    window.location.href = 'index.html#help';
+                    return;
+                }
+                if (activeRole) {
+                    window.location.href = ctx.file;
+                    return;
+                }
                 sessionStorage.removeItem('sigma_policy_from');
                 sessionStorage.removeItem('sigma_policy_origin');
-                sessionStorage.removeItem('sigma_target_view');
-                window.location.href = 'index.html';
+                window.location.href = ctx.file;
             };
         }
 
-        // 3. Help Center button:
+        // 3. Preserve policy origin when moving between Terms and Privacy.
+        document.querySelectorAll('#policy-main a[href="terms.html"], #policy-main a[href="privacy.html"]').forEach(link => {
+            if (!ctx.role || ctx.role === 'guest') return;
+            link.href = `${link.getAttribute('href')}?from=${encodeURIComponent(ctx.role)}`;
+        });
+
+        // 4. Help Center button:
         // When inside user account (Admin, Teacher, Student), hide Help Center button in the navbar.
         // When viewed from login page / guest mode, keep Help Center button accessible.
         const helpBtn = document.getElementById('entryHelpCenterBtn');

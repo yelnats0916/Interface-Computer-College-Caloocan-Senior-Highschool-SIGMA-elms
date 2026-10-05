@@ -5239,6 +5239,10 @@
         border-radius: 8px !important;
     }
 
+    #entryHelpCenterBtn {
+        display: none !important;
+    }
+
     body.help-center-active #helpCenterNavMenuBtn {
         display: flex !important;
     }

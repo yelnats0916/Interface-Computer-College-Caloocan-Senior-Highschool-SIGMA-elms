@@ -784,18 +784,16 @@ function initSharedTopbarInteractions() {
         profileDropdown.classList.add('mobile-account-fullscreen');
         profileDropdown.classList.remove('hidden');
 
-        // 4. Trigger top-nav loading bar sweep
-        if (typeof window.showTopNavLoading === 'function') {
-            window.showTopNavLoading();
-        }
-
-        // 5. Push history state so browser & phone back button closes this panel
+        // 4. Push history state so browser & phone back button closes this panel
         if (typeof window.pushModalHistoryState === 'function') {
             window.pushModalHistoryState('mobile-account-panel');
         }
     };
 
     window.closeMobileAccountPanel = function () {
+        if (typeof window.forceHideTopNavLoading === 'function') {
+            window.forceHideTopNavLoading();
+        }
         const profileDropdown = document.getElementById('profileDropdownMenu') || document.getElementById('profile-dropdown');
         document.body.classList.remove('mobile-account-fullscreen');
         document.documentElement.classList.remove('mobile-account-fullscreen');

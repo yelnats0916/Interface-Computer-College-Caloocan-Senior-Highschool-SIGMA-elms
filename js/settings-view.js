@@ -189,6 +189,11 @@
 
         const activeMeta = tabs.find(t => t.id === currentTab) || tabs[0];
 
+        const isMobileScreen = typeof window !== 'undefined' && (window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+        if (isMobileScreen && container.dataset.mobileSettingsView !== 'detail') {
+            container.dataset.mobileSettingsView = 'list';
+        }
+
         let html = `
         <div class="sigma-settings-layout sigma-account-settings ${container.dataset.mobileSettingsView === 'detail' ? 'sigma-settings-detail' : ''}">
             <!-- Left Categories Sidebar -->
@@ -206,6 +211,9 @@
                                     <i class="fa-solid ${t.icon} text-inherit"></i>
                                 </span>
                                 <span class="sigma-settings-cat-text text-inherit">${t.label}</span>
+                                <span class="sigma-settings-cat-chevron">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </span>
                             </button>
                         `;
                     }).join('')}
@@ -1203,19 +1211,43 @@
         if (!container) return;
         container.dataset.mobileSettingsView = 'detail';
         renderSettingsView(container, tab);
+        if (typeof history !== 'undefined' && history.pushState) {
+            history.pushState({ type: 'settings-detail', tab: tab, containerId: container.id }, '', '#account-settings-' + tab);
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
         container.querySelector('.sigma-settings-mobile-back')?.focus();
     };
+
     window.showSettingsCategories = function (containerId) {
         const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         if (!container) return;
         container.dataset.mobileSettingsView = 'list';
-        container.querySelector('.sigma-account-settings')?.classList.remove('sigma-settings-detail');
+        const layout = container.querySelector('.sigma-account-settings');
+        if (layout) {
+            layout.classList.remove('sigma-settings-detail');
+        }
+        if (typeof history !== 'undefined' && history.pushState && window.location.hash.startsWith('#account-settings-')) {
+            history.pushState({ type: 'tab', navId: 'nav-settings', page: 'settings' }, '', '#account-settings');
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        container.querySelector('[aria-selected="true"]')?.focus();
+        const firstCat = container.querySelector('.sigma-settings-cat-btn');
+        if (firstCat) firstCat.focus();
     };
 
     window.navigateToAccountSettings = function (tabName = 'notifications') {
+        // 0. Force dismiss any pending or stuck top-nav loading sweep
+        if (typeof window.forceHideTopNavLoading === 'function') {
+            window.forceHideTopNavLoading();
+        } else if (typeof window.hideTopNavLoading === 'function') {
+            window.hideTopNavLoading();
+        }
+        const bar = document.getElementById('top-nav-loading-bar');
+        if (bar) {
+            bar.style.opacity = '0';
+            bar.style.width = '0%';
+            bar.classList.add('hidden');
+        }
+
         // 1. Fully dismiss mobile full-screen panels & drawers
         if (typeof window.closeMobileAccountPanel === 'function') {
             window.closeMobileAccountPanel();
@@ -1280,21 +1312,29 @@
         }
 
         settingsView.classList.remove('hidden');
-        const hash = '#account-settings' + (tabName && tabName !== 'notifications' ? `-${tabName}` : '');
-        if (window.location.hash !== hash && history.pushState) {
-            history.pushState({ type: 'tab', navId: 'nav-settings', page: 'settings', tab: tabName }, '', hash);
-        }
 
-        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-        if (isMobile && (!tabName || tabName === 'notifications')) {
-            settingsView.dataset.mobileSettingsView = 'list';
-        } else if (isMobile && tabName && tabName !== 'notifications') {
-            settingsView.dataset.mobileSettingsView = 'detail';
+        const isMobile = typeof window !== 'undefined' && (window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+        // When on mobile:
+        // Always load the left category menu as a page first (Level 1)
+        // unless a specific sub-detail tab (account or security) was explicitly requested via deep link
+        if (isMobile) {
+            if (!tabName || tabName === 'notifications' || tabName === 'account-settings' || tabName === 'settings') {
+                settingsView.dataset.mobileSettingsView = 'list';
+            } else {
+                settingsView.dataset.mobileSettingsView = 'detail';
+            }
         } else {
             settingsView.dataset.mobileSettingsView = 'list';
         }
 
-        renderSettingsView('user-settings-view', tabName || 'notifications');
+        const targetTab = tabName && tabName !== 'account-settings' && tabName !== 'settings' ? tabName : 'notifications';
+        const hash = '#account-settings' + (isMobile && settingsView.dataset.mobileSettingsView === 'list' ? '' : (targetTab !== 'notifications' ? `-${targetTab}` : ''));
+        if (window.location.hash !== hash && history.pushState) {
+            history.pushState({ type: 'tab', navId: 'nav-settings', page: 'settings', tab: targetTab }, '', hash);
+        }
+
+        renderSettingsView('user-settings-view', targetTab);
 
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1314,6 +1354,30 @@
         }
         window.navigateToAccountSettings(tabName);
     };
+
+    // Browser back/forward handler for seamless mobile list <-> detail transitions
+    if (typeof window !== 'undefined') {
+        window.addEventListener('popstate', () => {
+            const container = document.getElementById('user-settings-view');
+            if (!container || container.classList.contains('hidden')) return;
+            const isMobile = window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (!isMobile) return;
+
+            const hash = window.location.hash || '';
+            if (hash === '#account-settings' || hash === '#settings' || !hash) {
+                if (container.dataset.mobileSettingsView === 'detail') {
+                    container.dataset.mobileSettingsView = 'list';
+                    container.querySelector('.sigma-account-settings')?.classList.remove('sigma-settings-detail');
+                }
+            } else if (hash.startsWith('#account-settings-')) {
+                const subTab = hash.replace('#account-settings-', '');
+                if (['notifications', 'account', 'security'].includes(subTab)) {
+                    container.dataset.mobileSettingsView = 'detail';
+                    renderSettingsView(container, subTab);
+                }
+            }
+        });
+    }
 
     window.renderSettingsView = renderSettingsView;
     window.getNotificationPreferences = getNotificationPreferences;

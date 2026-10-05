@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/shared-components.css?v=20261004neutralQuizDetails1">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261004driveAdvancedHover1">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261005mobile2level2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
@@ -514,24 +514,6 @@
                         <span class="profile-menu-item__sublabel">Notifications & preferences</span>
                     </div>
                 </a>
-                <a href="terms.html" class="profile-menu-item">
-                    <div class="profile-menu-item__icon">
-                        <i class="fa-solid fa-file-contract"></i>
-                    </div>
-                    <div class="profile-menu-item__text">
-                        <span class="profile-menu-item__label">Terms of Use</span>
-                        <span class="profile-menu-item__sublabel">Policies & guidelines</span>
-                    </div>
-                </a>
-                <a href="privacy.html" class="profile-menu-item">
-                    <div class="profile-menu-item__icon">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
-                    <div class="profile-menu-item__text">
-                        <span class="profile-menu-item__label">Privacy Notice</span>
-                        <span class="profile-menu-item__sublabel">Data protection & guidelines</span>
-                    </div>
-                </a>
                 <a href="index.html" class="profile-menu-item profile-logout-btn" onclick="if(window.SigmaPresenceTracker && typeof window.SigmaPresenceTracker.logout==='function'){window.SigmaPresenceTracker.logout();}else{sessionStorage.clear();}">
                     <div class="profile-menu-item__icon">
                         <i class="fa-solid fa-right-from-bracket"></i>
@@ -540,6 +522,11 @@
                         <span class="profile-menu-item__label">Logout</span>
                     </div>
                 </a>
+                <div class="profile-panel-policy-links" aria-label="Account policy links">
+                    <a href="terms.html?from=admin">Terms of Use</a>
+                    <span aria-hidden="true">|</span>
+                    <a href="privacy.html?from=admin">Privacy</a>
+                </div>
             </nav>
         </div>
     </header>
@@ -6482,7 +6469,7 @@
 
     <!-- SCRIPTS -->
     <script src="js/shared-components.js?v=20261005quizMaterialRestore2"></script>
-    <script src="js/topbar.js?v=20261003breakpointreset1"></script>
+    <script src="js/topbar.js?v=20261005loadingfix1"></script>
     <script src="js/sidebar.js?v=20261003viewportreset1"></script>
     <script src="js/notifications.js?v=20261004separateprefs1"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
@@ -6494,7 +6481,7 @@
     <script src="js/admin-session-controls.js?v=20261003signoutlabel1"></script>
     <script src="js/dialog.js?v=20261005quizStartDesktop1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/settings-view.js?v=20261005mobilefix1"></script>
+    <script src="js/settings-view.js?v=20261005mobile2level1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
     <script src="js/sigma-analytics.js?v=20261004gradepercent1"></script>

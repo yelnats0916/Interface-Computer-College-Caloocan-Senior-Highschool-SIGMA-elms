@@ -109,6 +109,12 @@ html, body {
     flex-shrink: 0 !important;
 }
 
+@media (max-width: 768px) {
+    #entryHelpCenterBtn {
+        display: none !important;
+    }
+}
+
 main {
     margin-top: clamp(56px, 14vw, 64px) !important;
     width: 100% !important;

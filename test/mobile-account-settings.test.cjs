@@ -42,4 +42,48 @@ assert.ok(
     'teacher.js setupNavigationHistory and popstate must handle #account-settings'
 );
 
-console.log('PASS: Mobile account settings routing, panel dismissal, and header removal verified successfully.');
+// 5. Verify topbar.js openMobileAccountPanel does NOT start an unclosed topbar loading bar
+const topbarJs = fs.readFileSync(path.join(__dirname, '../js/topbar.js'), 'utf8');
+const openMobileAccountFn = topbarJs.slice(topbarJs.indexOf('window.openMobileAccountPanel = function'), topbarJs.indexOf('window.closeMobileAccountPanel = function'));
+assert.ok(
+    !openMobileAccountFn.includes('showTopNavLoading'),
+    'openMobileAccountPanel must NOT call showTopNavLoading because opening a DOM drawer is not an async operation'
+);
+
+// 6. Verify settings-view.css uses unified 1023px mobile breakpoint
+const settingsCss = fs.readFileSync(path.join(__dirname, '../css/settings-view.css'), 'utf8');
+assert.ok(
+    !settingsCss.includes('@media (max-width: 768px)'),
+    'settings-view.css must not use 768px breakpoint; must be unified to 1023px'
+);
+assert.ok(
+    settingsCss.includes('@media (max-width: 1023px)'),
+    'settings-view.css must contain @media (max-width: 1023px)'
+);
+assert.ok(
+    settingsCss.includes('.sigma-account-settings:not(.sigma-settings-detail) > .sigma-settings-main') &&
+    settingsCss.includes('display: none !important'),
+    'Level 1 must hide .sigma-settings-main on mobile'
+);
+assert.ok(
+    settingsCss.includes('.sigma-account-settings.sigma-settings-detail > .sigma-settings-sidebar') &&
+    settingsCss.includes('display: none !important'),
+    'Level 2 must hide .sigma-settings-sidebar on mobile'
+);
+
+// 7. Verify settings-view.js aligns mobile breakpoint (< 1024) and defaults to list view on mobile
+assert.ok(
+    settingsViewJs.includes('window.innerWidth < 1024'),
+    'settings-view.js must use window.innerWidth < 1024 for mobile detection'
+);
+assert.ok(
+    settingsViewJs.includes('sigma-settings-cat-chevron'),
+    'settings-view.js category buttons must contain navigation chevrons'
+);
+assert.ok(
+    settingsCss.includes('.sigma-settings-mobile-back') &&
+    settingsCss.includes('background: transparent !important'),
+    '.sigma-settings-mobile-back must have transparent background with no permanent highlight box'
+);
+
+console.log('PASS: Mobile account settings routing, 2-level flow, and panel dismissal verified successfully.');

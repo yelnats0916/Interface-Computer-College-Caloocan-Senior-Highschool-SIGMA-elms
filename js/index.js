@@ -488,6 +488,16 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     let activeHelpCategoryId = 'faq-help';
+    let activeViewName = 'landing';
+
+    function syncLandingHelpActions() {
+        ui.btns.entryHelp.forEach(b => {
+            if (!b) return;
+            const isMobileNavHelp = b.id === 'entryHelpCenterBtn' && window.innerWidth < 768;
+            b.style.display = isMobileNavHelp ? 'none' : '';
+            b.classList.toggle('hidden', isMobileNavHelp);
+        });
+    }
 
     /* ===== HELP CENTER FUNCTIONS ===== */
 
@@ -742,6 +752,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ===== VIEW SWITCHER ===== */
     function switchView(viewName, updateHistory = true, clearForm = true) {
+        activeViewName = viewName;
         Object.keys(ui.views).forEach(key => {
             const v = ui.views[key];
             if (v) {
@@ -807,13 +818,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ui.nav.icon.style.display = 'none';
             }
 
-            // Show Help Center button on Login Page
-            ui.btns.entryHelp.forEach(b => {
-                if (b) {
-                    b.style.display = '';
-                    b.classList.remove('hidden');
-                }
-            });
+            syncLandingHelpActions();
 
             // Always hide hamburger on landing
             if (ui.help.mobileNavBtn) {
@@ -862,6 +867,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const view = e.state?.view || 'landing';
         switchView(view, false);
     };
+
+    window.addEventListener('resize', () => {
+        if (activeViewName === 'landing') {
+            syncLandingHelpActions();
+        }
+    });
 
     window.addEventListener('pageshow', () => {
         window.scrollTo(0, 0);
