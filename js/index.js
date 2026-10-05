@@ -1204,13 +1204,54 @@ document.addEventListener('DOMContentLoaded', function () {
     let current2faSuccessCallback = null;
     let current2faSetupFromServer = false; // true = QR came from PHP backend; local fallback must not override
 
-    // ── IN-PLACE 2FA NAVIGATION ─────────────────────────────────────────────
+    // ── IN-PLACE 2FA NAVIGATION & SCROLL TO TOP ────────────────────────────
+    function scrollLandingToTop() {
+        try {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        } catch (_) {
+            window.scrollTo(0, 0);
+        }
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+
+        const scrollables = [
+            document.querySelector('.login-panel'),
+            document.querySelector('.login-form-stack'),
+            document.getElementById('landingMain'),
+            document.querySelector('main'),
+            document.getElementById('landing2faVerifyView'),
+            document.getElementById('landing2faSetupView'),
+            document.getElementById('landingLoginForm')
+        ];
+        scrollables.forEach(el => {
+            if (el) {
+                try {
+                    el.scrollTop = 0;
+                } catch (_) {}
+            }
+        });
+    }
+
+    function ensureLandingAtTop() {
+        scrollLandingToTop();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(scrollLandingToTop);
+        }
+        setTimeout(scrollLandingToTop, 30);
+        setTimeout(scrollLandingToTop, 120);
+        setTimeout(scrollLandingToTop, 250);
+    }
+    window.scrollLandingToTop = scrollLandingToTop;
+    window.ensureLandingAtTop = ensureLandingAtTop;
+
     window.backToLoginForm = function () {
         document.getElementById('landing2faVerifyView')?.classList.add('hidden');
         document.getElementById('landing2faSetupView')?.classList.add('hidden');
         document.getElementById('landing2faGlobalBackBtn')?.classList.add('hidden');
         document.getElementById('landingLoginForm')?.classList.remove('hidden');
         document.getElementById('landingLoginLogoWrap')?.classList.remove('hidden');
+
+        ensureLandingAtTop();
 
         // 1. Reset 2FA error messages and inputs
         const vErr = document.getElementById('landing2faVerifyError');
@@ -1247,7 +1288,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 3. Focus back on ID input for immediate fresh typing
         setTimeout(() => {
-            ui.inputs.id?.focus();
+            try { ui.inputs.id?.focus({ preventScroll: true }); } catch (_) { ui.inputs.id?.focus(); }
+            ensureLandingAtTop();
         }, 100);
     };
 
@@ -1399,6 +1441,10 @@ document.addEventListener('DOMContentLoaded', function () {
         current2faUserId = userId;
         current2faSuccessCallback = onSuccess;
 
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
         // Dismiss modal if login was initiated from floating modal
         if (typeof closeLogin === 'function') {
             closeLogin();
@@ -1412,13 +1458,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const verifyView = document.getElementById('landing2faVerifyView');
         if (verifyView) verifyView.classList.remove('hidden');
 
+        ensureLandingAtTop();
+
         const input = document.getElementById('landing2faVerifyCodeInput');
         const err = document.getElementById('landing2faVerifyError');
         if (err) err.classList.add('hidden');
         if (input) {
             input.value = '';
             input.classList.remove('input-error');
-            setTimeout(() => input.focus(), 150);
+            setTimeout(() => {
+                try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+                ensureLandingAtTop();
+            }, 150);
         }
     }
 
@@ -1514,12 +1565,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── 2FA FIRST-TIME ONBOARDING SETUP VIEW ────────────────────────────────
     async function open2faSetupModal(userId, onSuccess) {
         current2faUserId = userId;
-        current2faSuccessCallback = onSuccess;
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
 
         // Dismiss modal if login was initiated from floating modal
         if (typeof closeLogin === 'function') {
             closeLogin();
         }
+
+        ensureLandingAtTop();
 
         const qrBox = document.getElementById('landing2faSetupQrBox');
         const qrImg = document.getElementById('landing2faSetupQrImg');
@@ -1604,7 +1659,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const setupView = document.getElementById('landing2faSetupView');
         if (setupView) setupView.classList.remove('hidden');
 
-        if (input) setTimeout(() => input.focus(), 150);
+        ensureLandingAtTop();
+
+        if (input) setTimeout(() => {
+            try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+            ensureLandingAtTop();
+        }, 150);
     }
 
     document.getElementById('landing2faSetupForm')?.addEventListener('submit', async (e) => {

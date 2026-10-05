@@ -202,7 +202,7 @@ window.revisitActivePanel = function (panelName) {
                 const msgEl = document.getElementById('sigmaAiMessages');
                 if (msgEl) msgEl.scrollTop = msgEl.scrollHeight;
                 const input = document.getElementById('sigmaAiInput');
-                if (input) setTimeout(() => input.focus(), 50);
+                if (input && window.innerWidth > 768) setTimeout(() => input.focus(), 50);
             }
         },
         'analytics': {
@@ -883,12 +883,13 @@ function initSharedTopbarInteractions() {
             }
         }
 
+        const targetPanel = panels.find(p => p.name === panelName);
+        if (targetPanel && targetPanel.el) {
+            targetPanel.el.classList.remove('hidden');
+            window.revisitActivePanel(panelName);
+        }
         panels.forEach(p => {
-            if (!p.el) return;
-            if (p.name === panelName) {
-                p.el.classList.remove('hidden');
-                window.revisitActivePanel(panelName);
-            } else {
+            if (p !== targetPanel && p.el) {
                 p.el.classList.add('hidden');
             }
         });

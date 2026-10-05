@@ -305,7 +305,7 @@
 .student-topic-card__body p,
 .teacher-topic-card__body p {
     margin: 0;
-    color: #000000;
+    color: rgba(0, 0, 0, 0.45) !important;
     font-size: 0.875rem;
     line-height: 1.5;
     display: block;
@@ -1337,7 +1337,7 @@
         margin: 0 !important;
         font-size: 10px !important;
         line-height: 1.35 !important;
-        color: #64748b !important;
+        color: rgba(0, 0, 0, 0.45) !important;
         width: 100% !important;
     }
 
@@ -2694,7 +2694,7 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
 
     #assessment-list,
     #handout-list {
-        padding: 4px 0 24px 0 !important;
+        padding: 4px 0 0 0 !important;
         gap: 10px !important;
     }
 
@@ -3236,6 +3236,19 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
 .student-assessment-list-item h4,
 .teacher-assessment-list-item h4 {
     font-weight: 700 !important;
+}
+
+/* ─── Universal Topic Card / Topic Panel Subtitle Black Fade (Desktop & Mobile) ─── */
+.topic-card__body p,
+.student-topic-card__body p,
+.teacher-topic-card__body p,
+.room-embedded-topics .topic-card__body p,
+.room-embedded-topics .student-topic-card__body p,
+.room-embedded-topics .teacher-topic-card__body p,
+.topic-card p,
+.student-topic-card p,
+.teacher-topic-card p {
+    color: rgba(0, 0, 0, 0.45) !important;
 }
 
 /* ─── Grading Details & Submission Details Panels - Non-Bold Text ─── */

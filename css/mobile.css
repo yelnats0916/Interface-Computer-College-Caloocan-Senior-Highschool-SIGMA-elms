@@ -576,7 +576,6 @@
     /* Full-screen panels below icon subbar */
     body.mobile-panel-open #noti-dropdown:not(.hidden),
     body.mobile-panel-open #calendar-dropdown:not(.hidden),
-    body.mobile-panel-open #sigmaAiPanel:not(.hidden),
     body.mobile-panel-open #analytics-dropdown:not(.hidden),
     body.mobile-panel-open #schedule-dropdown:not(.hidden) {
         position: fixed !important;
@@ -587,6 +586,8 @@
         top: calc(clamp(17px, 4.2vw, 21px) + clamp(40px, 10.5vw, 46px)) !important;
         height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
         height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
         bottom: 0 !important;
         border-radius: 0 !important;
         border: none !important;
@@ -598,7 +599,32 @@
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         overscroll-behavior: contain !important;
-        animation: mobilePanelSlideIn 0.12s cubic-bezier(0, 0, 0.2, 1) !important;
+        animation: none !important;
+        transition: none !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel:not(.hidden) {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        top: calc(clamp(17px, 4.2vw, 21px) + clamp(40px, 10.5vw, 46px)) !important;
+        height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        bottom: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        z-index: 250 !important;
+        background-color: #ffffff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        animation: none !important;
+        transition: none !important;
     }
 
     /* Mobile Schedule & Analytics Drawer Panels: Seamless closed gaps, single divider, fullwidth */
@@ -804,7 +830,8 @@
         flex-direction: column !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        animation: mobilePanelSlideIn 0.12s cubic-bezier(0, 0, 0.2, 1) !important;
+        animation: none !important;
+        transition: none !important;
     }
 
     @keyframes mobilePanelSlideIn {
@@ -1838,6 +1865,40 @@
         padding: 16px 16px 28px 16px !important;
         margin: 0 !important;
         box-sizing: border-box !important;
+    }
+
+    /* Mobile Material Panels to Task Progress Rail Gap (Matches Topic Panel Gap) */
+    .student-topic-page-shell #topic-content-main > .animate-in,
+    .student-topic-page-shell #topic-content-main > div,
+    .student-topic-page-shell #topic-content-main .pb-12,
+    .topic-detail-grid #topic-content-main > .animate-in,
+    .topic-detail-grid #topic-content-main > div,
+    .topic-detail-grid #topic-content-main .pb-12 {
+        padding-bottom: 0 !important;
+    }
+
+    #assessment-list,
+    #handout-list {
+        padding-bottom: 0 !important;
+    }
+
+    #assessment-list > :last-child,
+    #assessment-list > :last-child .assessment-card-panel,
+    #assessment-list > :last-child .sigma-black-fade-panel,
+    .student-assessment-list-item:last-child,
+    .student-assessment-list-item:last-child .assessment-card-panel,
+    .teacher-assessment-list-item:last-child,
+    .teacher-assessment-list-item:last-child .assessment-card-panel,
+    #handout-list > :last-child,
+    #handout-list > :last-child.sigma-black-fade-panel {
+        margin-bottom: 0 !important;
+    }
+
+    .student-topic-page-shell .topic-detail-grid #topic-right-section,
+    .student-topic-page-shell .student-topic-progress-rail,
+    .topic-detail-grid #topic-right-section,
+    .topic-detail-grid .student-topic-progress-rail {
+        padding: 16px 16px 28px 16px !important;
     }
 
     /* Teacher topic page: hide empty / unneeded desktop rails */
@@ -3645,7 +3706,7 @@
         margin: 0 !important;
         font-size: 10px !important;
         line-height: 1.35 !important;
-        color: #64748b !important;
+        color: rgba(0, 0, 0, 0.45) !important;
         width: 100% !important;
     }
 
@@ -5132,6 +5193,7 @@
         font-size: 13px !important;
         line-height: 1.45 !important;
         -webkit-line-clamp: 2 !important;
+        color: rgba(0, 0, 0, 0.45) !important;
     }
 
     /* Scale up Task Progress Card for Tablets */
@@ -9638,12 +9700,7 @@
     }
 
     .sigma-modal-overlay,
-    #pw-modal,
-    body.mobile-panel-open #noti-dropdown:not(.hidden),
-    body.mobile-panel-open #calendar-dropdown:not(.hidden),
-    body.mobile-panel-open #sigmaAiPanel:not(.hidden),
-    body.mobile-panel-open #analytics-dropdown:not(.hidden),
-    body.mobile-panel-open #schedule-dropdown:not(.hidden) {
+    #pw-modal {
         height: 100dvh !important;
         max-height: 100dvh !important;
         box-sizing: border-box !important;
@@ -9669,16 +9726,149 @@
     }
 
     /* Browser-toolbar safe area for fullscreen panels, forms, dialogs and sticky footers. */
-    body.mobile-panel-open #noti-dropdown:not(.hidden),
-    body.mobile-panel-open #calendar-dropdown:not(.hidden),
-    body.mobile-panel-open #sigmaAiPanel:not(.hidden),
-    body.mobile-panel-open #analytics-dropdown:not(.hidden),
-    body.mobile-panel-open #schedule-dropdown:not(.hidden),
     .sigma-post-dialog-modal,
     .sigma-composer-modal,
     .topic-student-cover.is-open,
     [id$="-grading-student-list-tray"].is-open {
         max-height: 100dvh !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Topbar Icon Panels: Never overlap or extend below 100% viewport; clear of mobile browser toolbars */
+    body.mobile-panel-open #noti-dropdown:not(.hidden),
+    body.mobile-panel-open #calendar-dropdown:not(.hidden),
+    body.mobile-panel-open #analytics-dropdown:not(.hidden),
+    body.mobile-panel-open #schedule-dropdown:not(.hidden) {
+        top: calc(clamp(17px, 4.2vw, 21px) + clamp(40px, 10.5vw, 46px)) !important;
+        bottom: 0 !important;
+        height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* Mobile SIGMA AI Chat Panel: Column flexbox with scrollable messages and pinned composer at bottom */
+    body.mobile-panel-open #sigmaAiPanel:not(.hidden) {
+        top: calc(clamp(17px, 4.2vw, 21px) + clamp(40px, 10.5vw, 46px)) !important;
+        bottom: 0 !important;
+        height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100vh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        max-height: calc(100dvh - clamp(17px, 4.2vw, 21px) - clamp(40px, 10.5vw, 46px)) !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        animation: none !important;
+        transition: none !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel #sigmaAiMessages {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 16px !important;
+        box-sizing: border-box !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel > div:last-child {
+        flex-shrink: 0 !important;
+        display: block !important;
+        background: #ffffff !important;
+        border-top: 1px solid #f1f5f9 !important;
+        padding: 10px 14px calc(14px + env(safe-area-inset-bottom, 12px)) !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 60 !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-composer {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        background: transparent !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-composer__field {
+        flex: 1 !important;
+        min-width: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        background: #f8fafc !important;
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 9999px !important;
+        min-height: 42px !important;
+        padding: 6px 14px !important;
+        box-sizing: border-box !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel .sigma-ai-composer__field:focus-within {
+        border-color: #FFD000 !important;
+        background: #ffffff !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel #sigmaAiInput {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+        border: none !important;
+        outline: none !important;
+        background: transparent !important;
+        font-size: 16px !important;
+        line-height: 1.4 !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        color: #0f172a !important;
+        resize: none !important;
+        padding: 2px 0 !important;
+        box-shadow: none !important;
+        pointer-events: auto !important;
+        touch-action: manipulation !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        cursor: text !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    body.mobile-panel-open #sigmaAiPanel #sigmaAiSendBtn {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 9999px !important;
+        background-color: #15803d !important;
+        color: #ffffff !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+        pointer-events: auto !important;
+        border: none !important;
+        outline: none !important;
+    }
+
+    /* Prevent mobile browser toolbars from blocking the bottom of panel scroll areas */
+    body.mobile-panel-open #noti-dropdown .notif-scroll-area,
+    body.mobile-panel-open #calendar-dropdown .calendar-content,
+    body.mobile-panel-open #calendar-dropdown #mobile-calendar-container,
+    body.mobile-panel-open #calendar-dropdown > div.overflow-y-auto,
+    body.mobile-panel-open #analytics-dropdown-cards,
+    body.mobile-panel-open #schedule-dropdown-cards,
+    body.mobile-panel-open #profileDropdownMenu,
+    body.mobile-account-fullscreen #profileDropdownMenu {
+        padding-bottom: max(32px, calc(20px + env(safe-area-inset-bottom, 16px))) !important;
+        scroll-padding-bottom: max(32px, calc(20px + env(safe-area-inset-bottom, 16px))) !important;
         box-sizing: border-box !important;
     }
 
@@ -10183,7 +10373,19 @@
         font-size: 11.5px !important;
         padding: 0.45rem 0.85rem !important;
         border-radius: 10px !important;
-    }
+}
+
+/* ─── Universal Topic Card / Topic Panel Subtitle Black Fade (Desktop & Mobile) ─── */
+.topic-card__body p,
+.student-topic-card__body p,
+.teacher-topic-card__body p,
+.room-embedded-topics .topic-card__body p,
+.room-embedded-topics .student-topic-card__body p,
+.room-embedded-topics .teacher-topic-card__body p,
+.topic-card p,
+.student-topic-card p,
+.teacher-topic-card p {
+    color: rgba(0, 0, 0, 0.45) !important;
 }
 
 

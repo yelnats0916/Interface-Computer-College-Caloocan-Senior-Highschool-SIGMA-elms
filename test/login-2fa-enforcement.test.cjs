@@ -32,4 +32,9 @@ assert.ok(!indexJs.includes('code === \'123456\''), 'Does not allow 123456 bypas
 assert.ok(indexJs.includes('sigma-2fa-secret-'), 'Persists user secret key locally');
 assert.ok(indexJs.includes('sigma-2fa-enabled-'), 'Persists user 2FA status locally');
 
-console.log('PASS: 2FA enforcement and client-side TOTP engine verified successfully.');
+// 6. Verify 2FA screens and Back-to-login automatically scroll to top
+assert.ok(indexJs.includes('function ensureLandingAtTop'), 'Has ensureLandingAtTop helper');
+assert.ok(indexJs.includes('scrollLandingToTop'), 'Has scrollLandingToTop helper');
+assert.ok(indexJs.includes('preventScroll: true'), 'Uses preventScroll when focusing input to prevent unwanted jump down');
+
+console.log('PASS: 2FA enforcement, scroll-to-top transition, and client-side TOTP engine verified successfully.');

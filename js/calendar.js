@@ -177,8 +177,12 @@
             });
         }
 
-        // Click outside listener
+        // Click outside listener (Desktop overlay only; mobile mode is managed via topbar.js)
         function handleCalendarDropdownOutsideDismiss(e) {
+            // In mobile panel mode, dismissal is handled strictly via panel back button or subbar switching
+            if (document.body.classList.contains('mobile-panel-open') || window.innerWidth <= 768) return;
+            if (e.target && e.target.closest && e.target.closest('.mobile-header-subbar, .mobile-subbar-btn, .header-icon-btn, .header-profile-btn, #calendar-toggle, #noti-toggle, #sigma-toggle, #profileDropdownBtn')) return;
+
             if (!calendarDropdown || calendarDropdown.classList.contains('hidden')) return;
             if (!calendarDropdown.contains(e.target) && !calendarToggleBtn?.contains(e.target)) {
                 calendarDropdown.classList.add('hidden');
@@ -186,12 +190,17 @@
                 window.closeCalendarCustomMonthPicker?.();
             }
         }
-        window.addEventListener('pointerdown', handleCalendarDropdownOutsideDismiss, true);
-        window.addEventListener('click', handleCalendarDropdownOutsideDismiss, true);
+        window.addEventListener('click', handleCalendarDropdownOutsideDismiss);
 
         // ESC key listener
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && calendarDropdown && !calendarDropdown.classList.contains('hidden')) {
+                if (document.body.classList.contains('mobile-panel-open') || window.innerWidth <= 768) {
+                    if (typeof window.closeMobileTopPanel === 'function') {
+                        window.closeMobileTopPanel();
+                        return;
+                    }
+                }
                 calendarDropdown.classList.add('hidden');
                 calendarToggleBtn?.classList.remove('active');
                 window.closeCalendarCustomMonthPicker?.();

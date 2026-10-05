@@ -8240,7 +8240,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
                     <i class="${statusIcon} text-xl ml-auto"></i>
                 </div>
                 <h3 role="link" tabindex="0" onclick="${escapeHtml(clickHandler)}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" class="cursor-pointer inline-block hover:text-[#FFD000] active:text-[#e6bc00] transition-colors w-fit max-w-full">${escapeHtml(topic.title)}</h3>
-                <p>${escapeHtml(overview)}</p>
+                <p class="text-black-fade">${escapeHtml(overview)}</p>
             </div>
         </div>
     `;
