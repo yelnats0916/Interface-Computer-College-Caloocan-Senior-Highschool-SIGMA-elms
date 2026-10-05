@@ -1670,6 +1670,8 @@
     #section-topic-content,
     #section-topic-detail,
     #section-curriculum-page,
+    #user-profile-view,
+    #user-profile-header-panel,
     .topic-page-shell,
     .student-topic-page-shell,
     .teacher-topic-page-shell,
@@ -1779,6 +1781,25 @@
         pointer-events: none !important;
         touch-action: none !important;
         user-select: none !important;
+    }
+
+    /* Failsafe: when user profile is active, never lock page scroll or disable pointer events */
+    html:has(#user-profile-view:not(.hidden)),
+    body:has(#user-profile-view:not(.hidden)) {
+        overflow-y: auto !important;
+        height: auto !important;
+        max-height: none !important;
+        touch-action: pan-y !important;
+        overscroll-behavior: auto !important;
+    }
+
+    body:has(#user-profile-view:not(.hidden)) #layout-wrapper,
+    body:has(#user-profile-view:not(.hidden)) #main-content,
+    body:has(#user-profile-view:not(.hidden)) #content-sections {
+        overflow: visible !important;
+        pointer-events: auto !important;
+        touch-action: pan-y !important;
+        user-select: auto !important;
     }
 
     /* When mobile panel is open: Icon panel goes up to cover the main bar including the bottom border */

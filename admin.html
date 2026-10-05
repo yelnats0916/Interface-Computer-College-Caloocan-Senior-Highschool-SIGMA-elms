@@ -22,11 +22,12 @@
     <link rel="stylesheet" href="css/shared-components.css?v=20261004neutralQuizDetails1">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
     <link rel="stylesheet" href="css/settings-view.css?v=20261005mobile2level2">
+    <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
     <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003metricsnormbtn3">
-    <link rel="stylesheet" href="css/mobile.css?v=20261004assignedStudentsFlow1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261005mobileprofile2">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -484,7 +485,7 @@
             </div>
 
             <!-- ── Hero: Avatar + Name + ID ── -->
-            <div class="profile-panel-hero" onclick="window.navigateToUserProfile(event)" title="View Profile" role="button" tabindex="0">
+            <div class="profile-panel-hero" onclick="if(typeof window.closeMobileAccountPanel==='function') window.closeMobileAccountPanel(); if(typeof window.closeMobileTopPanel==='function') window.closeMobileTopPanel(); window.navigateToUserProfile(event);" title="View Profile" role="button" tabindex="0">
                 <div class="profile-panel-avatar-wrap">
                     <img id="sidebar-avatar-img" src="" alt="Avatar" class="hidden">
                     <i id="sidebar-avatar-placeholder" class="fa-solid fa-user"></i>
@@ -6477,7 +6478,7 @@
     <script src="js/announcements.js?v=20261004fixscroll1"></script>
     <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
     <script src="js/calendar.js?v=20260929dateselect1"></script>
-    <script src="js/profile-view.js?v=20261003signoutlabel1"></script>
+    <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
     <script src="js/admin-session-controls.js?v=20261003signoutlabel1"></script>
     <script src="js/dialog.js?v=20261005quizStartDesktop1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>

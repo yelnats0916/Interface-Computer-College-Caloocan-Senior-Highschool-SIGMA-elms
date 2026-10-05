@@ -2616,6 +2616,25 @@ window.openUserProfile = function (userOrName) {
         isReadOnly: true
     };
 
+    if (typeof window.closeMobileAccountPanel === 'function') {
+        window.closeMobileAccountPanel();
+    }
+    if (typeof window.closeMobileTopPanel === 'function') {
+        window.closeMobileTopPanel();
+    }
+    if (typeof window.hideHeaderOverlays === 'function') {
+        window.hideHeaderOverlays();
+    }
+    if (typeof window.collapseSidebar === 'function') {
+        window.collapseSidebar();
+    }
+    document.body.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+    document.documentElement.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('touch-action');
+    document.documentElement.style.removeProperty('overflow');
+    document.documentElement.style.removeProperty('touch-action');
+
     if (typeof window.switchTab === 'function') {
         window.switchTab('nav-profile');
     } else if (typeof window.editUser === 'function') {

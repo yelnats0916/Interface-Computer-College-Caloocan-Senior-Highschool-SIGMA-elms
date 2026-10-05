@@ -50,6 +50,8 @@
     #section-topic-content,
     #section-topic-detail,
     #section-curriculum-page,
+    #user-profile-view,
+    #user-profile-header-panel,
     .topic-page-shell,
     .student-topic-page-shell,
     .teacher-topic-page-shell,
@@ -63,6 +65,7 @@
 
     #main-content:has(#section-topic-content:not(.hidden)),
     #main-content:has(#section-topic-detail:not(.hidden)),
+    #main-content:has(#user-profile-view:not(.hidden)),
     #main-content:has(.teacher-topic-page-shell),
     #main-content:has(.student-topic-page-shell),
     #main-content:has(.topic-page-shell) {
@@ -9759,4 +9762,428 @@
         overflow-wrap: break-word;
     }
 }
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE USER PROFILE VIEW (<= 1023px)
+   - Full-width hero banner touching icon panel with closed gap (0 gap)
+   - Preserved rounded bottom corners (rounded-b-[28px])
+   - Scaled-down avatar circle (86px), placeholder icon, and proportional negative margin
+   - Scaled-down user name typography, role badge, and user ID
+   - Full-width divider borders (top and bottom of tabs header) spanning edge-to-edge
+   ========================================================================== */
+@media (max-width: 1023px) {
+    /* 1. Flush layout & zero gap between mobile sub-bar and green banner */
+    #user-profile-view {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    #main-content:has(#user-profile-view:not(.hidden)),
+    #content-sections:has(#user-profile-view:not(.hidden)) {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    /* 2. Top Enclosing Header Panel - Full Width Edge-to-Edge */
+    #user-profile-header-panel,
+    #user-profile-view > div:first-child {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        border-top: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        background-color: #ffffff !important;
+    }
+
+    /* Outer banner wrapper: Remove side padding and max-width on mobile so banner stretches full width */
+    #user-profile-banner-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-top: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    /* 3. Hero Banner - Full Width, Closed Gap to Sub-Bar, Bottom Radius Preserved */
+    #user-profile-hero-banner {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 168px !important;
+        height: auto !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* Hero Banner Background: Preserved bottom radius, zero top radius */
+    #user-profile-hero-bg {
+        width: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+        border-bottom-left-radius: 28px !important;
+        border-bottom-right-radius: 28px !important;
+    }
+
+    /* Content inside Hero Banner */
+    #user-profile-banner-content {
+        min-height: 168px !important;
+        padding-left: clamp(14px, 4vw, 20px) !important;
+        padding-right: clamp(14px, 4vw, 20px) !important;
+        padding-top: 14px !important;
+        padding-bottom: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 4. Scaled-Down Profile Avatar Circle */
+    #user-profile-picture-trigger {
+        width: clamp(80px, 20vw, 90px) !important;
+        height: clamp(80px, 20vw, 90px) !important;
+        min-width: clamp(80px, 20vw, 90px) !important;
+        min-height: clamp(80px, 20vw, 90px) !important;
+        margin-bottom: -36px !important;
+        border-width: 3.5px !important;
+        border-color: #ffffff !important;
+        box-shadow: 0 0 0 3px #ffffff, 0 4px 14px rgba(0, 0, 0, 0.14) !important;
+        border-radius: 9999px !important;
+        flex-shrink: 0 !important;
+    }
+
+    #user-profile-picture-trigger #user-avatar-placeholder {
+        font-size: clamp(30px, 7.5vw, 36px) !important;
+    }
+
+    /* 5. Scaled-Down Typography & Meta Info */
+    #user-profile-identity-wrap {
+        align-self: flex-end !important;
+        margin-bottom: 8px !important;
+        padding-bottom: 0 !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    #view-user-name-banner-heading {
+        font-size: clamp(1.15rem, 4.2vw, 1.4rem) !important;
+        line-height: 1.22 !important;
+        letter-spacing: -0.015em !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    #view-user-name-banner {
+        font-size: clamp(1.15rem, 4.2vw, 1.4rem) !important;
+        line-height: 1.22 !important;
+        font-weight: 800 !important;
+    }
+
+    #view-user-badges-wrap {
+        display: none !important;
+    }
+
+    /* Action Buttons on Banner */
+    #user-profile-action-btn-wrap {
+        margin-bottom: 8px !important;
+        align-self: flex-end !important;
+        flex-shrink: 0 !important;
+    }
+
+    #user-profile-action-btn-wrap #profile-settings-btn,
+    #user-profile-action-btn-wrap #profile-actions-dots-btn {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+    }
+
+    #user-profile-action-btn-wrap #profile-settings-btn i,
+    #user-profile-action-btn-wrap #profile-actions-dots-btn i {
+        font-size: 13px !important;
+    }
+
+    /* 6. Clearance Area Below Avatar & Account Status Badge */
+    #user-profile-clearance-tabs-wrap {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        width: 100% !important;
+    }
+
+    #user-profile-status-wrap {
+        min-height: 44px !important;
+        padding: 6px clamp(12px, 3.5vw, 16px) 6px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+
+    /* 7. Full-Width Divider Border Above Tabs & Unified Mobile Tabs */
+    #user-profile-tabs-header-grid {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 clamp(12px, 3.5vw, 16px) !important;
+        border-top: 1px solid #e2e8f0 !important;
+        box-sizing: border-box !important;
+    }
+
+    #user-profile-about-title-col {
+        display: none !important;
+    }
+
+    #user-profile-tabs-container {
+        display: flex !important;
+        width: 100% !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+    }
+
+    #user-profile-tabs-container::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    #user-profile-tabs-container > p:not(.hidden),
+    #user-profile-tabs-container > a:not(.hidden),
+    #profile-tab-subjects:not(.hidden),
+    #profile-tab-sections:not(.hidden) {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 9px 14px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+    }
+
+    body.student-portal #profile-tab-achievements:not(.hidden) {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 9px 14px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+    }
+
+    /* Achievements tab must remain hidden for teacher & whenever marked hidden */
+    body.teacher-portal #profile-tab-achievements,
+    body:not(.student-portal) #profile-tab-achievements,
+    #user-profile-tabs-container .hidden,
+    #user-profile-tabs-container [style*="display: none"] {
+        display: none !important;
+    }
+
+    /* 8. Profile Panels Below Header: Right panel (Subjects & Sections) on top, Left panel (Email, ID, Gender, Role) below */
+    #user-profile-panels-grid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 14px clamp(12px, 3.5vw, 16px) 24px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    /* Move Subjects & Sections panel to the top on mobile */
+    #user-profile-right-panel {
+        order: 1 !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+    }
+
+    /* Move Email, ID, Gender, Role & Bio panel below the Subjects & Sections panel */
+    #user-profile-left-column {
+        order: 2 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 14px !important;
+    }
+
+    /* Scale down Basic Details panel (Email, ID, Gender, Role) */
+    #user-profile-basic-details-card {
+        padding: 1.15rem 1rem !important;
+        border-radius: 20px !important;
+    }
+
+    #user-profile-basic-details-card > div {
+        padding-top: 0.65rem !important;
+        margin-top: 0 !important;
+    }
+
+    #user-profile-basic-details-card > div:first-child {
+        padding-top: 0 !important;
+    }
+
+    /* Scale down icons */
+    #user-profile-basic-details-card i,
+    #user-profile-basic-details-card .fa-solid {
+        font-size: 13px !important;
+        width: 16px !important;
+        min-width: 16px !important;
+        text-align: center !important;
+        line-height: 1 !important;
+    }
+
+    /* Scale down labels */
+    #user-profile-basic-details-card p.font-semibold,
+    #user-profile-basic-details-card .font-semibold {
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+        letter-spacing: -0.01em !important;
+    }
+
+    /* Scale down values */
+    #user-profile-basic-details-card #view-user-email,
+    #user-profile-basic-details-card #view-user-sidebar-id,
+    #user-profile-basic-details-card #view-user-gender,
+    #user-profile-basic-details-card #view-user-sidebar-role,
+    #user-profile-basic-details-card > div > p:not(.font-semibold) {
+        font-size: 13.5px !important;
+        font-weight: 500 !important;
+        line-height: 1.35 !important;
+        word-break: break-word !important;
+    }
+
+    /* Scale down tab panel container (Subjects / Sections / Achievements) */
+    #user-profile-tab-panel-container {
+        padding: 1.15rem 1rem !important;
+        border-radius: 20px !important;
+        min-height: auto !important;
+    }
+
+    /* Scale down Subjects / Sections / Tab Header */
+    #user-profile-tab-panel h3,
+    #user-profile-tab-panel-container h3 {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+    }
+
+    /* Scale down Empty State inside Subjects / Sections */
+    #user-profile-tab-panel .py-16 {
+        padding-top: 1.75rem !important;
+        padding-bottom: 1.75rem !important;
+        gap: 0.5rem !important;
+    }
+
+    #user-profile-tab-panel .py-16 i,
+    #user-profile-tab-panel i.text-4xl,
+    #user-profile-tab-panel i.fa-book,
+    #user-profile-tab-panel i.fa-users,
+    #user-profile-tab-panel i.fa-folder,
+    #user-profile-tab-panel i.fa-chalkboard {
+        font-size: 26px !important;
+    }
+
+    #user-profile-tab-panel .py-16 p,
+    #user-profile-tab-panel p.text-sm {
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        line-height: 1.3 !important;
+    }
+
+    /* Scale down Bio Containers & Cards */
+    #user-profile-bio-card-left-container > div,
+    #user-profile-bio-card-right-container > div,
+    #user-profile-bio-card-container > div {
+        padding: 1.15rem 1rem !important;
+        border-radius: 20px !important;
+        min-height: auto !important;
+    }
+
+    /* Scale down Bio Header & Add Bio button */
+    #user-profile-bio-card-left-container h4,
+    #user-profile-bio-card-right-container h4,
+    #user-profile-bio-card-container h4,
+    #edit-user-bio-form h4 {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+    }
+
+    #user-profile-bio-card-left-container button,
+    #user-profile-bio-card-right-container button,
+    #user-profile-bio-card-container button {
+        font-size: 11.5px !important;
+    }
+
+    /* Scale down Bio empty state ("Tell me about yourself") */
+    #user-profile-bio-content .py-8 {
+        padding-top: 1.25rem !important;
+        padding-bottom: 1.25rem !important;
+        gap: 0.45rem !important;
+    }
+
+    #user-profile-bio-content i.fa-note-sticky,
+    #user-profile-bio-content i.text-3xl {
+        font-size: 22px !important;
+    }
+
+    #user-profile-bio-content p.text-black-fade {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+    }
+
+    /* Scale down saved bio items */
+    #user-profile-bio-content h5 {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+    }
+
+    #user-profile-bio-content p {
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+    }
+
+    /* Scale down Add/Edit Bio Form */
+    #edit-user-bio-form label {
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+    }
+
+    #edit-user-bio-form #user-bio-char-counter {
+        font-size: 10.5px !important;
+    }
+
+    #edit-user-bio-form input,
+    #edit-user-bio-form textarea {
+        font-size: 12.5px !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 10px !important;
+    }
+
+    #edit-user-bio-form button {
+        font-size: 11.5px !important;
+        padding: 0.45rem 0.85rem !important;
+        border-radius: 10px !important;
+    }
+}
+
 

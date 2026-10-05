@@ -4241,8 +4241,22 @@ document.addEventListener('DOMContentLoaded', () => {
             targetSection.classList.remove('hidden');
         }
 
-        if (sectionId === 'user-profile-view' && typeof window.populateUserProfilePage === 'function') {
-            window.populateUserProfilePage();
+        if (sectionId === 'user-profile-view') {
+            if (typeof window.closeMobileAccountPanel === 'function') {
+                window.closeMobileAccountPanel();
+            }
+            if (typeof window.closeMobileTopPanel === 'function') {
+                window.closeMobileTopPanel();
+            }
+            document.body.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+            document.documentElement.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('touch-action');
+            document.documentElement.style.removeProperty('overflow');
+            document.documentElement.style.removeProperty('touch-action');
+            if (typeof window.populateUserProfilePage === 'function') {
+                window.populateUserProfilePage();
+            }
         }
 
         if (sectionId === 'settings-gdrive-view') {

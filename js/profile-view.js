@@ -597,16 +597,16 @@
         section.classList.add('dynamic-section');
         section.innerHTML = `
             <!-- TOP HEADER WHITE PANEL (Centered 1040px Banner, Avatar, Info, and Tabs) -->
-            <div class="w-full bg-white border-b border-slate-200 shadow-sm">
-                <div class="mx-auto max-w-[1040px] w-full px-6 md:px-10">
+            <div id="user-profile-header-panel" class="w-full bg-white border-b border-slate-200 shadow-sm">
+                <div id="user-profile-banner-wrapper" class="mx-auto max-w-[1040px] w-full px-6 md:px-10">
                     <!-- Green Hero Banner -->
-                    <div class="relative min-h-[220px] md:min-h-[310px]">
-                        <div class="absolute inset-0 overflow-hidden rounded-b-[44px] bg-[#15803d]">
+                    <div id="user-profile-hero-banner" class="relative min-h-[220px] md:min-h-[310px]">
+                        <div id="user-profile-hero-bg" class="absolute inset-0 overflow-hidden rounded-b-[44px] bg-[#15803d]">
                             <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.14),_transparent_34%)]"></div>
                             <div class="absolute inset-0 opacity-20 bg-[repeating-linear-gradient(90deg,transparent_0,transparent_22px,rgba(250,204,21,0.4)_22px,rgba(250,204,21,0.4)_23px)]"></div>
                             <div class="absolute bottom-0 left-1/3 right-0 h-px bg-white/10"></div>
                         </div>
-                        <div class="relative px-6 md:px-10 pt-10 pb-0 min-h-[220px] md:min-h-[310px] flex items-end">
+                        <div id="user-profile-banner-content" class="relative px-6 md:px-10 pt-10 pb-0 min-h-[220px] md:min-h-[310px] flex items-end">
                             <div class="relative z-10 flex flex-row items-center gap-3 md:gap-8 w-full">
                                 <button type="button" id="user-profile-picture-trigger"
                                     onclick="window.toggleUserProfilePictureOverlay(true)"
@@ -615,18 +615,14 @@
                                     <img id="user-avatar-img" src="" alt="User Avatar" class="absolute inset-0 w-full h-full object-cover hidden rounded-full">
                                     <i id="user-avatar-placeholder" class="fa-solid fa-user text-6xl md:text-7xl text-[#94a3b8]"></i>
                                 </button>
-                                <div class="flex-1 md:pb-5">
+                                <div id="user-profile-identity-wrap" class="flex-1 self-end mb-5 md:mb-6">
                                     <div class="flex flex-col items-start gap-1.5">
-                                        <h2 class="text-[1.85rem] md:text-[2.6rem] font-bold text-white tracking-tight leading-[1.02] whitespace-nowrap overflow-hidden text-ellipsis">
+                                        <h2 id="view-user-name-banner-heading" class="text-[1.85rem] md:text-[2.6rem] font-bold text-white tracking-tight leading-[1.02] whitespace-nowrap overflow-hidden text-ellipsis">
                                             <span id="view-user-name-banner">User Name</span>
                                         </h2>
-                                        <div class="flex items-center gap-3">
-                                            <span id="view-user-role" class="profile-role-badge">Role</span>
-                                            <span id="view-user-id" class="text-xs md:text-sm font-bold tracking-wider text-white drop-shadow-sm">ID: #000000</span>
-                                        </div>
                                     </div>
                                 </div>
-                                <div class="relative self-end mb-6">
+                                <div id="user-profile-action-btn-wrap" class="relative self-end mb-6">
                                     <!-- 1. Settings Gear Button (Only for "Edit Account" mode) -->
                                     <button type="button" id="profile-settings-btn"
                                         onclick="window.toggleProfileSettingsMenu(event)"
@@ -813,9 +809,9 @@
                     </div>
 
                     <!-- Clearance below avatar & Tabs inside Top White Header Panel -->
-                    <div class="pt-3 pb-0">
+                    <div id="user-profile-clearance-tabs-wrap" class="pt-3 pb-0">
                         <!-- Account Status Indicator (Positioned in white space below settings gear) -->
-                        <div class="min-h-[76px] flex items-center justify-end px-6 md:px-10 pb-3">
+                        <div id="user-profile-status-wrap" class="min-h-[76px] flex items-center justify-end px-6 md:px-10 pb-3">
                             <div id="profile-account-status-box" class="hidden items-center gap-3.5 px-4 py-2.5 rounded-2xl border transition-all max-w-lg shadow-sm">
                                 <div id="profile-status-box-icon-wrap" class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
                                     <i id="profile-status-box-icon" class="text-sm"></i>
@@ -831,7 +827,7 @@
                         </div>
 
                         <div id="user-profile-tabs-header-grid" class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-8 items-center border-t border-slate-200 pt-3 px-6 md:px-10">
-                            <div class="flex items-center justify-center shrink-0">
+                            <div id="user-profile-about-title-col" class="flex items-center justify-center shrink-0">
                                 <h3 class="text-sm font-semibold text-black tracking-normal font-['Inter'] leading-5">About</h3>
                             </div>
                             <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-3">
@@ -849,7 +845,7 @@
                 <!-- Left Column: Basic Details (and Bio Card when right tabs exist) -->
                 <aside id="user-profile-left-column" class="flex flex-col gap-6 h-fit w-full">
                     <!-- Basic Details Card (Email, ID, Gender, Institutional Role with Colored Icons & Visible Divider Lines) -->
-                    <div class="rounded-[28px] border border-slate-200 bg-white p-7 md:p-8 space-y-4 shadow-sm divide-y divide-slate-200">
+                    <div id="user-profile-basic-details-card" class="rounded-[28px] border border-slate-200 bg-white p-7 md:p-8 space-y-4 shadow-sm divide-y divide-slate-200">
                         <!-- Email -->
                         <div class="space-y-1.5 pt-0">
                             <div class="flex items-center gap-2.5">
@@ -971,6 +967,19 @@
 
     // ─── 1. POPULATE USER PROFILE PAGE ──────────────────────────────────────────
     window.populateUserProfilePage = function () {
+        if (typeof window.closeMobileAccountPanel === 'function') {
+            window.closeMobileAccountPanel();
+        }
+        if (typeof window.closeMobileTopPanel === 'function') {
+            window.closeMobileTopPanel();
+        }
+        document.body.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+        document.documentElement.classList.remove('mobile-account-fullscreen', 'mobile-panel-open', 'overflow-hidden');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('touch-action');
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('touch-action');
+
         ensureSharedUserProfileView();
         ensureSharedProfilePictureOverlay();
         const userData = getActiveUserData();
@@ -1353,6 +1362,11 @@
             const tabEl = document.getElementById('profile-tab-' + t);
             if (tabEl) {
                 tabEl.classList.toggle('hidden', !perms[t]);
+                if (!perms[t]) {
+                    tabEl.style.setProperty('display', 'none', 'important');
+                } else {
+                    tabEl.style.removeProperty('display');
+                }
             }
         });
 
@@ -1383,10 +1397,14 @@
             if (el) {
                 if (!perms[t]) {
                     el.className = "hidden";
-                } else if (t === tabKey) {
-                    el.className = "px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5";
+                    el.style.setProperty('display', 'none', 'important');
                 } else {
-                    el.className = "px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5";
+                    el.style.removeProperty('display');
+                    if (t === tabKey) {
+                        el.className = "px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5";
+                    } else {
+                        el.className = "px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5";
+                    }
                 }
             }
         });
@@ -2699,12 +2717,44 @@
         isNavigatingToProfile = true;
         setTimeout(() => { isNavigatingToProfile = false; }, 300);
 
-        // Close header dropdown / slideout drawer
+        // Close header dropdown / slideout drawer and unlock mobile scrolling
+        if (typeof window.closeMobileAccountPanel === 'function') {
+            window.closeMobileAccountPanel();
+        }
+        if (typeof window.closeMobileTopPanel === 'function') {
+            window.closeMobileTopPanel();
+        }
         if (typeof window.hideHeaderOverlays === 'function') {
             window.hideHeaderOverlays();
         }
+        if (typeof window.collapseSidebar === 'function') {
+            window.collapseSidebar();
+        }
+
+        // Explicitly strip any mobile panel locking classes & inline styles
+        document.body.classList.remove(
+            'mobile-account-fullscreen',
+            'mobile-panel-open',
+            'overflow-hidden',
+            'sidebar-open',
+            'sub-sidebar-open',
+            'sidebar-visible'
+        );
+        document.documentElement.classList.remove(
+            'mobile-account-fullscreen',
+            'mobile-panel-open',
+            'overflow-hidden'
+        );
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('touch-action');
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('touch-action');
+
         const profileDropdown = document.getElementById('profile-dropdown') || document.getElementById('profileDropdownMenu');
-        if (profileDropdown) profileDropdown.classList.add('hidden');
+        if (profileDropdown) {
+            profileDropdown.classList.remove('mobile-account-fullscreen');
+            profileDropdown.classList.add('hidden');
+        }
         const profileToggleBtn = document.getElementById('profile-toggle') || document.getElementById('profileDropdownBtn');
         if (profileToggleBtn) profileToggleBtn.classList.remove('active', 'active-yellow');
 
