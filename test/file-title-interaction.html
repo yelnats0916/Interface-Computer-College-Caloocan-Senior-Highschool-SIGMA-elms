@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>File title interaction regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css?v=20261004fileTitleHover1">
+</head>
+<body>
+    <main id="topic-content-main"></main>
+    <output id="opens">0</output>
+    <script src="../js/shared-components.js?v=20261004fileTitleHover1"></script>
+    <script>
+        let opens = 0;
+        window.testOpenFile = () => { document.getElementById('opens').textContent = ++opens; };
+        document.getElementById('topic-content-main').innerHTML = ['Garcia_Stanley_V.pdf', 'Sample_Grading_Rubric.docx'].map(title =>
+            window.renderSharedAttachedFilePanelHtml({ title, type: title.split('.').pop(), onClick: 'window.testOpenFile()' })
+        ).join('');
+    </script>
+</body>
+</html>

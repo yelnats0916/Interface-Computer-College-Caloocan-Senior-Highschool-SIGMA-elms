@@ -9,7 +9,6 @@ const escapeHtml = window.escapeHtml || function (str) {
         .replace(/'/g, '&#39;');
 };
 window.escapeHtml = escapeHtml;
-
 const getStoredJson = (typeof window !== 'undefined' && typeof window.getStoredJson === 'function')
     ? window.getStoredJson
     : function (key, fallback) {
@@ -26,12 +25,10 @@ const getStoredJson = (typeof window !== 'undefined' && typeof window.getStoredJ
             return fallback;
         }
     };
-
 document.addEventListener('DOMContentLoaded', initTeacherPortal);
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
     initTeacherPortal();
 }
-
 function initTeacherPortal() {
     if (window.teacherPortalInitialized) return;
     window.teacherPortalInitialized = true;
@@ -51,6 +48,7 @@ function initTeacherPortal() {
     var _cachedStudentsTime = 0;
     var _cachedTeacherSectionCards = null;
     var _cachedTeacherSectionCardsTime = 0;
+    var _cachedTeacherSectionCardsOwner = null;
     var _cachedAllSubjectsRaw = null;
     var _cachedAllSubjectsRawTime = 0;
     var GRADEBOOK_WEIGHTS_STORAGE_KEY = 'sigma-teacher-gradebook-weights';
@@ -4215,6 +4213,7 @@ function initTeacherPortal() {
 
     function getLoggedInTeacherUser() {
         let authUser = {};
+        const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
         try {
             authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
             if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
@@ -4226,6 +4225,35 @@ function initTeacherPortal() {
         } catch (e) {}
 
         const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+        const defaultTeacher = {
+            id: '1111111',
+            uid: '1111111',
+            firstName: 'Maria',
+            middleName: 'Santos',
+            lastName: 'Ramos',
+            fullName: 'Maria Santos Ramos',
+            name: 'Maria Santos Ramos',
+            email: 'maria.ramos@gmail.com',
+            role: 'Teacher',
+            type: 'Teacher',
+            status: 'Active',
+            gender: 'Female',
+            branch: 'Main Campus',
+            department: 'Senior High School - Faculty',
+            section: 'Rizal',
+            sections: ['Rizal'],
+            assignedSections: ['Rizal'],
+            subject: 'Computer Programming 1',
+            subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+            assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+        };
+
+        const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
+        // The permanent hardcoded default teacher is Maria Santos Ramos (1111111) when no teacher is logged in.
+        if (!authIdRaw) {
+            authUser = defaultTeacher;
+        }
 
         let allUsers = [];
         const storageKeys = [USER_STORAGE_KEY, 'sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-teacher-users-v1', 'sigma-users'];
@@ -4267,29 +4295,75 @@ function initTeacherPortal() {
             const finalLn = matchedUser.lastName || authUser.lastName || '';
             const finalFull = matchedUser.fullName || matchedUser.name || authUser.fullName || `${finalFn} ${finalLn}`.trim();
 
+            const teacherObj = {
+                id: finalId,
+                uid: finalId,
+                firstName: finalFn,
+                lastName: finalLn,
+                fullName: finalFull,
+                name: finalFull,
+                email: authUser.email || matchedUser.email || ''
+            };
+
             const combinedSectionsList = [];
             const combinedSubjectsList = [];
 
-            matchedUsers.forEach(u => {
-                (Array.isArray(u.assignedSections) ? u.assignedSections : []).forEach(s => combinedSectionsList.push(s));
-                (Array.isArray(u.sections) ? u.sections : []).forEach(s => combinedSectionsList.push(s));
-                if (u.section) combinedSectionsList.push(u.section);
-
-                (Array.isArray(u.assignedSubjects) ? u.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                (Array.isArray(u.subjects) ? u.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                if (u.subject) combinedSubjectsList.push(u.subject);
+            // Query canonical section records where this teacher is assigned
+            const canonicalSections = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-sections', []) : [];
+            const activeCanonical = Array.isArray(canonicalSections) ? canonicalSections.filter(s => s && s.status !== 'Archived') : [];
+            const assignedFromCanonical = activeCanonical.filter(sec => {
+                if (typeof window.isSectionAssignedToTeacher === 'function') {
+                    return window.isSectionAssignedToTeacher(sec, teacherObj);
+                }
+                if (typeof isSectionAssignedToTeacher === 'function') {
+                    return isSectionAssignedToTeacher(sec, teacherObj);
+                }
+                return false;
             });
 
-            (Array.isArray(authUser.assignedSections) ? authUser.assignedSections : []).forEach(s => combinedSectionsList.push(s));
-            (Array.isArray(authUser.sections) ? authUser.sections : []).forEach(s => combinedSectionsList.push(s));
-            if (authUser.section) combinedSectionsList.push(authUser.section);
+            if (assignedFromCanonical.length > 0) {
+                assignedFromCanonical.forEach(sec => {
+                    const secId = String(sec.id || '').trim();
+                    const secName = String(sec.name || sec.sectionName || '').trim();
+                    const secSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim();
+                    if (secId) combinedSectionsList.push(secId);
+                    if (secName) combinedSectionsList.push(secName);
+                    if (secSubj) combinedSubjectsList.push(secSubj);
+                });
+            } else {
+                matchedUsers.forEach(u => {
+                    (Array.isArray(u.assignedSections) ? u.assignedSections : []).forEach(s => combinedSectionsList.push(s));
+                    (Array.isArray(u.sections) ? u.sections : []).forEach(s => combinedSectionsList.push(s));
+                    if (u.section) combinedSectionsList.push(u.section);
 
-            (Array.isArray(authUser.assignedSubjects) ? authUser.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
-            (Array.isArray(authUser.subjects) ? authUser.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
-            if (authUser.subject) combinedSubjectsList.push(authUser.subject);
+                    (Array.isArray(u.assignedSubjects) ? u.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
+                    (Array.isArray(u.subjects) ? u.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
+                    if (u.subject) combinedSubjectsList.push(u.subject);
+                });
+
+                (Array.isArray(authUser.assignedSections) ? authUser.assignedSections : []).forEach(s => combinedSectionsList.push(s));
+                (Array.isArray(authUser.sections) ? authUser.sections : []).forEach(s => combinedSectionsList.push(s));
+                if (authUser.section) combinedSectionsList.push(authUser.section);
+
+                (Array.isArray(authUser.assignedSubjects) ? authUser.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
+                (Array.isArray(authUser.subjects) ? authUser.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
+                if (authUser.subject) combinedSubjectsList.push(authUser.subject);
+            }
 
             const combinedAssignedSections = Array.from(new Set(combinedSectionsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s).trim()).filter(Boolean)));
             const combinedAssignedSubjects = Array.from(new Set(combinedSubjectsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.subject) : s).trim()).filter(Boolean)));
+
+            if (finalId === '1111111' && assignedFromCanonical.length === 0) {
+                if (!combinedAssignedSections.some(s => s.toLowerCase() === 'rizal')) {
+                    combinedAssignedSections.push('Rizal');
+                }
+                const mariaSubjs = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+                mariaSubjs.forEach(s => {
+                    if (!combinedAssignedSubjects.some(sub => sub.toLowerCase() === s.toLowerCase())) {
+                        combinedAssignedSubjects.push(s);
+                    }
+                });
+            }
 
             return {
                 ...matchedUser,
@@ -4325,9 +4399,19 @@ function initTeacherPortal() {
             };
         }
 
-        const defaultTeacher = allUsers.find(u => String(u.uid || u.id) === '1111111')
-            || allUsers.find(u => (u.role || u.type || '').toLowerCase().includes('teacher'))
-            || { id: '1111111', uid: '1111111', firstName: 'Maria', middleName: 'Santos', lastName: 'Ramos', fullName: 'Maria Santos Ramos', name: 'Maria Santos Ramos', role: 'Teacher' };
+        const fallbackMaria = allUsers.find(u => String(u.uid || u.id) === '1111111' || (cleanStr(u.firstName) === 'maria' && cleanStr(u.lastName) === 'ramos'));
+        if (fallbackMaria) {
+            return {
+                ...defaultTeacher,
+                ...fallbackMaria,
+                section: 'Rizal',
+                sections: ['Rizal'],
+                assignedSections: ['Rizal'],
+                subject: 'Computer Programming 1',
+                subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+                assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+            };
+        }
 
         return defaultTeacher;
     }
@@ -4372,16 +4456,23 @@ function initTeacherPortal() {
         };
 
         // 1. Authoritative check: Section Teacher Roster
-        const teacherList = getSafeList(sec.teachers)
-            .concat(getSafeList(sec.assignedTeachers))
+        let teacherList = [];
+        let hasExplicitRoster = false;
+        if (sec.teachers !== undefined && sec.teachers !== null) {
+            teacherList = getSafeList(sec.teachers);
+            hasExplicitRoster = true;
+        } else if (sec.assignedTeachers !== undefined && sec.assignedTeachers !== null) {
+            teacherList = getSafeList(sec.assignedTeachers);
+        }
+
+        teacherList = teacherList
             .concat(getSafeList(sec.coTeachers))
             .concat(getSafeList(sec.instructors));
-
-        let hasExplicitRoster = teacherList.length > 0;
 
         if (teacherList.length > 0) {
             const hasTeacher = teacherList.some(t => isMatch(t));
             if (hasTeacher) return true;
+            hasExplicitRoster = true;
         }
 
         // 2. Check sec.teacher / sec.teacherUid / sec.teacherEmail
@@ -4445,13 +4536,15 @@ function initTeacherPortal() {
 
     function getTeacherSectionCards(forceRefresh = false) {
         const now = Date.now();
-        if (!forceRefresh && _cachedTeacherSectionCards && (now - _cachedTeacherSectionCardsTime < 2000)) {
+        const currentTeacher = getLoggedInTeacherUser();
+        const currentTeacherId = String(currentTeacher?.id || currentTeacher?.uid || '').trim();
+        if (!forceRefresh && _cachedTeacherSectionCards && _cachedTeacherSectionCardsOwner === currentTeacherId && (now - _cachedTeacherSectionCardsTime < 2000)) {
             return _cachedTeacherSectionCards;
         }
         try {
-            const currentTeacher = getLoggedInTeacherUser();
             const result = [];
             const seenKeys = new Set();
+            const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
             const getSafeList = (val) => {
                 if (!val) return [];
@@ -4506,25 +4599,40 @@ function initTeacherPortal() {
                 });
             };
 
-            // Source 1: All stored sections (sigma-admin-sections, sigma-sections-list, etc.)
+            // Source 1: Canonical stored sections (sigma-admin-sections prioritized)
             const combinedSections = [];
             const seenSecKeys = new Set();
-            ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
-                const list = getStoredJson(key, []);
-                if (Array.isArray(list)) {
-                    list.forEach(sec => {
-                        if (!sec) return;
-                        const sId = String(sec.id || '');
-                        const sName = String(sec.name || sec.sectionName || '').trim().toLowerCase();
-                        const sSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim().toLowerCase();
-                        const uniqueSecKey = `${sId}::${sName}::${sSubj}`;
-                        if (!seenSecKeys.has(uniqueSecKey)) {
-                            seenSecKeys.add(uniqueSecKey);
-                            combinedSections.push(sec);
-                        }
-                    });
-                }
-            });
+            const canonicalList = getStoredJson('sigma-admin-sections', []);
+            if (Array.isArray(canonicalList) && canonicalList.length > 0) {
+                canonicalList.forEach(sec => {
+                    if (!sec) return;
+                    const sId = String(sec.id || '');
+                    const sName = String(sec.name || sec.sectionName || '').trim().toLowerCase();
+                    const sSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim().toLowerCase();
+                    const uniqueSecKey = `${sId}::${sName}::${sSubj}`;
+                    if (!seenSecKeys.has(uniqueSecKey)) {
+                        seenSecKeys.add(uniqueSecKey);
+                        combinedSections.push(sec);
+                    }
+                });
+            } else {
+                ['sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
+                    const list = getStoredJson(key, []);
+                    if (Array.isArray(list)) {
+                        list.forEach(sec => {
+                            if (!sec) return;
+                            const sId = String(sec.id || '');
+                            const sName = String(sec.name || sec.sectionName || '').trim().toLowerCase();
+                            const sSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim().toLowerCase();
+                            const uniqueSecKey = `${sId}::${sName}::${sSubj}`;
+                            if (!seenSecKeys.has(uniqueSecKey)) {
+                                seenSecKeys.add(uniqueSecKey);
+                                combinedSections.push(sec);
+                            }
+                        });
+                    }
+                });
+            }
 
             if (combinedSections.length > 0) {
                 const matchedSections = combinedSections.filter(sec => sec && sec.status !== 'Archived' && isSectionAssignedToTeacher(sec, currentTeacher));
@@ -4560,8 +4668,8 @@ function initTeacherPortal() {
                 });
             }
 
-            // Source 2: getTeacherAssignedSubjectsAndSections
-            if (typeof window.getTeacherAssignedSubjectsAndSections === 'function') {
+            // Source 2: getTeacherAssignedSubjectsAndSections ONLY if result is empty
+            if (result.length === 0 && typeof window.getTeacherAssignedSubjectsAndSections === 'function') {
                 const assignedItems = window.getTeacherAssignedSubjectsAndSections(currentTeacher);
                 if (Array.isArray(assignedItems)) {
                     assignedItems.forEach(item => {
@@ -4594,12 +4702,18 @@ function initTeacherPortal() {
                         const psName = String(typeof ps === 'object' ? (ps.name || ps.subject || ps.title) : ps).trim();
                         const psSec = String(typeof ps === 'object' ? (ps.section || ps.sectionName || defaultSecName) : defaultSecName).trim();
                         if (psName) {
+                            const isMaria = String(currentTeacher?.id || currentTeacher?.uid || '').replace(/^#/, '').trim() === '1111111' ||
+                                (cleanStr(currentTeacher?.firstName) === 'maria' && cleanStr(currentTeacher?.lastName) === 'ramos');
+                            const mariaSchedule = psName.toLowerCase().includes('programming') ? 'Mon-Fri 09:00 AM - 10:30 AM' :
+                                (psName.toLowerCase().includes('empowerment') ? 'Mon-Fri 03:00 PM - 04:30 PM' : 'Mon-Fri 10:30 AM - 12:00 PM');
                             addCard({
                                 subject: psName,
                                 name: psName,
                                 sectionName: psSec,
                                 section: psSec,
                                 grade: currentTeacher.gradeLevel || 'Grade 11',
+                                room: isMaria ? 'Room 302' : (currentTeacher.room || 'Room 101'),
+                                schedule: isMaria ? mariaSchedule : (currentTeacher.schedule || 'Regular Schedule'),
                                 teacher: currentTeacher.fullName || 'Teacher'
                             });
                         }
@@ -4645,6 +4759,42 @@ function initTeacherPortal() {
                 }
             }
 
+            if (result.length === 0) {
+                const teacherIdStr = String(currentTeacher?.id || currentTeacher?.uid || '').replace(/^#/, '').trim();
+                const teacherFullName = cleanStr(currentTeacher?.fullName || currentTeacher?.name || `${currentTeacher?.firstName || ''} ${currentTeacher?.lastName || ''}`);
+                const isMaria = teacherIdStr === '1111111' ||
+                    (cleanStr(currentTeacher?.firstName) === 'maria' && cleanStr(currentTeacher?.lastName) === 'ramos') ||
+                    (teacherFullName.includes('maria') && teacherFullName.includes('ramos'));
+                const isAna = teacherIdStr === '26010214' ||
+                    (cleanStr(currentTeacher?.firstName) === 'ana' && cleanStr(currentTeacher?.lastName) === 'bautista') ||
+                    (teacherFullName.includes('ana') && teacherFullName.includes('bautista'));
+
+                if (isMaria) {
+                    const defaultMariaCards = [
+                        { subject: 'Computer Programming 1', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 09:00 AM - 10:30 AM' },
+                        { subject: 'Empowerment Technologies', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 03:00 PM - 04:30 PM' },
+                        { subject: 'Oral Communication', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 10:30 AM - 12:00 PM' }
+                    ];
+                    defaultMariaCards.forEach(c => addCard({
+                        ...c,
+                        name: c.subject,
+                        section: c.sectionName,
+                        teacher: currentTeacher.fullName || 'Maria Santos Ramos'
+                    }));
+                } else if (isAna) {
+                    const defaultAnaCards = [
+                        { subject: 'Computer Programming 1', sectionName: 'Einstein', grade: 'Grade 11', room: 'Room 201' },
+                        { subject: 'General Mathematics', sectionName: 'Newton', grade: 'Grade 11', room: 'Room 202' }
+                    ];
+                    defaultAnaCards.forEach(c => addCard({
+                        ...c,
+                        name: c.subject,
+                        section: c.sectionName,
+                        teacher: currentTeacher.fullName || 'Ana Villanueva Bautista'
+                    }));
+                }
+            }
+
             if (result.length > 0) {
                 const sorted = (typeof window.sortClassroomCards === 'function') 
                     ? window.sortClassroomCards(result) 
@@ -4659,6 +4809,7 @@ function initTeacherPortal() {
                     });
                 _cachedTeacherSectionCards = sorted;
                 _cachedTeacherSectionCardsTime = now;
+                _cachedTeacherSectionCardsOwner = currentTeacherId;
                 return sorted;
             }
         } catch (e) {
@@ -4666,6 +4817,7 @@ function initTeacherPortal() {
         }
         _cachedTeacherSectionCards = [];
         _cachedTeacherSectionCardsTime = now;
+        _cachedTeacherSectionCardsOwner = currentTeacherId;
         return [];
     }
     window.getTeacherSectionCards = getTeacherSectionCards;
@@ -8254,159 +8406,7 @@ function initTeacherPortal() {
     };
 
     // ── Unified Released Items Action Menu Handlers (Topics, Learning Materials, Assessments) ────
-    window.closeAllReleasedTopicActionMenus = function () {
-        if (typeof window._cleanupReleasedTopicActionMenu === 'function') {
-            try { window._cleanupReleasedTopicActionMenu(); } catch (err) {}
-            window._cleanupReleasedTopicActionMenu = null;
-        }
-        const existing = document.getElementById('released-topic-floating-menu');
-        if (existing) existing.remove();
-
-        document.querySelectorAll('[id^="released-topic-btn-"], [id^="released-learning-btn-"], [id^="released-assessment-btn-"]').forEach(btn => {
-            btn.classList.remove('text-[#FFD000]');
-            btn.classList.add('text-black');
-        });
-    };
-
-    window.toggleReleasedItemActionMenu = function (category, itemId, itemTitle, isHidden = false, e) {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        const existingMenu = document.getElementById('released-topic-floating-menu');
-        const activeItemId = existingMenu?.dataset?.itemId;
-        const activeCategory = existingMenu?.dataset?.category;
-
-        // If clicking same open button, toggle it closed
-        if (existingMenu && String(activeItemId).trim() === String(itemId).trim() && activeCategory === category) {
-            window.closeAllReleasedTopicActionMenus();
-            return;
-        }
-
-        window.closeAllReleasedTopicActionMenus();
-
-        let prefix = 'released-topic-btn-';
-        if (category === 'learning') prefix = 'released-learning-btn-';
-        if (category === 'assessments') prefix = 'released-assessment-btn-';
-
-        const btn = document.getElementById(`${prefix}${itemId}`) || e?.currentTarget;
-        if (btn) {
-            btn.classList.remove('text-black');
-            btn.classList.add('text-[#FFD000]');
-        }
-
-        const rect = (btn || e?.currentTarget)?.getBoundingClientRect();
-
-        const isMobile = window.innerWidth < 640;
-        const menuWidth = isMobile ? 140 : 175;
-
-        const menu = document.createElement('div');
-        menu.id = 'released-topic-floating-menu';
-        menu.dataset.itemId = String(itemId);
-        menu.dataset.category = category;
-        menu.className = 'fixed bg-white rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl border border-black/10 py-1 sm:py-1.5 font-[\'Inter\']';
-        menu.style.cssText = `position: fixed; z-index: 9999999; width: ${menuWidth}px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);`;
-
-        menu.innerHTML = `
-            <button type="button" onclick="window.editUnifiedItemSchedule?.('${category}', '${escapeHtml(String(itemId))}', '${escapeHtml(itemTitle || '')}', event)"
-                class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                <i class="fa-solid fa-clock text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
-                <span>Edit Schedule</span>
-            </button>
-            ${category === 'assessments' ? `
-                <button type="button" onclick="window.editUnifiedItemGrading?.('${category}', '${escapeHtml(String(itemId))}', '${escapeHtml(itemTitle || '')}', event)"
-                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-sliders text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
-                    <span>Edit Details</span>
-                </button>
-            ` : ''}
-            ${isHidden ? `
-                <button type="button" onclick="window.toggleUnifiedItemHidden?.('${category}', '${escapeHtml(String(itemId))}', false, event)"
-                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-eye text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
-                    <span>Unhide</span>
-                </button>
-            ` : `
-                <button type="button" onclick="window.toggleUnifiedItemHidden?.('${category}', '${escapeHtml(String(itemId))}', true, event)"
-                    class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                    <i class="fa-solid fa-eye-slash text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
-                    <span>Hide</span>
-                </button>
-            `}
-            <div class="h-px bg-black/10 my-0.5 sm:my-1"></div>
-            <button type="button" onclick="window.unreleaseUnifiedItem?.('${category}', '${escapeHtml(String(itemId))}', event, '${escapeHtml(itemTitle || '')}')"
-                class="w-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-black hover:bg-slate-100 flex items-center gap-2 sm:gap-2.5 transition-colors cursor-pointer font-['Inter']">
-                <i class="fa-solid fa-arrow-rotate-left text-black text-[11px] sm:text-xs w-3.5 text-center"></i>
-                <span>Move to Draft</span>
-            </button>
-        `;
-
-        document.body.appendChild(menu);
-
-        // Position menu directly under the 3-dots button, right-aligned to it
-        if (rect) {
-            let left = rect.right - menuWidth;
-            let top = rect.bottom + 4;
-            if (left < 8) left = 8;
-            if (left + menuWidth > window.innerWidth - 8) {
-                left = window.innerWidth - menuWidth - 8;
-            }
-            const approxHeight = category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125);
-            if (top + approxHeight > window.innerHeight - 8) {
-                top = Math.max(8, rect.top - approxHeight - 4);
-            }
-            menu.style.left = `${left}px`;
-            menu.style.top = `${top}px`;
-        }
-
-        const triggerTime = Date.now();
-        const dismissListener = function (ev) {
-            if (Date.now() - triggerTime < 30 && (ev.type === 'click' || ev.type === 'pointerdown' || ev.type === 'touchstart')) {
-                return;
-            }
-            if ((ev.target instanceof Node) && menu.contains(ev.target)) {
-                return;
-            }
-            if (btn && (ev.target === btn || ((ev.target instanceof Node) && btn.contains(ev.target)))) {
-                return;
-            }
-            window.closeAllReleasedTopicActionMenus();
-        };
-
-        const keyListener = function (ev) {
-            if (ev.key === 'Escape' || ev.keyCode === 27) {
-                ev.preventDefault();
-                ev.stopPropagation();
-                if (typeof ev.stopImmediatePropagation === 'function') {
-                    ev.stopImmediatePropagation();
-                }
-                window.closeAllReleasedTopicActionMenus();
-            }
-        };
-
-        const scrollListener = function (ev) {
-            if ((ev.target instanceof Node) && menu.contains(ev.target)) return;
-            window.closeAllReleasedTopicActionMenus();
-        };
-
-        const cleanup = function () {
-            document.removeEventListener('pointerdown', dismissListener, true);
-            document.removeEventListener('click', dismissListener, true);
-            document.removeEventListener('touchstart', dismissListener, true);
-            window.removeEventListener('scroll', scrollListener, true);
-            window.removeEventListener('resize', scrollListener, true);
-            document.removeEventListener('keydown', keyListener, true);
-        };
-
-        window._cleanupReleasedTopicActionMenu = cleanup;
-
-        document.addEventListener('pointerdown', dismissListener, true);
-        document.addEventListener('click', dismissListener, true);
-        document.addEventListener('touchstart', dismissListener, true);
-        window.addEventListener('scroll', scrollListener, true);
-        window.addEventListener('resize', scrollListener, true);
-        document.addEventListener('keydown', keyListener, true);
-    };
+    // Released-item menus are provided by the shared curriculum release module.
 
     window.editUnifiedItemSchedule = function (category, itemId, itemTitle, e) {
         if (e) e.stopPropagation();
@@ -9293,6 +9293,17 @@ function initTeacherPortal() {
             }
         }
 
+        const storedAssigned = draft.assignedStudents[effIdStr] || [];
+        const assignedAliases = new Set(storedAssigned.map(value => String(value).trim().toLowerCase()));
+        const assignAll = assignedAliases.has('all') || assignedAliases.has('*');
+        if (sectionStudents.length > 0) {
+            draft.assignedStudents[effIdStr] = sectionStudents.filter(student => {
+                const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
+                    `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+                    `${student.lastName || ''}, ${student.firstName || ''}`.trim()];
+                return assignAll || aliases.some(value => value && assignedAliases.has(String(value).trim().toLowerCase()));
+            }).map(student => String(student.id || student.name));
+        }
         const currentAssignedList = draft.assignedStudents[effIdStr] || [];
         const totalStudentsCount = sectionStudents.length;
         const isAllWildcard = currentAssignedList.some(v => ['all', 'All', 'ALL', '*'].includes(String(v).trim()));
@@ -10209,6 +10220,7 @@ function initTeacherPortal() {
 
         if (!draft._initialSnapshot || !isModalAlreadyOpen || (editType && draft._editType !== editType)) {
             draft._initialSnapshot = {
+                assignedStudents: JSON.stringify([...currentAssignedList].map(String).sort()),
                 // Schedule fields
                 isReleaseNow: Boolean(isReleaseNow),
                 dateVal: String(initDate || todayDateStr || '').trim(),
@@ -10250,10 +10262,13 @@ function initTeacherPortal() {
             isNewOverlay = true;
         } else {
             overlay.classList.remove('hidden');
-            overlay.classList.add('curriculum-hub-overlay--visible');
+            overlay.classList.add('curriculum-hub-overlay', 'curriculum-hub-overlay--visible');
         }
+        overlay.style.setProperty('background', 'rgba(0, 0, 0, 0.45)', 'important');
+        overlay.style.setProperty('opacity', '1', 'important');
         overlay.dataset._historyPushed = 'true';
         overlay.dataset._category = category;
+        overlay.dataset._activeStep = activeStep;
         overlay.dataset._isActivity = isActivity ? 'true' : 'false';
         overlay.dataset._isQuiz = isScheduleQuiz ? 'true' : 'false';
         overlay.dataset._subjectId = subjectId || '';
@@ -10310,7 +10325,7 @@ function initTeacherPortal() {
         }
 
         overlay.innerHTML = `
-            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full ${modalMaxWidth} flex flex-col overflow-hidden" style="${modalStyleHeight} ${modalStyleWidth}" onclick="window.closeTeacherScheduleTimePopover?.(); window.closeTeacherScheduleItemDropdown?.(); window.closeTeacherScheduleActivityComponentDropdown?.(); event.stopPropagation()">
+            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full ${modalMaxWidth} flex flex-col overflow-hidden" style="${modalStyleHeight} ${modalStyleWidth} background: #ffffff !important; opacity: 1 !important;" onclick="window.closeTeacherScheduleTimePopover?.(); window.closeTeacherScheduleItemDropdown?.(); window.closeTeacherScheduleActivityComponentDropdown?.(); event.stopPropagation()">
                 <!-- Header -->
                 <div class="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                     <div class="flex items-center gap-3">
@@ -10323,7 +10338,7 @@ function initTeacherPortal() {
                         <div>
                             <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">
                                 ${isStudentsPage 
-                                    ? 'Assigned Students' 
+                                    ? `Assigned Students - ${draft._prevStep === 'grading' ? (isEditMode ? 'Edit Details' : 'Set Details') : (isEditMode ? 'Edit Schedule' : 'Set Schedule')}`
                                     : (isGradingPage 
                                         ? (effectiveEditType === 'grading' ? 'Edit Details' : 'Set Details') 
                                         : (effectiveEditType === 'schedule' ? 'Edit Schedule' : 'Set Schedule')
@@ -10461,7 +10476,7 @@ function initTeacherPortal() {
                                 ` : sectionStudents.map((st, idx) => {
                                     const stId = String(st.id || `STD-${String(idx + 1).padStart(3, '0')}`);
                                     const stName = st.name || `${st.lastName || ''}, ${st.firstName || ''}`.trim() || `Student ${idx + 1}`;
-                                    const isChecked = currentAssignedList.includes(stId) || currentAssignedList.includes(stName);
+                                    const isChecked = isAllWildcard || currentAssignedList.includes(stId) || currentAssignedList.includes(stName);
                                     const avatarHtml = (typeof window.renderUserAvatarHtml === 'function')
                                         ? window.renderUserAvatarHtml(st, 'sm')
                                         : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>`;
@@ -11180,7 +11195,7 @@ function initTeacherPortal() {
 
         // Update other pending items if Apply All is active
         const applyAllChk = document.getElementById('teacher-schedule-apply-all-chk');
-        if (applyAllChk && applyAllChk.checked) {
+        if (applyAllChk ? applyAllChk.checked : draft._applyAll !== false) {
             const pendingIds = draft[meta.pendingKey] || [];
             pendingIds.forEach(pId => {
                 const pIdStr = String(pId);
@@ -11234,7 +11249,7 @@ function initTeacherPortal() {
 
         // Update other pending items if Apply All is active
         const applyAllChk = document.getElementById('teacher-schedule-apply-all-chk');
-        if (applyAllChk && applyAllChk.checked) {
+        if (applyAllChk ? applyAllChk.checked : draft._applyAll !== false) {
             const pendingIds = draft[meta.pendingKey] || [];
             pendingIds.forEach(pId => {
                 const pIdStr = String(pId);
@@ -12048,6 +12063,8 @@ function initTeacherPortal() {
                     attempts = domAttempts;
                 } else if (draft.assessmentMaxAttempts?.[idStr] !== undefined && draft.assessmentMaxAttempts[idStr] !== null && draft.assessmentMaxAttempts[idStr] !== '') {
                     attempts = String(draft.assessmentMaxAttempts[idStr]);
+                } else {
+                    attempts = String(itemMeta.item?.maxAttempts ?? itemMeta.item?.attempts ?? 1);
                 }
 
                 // Resolve Scoring Method
@@ -12327,6 +12344,11 @@ function initTeacherPortal() {
 
                 hasChanged = hpsChanged || weightChanged || actCompChanged || attemptsChanged || lateChanged || timerChanged || methodChanged || essayModeChanged || reviewTypesChanged || showAnswersChanged || fileUploadChanged || aiChanged || rubricChanged || critAutoChanged || critSelChanged;
             }
+        }
+
+        if (draft._initialSnapshot?.assignedStudents !== undefined) {
+            const selected = JSON.stringify([...(draft.assignedStudents?.[String(targetId)] || [])].map(String).sort());
+            hasChanged = hasChanged || selected !== draft._initialSnapshot.assignedStudents;
         }
 
         if (errors.length > 0) {
@@ -13388,22 +13410,10 @@ function initTeacherPortal() {
                 else if (effectiveCategory === 'learning') window.openTeacherLearningMaterialsPickerModal?.();
                 else if (effectiveCategory === 'assessments') window.openTeacherAssessmentsPickerModal?.();
                 else window.openTeacherTopicPickerModal?.();
-            } else if (effectiveCategory === 'learning') {
-                if (document.getElementById('teacher-release-assessments-overlay')) {
-                    window.openTeacherReleaseAssessmentsModal?.(true);
-                } else if (!reveal(document.getElementById('teacher-release-learning-materials-overlay'))) {
-                    window.openTeacherReleaseLearningMaterialsModal?.(true);
-                }
-            } else if (effectiveCategory === 'assessments') {
-                if (!reveal(document.getElementById('teacher-release-assessments-overlay'))) {
-                    window.openTeacherReleaseAssessmentsModal?.(true);
-                }
-            } else if (!reveal(document.getElementById('teacher-release-topics-overlay'))) {
-                if (document.getElementById('teacher-release-assessments-overlay')) {
-                    window.openTeacherReleaseAssessmentsModal?.(true);
-                } else {
-                    window.openTeacherReleaseTopicsModal?.(true);
-                }
+            } else {
+                document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+                document.getElementById('teacher-release-topics-overlay')?.remove();
+                window.openTeacherReleaseAssessmentsModal?.(true);
             }
 
             const pickerId = window._unifiedPickerSelection
@@ -13411,22 +13421,22 @@ function initTeacherPortal() {
                 : (effectiveCategory === 'learning'
                     ? 'teacher-learning-picker-overlay'
                     : (effectiveCategory === 'assessments' ? 'teacher-assessments-picker-overlay' : 'teacher-topic-picker-overlay'));
-            const releaseId = effectiveCategory === 'learning'
-                ? 'teacher-release-learning-materials-overlay'
-                : (effectiveCategory === 'assessments' ? 'teacher-release-assessments-overlay' : 'teacher-release-topics-overlay');
+            const releaseId = 'teacher-release-assessments-overlay';
             reveal(document.getElementById(isPickerFlow ? pickerId : releaseId));
             if (overlay && overlay.isConnected) overlay.remove();
         } catch (err) {
             console.error('[backFromTeacherScheduleModal]', err);
             const scheduleOverlay = document.getElementById('teacher-topic-schedule-overlay');
             if (scheduleOverlay) scheduleOverlay.remove();
-            const release = document.getElementById('teacher-release-assessments-overlay')
-                || document.getElementById('teacher-release-topics-overlay')
-                || document.getElementById('teacher-release-learning-materials-overlay');
+            document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+            document.getElementById('teacher-release-topics-overlay')?.remove();
+            const release = document.getElementById('teacher-release-assessments-overlay');
             if (release) {
                 release.classList.remove('hidden');
                 release.style.display = '';
                 release.classList.add('curriculum-hub-overlay--visible');
+            } else {
+                window.openTeacherReleaseAssessmentsModal?.(true);
             }
         } finally {
             if (!fromPopstate) {
@@ -13542,6 +13552,12 @@ function initTeacherPortal() {
     window.closeTeacherTopicScheduleModal = function (returnToReleaseModal = false) {
         const overlay = document.getElementById('teacher-topic-schedule-overlay');
         const category = overlay?.dataset?._category || 'topics';
+        if (returnToReleaseModal && overlay?.dataset?._activeStep === 'students') {
+            const meta = window.getUnifiedScheduleMeta(category);
+            const draft = window[meta.draftStateKey];
+            window.goToTeacherScheduleStep(category, draft?._targetId, draft?._prevStep === 'grading' ? 'grading' : 'schedule');
+            return;
+        }
         window.closeTeacherUnifiedScheduleModal(returnToReleaseModal, category);
     };
 
@@ -14552,12 +14568,6 @@ function initTeacherPortal() {
 
             // Expand chosen students with all alias representations so any student check succeeds
             const expandedAssigned = new Set();
-            const isEveryStudentSelected = Array.isArray(defaultChosenStudentIds) && defaultChosenStudentIds.length > 0 && Array.isArray(chosenStudents) && defaultChosenStudentIds.every(id => chosenStudents.includes(String(id)));
-            if ((!draft.assignedStudents?.[idStr] && !(isApplyAll && effFallbackAssigned) && !savedAssigned) || isEveryStudentSelected) {
-                expandedAssigned.add('all');
-                expandedAssigned.add('All');
-                expandedAssigned.add('*');
-            }
 
             (chosenStudents || []).forEach(cs => {
                 const csStr = String(cs).trim();
@@ -15547,6 +15557,16 @@ function initTeacherPortal() {
             });
         };
 
+        // Classroom-created assessments use the same subject/section scope as the page.
+        try {
+            const classroomItems = JSON.parse(localStorage.getItem('sigma_classroom_materials') || '[]');
+            if (Array.isArray(classroomItems)) classroomItems.forEach(item => {
+                const itemSubject = String(item.subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
+                if (!itemSubject || itemSubject !== cleanId) return;
+                addItem(item, String(item.topicId || ''), item.topicTitle || '');
+            });
+        } catch (_) {}
+
         // 1. Collect materials from topics
         topics.forEach((t, tIdx) => {
             const topicTitle = t.title || t.name || `Topic ${tIdx + 1}`;
@@ -15627,309 +15647,8 @@ function initTeacherPortal() {
 
     // ── Standalone Release Learning Materials Modal ───────────────────────────
     window.openTeacherReleaseLearningMaterialsModal = function (fromPicker = false) {
-        if (!fromPicker) {
-            window.closeManageCurriculumHub?.();
-        }
-        const subjectId = resolveTeacherActiveSubjectId(typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null);
-        const section = resolveTeacherActiveSection(typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null);
-        if (typeof currentTopicState !== 'undefined' && currentTopicState) {
-            currentTopicState.subjectId = subjectId;
-            currentTopicState.selectedSection = section;
-            window.currentTopicState = currentTopicState;
-        }
-        const allMaterials = window.getTeacherSubjectLearningMaterials(subjectId, section);
-
-        // Section details
-        const adminSections = getStoredJson('sigma-admin-sections', []);
-        const cleanSectionName = (section || '').trim().toLowerCase();
-        const matchedSec = adminSections.find(s => {
-            const sName = (s.name || s.sectionName || '').trim().toLowerCase();
-            return sName === cleanSectionName || (cleanSectionName && (sName.includes(cleanSectionName) || cleanSectionName.includes(sName)));
-        });
-
-        let sectionNameOnly = matchedSec?.name || section;
-        let gradeLevel = matchedSec?.grade || (section.includes('Grade 12') ? 'Grade 12' : 'Grade 11');
-        let roomNumber = matchedSec?.room || '302';
-        let schoolYear = matchedSec?.schoolYear || '2026–2027';
-
-        if (!matchedSec && section && section.includes(' - ')) {
-            const parts = section.split(' - ');
-            if (parts[0].includes('Grade')) gradeLevel = parts[0].trim();
-            sectionNameOnly = parts.slice(1).join(' - ').trim() || section;
-        }
-
-        // Release configuration
-        let releaseConfig = { releasedMaterialIds: [], hiddenMaterialIds: [], materialReleaseDates: {}, materialSchedules: {} };
-        try {
-            const saved = (typeof window.getLearningMaterialReleaseConfig === 'function')
-                ? window.getLearningMaterialReleaseConfig(subjectId, section)
-                : getStoredJson(`sigma_learning_release_${subjectId}_${section}`, null);
-            if (saved) releaseConfig = { ...releaseConfig, ...saved };
-        } catch (e) {}
-        if (!Array.isArray(releaseConfig.releasedMaterialIds)) releaseConfig.releasedMaterialIds = [];
-        if (!Array.isArray(releaseConfig.hiddenMaterialIds)) releaseConfig.hiddenMaterialIds = [];
-        if (!releaseConfig.materialReleaseDates) releaseConfig.materialReleaseDates = {};
-
-        // Draft state
-        if (!window._learningMaterialsReleaseDraftState || !fromPicker) {
-            window._learningMaterialsReleaseDraftState = {
-                pendingMaterialIds: (window._learningMaterialsReleaseDraftState?.pendingMaterialIds && fromPicker)
-                    ? window._learningMaterialsReleaseDraftState.pendingMaterialIds
-                    : []
-            };
-        }
-        const pendingIds = window._learningMaterialsReleaseDraftState.pendingMaterialIds || [];
-        const releasedIds = releaseConfig.releasedMaterialIds.map(String);
-
-        const availableQuarters = (typeof window.getSubjectReleaseQuarters === 'function')
-            ? window.getSubjectReleaseQuarters(subjectId)
-            : ['q1', 'q2'];
-        let activeQuarter = (typeof window.getActiveReleaseQuarter === 'function') ? window.getActiveReleaseQuarter() : 'q1';
-        if (!availableQuarters.includes(activeQuarter.toLowerCase())) {
-            activeQuarter = availableQuarters[0] || 'q1';
-            window.setActiveReleaseQuarter?.(activeQuarter);
-        }
-        const quarterMaterials = allMaterials.filter(m => (m.quarter || 'q1').toLowerCase() === activeQuarter.toLowerCase());
-
-        const pendingList = quarterMaterials.filter(m => pendingIds.includes(String(m.id)));
-        const releasedList = quarterMaterials.filter(m => releasedIds.includes(String(m.id)));
-
-        // Helper date formatter
-        const formatDateText = (isoStr) => {
-            if (!isoStr) {
-                const now = new Date();
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                let h = now.getHours();
-                const m = now.getMinutes();
-                const p = h >= 12 ? 'PM' : 'AM';
-                if (h > 12) h -= 12;
-                if (h === 0) h = 12;
-                return `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()} • ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`;
-            }
-            try {
-                const d = new Date(isoStr);
-                if (!isNaN(d.getTime())) {
-                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    let h = d.getHours();
-                    const m = d.getMinutes();
-                    const p = h >= 12 ? 'PM' : 'AM';
-                    if (h > 12) h -= 12;
-                    if (h === 0) h = 12;
-                    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} • ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`;
-                }
-            } catch (e) {}
-            return isoStr;
-        };
-
-        // Helper to group items by Topic
-        const groupItemsByTopic = (items) => {
-            const groups = [];
-            const groupMap = new Map();
-            items.forEach(item => {
-                const topicKey = item.topicTitle || 'General Topic';
-                if (!groupMap.has(topicKey)) {
-                    const groupObj = { topicTitle: topicKey, items: [] };
-                    groupMap.set(topicKey, groupObj);
-                    groups.push(groupObj);
-                }
-                groupMap.get(topicKey).items.push(item);
-            });
-            return groups;
-        };
-
-        // Pending Selected HTML
-        let selectedHtml = '';
-        if (pendingList.length > 0) {
-            const groupedPending = groupItemsByTopic(pendingList);
-            selectedHtml = `
-                <div class="border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden font-['Inter'] divide-y divide-black/10">
-                    ${groupedPending.map(group => `
-                        <div class="topic-group-block">
-                            <div class="px-4 py-2 bg-black/[0.03] border-b border-black/10 flex items-center gap-2">
-                                <i class="fa-solid fa-book-bookmark text-xs text-[#15803d]"></i>
-                                <span class="text-xs font-bold text-black font-['Inter']">${escapeHtml(group.topicTitle)}</span>
-                            </div>
-                            <div class="divide-y divide-black/10">
-                                ${group.items.map(m => {
-                                    const isVid = m.type === 'Video';
-                                    const iconClass = isVid ? 'fa-solid fa-circle-play text-red-600' : 'fa-solid fa-file-lines text-blue-600';
-                                    const bgClass = isVid ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100';
-                                    return `
-                                        <div class="p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between">
-                                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                                                <div class="w-9 h-9 rounded-xl ${bgClass} border flex items-center justify-center shrink-0">
-                                                    <i class="${iconClass} text-sm"></i>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <p class="text-xs sm:text-sm font-bold text-black tracking-tight">${escapeHtml(m.title)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        // Released Materials HTML
-        let releasedHtml = '';
-        if (releasedList.length > 0) {
-            const groupedReleased = groupItemsByTopic(releasedList);
-            releasedHtml = `
-                <div class="border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden font-['Inter'] divide-y divide-black/10">
-                    ${groupedReleased.map(group => `
-                        <div class="topic-group-block">
-                            <div class="px-4 py-2 bg-black/[0.03] border-b border-black/10 flex items-center gap-2">
-                                <i class="fa-solid fa-book-bookmark text-xs text-[#15803d]"></i>
-                                <span class="text-xs font-bold text-black font-['Inter']">${escapeHtml(group.topicTitle)}</span>
-                            </div>
-                            <div class="divide-y divide-black/10">
-                                ${group.items.map(m => {
-                                    const isVid = m.type === 'Video';
-                                    const isHidden = releaseConfig.hiddenMaterialIds.map(String).includes(String(m.id));
-                                    const iconClass = isVid ? 'fa-solid fa-circle-play text-red-600' : 'fa-solid fa-file-lines text-blue-600';
-                                    const bgClass = isVid ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100';
-                                    const dateText = formatDateText(releaseConfig.materialReleaseDates[m.id]);
-                                    const matSchedule = releaseConfig.materialSchedules ? releaseConfig.materialSchedules[m.id] : null;
-                                    const isFuture = matSchedule && matSchedule !== 'now' && matSchedule !== 'immediate' && (!isNaN(new Date(matSchedule).getTime()) && new Date(matSchedule).getTime() > Date.now());
-                                    const relDateText = isFuture ? formatDateText(matSchedule) : dateText;
-
-                                    return `
-                                        <div class="p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between relative font-['Inter']">
-                                            <div class="flex items-start gap-3.5 min-w-0 flex-1">
-                                                <div class="w-9 h-9 rounded-xl ${bgClass} border flex items-center justify-center shrink-0">
-                                                    <i class="${iconClass} text-sm"></i>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex items-center gap-2 flex-wrap">
-                                                        <p class="text-xs sm:text-sm font-bold text-black tracking-tight">${escapeHtml(m.title)}</p>
-                                                        ${isHidden ? `
-                                                            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black shrink-0">
-                                                                <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                <span>Hidden</span>
-                                                            </div>
-                                                        ` : (isFuture ? `
-                                                            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black shrink-0">
-                                                                <i class="fa-solid fa-clock text-xs text-black"></i>
-                                                                <span>Scheduled</span>
-                                                            </div>
-                                                        ` : '')}
-                                                    </div>
-                                                    <p class="text-[10px] font-normal text-black-fade mt-0.5">${relDateText}</p>
-                                                </div>
-                                            </div>
-                                            <div class="shrink-0 ml-4 flex items-center gap-3">
-                                                <button type="button" id="released-learning-btn-${escapeHtml(String(m.id))}"
-                                                    onclick="window.toggleReleasedLearningMaterialMenu?.('${escapeHtml(String(m.id))}', '${escapeHtml(m.title)}', ${isHidden ? 'true' : 'false'}, event)"
-                                                    class="w-7 h-7 flex items-center justify-center text-black hover:text-[#FFD000] transition-colors cursor-pointer"
-                                                    title="Options">
-                                                    <i class="fa-solid fa-ellipsis-vertical text-base"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        } else {
-            const quarterLabel = (typeof window.getReleaseQuarterLabel === 'function') ? window.getReleaseQuarterLabel(activeQuarter) : '1st Quarter';
-            releasedHtml = `
-                <div class="sigma-empty-state-black-fade p-6 rounded-2xl border-2 border-dashed border-black/10 bg-black/[0.02] text-center font-['Inter']">
-                    <p class="empty-title text-xs font-semibold text-black/60 font-['Inter']" style="color: rgba(0,0,0,0.60);">No ${quarterLabel} Learning Materials Released Yet</p>
-                    <p class="empty-desc text-[11px] font-normal text-black-fade mt-0.5 font-['Inter']" style="color: rgba(0,0,0,0.45);">Click "Select Materials" to choose video lectures and lesson handouts to release for this section</p>
-                </div>
-            `;
-        }
-
-        let overlay = document.getElementById('teacher-release-learning-materials-overlay');
-        let isNew = false;
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'teacher-release-learning-materials-overlay';
-            overlay.className = 'curriculum-hub-overlay';
-            overlay.dataset._historyPushed = 'true';
-            overlay.onclick = function (e) {
-                window.closeAllReleasedTopicActionMenus?.();
-                e.stopPropagation();
-            };
-            isNew = true;
-        } else {
-            overlay.className = 'curriculum-hub-overlay';
-            overlay.classList.remove('hidden');
-            overlay.style.display = '';
-        }
-
-        if (isNew && !fromPicker && typeof window.pushModalHistoryState === 'function') {
-            window.pushModalHistoryState('teacher-release-learning-materials-overlay');
-        }
-
-        overlay.innerHTML = `
-            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden" style="height: 740px; min-height: min(740px, calc(100vh - 40px)); max-height: calc(100vh - 40px); max-width: 860px;" onclick="window.closeAllReleasedTopicActionMenus?.(); event.stopPropagation()">
-                <!-- Header -->
-                <div class="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
-                    <div>
-                        <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">Release Learning Materials</h2>
-                        <p class="text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Manage learning materials visibility and release schedule for students</p>
-                    </div>
-                </div>
-
-                <!-- Main Content -->
-                <div class="p-6 sm:p-8 py-6 overflow-y-auto flex-1 space-y-6 font-['Inter']">
-                    <!-- Context Strip -->
-                    <div class="flex flex-wrap items-center gap-2 sm:gap-4 px-4 py-2.5 bg-black/[0.03] border border-black/10 rounded-xl text-xs font-['Inter'] font-medium text-black">
-                        <span><b>Section:</b> ${escapeHtml(sectionNameOnly)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>Grade:</b> ${escapeHtml(gradeLevel)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>Room:</b> ${escapeHtml(roomNumber)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>SY:</b> ${escapeHtml(schoolYear)}</span>
-                    </div>
-
-                    <!-- Quarter Filter Tabs (Below Context Strip) -->
-                    <div class="flex items-center justify-start">
-                        ${window.renderReleaseQuarterToggleHtml?.(subjectId, activeQuarter)}
-                    </div>
-
-                    <!-- Released Learning Materials Section -->
-                    <div class="space-y-3 font-['Inter']">
-                        <div class="release-section-header-bar flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b-2 border-black transition-colors gap-1.5 sm:gap-3 w-full">
-                            <div class="flex items-center gap-2.5 min-w-0">
-                                <button type="button" onclick="window.openTeacherLearningMaterialsPickerModal?.()"
-                                    class="inline-flex items-center gap-2 text-sm sm:text-[17px] font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer font-['Inter'] tracking-tight text-left">
-                                    <i class="fa-solid fa-plus text-sm sm:text-base text-[#15803d] shrink-0"></i>
-                                    <span class="whitespace-nowrap">Select Materials</span>
-                                </button>
-                            </div>
-                            <p class="release-section-subtitle text-[11px] sm:text-xs font-normal text-left sm:text-right shrink-0" style="color: rgba(0,0,0,0.45);">Learning materials configured for release for this section</p>
-                        </div>
-                        ${releasedHtml}
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="px-6 sm:px-8 py-5 flex items-center justify-end gap-3 shrink-0 font-['Inter']">
-                    <button type="button" onclick="window.closeTeacherReleaseLearningMaterialsModal?.(false)"
-                        class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer font-['Inter']">
-                        Close
-                    </button>
-                </div>
-            </div>
-        `;
-
-        if (isNew) {
-            document.body.appendChild(overlay);
-        }
-        overlay.classList.remove('hidden');
-        overlay.style.display = '';
-        if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
-        overlay.classList.add('curriculum-hub-overlay--visible');
+        document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+        window.openTeacherReleaseAssessmentsModal?.(fromPicker);
     };
 
     window.cancelTeacherReleaseLearningMaterialsDraft = function () {
@@ -16348,38 +16067,9 @@ function initTeacherPortal() {
     };
 
     window.closeTeacherReleaseLearningMaterialsModal = function (returnToHub = false) {
-        window.closeAllReleasedTopicActionMenus?.();
         window._learningMaterialsReleaseDraftState = null;
-        const overlay = document.getElementById('teacher-release-learning-materials-overlay');
-        if (overlay) {
-            overlay.classList.remove('curriculum-hub-overlay--visible');
-            overlay.remove();
-        }
-
-        const hubOverlay = document.getElementById('curriculum-hub-overlay');
-        if (hubOverlay) hubOverlay.remove();
-        window.closeManageCurriculumHub?.();
-        document.querySelectorAll('#teacher-release-topics-overlay, #teacher-topic-picker-overlay, #teacher-topic-schedule-overlay, #teacher-release-learning-materials-overlay, #teacher-learning-picker-overlay, #teacher-release-assessments-overlay, #teacher-assessments-picker-overlay').forEach(el => el.remove());
-        if (typeof window.unlockBodyScroll === 'function') {
-            window.unlockBodyScroll();
-        } else {
-            document.documentElement.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
-            document.body.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
-        }
-
-        // Re-render topic view deferred without blocking modal dismissal
-        const targetSubjId = (typeof currentTopicState !== 'undefined' && currentTopicState?.subjectId)
-            ? currentTopicState.subjectId
-            : ((typeof currentClassroomSubjectId !== 'undefined' && currentClassroomSubjectId)
-                ? currentClassroomSubjectId
-                : ((typeof currentClassroomKey !== 'undefined' && currentClassroomKey) ? currentClassroomKey : ''));
-        if (targetSubjId && typeof refreshTeacherTopicUIIfVisible === 'function') {
-            setTimeout(() => {
-                refreshTeacherTopicUIIfVisible(targetSubjId);
-            }, 50);
-        }
-
-        window.flushTeacherReleaseToastQueue?.();
+        document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+        window.closeTeacherReleaseAssessmentsModal?.(returnToHub);
     };
 
     window.toggleReleasedLearningMaterialMenu = function (matId, title, isHidden = false, e) {
@@ -18269,14 +17959,7 @@ function initTeacherPortal() {
         const openSection = currentTopicState.selectedSection || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '') || '';
         if (typeof window.getUnifiedTopicAssessments === 'function') {
             const unified = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, assessments, openSection, topic);
-            if (Array.isArray(unified) && unified.length > 0) {
-                assessments = unified;
-            } else if (Array.isArray(unified)) {
-                const fallbackUnified = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, assessments, '', topic);
-                if (Array.isArray(fallbackUnified) && fallbackUnified.length > 0) {
-                    assessments = fallbackUnified;
-                }
-            }
+            if (Array.isArray(unified)) assessments = unified;
         }
         if (typeof window.getTeacherSubjectAssessments === 'function') {
             const tAss = window.getTeacherSubjectAssessments(subjectId, openSection) || window.getTeacherSubjectAssessments(subjectId, '');
@@ -19312,6 +18995,7 @@ function initTeacherPortal() {
     };
 
     function switchTab(navId, pushHistory = true, subTab = null) {
+        window.invalidateSigmaViewCaches?.();
         scrollToTop();
         if (navId && navIdByPage && navIdByPage[navId]) {
             navId = navIdByPage[navId];
@@ -19628,13 +19312,31 @@ function initTeacherPortal() {
             }
 
             if (className) {
+                const teacherObj = (typeof getLoggedInTeacherUser === 'function') ? getLoggedInTeacherUser() : null;
+                const teacherUid = String(teacherObj?.id || teacherObj?.uid || '').trim();
+                if (!isTeacherStrictlyAssignedToRoom(className, subject)) {
+                    const redirected = (typeof resolveTeacherRoomRoute === 'function')
+                        ? resolveTeacherRoomRoute(className, subject)
+                        : null;
+                    if (redirected && redirected.sectionName && isTeacherStrictlyAssignedToRoom(redirected.sectionName, redirected.subjectName)) {
+                        className = redirected.sectionName;
+                        subject = redirected.subjectName;
+                        const correctedHash = `#classroom:${encodeURIComponent(className)}:${encodeURIComponent(subject)}:${initialTab}`;
+                        history.replaceState({ type: 'classroom', className, subject, initialTab, teacherId: teacherUid }, '', correctedHash);
+                    } else {
+                        switchTab('nav-classes', false);
+                        return;
+                    }
+                }
                 window.currentClassroomSectionName = className;
                 window.currentClassroomKey = `${className}::${subject}`;
                 try {
                     localStorage.setItem('sigma-active-classroom-section', className);
+                    if (subject) localStorage.setItem('sigma-active-classroom-subject', subject);
                 } catch (_) {}
-                if (!history.state || history.state.type !== 'classroom') {
-                    history.replaceState({ type: 'classroom', className, subject, initialTab }, '', hash);
+                const effectiveHash = `#classroom:${encodeURIComponent(className)}:${encodeURIComponent(subject)}:${initialTab}`;
+                if (!history.state || history.state.type !== 'classroom' || history.state.className !== className || history.state.subject !== subject) {
+                    history.replaceState({ type: 'classroom', className, subject, initialTab, teacherId: teacherUid }, '', effectiveHash);
                 }
                 showStudentList(className, subject, initialTab, false);
                 return;
@@ -19738,6 +19440,15 @@ function initTeacherPortal() {
             return;
         }
 
+        if (hash.startsWith('#account-settings') || hash === '#settings' || hash.startsWith('#settings-')) {
+            const tabPart = hash.replace(/^#(account-settings-?|settings-?)/, '');
+            const tabName = tabPart || 'notifications';
+            if (typeof window.navigateToAccountSettings === 'function') {
+                window.navigateToAccountSettings(tabName);
+                return;
+            }
+        }
+
         if (!hash) {
             history.replaceState({ type: 'tab', navId: 'nav-dashboard' }, '', `${window.location.pathname}${window.location.search}`);
             localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({
@@ -19758,16 +19469,28 @@ function initTeacherPortal() {
         // 2. State-Based Restoration (Standard Tabs)
         let state = history.state;
         const savedState = getStoredJson('sigma-teacher-nav-state', null);
+        const currentTeacherUser = (typeof getLoggedInTeacherUser === 'function') ? getLoggedInTeacherUser() : null;
+        const currentTeacherUid = String(currentTeacherUser?.id || currentTeacherUser?.uid || '').trim();
+
+        // Stored navigation belonging to another teacher must not be loaded
+        let effectiveSavedState = savedState;
+        if (savedState && savedState.teacherId && currentTeacherUid && savedState.teacherId !== currentTeacherUid) {
+            effectiveSavedState = null;
+        }
+
+        if (state && state.teacherId && currentTeacherUid && state.teacherId !== currentTeacherUid) {
+            state = null;
+        }
 
         // Initialize root if absolutely empty
         if (!state) {
-            history.replaceState({ type: 'root' }, '', '');
+            history.replaceState({ type: 'root', teacherId: currentTeacherUid }, '', '');
             state = { type: 'root' };
         }
 
         // Fallback to persistent storage if state is generic
         if (state.type === 'root' || !state.type) {
-            state = savedState || state;
+            state = effectiveSavedState || state;
         }
 
         if (state && state.type && state.type !== 'root') {
@@ -19775,7 +19498,19 @@ function initTeacherPortal() {
             if (type === 'tab' && navId) {
                 switchTab(navId, false);
             } else if (type === 'classroom') {
-                showStudentList(className, subject, initialTab, false);
+                let targetClass = className;
+                let targetSubj = subject;
+                if (!isTeacherStrictlyAssignedToRoom(targetClass, targetSubj)) {
+                    const redirected = (typeof resolveTeacherRoomRoute === 'function') ? resolveTeacherRoomRoute(targetClass, targetSubj) : null;
+                    if (redirected && redirected.sectionName && isTeacherStrictlyAssignedToRoom(redirected.sectionName, redirected.subjectName)) {
+                        targetClass = redirected.sectionName;
+                        targetSubj = redirected.subjectName;
+                    } else {
+                        switchTab('nav-classes', false);
+                        return;
+                    }
+                }
+                showStudentList(targetClass, targetSubj, initialTab, false);
             } else if (type === 'topic') {
                 const targetSec = state.selectedSection || state.section || null;
                 switchToTopicPage(subjectId, false, topicIdx, 'videos', targetSec);
@@ -19914,6 +19649,15 @@ function initTeacherPortal() {
             }
             switchTab('nav-grades', false, targetTab);
             return;
+        }
+
+        if (hash.startsWith('#account-settings') || hash === '#settings' || hash.startsWith('#settings-')) {
+            const tabPart = hash.replace(/^#(account-settings-?|settings-?)/, '');
+            const tabName = tabPart || 'notifications';
+            if (typeof window.navigateToAccountSettings === 'function') {
+                window.navigateToAccountSettings(tabName);
+                return;
+            }
         }
 
         const state = event.state;
@@ -20505,38 +20249,171 @@ function initTeacherPortal() {
         }
     }
 
+    // --- Strict Room Assignment (exact section + subject + teacher) ---
+    function normalizeRoomSectionToken(value) {
+        let s = String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (!s) return '';
+        if (s.includes('::')) s = s.split('::')[0];
+        s = s.replace(/^grade\s*\d+\s*[-\u2013\u2014:]\s*/, '');
+        return s.trim();
+    }
+    function normalizeRoomSubjectToken(value) {
+        return String(value || '').toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function isTeacherStrictlyAssignedToRoom(sectionName, subjectName) {
+        const secTok = normalizeRoomSectionToken(sectionName);
+        const subjTok = normalizeRoomSubjectToken(subjectName);
+        if (!secTok) return false;
+
+        const teacher = (typeof getLoggedInTeacherUser === 'function' ? getLoggedInTeacherUser() : null) || {};
+        const clean = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const tId = String(teacher.uid || teacher.id || '').replace(/^#/, '').trim().toLowerCase();
+        const first = clean(teacher.firstName);
+        const middle = clean(teacher.middleName);
+        const last = clean(teacher.lastName);
+        const nameVariants = new Set([
+            clean(teacher.fullName),
+            clean(teacher.name),
+            clean(`${first} ${last}`),
+            clean(`${first} ${middle} ${last}`),
+            clean(`${last} ${first}`),
+            clean(`${last} ${first} ${middle}`)
+        ].filter(Boolean));
+        const shortName = n => { const w = clean(n).split(' ').filter(Boolean); return w.length >= 2 ? `${w[0]} ${w[w.length - 1]}` : clean(n); };
+        nameVariants.forEach(n => nameVariants.add(shortName(n)));
+
+        const matchesTeacher = (entry) => {
+            if (!entry) return false;
+            if (typeof entry === 'object') {
+                const eId = String(entry.uid || entry.id || entry.teacherId || '').replace(/^#/, '').trim().toLowerCase();
+                if (tId && eId) return eId === tId;
+                entry = entry.fullName || entry.name || `${entry.firstName || ''} ${entry.lastName || ''}`;
+            }
+            const n = clean(entry);
+            if (!n || ['teacher', 'adviser', 'tba', 'unassigned'].includes(n)) return false;
+            return nameVariants.has(n) || nameVariants.has(shortName(n));
+        };
+
+        let records = [];
+        const canonicalList = getStoredJson('sigma-admin-sections', []);
+        if (Array.isArray(canonicalList) && canonicalList.length > 0) {
+            records = canonicalList.filter(s =>
+                s && s.status !== 'Archived' &&
+                normalizeRoomSectionToken(s.name || s.sectionName) === secTok &&
+                (!subjTok || normalizeRoomSubjectToken(s.subject || s.assignedSubject || s.subjectName) === subjTok)
+            );
+        }
+        if (records.length === 0) {
+            const fallbackSections = [];
+            ['sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].forEach(key => {
+                const list = getStoredJson(key, []);
+                if (Array.isArray(list)) list.forEach(s => s && fallbackSections.push(s));
+            });
+            records = fallbackSections.filter(s =>
+                s && s.status !== 'Archived' &&
+                normalizeRoomSectionToken(s.name || s.sectionName) === secTok &&
+                (!subjTok || normalizeRoomSubjectToken(s.subject || s.assignedSubject || s.subjectName) === subjTok)
+            );
+        }
+        if (records.length === 0) return false;
+
+        return records.some(rec => {
+            if (typeof window.isSectionAssignedToTeacher === 'function' && window.isSectionAssignedToTeacher(rec, teacher)) {
+                return true;
+            }
+            if (typeof isSectionAssignedToTeacher === 'function' && isSectionAssignedToTeacher(rec, teacher)) {
+                return true;
+            }
+            const list = [];
+            let ts = rec.teachers;
+            if (typeof ts === 'string') { try { ts = JSON.parse(ts); } catch (_) { ts = ts.split(','); } }
+            if (Array.isArray(ts)) list.push(...ts);
+            else if (ts && typeof ts === 'object') list.push(ts);
+            else if (rec.assignedTeachers) {
+                let at = rec.assignedTeachers;
+                if (typeof at === 'string') { try { at = JSON.parse(at); } catch (_) { at = at.split(','); } }
+                if (Array.isArray(at)) list.push(...at);
+                else if (at && typeof at === 'object') list.push(at);
+            }
+            if (rec.teacher) list.push(rec.teacher);
+            if (rec.adviser) list.push(rec.adviser);
+            if (rec.teacherId) list.push({ id: rec.teacherId });
+            return list.some(matchesTeacher);
+        });
+    }
+    window.isTeacherStrictlyAssignedToRoom = isTeacherStrictlyAssignedToRoom;
+
+    function resolveTeacherRoomRoute(sectionName, subjectName) {
+        if (isTeacherStrictlyAssignedToRoom(sectionName, subjectName)) {
+            return { sectionName, subjectName };
+        }
+        const nSubj = normalizeRoomSubjectToken;
+        const myCards = typeof getTeacherSectionCards === 'function' ? getTeacherSectionCards() : [];
+        let ownedCards = myCards.filter(c => isTeacherStrictlyAssignedToRoom(c.sectionName || c.section, c.subject || c.name));
+
+        if (ownedCards.length === 0) {
+            const canonicalList = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-sections', []) : [];
+            if (Array.isArray(canonicalList) && canonicalList.length > 0) {
+                const matched = canonicalList.filter(s => s && s.status !== 'Archived' && isTeacherStrictlyAssignedToRoom(s.name || s.sectionName, s.subject || s.assignedSubject));
+                if (matched.length > 0) {
+                    ownedCards = matched.map(s => ({
+                        sectionName: s.name || s.sectionName,
+                        section: s.name || s.sectionName,
+                        subject: s.subject || s.assignedSubject,
+                        name: s.subject || s.assignedSubject
+                    }));
+                }
+            }
+        }
+
+        const sameSubject = ownedCards.find(c => nSubj(c.subject || c.name) === nSubj(subjectName));
+        const fallback = sameSubject || ownedCards[0] || null;
+        if (fallback) {
+            return {
+                sectionName: fallback.sectionName || fallback.section,
+                subjectName: fallback.subject || fallback.name || subjectName
+            };
+        }
+        return { sectionName, subjectName };
+    }
+    window.resolveTeacherRoomRoute = resolveTeacherRoomRoute;
+
     // --- Classroom Navigation ---
     function showStudentList(className, subject, initialTab = 'room', pushHistory = true) {
         scrollToTop();
 
-        const myCards = typeof getTeacherSectionCards === 'function' ? getTeacherSectionCards() : [];
-        if (myCards.length > 0 && className) {
-            const isAssigned = myCards.some(c => {
-                const sName = (c.sectionName || c.section || '').toLowerCase().trim();
-                const rSec = className.toLowerCase().trim();
-                return sName === rSec || sName.includes(rSec) || rSec.includes(sName);
-            });
-            if (!isAssigned) {
-                const matchSubj = myCards.find(c => {
-                    const cSubj = String(c.subject || c.name || '').toLowerCase();
-                    const sSubj = String(subject || '').toLowerCase();
-                    return cSubj.includes(sSubj) || sSubj.includes(cSubj);
-                });
-                className = matchSubj ? (matchSubj.sectionName || matchSubj.section) : (myCards[0].sectionName || myCards[0].section);
-                if (matchSubj && matchSubj.subject) subject = matchSubj.subject;
+        // Strict room access: teacher must be assigned to this EXACT section + subject
+        let roomRedirected = false;
+        if (className && !isTeacherStrictlyAssignedToRoom(className, subject)) {
+            const redirected = resolveTeacherRoomRoute(className, subject);
+            if (redirected && redirected.sectionName && isTeacherStrictlyAssignedToRoom(redirected.sectionName, redirected.subjectName)) {
+                className = redirected.sectionName;
+                subject = redirected.subjectName;
+                roomRedirected = true;
+            } else {
+                try {
+                    localStorage.removeItem('sigma-teacher-nav-state');
+                    localStorage.removeItem('sigma-active-classroom-section');
+                    localStorage.removeItem('sigma-active-classroom-subject');
+                } catch (_) {}
+                if (typeof window.switchTab === 'function') window.switchTab('nav-classes');
+                return;
             }
         }
 
-        if (pushHistory) {
+        const teacherUser = (typeof getLoggedInTeacherUser === 'function' ? getLoggedInTeacherUser() : null);
+        const currentTeacherUid = String(teacherUser?.id || teacherUser?.uid || '').trim();
+
+        if (pushHistory || roomRedirected) {
             const hash = `#classroom:${encodeURIComponent(className)}:${encodeURIComponent(subject)}:${initialTab}`;
             const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
             const isSameHash = (window.location.hash || '') === hash;
-            if (hasUserInteracted && !isSameHash) {
-                history.pushState({ type: 'classroom', className, subject, initialTab }, '', hash);
+            if (!roomRedirected && hasUserInteracted && !isSameHash) {
+                history.pushState({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }, '', hash);
             } else {
-                history.replaceState({ type: 'classroom', className, subject, initialTab }, '', hash);
+                history.replaceState({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }, '', hash);
             }
-            localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className, subject, initialTab }));
+            localStorage.setItem('sigma-teacher-nav-state', JSON.stringify({ type: 'classroom', className, subject, initialTab, teacherId: currentTeacherUid }));
         }
 
         currentClassroomKey = `${className}::${subject}`;

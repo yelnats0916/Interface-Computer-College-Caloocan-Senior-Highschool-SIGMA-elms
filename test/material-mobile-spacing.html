@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Material mobile spacing regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css?v=20261004materialBottomClearance1">
+    <link rel="stylesheet" href="../css/mobile.css?v=20261004materialBottomClearance1">
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        .fixture-content { min-height: 900px; padding: 16px; }
+        .fixture-content p:last-child { margin-bottom: 0; }
+        .fixture-dock { height: 56px; background: #15803d; color: white; padding: 12px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div id="section-topic-content" class="dynamic-section">
+        <div class="teacher-topic-page-shell">
+            <div class="teacher-topic-page-grid">
+                <main id="topic-content-main">
+                    <div class="assessment-material-detail-view">
+                        <article class="assessment-material-main-card fixture-content">
+                            <h1>Material detail</h1>
+                            <button onclick="const rail = document.getElementById('topic-right-section'); rail.style.display ? rail.style.removeProperty('display') : rail.style.setProperty('display', 'none', 'important')">Toggle grading dock</button>
+                            <button onclick="document.querySelector('.fixture-dock').style.height = '96px'">Resize grading dock</button>
+                            <p>Scrollable description</p>
+                            <p style="margin-top: 760px">Last material content</p>
+                        </article>
+                    </div>
+                </main>
+                <aside id="topic-right-section" class="topic-rail-score-follow" style="display: none !important">
+                    <div class="space-y-6"><div class="fixture-dock">Grading actions</div></div>
+                </aside>
+            </div>
+        </div>
+    </div>
+    <script src="../js/shared-components.js?v=20261004materialBottomClearance1"></script>
+</body>
+</html>

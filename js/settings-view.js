@@ -193,7 +193,6 @@
         <div class="sigma-settings-layout sigma-account-settings ${container.dataset.mobileSettingsView === 'detail' ? 'sigma-settings-detail' : ''}">
             <!-- Left Categories Sidebar -->
             <aside class="sigma-settings-sidebar">
-                <h2 class="sigma-account-settings-title">Account Settings</h2>
                 <nav class="flex flex-col gap-2" role="tablist" aria-label="Account Settings Categories">
                     ${tabs.map(t => {
                         const isActive = t.id === currentTab;
@@ -1200,28 +1199,55 @@
     window.addEventListener('resize', updateMobileSettingsHeight);
 
     window.openSettingsCategory = function (containerId, tab) {
-        const container = document.getElementById(containerId);
+        const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         if (!container) return;
         container.dataset.mobileSettingsView = 'detail';
         renderSettingsView(container, tab);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         container.querySelector('.sigma-settings-mobile-back')?.focus();
     };
     window.showSettingsCategories = function (containerId) {
-        const container = document.getElementById(containerId);
+        const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         if (!container) return;
         container.dataset.mobileSettingsView = 'list';
         container.querySelector('.sigma-account-settings')?.classList.remove('sigma-settings-detail');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         container.querySelector('[aria-selected="true"]')?.focus();
     };
 
     window.navigateToAccountSettings = function (tabName = 'notifications') {
+        // 1. Fully dismiss mobile full-screen panels & drawers
+        if (typeof window.closeMobileAccountPanel === 'function') {
+            window.closeMobileAccountPanel();
+        }
+        if (typeof window.closeMobileTopPanel === 'function') {
+            window.closeMobileTopPanel();
+        }
+
+        // 2. Remove mobile overlay lock classes so main-content pointer events & touch are restored
+        document.body.classList.remove('mobile-account-fullscreen', 'mobile-panel-open');
+        document.documentElement.classList.remove('mobile-account-fullscreen', 'mobile-panel-open');
+
+        // 3. Close mobile sidebar if open
+        if (typeof window.collapseSidebar === 'function') {
+            window.collapseSidebar();
+        }
+        const sb = document.getElementById('sidebar');
+        if (sb) sb.classList.remove('sidebar-visible');
+        const ov = document.getElementById('sidebar-overlay');
+        if (ov) ov.classList.add('hidden');
+
+        // 4. Dismiss desktop / topbar overlays
         if (typeof window.hideHeaderOverlays === 'function') {
             window.hideHeaderOverlays();
         }
 
         // Close profile panel dropdown
         const profDropdown = document.getElementById('profile-dropdown') || document.getElementById('profileDropdownMenu');
-        if (profDropdown) profDropdown.classList.add('hidden');
+        if (profDropdown) {
+            profDropdown.classList.remove('mobile-account-fullscreen');
+            profDropdown.classList.add('hidden');
+        }
         const profToggle = document.getElementById('profile-toggle') || document.getElementById('profileDropdownBtn');
         if (profToggle) profToggle.classList.remove('active');
 
@@ -1259,8 +1285,16 @@
             history.pushState({ type: 'tab', navId: 'nav-settings', page: 'settings', tab: tabName }, '', hash);
         }
 
-        settingsView.dataset.mobileSettingsView = 'list';
-        renderSettingsView('user-settings-view', tabName);
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        if (isMobile && (!tabName || tabName === 'notifications')) {
+            settingsView.dataset.mobileSettingsView = 'list';
+        } else if (isMobile && tabName && tabName !== 'notifications') {
+            settingsView.dataset.mobileSettingsView = 'detail';
+        } else {
+            settingsView.dataset.mobileSettingsView = 'list';
+        }
+
+        renderSettingsView('user-settings-view', tabName || 'notifications');
 
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });

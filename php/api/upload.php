@@ -11,7 +11,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -65,6 +65,44 @@ function getGoogleAccessToken(string $keyFile) {
         'email' => $keyData['client_email'] ?? '',
         'project_id' => $keyData['project_id'] ?? ''
     ];
+}
+
+function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $fileName, string $folderId) {
+    if (!file_exists($keyFile) || !file_exists($filePath) || empty($folderId)) return null;
+    $auth = getGoogleAccessToken($keyFile);
+    if (!$auth || empty($auth['token'])) return null;
+
+    $fileMime = @mime_content_type($filePath) ?: 'application/octet-stream';
+    $fileData = file_get_contents($filePath);
+    $boundary = '-------' . md5(microtime(true));
+
+    $metadata = [
+        'name' => $fileName,
+        'parents' => [$folderId]
+    ];
+
+    $body = "--" . $boundary . "\r\n";
+    $body .= "Content-Type: application/json; charset=UTF-8\r\n\r\n";
+    $body .= json_encode($metadata) . "\r\n";
+    $body .= "--" . $boundary . "\r\n";
+    $body .= "Content-Type: " . $fileMime . "\r\n\r\n";
+    $body .= $fileData . "\r\n";
+    $body .= "--" . $boundary . "--";
+
+    $ch = curl_init("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Authorization: Bearer " . $auth['token'],
+        "Content-Type: multipart/related; boundary=" . $boundary,
+        "Content-Length: " . strlen($body)
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    $raw = curl_exec($ch);
+    curl_close($ch);
+
+    return json_decode($raw, true) ?: null;
 }
 
 // GET status endpoint
@@ -224,7 +262,47 @@ if (!move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
 }
 
 $relativeUrl = 'uploads/' . $subDir . '/' . $uniqueName;
-$fileSize = filesize($targetPath);
+// Target Google Drive Folder Mapping (Just-in-Time Dynamic Resolution)
+$foldersMap = $driveConfig['folders'] ?? [];
+$rootFolderId = $driveConfig['folder_id'] ?? '';
+$targetGdriveFolderId = $rootFolderId;
+
+$keyPath = $rootDir . '/config/google_service_account.json';
+$auth = file_exists($keyPath) ? getGoogleAccessToken($keyPath) : null;
+$token = $auth['token'] ?? null;
+
+// Check if a specific contextual path is requested for this upload
+$customPath = $_POST['folder_path'] ?? null;
+if ($customPath && is_string($customPath)) {
+    $decoded = json_decode($customPath, true);
+    if (is_array($decoded)) {
+        $customPath = $decoded;
+    } else {
+        $customPath = array_values(array_filter(explode('/', trim($customPath, '/'))));
+    }
+}
+
+if (!empty($customPath) && is_array($customPath) && $token && $rootFolderId) {
+    $resolvedFolder = resolveGdriveFolderPath($token, $rootFolderId, $customPath);
+    if ($resolvedFolder && !empty($resolvedFolder['id'])) {
+        $targetGdriveFolderId = $resolvedFolder['id'];
+    }
+} elseif ($category === 'submissions' || $subDir === 'submissions') {
+    $targetGdriveFolderId = $foldersMap['submissions'] ?? $targetGdriveFolderId;
+} elseif ($category === 'quizzes' || $category === 'questions') {
+    $targetGdriveFolderId = $foldersMap['quizzes'] ?? $targetGdriveFolderId;
+} elseif ($category === 'backups') {
+    $targetGdriveFolderId = $foldersMap['backups'] ?? $targetGdriveFolderId;
+} elseif ($category === 'faculty' || $category === 'teacher') {
+    $targetGdriveFolderId = $foldersMap['faculty'] ?? $targetGdriveFolderId;
+} else {
+    $targetGdriveFolderId = $foldersMap['materials'] ?? $targetGdriveFolderId;
+}
+
+$gdriveFile = null;
+if (file_exists($keyPath) && !empty($targetGdriveFolderId)) {
+    $gdriveFile = @uploadFileToGoogleDrive($keyPath, $targetPath, $uploadedFile['name'], $targetGdriveFolderId);
+}
 
 jsonOut([
     'success'      => true,
@@ -235,8 +313,11 @@ jsonOut([
     'category'     => $subDir,
     'size'         => $fileSize,
     'google_drive' => [
-        'folder_id'  => $driveConfig['folder_id'] ?? '',
-        'folder_url' => $driveConfig['folder_url'] ?? '',
-        'linked'     => true
+        'folder_id'      => $targetGdriveFolderId,
+        'folder_url'     => 'https://drive.google.com/drive/folders/' . $targetGdriveFolderId,
+        'file_id'        => $gdriveFile['id'] ?? null,
+        'view_link'      => $gdriveFile['webViewLink'] ?? null,
+        'download_link'  => $gdriveFile['webContentLink'] ?? null,
+        'synced'         => !empty($gdriveFile['id'])
     ]
 ]);

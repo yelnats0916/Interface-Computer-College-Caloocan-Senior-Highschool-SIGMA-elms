@@ -21,11 +21,79 @@
 
 @import "settings-view.css";
 @import "topic-detail.css?v=20261004sharedSelectionRail1";
-@import "mobile.css?v=20261001scrolltouchfix1";
+@import "mobile.css?v=20261004materialBottomClearance1";
 
 /* Full-screen modal backdrops cover both navigation rails and the page header. */
+.release-modal-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.release-modal-back {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #teacher-release-assessments-overlay .release-modal-back {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #111827;
+        font-size: 14px !important;
+        cursor: pointer;
+    }
+
+    #teacher-release-assessments-overlay .release-modal-back:hover {
+        background: #f1f3f5;
+    }
+
+    #teacher-release-assessments-overlay .release-modal-back:focus-visible {
+        outline: 2px solid #15803d;
+        outline-offset: 2px;
+    }
+
+    #teacher-release-assessments-overlay .release-modal-close {
+        display: none !important;
+    }
+
+    #teacher-release-assessments-overlay .curriculum-hub-panel > div:last-child {
+        justify-content: flex-end !important;
+    }
+}
+
 .sigma-fullscreen-modal-layer {
     z-index: var(--sigma-modal-layer, 11000) !important;
+}
+
+@media (min-width: 769px) {
+    #released-topic-floating-menu {
+        border-radius: 8px !important;
+        padding: 4px 0 !important;
+    }
+
+    #released-topic-floating-menu > button {
+        min-height: 34px;
+        padding: 8px 12px !important;
+        gap: 10px !important;
+        font-size: 13px !important;
+        line-height: 18px !important;
+        font-weight: 500 !important;
+        white-space: nowrap;
+    }
+
+    #released-topic-floating-menu > button > i {
+        width: 14px !important;
+        font-size: 13px !important;
+        flex-shrink: 0;
+    }
 }
 
 .video-material-description-toggle {
@@ -769,7 +837,7 @@ body:has(#dashboard-view:not(.hidden)) {
     }
 }
 
-.sigma-black-fade-panel:hover .sigma-file-panel-title.cursor-pointer {
+.sigma-black-fade-panel .sigma-file-panel-title.cursor-pointer:hover {
     color: #FFD000 !important;
     -webkit-text-fill-color: #FFD000 !important;
 }
@@ -2205,9 +2273,9 @@ td:has(.gradebook-dash) {
     position: fixed !important;
     inset: 0 !important;
     z-index: 11000 !important;
-    background: rgba(15, 23, 42, 0.48) !important;
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -2245,6 +2313,24 @@ td:has(.gradebook-dash) {
 
 .curriculum-hub-overlay--visible .curriculum-hub-panel {
     transform: scale(1) translateY(0) !important;
+}
+
+/* Keep quiz and task details on the same neutral surfaces at every viewport. */
+#teacher-topic-schedule-overlay #teacher-schedule-modal-body {
+    background-color: #ffffff !important;
+}
+
+#teacher-topic-schedule-overlay .release-context-strip {
+    background-color: #f7f7f7 !important;
+}
+
+#teacher-topic-schedule-overlay #teacher-grading-configuration-card {
+    background-color: #fafafa !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+#teacher-grading-configuration-card .bg-slate-100\/70.cursor-not-allowed {
+    background-color: #f3f4f6 !important;
 }
 
 .curriculum-hub-card {
@@ -3264,12 +3350,25 @@ body .sigma-attached-file-panel {
     cursor: default !important;
 }
 
+body .sigma-attached-file-panel:hover {
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transform: none !important;
+}
+
 body .sigma-attached-file-panel .sigma-file-panel-title--clickable:hover,
-body .sigma-attached-file-panel .sigma-file-panel-title--clickable:focus-visible {
+body .sigma-attached-file-panel .sigma-file-panel-title--clickable:focus-visible,
+body :is(#topic-content-main, #subject-material-detail-view, #student-submitted-answer-section) .sigma-attached-file-panel .sigma-file-panel-title--clickable:hover,
+body :is(#topic-content-main, #subject-material-detail-view, #student-submitted-answer-section) .sigma-attached-file-panel .sigma-file-panel-title--clickable:focus-visible {
     color: #FFD000 !important;
     -webkit-text-fill-color: #FFD000 !important;
     text-decoration: none !important;
-    outline: none;
+    cursor: pointer !important;
+}
+
+body .sigma-attached-file-panel .sigma-file-panel-title--clickable:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 3px;
 }
 
 @media (max-width: 768px) {
@@ -4031,20 +4130,29 @@ button.material-detail-back-btn {
     display: none !important;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
     #section-topic-content .topic-score-sticky .desktop-grading-header .mobile-grade-minimize-btn {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        width: 40px !important;
-        min-width: 40px !important;
+        width: auto !important;
+        min-width: 70px !important;
         height: 40px !important;
-        padding: 0 !important;
-        margin-left: auto !important;
+        padding: 0 6px !important;
+        margin-left: 0 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
         background: transparent !important;
         border: none !important;
         color: #15803d !important;
         cursor: pointer;
+    }
+
+    #section-topic-content .mobile-grade-minimize-btn:hover,
+    #section-topic-content .mobile-grade-minimize-btn:focus-visible {
+        color: #166534 !important;
+        text-decoration: underline;
     }
 
     #section-topic-content .topic-score-sticky.is-minimized .mobile-score-sheet-body > :not(.desktop-grading-header),

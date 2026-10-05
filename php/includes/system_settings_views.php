@@ -609,13 +609,13 @@
                     <div class="space-y-6">
                         <!-- Gemini -->
                         <div id="row-gemini" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
-                            <div class="flex flex-row items-center p-5 gap-4">
-                                <div class="w-1/4 min-w-0">
-                                    <p class="text-sm font-bold text-black font-['Inter']">Google Gemini</p>
-                                    <span class="text-xs text-black-fade font-medium">Assistant intelligence</span>
+                            <div class="flex flex-row items-center p-5 gap-6">
+                                <div class="w-56 shrink-0 space-y-0.5">
+                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Google Gemini</p>
+                                    <span class="text-xs text-black-fade font-medium leading-normal block">Assistant intelligence</span>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs text-black-fade font-medium">Primary intelligence engine powering the SIGMA AI bot for automated institutional assistance.</p>
+                                    <p class="text-xs text-black-fade font-medium leading-relaxed">Primary intelligence engine powering the SIGMA AI bot for automated institutional assistance.</p>
                                 </div>
                                 <div class="w-1/5 text-center">
                                     <div id="mask-gemini" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
@@ -645,13 +645,13 @@
 
                         <!-- Groq -->
                         <div id="row-groq" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
-                            <div class="flex flex-row items-center p-5 gap-4">
-                                <div class="w-1/4 min-w-0">
-                                    <p class="text-sm font-bold text-black font-['Inter']">Groq LPU Acceleration</p>
-                                    <span class="text-xs text-black-fade font-medium">Predictive &amp; Prescriptive analytics</span>
+                            <div class="flex flex-row items-center p-5 gap-6">
+                                <div class="w-56 shrink-0 space-y-0.5">
+                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Groq LPU Acceleration</p>
+                                    <span class="text-xs text-black-fade font-medium leading-normal block">Predictive &amp; Prescriptive analytics</span>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs text-black-fade font-medium">High-performance processing logic driving descriptive, predictive, and prescriptive data analytics.</p>
+                                    <p class="text-xs text-black-fade font-medium leading-relaxed">High-performance processing logic driving descriptive, predictive, and prescriptive data analytics.</p>
                                 </div>
                                 <div class="w-1/5 text-center">
                                     <div id="mask-groq" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
@@ -688,30 +688,23 @@
                         <p class="sigma-panel-subtitle">Institutional cloud integration for secure document management, repository access, and lecture materials.</p>
                     </div>
 
-                    <div id="row-drive" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden shadow-2xs">
-                        <div class="flex flex-col sm:flex-row sm:items-center p-5 gap-3 sm:gap-4">
-                            <div class="w-full sm:w-1/4 min-w-0">
-                                <p class="text-sm font-bold text-black font-['Inter'] flex items-center gap-2">
-                                    <i class="fa-brands fa-google-drive text-[#15803d]"></i>
-                                    <span>Google Drive Storage</span>
-                                </p>
-                                <span class="text-xs text-black-fade font-medium">Service account & cloud folder</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs text-black-fade font-medium">Institutional cloud storage integration for lecture materials, video streaming, and document backups.</p>
-                            </div>
-                            <div class="w-auto sm:w-1/5 text-left sm:text-center shrink-0">
-                                <div id="mask-drive" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span id="drive-status-badge-text-php">Connected (Active)</span>
+                    <div class="space-y-6">
+                        <div id="row-drive" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
+                            <div class="flex flex-row items-center p-5 gap-6">
+                                <div class="w-56 shrink-0 space-y-0.5">
+                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Google Drive Storage</p>
+                                    <span class="text-xs text-black-fade font-medium leading-normal block">Service account credentials</span>
                                 </div>
-                            </div>
-                            <div class="flex justify-start sm:justify-end shrink-0">
-                                <button type="button" onclick="window.openGoogleDriveManagerModal()" id="btn-manage-drive"
-                                    class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-[#FFD000] text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-2xs">
-                                    <i class="fa-solid fa-sliders text-xs"></i>
-                                    <span>Manage Google Drive</span>
-                                </button>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-black-fade font-medium leading-relaxed">Institutional storage integration for secure document management and repository asset routing.</p>
+                                </div>
+                                <div class="flex justify-end shrink-0">
+                                    <button type="button" onclick="window.openGoogleDriveSettingsPage()" id="btn-manage-drive"
+                                        class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer whitespace-nowrap">
+                                        <i class="fa-solid fa-sliders text-xs"></i>
+                                        <span>Manage Google Drive</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -720,51 +713,29 @@
                 <!-- Card 3: reCAPTCHA API Key -->
                 <div id="integ-recaptcha-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">Google reCAPTCHA API Key</h2>
+                        <h2 class="sigma-panel-title">Google reCAPTCHA Protection</h2>
                         <p class="sigma-panel-subtitle">Security credential for enterprise-grade bot protection and challenge validation.</p>
                     </div>
 
-                    <div id="row-recaptcha" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
-                        <div class="flex flex-row items-center p-5 gap-4">
-                            <div class="w-1/4 min-w-0">
-                                <p class="text-sm font-bold text-black font-['Inter']">reCAPTCHA Site Key</p>
-                                <span class="text-xs text-black-fade font-medium">Public client site key</span>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs text-black-fade font-medium">Security credential for enterprise-grade bot protection and system integrity.</p>
-                            </div>
-                            <div class="w-1/5 text-center">
-                                <div id="mask-recaptcha" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
-                            </div>
-                            <div class="flex justify-end shrink-0">
-                                <button type="button" onclick="window.triggerVault('recaptcha')" id="btn-vault-recaptcha"
-                                    class="flex items-center gap-2 px-5 py-2 bg-slate-50 text-xs font-bold text-black rounded-xl hover:bg-[#FFD000] hover:text-black transition-all cursor-pointer">
-                                    <i class="fa-solid fa-lock text-[10px]"></i>
-                                    <span>Open</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="key-field-recaptcha" class="hidden p-6 bg-slate-50/50 border-t border-slate-100">
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <label for="api-key-recaptcha" class="text-xs font-bold text-black">Site Key</label>
-                                    <button type="button" onclick="window.triggerPasswordChange('recaptcha')" class="text-xs font-bold text-[#15803d] hover:underline">Change Master Password</button>
+                    <div class="space-y-6">
+                        <div id="row-recaptcha" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
+                            <div class="flex flex-row items-center p-5 gap-6">
+                                <div class="w-56 shrink-0 space-y-0.5">
+                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">reCAPTCHA Protection</p>
+                                    <span class="text-xs text-black-fade font-medium leading-normal block">Bot defense &amp; handshake validation</span>
                                 </div>
-                                <input type="text" id="api-key-recaptcha" maxlength="200" class="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-mono font-bold text-black outline-none focus:border-[#15803d] transition-all" placeholder="Paste your reCAPTCHA site key here...">
-                                <div class="flex justify-end gap-2 pt-1">
-                                    <button type="button" onclick="window.saveKeyField('recaptcha')" class="px-5 py-2 bg-[#15803d] text-white text-xs font-bold rounded-xl hover:bg-[#166534] transition-all">Save Changes</button>
-                                    <button type="button" onclick="window.cancelKeyField('recaptcha')" class="px-5 py-2 bg-slate-100 text-black text-xs font-bold rounded-xl hover:bg-slate-200 transition-all">Cancel</button>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-black-fade font-medium leading-relaxed">Enterprise-grade bot defense and challenge validation for login security and brute-force mitigation.</p>
+                                </div>
+                                <div class="flex justify-end shrink-0">
+                                    <button type="button" onclick="window.openRecaptchaSettingsPage()" id="btn-manage-recaptcha"
+                                        class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer whitespace-nowrap">
+                                        <i class="fa-solid fa-sliders text-xs"></i>
+                                        <span>Manage reCAPTCHA</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="flex justify-end pt-4">
-                        <button type="button" onclick="window.saveApiKeys()"
-                            class="flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer">
-                            <i class="fa-solid fa-arrows-rotate"></i>
-                            <span>Synchronize Vault</span>
-                        </button>
                     </div>
                 </div>
 
@@ -909,10 +880,11 @@
                             </div>
                         </div>
 
-                        <div class="flex justify-end pt-4">
+                        <div class="flex items-center justify-end gap-3 pt-4">
+                            <span id="limits-save-status" role="status" class="text-xs font-medium text-black-fade"></span>
                             <button type="button" id="limits-save-btn" onclick="window.saveMaterialLimits()" disabled
                                 class="flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none">
-                                <i class="fa-solid fa-lock text-xs"></i>
+                                <i class="fa-solid fa-floppy-disk text-xs"></i>
                                 <span>Save File Limits</span>
                             </button>
                         </div>
@@ -922,4 +894,321 @@
         </section>
     </div>
 </section>
+
+<!-- ═══ SYSTEM SETTINGS 4: DEDICATED GOOGLE DRIVE STORAGE MANAGER PAGE VIEW ═══ -->
+<section id="settings-gdrive-view" class="dynamic-section hidden">
+    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200 font-['Inter']">
+        <div class="gdrive-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
+            <!-- Page Header -->
+            <div class="py-8">
+                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Manage Google Drive</h1>
+            </div>
+
+            <!-- Main Content Container -->
+            <div class="pb-12 space-y-6">
+                <!-- Card 1: Live Cloud Connection Status -->
+                <div class="gdrive-settings-section space-y-4">
+                    <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
+                        <div>
+                            <h2 class="text-sm font-bold text-black">Google Drive Connection</h2>
+                        </div>
+                        <span id="gdrive-page-connection-status" role="status" class="gdrive-connection-status" data-state="idle">Not Connected</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="gdrive-detail-row space-y-1">
+                            <span class="text-[11px] font-semibold text-black-fade">Google Account</span>
+                            <p class="text-xs font-semibold text-black break-all" id="gdrive-page-display-email">Not configured</p>
+                        </div>
+                        <div class="gdrive-detail-row space-y-1">
+                            <span class="text-[11px] font-semibold text-black-fade">Storage Folder</span>
+                            <p class="font-semibold text-xs text-black" id="gdrive-page-display-folder-name">Not configured</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons inside Status -->
+                    <div class="flex items-center gap-3 pt-2 flex-wrap">
+                        <a target="_blank" rel="noopener noreferrer" aria-disabled="true"
+                            id="gdrive-page-open-folder-link"
+                            class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-xs text-[#15803d]"></i>
+                            <span>Open Folder</span>
+                        </a>
+                        <button type="button" onclick="window.testGoogleDriveConnectionPage()" id="btn-page-test-gdrive"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-bolt text-xs"></i>
+                            <span id="btn-page-test-gdrive-label">Test Connection</span>
+                        </button>
+                    </div>
+
+                    <!-- Live Test Diagnostic Feedback Box -->
+                    <div id="gdrive-page-test-feedback" role="status" class="hidden p-3 rounded-lg text-xs font-medium transition-all"></div>
+                </div>
+
+                <!-- Card 2: Folder Settings -->
+                <div class="gdrive-settings-section space-y-3">
+                    <div class="pb-2 border-b border-slate-100">
+                        <h2 class="text-sm font-bold text-black">Storage Folder</h2>
+                    </div>
+
+                    <div id="gdrive-page-folder-display" class="gdrive-folder-display">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-black">Google Drive Folder Link</p>
+                            <p id="gdrive-page-folder-link-text" class="gdrive-folder-link-text">Not configured</p>
+                        </div>
+                        <button type="button" id="gdrive-page-edit-folder" onclick="window.setGoogleDriveFolderEditing(true)" disabled class="sigma-btn sigma-btn-white sigma-btn-md shrink-0">Edit Folder</button>
+                    </div>
+                    <div id="gdrive-page-folder-editor" class="hidden space-y-1.5 pt-1">
+                        <label for="gdrive-page-folder-input" class="text-xs font-bold text-black">Google Drive Folder Link</label>
+                        <input type="text" id="gdrive-page-folder-input" readonly
+                            value=""
+                            placeholder="https://drive.google.com/drive/folders/..."
+                            class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <!-- Card 3: Upload JSON Key -->
+                <details class="gdrive-settings-section gdrive-advanced">
+                    <summary class="text-sm font-bold text-black cursor-pointer">Advanced Settings</summary>
+                    <div class="gdrive-advanced-content">
+
+                    <input type="file" id="gdrive-page-key-file" accept=".json" class="hidden" onchange="window.handleUploadGoogleDriveKeyFilePage(event)">
+
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button type="button" onclick="document.getElementById('gdrive-page-key-file').click()"
+                            class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-file-code text-blue-600"></i>
+                            <span>Replace JSON Key</span>
+                        </button>
+                        <span class="text-xs text-black-fade font-medium" id="gdrive-page-key-status">No credentials configured</span>
+                    </div>
+                    </div>
+                </details>
+
+                <!-- Bottom Action Buttons -->
+                <div id="gdrive-page-edit-actions" class="hidden flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onclick="window.setGoogleDriveFolderEditing(false)"
+                        class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="window.saveGoogleDrivePageConfig()" id="btn-save-gdrive-page-config" disabled
+                        class="sigma-btn sigma-btn-primary sigma-btn-md cursor-pointer">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SYSTEM SETTINGS 5: DEDICATED RECAPTCHA MANAGER PAGE VIEW ═══ -->
+<section id="settings-recaptcha-view" class="dynamic-section hidden">
+    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200 font-['Inter']">
+        <div class="recaptcha-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
+            <!-- Page Header -->
+            <div class="py-8 flex items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Manage Google reCAPTCHA</h1>
+                    <p class="text-xs text-black-fade font-medium mt-1">Configure bot defense credentials and test live challenge verification.</p>
+                </div>
+                <button type="button" onclick="window.backToIntegrationsSettings()" class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                    <span>Back to Integrations</span>
+                </button>
+            </div>
+
+            <!-- Main Content Container -->
+            <div class="pb-12 space-y-6">
+                <!-- Card 1: Connection & Live Status -->
+                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-[#15803d] flex items-center justify-center font-bold text-sm">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <h2 class="text-sm font-bold text-black">reCAPTCHA Status &amp; Verification</h2>
+                        </div>
+                        <span id="recaptcha-page-connection-status" role="status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span>Checking...</span>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
+                            <span class="text-[11px] font-semibold text-black-fade block">Site Key Status</span>
+                            <p class="text-xs font-bold text-black" id="recaptcha-page-display-site-key">Not configured</p>
+                        </div>
+                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
+                            <span class="text-[11px] font-semibold text-black-fade block">Secret Key Status</span>
+                            <p class="text-xs font-bold text-black" id="recaptcha-page-display-secret-status">Not configured</p>
+                        </div>
+                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
+                            <span class="text-[11px] font-semibold text-black-fade block">Bot Protection Mode</span>
+                            <p class="text-xs font-bold text-emerald-700" id="recaptcha-page-display-mode">Active (Enabled)</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons inside Status -->
+                    <div class="flex items-center gap-3 pt-2 flex-wrap">
+                        <button type="button" onclick="window.openRecaptchaTestModal()" id="btn-page-test-recaptcha"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-vial-circle-check text-xs"></i>
+                            <span>Test reCAPTCHA</span>
+                        </button>
+                    </div>
+
+                    <!-- Live Test Diagnostic Feedback Box -->
+                    <div id="recaptcha-page-test-feedback" role="status" class="hidden p-3.5 rounded-xl text-xs font-medium transition-all"></div>
+                </div>
+
+                <!-- Card 2: API Credentials -->
+                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div class="pb-2 border-b border-slate-100">
+                        <h2 class="text-sm font-bold text-black">API Credentials</h2>
+                        <p class="text-xs text-black-fade font-medium mt-0.5">Google reCAPTCHA v2 / v3 public site key and server secret key.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label for="recaptcha-page-site-key-input" class="text-xs font-bold text-black block mb-1.5">Public Site Key</label>
+                            <input type="text" id="recaptcha-page-site-key-input" maxlength="255"
+                                placeholder="Paste Google reCAPTCHA Site Key..."
+                                class="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="recaptcha-page-secret-key-input" class="text-xs font-bold text-black">Server Secret Key</label>
+                                <button type="button" onclick="window.toggleRecaptchaSecretVisibility()" id="btn-toggle-recaptcha-secret" class="text-xs font-semibold text-slate-500 hover:text-black cursor-pointer">Show Key</button>
+                            </div>
+                            <input type="password" id="recaptcha-page-secret-key-input" maxlength="255"
+                                placeholder="Enter Google reCAPTCHA Secret Key..."
+                                class="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
+                            <span class="text-[11px] text-black-fade block mt-1">Leave secret key blank to preserve the currently saved secret key.</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onclick="window.saveRecaptchaPageSettings()" id="btn-save-recaptcha-page-config"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk text-xs"></i>
+                            <span>Save reCAPTCHA Settings</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card 3: Defense Rules & Thresholds -->
+                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div class="pb-2 border-b border-slate-100">
+                        <h2 class="text-sm font-bold text-black">Bot Defense Thresholds</h2>
+                        <p class="text-xs text-black-fade font-medium mt-0.5">Control when reCAPTCHA challenges trigger on user login attempts.</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50/70 rounded-xl border border-slate-100">
+                        <div>
+                            <p class="text-xs font-bold text-black">Failed Login Trigger Threshold</p>
+                            <p class="text-xs text-black-fade font-medium">Number of consecutive failed login attempts before challenging the user.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="recaptcha-page-threshold-input" min="1" max="50" value="3"
+                                class="w-20 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-center text-black outline-none focus:border-[#15803d] transition-all">
+                            <span class="text-xs font-bold text-black-fade">Attempts</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50/70 rounded-xl border border-slate-100">
+                        <div>
+                            <p class="text-xs font-bold text-black">Bot Defense Status</p>
+                            <p class="text-xs text-black-fade font-medium">Enable or disable challenge enforcement across login portals.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="recaptcha-page-enabled-toggle" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#15803d]"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onclick="window.saveRecaptchaPageSettings()" id="btn-save-recaptcha-thresholds"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk text-xs"></i>
+                            <span>Save Defense Thresholds</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ RECAPTCHA TEST MODAL ═══ -->
+<div id="recaptchaTestModal" class="fixed inset-0 bg-black/65 z-[999999] hidden items-center justify-center p-4 backdrop-blur-xs font-['Inter']">
+    <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+        <!-- Modal Header -->
+        <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-base">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-black font-['Inter']">Test Google reCAPTCHA</h3>
+                    <p class="text-xs text-black-fade font-medium">Verify handshake and token validation</p>
+                </div>
+            </div>
+            <button type="button" onclick="window.closeRecaptchaTestModal()"
+                class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 hover:text-black transition-all cursor-pointer" aria-label="Close modal">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 overflow-y-auto space-y-5">
+            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                Click the verification challenge below to test client-side token acquisition and server-side verification with the Google reCAPTCHA service.
+            </div>
+
+            <!-- reCAPTCHA Interactive Box -->
+            <div class="flex flex-col items-center justify-center py-2">
+                <div id="recaptchaModalBox" class="w-full max-w-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl p-4 transition-all select-none cursor-pointer flex items-center justify-between" onclick="window.runRecaptchaTestChallenge()">
+                    <div class="flex items-center gap-3.5">
+                        <div id="recaptchaModalCheckbox" class="w-7 h-7 rounded-lg border-2 border-slate-400 bg-white flex items-center justify-center transition-all">
+                            <i id="recaptchaModalCheckIcon" class="fa-solid fa-check text-[#15803d] text-sm hidden"></i>
+                            <i id="recaptchaModalSpinner" class="fa-solid fa-circle-notch fa-spin text-slate-600 text-sm hidden"></i>
+                        </div>
+                        <span id="recaptchaModalLabel" class="text-xs font-bold text-black">I'm not a robot</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center text-slate-400 pl-2">
+                        <i class="fa-brands fa-google text-lg"></i>
+                        <span class="text-[9px] font-bold tracking-tight text-slate-400 mt-0.5">reCAPTCHA</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnostics Details Box -->
+            <div id="recaptchaModalDiagnostic" class="hidden rounded-2xl p-4 text-xs font-mono border space-y-2">
+                <div class="flex items-center justify-between font-sans">
+                    <span class="font-bold text-xs" id="recaptchaDiagTitle">Verification Result</span>
+                    <span id="recaptchaDiagBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Passed</span>
+                </div>
+                <div class="space-y-1 text-[11px] pt-1 text-slate-600" id="recaptchaDiagDetails">
+                    <!-- Dynamic details -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <button type="button" onclick="window.resetRecaptchaTestModal()"
+                class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
+                <i class="fa-solid fa-rotate-right text-xs"></i>
+                <span>Reset Test</span>
+            </button>
+            <button type="button" onclick="window.closeRecaptchaTestModal()"
+                class="sigma-btn sigma-btn-primary sigma-btn-md px-6 cursor-pointer">
+                <span>Done</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shared back navigation regression</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; }
+        .hidden { display: none; }
+        [data-modal-overlay] { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
+        [data-modal-overlay].hidden { display: none; }
+        .panel { background: white; padding: 24px; }
+        button { padding: 8px; margin: 4px; }
+    </style>
+</head>
+<body>
+    <h1 id="page-name">Page one</h1>
+    <button onclick="showPage(2, true)">Next page</button>
+    <button onclick="document.getElementById('fixture-modal').classList.remove('hidden')">Open modal</button>
+    <input aria-label="Editable text" value="abc">
+    <div id="fixture-modal" class="hidden" data-modal-overlay>
+        <div class="panel" role="dialog" aria-modal="true">
+            <h2>First modal</h2>
+            <button onclick="document.getElementById('fixture-nested').classList.remove('hidden')">Open nested modal</button>
+            <button onclick="document.getElementById('fixture-modal').classList.add('hidden')">Close</button>
+        </div>
+    </div>
+    <div id="fixture-nested" class="hidden" data-modal-overlay>
+        <div class="panel" role="dialog" aria-modal="true">
+            <h2>Nested modal</h2>
+            <button onclick="document.getElementById('fixture-nested').classList.add('hidden')">Cancel</button>
+        </div>
+    </div>
+    <script src="../js/shared-components.js?v=20261004escapeNotBack1"></script>
+    <script>
+        window.showPage = (page, push) => {
+            document.getElementById('page-name').textContent = page === 2 ? 'Page two' : 'Page one';
+            if (push) history.pushState({ page, selectedSection: 'Fixture' }, '', '#page-' + page);
+        };
+        history.replaceState({ page: 1, selectedSection: 'Fixture' }, '', '#page-1');
+        window.addEventListener('popstate', event => {
+            if (!window._isProcessingPopstate) showPage(event.state?.page || 1, false);
+        });
+    </script>
+</body>
+</html>

@@ -303,7 +303,7 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
         </a>
         <?php endif; ?>
         <a href="#account-settings" id="profile-settings-link"
-            onclick="if(typeof window.navigateToAccountSettings==='function'){ window.navigateToAccountSettings('notifications'); } else if(typeof switchTab==='function'){ switchTab('account-settings'); } if(typeof window.hideHeaderOverlays==='function') window.hideHeaderOverlays(); return false;"
+            onclick="if(typeof window.closeMobileAccountPanel==='function') window.closeMobileAccountPanel(); if(typeof window.closeMobileTopPanel==='function') window.closeMobileTopPanel(); if(typeof window.navigateToAccountSettings==='function'){ window.navigateToAccountSettings('notifications'); } else if(typeof switchTab==='function'){ switchTab('account-settings'); } if(typeof window.hideHeaderOverlays==='function') window.hideHeaderOverlays(); return false;"
             class="profile-menu-item">
             <div class="profile-menu-item__icon">
                 <i class="fa-solid fa-user-gear"></i>

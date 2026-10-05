@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/gdrive_service.php';
 
 function jsonResponse(array $data, int $code = 200): void {
     http_response_code($code);
@@ -34,22 +35,24 @@ if (!$pdo) {
 
 function rowToRecord(array $row): array {
     return [
-        'id'         => (string) $row['id'],
-        'yearStart'  => (int) $row['year_start'],
-        'yearEnd'    => (int) $row['year_end'],
-        'q1Start'    => $row['q1_start'] ?: '',
-        'q1End'      => $row['q1_end'] ?: '',
-        'q2Start'    => $row['q2_start'] ?: '',
-        'q2End'      => $row['q2_end'] ?: '',
-        'q3Start'    => $row['q3_start'] ?: '',
-        'q3End'      => $row['q3_end'] ?: '',
-        'q4Start'    => $row['q4_start'] ?: '',
-        'q4End'      => $row['q4_end'] ?: '',
-        'status'     => (string) ($row['status'] ?: 'Inactive'),
-        'isDeleted'  => (bool) $row['is_deleted'],
-        'archivedAt' => $row['archived_at'] ?: null,
-        'createdAt'  => $row['created_at'] ?? null,
-        'updatedAt'  => $row['updated_at'] ?? null,
+        'id'              => (string) $row['id'],
+        'yearStart'       => (int) $row['year_start'],
+        'yearEnd'         => (int) $row['year_end'],
+        'q1Start'         => $row['q1_start'] ?: '',
+        'q1End'           => $row['q1_end'] ?: '',
+        'q2Start'         => $row['q2_start'] ?: '',
+        'q2End'           => $row['q2_end'] ?: '',
+        'q3Start'         => $row['q3_start'] ?: '',
+        'q3End'           => $row['q3_end'] ?: '',
+        'q4Start'         => $row['q4_start'] ?: '',
+        'q4End'           => $row['q4_end'] ?: '',
+        'status'          => (string) ($row['status'] ?: 'Inactive'),
+        'gdriveFolderId'  => (string) ($row['gdrive_folder_id'] ?? ''),
+        'gdriveFolderUrl' => (string) ($row['gdrive_folder_url'] ?? ''),
+        'isDeleted'       => (bool) $row['is_deleted'],
+        'archivedAt'      => $row['archived_at'] ?: null,
+        'createdAt'       => $row['created_at'] ?? null,
+        'updatedAt'       => $row['updated_at'] ?? null,
     ];
 }
 
@@ -192,28 +195,46 @@ try {
             $status
         ]);
 
+        $gdriveFolderId = null;
+        $gdriveFolderUrl = null;
+        try {
+            if (function_exists('provisionSchoolYearFolders')) {
+                $gdriveRes = provisionSchoolYearFolders($yearStart, $yearEnd);
+                if ($gdriveRes && !empty($gdriveRes['sy_folder_id'])) {
+                    $gdriveFolderId = $gdriveRes['sy_folder_id'];
+                    $gdriveFolderUrl = $gdriveRes['sy_folder_url'];
+                    $upd = $pdo->prepare("UPDATE school_years SET gdrive_folder_id = ?, gdrive_folder_url = ? WHERE id = ?");
+                    $upd->execute([$gdriveFolderId, $gdriveFolderUrl, $id]);
+                }
+            }
+        } catch (Throwable $t) {
+            error_log("GDrive folder provisioning warning: " . $t->getMessage());
+        }
+
         $pdo->commit();
 
         jsonResponse([
             'success' => true,
             'message' => 'School year saved successfully',
             'record'  => rowToRecord([
-                'id'         => $id,
-                'year_start' => $yearStart,
-                'year_end'   => $yearEnd,
-                'q1_start'   => $q1Start,
-                'q1_end'     => $q1End,
-                'q2_start'   => $q2Start,
-                'q2_end'     => $q2End,
-                'q3_start'   => $q3Start,
-                'q3_end'     => $q3End,
-                'q4_start'   => $q4Start,
-                'q4_end'     => $q4End,
-                'status'     => $status,
-                'is_deleted' => 0,
-                'archived_at'=> null,
-                'created_at' => null,
-                'updated_at' => null,
+                'id'                => $id,
+                'year_start'        => $yearStart,
+                'year_end'          => $yearEnd,
+                'q1_start'          => $q1Start,
+                'q1_end'            => $q1End,
+                'q2_start'          => $q2Start,
+                'q2_end'            => $q2End,
+                'q3_start'          => $q3Start,
+                'q3_end'            => $q3End,
+                'q4_start'          => $q4Start,
+                'q4_end'            => $q4End,
+                'status'            => $status,
+                'gdrive_folder_id'  => $gdriveFolderId,
+                'gdrive_folder_url' => $gdriveFolderUrl,
+                'is_deleted'        => 0,
+                'archived_at'       => null,
+                'created_at'        => null,
+                'updated_at'        => null,
             ])
         ]);
     }

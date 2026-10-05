@@ -76,7 +76,6 @@ window.initializeSharedCurriculumRelease = function () {
             }
         }
     }
-
     // ── Helper: Resolve Teacher Active Subject & Section Context ─────────────
     function resolveTeacherActiveSubjectId(providedSubjectId) {
         let raw = providedSubjectId
@@ -1041,7 +1040,8 @@ window.initializeSharedCurriculumRelease = function () {
         const rect = (btn || e?.currentTarget)?.getBoundingClientRect();
 
         const isMobile = window.innerWidth < 640;
-        const menuWidth = isMobile ? 140 : 175;
+        const isDesktop = window.innerWidth > 768;
+        const menuWidth = isDesktop ? 184 : (isMobile ? 140 : 175);
 
         const menu = document.createElement('div');
         menu.id = 'released-topic-floating-menu';
@@ -1094,7 +1094,7 @@ window.initializeSharedCurriculumRelease = function () {
             if (left + menuWidth > window.innerWidth - 8) {
                 left = window.innerWidth - menuWidth - 8;
             }
-            const approxHeight = category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125);
+            const approxHeight = isDesktop ? menu.offsetHeight : (category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125));
             if (top + approxHeight > window.innerHeight - 8) {
                 top = Math.max(8, rect.top - approxHeight - 4);
             }
@@ -1994,6 +1994,17 @@ window.initializeSharedCurriculumRelease = function () {
             }
         }
 
+        const storedAssigned = draft.assignedStudents[effIdStr] || [];
+        const assignedAliases = new Set(storedAssigned.map(value => String(value).trim().toLowerCase()));
+        const assignAll = assignedAliases.has('all') || assignedAliases.has('*');
+        if (sectionStudents.length > 0) {
+            draft.assignedStudents[effIdStr] = sectionStudents.filter(student => {
+                const aliases = [student.id, student.studentId, student.uid, student.name, student.fullName,
+                    `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+                    `${student.lastName || ''}, ${student.firstName || ''}`.trim()];
+                return assignAll || aliases.some(value => value && assignedAliases.has(String(value).trim().toLowerCase()));
+            }).map(student => String(student.id || student.name));
+        }
         const currentAssignedList = draft.assignedStudents[effIdStr] || [];
         const totalStudentsCount = sectionStudents.length;
         const isAllWildcard = currentAssignedList.some(v => ['all', 'All', 'ALL', '*'].includes(String(v).trim()));
@@ -2878,6 +2889,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         if (!draft._initialSnapshot || !isModalAlreadyOpen || (editType && draft._editType !== editType)) {
             draft._initialSnapshot = {
+                assignedStudents: JSON.stringify([...currentAssignedList].map(String).sort()),
                 // Schedule fields
                 isReleaseNow: Boolean(isReleaseNow),
                 dateVal: String(initDate || todayDateStr || '').trim(),
@@ -2919,10 +2931,13 @@ window.initializeSharedCurriculumRelease = function () {
             isNewOverlay = true;
         } else {
             overlay.classList.remove('hidden');
-            overlay.classList.add('curriculum-hub-overlay--visible');
+            overlay.classList.add('curriculum-hub-overlay', 'curriculum-hub-overlay--visible');
         }
+        overlay.style.setProperty('background', 'rgba(0, 0, 0, 0.45)', 'important');
+        overlay.style.setProperty('opacity', '1', 'important');
         overlay.dataset._historyPushed = 'true';
         overlay.dataset._category = category;
+        overlay.dataset._activeStep = activeStep;
         overlay.dataset._isActivity = isActivity ? 'true' : 'false';
         overlay.dataset._isQuiz = isScheduleQuiz ? 'true' : 'false';
         overlay.dataset._subjectId = subjectId || '';
@@ -2979,7 +2994,7 @@ window.initializeSharedCurriculumRelease = function () {
         }
 
         overlay.innerHTML = `
-            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full ${modalMaxWidth} flex flex-col overflow-hidden" style="${modalStyleHeight} ${modalStyleWidth}" onclick="window.closeTeacherScheduleTimePopover?.(); window.closeTeacherScheduleItemDropdown?.(); window.closeTeacherScheduleActivityComponentDropdown?.(); event.stopPropagation()">
+            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full ${modalMaxWidth} flex flex-col overflow-hidden" style="${modalStyleHeight} ${modalStyleWidth} background: #ffffff !important; opacity: 1 !important;" onclick="window.closeTeacherScheduleTimePopover?.(); window.closeTeacherScheduleItemDropdown?.(); window.closeTeacherScheduleActivityComponentDropdown?.(); event.stopPropagation()">
                 <!-- Header -->
                 <div class="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                     <div class="flex items-center gap-3">
@@ -2992,7 +3007,7 @@ window.initializeSharedCurriculumRelease = function () {
                         <div>
                             <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">
                                 ${isStudentsPage 
-                                    ? 'Assigned Students' 
+                                    ? `Assigned Students - ${draft._prevStep === 'grading' ? (isEditMode ? 'Edit Details' : 'Set Details') : (isEditMode ? 'Edit Schedule' : 'Set Schedule')}`
                                     : (isGradingPage 
                                         ? (effectiveEditType === 'grading' ? 'Edit Details' : 'Set Details') 
                                         : (effectiveEditType === 'schedule' ? 'Edit Schedule' : 'Set Schedule')
@@ -3130,7 +3145,7 @@ window.initializeSharedCurriculumRelease = function () {
                                 ` : sectionStudents.map((st, idx) => {
                                     const stId = String(st.id || `STD-${String(idx + 1).padStart(3, '0')}`);
                                     const stName = st.name || `${st.lastName || ''}, ${st.firstName || ''}`.trim() || `Student ${idx + 1}`;
-                                    const isChecked = currentAssignedList.includes(stId) || currentAssignedList.includes(stName);
+                                    const isChecked = isAllWildcard || currentAssignedList.includes(stId) || currentAssignedList.includes(stName);
                                     const avatarHtml = (typeof window.renderUserAvatarHtml === 'function')
                                         ? window.renderUserAvatarHtml(st, 'sm')
                                         : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>`;
@@ -3845,7 +3860,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         // Update other pending items if Apply All is active
         const applyAllChk = document.getElementById('teacher-schedule-apply-all-chk');
-        if (applyAllChk && applyAllChk.checked) {
+        if (applyAllChk ? applyAllChk.checked : draft._applyAll !== false) {
             const pendingIds = draft[meta.pendingKey] || [];
             pendingIds.forEach(pId => {
                 const pIdStr = String(pId);
@@ -3899,7 +3914,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         // Update other pending items if Apply All is active
         const applyAllChk = document.getElementById('teacher-schedule-apply-all-chk');
-        if (applyAllChk && applyAllChk.checked) {
+        if (applyAllChk ? applyAllChk.checked : draft._applyAll !== false) {
             const pendingIds = draft[meta.pendingKey] || [];
             pendingIds.forEach(pId => {
                 const pIdStr = String(pId);
@@ -4713,6 +4728,8 @@ window.initializeSharedCurriculumRelease = function () {
                     attempts = domAttempts;
                 } else if (draft.assessmentMaxAttempts?.[idStr] !== undefined && draft.assessmentMaxAttempts[idStr] !== null && draft.assessmentMaxAttempts[idStr] !== '') {
                     attempts = String(draft.assessmentMaxAttempts[idStr]);
+                } else {
+                    attempts = String(itemMeta.item?.maxAttempts ?? itemMeta.item?.attempts ?? 1);
                 }
 
                 // Resolve Scoring Method
@@ -4994,6 +5011,11 @@ window.initializeSharedCurriculumRelease = function () {
 
                 hasChanged = hpsChanged || weightChanged || actCompChanged || attemptsChanged || lateChanged || timerChanged || methodChanged || essayModeChanged || reviewTypesChanged || showAnswersChanged || fileUploadChanged || aiChanged || rubricChanged || critAutoChanged || critSelChanged;
             }
+        }
+
+        if (draft._initialSnapshot?.assignedStudents !== undefined) {
+            const selected = JSON.stringify([...(draft.assignedStudents?.[String(targetId)] || [])].map(String).sort());
+            hasChanged = hasChanged || selected !== draft._initialSnapshot.assignedStudents;
         }
 
         if (errors.length > 0) {
@@ -5906,16 +5928,10 @@ window.initializeSharedCurriculumRelease = function () {
                 else if (effectiveCategory === 'learning') window.openTeacherLearningMaterialsPickerModal?.();
                 else if (effectiveCategory === 'assessments') window.openTeacherAssessmentsPickerModal?.();
                 else window.openTeacherTopicPickerModal?.();
-            } else if (effectiveCategory === 'learning') {
-                if (!reveal(document.getElementById('teacher-release-learning-materials-overlay'))) {
-                    window.openTeacherReleaseLearningMaterialsModal?.(true);
-                }
-            } else if (effectiveCategory === 'assessments') {
-                if (!reveal(document.getElementById('teacher-release-assessments-overlay'))) {
-                    window.openTeacherReleaseAssessmentsModal?.(true);
-                }
-            } else if (!reveal(document.getElementById('teacher-release-topics-overlay'))) {
-                window.openTeacherReleaseTopicsModal?.(true);
+            } else {
+                document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+                document.getElementById('teacher-release-topics-overlay')?.remove();
+                window.openTeacherReleaseAssessmentsModal?.(true);
             }
 
             const pickerId = window._unifiedPickerSelection
@@ -5923,22 +5939,22 @@ window.initializeSharedCurriculumRelease = function () {
                 : (effectiveCategory === 'learning'
                     ? 'teacher-learning-picker-overlay'
                     : (effectiveCategory === 'assessments' ? 'teacher-assessments-picker-overlay' : 'teacher-topic-picker-overlay'));
-            const releaseId = effectiveCategory === 'learning'
-                ? 'teacher-release-learning-materials-overlay'
-                : (effectiveCategory === 'assessments' ? 'teacher-release-assessments-overlay' : 'teacher-release-topics-overlay');
+            const releaseId = 'teacher-release-assessments-overlay';
             reveal(document.getElementById(isPickerFlow ? pickerId : releaseId));
             if (overlay && overlay.isConnected) overlay.remove();
         } catch (err) {
             console.error('[backFromTeacherScheduleModal]', err);
             const scheduleOverlay = document.getElementById('teacher-topic-schedule-overlay');
             if (scheduleOverlay) scheduleOverlay.remove();
-            const release = document.getElementById('teacher-release-assessments-overlay')
-                || document.getElementById('teacher-release-topics-overlay')
-                || document.getElementById('teacher-release-learning-materials-overlay');
+            document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+            document.getElementById('teacher-release-topics-overlay')?.remove();
+            const release = document.getElementById('teacher-release-assessments-overlay');
             if (release) {
                 release.classList.remove('hidden');
                 release.style.display = '';
                 release.classList.add('curriculum-hub-overlay--visible');
+            } else {
+                window.openTeacherReleaseAssessmentsModal?.(true);
             }
         } finally {
             if (!fromPopstate) {
@@ -6046,6 +6062,12 @@ window.initializeSharedCurriculumRelease = function () {
     window.closeTeacherTopicScheduleModal = function (returnToReleaseModal = false) {
         const overlay = document.getElementById('teacher-topic-schedule-overlay');
         const category = overlay?.dataset?._category || 'topics';
+        if (returnToReleaseModal && overlay?.dataset?._activeStep === 'students') {
+            const meta = window.getUnifiedScheduleMeta(category);
+            const draft = window[meta.draftStateKey];
+            window.goToTeacherScheduleStep(category, draft?._targetId, draft?._prevStep === 'grading' ? 'grading' : 'schedule');
+            return;
+        }
         window.closeTeacherUnifiedScheduleModal(returnToReleaseModal, category);
     };
 
@@ -6962,12 +6984,6 @@ window.initializeSharedCurriculumRelease = function () {
 
             // Expand chosen students with all alias representations so any student check succeeds
             const expandedAssigned = new Set();
-            const isEveryStudentSelected = Array.isArray(defaultChosenStudentIds) && defaultChosenStudentIds.length > 0 && Array.isArray(chosenStudents) && defaultChosenStudentIds.every(id => chosenStudents.includes(String(id)));
-            if ((!draft.assignedStudents?.[idStr] && !(isApplyAll && effFallbackAssigned) && !savedAssigned) || isEveryStudentSelected) {
-                expandedAssigned.add('all');
-                expandedAssigned.add('All');
-                expandedAssigned.add('*');
-            }
 
             (chosenStudents || []).forEach(cs => {
                 const csStr = String(cs).trim();
@@ -8054,6 +8070,16 @@ window.initializeSharedCurriculumRelease = function () {
             });
         };
 
+        // Classroom-created assessments use the same subject/section scope as the page.
+        try {
+            const classroomItems = JSON.parse(localStorage.getItem('sigma_classroom_materials') || '[]');
+            if (Array.isArray(classroomItems)) classroomItems.forEach(item => {
+                const itemSubject = String(item.subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
+                if (!itemSubject || itemSubject !== cleanId) return;
+                addItem(item, String(item.topicId || ''), item.topicTitle || '');
+            });
+        } catch (_) {}
+
         // 1. Collect materials from topics
         topics.forEach((t, tIdx) => {
             const topicTitle = t.title || t.name || `Topic ${tIdx + 1}`;
@@ -8134,309 +8160,8 @@ window.initializeSharedCurriculumRelease = function () {
 
     // ── Standalone Release Learning Materials Modal ───────────────────────────
     window.openTeacherReleaseLearningMaterialsModal = function (fromPicker = false) {
-        if (!fromPicker) {
-            window.closeManageCurriculumHub?.();
-        }
-        const subjectId = resolveTeacherActiveSubjectId(typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : null);
-        const section = resolveTeacherActiveSection(typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null);
-        if (typeof currentTopicState !== 'undefined' && currentTopicState) {
-            currentTopicState.subjectId = subjectId;
-            currentTopicState.selectedSection = section;
-            window.currentTopicState = currentTopicState;
-        }
-        const allMaterials = window.getTeacherSubjectLearningMaterials(subjectId, section);
-
-        // Section details
-        const adminSections = getStoredJson('sigma-admin-sections', []);
-        const cleanSectionName = (section || '').trim().toLowerCase();
-        const matchedSec = adminSections.find(s => {
-            const sName = (s.name || s.sectionName || '').trim().toLowerCase();
-            return sName === cleanSectionName || (cleanSectionName && (sName.includes(cleanSectionName) || cleanSectionName.includes(sName)));
-        });
-
-        let sectionNameOnly = matchedSec?.name || section;
-        let gradeLevel = matchedSec?.grade || (section.includes('Grade 12') ? 'Grade 12' : 'Grade 11');
-        let roomNumber = matchedSec?.room || '302';
-        let schoolYear = matchedSec?.schoolYear || '2026–2027';
-
-        if (!matchedSec && section && section.includes(' - ')) {
-            const parts = section.split(' - ');
-            if (parts[0].includes('Grade')) gradeLevel = parts[0].trim();
-            sectionNameOnly = parts.slice(1).join(' - ').trim() || section;
-        }
-
-        // Release configuration
-        let releaseConfig = { releasedMaterialIds: [], hiddenMaterialIds: [], materialReleaseDates: {}, materialSchedules: {} };
-        try {
-            const saved = (typeof window.getLearningMaterialReleaseConfig === 'function')
-                ? window.getLearningMaterialReleaseConfig(subjectId, section)
-                : getStoredJson(`sigma_learning_release_${subjectId}_${section}`, null);
-            if (saved) releaseConfig = { ...releaseConfig, ...saved };
-        } catch (e) {}
-        if (!Array.isArray(releaseConfig.releasedMaterialIds)) releaseConfig.releasedMaterialIds = [];
-        if (!Array.isArray(releaseConfig.hiddenMaterialIds)) releaseConfig.hiddenMaterialIds = [];
-        if (!releaseConfig.materialReleaseDates) releaseConfig.materialReleaseDates = {};
-
-        // Draft state
-        if (!window._learningMaterialsReleaseDraftState || !fromPicker) {
-            window._learningMaterialsReleaseDraftState = {
-                pendingMaterialIds: (window._learningMaterialsReleaseDraftState?.pendingMaterialIds && fromPicker)
-                    ? window._learningMaterialsReleaseDraftState.pendingMaterialIds
-                    : []
-            };
-        }
-        const pendingIds = window._learningMaterialsReleaseDraftState.pendingMaterialIds || [];
-        const releasedIds = releaseConfig.releasedMaterialIds.map(String);
-
-        const availableQuarters = (typeof window.getSubjectReleaseQuarters === 'function')
-            ? window.getSubjectReleaseQuarters(subjectId)
-            : ['q1', 'q2'];
-        let activeQuarter = (typeof window.getActiveReleaseQuarter === 'function') ? window.getActiveReleaseQuarter() : 'q1';
-        if (!availableQuarters.includes(activeQuarter.toLowerCase())) {
-            activeQuarter = availableQuarters[0] || 'q1';
-            window.setActiveReleaseQuarter?.(activeQuarter);
-        }
-        const quarterMaterials = allMaterials.filter(m => (m.quarter || 'q1').toLowerCase() === activeQuarter.toLowerCase());
-
-        const pendingList = quarterMaterials.filter(m => pendingIds.includes(String(m.id)));
-        const releasedList = quarterMaterials.filter(m => releasedIds.includes(String(m.id)));
-
-        // Helper date formatter
-        const formatDateText = (isoStr) => {
-            if (!isoStr) {
-                const now = new Date();
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                let h = now.getHours();
-                const m = now.getMinutes();
-                const p = h >= 12 ? 'PM' : 'AM';
-                if (h > 12) h -= 12;
-                if (h === 0) h = 12;
-                return `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()} • ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`;
-            }
-            try {
-                const d = new Date(isoStr);
-                if (!isNaN(d.getTime())) {
-                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    let h = d.getHours();
-                    const m = d.getMinutes();
-                    const p = h >= 12 ? 'PM' : 'AM';
-                    if (h > 12) h -= 12;
-                    if (h === 0) h = 12;
-                    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} • ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${p}`;
-                }
-            } catch (e) {}
-            return isoStr;
-        };
-
-        // Helper to group items by Topic
-        const groupItemsByTopic = (items) => {
-            const groups = [];
-            const groupMap = new Map();
-            items.forEach(item => {
-                const topicKey = item.topicTitle || 'General Topic';
-                if (!groupMap.has(topicKey)) {
-                    const groupObj = { topicTitle: topicKey, items: [] };
-                    groupMap.set(topicKey, groupObj);
-                    groups.push(groupObj);
-                }
-                groupMap.get(topicKey).items.push(item);
-            });
-            return groups;
-        };
-
-        // Pending Selected HTML
-        let selectedHtml = '';
-        if (pendingList.length > 0) {
-            const groupedPending = groupItemsByTopic(pendingList);
-            selectedHtml = `
-                <div class="border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden font-['Inter'] divide-y divide-black/10">
-                    ${groupedPending.map(group => `
-                        <div class="topic-group-block">
-                            <div class="px-4 py-2 bg-black/[0.03] border-b border-black/10 flex items-center gap-2">
-                                <i class="fa-solid fa-book-bookmark text-xs text-[#15803d]"></i>
-                                <span class="text-xs font-bold text-black font-['Inter']">${escapeHtml(group.topicTitle)}</span>
-                            </div>
-                            <div class="divide-y divide-black/10">
-                                ${group.items.map(m => {
-                                    const isVid = m.type === 'Video';
-                                    const iconClass = isVid ? 'fa-solid fa-circle-play text-red-600' : 'fa-solid fa-file-lines text-blue-600';
-                                    const bgClass = isVid ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100';
-                                    return `
-                                        <div class="p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between">
-                                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                                                <div class="w-9 h-9 rounded-xl ${bgClass} border flex items-center justify-center shrink-0">
-                                                    <i class="${iconClass} text-sm"></i>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <p class="text-xs sm:text-sm font-bold text-black tracking-tight">${escapeHtml(m.title)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        // Released Materials HTML
-        let releasedHtml = '';
-        if (releasedList.length > 0) {
-            const groupedReleased = groupItemsByTopic(releasedList);
-            releasedHtml = `
-                <div class="border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden font-['Inter'] divide-y divide-black/10">
-                    ${groupedReleased.map(group => `
-                        <div class="topic-group-block">
-                            <div class="px-4 py-2 bg-black/[0.03] border-b border-black/10 flex items-center gap-2">
-                                <i class="fa-solid fa-book-bookmark text-xs text-[#15803d]"></i>
-                                <span class="text-xs font-bold text-black font-['Inter']">${escapeHtml(group.topicTitle)}</span>
-                            </div>
-                            <div class="divide-y divide-black/10">
-                                ${group.items.map(m => {
-                                    const isVid = m.type === 'Video';
-                                    const isHidden = releaseConfig.hiddenMaterialIds.map(String).includes(String(m.id));
-                                    const iconClass = isVid ? 'fa-solid fa-circle-play text-red-600' : 'fa-solid fa-file-lines text-blue-600';
-                                    const bgClass = isVid ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100';
-                                    const dateText = formatDateText(releaseConfig.materialReleaseDates[m.id]);
-                                    const matSchedule = releaseConfig.materialSchedules ? releaseConfig.materialSchedules[m.id] : null;
-                                    const isFuture = matSchedule && matSchedule !== 'now' && matSchedule !== 'immediate' && (!isNaN(new Date(matSchedule).getTime()) && new Date(matSchedule).getTime() > Date.now());
-                                    const relDateText = isFuture ? formatDateText(matSchedule) : dateText;
-
-                                    return `
-                                        <div class="p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between relative font-['Inter']">
-                                            <div class="flex items-start gap-3.5 min-w-0 flex-1">
-                                                <div class="w-9 h-9 rounded-xl ${bgClass} border flex items-center justify-center shrink-0">
-                                                    <i class="${iconClass} text-sm"></i>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="flex items-center gap-2 flex-wrap">
-                                                        <p class="text-xs sm:text-sm font-bold text-black tracking-tight">${escapeHtml(m.title)}</p>
-                                                        ${isHidden ? `
-                                                            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black shrink-0">
-                                                                <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                <span>Hidden</span>
-                                                            </div>
-                                                        ` : (isFuture ? `
-                                                            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black shrink-0">
-                                                                <i class="fa-solid fa-clock text-xs text-black"></i>
-                                                                <span>Scheduled</span>
-                                                            </div>
-                                                        ` : '')}
-                                                    </div>
-                                                    <p class="text-[10px] font-normal text-black-fade mt-0.5">${relDateText}</p>
-                                                </div>
-                                            </div>
-                                            <div class="shrink-0 ml-4 flex items-center gap-3">
-                                                <button type="button" id="released-learning-btn-${escapeHtml(String(m.id))}"
-                                                    onclick="window.toggleReleasedLearningMaterialMenu?.('${escapeHtml(String(m.id))}', '${escapeHtml(m.title)}', ${isHidden ? 'true' : 'false'}, event)"
-                                                    class="w-7 h-7 flex items-center justify-center text-black hover:text-[#FFD000] transition-colors cursor-pointer"
-                                                    title="Options">
-                                                    <i class="fa-solid fa-ellipsis-vertical text-base"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        } else {
-            const quarterLabel = (typeof window.getReleaseQuarterLabel === 'function') ? window.getReleaseQuarterLabel(activeQuarter) : '1st Quarter';
-            releasedHtml = `
-                <div class="sigma-empty-state-black-fade p-6 rounded-2xl border-2 border-dashed border-black/10 bg-black/[0.02] text-center font-['Inter']">
-                    <p class="empty-title text-xs font-semibold text-black/60 font-['Inter']" style="color: rgba(0,0,0,0.60);">No ${quarterLabel} Learning Materials Released Yet</p>
-                    <p class="empty-desc text-[11px] font-normal text-black-fade mt-0.5 font-['Inter']" style="color: rgba(0,0,0,0.45);">Click "Select Materials" to choose video lectures and lesson handouts to release for this section</p>
-                </div>
-            `;
-        }
-
-        let overlay = document.getElementById('teacher-release-learning-materials-overlay');
-        let isNew = false;
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'teacher-release-learning-materials-overlay';
-            overlay.className = 'curriculum-hub-overlay';
-            overlay.dataset._historyPushed = 'true';
-            overlay.onclick = function (e) {
-                window.closeAllReleasedTopicActionMenus?.();
-                e.stopPropagation();
-            };
-            isNew = true;
-        } else {
-            overlay.className = 'curriculum-hub-overlay';
-            overlay.classList.remove('hidden');
-            overlay.style.display = '';
-        }
-
-        if (isNew && !fromPicker && typeof window.pushModalHistoryState === 'function') {
-            window.pushModalHistoryState('teacher-release-learning-materials-overlay');
-        }
-
-        overlay.innerHTML = `
-            <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden" style="height: 740px; min-height: min(740px, calc(100vh - 40px)); max-height: calc(100vh - 40px); max-width: 860px;" onclick="window.closeAllReleasedTopicActionMenus?.(); event.stopPropagation()">
-                <!-- Header -->
-                <div class="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
-                    <div>
-                        <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">Release Learning Materials</h2>
-                        <p class="text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Manage learning materials visibility and release schedule for students</p>
-                    </div>
-                </div>
-
-                <!-- Main Content -->
-                <div class="p-6 sm:p-8 py-6 overflow-y-auto flex-1 space-y-6 font-['Inter']">
-                    <!-- Context Strip -->
-                    <div class="flex flex-wrap items-center gap-2 sm:gap-4 px-4 py-2.5 bg-black/[0.03] border border-black/10 rounded-xl text-xs font-['Inter'] font-medium text-black">
-                        <span><b>Section:</b> ${escapeHtml(sectionNameOnly)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>Grade:</b> ${escapeHtml(gradeLevel)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>Room:</b> ${escapeHtml(roomNumber)}</span>
-                        <span class="text-black/20">|</span>
-                        <span><b>SY:</b> ${escapeHtml(schoolYear)}</span>
-                    </div>
-
-                    <!-- Quarter Filter Tabs (Below Context Strip) -->
-                    <div class="flex items-center justify-start">
-                        ${window.renderReleaseQuarterToggleHtml?.(subjectId, activeQuarter)}
-                    </div>
-
-                    <!-- Released Learning Materials Section -->
-                    <div class="space-y-3 font-['Inter']">
-                        <div class="release-section-header-bar flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b-2 border-black transition-colors gap-1.5 sm:gap-3 w-full">
-                            <div class="flex items-center gap-2.5 min-w-0">
-                                <button type="button" onclick="window.openTeacherLearningMaterialsPickerModal?.()"
-                                    class="inline-flex items-center gap-2 text-sm sm:text-[17px] font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer font-['Inter'] tracking-tight text-left">
-                                    <i class="fa-solid fa-plus text-sm sm:text-base text-[#15803d] shrink-0"></i>
-                                    <span class="whitespace-nowrap">Select Materials</span>
-                                </button>
-                            </div>
-                            <p class="release-section-subtitle text-[11px] sm:text-xs font-normal text-left sm:text-right shrink-0" style="color: rgba(0,0,0,0.45);">Learning materials configured for release for this section</p>
-                        </div>
-                        ${releasedHtml}
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="px-6 sm:px-8 py-5 flex items-center justify-end gap-3 shrink-0 font-['Inter']">
-                    <button type="button" onclick="window.closeTeacherReleaseLearningMaterialsModal?.(false)"
-                        class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer font-['Inter']">
-                        Close
-                    </button>
-                </div>
-            </div>
-        `;
-
-        if (isNew) {
-            document.body.appendChild(overlay);
-        }
-        overlay.classList.remove('hidden');
-        overlay.style.display = '';
-        if (typeof window.lockBodyScroll === 'function') window.lockBodyScroll();
-        overlay.classList.add('curriculum-hub-overlay--visible');
+        document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+        window.openTeacherReleaseAssessmentsModal?.(fromPicker);
     };
 
     window.cancelTeacherReleaseLearningMaterialsDraft = function () {
@@ -8855,39 +8580,9 @@ window.initializeSharedCurriculumRelease = function () {
     };
 
     window.closeTeacherReleaseLearningMaterialsModal = function (returnToHub = false) {
-        window.closeAllReleasedTopicActionMenus?.();
         window._learningMaterialsReleaseDraftState = null;
-        const overlay = document.getElementById('teacher-release-learning-materials-overlay');
-        if (!overlay) {
-            window.closeManageCurriculumHub?.();
-            return;
-        }
-        overlay.classList.remove('curriculum-hub-overlay--visible');
-        overlay.remove();
-
-        const activeSubjId = (typeof resolveTeacherActiveSubjectId === 'function')
-            ? resolveTeacherActiveSubjectId(currentTopicState?.subjectId)
-            : (currentTopicState?.subjectId || 'card-prog1');
-
-        const hubOverlay = document.getElementById('curriculum-hub-overlay');
-        if (hubOverlay) hubOverlay.remove();
-        window.closeManageCurriculumHub?.();
-        document.querySelectorAll('#teacher-release-topics-overlay, #teacher-topic-picker-overlay, #teacher-topic-schedule-overlay, #teacher-release-learning-materials-overlay, #teacher-release-assessments-overlay, #teacher-release-category-overlay').forEach(el => el.remove());
-        if (typeof window.unlockBodyScroll === 'function') {
-            window.unlockBodyScroll();
-        } else {
-            document.documentElement.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
-            document.body.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
-        }
-
-        // Re-render topic view deferred without blocking modal dismissal
-        if (activeSubjId) {
-            setTimeout(() => {
-                refreshTeacherTopicUIIfVisible(activeSubjId);
-            }, 50);
-        }
-
-        window.flushTeacherReleaseToastQueue?.();
+        document.getElementById('teacher-release-learning-materials-overlay')?.remove();
+        window.closeTeacherReleaseAssessmentsModal?.(returnToHub);
     };
 
     window.toggleReleasedLearningMaterialMenu = function (matId, title, isHidden = false, e) {
@@ -9456,7 +9151,12 @@ window.initializeSharedCurriculumRelease = function () {
                 <!-- Header -->
                 <div class="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                     <div>
-                        <h2 class="text-lg sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Release Topics & Materials</h2>
+                        <div class="release-modal-heading">
+                            <button type="button" class="release-modal-back" aria-label="Close release topics and materials" onclick="window.closeTeacherReleaseAssessmentsModal?.(false)">
+                                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                            </button>
+                            <h2 class="text-lg sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Release Topics & Materials</h2>
+                        </div>
                         <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Manage topic, learning material, and assessment visibility and release schedule for students</p>
                     </div>
                 </div>
@@ -9498,7 +9198,7 @@ window.initializeSharedCurriculumRelease = function () {
                 <!-- Footer -->
                 <div class="px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-end gap-3 shrink-0 font-['Inter']">
                     <button type="button" onclick="window.closeTeacherReleaseAssessmentsModal?.(false)"
-                        class="sigma-btn sigma-btn-white h-9 sm:h-[46px] px-4 sm:px-6 text-xs sm:text-sm font-semibold sm:font-bold rounded-xl cursor-pointer font-['Inter']">
+                        class="release-modal-close sigma-btn sigma-btn-white h-9 sm:h-[46px] px-4 sm:px-6 text-xs sm:text-sm font-semibold sm:font-bold rounded-xl cursor-pointer font-['Inter']">
                         Close
                     </button>
                 </div>

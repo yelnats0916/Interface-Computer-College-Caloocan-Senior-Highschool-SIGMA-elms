@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mobile Portal Spacing Regression</title>
+    <link id="portal-css" rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/topbar.css">
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        header { background: white; }
+        .admin-topbar__inner { height: 48px; }
+        .mobile-header-subbar { display: none; }
+        #main-content { padding-top: 16px; }
+        .welcome-panel-container { background: white; }
+    </style>
+</head>
+<body>
+    <header id="teacher-header" class="admin-global-header">
+        <nav class="top-nav">S.Y. 2026-2027</nav>
+        <div class="admin-topbar__inner">Interface Computer College</div>
+        <div class="mobile-header-subbar">Icon Selection Panel</div>
+    </header>
+    <div id="layout-wrapper">
+        <main id="main-content">
+            <div id="content-sections"><section id="section-dashboard"><div class="dashboard-grid"><div class="home-sticky-rail"></div><div class="main-dashboard-column"><div class="welcome-panel-container"><div class="welcome-panel"><img src="../image/ICC Goals.jpeg" alt="Welcome to ICC"></div></div></div><div class="home-sticky-rail"></div></div></section></div>
+        </main>
+    </div>
+    <script>
+        if (new URLSearchParams(location.search).get('portal') === 'student') {
+            document.getElementById('teacher-header').id = 'student-header';
+            document.getElementById('portal-css').href = '../css/student.css';
+            document.getElementById('section-dashboard').id = 'section-home';
+        }
+    </script>
+</body>
+</html>

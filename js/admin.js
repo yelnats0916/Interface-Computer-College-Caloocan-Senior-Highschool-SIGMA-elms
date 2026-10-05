@@ -124,6 +124,12 @@ window.normalizeUserRole = normalizeUserRole;
         gender: "Female",
         branch: "Main Campus",
         department: "Senior High School - Faculty",
+        section: "Rizal",
+        sections: ["Rizal"],
+        assignedSections: ["Rizal"],
+        subject: "Computer Programming 1",
+        subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
+        assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
         createdAt: "2026-09-02T08:00:00+08:00",
         createdVia: "system-seed",
         permissions: { bio: true, achievements: true, subjects: true, sections: true, actionView: true, actionEdit: true }
@@ -363,7 +369,7 @@ window.normalizeUserRole = normalizeUserRole;
 
         if (!hasTeachers || !hasStudents) {
             const defaultTeachers = [
-                { id: "1111111", uid: "1111111", firstName: "Maria", middleName: "Santos", lastName: "Ramos", fullName: "Maria Santos Ramos", email: "maria.ramos@gmail.com", password: "ramos1111111", role: "Teacher", type: "Teacher", status: "Active", gender: "Female", branch: "Main Campus", department: "Senior High School - Faculty", createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
+                { id: "1111111", uid: "1111111", firstName: "Maria", middleName: "Santos", lastName: "Ramos", fullName: "Maria Santos Ramos", email: "maria.ramos@gmail.com", password: "ramos1111111", role: "Teacher", type: "Teacher", status: "Active", gender: "Female", branch: "Main Campus", department: "Senior High School - Faculty", section: "Rizal", sections: ["Rizal"], assignedSections: ["Rizal"], subject: "Computer Programming 1", subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"], assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"], createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
             ];
 
             const defaultStudents = [
@@ -1080,10 +1086,14 @@ function renderUserAccountsTable() {
                                     <i class="fa-solid fa-circle-user"></i>
                                     <span>View Profile</span>
                                 </button>
+                                <button onclick="window.resetUser2FA('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item">
+                                    <i class="fa-solid fa-qrcode"></i>
+                                    <span>Reset 2FA</span>
+                                </button>
                                 ${canLockThisUser && !isDeactivated ? `
-                                <button onclick="window.toggleUserLock('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item ${isLocked ? 'text-[#15803d]' : 'text-red-600'}">
-                                    <i class="fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'}"></i>
-                                    <span>${isLocked ? 'Unlock Account' : 'Lock Account'}</span>
+                                <button onclick="window.toggleUserLock('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item text-black">
+                                    <i class="fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'} text-black"></i>
+                                    <span class="text-black font-medium">${isLocked ? 'Unlock Account' : 'Lock Account'}</span>
                                 </button>
                                 ` : ''}
                             </div>
@@ -1871,20 +1881,37 @@ window.saveUserPermissions = function () {
 };
 
 window.toggleProfileSettingsMenu = function (event, forceClose = false) {
-    if (event) event.stopPropagation();
-    const menu = document.getElementById('profile-settings-menu');
+    if (event && event.stopPropagation) event.stopPropagation();
+    const modal = document.getElementById('profile-settings-modal') || document.getElementById('profile-settings-menu');
+    const box = document.getElementById('profile-settings-box');
     const btn = document.getElementById('profile-settings-btn');
-    if (!menu) return;
+    if (!modal) return;
 
-    if (forceClose) {
-        menu.classList.add('hidden');
+    if (forceClose || modal.classList.contains('opacity-100') || (!modal.classList.contains('hidden') && !modal.classList.contains('pointer-events-none'))) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.classList.remove('opacity-100');
+        if (box) {
+            box.classList.add('translate-y-6', 'scale-95');
+            box.classList.remove('translate-y-0', 'scale-100');
+        }
         if (btn) btn.classList.remove('active');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 250);
         return;
     }
 
-    const isHidden = menu.classList.contains('hidden');
-    menu.classList.toggle('hidden', !isHidden);
-    if (btn) btn.classList.toggle('active', !isHidden);
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+
+    modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+    modal.classList.add('opacity-100');
+    if (box) {
+        box.classList.remove('translate-y-6', 'scale-95');
+        box.classList.add('translate-y-0', 'scale-100');
+    }
+    if (btn) btn.classList.add('active');
 };
 
 window.showDeleteAccountModal1 = function () {
@@ -2053,6 +2080,93 @@ window.toggleUserLock = function (userId) {
         } else {
             executeToggle();
         }
+    }
+};
+
+window.resetUser2FA = function (userId) {
+    if (!userId) return;
+
+    // Close any open dropdown menus and settings popovers
+    document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));
+    const profileMenu = document.getElementById('profile-settings-menu');
+    if (profileMenu) profileMenu.classList.add('hidden');
+    const profileActionsMenu = document.getElementById('profile-actions-menu');
+    if (profileActionsMenu) profileActionsMenu.classList.add('hidden');
+    const profileBtn = document.getElementById('profile-settings-btn');
+    if (profileBtn) profileBtn.classList.remove('active');
+
+    const cleanId = String(userId).replace(/^#/, '').trim();
+    const users = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
+    const user = users.find(u => String(u.uid || u.id || '').replace(/^#/, '').trim() === cleanId);
+    const userName = user ? (user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || cleanId) : cleanId;
+
+    const executeReset2FA = async () => {
+        try {
+            if (user) {
+                user.totp_enabled = 0;
+                user.totp_secret = null;
+                if (typeof USER_STORAGE_KEY !== 'undefined') {
+                    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+                }
+            }
+            localStorage.removeItem('sigma-terms-accepted-' + cleanId);
+
+            let base = 'php/api/auth.php';
+            await fetch(base, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'disable_2fa', id: cleanId })
+            });
+
+            const successTitle = '2FA Reset Successfully';
+            const successDesc = `Google Authenticator 2FA has been reset for ${userName} (${cleanId}). They will be presented with a new QR barcode setup screen on their next login.`;
+
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: successTitle,
+                    desc: successDesc,
+                    icon: 'fa-solid fa-qrcode text-emerald-600',
+                    confirmText: 'OK',
+                    isNotification: true
+                });
+            } else if (typeof window.showUserConfirm === 'function') {
+                window.showUserConfirm(successTitle, successDesc, null, true);
+            } else {
+                alert(successDesc);
+            }
+        } catch (e) {
+            console.error('Reset 2FA error:', e);
+            if (typeof window.showSigmaDialog === 'function') {
+                window.showSigmaDialog({
+                    title: 'Reset Failed',
+                    desc: 'Unable to connect to the authentication server to reset 2FA.',
+                    icon: 'fa-solid fa-circle-exclamation text-red-500',
+                    confirmText: 'OK',
+                    isNotification: true
+                });
+            } else {
+                alert('Failed to reset 2FA.');
+            }
+        }
+    };
+
+    const confirmTitle = 'Reset Google Authenticator (2FA)';
+    const confirmDesc = `Are you sure you want to reset 2FA for ${userName} (${cleanId})? This will unbind their current Authenticator app and require them to scan a new QR barcode on their next login.`;
+
+    if (typeof window.showSigmaDialog === 'function') {
+        window.showSigmaDialog({
+            title: confirmTitle,
+            desc: confirmDesc,
+            icon: 'fa-solid fa-qrcode text-amber-500',
+            confirmText: 'Reset 2FA',
+            cancelText: 'Cancel',
+            isDanger: false,
+            onConfirm: executeReset2FA
+        });
+    } else if (typeof window.showUserConfirm === 'function') {
+        window.showUserConfirm(confirmTitle, confirmDesc, executeReset2FA);
+    } else if (confirm(confirmDesc)) {
+        executeReset2FA();
     }
 };
 
@@ -3385,6 +3499,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'nav-settings-security': 'settings-security-view',
         'nav-settings-branding': 'settings-branding-view',
         'nav-settings-integrations': 'settings-integrations-view',
+        'nav-settings-gdrive': 'settings-gdrive-view',
+        'nav-settings-recaptcha': 'settings-recaptcha-view',
         'nav-settings-preference': 'settings-branding-view',
         'nav-settings-storage': 'settings-integrations-view',
         'nav-settings-api': 'settings-integrations-view',
@@ -4064,6 +4180,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'settings-branding-view':
                 return perms.settingsMain !== false && perms.settingsBranding !== false;
             case 'settings-integrations-view':
+            case 'settings-gdrive-view':
+            case 'settings-recaptcha-view':
                 return perms.settingsMain !== false && perms.settingsApi !== false;
             case 'users-view':
                 return perms.manageAdmins !== false || perms.manageTeachers !== false || perms.manageStudents !== false;
@@ -4073,6 +4191,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.showSection = function (sectionId, navId) {
+        window.invalidateSigmaViewCaches?.();
+        if (sectionId !== 'settings-integrations-view' && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.showSection(sectionId, navId))) return;
         if (typeof window.canAccessAdminSection === 'function' && !window.canAccessAdminSection(sectionId)) {
             sectionId = 'dashboard-view';
             navId = 'nav-dashboard';
@@ -4108,19 +4228,61 @@ document.addEventListener('DOMContentLoaded', () => {
             // Save tab state for reloads
             sessionStorage.setItem('sigma-admin-active-tab', JSON.stringify({ sectionId, navId }));
 
-            // Reset page residue (clear search inputs and filters)
-            const inputs = targetSection.querySelectorAll('input:not([readonly])');
-            inputs.forEach(input => {
-                if (input.type === 'text' || input.type === 'search') input.value = '';
-            });
-            const selects = targetSection.querySelectorAll('select');
-            selects.forEach(select => select.selectedIndex = 0);
+            // Reset page residue (clear search inputs and filters) for non-settings pages
+            if (!sectionId.startsWith('settings-')) {
+                const inputs = targetSection.querySelectorAll('input:not([readonly])');
+                inputs.forEach(input => {
+                    if (input.type === 'text' || input.type === 'search') input.value = '';
+                });
+                const selects = targetSection.querySelectorAll('select');
+                selects.forEach(select => select.selectedIndex = 0);
+            }
 
             targetSection.classList.remove('hidden');
         }
 
         if (sectionId === 'user-profile-view' && typeof window.populateUserProfilePage === 'function') {
             window.populateUserProfilePage();
+        }
+
+        if (sectionId === 'settings-gdrive-view') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google Drive Cloud Storage');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google Drive Cloud Storage</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.loadGoogleDrivePageData === 'function') {
+                window.loadGoogleDrivePageData();
+            }
+        }
+
+        if (sectionId === 'settings-recaptcha-view') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.loadRecaptchaPageData === 'function') {
+                window.loadRecaptchaPageData();
+            }
         }
 
         if (sectionId === 'school-grades-view') {
@@ -4146,7 +4308,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-        if (sectionId === 'user-settings-view' || navId === 'account-settings' || navId === 'nav-account-settings') {
+        if (sectionId === 'settings-gdrive-view' || navId === 'nav-settings-gdrive') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google Drive Cloud Storage');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google Drive Cloud Storage</span>
+                        </div>
+                    `;
+                }
+            }
+        } else if (sectionId === 'settings-recaptcha-view' || navId === 'nav-settings-recaptcha') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                        </div>
+                    `;
+                }
+            }
+        } else if (sectionId === 'user-settings-view' || navId === 'account-settings' || navId === 'nav-account-settings') {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('Account Settings');
             }
@@ -4218,6 +4410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.switchTab = function (rawTabId, skipHashUpdate = false) {
         const tabId = String(rawTabId || '').replace(/^#/, '').replace(/_/g, '-');
+        if (!['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api'].includes(tabId) && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
         if (tabId && !tabId.includes('profile') && !tabId.includes('edit-user')) {
             window._lastActiveNavTab = tabId;
         }
@@ -4282,6 +4475,52 @@ document.addEventListener('DOMContentLoaded', () => {
             window.showSection('settings-integrations-view', 'nav-settings-integrations');
             if (typeof window.setupSettingsScrollSpy === 'function') window.setupSettingsScrollSpy('settings-integrations-view');
             if (!skipHashUpdate) window.location.hash = 'nav-settings-integrations';
+            return;
+        }
+        else if (tabId === 'nav-settings-gdrive' || tabId === 'settings-gdrive-view' || tabId === 'settings-gdrive' || tabId === 'nav-settings-gdrive-view') {
+            sectionId = 'settings-gdrive-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection('settings-gdrive-view', 'nav-settings-integrations');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google Drive Cloud Storage');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google Drive Cloud Storage</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.loadGoogleDrivePageData === 'function') window.loadGoogleDrivePageData();
+            if (!skipHashUpdate) window.location.hash = 'settings-gdrive-view';
+            return;
+        }
+        else if (tabId === 'nav-settings-recaptcha' || tabId === 'settings-recaptcha-view' || tabId === 'settings-recaptcha' || tabId === 'nav-settings-recaptcha-view') {
+            sectionId = 'settings-recaptcha-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection('settings-recaptcha-view', 'nav-settings-integrations');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.loadRecaptchaPageData === 'function') window.loadRecaptchaPageData();
+            if (!skipHashUpdate) window.location.hash = 'settings-recaptcha-view';
             return;
         }
         else sectionId = tabId.replace('nav-', '') + '-view';
@@ -13237,6 +13476,10 @@ window.syncAllSectionsWithUsers = function () {
                 const isUserStudent = String(u.role || u.type || '').toLowerCase().includes('stud') || storageKey.includes('student');
                 const isUserTeacher = String(u.role || u.type || '').toLowerCase().includes('teach') || String(u.role || u.type || '').toLowerCase().includes('adviser') || (!isUserStudent && !String(u.role || u.type || '').toLowerCase().includes('admin'));
 
+                const matchedSectionsList = [];
+                const matchedSubjectsList = [];
+                let primarySectionName = '';
+
                 allSections.forEach(sec => {
                     const secId = String(sec.id || '').trim();
                     const secName = String(sec.name || sec.sectionName || '').trim();
@@ -13244,8 +13487,13 @@ window.syncAllSectionsWithUsers = function () {
                     if (!secId && !secName) return;
 
                     if (isUserTeacher) {
-                        const secTeachers = getSafeList(sec.teachers)
-                            .concat(getSafeList(sec.assignedTeachers))
+                        let secTeachers = [];
+                        if (sec.teachers !== undefined && sec.teachers !== null) {
+                            secTeachers = getSafeList(sec.teachers);
+                        } else {
+                            secTeachers = getSafeList(sec.assignedTeachers);
+                        }
+                        secTeachers = secTeachers
                             .concat(getSafeList(sec.coTeachers))
                             .concat(getSafeList(sec.instructors));
 
@@ -13278,29 +13526,22 @@ window.syncAllSectionsWithUsers = function () {
                         });
 
                         if (isTeacherMatch) {
-                            if (!u.section || u.section === 'Unassigned') u.section = secName;
-                            if (!Array.isArray(u.assignedSections)) u.assignedSections = [];
-                            if (secId && !u.assignedSections.includes(secId)) u.assignedSections.push(secId);
-                            if (secName && !u.assignedSections.includes(secName)) u.assignedSections.push(secName);
-
-                            if (!Array.isArray(u.sections)) u.sections = [];
-                            if (secId && !u.sections.includes(secId)) u.sections.push(secId);
-                            if (secName && !u.sections.includes(secName)) u.sections.push(secName);
-
-                            if (secSubj) {
-                                if (!Array.isArray(u.assignedSubjects)) u.assignedSubjects = [];
-                                if (!u.assignedSubjects.includes(secSubj)) u.assignedSubjects.push(secSubj);
-                                if (!Array.isArray(u.subjects)) u.subjects = [];
-                                if (!u.subjects.includes(secSubj)) u.subjects.push(secSubj);
-                            }
-                            usersChanged = true;
+                            if (!primarySectionName) primarySectionName = secName;
+                            if (secId && !matchedSectionsList.includes(secId)) matchedSectionsList.push(secId);
+                            if (secName && !matchedSectionsList.includes(secName)) matchedSectionsList.push(secName);
+                            if (secSubj && !matchedSubjectsList.includes(secSubj)) matchedSubjectsList.push(secSubj);
                         }
                     }
 
                     if (isUserStudent) {
-                        const secStudents = getSafeList(sec.students)
-                            .concat(getSafeList(sec.enrolledStudents))
-                            .concat(getSafeList(sec.classmates));
+                        let secStudents = [];
+                        if (sec.students !== undefined && sec.students !== null) {
+                            secStudents = getSafeList(sec.students);
+                        } else {
+                            secStudents = getSafeList(sec.assignedStudents)
+                                .concat(getSafeList(sec.enrolledStudents));
+                        }
+                        secStudents = secStudents.concat(getSafeList(sec.classmates));
 
                         const isStudentMatch = secStudents.some(st => {
                             if (!st) return false;
@@ -13325,26 +13566,25 @@ window.syncAllSectionsWithUsers = function () {
                         });
 
                         if (isStudentMatch) {
-                            if (!Array.isArray(u.sections)) u.sections = [];
-                            if (secId && !u.sections.includes(secId)) u.sections.push(secId);
-                            if (secName && !u.sections.includes(secName)) u.sections.push(secName);
-
-                            if (!Array.isArray(u.assignedSections)) u.assignedSections = [];
-                            if (secId && !u.assignedSections.includes(secId)) u.assignedSections.push(secId);
-                            if (secName && !u.assignedSections.includes(secName)) u.assignedSections.push(secName);
-
-                            if (secSubj) {
-                                if (!Array.isArray(u.enrolledSubjects)) u.enrolledSubjects = [];
-                                if (!u.enrolledSubjects.includes(secSubj)) u.enrolledSubjects.push(secSubj);
-                                if (!Array.isArray(u.subjects)) u.subjects = [];
-                                if (!u.subjects.includes(secSubj)) u.subjects.push(secSubj);
-                                if (!Array.isArray(u.assignedSubjects)) u.assignedSubjects = [];
-                                if (!u.assignedSubjects.includes(secSubj)) u.assignedSubjects.push(secSubj);
-                            }
-                            usersChanged = true;
+                            if (!primarySectionName) primarySectionName = secName;
+                            if (secId && !matchedSectionsList.includes(secId)) matchedSectionsList.push(secId);
+                            if (secName && !matchedSectionsList.includes(secName)) matchedSectionsList.push(secName);
+                            if (secSubj && !matchedSubjectsList.includes(secSubj)) matchedSubjectsList.push(secSubj);
                         }
                     }
                 });
+
+                if (matchedSectionsList.length > 0) {
+                    u.sections = matchedSectionsList;
+                    u.assignedSections = matchedSectionsList;
+                    if (primarySectionName) u.section = primarySectionName;
+                    if (matchedSubjectsList.length > 0) {
+                        u.subjects = matchedSubjectsList;
+                        u.assignedSubjects = matchedSubjectsList;
+                        if (isUserStudent) u.enrolledSubjects = matchedSubjectsList;
+                    }
+                    usersChanged = true;
+                }
             });
 
             if (usersChanged) {
@@ -17282,6 +17522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Handle browser back/forward buttons and hash navigation
     function handleAdminRouteOrPopState(isPopState = false) {
+        if (window.guardMaterialLimitsHistory && !window.guardMaterialLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
         // If an active modal, form, or overlay is currently being closed via back navigation, let modal closer handle it
         if (typeof window.getSigmaActiveModalCloser === 'function' && window.getSigmaActiveModalCloser()) {
             return;
@@ -17410,18 +17651,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.sigmaGradesState.activeTab = targetTab;
             }
             window.switchTab('nav-school-grades', true);
-        } else if (hash.startsWith('nav-')) {
-            window.switchTab(hash, true);
+        } else if (hash === 'settings-gdrive-view' || hash === 'settings-gdrive' || hash === 'gdrive' || hash === 'google-drive') {
+            window.switchTab('nav-settings-gdrive', true);
+        } else if (hash === 'settings-recaptcha-view' || hash === 'settings-recaptcha' || hash === 'recaptcha') {
+            window.switchTab('nav-settings-recaptcha', true);
         } else if (hash === 'account-settings' || hash.startsWith('account-settings-') || hash === 'user-settings') {
             const tab = hash.replace('account-settings-', '').replace('account-settings', '').replace('user-settings', '') || 'notifications';
             if (typeof window.navigateToAccountSettings === 'function') {
                 window.navigateToAccountSettings(tab);
             }
         } else if (hash === 'settings' || hash.startsWith('settings-') || hash === 'system-settings') {
-            const tab = hash.replace('settings-', '').replace('settings', '') || 'security';
+            const tab = (hash === 'settings' || hash === 'system-settings') ? 'security' : hash.replace(/^settings-/, '');
             window.switchTab('nav-settings-' + (tab || 'security'), true);
         } else {
-            window.switchTab('nav-' + hash, true);
+            window.switchTab(hash.startsWith('nav-') ? hash : 'nav-' + hash, true);
         }
     }
 
@@ -17891,6 +18134,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MATERIAL LIMITS MANAGEMENT ---
     let _savedMaterialLimitsSnapshot = '';
+    let _materialLimitsDraftLocation = null;
+
+    window.materialLimitsAreDirty = function () {
+        return Boolean(_savedMaterialLimitsSnapshot && getMaterialLimitsFormSnapshot() !== _savedMaterialLimitsSnapshot);
+    };
+    window.discardMaterialLimitsDraft = function () {
+        if (!_savedMaterialLimitsSnapshot) return;
+        const saved = JSON.parse(_savedMaterialLimitsSnapshot);
+        const fields = { videoEmbed: 'limit-video-embed', videoMp4: 'limit-video-mp4', videoExt: 'limit-video-ext', docxStd: 'limit-docx-std', docxExt: 'limit-docx-ext', pdfStd: 'limit-pdf-std', pdfExt: 'limit-pdf-ext', pptxStd: 'limit-pptx-std', pptxExt: 'limit-pptx-ext' };
+        Object.entries(fields).forEach(([key, id]) => {
+            const input = document.getElementById(id);
+            if (input) input.value = saved[key];
+        });
+        window.updateMaterialLimitsButtonState();
+    };
+    window.confirmMaterialLimitsLeave = function (onLeave) {
+        if (!window.materialLimitsAreDirty()) return true;
+        window.openAskingPanel?.({
+            title: 'Unsaved Changes',
+            message: 'Your file limit changes have not been saved. Leave this page without saving?',
+            confirmText: 'Discard Changes',
+            cancelText: 'Keep Editing',
+            type: 'warning',
+            onConfirm: function () {
+                window.discardMaterialLimitsDraft();
+                onLeave?.();
+            }
+        });
+        return false;
+    };
+    window.guardMaterialLimitsHistory = function (resumeNavigation) {
+        if (!window.materialLimitsAreDirty() || !_materialLimitsDraftLocation || window.location.href === _materialLimitsDraftLocation.href) return true;
+        const destination = { href: window.location.href, state: window.history.state };
+        const hash = new URL(destination.href).hash.replace(/^#/, '');
+        if (['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api', 'settings-integrations'].includes(hash)) return true;
+        window.history.replaceState(_materialLimitsDraftLocation.state, '', _materialLimitsDraftLocation.href);
+        window.confirmMaterialLimitsLeave(function () {
+            window.history.replaceState(destination.state, '', destination.href);
+            resumeNavigation?.();
+        });
+        return false;
+    };
 
     function getMaterialLimitsFormSnapshot() {
         const getVal = (id) => document.getElementById(id)?.value?.trim() || '';
@@ -17912,13 +18197,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
         const currentSnapshot = getMaterialLimitsFormSnapshot();
         const isDirty = Boolean(_savedMaterialLimitsSnapshot && (currentSnapshot !== _savedMaterialLimitsSnapshot));
+        if (isDirty && !_materialLimitsDraftLocation) _materialLimitsDraftLocation = { href: window.location.href, state: window.history.state };
+        if (!isDirty) _materialLimitsDraftLocation = null;
+        const status = document.getElementById('limits-save-status');
+        if (status) status.textContent = isDirty ? 'Unsaved changes' : '';
         
         btn.disabled = !isDirty;
         const icon = btn.querySelector('i');
         const span = btn.querySelector('span');
         
         if (isDirty) {
-            // Unlocked State (Active Green)
+            // Unsaved changes enable the save action.
             btn.className = "flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer";
             if (icon) {
                 icon.className = "fa-solid fa-floppy-disk text-xs";
@@ -17927,10 +18216,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 span.textContent = "Save File Limits";
             }
         } else {
-            // Locked State (Muted Slate with Lock Icon)
+            // No changes to save.
             btn.className = "flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none";
             if (icon) {
-                icon.className = "fa-solid fa-lock text-xs";
+                icon.className = "fa-solid fa-floppy-disk text-xs";
             }
             if (span) {
                 span.textContent = "Save File Limits";
@@ -17939,7 +18228,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.saveMaterialLimits = function () {
-        const btn = document.getElementById('limits-save-btn') || event?.target?.closest('button') || document.querySelector('#integ-limits-panel button');
+        if (!window.materialLimitsAreDirty()) return;
+        for (const input of document.querySelectorAll('#integ-limits-panel input, #integ-limits-panel select')) {
+            if (!input.reportValidity()) return;
+        }
+        const btn = document.getElementById('limits-save-btn');
         if (btn) {
             btn.disabled = true;
             btn.className = "flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-500 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-wait transition-all shadow-none";
@@ -17997,15 +18290,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
-        localStorage.setItem('sigma_settings_video_max_mb', String(mp4Val + videoExt));
-
-        setTimeout(() => {
+        try {
+            localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
+            localStorage.setItem('sigma_settings_video_max_mb', String(mp4Val + videoExt));
             _savedMaterialLimitsSnapshot = getMaterialLimitsFormSnapshot();
             window.updateMaterialLimitsButtonState();
-            if (window.showToast) window.showToast('File upload limits updated and synced (Standard: 500 MB)');
-            else alert('File upload limits updated and synced (Standard: 500 MB)');
-        }, 800);
+            const status = document.getElementById('limits-save-status');
+            if (status) status.textContent = 'Saved successfully';
+        } catch (_) {
+            window.updateMaterialLimitsButtonState();
+            const status = document.getElementById('limits-save-status');
+            if (status) status.textContent = 'Could not save. Your changes are still unsaved.';
+        }
     };
 
     function initMaterialLimits() {
@@ -18121,6 +18417,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const saved = localStorage.getItem('sigma-api-keys');
         let keys = saved ? JSON.parse(saved) : {};
         keys[id] = keyInput.value;
+        if (id === 'recaptcha') {
+            keys.recaptcha_secret = document.getElementById('api-key-recaptcha-secret')?.value || '';
+            // Sync to backend auth.php
+            fetch('php/api/auth.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_recaptcha_config',
+                    site_key: keys[id],
+                    secret_key: keys.recaptcha_secret
+                })
+            }).catch(e => console.warn('Failed to sync reCAPTCHA to server:', e));
+        }
         localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
 
         if (keyField) keyField.classList.add('hidden');
@@ -18207,10 +18516,22 @@ document.addEventListener('DOMContentLoaded', () => {
             gemini: document.getElementById('api-key-gemini')?.value || '',
             groq: document.getElementById('api-key-groq')?.value || '',
             recaptcha: document.getElementById('api-key-recaptcha')?.value || '',
+            recaptcha_secret: document.getElementById('api-key-recaptcha-secret')?.value || '',
             drive: document.getElementById('api-key-drive')?.value || ''
         };
 
         localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
+
+        // Sync with backend API
+        fetch('php/api/auth.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_recaptcha_config',
+                site_key: keys.recaptcha,
+                secret_key: keys.recaptcha_secret
+            })
+        }).catch(e => console.warn('Failed to sync reCAPTCHA to server:', e));
 
         const btn = event.currentTarget;
         const originalText = btn.innerHTML;
@@ -18240,98 +18561,194 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('api-key-gemini')) document.getElementById('api-key-gemini').value = keys.gemini || '';
             if (document.getElementById('api-key-groq')) document.getElementById('api-key-groq').value = keys.groq || '';
             if (document.getElementById('api-key-recaptcha')) document.getElementById('api-key-recaptcha').value = keys.recaptcha || '';
+            if (document.getElementById('api-key-recaptcha-secret')) document.getElementById('api-key-recaptcha-secret').value = keys.recaptcha_secret || '';
             if (document.getElementById('api-key-drive')) document.getElementById('api-key-drive').value = keys.drive || '';
         }
+
+        // Also fetch from server
+        fetch('php/api/auth.php?action=recaptcha_config')
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.success) {
+                    if (data.site_key && document.getElementById('api-key-recaptcha') && !document.getElementById('api-key-recaptcha').value) {
+                        document.getElementById('api-key-recaptcha').value = data.site_key;
+                    }
+                }
+            })
+            .catch(() => {});
     }
     initApiVault();
 
-    // ─── GOOGLE DRIVE CLOUD STORAGE MANAGER ───────────────────────────────────────
-    window.openGoogleDriveManagerModal = async function () {
-        const modal = document.getElementById('gdrive-manager-modal');
-        if (!modal) return;
+    // ─── GOOGLE DRIVE CLOUD STORAGE PAGE VIEW & MANAGER ─────────────────────────
+    const resolveUploadApiUrl = () => {
+        if (window.location.protocol === 'file:') {
+            return 'http://localhost/sigma-elms/php/api/upload.php';
+        }
+        if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
+            return 'http://localhost/sigma-elms/php/api/upload.php';
+        }
+        return 'php/api/upload.php';
+    };
+    window.resolveUploadApiUrl = resolveUploadApiUrl;
 
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-
-        // Fetch current status from upload API
+    const setDriveConnectionStatus = (text, state = 'idle') => {
+        const el = document.getElementById('gdrive-page-connection-status');
+        if (el) { el.textContent = text; el.dataset.state = state; }
+    };
+    const resolveDriveFolderId = (value) => {
+        const text = String(value || '').trim();
+        if (!text.includes('://')) return text;
         try {
-            const res = await fetch('php/api/upload.php');
+            const url = new URL(text);
+            return url.hostname === 'drive.google.com' ? (url.pathname.match(/\/folders\/([^/]+)/)?.[1] || url.searchParams.get('id') || '') : '';
+        } catch (_) { return ''; }
+    };
+    window.updateGoogleDriveSaveState = function () {
+        const input = document.getElementById('gdrive-page-folder-input');
+        const button = document.getElementById('btn-save-gdrive-page-config');
+        if (input && button) button.disabled = input.readOnly || !input.value.trim() || input.value.trim() === (input.dataset.savedValue || '');
+    };
+    window.setGoogleDriveFolderEditing = function (editing) {
+        const input = document.getElementById('gdrive-page-folder-input');
+        if (!input) return;
+        input.readOnly = !editing;
+        if (!editing) input.value = input.dataset.savedValue || '';
+        document.getElementById('gdrive-page-folder-display')?.classList.toggle('hidden', editing);
+        document.getElementById('gdrive-page-folder-editor')?.classList.toggle('hidden', !editing);
+        document.getElementById('gdrive-page-edit-actions')?.classList.toggle('hidden', !editing);
+        const display = document.getElementById('gdrive-page-folder-link-text');
+        if (display) display.textContent = input.dataset.savedValue || 'Not configured';
+        window.updateGoogleDriveSaveState();
+        if (editing) input.focus();
+    };
+    document.getElementById('gdrive-page-folder-input')?.addEventListener('input', window.updateGoogleDriveSaveState);
+
+    window.loadGoogleDrivePageData = async function () {
+        setDriveConnectionStatus('Checking configuration...');
+        try {
+            const apiUrl = resolveUploadApiUrl();
+            const res = await fetch(apiUrl);
             if (res.ok) {
                 const data = await res.json();
                 if (data.google_drive) {
-                    const emailEl = document.getElementById('gdrive-modal-display-email');
-                    const folderEl = document.getElementById('gdrive-modal-folder-input');
-                    const linkEl = document.getElementById('gdrive-modal-open-folder-link');
-                    if (emailEl && data.google_drive.service_account_email) {
-                        emailEl.textContent = data.google_drive.service_account_email;
+                    const emailEl = document.getElementById('gdrive-page-display-email') || document.getElementById('gdrive-modal-display-email');
+                    const folderEl = document.getElementById('gdrive-page-folder-input') || document.getElementById('gdrive-modal-folder-input');
+                    const linkEl = document.getElementById('gdrive-page-open-folder-link') || document.getElementById('gdrive-modal-open-folder-link');
+                    const statusEl = document.getElementById('gdrive-page-key-status') || document.getElementById('gdrive-modal-key-status');
+                    const folderNameEl = document.getElementById('gdrive-page-display-folder-name') || document.getElementById('gdrive-modal-display-folder-name');
+
+                    const drive = data.google_drive;
+                    if (emailEl) emailEl.textContent = drive.service_account_email || 'Not configured';
+                    if (folderEl) {
+                        folderEl.value = drive.folder_url || drive.folder_id || '';
+                        folderEl.dataset.savedValue = folderEl.value.trim();
+                        window.setGoogleDriveFolderEditing(false);
+                        const editButton = document.getElementById('gdrive-page-edit-folder');
+                        if (editButton) editButton.disabled = false;
                     }
-                    if (folderEl && data.google_drive.folder_id) {
-                        folderEl.value = data.google_drive.folder_id;
+                    if (linkEl) {
+                        if (drive.folder_id) {
+                            linkEl.href = 'https://drive.google.com/drive/folders/' + encodeURIComponent(drive.folder_id);
+                            linkEl.removeAttribute('aria-disabled');
+                        } else {
+                            linkEl.removeAttribute('href');
+                            linkEl.setAttribute('aria-disabled', 'true');
+                        }
                     }
-                    if (linkEl && data.google_drive.folder_url) {
-                        linkEl.href = data.google_drive.folder_url;
-                    }
+                    if (folderNameEl) folderNameEl.textContent = drive.folder_name || (drive.folder_id ? 'Folder configured' : 'Not configured');
+                    if (statusEl) statusEl.textContent = drive.configured ? 'Credentials configured' : 'No credentials configured';
+                    setDriveConnectionStatus(drive.configured ? 'Not tested' : 'Not Connected');
+                    window.updateGoogleDriveSaveState();
+                    return;
                 }
             }
+            throw new Error('Configuration unavailable');
         } catch (e) {
+            setDriveConnectionStatus('Status unavailable', 'failed');
             console.warn('[SIGMA] Google Drive status query error:', e);
         }
     };
 
-    window.closeGoogleDriveManagerModal = function () {
-        const modal = document.getElementById('gdrive-manager-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-            document.body.style.overflow = '';
+    window.openGoogleDriveSettingsPage = function () {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-settings-gdrive');
+        } else if (typeof window.showSection === 'function') {
+            window.showSection('settings-gdrive-view', 'nav-settings-integrations');
+            window.location.hash = 'settings-gdrive-view';
+        } else {
+            document.querySelectorAll('.dynamic-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('settings-gdrive-view')?.classList.remove('hidden');
+            window.location.hash = 'settings-gdrive-view';
+        }
+        if (typeof window.loadGoogleDrivePageData === 'function') {
+            window.loadGoogleDrivePageData();
         }
     };
 
-    window.testGoogleDriveConnection = async function () {
-        const btn = document.getElementById('btn-test-gdrive');
-        const label = document.getElementById('btn-test-gdrive-label');
-        const feedback = document.getElementById('gdrive-test-feedback');
-        const folderInput = document.getElementById('gdrive-modal-folder-input');
+    window.backToIntegrationsSettings = function () {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-settings-integrations');
+        } else if (typeof window.showSection === 'function') {
+            window.showSection('settings-integrations-view', 'nav-settings-integrations');
+            window.location.hash = 'nav-settings-integrations';
+        } else {
+            document.querySelectorAll('.dynamic-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('settings-integrations-view')?.classList.remove('hidden');
+            window.location.hash = 'nav-settings-integrations';
+        }
+    };
+
+    window.testGoogleDriveConnectionPage = async function () {
+        const btn = document.getElementById('btn-page-test-gdrive') || document.getElementById('btn-test-gdrive');
+        const label = document.getElementById('btn-page-test-gdrive-label') || document.getElementById('btn-test-gdrive-label');
+        const feedback = document.getElementById('gdrive-page-test-feedback') || document.getElementById('gdrive-test-feedback');
+        const folderInput = document.getElementById('gdrive-page-folder-input') || document.getElementById('gdrive-modal-folder-input');
 
         if (btn) btn.disabled = true;
+        setDriveConnectionStatus('Testing...');
         if (label) label.textContent = 'Testing...';
         if (feedback) {
             feedback.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-red-100', 'text-red-800');
             feedback.classList.add('bg-slate-100', 'text-slate-700');
-            feedback.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Authenticating handshake with Google Drive API...';
+            feedback.textContent = 'Checking Google Drive connection...';
         }
 
         try {
-            const res = await fetch('php/api/upload.php', {
+            const apiUrl = resolveUploadApiUrl();
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'test_connection',
-                    folder_id: folderInput ? folderInput.value.trim() : ''
+                    folder_id: resolveDriveFolderId(folderInput?.value)
                 })
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => null);
 
-            if (data.success) {
+            if (res.ok && data && data.success) {
+                setDriveConnectionStatus('Connected', 'connected');
                 if (feedback) {
                     feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-red-100', 'text-red-800');
                     feedback.classList.add('bg-emerald-100', 'text-emerald-800');
-                    feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-1.5"></i> <strong>Live Handshake Verified!</strong> Folder: "${data.folder_name || 'SIGMA ELMS Storage'}" (${data.project_id})`;
+                    feedback.textContent = `Connection successful${data.folder_name ? ': ' + data.folder_name : '.'}`;
                 }
-                const folderNameEl = document.getElementById('gdrive-modal-display-folder-name');
+                const folderNameEl = document.getElementById('gdrive-page-display-folder-name') || document.getElementById('gdrive-modal-display-folder-name');
                 if (folderNameEl && data.folder_name) folderNameEl.textContent = data.folder_name;
                 if (window.showToast) window.showToast('Google Drive API Connection Verified');
             } else {
+                setDriveConnectionStatus('Connection Failed', 'failed');
                 if (feedback) {
                     feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-emerald-100', 'text-emerald-800');
                     feedback.classList.add('bg-red-100', 'text-red-800');
-                    feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i> ${data.error || 'Could not verify connection.'}`;
+                    feedback.textContent = data?.error || 'Could not verify Google Drive connection.';
                 }
             }
         } catch (e) {
+            setDriveConnectionStatus('Connection Failed', 'failed');
             if (feedback) {
                 feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-emerald-100', 'text-emerald-800');
                 feedback.classList.add('bg-red-100', 'text-red-800');
-                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i> Network error connecting to upload API.`;
+                feedback.textContent = 'Cannot reach the server. Check that the backend is running.';
             }
         } finally {
             if (btn) btn.disabled = false;
@@ -18339,9 +18756,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.saveGoogleDriveModalConfig = async function () {
-        const folderInput = document.getElementById('gdrive-modal-folder-input');
-        const saveBtn = document.getElementById('btn-save-gdrive-config');
+    window.saveGoogleDrivePageConfig = async function () {
+        const folderInput = document.getElementById('gdrive-page-folder-input') || document.getElementById('gdrive-modal-folder-input');
+        const saveBtn = document.getElementById('btn-save-gdrive-page-config') || document.getElementById('btn-save-gdrive-config');
         const folderVal = folderInput ? folderInput.value.trim() : '';
 
         if (saveBtn) {
@@ -18350,7 +18767,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch('php/api/upload.php', {
+            const apiUrl = resolveUploadApiUrl();
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -18358,33 +18776,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     folder_id: folderVal
                 })
             });
-            const data = await res.json();
-            if (data.success) {
-                const linkEl = document.getElementById('gdrive-modal-open-folder-link');
+            const data = await res.json().catch(() => null);
+            if (data && data.success) {
+                if (folderInput) folderInput.dataset.savedValue = folderVal;
+                window.setGoogleDriveFolderEditing(false);
+                setDriveConnectionStatus('Not tested');
+                const linkEl = document.getElementById('gdrive-page-open-folder-link') || document.getElementById('gdrive-modal-open-folder-link');
                 if (linkEl && data.folder_id) {
                     linkEl.href = 'https://drive.google.com/drive/folders/' + data.folder_id;
+                    linkEl.removeAttribute('aria-disabled');
                 }
                 if (window.showToast) window.showToast('Google Drive Settings Saved Successfully');
                 else alert('Google Drive Settings Saved Successfully');
-                window.closeGoogleDriveManagerModal();
             } else {
-                alert(data.error || 'Failed to save Google Drive configuration.');
+                alert(data?.error || 'Failed to save Google Drive configuration.');
             }
         } catch (e) {
-            alert('Failed to connect to backend upload API.');
+            alert('Failed to connect to backend upload API. Ensure Apache/PHP is running.');
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save Changes';
+                window.updateGoogleDriveSaveState();
             }
         }
     };
 
-    window.handleUploadGoogleDriveKeyFile = async function (event) {
+    window.handleUploadGoogleDriveKeyFilePage = async function (event) {
         const file = event.target?.files?.[0];
         if (!file) return;
 
-        const statusEl = document.getElementById('gdrive-modal-key-status');
+        const statusEl = document.getElementById('gdrive-page-key-status') || document.getElementById('gdrive-modal-key-status');
         if (statusEl) statusEl.textContent = `Uploading ${file.name}...`;
 
         const formData = new FormData();
@@ -18392,23 +18814,370 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('key_file', file);
 
         try {
-            const res = await fetch('php/api/upload.php', {
+            const apiUrl = resolveUploadApiUrl();
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData
             });
-            const data = await res.json();
-            if (data.success) {
-                if (statusEl) statusEl.textContent = `Active: ${file.name} (${data.email || 'Service Account'})`;
-                const emailEl = document.getElementById('gdrive-modal-display-email');
+            const data = await res.json().catch(() => null);
+            if (data && data.success) {
+                if (statusEl) statusEl.textContent = 'Credentials configured';
+                setDriveConnectionStatus('Not tested');
+                const emailEl = document.getElementById('gdrive-page-display-email') || document.getElementById('gdrive-modal-display-email');
                 if (emailEl && data.email) emailEl.textContent = data.email;
                 if (window.showToast) window.showToast('Service Account Key Updated Successfully');
             } else {
-                if (statusEl) statusEl.textContent = 'Upload failed: ' + (data.error || 'Invalid file');
-                alert(data.error || 'Failed to upload service account key.');
+                if (statusEl) statusEl.textContent = 'Upload failed: ' + (data?.error || 'Invalid file');
+                alert(data?.error || 'Failed to upload service account key.');
             }
         } catch (e) {
             if (statusEl) statusEl.textContent = 'Error connecting to upload API';
-            alert('Could not upload key file.');
+            alert('Could not upload key file. Ensure Apache/PHP is running.');
+        }
+    };
+
+    // Backward compatibility aliases
+    window.openGoogleDriveManagerModal = window.openGoogleDriveSettingsPage;
+    window.closeGoogleDriveManagerModal = window.backToIntegrationsSettings;
+    window.testGoogleDriveConnection = window.testGoogleDriveConnectionPage;
+    window.saveGoogleDriveModalConfig = window.saveGoogleDrivePageConfig;
+    window.handleUploadGoogleDriveKeyFile = window.handleUploadGoogleDriveKeyFilePage;
+
+    // ─── GOOGLE RECAPTCHA MANAGER & LIVE TEST MODAL ─────────────────────────
+    const resolveAuthApiUrl = (query = '') => {
+        let base = 'php/api/auth.php';
+        return query ? `${base}?${query}` : base;
+    };
+    window.resolveAuthApiUrl = resolveAuthApiUrl;
+
+    window.openRecaptchaSettingsPage = function () {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-settings-recaptcha');
+        } else if (typeof window.showSection === 'function') {
+            window.showSection('settings-recaptcha-view', 'nav-settings-integrations');
+            window.location.hash = 'settings-recaptcha-view';
+        } else {
+            document.querySelectorAll('.dynamic-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('settings-recaptcha-view')?.classList.remove('hidden');
+            window.location.hash = 'settings-recaptcha-view';
+        }
+        if (typeof window.loadRecaptchaPageData === 'function') {
+            window.loadRecaptchaPageData();
+        }
+    };
+
+    window.loadRecaptchaPageData = async function () {
+        const statusEl = document.getElementById('recaptcha-page-connection-status');
+        const siteKeyDisp = document.getElementById('recaptcha-page-display-site-key');
+        const secretDisp = document.getElementById('recaptcha-page-display-secret-status');
+        const modeDisp = document.getElementById('recaptcha-page-display-mode');
+        const siteKeyInput = document.getElementById('recaptcha-page-site-key-input');
+        const secretKeyInput = document.getElementById('recaptcha-page-secret-key-input');
+        const thresholdInput = document.getElementById('recaptcha-page-threshold-input');
+        const enabledToggle = document.getElementById('recaptcha-page-enabled-toggle');
+
+        if (statusEl) {
+            statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
+            statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Checking...</span>';
+        }
+
+        try {
+            const res = await fetch(resolveAuthApiUrl('action=recaptcha_config'));
+            const data = await res.json().catch(() => null);
+
+            if (data && data.success) {
+                if (siteKeyInput && data.site_key !== undefined) siteKeyInput.value = data.site_key;
+                if (thresholdInput && data.threshold !== undefined) thresholdInput.value = data.threshold;
+                if (enabledToggle && data.enabled !== undefined) enabledToggle.checked = !!data.enabled;
+
+                const hasSite = !!(data.site_key && data.site_key.trim());
+                const hasSecret = !!data.has_secret;
+
+                if (siteKeyDisp) {
+                    if (hasSite) {
+                        const raw = data.site_key.trim();
+                        siteKeyDisp.textContent = raw.length > 16 ? (raw.slice(0, 8) + '••••••••' + raw.slice(-4)) : raw;
+                    } else {
+                        siteKeyDisp.textContent = 'Not configured';
+                    }
+                }
+                if (secretDisp) {
+                    secretDisp.textContent = hasSecret ? 'Configured (Encrypted)' : 'Not configured';
+                }
+                if (modeDisp) {
+                    modeDisp.textContent = data.enabled ? 'Active (Enabled)' : 'Disabled';
+                    modeDisp.className = `text-xs font-bold ${data.enabled ? 'text-[#15803d]' : 'text-slate-400'}`;
+                }
+
+                if (statusEl) {
+                    if (hasSite && hasSecret) {
+                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#15803d] border border-emerald-200/60';
+                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#15803d]"></span><span>Configured & Ready</span>';
+                    } else if (hasSite || hasSecret) {
+                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60';
+                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Partially Configured</span>';
+                    } else {
+                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200';
+                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Not Configured</span>';
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[SIGMA] reCAPTCHA config fetch error:', e);
+            if (statusEl) {
+                statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/60';
+                statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Offline / Local Mode</span>';
+            }
+        }
+    };
+
+    window.saveRecaptchaPageSettings = async function () {
+        const siteKeyInput = document.getElementById('recaptcha-page-site-key-input');
+        const secretKeyInput = document.getElementById('recaptcha-page-secret-key-input');
+        const thresholdInput = document.getElementById('recaptcha-page-threshold-input');
+        const enabledToggle = document.getElementById('recaptcha-page-enabled-toggle');
+        const saveBtn1 = document.getElementById('btn-save-recaptcha-page-config');
+        const saveBtn2 = document.getElementById('btn-save-recaptcha-thresholds');
+
+        const payload = {
+            action: 'save_recaptcha_config',
+            site_key: siteKeyInput ? siteKeyInput.value.trim() : '',
+            threshold: thresholdInput ? parseInt(thresholdInput.value, 10) || 3 : 3,
+            enabled: enabledToggle ? enabledToggle.checked : true
+        };
+
+        if (secretKeyInput && secretKeyInput.value.trim() !== '') {
+            payload.secret_key = secretKeyInput.value.trim();
+        }
+
+        if (saveBtn1) { saveBtn1.disabled = true; saveBtn1.textContent = 'Saving...'; }
+        if (saveBtn2) { saveBtn2.disabled = true; saveBtn2.textContent = 'Saving...'; }
+
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => null);
+
+            if (data && data.success) {
+                const saved = localStorage.getItem('sigma-api-keys');
+                let keys = saved ? JSON.parse(saved) : {};
+                keys.recaptcha = payload.site_key;
+                if (payload.secret_key) keys.recaptcha_secret = payload.secret_key;
+                localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
+
+                if (secretKeyInput) secretKeyInput.value = '';
+                if (window.showToast) window.showToast('reCAPTCHA Settings Saved Successfully');
+                else alert('reCAPTCHA Settings Saved Successfully');
+
+                window.loadRecaptchaPageData();
+            } else {
+                alert(data?.error || 'Failed to save reCAPTCHA settings.');
+            }
+        } catch (e) {
+            console.error('Error saving reCAPTCHA settings:', e);
+            alert('Failed to connect to auth API. Ensure Apache/PHP is running.');
+        } finally {
+            if (saveBtn1) {
+                saveBtn1.disabled = false;
+                saveBtn1.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i><span>Save reCAPTCHA Settings</span>';
+            }
+            if (saveBtn2) {
+                saveBtn2.disabled = false;
+                saveBtn2.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i><span>Save Defense Thresholds</span>';
+            }
+        }
+    };
+
+    window.toggleRecaptchaSecretVisibility = function () {
+        const input = document.getElementById('recaptcha-page-secret-key-input');
+        const btn = document.getElementById('btn-toggle-recaptcha-secret');
+        if (!input || !btn) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = 'Hide Key';
+        } else {
+            input.type = 'password';
+            btn.textContent = 'Show Key';
+        }
+    };
+
+    // ─── RECAPTCHA TEST MODAL LOGIC ──────────────────────────────────────────
+    window._isRecaptchaTesting = false;
+
+    window.openRecaptchaTestModal = function () {
+        const modal = document.getElementById('recaptchaTestModal');
+        if (!modal) return;
+        window.resetRecaptchaTestModal();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeRecaptchaTestModal = function () {
+        const modal = document.getElementById('recaptchaTestModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    };
+
+    window.resetRecaptchaTestModal = function () {
+        window._isRecaptchaTesting = false;
+        const box = document.getElementById('recaptchaModalBox');
+        const checkbox = document.getElementById('recaptchaModalCheckbox');
+        const checkIcon = document.getElementById('recaptchaModalCheckIcon');
+        const spinner = document.getElementById('recaptchaModalSpinner');
+        const label = document.getElementById('recaptchaModalLabel');
+        const diag = document.getElementById('recaptchaModalDiagnostic');
+
+        if (box) {
+            box.className = 'w-full max-w-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl p-4 transition-all select-none cursor-pointer flex items-center justify-between';
+        }
+        if (checkbox) {
+            checkbox.className = 'w-7 h-7 rounded-lg border-2 border-slate-400 bg-white flex items-center justify-center transition-all';
+        }
+        if (checkIcon) checkIcon.classList.add('hidden');
+        if (spinner) spinner.classList.add('hidden');
+        if (label) {
+            label.textContent = "I'm not a robot";
+            label.className = 'text-xs font-bold text-black';
+        }
+        if (diag) {
+            diag.classList.add('hidden');
+            diag.className = 'hidden rounded-2xl p-4 text-xs font-mono border space-y-2';
+        }
+    };
+
+    window.runRecaptchaTestChallenge = async function () {
+        if (window._isRecaptchaTesting) return;
+
+        const box = document.getElementById('recaptchaModalBox');
+        const checkbox = document.getElementById('recaptchaModalCheckbox');
+        const checkIcon = document.getElementById('recaptchaModalCheckIcon');
+        const spinner = document.getElementById('recaptchaModalSpinner');
+        const label = document.getElementById('recaptchaModalLabel');
+        const diag = document.getElementById('recaptchaModalDiagnostic');
+        const diagTitle = document.getElementById('recaptchaDiagTitle');
+        const diagBadge = document.getElementById('recaptchaDiagBadge');
+        const diagDetails = document.getElementById('recaptchaDiagDetails');
+        const pageFeedback = document.getElementById('recaptcha-page-test-feedback');
+
+        window._isRecaptchaTesting = true;
+
+        if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-slate-400 bg-slate-50 flex items-center justify-center transition-all';
+        if (checkIcon) checkIcon.classList.add('hidden');
+        if (spinner) spinner.classList.remove('hidden');
+        if (label) label.textContent = 'Verifying challenge...';
+
+        const startTime = performance.now();
+        const testToken = 'SIGMA_TEST_RECAPTCHA_TOKEN_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
+
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'verify_recaptcha',
+                    token: testToken
+                })
+            });
+            const latency = Math.round(performance.now() - startTime);
+            const data = await res.json().catch(() => null);
+
+            if (spinner) spinner.classList.add('hidden');
+
+            if (res.ok && data && data.success) {
+                if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-[#15803d] bg-emerald-50 flex items-center justify-center transition-all';
+                if (checkIcon) checkIcon.classList.remove('hidden');
+                if (label) {
+                    label.textContent = 'Verification Complete';
+                    label.className = 'text-xs font-bold text-[#15803d]';
+                }
+                if (box) {
+                    box.className = 'w-full max-w-xs bg-emerald-50/40 border border-emerald-300 rounded-2xl p-4 transition-all select-none flex items-center justify-between';
+                }
+
+                if (diag) {
+                    diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-emerald-50/60 border-emerald-200 text-emerald-950 space-y-2 block';
+                    if (diagTitle) diagTitle.textContent = 'Server Handshake Verified';
+                    if (diagBadge) {
+                        diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-[#15803d] border border-emerald-300';
+                        diagBadge.textContent = 'PASSED (200 OK)';
+                    }
+                    if (diagDetails) {
+                        diagDetails.innerHTML = `
+                            <div><span class="text-slate-500 font-sans">Status:</span> Valid token validated by backend API</div>
+                            <div><span class="text-slate-500 font-sans">Handshake Latency:</span> ${latency}ms</div>
+                            <div><span class="text-slate-500 font-sans">Verification Score:</span> ${data.score !== undefined ? data.score : '1.0'}</div>
+                            <div><span class="text-slate-500 font-sans">Service Mode:</span> ${data.mode || 'Enterprise Bot Protection'}</div>
+                            <div><span class="text-slate-500 font-sans">Timestamp:</span> ${new Date().toLocaleTimeString()}</div>
+                        `;
+                    }
+                }
+
+                if (pageFeedback) {
+                    pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-emerald-50 text-[#15803d] border border-emerald-200/70 block';
+                    pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-sm"></i><span><strong>Live Test Passed:</strong> Handshake verified successfully (${latency}ms latency) at ${new Date().toLocaleTimeString()}.</span></div>`;
+                }
+                if (window.showToast) window.showToast('reCAPTCHA Verification Passed (200 OK)');
+            } else {
+                if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-rose-500 bg-rose-50 flex items-center justify-center transition-all';
+                if (label) {
+                    label.textContent = 'Verification Failed';
+                    label.className = 'text-xs font-bold text-rose-700';
+                }
+                if (box) {
+                    box.className = 'w-full max-w-xs bg-rose-50/40 border border-rose-300 rounded-2xl p-4 transition-all select-none flex items-center justify-between';
+                }
+
+                if (diag) {
+                    diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-rose-50/60 border-rose-200 text-rose-950 space-y-2 block';
+                    if (diagTitle) diagTitle.textContent = 'Verification Error';
+                    if (diagBadge) {
+                        diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300';
+                        diagBadge.textContent = 'FAILED';
+                    }
+                    if (diagDetails) {
+                        diagDetails.innerHTML = `
+                            <div><span class="text-rose-600 font-sans">Error:</span> ${data?.error || 'Validation failed on server'}</div>
+                            <div><span class="text-rose-600 font-sans">Response Latency:</span> ${latency}ms</div>
+                            <div><span class="text-rose-600 font-sans">Timestamp:</span> ${new Date().toLocaleTimeString()}</div>
+                        `;
+                    }
+                }
+
+                if (pageFeedback) {
+                    pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/70 block';
+                    pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-sm"></i><span><strong>Live Test Failed:</strong> ${data?.error || 'Challenge handshake failed'}.</span></div>`;
+                }
+            }
+        } catch (e) {
+            if (spinner) spinner.classList.add('hidden');
+            if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-rose-500 bg-rose-50 flex items-center justify-center transition-all';
+            if (label) {
+                label.textContent = 'Network / API Error';
+                label.className = 'text-xs font-bold text-rose-700';
+            }
+            if (diag) {
+                diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-rose-50/60 border-rose-200 text-rose-950 space-y-2 block';
+                if (diagTitle) diagTitle.textContent = 'Network Error';
+                if (diagBadge) {
+                    diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300';
+                    diagBadge.textContent = 'UNREACHABLE';
+                }
+                if (diagDetails) {
+                    diagDetails.innerHTML = `<div>Cannot reach auth API at ${resolveAuthApiUrl()}. Ensure Apache/PHP is running.</div>`;
+                }
+            }
+            if (pageFeedback) {
+                pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/70 block';
+                pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-sm"></i><span><strong>Network Error:</strong> Cannot reach backend auth API.</span></div>`;
+            }
+        } finally {
+            window._isRecaptchaTesting = false;
         }
     };
 

@@ -16,145 +16,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- CRITICAL INLINE STYLES: Prevents navbar shifting, FOUC, and image blowouts on initial page load -->
-    <style id="critical-navbar-style">
-        html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            min-height: 100vh !important;
-            overflow-x: hidden !important;
-        }
-
-        #mainNav {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            max-width: 100vw !important;
-            height: clamp(56px, 14vw, 64px) !important;
-            z-index: 9999 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            background-color: #ffffff !important;
-            border-bottom: 2px solid #15803d !important;
-            box-sizing: border-box !important;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
-            margin: 0 !important;
-            transform: none !important;
-        }
-
-        @media (min-width: 769px) {
-            #mainNav {
-                height: clamp(72px, 6.5vh, 92px) !important;
-                padding-left: clamp(1rem, 3.5vw, 2.5rem) !important;
-                padding-right: clamp(1rem, 3.5vw, 2.5rem) !important;
-                border-bottom: 1px solid #15803d !important;
-            }
-        }
-
-        #mainNav > div:first-child {
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.75rem !important;
-            height: 100% !important;
-            flex-shrink: 0 !important;
-        }
-
-        #backToLoginLogo {
-            display: flex !important;
-            align-items: center !important;
-            flex-shrink: 0 !important;
-            text-decoration: none !important;
-        }
-
-        #backToLoginLogo img,
-        #mainNav img {
-            width: 38px !important;
-            height: 38px !important;
-            max-width: 38px !important;
-            max-height: 38px !important;
-            object-fit: contain !important;
-            flex-shrink: 0 !important;
-            display: block !important;
-        }
-
-        @media (min-width: 769px) {
-            #backToLoginLogo img,
-            #mainNav img {
-                width: clamp(48px, min(6.5vw, 6vh), 68px) !important;
-                height: clamp(48px, min(6.5vw, 6vh), 68px) !important;
-                max-width: 68px !important;
-                max-height: 68px !important;
-            }
-        }
-
-        #navContextBox {
-            display: flex !important;
-            align-items: center !important;
-            gap: clamp(0.35rem, 1vw, 0.75rem) !important;
-            margin-left: clamp(0.35rem, 1.2vw, 0.85rem) !important;
-        }
-
-        #navContextBox > div {
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
-        }
-
-        #navTitle {
-            font-size: clamp(0.95rem, 3.2vw, 1.55rem) !important;
-            line-height: 1.2 !important;
-            font-weight: 700 !important;
-            color: #000000 !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-        }
-
-        #navSubtitle {
-            font-size: clamp(0.65rem, 2vw, 0.95rem) !important;
-            line-height: 1.2 !important;
-            font-weight: 500 !important;
-            color: rgba(0, 0, 0, 0.50) !important;
-            margin: 0 !important;
-            white-space: nowrap !important;
-        }
-
-        #mainNav > div:last-child {
-            display: flex !important;
-            align-items: center !important;
-            flex-shrink: 0 !important;
-        }
-
-        main {
-            margin-top: clamp(56px, 14vw, 64px) !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-
-        @media (min-width: 769px) {
-            main {
-                margin-top: clamp(72px, 6.5vh, 92px) !important;
-            }
-        }
-
-        #faq-help p.text-black,
-        #faq-help p.text-black strong,
-        #contact-support p.text-black,
-        #contact-support p.text-black strong {
-            color: #000000 !important;
-            -webkit-text-fill-color: #000000 !important;
-        }
-    </style>
+    <link rel="stylesheet" href="css/login-critical.css?v=20261004mobileNavbar2">
 
     <!-- CSS: Custom Stylesheet -->
-    <link rel="stylesheet" href="css/index.css?v=20261002navload1">
+    <link rel="stylesheet" href="css/index.css?v=20261004helpdesktop1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261004termsbtn1">
 
     <!-- TAILWIND: Compiled CSS (no CDN, no production warning) -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261002mobilesafearea1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261004helpdesktop1">
+    <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
 </head>
 
 <body class="flex flex-col bg-gray-50 overflow-x-hidden min-h-screen">
@@ -182,13 +53,13 @@
 
         <div class="flex items-center">
             <button id="helpCenterNavMenuBtn" type="button" aria-expanded="false" aria-label="Open help categories"
-                class="hidden xl:hidden w-10 h-10 rounded-xl bg-transparent text-gray-700 items-center justify-center transition-colors cursor-pointer outline-none shadow-none border-none hover:bg-gray-100">
+                class="hidden md:hidden w-10 h-10 rounded-xl bg-transparent text-gray-700 items-center justify-center transition-colors cursor-pointer outline-none shadow-none border-none hover:bg-gray-100">
                 <i class="fa-solid fa-bars text-xl pointer-events-none"></i>
             </button>
 
-            <!-- HELP CENTER BUTTON (Desktop XL Only) -->
+            <!-- HELP CENTER BUTTON -->
             <button id="entryHelpCenterBtn"
-                class="hidden xl:flex group self-stretch px-4 md:px-8 bg-white text-black font-bold items-center gap-3 transition-colors cursor-pointer outline-none shadow-none no-underline border-none">
+                class="flex group self-stretch px-4 md:px-8 bg-white text-black font-bold items-center gap-3 transition-colors cursor-pointer outline-none shadow-none no-underline border-none">
                 <i
                     class="fa-solid fa-circle-info text-2xl md:text-3xl icon-black-fade group-hover:text-icc-yellow transition-colors pointer-events-none"></i>
                 <span class="text-base md:text-xl font-bold">Help Center</span>
@@ -224,11 +95,19 @@
 
             <!-- LOGIN PANEL: Full-width on Tablet/Small Laptop, Side-by-side on XL Monitors -->
             <div
-                class="login-panel w-full lg:w-[35%] flex flex-col justify-center items-center px-6 md:px-10 py-8 lg:py-10 bg-white border-0 lg:border-l border-icc">
+                class="login-panel w-full lg:w-[35%] flex flex-col justify-center items-center px-6 md:px-10 py-8 lg:py-10 bg-white border-0 lg:border-l border-icc relative">
+                
+                <!-- TOP-LEFT GLOBAL BACK BUTTON (Visible only during 2FA screens) -->
+                <button type="button" id="landing2faGlobalBackBtn" onclick="window.backToLoginForm()"
+                    class="hidden absolute top-4 left-4 sm:top-6 sm:left-6 z-30 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-bold text-black hover:bg-gray-100 transition-colors cursor-pointer bg-transparent border-none">
+                    <i class="fa-solid fa-arrow-left text-sm text-black"></i>
+                    <span>Back to Login</span>
+                </button>
+
                 <div class="login-form-stack">
 
                     <!-- LOGIN LOGO -->
-                    <div class="login-form-logo-wrap flex flex-col items-center mb-8 lg:mb-12">
+                    <div id="landingLoginLogoWrap" class="login-form-logo-wrap flex flex-col items-center mb-8 lg:mb-12">
                         <img src="image/ICC logo.jpg" alt="ICC Logo" width="176" height="176" class="login-form-logo object-contain" style="width: 11rem; height: 11rem; max-width: 176px; max-height: 176px; object-fit: contain;">
                     </div>
 
@@ -323,6 +202,103 @@
                             </button>
                         </div>
                     </form>
+
+                    <!-- VIEW 2: 2FA RETURNING USER VERIFICATION (In-Place Step) -->
+                    <div id="landing2faVerifyView" class="hidden w-full mx-auto font-['Inter'] animate-in fade-in duration-300">
+                        <div class="flex flex-col items-center text-center mb-6">
+                            <div class="flex items-center justify-center gap-2 mb-1.5">
+                                <svg class="w-6 h-6 shrink-0" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <h3 class="text-xl font-bold text-black tracking-tight leading-none">Google Authenticator</h3>
+                            </div>
+                            <p class="text-xs text-black-fade font-medium leading-relaxed">
+                                Enter the 6-digit verification code from Google Authenticator on your phone.
+                            </p>
+                        </div>
+
+                        <form id="landing2faVerifyForm" class="space-y-4">
+                            <div>
+                                <input type="text" id="landing2faVerifyCodeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                                    placeholder=""
+                                    class="w-full text-center text-3xl font-mono font-black tracking-[0.4em] py-3.5 px-4 bg-white border border-gray-400 rounded-lg focus:outline-none focus:border-black transition-all text-gray-900">
+                                <div id="landing2faVerifyError" class="hidden text-red-600 text-sm mt-1 normal-case font-medium text-center">
+                                    Invalid 6-digit code. Please try again.
+                                </div>
+                            </div>
+
+                            <button type="submit" id="landing2faVerifySubmitBtn"
+                                class="sign-in-btn w-full py-3 text-white font-bold rounded-lg transition-all duration-300 text-base lg:text-sm flex items-center justify-center gap-2 mt-4 cursor-pointer">
+                                <span id="landing2faVerifySubmitLabel">Verify &amp; Log In</span>
+                                <i id="landing2faVerifySpinner" class="fa-solid fa-circle-notch fa-spin hidden"></i>
+                            </button>
+
+                            <div class="text-center pt-2">
+                                <button type="button" id="landing2faResetSelfBtn"
+                                    class="text-xs text-gray-500 hover:text-black font-semibold underline bg-transparent border-none cursor-pointer transition-colors p-1">
+                                    Lost code or deleted app? Reset 2FA
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- VIEW 3: 2FA FIRST-TIME SETUP WIZARD (In-Place Step) -->
+                    <div id="landing2faSetupView" class="hidden w-full mx-auto font-['Inter'] animate-in fade-in duration-300">
+                        <div class="flex flex-col items-center text-center mb-3">
+                            <div class="flex items-center justify-center gap-2 mb-1">
+                                <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                                </svg>
+                                <h3 class="text-lg font-bold text-black tracking-tight leading-none">Set Up Google Authenticator</h3>
+                            </div>
+                            <p class="text-[11px] text-black-fade font-medium leading-tight">
+                                Link Google Authenticator to protect your account.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3 flex flex-col items-center shadow-xs">
+                            <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm mb-2">
+                                <div id="landing2faSetupQrBox" class="w-32 h-32 flex items-center justify-center overflow-hidden">
+                                    <img id="landing2faSetupQrImg" src="" alt="2FA QR Code" class="w-32 h-32 object-contain">
+                                </div>
+                            </div>
+                            <p class="text-[11px] font-bold text-black mb-1.5 text-center leading-tight">Scan QR code using Google Authenticator</p>
+                            
+                            <!-- One single row for label and secret key -->
+                            <div class="flex items-center justify-center gap-2 flex-wrap text-xs">
+                                <span class="font-bold text-black-fade text-[11px]">Or enter key:</span>
+                                <div class="inline-flex items-center gap-1.5 bg-green-50 border border-green-300 hover:border-[#15803d] px-2.5 py-1 rounded-lg cursor-pointer transition-all shadow-xs group" id="landing2faCopyKeyBtn" title="Click to copy key">
+                                    <code id="landing2faSetupSecretText" class="font-mono text-xs font-black tracking-widest text-[#15803d] select-all"></code>
+                                    <i class="fa-regular fa-copy text-[#15803d] text-[11px] group-hover:scale-110 transition-transform" id="landing2faCopyIcon"></i>
+                                </div>
+                            </div>
+                            <span id="landing2faCopyFeedback" class="hidden text-[10px] font-bold text-[#15803d] mt-1">Copied to clipboard!</span>
+                        </div>
+
+                        <form id="landing2faSetupForm" class="space-y-2.5">
+                            <div>
+                                <label for="landing2faSetupCodeInput" class="block text-[11px] font-bold text-black mb-1 text-left">Enter 6-Digit Code from Google Authenticator</label>
+                                <input type="text" id="landing2faSetupCodeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                                    placeholder=""
+                                    class="w-full text-center text-2xl font-mono font-black tracking-[0.35em] py-2 px-3 bg-white border border-gray-400 rounded-lg focus:outline-none focus:border-black transition-all text-gray-900">
+                                <div id="landing2faSetupError" class="hidden text-red-600 text-sm mt-1 normal-case font-medium text-center">
+                                    Invalid 6-digit code. Please try again.
+                                </div>
+                            </div>
+
+                            <button type="submit" id="landing2faSetupSubmitBtn"
+                                class="sign-in-btn w-full py-2.5 text-white font-bold rounded-lg transition-all duration-300 text-sm flex items-center justify-center gap-2 cursor-pointer">
+                                <span id="landing2faSetupSubmitLabel">Verify &amp; Log In</span>
+                                <i id="landing2faSetupSpinner" class="fa-solid fa-circle-notch fa-spin hidden"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
 
@@ -332,10 +308,10 @@
 
         <!-- INTEGRATED HELP CENTER VIEW -->
         <div id="helpCenterView"
-            class="hidden w-full min-h-[calc(100vh_-_82px)] bg-gray-100 flex flex-col xl:flex-row transition-opacity duration-300 opacity-0">
+            class="hidden w-full min-h-[calc(100vh_-_82px)] bg-gray-100 flex flex-col md:flex-row transition-opacity duration-300 opacity-0">
             <!-- Sidebar -->
-            <aside
-                class="hidden xl:block w-[400px] shrink-0 bg-white border-r border-gray-200 p-8 pl-[8%] pr-10">
+            <aside id="helpCategoriesSidebar"
+                class="hidden md:block w-72 lg:w-80 xl:w-[380px] shrink-0 bg-white border-r border-gray-200 p-6 lg:p-8 pl-[4%] lg:pl-[6%] pr-6 lg:pr-8">
                 <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Help Categories</h2>
                 <nav id="helpCategoriesDesktop" class="flex flex-col gap-2"></nav>
             </aside>
@@ -366,9 +342,17 @@
                                 <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account inactive?</h3>
                                 <p class="text-black leading-relaxed text-sm font-medium">Accounts may be set to inactive if there are pending enrollment issues, unconfirmed subject loads, or if the account has not been enrolled for consecutive semesters. To reactivate your account, please coordinate with the Registrar's Office to confirm your enrollment status.</p>
                             </div>
-                            <div>
+                            <div class="pb-6 border-b border-slate-100">
                                 <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">Why is my account locked, and how do I unlock it?</h3>
                                 <p class="text-black leading-relaxed text-sm font-medium">Accounts are automatically locked after multiple consecutive failed password attempts to safeguard your account against unauthorized access. If your login displays <strong>"The account is locked,"</strong> please visit the Admin Office or ICT Department with your valid school ID to verify your identity and have an administrator unlock your account.</p>
+                            </div>
+                            <div class="pb-6 border-b border-slate-100">
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What is Google Authenticator (2FA) and how do I use it?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">Google Authenticator provides an extra layer of two-factor authentication (2FA) security to protect your student or faculty account. On your first login, you will be prompted to scan a QR barcode with the Google Authenticator app on your smartphone. On all subsequent logins, simply open the app and enter the 6-digit verification code.</p>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-black mb-2 font-['Inter']">What should I do if I lost my phone, deleted the app, or my 2FA code is not working?</h3>
+                                <p class="text-black leading-relaxed text-sm font-medium">If you deleted the app or got a new phone while online, you can click <span class="font-bold underline">"Lost code or deleted app? Reset 2FA"</span> directly on the 2FA verification screen to immediately generate a fresh QR barcode. If you are offline or need assistance, please visit the Admin Office or ICT Department with your valid school ID to have an administrator reset your 2FA.</p>
                             </div>
                         </div>
                     </div>
@@ -406,18 +390,22 @@
         <footer class="bg-[#15803d] text-white flex flex-col lg:flex-row w-full mt-auto">
             <!-- Left Side (Full width on mobile, 65% on desktop) -->
             <div
-                class="w-full lg:w-[65%] flex flex-col items-start justify-end py-3 px-8 border-b lg:border-b-0 border-white/10">
-                <div class="flex flex-wrap justify-start gap-3 mb-1 text-white text-sm font-light">
+                class="w-full lg:w-[65%] flex flex-col items-start justify-end py-2.5 px-4 sm:px-8 border-b lg:border-b-0 border-white/10">
+                <div class="footer-links flex flex-wrap justify-start items-center gap-2 sm:gap-2.5 mb-1 text-white text-xs font-light">
                     <a href="https://home1.interface.edu.ph/index.php/home/about-interface" id="footerAboutLink"
                         class="hover:text-icc-yellow transition-colors">About</a>
-                    <span class="text-white/40 px-1 opacity-70">|</span>
+                    <span class="text-white/40 px-0.5 opacity-70">|</span>
                     <a href="https://home1.interface.edu.ph/index.php/contact-us"
                         class="hover:text-icc-yellow transition-colors">Contact Us</a>
-                    <span class="text-white/40 px-1 opacity-70">|</span>
+                    <span class="text-white/40 px-0.5 opacity-70">|</span>
                     <a href="https://home1.interface.edu.ph/index.php/home/college-privacy-policy"
                         class="hover:text-icc-yellow transition-colors">Privacy Policy</a>
-                    <span class="text-white/40 px-1 opacity-70 lg:hidden text-[10px] self-center">|</span>
-                    <div class="flex gap-2 lg:hidden">
+                    <span class="text-white/40 px-0.5 opacity-70">|</span>
+                    <a href="terms.html" class="hover:text-icc-yellow transition-colors">Terms of Use</a>
+                    <span class="text-white/40 px-0.5 opacity-70">|</span>
+                    <a href="privacy.html" class="hover:text-icc-yellow transition-colors">Privacy Notice</a>
+                    <span class="text-white/40 px-0.5 opacity-70 lg:hidden text-[9px] self-center">|</span>
+                    <div class="flex items-center gap-2 lg:hidden">
                         <a href="https://www.facebook.com/pages/Interface-Computer-College-Caloocan/102080169834167/" target="_blank"
                             class="hover:text-icc-yellow transition-colors">Facebook</a>
                         <span class="text-white/40 opacity-70">|</span>
@@ -425,7 +413,7 @@
                             class="hover:text-icc-yellow transition-colors">Instagram</a>
                     </div>
                 </div>
-                <div class="text-center text-[10px] text-white/80 uppercase tracking-widest mt-1">
+                <div class="footer-copyright text-left sm:text-center text-[9px] sm:text-[10px] text-white/80 uppercase tracking-widest mt-0.5">
                     &copy; 2026 Interface Computer College ELMS. All Rights Reserved.
                 </div>
             </div>
@@ -567,15 +555,206 @@
             </form>
         </div>
     </div>
-
-    <!-- REMOVED: HELP CENTER MODAL (Now integrated as a view) -->
-
     <!-- =============================================================
-         SCRIPTS: Main JavaScript
+         MODAL: First-Time Login Terms of Use & Privacy Agreement
          ============================================================= -->
-    <script src="js/shared-components.js?v=20261004modalBackdropLayer1"></script>
+    <div id="termsAgreementModal"
+        class="fixed inset-0 z-[999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-6 lg:p-8 font-['Inter'] opacity-0 pointer-events-none transition-opacity duration-300">
+        <div id="termsAgreementBox"
+            class="bg-white w-full max-w-[760px] h-[660px] max-h-[92vh] rounded-[20px] sm:rounded-[28px] shadow-2xl border border-black/10 flex flex-col overflow-hidden translate-y-8 transition-transform duration-300">
+            
+            <!-- Modal Header -->
+            <div class="modal-header-terms px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div class="flex items-center gap-2.5 sm:gap-3">
+                    <img src="image/ICC logo.jpg" alt="ICC Logo" class="w-8 h-8 sm:w-11 sm:h-11 object-contain shrink-0">
+                    <div>
+                        <h2 class="text-sm sm:text-xl font-bold text-black tracking-tight leading-tight">Terms of Use &amp; Privacy Agreement</h2>
+                        <p class="text-[10.5px] sm:text-xs font-normal text-black-fade mt-0.5">Mandatory institutional onboarding agreement for SIGMA ELMS</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold shrink-0">
+                    <i class="fa-solid fa-shield-halved text-[10px] sm:text-xs"></i>
+                    <span>Compliance</span>
+                </div>
+            </div>
+
+            <!-- Modal Body (Comprehensive Scrollable Policy Document) -->
+            <div id="termsAgreementBody" class="p-3.5 sm:p-8 overflow-y-auto space-y-3.5 sm:space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed custom-scrollbar flex-1 bg-slate-50/50">
+                <div class="terms-welcome-notice p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] sm:text-xs flex items-start gap-2.5 sm:gap-3 shrink-0">
+                    <i class="fa-solid fa-circle-info text-amber-600 text-xs sm:text-sm mt-0.5 shrink-0"></i>
+                    <div>
+                        <p class="font-bold">Welcome to Interface Computer College ELMS</p>
+                        <p class="mt-0.5 text-amber-800">Please read and review all 10 institutional policy sections below. You must scroll to the bottom of this document before you can unlock and check the agreement box.</p>
+                    </div>
+                </div>
+
+                <div class="terms-sections-card space-y-3.5 sm:space-y-4 bg-white p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-gray-200">
+                    <!-- Section 1 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">1</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Academic Integrity &amp; Authentic Authorship</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">All submitted assignments, laboratory exercises, research papers, quizzes, and examination answers must strictly represent your own original, authentic intellectual work. Plagiarism in any form, unauthorized collaboration during individual assessments, purchasing or copying academic deliverables, and submitting fraudulent records are grave offenses subject to disciplinary action under the ICC Senior High School Student Handbook.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 2 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">2</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Responsible AI &amp; Generative Technology Guidelines</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Integrated artificial intelligence tools and tutoring assistants are provided exclusively for conceptual comprehension, exploratory learning, and study guidance. Submitting AI-generated text, solutions, or code without faculty authorization and explicit attribution is prohibited. Course faculty retain full authority to require manual defense, proctored verification, or authentic revisions of any submitted assessment.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 3 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">3</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Account Security &amp; Google Authenticator (2FA)</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Your portal account, institutional Login ID, password, and Google Authenticator Two-Factor Authentication (2FA) security keys are strictly personal and non-transferable. You are accountable for all activities conducted under your credentials. Sharing account credentials, logging into another user's workstation, or attempting to bypass security authentication constitutes an institutional violation.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 4 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">4</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Data Privacy Act Compliance (Republic Act No. 10173)</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Interface Computer College collects, processes, and protects your educational records, attendance logs, assessment submissions, and gradebook data in strict adherence to the Data Privacy Act of 2012. Information stored within SIGMA ELMS is processed solely for legitimate academic administration, curriculum tracking, and Department of Education (DepEd) compliance, protected by organizational and technical safeguards.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 5 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">5</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Acceptable IT Infrastructure &amp; Network Utilization</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Users must not perform automated vulnerability scanning, reverse engineering, unauthorized database querying, network denial of service, script injection, or system tampering against the SIGMA ELMS servers. All portal interactions are logged in institutional audit trails for accountability and forensic integrity.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 6 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">6</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Intellectual Property &amp; Courseware Distribution Rights</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">All learning materials, presentations, curriculum modules, assessment questionnaires, and digital assets published on SIGMA ELMS remain the proprietary intellectual property of Interface Computer College and respective instructors. Unauthorized reproduction, public distribution, or commercial reposting of institutional materials outside the portal is strictly forbidden.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 7 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">7</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Digital Code of Conduct &amp; Online Classroom Etiquette</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">All communications across SIGMA ELMS discussion boards, submissions, notifications, and portal feedback channels must uphold the highest standards of mutual respect and civility. Harassment, abusive language, discrimination, disruption of online sessions, or posting defamatory material will result in immediate portal sanctions and referral to the Office of Student Affairs.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 8 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">8</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Continuous System Audit Trails &amp; Activity Telemetry</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">The SIGMA ELMS platform automatically records system activity logs, including login timestamps, IP addresses, device identifiers, session lifecycles, assessment submission events, and security access attempts. These audit logs serve as objective verification data for academic verification, grading dispute resolution, and regulatory accreditation.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 9 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">9</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Device Security &amp; Public Workstation Logout</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">When accessing SIGMA ELMS from computer laboratories, shared family devices, or public computer terminals, users are strictly required to explicitly log out after finishing their session. Leaving active portal sessions unattended on shared workstations compromises student privacy and creates vulnerability to unauthorized profile manipulation.</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-100">
+
+                    <!-- Section 10 -->
+                    <div class="terms-section-item flex items-start gap-2.5 sm:gap-3.5">
+                        <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">10</div>
+                        <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                            <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Disciplinary Sanctions, Account Revocation &amp; Appeals</h4>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Violations of institutional policies, academic misconduct, or unauthorized system exploitation may lead to temporary account suspension, assessment nullification, disciplinary probation, or permanent revocation of ELMS portal access. Sanctioned users may file a written appeal through the ICC Academic Review Committee pursuant to student handbook due process.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs pt-1 sm:pt-2 px-1">
+                    <span class="text-slate-500">Read complete policy documentation:</span>
+                    <div class="flex items-center gap-3 font-bold">
+                        <a href="terms.html" target="_blank" class="text-[#15803d] hover:text-[#166534] underline inline-flex items-center gap-1">
+                            <span>Full Terms of Use</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                        <span class="text-slate-300">|</span>
+                        <a href="privacy.html" target="_blank" class="text-[#15803d] hover:text-[#166534] underline inline-flex items-center gap-1">
+                            <span>Full Privacy Notice</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer / Actions -->
+            <div class="modal-footer-terms px-3.5 py-3 sm:px-8 sm:py-5 bg-white border-t border-slate-100 flex flex-col gap-2.5 sm:gap-3.5 shrink-0 font-['Inter']">
+                <!-- Scroll Notice Indicator -->
+                <div id="termsScrollNotice" class="text-[10.5px] sm:text-xs text-amber-700 bg-amber-50/90 border border-amber-200/80 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl flex items-center gap-2 font-medium shrink-0">
+                    <i class="fa-solid fa-angles-down text-amber-600 animate-bounce text-xs"></i>
+                    <span>Please scroll to the bottom of the terms to unlock the agreement checkbox.</span>
+                </div>
+
+                <!-- Agreement Checkbox -->
+                <div class="flex flex-col gap-1">
+                    <label id="termsAgreementCheckboxLabel" class="flex items-start gap-2 select-none opacity-50 cursor-not-allowed transition-opacity">
+                        <input type="checkbox" id="termsAgreementCheckbox" disabled class="w-4 h-4 mt-0.5 accent-[#15803d] rounded cursor-not-allowed shrink-0">
+                        <span class="text-[11.5px] sm:text-sm font-semibold text-slate-800 leading-snug">
+                            I have read, understood, and agree to the <span class="text-black font-bold">Terms of Use</span> and <span class="text-black font-bold">Privacy Notice</span>.
+                        </span>
+                    </label>
+                    <div id="termsAgreementError" class="hidden text-[11px] sm:text-xs text-rose-600 font-bold text-left ml-6">
+                        Please check the agreement box before proceeding.
+                    </div>
+                </div>
+
+                <!-- Footer Action Buttons (Normal Dimensions matching Release Panel, Auto-scale on Mobile) -->
+                <div class="modal-footer-actions flex items-center justify-between gap-2 sm:gap-3 pt-0.5 sm:pt-1 w-full">
+                    <button type="button" id="termsAgreementDeclineBtn"
+                        class="sigma-btn sigma-btn-white flex-1 sm:flex-initial h-9 sm:h-[42px] px-3 sm:px-6 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-black font-semibold text-[11.5px] sm:text-sm transition-all cursor-pointer inline-flex items-center justify-center text-center">
+                        <span class="truncate">Decline &amp; Logout</span>
+                    </button>
+                    <button type="button" id="termsAgreementAcceptBtn"
+                        class="sigma-btn sigma-btn-primary flex-1 sm:flex-initial h-9 sm:h-[42px] px-3 sm:px-7 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white font-semibold text-[11.5px] sm:text-sm shadow-xs transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 sm:gap-2 text-center">
+                        <span id="termsAgreementAcceptText" class="truncate">Accept &amp; Enter Portal</span>
+                        <i id="termsAgreementAcceptSpinner" class="fa-solid fa-circle-notch fa-spin hidden"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script src="js/shared-components.js?v=20261005teacherFix2"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
-    <script src="js/index.js?v=20261002navload1"></script>
+    <script src="js/qrcode.min.js?v=20261004qr1"></script>
+    <script src="js/index.js?v=20261005teacherFix2"></script>
 </body>
 
 </html>

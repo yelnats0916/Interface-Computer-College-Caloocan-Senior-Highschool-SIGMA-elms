@@ -1903,6 +1903,69 @@ table tbody tr:last-child td,
     }
 }
 
+/* Quiz launch is a focused decision; give it a normal desktop dialog without changing mobile. */
+@media (min-width: 769px) {
+    #sigma-universal-ask-overlay #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start {
+        width: min(calc(100vw - 64px), 500px) !important;
+        max-width: 500px !important;
+        padding: 30px 32px 28px !important;
+    }
+
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-icon-wrap {
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        min-height: 56px;
+        margin-bottom: 14px;
+    }
+
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-title {
+        font-size: 21px !important;
+        margin-bottom: 9px !important;
+    }
+
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-desc {
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+        margin-bottom: 20px !important;
+        padding: 0 8px !important;
+    }
+
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-actions {
+        gap: 12px !important;
+        margin-top: 20px !important;
+    }
+
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-cancel-btn,
+    #sigma-universal-ask-card.sigma-universal-ask-card--quiz-start #sigma-ask-proceed-btn {
+        height: 46px !important;
+        min-height: 46px !important;
+        max-height: 46px !important;
+        border-radius: 12px !important;
+        font-size: 14px !important;
+        line-height: 46px !important;
+    }
+}
+
+#sigma-universal-ask-overlay {
+    overflow-y: auto !important;
+}
+
+#sigma-universal-ask-overlay #sigma-universal-ask-card {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex-shrink: 0;
+    overflow: visible !important;
+}
+
+#sigma-universal-ask-overlay #sigma-ask-cancel-btn,
+#sigma-universal-ask-overlay #sigma-ask-proceed-btn {
+    line-height: 1.25 !important;
+    white-space: normal;
+    min-width: 0;
+}
+
 .sigma-dialog-close-btn {
     position: absolute;
     top: 12px;

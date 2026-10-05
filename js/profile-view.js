@@ -388,12 +388,19 @@
             middleName: "Santos",
             lastName: "Ramos",
             fullName: "Maria Santos Ramos",
+            name: "Maria Santos Ramos",
             email: "maria.ramos@gmail.com",
             role: "Teacher",
             type: "Teacher",
             gender: "Female",
             status: "Active",
-            department: "Senior High School - Faculty"
+            department: "Senior High School - Faculty",
+            section: "Rizal",
+            sections: ["Rizal"],
+            assignedSections: ["Rizal"],
+            subject: "Computer Programming 1",
+            subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
+            assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"]
         };
     }
 
@@ -489,7 +496,9 @@
         const defaultRole = portal === 'teacher' ? 'Teacher' : 'Student';
         const defaultFallback = portal === 'teacher' ? getTeacherFallbackUser() : getStudentFallbackUser();
 
-        const profileUser = { ...defaultFallback, ...localProfile, ...validAuthUser, ...(matchedUser || {}) };
+        const profileUser = (validAuthUser && (validAuthUser.id || validAuthUser.uid))
+            ? { ...defaultFallback, ...localProfile, ...validAuthUser, ...(matchedUser || {}) }
+            : (matchedUser ? { ...defaultFallback, ...localProfile, ...matchedUser } : { ...defaultFallback, ...localProfile });
         const id = profileUser.uid || profileUser.id || profileUser.accountId || profileUser.userId || (portal === 'teacher' ? '1111111' : '2222222');
         const role = profileUser.role || profileUser.type || defaultRole;
         const defaultPerms = portal === 'student'
@@ -498,7 +507,7 @@
 
         const nameInfo = parseNameComponents(profileUser, defaultRole);
         const rawEmail = (profileUser.email || (localProfile.email && localProfile.email.includes('@') ? localProfile.email : '')).trim();
-        const safeEmail = (rawEmail && !rawEmail.includes('asdasda') && !rawEmail.includes('@icc')) ? rawEmail : (portal === 'teacher' ? 'maria.ramos@gmail.com' : 'juan.delacruz@gmail.com');
+        const safeEmail = (rawEmail && !rawEmail.includes('asdasda') && !rawEmail.includes('@icc')) ? rawEmail : (profileUser.email || (portal === 'teacher' ? 'maria.ramos@gmail.com' : 'juan.delacruz@gmail.com'));
 
         return {
             id: id || (portal === 'teacher' ? '1111111' : '2222222'),
@@ -625,61 +634,152 @@
                                         title="Account Settings">
                                         <i class="fa-solid fa-gear text-base group-hover:rotate-90 transition-transform duration-500 text-black"></i>
                                     </button>
-                                    <div id="profile-settings-menu"
-                                        class="hidden absolute right-0 top-full mt-2.5 w-64 bg-white border border-slate-200 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.12)] z-[110] p-3.5 overflow-hidden font-['Inter']">
-                                        <div class="space-y-1">
-                                            <button type="button" id="profile-edit-info-btn" onclick="window.openEditUserInformation(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i class="fa-solid fa-user-pen text-black text-sm"></i>
+                                    <div id="profile-settings-modal"
+                                        class="fixed inset-0 z-[999999] bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300 hidden"
+                                        onclick="if(event.target === this) window.toggleProfileSettingsMenu(null, true);"
+                                        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; z-index: 999999; background-color: rgba(0, 0, 0, 0.65);">
+                                        <div id="profile-settings-box"
+                                            class="bg-white w-full max-w-md rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden translate-y-6 scale-95 transition-all duration-300 font-['Inter']">
+                                            
+                                            <!-- Modal Header -->
+                                            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center shrink-0">
+                                                        <i class="fa-solid fa-sliders text-black text-lg"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h3 class="text-lg font-bold text-black leading-tight font-['Inter']">Account Management</h3>
+                                                        <p class="text-xs text-black-fade font-medium mt-0.5" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Manage user details, security &amp; access controls</p>
+                                                    </div>
                                                 </div>
-                                                <span id="profile-edit-info-label" class="text-xs md:text-sm font-medium text-black font-['Inter']">Edit Information</span>
-                                            </button>
-                                            <button type="button" id="profile-edit-permissions-btn" onclick="window.editUserPermissions(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i class="fa-solid fa-user-shield text-black text-sm"></i>
-                                                </div>
-                                                <span id="profile-edit-permissions-label" class="text-xs md:text-sm font-medium text-black font-['Inter']">Edit Permissions</span>
-                                            </button>
-                                            <button type="button" id="profile-change-pw-btn" onclick="window.requestPasswordChange(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i class="fa-solid fa-key text-black text-sm"></i>
-                                                </div>
-                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Change Password</span>
-                                            </button>
-                                            <button type="button" id="profile-force-signout-btn" onclick="window.requestForceSignOut(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="hidden w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left text-black">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i class="fa-solid fa-right-from-bracket text-black text-sm"></i>
-                                                </div>
-                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Sign Out</span>
-                                            </button>
-                                            <div id="profile-settings-danger-divider" class="h-px bg-slate-200 my-1"></div>
-                                            <button type="button" id="profile-lock-btn" onclick="window.toggleUserLock(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i id="profile-lock-icon" class="fa-solid fa-lock text-red-600 text-sm"></i>
-                                                </div>
-                                                <span id="profile-lock-label" class="text-xs md:text-sm font-medium text-red-600 font-['Inter']">Lock Account</span>
-                                            </button>
-                                            <button type="button" id="profile-status-btn" onclick="window.handleProfileMenuToggleStatus(); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i id="profile-status-icon" class="fa-solid fa-user-slash text-red-600 text-sm"></i>
-                                                </div>
-                                                <span id="profile-status-label" class="text-xs md:text-sm font-medium text-red-600 font-['Inter']">Deactivate Account</span>
-                                            </button>
-                                            <button type="button" id="profile-delete-btn" onclick="window.requestDeleteUser(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
-                                                class="w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600">
-                                                <div class="w-6 flex items-center justify-center shrink-0">
-                                                    <i class="fa-solid fa-trash-can text-red-600 text-sm"></i>
-                                                </div>
-                                                <span class="text-xs md:text-sm font-medium text-red-600 font-['Inter']">Delete Account</span>
-                                            </button>
-                                        </div>
-                                    </div>
+                                                <button type="button" onclick="window.toggleProfileSettingsMenu(null, true)"
+                                                    class="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-black transition-colors cursor-pointer bg-transparent border-none"
+                                                    title="Close">
+                                                    <i class="fa-solid fa-xmark text-lg text-black"></i>
+                                                </button>
+                                            </div>
+
+                                            <!-- Modal Body: Action List with Black Fade Subtitles -->
+                                            <div id="profile-settings-menu" class="p-4 sm:p-5 overflow-y-auto space-y-2.5 custom-scrollbar flex-1 bg-gray-50/50">
+                                                 
+                                                 <!-- Edit Information -->
+                                                 <button type="button" id="profile-edit-info-btn" onclick="window.openEditUserInformation(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-user-pen text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div id="profile-edit-info-label" class="text-sm font-bold text-black font-['Inter'] leading-tight">Edit Information</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Update personal details, contact number, and school info</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Edit Permissions -->
+                                                 <button type="button" id="profile-edit-permissions-btn" onclick="window.editUserPermissions(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-user-shield text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div id="profile-edit-permissions-label" class="text-sm font-bold text-black font-['Inter'] leading-tight">Edit Permissions</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Configure system access levels and role authorities</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Change Password -->
+                                                 <button type="button" id="profile-change-pw-btn" onclick="window.requestPasswordChange(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-key text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div class="text-sm font-bold text-black font-['Inter'] leading-tight">Change Password</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Update or reset account login password</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Reset 2FA -->
+                                                 <button type="button" id="profile-reset-2fa-btn" onclick="window.resetUser2FA(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-qrcode text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div class="text-sm font-bold text-black font-['Inter'] leading-tight">Reset 2FA</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Unbind Google Authenticator to issue a new QR barcode</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Sign Out (Force Signout) -->
+                                                 <button type="button" id="profile-force-signout-btn" onclick="window.requestForceSignOut(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="hidden w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-right-from-bracket text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div class="text-sm font-bold text-black font-['Inter'] leading-tight">Sign Out</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Terminate active session across all devices</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Danger Section Divider -->
+                                                 <div id="profile-settings-danger-divider" class="h-px bg-gray-200 my-2"></div>
+
+                                                 <!-- Lock Account -->
+                                                 <button type="button" id="profile-lock-btn" onclick="window.toggleUserLock(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i id="profile-lock-icon" class="fa-solid fa-lock text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div id="profile-lock-label" class="text-sm font-bold text-black font-['Inter'] leading-tight">Lock Account</div>
+                                                             <div id="profile-lock-desc" class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Temporarily restrict account sign-in access</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Deactivate Account -->
+                                                 <button type="button" id="profile-status-btn" onclick="window.handleProfileMenuToggleStatus(); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i id="profile-status-icon" class="fa-solid fa-user-slash text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div id="profile-status-label" class="text-sm font-bold text-black font-['Inter'] leading-tight">Deactivate Account</div>
+                                                             <div id="profile-status-desc" class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Disable or reactivate account status on school rosters</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                                 <!-- Delete Account -->
+                                                 <button type="button" id="profile-delete-btn" onclick="window.requestDeleteUser(window.currentEditingUserId || window.currentViewingUserId); window.toggleProfileSettingsMenu(null, true)"
+                                                     class="w-full flex items-center justify-between p-3.5 bg-white hover:bg-slate-100 border border-gray-200/80 rounded-2xl transition-all group text-left cursor-pointer shadow-xs">
+                                                     <div class="flex items-center gap-3.5 min-w-0">
+                                                         <div class="w-10 h-10 rounded-xl bg-gray-100 text-black flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
+                                                             <i class="fa-solid fa-trash-can text-base text-black"></i>
+                                                         </div>
+                                                         <div class="min-w-0">
+                                                             <div class="text-sm font-bold text-black font-['Inter'] leading-tight">Delete Account</div>
+                                                             <div class="text-xs text-black-fade font-normal mt-0.5 truncate" style="color: var(--sigma-black-fade) !important; -webkit-text-fill-color: var(--sigma-black-fade) !important;">Permanently delete this user record from the database</div>
+                                                         </div>
+                                                     </div>
+                                                 </button>
+
+                                             </div>
+                                         </div>
+                                     </div>
 
                                     <!-- 2. Three Dots Action Button (Only for "View Profile" mode from table) -->
                                     <button type="button" id="profile-actions-dots-btn"
@@ -697,6 +797,13 @@
                                                     <i class="fa-solid fa-user-pen text-black text-sm"></i>
                                                 </div>
                                                 <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Edit Account</span>
+                                            </button>
+                                            <button type="button" id="profile-actions-reset-2fa-btn" onclick="window.resetUser2FA(window.currentViewingUserId || window.currentEditingUserId); window.toggleProfileActionsMenu(null, true)"
+                                                class="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-slate-50 rounded-2xl transition-all group text-left">
+                                                <div class="w-6 flex items-center justify-center shrink-0">
+                                                    <i class="fa-solid fa-qrcode text-black text-sm"></i>
+                                                </div>
+                                                <span class="text-xs md:text-sm font-medium text-black font-['Inter']">Reset 2FA</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1055,6 +1162,7 @@
         const statusBtn = document.getElementById('profile-status-btn');
         const statusIcon = document.getElementById('profile-status-icon');
         const statusLabel = document.getElementById('profile-status-label');
+        const statusDesc = document.getElementById('profile-status-desc');
         if (statusBtn && statusIcon && statusLabel) {
             if (!canDeactivateThisUser) {
                 statusBtn.classList.add('hidden');
@@ -1062,15 +1170,13 @@
                 statusBtn.classList.remove('hidden');
                 const isDeactivated = userData.status === 'Inactive' || userData.status === 'Deactivated';
                 if (isDeactivated) {
-                    statusBtn.className = "w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-green-50 rounded-2xl transition-all group text-left text-green-600";
-                    statusIcon.className = "fa-solid fa-user-check text-green-600 text-sm";
-                    statusLabel.className = "text-xs md:text-sm font-medium text-green-600 font-['Inter']";
+                    statusIcon.className = "fa-solid fa-user-check text-base text-black";
                     statusLabel.textContent = "Activate Account";
+                    if (statusDesc) statusDesc.textContent = "Re-enable user login access and school privileges";
                 } else {
-                    statusBtn.className = "w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600";
-                    statusIcon.className = "fa-solid fa-user-slash text-red-600 text-sm";
-                    statusLabel.className = "text-xs md:text-sm font-medium text-red-600 font-['Inter']";
+                    statusIcon.className = "fa-solid fa-user-slash text-base text-black";
                     statusLabel.textContent = "Deactivate Account";
+                    if (statusDesc) statusDesc.textContent = "Disable or reactivate account status on school rosters";
                 }
             }
         }
@@ -1117,6 +1223,7 @@
         const lockBtn = document.getElementById('profile-lock-btn');
         const lockIcon = document.getElementById('profile-lock-icon');
         const lockLabel = document.getElementById('profile-lock-label');
+        const lockDesc = document.getElementById('profile-lock-desc');
         const isLocked = (userData.status || '').toLowerCase() === 'locked';
 
         if (lockBtn) {
@@ -1126,17 +1233,17 @@
         }
         if (lockLabel) {
             lockLabel.textContent = isLocked ? 'Unlock Account' : 'Lock Account';
-            lockLabel.className = isLocked
-                ? "text-xs md:text-sm font-medium text-black font-['Inter']"
-                : "text-xs md:text-sm font-medium text-red-600 font-['Inter']";
         }
-        if (lockBtn && !lockBtn.classList.contains('hidden')) {
-            lockBtn.className = isLocked
-                ? 'w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-slate-50 rounded-2xl transition-all group text-left text-black'
-                : 'w-full flex items-center gap-3.5 px-3.5 py-3 hover:bg-red-50 rounded-2xl transition-all group text-left text-red-600';
+        if (lockDesc) {
+            lockDesc.textContent = isLocked ? 'Restore sign-in privileges for this account' : 'Temporarily restrict account sign-in access';
         }
         if (lockIcon) {
-            lockIcon.className = isLocked ? 'fa-solid fa-lock-open text-black text-sm' : 'fa-solid fa-lock text-red-600 text-sm';
+            lockIcon.className = isLocked ? 'fa-solid fa-lock-open text-base text-black' : 'fa-solid fa-lock text-base text-black';
+        }
+
+        const reset2faBtn = document.getElementById('profile-reset-2fa-btn');
+        if (reset2faBtn) {
+            reset2faBtn.classList.toggle('hidden', (isSelfUser && !isViewerMaster) || !canActionPassword);
         }
 
         const deleteBtn = document.getElementById('profile-delete-btn');
@@ -1153,7 +1260,7 @@
         if (dangerDivider) dangerDivider.classList.toggle('hidden', !dangerVisible);
 
         if (settingsBtn) {
-            const gearItems = ['profile-edit-info-btn', 'profile-edit-permissions-btn', 'profile-change-pw-btn', 'profile-force-signout-btn', 'profile-lock-btn', 'profile-status-btn', 'profile-delete-btn'];
+            const gearItems = ['profile-edit-info-btn', 'profile-edit-permissions-btn', 'profile-change-pw-btn', 'profile-reset-2fa-btn', 'profile-force-signout-btn', 'profile-lock-btn', 'profile-status-btn', 'profile-delete-btn'];
             const hasGearAction = gearItems.some(function (itemId) {
                 const item = document.getElementById(itemId);
                 return item && !item.classList.contains('hidden');
@@ -2182,17 +2289,39 @@
         }
     };
 
-    // ─── 6. PROFILE SETTINGS MENU ───────────────────────────────────────────────
+    // ─── 6. PROFILE SETTINGS MODAL & ACTIONS ──────────────────────────────────
     window.toggleProfileSettingsMenu = function (event, forceClose = false) {
-        if (event) event.stopPropagation();
-        const menu = document.getElementById('profile-settings-menu');
-        if (!menu) return;
+        if (event && event.stopPropagation) event.stopPropagation();
+        const modal = document.getElementById('profile-settings-modal') || document.getElementById('profile-settings-menu');
+        const box = document.getElementById('profile-settings-box');
+        const btn = document.getElementById('profile-settings-btn');
+        if (!modal) return;
 
-        if (forceClose || !menu.classList.contains('hidden')) {
-            menu.classList.add('hidden');
-        } else {
-            menu.classList.remove('hidden');
+        if (forceClose || modal.classList.contains('opacity-100') || (!modal.classList.contains('hidden') && !modal.classList.contains('pointer-events-none'))) {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.classList.remove('opacity-100');
+            if (box) {
+                box.classList.add('translate-y-6', 'scale-95');
+                box.classList.remove('translate-y-0', 'scale-100');
+            }
+            if (btn) btn.classList.remove('active');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 250);
+            return;
         }
+
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        modal.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+        modal.classList.add('opacity-100');
+        if (box) {
+            box.classList.remove('translate-y-6', 'scale-95');
+            box.classList.add('translate-y-0', 'scale-100');
+        }
+        if (btn) btn.classList.add('active');
     };
 
     window.toggleProfileActionsMenu = function (event, forceClose = false) {
@@ -2719,6 +2848,11 @@
                             window.SigmaPresenceTracker.logout();
                         } else {
                             sessionStorage.clear();
+                            localStorage.removeItem('sigma-authenticated-user');
+                            localStorage.removeItem('sigma-logged-in-user');
+                            localStorage.removeItem('currentUser');
+                            localStorage.removeItem('sigma_active_user');
+                            localStorage.removeItem('sigma-teacher-nav-state');
                         }
                     } catch (e) {}
                 });

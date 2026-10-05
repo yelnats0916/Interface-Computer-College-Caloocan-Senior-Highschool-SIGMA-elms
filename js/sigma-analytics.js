@@ -1456,6 +1456,8 @@
 
     function resolveCurrentLoggedInTeacher() {
         let authUser = {};
+        const isTeacherPortal = isCurrentPageTeacherPortal();
+        const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
         try {
             authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
             if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
@@ -1466,7 +1468,36 @@
             }
         } catch (e) {}
 
-        const cleanStr = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+        const defaultTeacher = {
+            id: '1111111',
+            uid: '1111111',
+            firstName: 'Maria',
+            middleName: 'Santos',
+            lastName: 'Ramos',
+            fullName: 'Maria Santos Ramos',
+            name: 'Maria Santos Ramos',
+            role: 'Teacher',
+            type: 'Teacher',
+            status: 'Active',
+            gender: 'Female',
+            branch: 'Main Campus',
+            department: 'Senior High School - Faculty',
+            section: 'Rizal',
+            sections: ['Rizal'],
+            assignedSections: ['Rizal'],
+            subject: 'Computer Programming 1',
+            subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+            assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+            email: 'maria.ramos@gmail.com'
+        };
+
+        const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
+        // Default to Maria Santos Ramos only when no account is authenticated
+        if (!authIdRaw) {
+            authUser = defaultTeacher;
+        }
 
         let allUsers = [];
         const storageKeys = ['sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-teacher-users-v1', 'sigma-users'];
@@ -1506,7 +1537,7 @@
             const finalFn = matchedUser.firstName || authUser.firstName || 'Teacher';
             const finalLn = matchedUser.lastName || authUser.lastName || '';
             const finalFull = matchedUser.fullName || matchedUser.name || authUser.fullName || `${finalFn} ${finalLn}`.trim();
-            return {
+            const baseObj = {
                 ...matchedUser,
                 ...authUser,
                 id: finalId,
@@ -1517,6 +1548,15 @@
                 name: finalFull,
                 role: 'Teacher'
             };
+            if (finalId === '1111111') {
+                baseObj.section = 'Rizal';
+                baseObj.sections = ['Rizal'];
+                baseObj.assignedSections = ['Rizal'];
+                baseObj.subject = 'Computer Programming 1';
+                baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+                baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+            }
+            return baseObj;
         }
 
         if (authId || authFullName || authUser.firstName) {
@@ -1524,7 +1564,7 @@
             const finalFn = authUser.firstName || (authUser.name ? authUser.name.split(' ')[0] : 'Teacher');
             const finalLn = authUser.lastName || (authUser.name ? authUser.name.split(' ').slice(1).join(' ') : '');
             const finalFull = authUser.fullName || authUser.name || `${finalFn} ${finalLn}`.trim();
-            return {
+            const baseObj = {
                 ...authUser,
                 id: finalId,
                 uid: finalId,
@@ -1534,11 +1574,16 @@
                 name: finalFull,
                 role: 'Teacher'
             };
+            if (finalId === '1111111') {
+                baseObj.section = 'Rizal';
+                baseObj.sections = ['Rizal'];
+                baseObj.assignedSections = ['Rizal'];
+                baseObj.subject = 'Computer Programming 1';
+                baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+                baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+            }
+            return baseObj;
         }
-
-        const defaultTeacher = allUsers.find(u => String(u.uid || u.id) === '1111111')
-            || allUsers.find(u => (u.role || u.type || '').toLowerCase().includes('teacher'))
-            || { id: '1111111', uid: '1111111', firstName: 'Maria', middleName: 'Santos', lastName: 'Ramos', fullName: 'Maria Santos Ramos', name: 'Maria Santos Ramos', role: 'Teacher' };
 
         return defaultTeacher;
     }
@@ -1840,6 +1885,50 @@
                     }
                 });
             }
+
+        if (results.length === 0) {
+            const isMaria = teacherId === '1111111' ||
+                (teacherFirst === 'maria' && teacherLast === 'ramos') ||
+                (teacherFullName.includes('maria') && teacherFullName.includes('ramos'));
+            if (isMaria) {
+                const defaultMariaItems = [
+                    {
+                        id: 'sec-rizal-computer_programming_1',
+                        sectionName: 'Rizal',
+                        grade: 'Grade 11',
+                        subject: 'Computer Programming 1',
+                        role: 'Teacher',
+                        semester: '1st Semester',
+                        quarters: [1, 2],
+                        room: 'Room 302',
+                        schedule: 'Mon-Fri 09:00 AM - 10:30 AM'
+                    },
+                    {
+                        id: 'sec-rizal-empowerment_technologies',
+                        sectionName: 'Rizal',
+                        grade: 'Grade 11',
+                        subject: 'Empowerment Technologies',
+                        role: 'Teacher',
+                        semester: '2nd Semester',
+                        quarters: [3, 4],
+                        room: 'Room 302',
+                        schedule: 'Mon-Fri 03:00 PM - 04:30 PM'
+                    },
+                    {
+                        id: 'sec-rizal-oral_communication',
+                        sectionName: 'Rizal',
+                        grade: 'Grade 11',
+                        subject: 'Oral Communication',
+                        role: 'Teacher',
+                        semester: '1st Semester',
+                        quarters: [1, 2],
+                        room: 'Room 302',
+                        schedule: 'Mon-Fri 10:30 AM - 12:00 PM'
+                    }
+                ];
+                defaultMariaItems.forEach(item => results.push(item));
+            }
+        }
 
         results.sort((a, b) => {
             const subjA = String(a.subject || a.name || '').trim();

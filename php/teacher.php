@@ -14,7 +14,7 @@ $extraCss  = [
 ];
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/assessments-page.js", "js/teacher.js"];
+$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/assessments-page.js", "js/teacher.js", "js/curriculum-release.js"];
 $topbarHeaderId = "teacher-header";
 
 require_once __DIR__ . "/../config/app.php";

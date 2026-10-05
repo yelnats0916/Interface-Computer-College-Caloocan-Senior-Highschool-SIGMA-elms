@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+const teacher = read('js/teacher.js');
+const shared = read('js/curriculum-release.js');
+assert.ok(!teacher.includes('window.toggleReleasedItemActionMenu ='), 'No duplicate teacher menu renderer');
+assert.equal((shared.match(/window\.toggleReleasedItemActionMenu =/g) || []).length, 1);
+assert.match(shared, /const isDesktop = window\.innerWidth > 768/);
+assert.match(shared, /isDesktop \? 184 : \(isMobile \? 140 : 175\)/);
+assert.match(read('css/shared-components.css'), /@media \(min-width: 769px\)\s*\{\s*#released-topic-floating-menu/);
+assert.match(read('php/teacher.php'), /"js\/teacher\.js", "js\/curriculum-release\.js"/);
+console.log('PASS: one shared release menu renderer, desktop-only sizing, mobile widths preserved');

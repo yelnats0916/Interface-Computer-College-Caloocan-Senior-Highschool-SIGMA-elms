@@ -38,6 +38,10 @@
         const actionsEl = overlay.querySelector('#sigma-ask-actions');
         const cancelBtn = overlay.querySelector('#sigma-ask-cancel-btn');
         const proceedBtn = overlay.querySelector('#sigma-ask-proceed-btn');
+        const card = overlay.querySelector('#sigma-universal-ask-card');
+
+        // Variants let high-focus flows use an appropriately sized desktop dialog.
+        if (card) card.classList.toggle('sigma-universal-ask-card--quiz-start', options.variant === 'quiz-start');
 
         const title = options.title || 'Notice';
         const message = options.message || options.desc || '';

@@ -3,6 +3,64 @@
  * Standardized across Admin, Teacher, and Student portals.
  */
 
+#settings-gdrive-view .gdrive-settings-content {
+    max-width: 960px;
+}
+
+#settings-gdrive-view .gdrive-settings-section {
+    padding: 20px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#settings-gdrive-view .gdrive-detail-row {
+    padding: 4px 0;
+    min-width: 0;
+}
+
+#settings-gdrive-view .gdrive-folder-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 8px 0;
+}
+
+#settings-gdrive-view .gdrive-folder-display.hidden { display: none; }
+#settings-gdrive-view .gdrive-folder-link-text {
+    margin: 6px 0 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #334155;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+#settings-gdrive-view .gdrive-connection-status {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+#settings-gdrive-view .gdrive-connection-status[data-state="connected"] { color: #15803d; }
+#settings-gdrive-view .gdrive-connection-status[data-state="failed"] { color: #b91c1c; }
+#settings-gdrive-view .gdrive-advanced summary {
+    padding: 10px 12px;
+    border-radius: 6px;
+    transition: background-color 150ms ease;
+}
+#settings-gdrive-view .gdrive-advanced summary:hover,
+#settings-gdrive-view .gdrive-advanced summary:focus-visible {
+    background-color: #f1f2f4;
+}
+#settings-gdrive-view .gdrive-advanced summary:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 2px;
+}
+#settings-gdrive-view .gdrive-advanced-content { padding-top: 18px; }
+#settings-gdrive-view [aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+#settings-gdrive-view input { border-radius: 8px; font-family: inherit; font-weight: 400; }
+
 #user-settings-view {
     width: 100% !important;
     padding: 0 !important;

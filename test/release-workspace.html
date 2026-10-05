@@ -4,10 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Release Workspace Regression Fixture</title>
+    <script src="../js/live-reload-lifecycle.js"></script>
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/topbar.css">
+    <link rel="stylesheet" href="../css/forms.css">
     <link rel="stylesheet" href="../css/tailwind.css">
     <link rel="stylesheet" href="../css/shared-components.css">
-    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/classroom-room.css">
+    <link rel="stylesheet" href="../css/settings-view.css">
+    <link rel="stylesheet" href="../css/topic-detail.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/right-panel.css">
+    <link rel="stylesheet" href="../css/sigma-analytics.css">
     <link rel="stylesheet" href="../css/mobile.css">
+    <link rel="stylesheet" href="../css/page-skeleton.css">
 </head>
 <body>
     <button type="button" onclick="window.openTeacherReleaseAssessmentsModal()">Open release workspace</button>
@@ -35,7 +45,11 @@
         window.setActiveReleaseQuarter = value => { fixtureQuarter = value; };
         window.getTopicReleaseConfig = () => ({ releasedTopicIds: ['topic-first', 'topic-a'], hiddenTopicIds: [], topicSchedules: {}, topicReleaseDates: {} });
         window.getLearningMaterialReleaseConfig = () => ({ releasedMaterialIds: ['lesson-a', 'lesson-d'], hiddenMaterialIds: [], materialSchedules: {}, materialReleaseDates: {} });
-        window.getAssessmentReleaseConfig = () => ({ releasedMaterialIds: ['quiz-a'], hiddenMaterialIds: [], materialSchedules: {}, materialReleaseDates: {} });
+        window.getAssessmentReleaseConfig = () => ({ releasedMaterialIds: ['quiz-a'], hiddenMaterialIds: [], materialSchedules: {}, materialReleaseDates: {}, assessmentMaxScores: { 'quiz-a': 100 } });
+        window.getStudentsForSection = () => [
+            { id: 'fixture-student-1', name: 'Fixture Student One', status: 'Active' },
+            { id: 'fixture-student-2', name: 'Fixture Student Two', status: 'Active' }
+        ];
         window.getTeacherSubjectLearningMaterials = () => [
             { id: 'lesson-b', title: 'Draft Lesson', topicTitle: 'Released Topic', type: 'Lesson', quarter: 'q1' },
             { id: 'lesson-a', title: 'Released Lesson', topicTitle: 'Released Topic', type: 'Lesson', quarter: 'q1' },

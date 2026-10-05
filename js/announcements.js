@@ -94,6 +94,41 @@
         return false;
     }
 
+    // ── STRICT SECTION / SUBJECT ISOLATION HELPERS ──────────────────────────
+    // Exact (non-substring) comparison so "Einstein • Computer Programming 1" never
+    // leaks into "Newton • Computer Programming 1" (or any other section).
+    function normSecToken(value) {
+        let s = String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (!s) return '';
+        if (s.includes('::')) s = s.split('::')[0];
+        if (s.includes('\u2022')) s = s.split('\u2022')[0];
+        s = s.replace(/^grade\s*\d+\s*[-\u2013\u2014:]\s*/, '');
+        s = s.replace(/\s*\((room|rm)\b[^)]*\)\s*$/, '');
+        return s.trim();
+    }
+
+    function normSubjToken(value) {
+        return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function getPostSectionToken(post) {
+        if (!post) return '';
+        const key = String(post.classroomKey || '');
+        return normSecToken(post.sectionName)
+            || (key ? normSecToken(key.split('::')[0]) : '')
+            || normSecToken(post.audience)
+            || normSecToken(post.audienceLabel);
+    }
+
+    function getPostSubjectToken(post) {
+        if (!post) return '';
+        const key = String(post.classroomKey || '');
+        const label = String(post.audienceLabel || '');
+        return normSubjToken(post.subject)
+            || (key.includes('::') ? normSubjToken(key.split('::').slice(1).join('::')) : '')
+            || (label.includes('\u2022') ? normSubjToken(label.split('\u2022').slice(1).join('\u2022')) : '');
+    }
+
     function getTeacherAssignedSections() {
         const adminSections = getStoredJson('sigma-admin-sections', []);
         
@@ -2089,12 +2124,10 @@
                     let postSectionRoom = '';
                     if (currentRole === 'teacher') {
                         const assigned = getTeacherAssignedSections();
-                        const matchedSec = assigned.find(s => {
-                            const sName = String(s.name || '').toLowerCase();
-                            const aud = String(activeAudience).toLowerCase();
-                            const audLbl = String(activeAudienceLabel).toLowerCase();
-                            return aud === sName || aud.includes(sName) || audLbl.includes(sName);
-                        });
+                        const audTok = normSecToken(activeAudience);
+                        const subjTok = normSubjToken(activeSubject);
+                        const matchedSec = assigned.find(s => audTok && normSecToken(s.name || s.sectionName) === audTok && (!subjTok || normSubjToken(s.subject) === subjTok))
+                            || assigned.find(s => audTok && normSecToken(s.name || s.sectionName) === audTok);
                         if (matchedSec) {
                             postSectionRoom = getSectionRoom(matchedSec);
                         }
@@ -2515,20 +2548,12 @@
             activeClassroomKey = (cleanAud && cleanSubj) ? `${cleanAud}::${cleanSubj}` : cleanAud;
 
             const assigned = getTeacherAssignedSections();
+            const audTok = normSecToken(cleanAud);
+            const subjTok = normSubjToken(cleanSubj);
             const matchedSec = assigned.find(s => {
-                const sName = String(s.name || '').toLowerCase();
-                const sSubj = String(s.subject || '').toLowerCase();
-                const sLabel = String(s.grade || s.gradeLevel ? `${s.grade || s.gradeLevel} - ${s.name}` : s.name).toLowerCase();
-                const audMatch = (cleanAud && (cleanAud.toLowerCase() === sName || cleanAud.toLowerCase() === sLabel || cleanAud.toLowerCase().includes(sName)));
-                if (cleanSubj) {
-                    return audMatch && (sSubj === cleanSubj.toLowerCase() || sSubj.includes(cleanSubj.toLowerCase()));
-                }
-                return audMatch;
-            }) || assigned.find(s => {
-                const sName = String(s.name || '').toLowerCase();
-                const sLabel = String(s.grade || s.gradeLevel ? `${s.grade || s.gradeLevel} - ${s.name}` : s.name).toLowerCase();
-                return cleanAud && (cleanAud.toLowerCase() === sName || cleanAud.toLowerCase() === sLabel || cleanAud.toLowerCase().includes(sName));
-            });
+                if (!audTok || normSecToken(s.name || s.sectionName) !== audTok) return false;
+                return subjTok ? normSubjToken(s.subject) === subjTok : true;
+            }) || assigned.find(s => audTok && normSecToken(s.name || s.sectionName) === audTok);
 
             if (matchedSec) {
                 const secRoom = getSectionRoom(matchedSec);
@@ -3080,21 +3105,16 @@
                     return true;
                 }
 
-                // If post was sent to a specific section:
-                // Teacher MUST be assigned to that section to see it
-                const audLabel = (post.audienceLabel || '').toLowerCase().trim();
-                const clsKey = (post.classroomKey || '').toLowerCase().trim();
+                // If post was sent to a specific section + subject:
+                // Teacher MUST be assigned to that exact section AND subject to see it
+                const postSec = getPostSectionToken(post);
+                const postSubj = getPostSubjectToken(post);
+                if (!postSec) return false;
 
                 const isAssigned = teacherAssignedSections.some(sec => {
-                    const sName = String(sec.name || '').toLowerCase().trim();
-                    const sId = String(sec.id || '').toLowerCase().trim();
-                    const fullSecLabel = (sec.grade && !sName.includes(String(sec.grade).toLowerCase()))
-                        ? `${String(sec.grade).toLowerCase()} - ${sName}`
-                        : sName;
-
-                    return (aud && (aud === sName || aud === fullSecLabel || aud === sId || aud.includes(sName) || sName.includes(aud)))
-                        || (audLabel && (audLabel === sName || audLabel === fullSecLabel || audLabel.includes(sName) || sName.includes(audLabel)))
-                        || (clsKey && (clsKey.includes(sName) || clsKey.includes(sId)));
+                    if (normSecToken(sec.name || sec.sectionName) !== postSec) return false;
+                    if (!postSubj) return true;
+                    return normSubjToken(sec.subject) === postSubj;
                 });
 
                 return isAssigned;
@@ -3121,16 +3141,10 @@
                     return true;
                 }
 
-                // Section-targeted announcements:
+                // Section-targeted announcements (exact section match only):
                 const audLabel = (post.audienceLabel || '').toLowerCase().trim();
-                const clsKey = (post.classroomKey || '').toLowerCase().trim();
-
-                const isEnrolled = studentSections.some(secName => {
-                    const s = secName.toLowerCase().trim();
-                    return (aud && (aud === s || aud.includes(s) || s.includes(aud)))
-                        || (audLabel && (audLabel === s || audLabel.includes(s) || s.includes(audLabel)))
-                        || (clsKey && clsKey.includes(s));
-                });
+                const postSec = getPostSectionToken(post);
+                const isEnrolled = Boolean(postSec) && studentSections.some(secName => normSecToken(secName) === postSec);
 
                 if (isEnrolled) return true;
 
@@ -3733,56 +3747,22 @@
         }
 
         if (targetContainerId === 'room-announcements-feed' || targetContainerId === 'admin-room-announcements-feed' || activeSectionFilter) {
-            const sec = (activeSectionFilter || '').toLowerCase().trim();
-            const subj = (activeSubjectFilter || '').toLowerCase().trim();
+            const sec = normSecToken(activeSectionFilter);
+            const subj = normSubjToken(activeSubjectFilter);
 
             visiblePosts = visiblePosts.filter(p => {
                 // NEVER show general schoolwide Admin / Public announcements inside a Section Room stream
-                if (p.audience === 'everyone' || p.audience === 'all' || p.audience === 'all_students') return false;
-                if ((p.authorRole === 'admin' || p.isAdmin) && !p.classroomKey && p.audience !== sec && p.sectionName !== sec) return false;
+                const pAudRaw = String(p.audience || '').toLowerCase().trim();
+                if (pAudRaw === 'everyone' || pAudRaw === 'all' || pAudRaw === 'all_students' || pAudRaw === 'teachers_only') return false;
+                if (pAudRaw === 'all_my_classes') return false;
 
-                const pAud = (p.audience || '').toLowerCase().trim();
-                const pAudLabel = (p.audienceLabel || '').toLowerCase().trim();
-                const pKey = (p.classroomKey || '').toLowerCase().trim();
-                const pSubj = (p.subject || '').toLowerCase().trim();
-                const pSecName = (p.sectionName || '').toLowerCase().trim();
+                // Strict isolation: a room only shows posts for EXACTLY this section AND this subject
+                const pSec = getPostSectionToken(p);
+                if (!sec || !pSec || pSec !== sec) return false;
 
-                const matchesSec = Boolean(sec && (
-                    pAud === sec ||
-                    pAudLabel === sec ||
-                    pSecName === sec ||
-                    pKey.startsWith(sec + '::') ||
-                    pKey === sec ||
-                    sec.includes(pAud) ||
-                    pAud.includes(sec) ||
-                    sec.includes(pAudLabel) ||
-                    pAudLabel.includes(sec)
-                ));
-
-                if (!matchesSec) {
-                    if (pAud === 'all_my_classes' || pAudLabel === 'all my classes') {
-                        const roomTeacher = String(window.currentRoomClassData?.teacher || window.currentClassroom?.teacher || '').toLowerCase().trim();
-                        const pAuthor = String(p.authorName || '').toLowerCase().trim();
-                        const isMyTeacher = Boolean(
-                            (roomTeacher && pAuthor && (roomTeacher === pAuthor || roomTeacher.includes(pAuthor) || pAuthor.includes(roomTeacher))) ||
-                            (currentRole === 'teacher' && pAuthor && currentUser.name && pAuthor === currentUser.name.toLowerCase().trim())
-                        );
-                        if (!isMyTeacher) return false;
-                    } else {
-                        return false;
-                    }
-                }
-
-                // If subject filter is present, ensure post strictly belongs to this subject
                 if (subj) {
-                    const matchesSubj = Boolean(
-                        (pSubj && (pSubj === subj || pSubj.includes(subj) || subj.includes(pSubj))) ||
-                        (pKey && pKey.includes('::') && (pKey.endsWith('::' + subj) || pKey.includes('::' + subj))) ||
-                        (pAudLabel && pAudLabel.toLowerCase().includes(subj))
-                    );
-                    if (!matchesSubj) {
-                        return false;
-                    }
+                    const pSubj = getPostSubjectToken(p);
+                    if (!pSubj || pSubj !== subj) return false;
                 }
 
                 if (currentRole === 'student' && p.targetStudents && Array.isArray(p.targetStudents) && p.targetStudents.length > 0) {

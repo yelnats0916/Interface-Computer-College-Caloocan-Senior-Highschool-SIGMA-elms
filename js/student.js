@@ -1677,6 +1677,7 @@ function initStudentPortal() {
     }
 
     function _applyTab(navId) {
+        window.invalidateSigmaViewCaches?.();
         scrollToTop();
         const requestedNavId = navId;
         if (!sectionMap[navId] || !document.getElementById(sectionMap[navId])) {
@@ -1766,7 +1767,7 @@ if (overlay) overlay.classList.add('hidden');
             renderStudentAttendanceHistory();
         }
         else if (navId === 'nav-settings') {
-            setNavContext('Settings');
+            setNavContext('Account Settings');
             if (typeof window.renderSettingsView === 'function') {
                 window.renderSettingsView('user-settings-view', 'notifications');
             }
@@ -5010,7 +5011,7 @@ if (overlay) overlay.classList.add('hidden');
                 <i class="fa-solid fa-lock text-xl text-black-fade" aria-hidden="true"></i>
                 <h2 class="text-lg font-bold mt-4">This content is currently unavailable</h2>
                 <p class="material-detail-body-text">Your teacher may have unpublished this content or changed its availability for your class. Return to your room to see the topics and materials you can access.</p>
-                <button type="button" class="sigma-btn sigma-btn-primary mt-5"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Back to Room</span></button>
+                <button type="button" class="sigma-btn sigma-btn-md sigma-btn-primary mt-5"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Back to Room</span></button>
             </section>`;
             page.querySelector('button').onclick = () => {
                 activeStudentClassroomId = '';
@@ -5019,6 +5020,19 @@ if (overlay) overlay.classList.add('hidden');
             };
             window.scrollTo({ top: 0 });
         }
+
+    function getAccessibleStudentTopicAssessments(subjectId, topicIdx, topic, section) {
+        const defaults = ['assignments', 'quiz', 'activity', 'performance']
+            .flatMap(key => Array.isArray(topic?.[key]) ? topic[key] : []);
+        const unified = typeof window.getUnifiedTopicAssessments === 'function'
+            ? window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, defaults, section, topic)
+            : defaults;
+        return (Array.isArray(unified) ? unified : []).filter((item, index) => {
+            const releaseIndex = Number(item.itemIdx ?? item.unifiedIdx ?? index);
+            const status = window.getStudentAssessmentReleaseStatus?.(subjectId, item, topicIdx, releaseIndex, 'assessments', section);
+            return !status || (!status.isLocked && !status.isHidden && !status.isUnreleased);
+        });
+    }
 
         window.openTopicContent = function (subjectId, topicIdx, tab = 'videos', videoIdx = null, _fromCard = false, options = null) {
         const pickedSection = options && (options.selectedSection || options.section);
@@ -5067,20 +5081,9 @@ if (overlay) overlay.classList.add('hidden');
         // If tab is an assessment category, normalize to unified 'assessments' tab
         const assessmentTabs = ['assignments', 'quiz', 'activity', 'performance', 'assessments'];
         if (assessmentTabs.includes(tab)) {
-            const rawAssign = Array.isArray(topic?.assignments) ? topic.assignments : [];
-            const rawQuiz = Array.isArray(topic?.quiz) ? topic.quiz : [];
-            const rawAct = Array.isArray(topic?.activity) ? topic.activity : [];
-            const rawPerf = Array.isArray(topic?.performance) ? topic.performance : [];
-            let unifiedAss = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf];
-            if (typeof window.getUnifiedTopicAssessments === 'function') {
-                const openSection = (typeof window.resolveStudentAssessmentSection === 'function')
-                    ? window.resolveStudentAssessmentSection(subjectId, topic, '')
-                    : ((typeof window.resolveStudentReleaseSection === 'function') ? window.resolveStudentReleaseSection('') : '');
-                const unified = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, unifiedAss, openSection, topic);
-                if (Array.isArray(unified) && unified.length > 0) {
-                    unifiedAss = unified;
-                }
-            }
+            const openSection = (typeof window.resolveStudentAssessmentSection === 'function')
+                ? window.resolveStudentAssessmentSection(subjectId, topic, '')
+                : (window.resolveStudentReleaseSection?.('') || '');
 
             if (videoIdx !== null && videoIdx !== undefined && tab !== 'assessments') {
                 const subArray = Array.isArray(topic?.[tab]) ? topic[tab] : [];
@@ -5088,14 +5091,21 @@ if (overlay) overlay.classList.add('hidden');
                 if (targetItem) {
                     const cleanTargetTitle = String(targetItem.title || targetItem.name || '').trim().toLowerCase();
                     const targetId = String(targetItem.id || '');
-                    const foundUnifiedIdx = unifiedAss.findIndex(a => {
+                    const accessible = getAccessibleStudentTopicAssessments(subjectId, topicIdx, topic, openSection);
+                    const foundUnifiedIdx = accessible.findIndex(a => {
                         if (targetId && String(a.id || '') === targetId) return true;
                         const aTitle = String(a.title || a.name || '').trim().toLowerCase();
                         return cleanTargetTitle && aTitle === cleanTargetTitle;
                     });
                     if (foundUnifiedIdx !== -1) {
                         videoIdx = foundUnifiedIdx;
+                    } else {
+                        showUnavailableStudentMaterial(subjectId);
+                        return;
                     }
+                } else {
+                    showUnavailableStudentMaterial(subjectId);
+                    return;
                 }
             }
             tab = 'assessments';
@@ -5345,19 +5355,19 @@ if (overlay) overlay.classList.add('hidden');
         }
         const assessmentTabs = ['assignments', 'quiz', 'activity', 'performance', 'assessments'];
         const isAssessment = assessmentTabs.includes(effectiveTab);
-        const studentSection = (typeof window.resolveStudentReleaseSection === 'function')
-            ? window.resolveStudentReleaseSection('')
-            : '';
+        const studentSection = (typeof window.resolveStudentAssessmentSection === 'function' && isAssessment)
+            ? window.resolveStudentAssessmentSection(effectiveSubjectId, topic, '')
+            : (window.resolveStudentReleaseSection?.('') || '');
         const topicAccess = window.getStudentTopicReleaseStatus?.(effectiveSubjectId, topic, queryIdx, studentSection);
         let materialAccess = null;
         const selectedIdx = isAssessment ? (window._scAssessmentDetailIdx ?? hashItemIdx) : (_tcVideoIdx ?? hashItemIdx);
         if (selectedIdx !== null && selectedIdx !== undefined) {
             const items = isAssessment
-                ? window.getUnifiedTopicAssessments?.('assessments', effectiveSubjectId, queryIdx, [], studentSection, topic)
+                ? getAccessibleStudentTopicAssessments(effectiveSubjectId, queryIdx, topic, studentSection)
                 : (effectiveTab === 'videos' ? topic.videos : topic.handouts);
             const item = items?.[Number(selectedIdx)];
             materialAccess = !item ? { isLocked: true } : (isAssessment
-                ? window.getStudentAssessmentReleaseStatus?.(effectiveSubjectId, item, queryIdx, Number(selectedIdx), 'assessments', studentSection)
+                ? null
                 : window.getStudentLearningMaterialReleaseStatus?.(effectiveSubjectId, item, queryIdx, Number(selectedIdx), effectiveTab === 'videos' ? 'video' : 'lesson', studentSection));
         }
         if ([topicAccess, materialAccess].some(status => status && (status.isLocked || status.isHidden || status.isUnreleased))) {
@@ -5713,48 +5723,18 @@ if (overlay) overlay.classList.add('hidden');
     }
 
     function _buildAssessmentTab(tab, subject, topic, data, subjectId, topicIdx) {
-        const rawAssign = Array.isArray(topic?.assignments) ? topic.assignments : [];
-        const rawQuiz = Array.isArray(topic?.quiz) ? topic.quiz : [];
-        const rawAct = Array.isArray(topic?.activity) ? topic.activity : [];
-        const rawPerf = Array.isArray(topic?.performance) ? topic.performance : [];
-        let assessments = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf];
-
         const studentSec = (typeof window.resolveStudentAssessmentSection === 'function')
             ? window.resolveStudentAssessmentSection(subjectId, topic, '')
             : ((typeof window.resolveStudentReleaseSection === 'function') ? window.resolveStudentReleaseSection('') : '');
-
-        if (typeof window.getUnifiedTopicAssessments === 'function') {
-            assessments = window.getUnifiedTopicAssessments('assessments', subjectId, topicIdx, assessments, studentSec, topic);
-        }
-
-        const allAssessmentsBeforeFilter = [...assessments];
-
-        if (typeof window.getStudentAssessmentReleaseStatus === 'function') {
-            assessments = assessments.filter((ass, idx) => {
-                const effIdx = (ass?.itemIdx !== undefined && ass?.itemIdx !== null) ? Number(ass.itemIdx) : ((ass?.unifiedIdx !== undefined && ass?.unifiedIdx !== null) ? Number(ass.unifiedIdx) : idx);
-                const status = window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, effIdx, 'assessments', studentSec);
-                return !status.isLocked && !status.isHidden && !status.isUnreleased;
-            });
-        }
+        const assessments = getAccessibleStudentTopicAssessments(subjectId, topicIdx, topic, studentSec);
 
         const numDetailIdx = (window._scAssessmentDetailIdx !== null && window._scAssessmentDetailIdx !== undefined && window._scAssessmentDetailIdx !== '') ? Number(window._scAssessmentDetailIdx) : null;
         const hasDetailIdx = (numDetailIdx !== null && !Number.isNaN(numDetailIdx));
-        let activeAss = hasDetailIdx ? (assessments[numDetailIdx] || assessments.find(a => Number(a.itemIdx) === numDetailIdx || Number(a.unifiedIdx) === numDetailIdx || String(a.id) === `ass-${numDetailIdx}` || String(a.id) === String(window._scAssessmentDetailIdx))) : null;
-
-        let isUnassignedTarget = false;
-        if (hasDetailIdx && !activeAss) {
-            activeAss = allAssessmentsBeforeFilter[numDetailIdx] || allAssessmentsBeforeFilter.find(a => Number(a.itemIdx) === numDetailIdx || Number(a.unifiedIdx) === numDetailIdx || String(a.id) === `ass-${numDetailIdx}` || String(a.id) === String(window._scAssessmentDetailIdx));
-            if (activeAss) {
-                isUnassignedTarget = true;
-                if (!assessments.includes(activeAss)) {
-                    assessments.push(activeAss);
-                }
-            }
-        }
+        const activeAss = hasDetailIdx ? assessments[numDetailIdx] : null;
 
         let scorePanelHtml = '';
         let tasksPanelHtml = '';
-        if (activeAss && !isUnassignedTarget) {
+        if (activeAss) {
             const isSubmissionPage = Boolean(
                 window._studentViewSubmissionMode ||
                 window._sharedViewSubmissionMode ||
@@ -5817,7 +5797,7 @@ if (overlay) overlay.classList.add('hidden');
         }
 
         let rightHtml = null;
-        if (activeAss && !isUnassignedTarget) {
+        if (activeAss) {
             rightHtml = `
                 <div class="space-y-6 font-['Inter']">
                     ${scorePanelHtml}

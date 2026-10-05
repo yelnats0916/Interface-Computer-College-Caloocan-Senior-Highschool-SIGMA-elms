@@ -11,18 +11,18 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/teacher.css?v=20261004mobileGradesFullscreen1">
+    <link rel="stylesheet" href="css/teacher.css?v=20261004releaseDim1">
     <link rel="stylesheet" href="css/topbar.css?v=20261003badgefont1">
-    <link rel="stylesheet" href="css/forms.css?v=20261003btnhighlight1">
+    <link rel="stylesheet" href="css/forms.css?v=20261005quizStartDesktop1">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261004desktopTemplatesLayout1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261004neutralQuizDetails1">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
     <link rel="stylesheet" href="css/settings-view.css?v=20261004fullscreenedit5">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
     <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003emptystate2">
-    <link rel="stylesheet" href="css/mobile.css?v=20261004visibleModalViewport1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261004portalMobileGap2">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
@@ -53,6 +53,8 @@
         }
     </style>
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261003opaqueshimmer1">
+    <script src="js/tab-session.js?v=20261005tab1"></script>
+    <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
@@ -345,7 +347,7 @@
             <!-- ── Menu ── -->
             <nav class="profile-panel-menu">
                 <a href="#account-settings" id="profile-settings-link"
-                    onclick="window.navigateToAccountSettings('notifications'); return false;"
+                    onclick="if(typeof window.closeMobileAccountPanel==='function') window.closeMobileAccountPanel(); if(typeof window.closeMobileTopPanel==='function') window.closeMobileTopPanel(); window.navigateToAccountSettings('notifications'); return false;"
                     class="profile-menu-item">
                     <div class="profile-menu-item__icon">
                         <i class="fa-solid fa-user-gear"></i>
@@ -353,6 +355,24 @@
                     <div class="profile-menu-item__text">
                         <span class="profile-menu-item__label">Account Settings</span>
                         <span class="profile-menu-item__sublabel">Notifications & preferences</span>
+                    </div>
+                </a>
+                <a href="terms.html" class="profile-menu-item">
+                    <div class="profile-menu-item__icon">
+                        <i class="fa-solid fa-file-contract"></i>
+                    </div>
+                    <div class="profile-menu-item__text">
+                        <span class="profile-menu-item__label">Terms of Use</span>
+                        <span class="profile-menu-item__sublabel">Policies & guidelines</span>
+                    </div>
+                </a>
+                <a href="privacy.html" class="profile-menu-item">
+                    <div class="profile-menu-item__icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div class="profile-menu-item__text">
+                        <span class="profile-menu-item__label">Privacy Notice</span>
+                        <span class="profile-menu-item__sublabel">Data protection & guidelines</span>
                     </div>
                 </a>
                 <a href="index.html" class="profile-menu-item profile-logout-btn" onclick="if(window.SigmaPresenceTracker && typeof window.SigmaPresenceTracker.logout==='function'){window.SigmaPresenceTracker.logout();}else{sessionStorage.clear();}">
@@ -1285,16 +1305,16 @@
 
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
-    <script src="js/shared-components.js?v=20261004sharedSelectionRail1"></script>
+    <script src="js/shared-components.js?v=20261005teacherFix2"></script>
     <script src="js/topbar.js?v=20261003breakpointreset1"></script>
     <script src="js/sidebar.js?v=20261003viewportreset1"></script>
     <script src="js/notifications.js?v=20261004separateprefs1"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
     <script src="js/analytics-unread.js?v=20261003analyticsbadge1"></script>
     <script src="js/calendar.js?v=20260929dateselect1"></script>
-    <script src="js/dialog.js?v=20260930scaleaskpanel1"></script>
-    <script src="js/profile-view.js?v=20260923accountmenu1"></script>
-    <script src="js/settings-view.js?v=20261004recoverychevron1"></script>
+    <script src="js/dialog.js?v=20261005quizStartDesktop1"></script>
+    <script src="js/profile-view.js?v=20261005teacherFix2"></script>
+    <script src="js/settings-view.js?v=20261005mobilefix1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
     <script src="js/classroom-room.js?v=20261004tabAlignExact1"></script>
@@ -1302,13 +1322,13 @@
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
     <script src="js/announcements.js?v=20261004fixscroll1"></script>
     <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
-    <script src="js/sigma-analytics.js?v=20261004gradepercent1"></script>
+    <script src="js/sigma-analytics.js?v=20261005teacherFix2"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
     <script src="js/subject-editor.js?v=20261004desktopTemplatesLayout1"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/teacher.js?v=20261004sharedSelectionRail1"></script>
-    <script src="js/curriculum-release.js?v=20261004sharedScheduleDetails1" data-initialize-after-dom="true"></script>
+    <script src="js/teacher.js?v=20261005mobilefix1"></script>
+    <script src="js/curriculum-release.js?v=20261004assignedStudentsFlow1" data-initialize-after-dom="true"></script>
 </body>
 </html>

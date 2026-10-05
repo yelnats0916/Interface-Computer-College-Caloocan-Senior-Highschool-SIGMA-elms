@@ -2245,14 +2245,24 @@
         opacity: 0 !important;
     }
 
-    /* Page bottom padding so content can be scrolled fully above the docked bottom bar */
-    .teacher-topic-page-grid:has(.assessment-material-detail-view),
+    /* Reserve toolbar clearance once, on the material grid rather than its shell. */
     .teacher-topic-page-shell:has(.assessment-material-detail-view),
-    .teacher-topic-page-grid.has-topic-rail-score-follow,
     .teacher-topic-page-shell.has-topic-rail-score-follow,
-    .teacher-topic-page-grid:has(#topic-right-section.topic-rail-score-follow),
     .teacher-topic-page-shell:has(#topic-right-section.topic-rail-score-follow) {
-        padding-bottom: 180px !important;
+        padding-bottom: 0 !important;
+    }
+
+    body #section-topic-content .teacher-topic-page-grid:has(.assessment-material-detail-view),
+    body #section-topic-detail .topic-detail-grid:has(.assessment-material-detail-view),
+    body .teacher-topic-page-grid.has-topic-rail-score-follow,
+    body .teacher-topic-page-grid:has(#topic-right-section.topic-rail-score-follow) {
+        padding-bottom: calc(var(--material-mobile-dock-height, 0px) + var(--mobile-browser-safe-bottom)) !important;
+        scroll-padding-bottom: calc(var(--material-mobile-dock-height, 0px) + var(--mobile-browser-safe-bottom));
+    }
+
+    body #section-topic-content .teacher-topic-page-grid #topic-right-section.topic-rail-score-follow,
+    body #section-topic-content .teacher-topic-page-grid:has(.assessment-material-detail-view) #topic-right-section {
+        bottom: var(--material-mobile-viewport-bottom, 0px) !important;
     }
 
     .assessment-mobile-score-panel-slot {
@@ -5239,7 +5249,7 @@
     }
 
     #landingMain,
-    body:not(:has(#admin-header)):not(:has(#quiz-action-bar)) main {
+    body:has(#landingMain) main {
         margin-top: clamp(56px, 14vw, 64px) !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
@@ -5430,12 +5440,17 @@
         width: 100% !important;
     }
 
-    .login-panel .login-form-logo-wrap {
+    .login-panel .login-form-logo-wrap:not(.hidden) {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         margin-top: 0 !important;
         margin-bottom: clamp(1rem, 2.5vh, 1.75rem) !important;
+    }
+
+    .login-panel .login-form-logo-wrap.hidden,
+    #landingLoginLogoWrap.hidden {
+        display: none !important;
     }
 
     .login-panel .login-form-logo {
@@ -5456,6 +5471,53 @@
     body.flex.flex-col.bg-gray-50 footer {
         margin-top: 0 !important;
         padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+
+/* ==========================================================================
+   DESKTOP HELP CENTER (>= 768px): Strict enforcement (No burger, white sidebar, grey content)
+   ========================================================================== */
+@media (min-width: 768px) {
+    #helpCenterNavMenuBtn,
+    body.help-center-active #helpCenterNavMenuBtn {
+        display: none !important;
+    }
+
+    #helpCategoriesSidebar {
+        display: block !important;
+        width: 320px !important;
+        flex-shrink: 0 !important;
+        background-color: #ffffff !important;
+        border-right: 1px solid #e5e7eb !important;
+    }
+
+    #helpCenterView {
+        display: flex !important;
+        flex-direction: row !important;
+        background-color: #f1f5f9 !important;
+        min-height: calc(100vh - 82px) !important;
+    }
+
+    #helpCenterView.hidden {
+        display: none !important;
+    }
+
+    #helpCenterContentScroll {
+        display: block !important;
+        flex: 1 1 0% !important;
+        background-color: #f1f5f9 !important;
+        overflow-y: auto !important;
+    }
+
+    #faq-help,
+    #contact-support {
+        border-radius: 24px !important;
+        border: 1px solid #f1f5f9 !important;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+        background-color: #ffffff !important;
+        padding: 2.5rem !important;
+        max-width: 896px !important;
+        margin: 0 auto !important;
     }
 }
 
@@ -7285,9 +7347,7 @@
         margin: 2px 0 !important;
     }
 
-    /* Closed Gap between Nav Bar and Selection Panel */
-    body:has(#admin-header) main,
-    body:has(#admin-header) main.flex-1,
+    /* Only the standalone quiz editor needs clearance for its fixed header. */
     body:has(#quiz-action-bar) main,
     body:has(#quiz-action-bar) main.flex-1 {
         margin-top: 0 !important;
@@ -8491,7 +8551,6 @@
         max-width: 100vw !important;
         max-height: 100dvh !important;
         border-radius: 0 !important;
-        display: flex !important;
         align-items: stretch !important;
         justify-content: stretch !important;
         box-sizing: border-box !important;
@@ -8552,10 +8611,10 @@
     #teacher-learning-picker-overlay .border-b:first-child button[title="Back"],
     #teacher-topic-schedule-overlay .border-b:first-child button[title="Back"],
     .picker-header-back-btn {
-        width: auto !important;
-        height: auto !important;
-        min-width: unset !important;
-        min-height: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
         border-radius: 0 !important;
         border: none !important;
         background: transparent !important;
@@ -9678,6 +9737,22 @@
 
     body [id$="-overlay"] .curriculum-hub-panel > div:last-child {
         padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    :is([id^="released-topic-btn-"], [id^="released-learning-btn-"],
+        [id^="released-assessment-btn-"]) > .fa-ellipsis-vertical {
+        font-size: 12px !important;
+        line-height: 1 !important;
+    }
+
+    #teacher-topic-schedule-overlay .border-b:first-child > .flex,
+    #teacher-topic-schedule-overlay .picker-header-back-btn + div {
+        min-width: 0;
+    }
+
+    #teacher-topic-schedule-overlay h2 {
+        white-space: normal;
+        overflow-wrap: break-word;
     }
 }
 

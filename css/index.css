@@ -714,8 +714,21 @@ main {
 
 
 /* FOOTER LINK HOVER — Pure solid yellow color change with no opacity */
+footer {
+    font-size: 0.75rem;
+}
+
 footer a {
     transition: color 0.2s ease;
+}
+
+footer .footer-links a,
+footer .footer-links span {
+    font-size: clamp(0.6875rem, 2.4vw, 0.75rem) !important;
+}
+
+footer .footer-copyright {
+    font-size: clamp(0.5625rem, 1.8vw, 0.625rem) !important;
 }
 
 footer a:hover,
@@ -1123,9 +1136,9 @@ textarea::placeholder {
 
 
 /* =============================================================
-   RESPONSIVE: Tablet & Mobile (< 1024px OR Portrait Tablet up to 1100px)
+   RESPONSIVE: Tablet & Mobile (< 768px)
    ============================================================= */
-@media (max-width: 1023px), (orientation: portrait) and (max-width: 1100px) {
+@media (max-width: 767px) {
 
     main {
         margin-top: clamp(56px, 14vw, 64px) !important;
@@ -1331,12 +1344,17 @@ textarea::placeholder {
         max-width: clamp(340px, 88vw, 580px) !important;
     }
 
-    .login-panel .login-form-logo-wrap {
+    .login-panel .login-form-logo-wrap:not(.hidden) {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         margin-top: 0 !important;
         margin-bottom: clamp(1rem, 2.5vh, 1.75rem) !important;
+    }
+
+    .login-panel .login-form-logo-wrap.hidden,
+    #landingLoginLogoWrap.hidden {
+        display: none !important;
     }
 
     .login-panel .login-form-logo {
@@ -1371,6 +1389,29 @@ textarea::placeholder {
     }
 }
 
+/* =============================================================
+   DESKTOP HELP CENTER (>= 768px): No Burger Icon, Sidebar Always Visible
+   ============================================================= */
+@media (min-width: 768px) {
+    #helpCenterNavMenuBtn,
+    body.help-center-active #helpCenterNavMenuBtn {
+        display: none !important;
+    }
+
+    #helpCategoriesSidebar {
+        display: block !important;
+    }
+
+    #helpCenterView {
+        display: flex !important;
+        flex-direction: row !important;
+    }
+
+    #helpCenterView.hidden {
+        display: none !important;
+    }
+}
+
 /* ERROR STATE */
 .input-error {
     border-color: #ef4444 !important;
@@ -1378,6 +1419,20 @@ textarea::placeholder {
 
 .input-error~.floating-input-label {
     color: #ef4444 !important;
+}
+
+#schoolIdError,
+#passwordError,
+#modalSchoolIdError,
+#modalPasswordError,
+#landing2faVerifyError,
+#landing2faSetupError {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #dc2626 !important;
+    text-transform: none !important;
+    line-height: 1.25rem !important;
 }
 
 /* TABLET SPECIFIC (600px - 1023px, and portrait up to 1100px) */
@@ -1505,3 +1560,148 @@ textarea::placeholder {
 .gradebook-refresh-anim {
     animation: gradebookFadeIn 0.3s ease-out;
 }
+
+.login-policy-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #6b7280;
+}
+
+.login-policy-links a {
+    color: #374151;
+    text-decoration: none;
+    padding: 5px 0;
+}
+
+.login-policy-links a:hover {
+    color: #15803d;
+    text-decoration: underline;
+}
+
+.login-policy-links a:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 4px;
+}
+
+/* =============================================================
+   TERMS AGREEMENT MODAL: Responsive Scaling for Mobile & Desktop
+   ============================================================= */
+#termsAgreementModal {
+    box-sizing: border-box;
+}
+
+#termsAgreementBox {
+    width: 100% !important;
+    max-width: min(760px, calc(100vw - 20px)) !important;
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 639px) {
+    #termsAgreementModal {
+        padding: 10px !important;
+    }
+
+    #termsAgreementBox {
+        border-radius: 20px !important;
+        max-height: calc(100dvh - 20px) !important;
+        height: auto !important;
+    }
+
+    #termsAgreementBox .modal-header-terms {
+        padding: 12px 14px !important;
+    }
+
+    #termsAgreementBox .modal-header-terms h2 {
+        font-size: 13.5px !important;
+        line-height: 1.25 !important;
+    }
+
+    #termsAgreementBox .modal-header-terms p {
+        font-size: 10px !important;
+    }
+
+    #termsAgreementBody {
+        padding: 12px 12px !important;
+        gap: 10px !important;
+    }
+
+    #termsAgreementBody .terms-welcome-notice {
+        padding: 10px 12px !important;
+        border-radius: 12px !important;
+        font-size: 11px !important;
+    }
+
+    #termsAgreementBody .terms-sections-card {
+        padding: 12px 12px !important;
+        border-radius: 14px !important;
+    }
+
+    #termsAgreementBody .terms-section-item {
+        gap: 8px !important;
+    }
+
+    #termsAgreementBody .terms-num-badge {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 10.5px !important;
+        border-radius: 6px !important;
+    }
+
+    #termsAgreementBody .terms-section-title {
+        font-size: 12px !important;
+    }
+
+    #termsAgreementBody .terms-section-desc {
+        font-size: 11px !important;
+        line-height: 1.45 !important;
+    }
+
+    #termsAgreementBox .modal-footer-terms {
+        padding: 10px 12px !important;
+        gap: 8px !important;
+    }
+
+    #termsScrollNotice {
+        font-size: 10.5px !important;
+        padding: 6px 10px !important;
+        border-radius: 10px !important;
+    }
+
+    #termsAgreementCheckboxLabel {
+        font-size: 11.5px !important;
+        line-height: 1.35 !important;
+    }
+
+    #termsAgreementBox .modal-footer-actions {
+        display: flex !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    #termsAgreementDeclineBtn,
+    #termsAgreementAcceptBtn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        border-radius: 10px !important;
+        white-space: nowrap !important;
+    }
+
+    #termsAgreementDeclineBtn span,
+    #termsAgreementAcceptText {
+        font-size: 11.5px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+}
+

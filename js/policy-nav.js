@@ -1,0 +1,166 @@
+/**
+ * SIGMA ELMS — Context-Aware Policy Navigation Helper
+ * Directs Home, Back, and Help Center links to the appropriate role portal (Admin, Teacher, Student)
+ * or to Help Center / Login landing page without terminating or resetting any active session.
+ */
+(function () {
+    'use strict';
+
+    function getActiveRoleHome() {
+        try {
+            const authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            const legacyUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || localStorage.getItem('sigma-logged-in-user') || localStorage.getItem('sigma_active_user') || '{}');
+            const role = String(authUser.role || authUser.type || legacyUser.role || legacyUser.type || '').trim().toLowerCase();
+
+            if (role.includes('admin')) return { file: 'admin.html', label: 'Back to Dashboard', role: 'admin' };
+            if (role.includes('teacher') || role.includes('faculty') || role.includes('instructor')) return { file: 'teacher.html', label: 'Back to Portal', role: 'teacher' };
+            if (role.includes('student') || role.includes('learner')) return { file: 'student.html', label: 'Back to Portal', role: 'student' };
+        } catch (e) {
+            console.warn('Active role detection error:', e);
+        }
+
+        const ref = (document.referrer || '').toLowerCase();
+        if (ref.includes('admin.html')) return { file: 'admin.html', label: 'Back to Dashboard', role: 'admin' };
+        if (ref.includes('teacher.html')) return { file: 'teacher.html', label: 'Back to Portal', role: 'teacher' };
+        if (ref.includes('student.html')) return { file: 'student.html', label: 'Back to Portal', role: 'student' };
+
+        return null;
+    }
+
+    function detectRoleContext() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromParam = (urlParams.get('from') || '').toLowerCase();
+        const hash = (window.location.hash || '').toLowerCase();
+        const storedOrigin = sessionStorage.getItem('sigma_policy_origin');
+        const policyFrom = sessionStorage.getItem('sigma_policy_from');
+        const ref = (document.referrer || '').toLowerCase();
+
+        // 1. Explicit query parameter has highest precedence
+        if (fromParam === 'login') {
+            const ctx = { file: 'index.html', label: 'Back to Login', role: 'guest' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
+        if (fromParam === 'help' || hash === '#help') {
+            const ctx = { file: 'index.html#help', label: 'Back to Help Center', role: 'help' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
+
+        // 2. Check if active logged-in role user (Admin / Teacher / Student)
+        const roleHome = getActiveRoleHome();
+        if (roleHome) {
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(roleHome));
+            return roleHome;
+        }
+
+        // 3. Referrer checks
+        if (ref.includes('#help') || ref.includes('from=help') || policyFrom === 'help') {
+            const ctx = { file: 'index.html#help', label: 'Back to Help Center', role: 'help' };
+            sessionStorage.setItem('sigma_policy_origin', JSON.stringify(ctx));
+            return ctx;
+        }
+
+        // 4. Stored origin if navigating between terms and privacy
+        if (storedOrigin) {
+            try {
+                const parsed = JSON.parse(storedOrigin);
+                if (parsed && parsed.file && parsed.label) {
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+
+        const defaultCtx = { file: 'index.html', label: 'Back to Login', role: 'guest' };
+        sessionStorage.setItem('sigma_policy_origin', JSON.stringify(defaultCtx));
+        return defaultCtx;
+    }
+
+    function initPolicyNavigation() {
+        const ctx = detectRoleContext();
+        const activeRole = getActiveRoleHome();
+        const isHelpOrigin = ctx.role === 'help';
+
+        // 1. Update in-page Back link
+        const backLink = document.getElementById('policyBackLink');
+        if (backLink) {
+            backLink.textContent = ctx.label;
+            backLink.href = ctx.file;
+            backLink.onclick = function (e) {
+                if (isHelpOrigin) {
+                    e.preventDefault();
+                    sessionStorage.setItem('sigma_target_view', 'help');
+                    window.location.href = 'index.html#help';
+                } else if (document.referrer && document.referrer.toLowerCase().includes(ctx.file.toLowerCase())) {
+                    e.preventDefault();
+                    window.history.back();
+                } else if (activeRole) {
+                    e.preventDefault();
+                    window.location.href = ctx.file;
+                } else {
+                    e.preventDefault();
+                    sessionStorage.removeItem('sigma_policy_from');
+                    sessionStorage.removeItem('sigma_policy_origin');
+                    window.location.href = 'index.html';
+                }
+            };
+        }
+
+        // 2. Update Top-Left Logo / Home button
+        // Logo always goes back to the login page (index.html)
+        const logoLink = document.getElementById('backToLoginLogo');
+        if (logoLink) {
+            logoLink.href = 'index.html';
+            logoLink.title = 'Back to Login';
+            logoLink.onclick = function (e) {
+                e.preventDefault();
+                sessionStorage.removeItem('sigma_policy_from');
+                sessionStorage.removeItem('sigma_policy_origin');
+                sessionStorage.removeItem('sigma_target_view');
+                window.location.href = 'index.html';
+            };
+        }
+
+        // 3. Help Center button:
+        // When inside user account (Admin, Teacher, Student), hide Help Center button in the navbar.
+        // When viewed from login page / guest mode, keep Help Center button accessible.
+        const helpBtn = document.getElementById('entryHelpCenterBtn');
+        const helpMobileBtn = document.getElementById('helpCenterNavMenuBtn');
+
+        if (activeRole) {
+            if (helpBtn) {
+                helpBtn.style.display = 'none';
+                helpBtn.classList.add('hidden');
+            }
+            if (helpMobileBtn) {
+                helpMobileBtn.style.display = 'none';
+                helpMobileBtn.classList.add('hidden');
+            }
+        } else {
+            if (helpBtn) {
+                helpBtn.href = 'index.html#help';
+                helpBtn.onclick = function (e) {
+                    e.preventDefault();
+                    sessionStorage.setItem('sigma_target_view', 'help');
+                    sessionStorage.setItem('sigma_policy_from', 'help');
+                    window.location.href = 'index.html#help';
+                };
+            }
+
+            if (helpMobileBtn) {
+                helpMobileBtn.onclick = function (e) {
+                    e.preventDefault();
+                    sessionStorage.setItem('sigma_target_view', 'help');
+                    sessionStorage.setItem('sigma_policy_from', 'help');
+                    window.location.href = 'index.html#help';
+                };
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPolicyNavigation);
+    } else {
+        initPolicyNavigation();
+    }
+})();

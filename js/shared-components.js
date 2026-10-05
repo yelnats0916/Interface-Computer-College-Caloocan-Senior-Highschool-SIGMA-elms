@@ -752,17 +752,20 @@ window.saveStoredJson = function (key, data) {
         if (!key || typeof localStorage === 'undefined') return false;
         if (data === undefined) {
             localStorage.removeItem(key);
+            window.invalidateSigmaViewCaches?.();
             return true;
         }
         const payload = (data && typeof data === 'object') ? window.compactStorageValue(data) : data;
         const json = JSON.stringify(payload);
         try {
             localStorage.setItem(key, json);
+            window.invalidateSigmaViewCaches?.();
             return true;
         } catch (e) {
             console.warn(`[saveStoredJson] Initial save failed for key "${key}", attempting emergency storage cleanup...`, e);
             window.recoverSigmaStorageQuota(key);
             localStorage.setItem(key, json);
+            window.invalidateSigmaViewCaches?.();
             console.info(`[saveStoredJson] Successfully saved key "${key}" after freeing storage.`);
             return true;
         }
@@ -928,17 +931,42 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     let _modalHistoryDepth = 0;
     let _isProcessingBack = false;
     const _modalScrollStack = [];
+    let _pendingModalDismiss = false;
+    let _modalToken = 0;
+
+    function modalHistoryEntryIsVisible(state) {
+        const name = state?._modalName || '';
+        const step = name.match(/^(subject|section|user)-step-(\d+)$/);
+        if (step) {
+            const owner = step[1] === 'subject' ? document.getElementById('subject-edit-overlay')
+                : step[1] === 'section' ? document.getElementById('section-edit-overlay')
+                    : document.getElementById('userModal') || document.getElementById('edit-user-modal') || document.getElementById('user-edit-overlay');
+            const currentStep = step[1] === 'subject' ? window.currentSubjectStep
+                : step[1] === 'section' ? window.currentSectionStep : window.userStep;
+            return isElementVisible(owner) && Number(currentStep) >= Number(step[2]);
+        }
+        const owner = document.getElementById(name)
+            || Array.from(document.querySelectorAll('[data-student-absent-panel]')).find(el => el.getAttribute('data-student-absent-panel') === name);
+        return isElementVisible(owner);
+    }
 
     // Checks if an element is currently visible to the user
     function isElementVisible(el) {
         if (!el || !el.isConnected) return false;
         if (el.classList.contains('hidden') || el.closest('.hidden')) return false;
+        if (el.id === 'sidebar' && (window.innerWidth >= 1024 || !el.classList.contains('sidebar-visible'))) return false;
+        if (el.id === 'sub-sidebar' && !el.classList.contains('sub-sidebar-visible') && !document.body.classList.contains('sub-sidebar-open')) return false;
+        if (el.id === 'mobile-sigma-sheet' && !el.classList.contains('open')) return false;
+        if (el.classList.contains('mobile-pull-up-panel') && !el.classList.contains('open')) return false;
         if (el.style.display === 'none') return false;
         try {
             const rects = el.getClientRects();
             if (rects.length === 0 && el.offsetWidth === 0 && el.offsetHeight === 0) return false;
             const style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+            const opening = el.classList.contains('active') || el.classList.contains('open') || el.classList.contains('curriculum-hub-overlay--visible');
+            if (style.display === 'none' || style.visibility === 'hidden' || (style.opacity === '0' && !opening)) return false;
+            const rect = el.getBoundingClientRect();
+            if (!opening && (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth)) return false;
         } catch (e) { }
         return true;
     }
@@ -951,10 +979,9 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             return () => {
                 if (typeof window.closeAiPanel === 'function') {
                     window.closeAiPanel();
-                } else {
-                    sigmaAiPanel.classList.remove('open');
-                    document.getElementById('sigmaAiNotch')?.classList.remove('open');
                 }
+                sigmaAiPanel.classList.remove('open');
+                document.getElementById('sigmaAiNotch')?.classList.remove('open');
             };
         }
 
@@ -1200,8 +1227,9 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                     }
                 }
 
-                // Pressing Esc belongs to the exit icon (handleSubjectExit)
-                if (typeof window.handleSubjectExit === 'function') {
+                if (typeof window.handleSubjectBack === 'function') {
+                    window.handleSubjectBack();
+                } else if (typeof window.handleSubjectExit === 'function') {
                     window.handleSubjectExit();
                 } else if (typeof window.toggleSubjectOverlay === 'function') {
                     window.toggleSubjectOverlay(false);
@@ -1523,9 +1551,10 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                     const closeBtn = ov.querySelector(
                         '#modal-close-btn, .close-modal-btn, [data-close-modal], [data-close], .sigma-modal-exit, ' +
                         '.close-btn, .btn-close, button[aria-label*="Close"], button[title*="Close"], ' +
-                        'button[onclick*="close"], button[onclick*="toggle"], button[onclick*="cancel"], ' +
+                        'button[onclick*="close"], button[onclick*="cancel"], ' +
                         '.cancel-btn, [data-cancel], .fa-xmark, .fa-times'
-                    )?.closest('button') || ov.querySelector('.close-modal-btn, [data-close-modal], .sigma-modal-exit');
+                    )?.closest('button') || ov.querySelector('.close-modal-btn, [data-close-modal], .sigma-modal-exit')
+                        || Array.from(ov.querySelectorAll('button')).find(button => /^(close|cancel|back)$/i.test(button.textContent.trim()));
 
                     if (closeBtn && typeof closeBtn.click === 'function') {
                         closeBtn.click();
@@ -1669,8 +1698,9 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
 
     // Push history state whenever any form or overlay opens
     window.pushModalHistoryState = function (modalName = 'modal') {
+        if (_isProcessingBack || _pendingModalDismiss || window._isProcessingPopstate) return;
+        if (window.history.state?._sigmaModalOpen && window.history.state._modalName === modalName) return;
         _modalHistoryDepth++;
-        const currentHash = window.location.hash || '';
         const adminMain = document.getElementById('admin-main');
         const mainContent = document.getElementById('main-content');
         const scrollSnapshot = (modalName === 'user-password-edit-overlay' && window._passwordChangeScrollSnapshot)
@@ -1682,13 +1712,21 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                 mainScroll: mainContent ? mainContent.scrollTop : 0,
                 docScroll: document.documentElement.scrollTop || document.body.scrollTop || 0
             };
+        scrollSnapshot._modalName = modalName;
         _modalScrollStack.push(scrollSnapshot);
 
         window.history.pushState(
-            { _sigmaModalOpen: true, _modalName: modalName, _depth: _modalHistoryDepth, _scroll: scrollSnapshot },
+            { ...window.history.state, _sigmaModalOpen: true, _sigmaModalToken: ++_modalToken, _modalName: modalName, _depth: _modalHistoryDepth, _scroll: scrollSnapshot },
             document.title,
-            window.location.pathname + currentHash
+            window.location.href
         );
+    };
+
+    window.__pushMobileOverlayHistory = function (kind) {
+        if (window.innerWidth >= 1024) return;
+        const id = kind === 'sigma-ai' ? 'sigmaAiPanel'
+            : kind === 'sigma-sheet' ? 'mobile-sigma-sheet' : kind;
+        window.pushModalHistoryState(id);
     };
 
     window.openGradebookSortPopover = function(triggerEl, currentKey, onSelectCallback) {
@@ -1824,7 +1862,8 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             '#teacher-material-upload-overlay, #teacher-material-editor-view, #leaveRoomModal, ' +
             '#curriculum-hub-overlay, #teacher-release-topics-overlay, #teacher-topic-picker-overlay, #teacher-release-learning-materials-overlay, #teacher-learning-picker-overlay, #teacher-release-assessments-overlay, #teacher-assessments-picker-overlay, #teacher-release-category-overlay, #teacher-topic-schedule-overlay, ' +
             '#gradebook-weight-picker-panel, #gradebook-card-modal-backdrop, ' +
-            '#mobile-sigma-sheet, #mobile-calendar-panel, #mobile-noti-panel, #classroom-mobile-people-panel, ' +
+            '#mobile-sigma-sheet, #mobile-calendar-panel, #mobile-noti-panel, #classroom-mobile-people-panel, #sigmaAiPanel, .mobile-pull-up-panel, ' +
+            '.header-panel, #classroom-settings-menu, #sidebar, #sub-sidebar, ' +
             '#ai-generator-modal, #ai-discard-modal, #ai-confirm-generate-modal, #import-questions-modal, ' +
             '#save-quiz-metadata-modal, #open-quiz-library-modal, #download-quiz-modal, #student-preview-modal, ' +
             '#subject-topic-editor-view, #subject-material-editor-view, #subject-material-detail-view, ' +
@@ -1851,10 +1890,15 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             }
         });
         modalElements.forEach(el => {
+            // The active quiz owns its exit confirmation and history lifecycle.
+            if (el.id === 'sigma-quiz-form-modal') return;
             const isVisible = isElementVisible(el);
-            const modalName = el.id || el.getAttribute('data-student-absent-panel') || 'overlay';
+            // A dialog panel inside an overlay is one history layer, not two.
+            if (!el.id && Array.from(modalElements).some(parent => parent !== el && parent.contains(el))) return;
+            if (!el.id && !el.getAttribute('data-student-absent-panel')) el.id = `sigma-history-overlay-${++_modalToken}`;
+            const modalName = el.id || el.getAttribute('data-student-absent-panel');
             const alreadyOnStack = Boolean(window.history.state && window.history.state._sigmaModalOpen && window.history.state._modalName === modalName);
-            if (isVisible && !el.dataset._historyPushed) {
+            if (isVisible && !el.dataset._historyPushed && !_isProcessingBack && !_pendingModalDismiss && !window._isProcessingPopstate) {
                 el.dataset._historyPushed = 'true';
                 if (!alreadyOnStack) window.pushModalHistoryState(modalName);
             } else if (!isVisible && el.dataset._historyPushed) {
@@ -1925,6 +1969,14 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                 hubOverlay.dataset._lastRecordedView = 'main';
             }
         }
+
+        // Consume closed overlays so the next Back reaches the preceding page.
+        const state = window.history.state;
+        if (!_isProcessingBack && !_pendingModalDismiss && !window._isProcessingPopstate
+            && state?._sigmaModalToken && !modalHistoryEntryIsVisible(state)) {
+            _pendingModalDismiss = true;
+            window.history.back();
+        }
     }
 
     let _scanModalsRaf = null;
@@ -1939,6 +1991,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     const observer = new MutationObserver(() => {
         debouncedScanAndRegisterActiveModals();
     });
+    document.addEventListener('transitionend', debouncedScanAndRegisterActiveModals, true);
 
     const initObserver = () => {
         if (document.body) {
@@ -1972,6 +2025,10 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         // A. If modal/overlay is open, close it. That stays on this page.
         const closer = getActiveModalCloser();
         if (closer) {
+            if (window.history.state?._sigmaModalOpen) {
+                window.history.back();
+                return;
+            }
             const savedScroll = _modalScrollStack.pop();
             try {
                 closer();
@@ -2093,6 +2150,14 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
 
     // 1. Popstate Listener: Catches Browser Back button, Android/Phone hardware back button, and Back gestures
     window.addEventListener('popstate', function (e) {
+        if (_pendingModalDismiss) {
+            _pendingModalDismiss = false;
+            _modalHistoryDepth = Math.max(0, _modalHistoryDepth - 1);
+            restoreSavedScroll(_modalScrollStack.pop());
+            e.stopImmediatePropagation();
+            debouncedScanAndRegisterActiveModals();
+            return;
+        }
         const draftUrl = window._gradeDraftPageUrl || '';
         const leftDraftPage = Boolean(draftUrl && draftUrl !== window.location.href);
         const closer = getActiveModalCloser();
@@ -2121,7 +2186,8 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             if (e.stopImmediatePropagation) e.stopImmediatePropagation();
             if (e.stopPropagation) e.stopPropagation();
             if (e.preventDefault) e.preventDefault();
-            const savedScroll = (e && e.state && e.state._scroll) ? e.state._scroll : _modalScrollStack.pop();
+            const savedScroll = _modalScrollStack.pop();
+            _modalHistoryDepth = Math.max(0, _modalHistoryDepth - 1);
             // Execute the closer to exit the form/modal and stay on the current view
             try {
                 closer();
@@ -2130,15 +2196,20 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                 restoreSavedScroll(savedScroll);
                 // Clear history pushed marker for closed modal
                 scanAndRegisterActiveModals();
-                setTimeout(() => {
-                    _isProcessingBack = false;
-                    window._isProcessingPopstate = false;
-                }, 80);
+                // A discard guard can keep the original editor open after Back.
+                // Register that layer again rather than leaving it without history.
+                if (savedScroll?._modalName && modalHistoryEntryIsVisible({ _modalName: savedScroll._modalName })) {
+                    const owner = document.getElementById(savedScroll._modalName);
+                    if (owner) delete owner.dataset._historyPushed;
+                }
+                _isProcessingBack = false;
+                window._isProcessingPopstate = false;
+                debouncedScanAndRegisterActiveModals();
             }
         }
     }, true);
 
-    // 2. Keyboard Back Listener: Alt + Left Arrow, Escape, and Backspace (when not typing in an input)
+    // Keyboard Back excludes Escape, which belongs to local dialog/menu dismissal.
     window.addEventListener('keydown', function (e) {
         const target = e.target;
         const isEditable = target && (
@@ -2148,54 +2219,29 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             target.isContentEditable
         );
 
+        if (e.defaultPrevented || e.isComposing || e.repeat) return;
         const isAltLeft = (e.altKey && (e.key === 'ArrowLeft' || e.keyCode === 37));
-        const isEscape = (e.key === 'Escape' || e.keyCode === 27);
+        const isBrowserBack = e.key === 'BrowserBack' || (e.metaKey && e.key === '[');
         const isBackspace = (e.key === 'Backspace' || e.keyCode === 8) && !isEditable;
 
-        if (isAltLeft || isEscape || isBackspace) {
-            if (isBackspace) {
-                // Prevent browser and application back navigation when Backspace is pressed outside editable fields
-                e.preventDefault();
-                return;
-            }
+        if (isAltLeft || isBrowserBack || isBackspace) {
             const closer = getActiveModalCloser();
             if (closer) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-                const savedScroll = _modalScrollStack.pop();
-                try {
-                    closer();
-                } finally {
-                    restoreSavedScroll(savedScroll);
-                    scanAndRegisterActiveModals();
-                }
-            } else if (isAltLeft) {
+                window.navigateSigmaBack();
+            } else if (isAltLeft || isBrowserBack || isBackspace) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.stopImmediatePropagation) e.stopImmediatePropagation();
                 window.navigateSigmaBack();
-            } else if (isEscape) {
-                const tcSection = document.getElementById('section-topic-content');
-                if (tcSection && !tcSection.classList.contains('hidden')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-                    window.navigateSigmaBack();
-                }
             }
         }
     }, true);
 
-    // 3. Mouse Back Button Listener (Button 3 = Back/XButton1)
-    window.addEventListener('mouseup', function (e) {
-        if (e.button === 3) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-            window.navigateSigmaBack();
-        }
-    }, true);
+    // Mouse Back and phone gestures already trigger native history traversal.
+    // Handle their popstate once instead of also navigating from mouseup.
 
     window.getSigmaActiveModalCloser = getActiveModalCloser;
 
@@ -2653,6 +2699,11 @@ window.resolveQuizAuthor = function (quiz) {
 
 window.getLoggedInTeacherUser = function () {
     let authUser = {};
+    const isTeacherPortal = (typeof window !== 'undefined' && (
+        (window.location && window.location.pathname && window.location.pathname.includes('teacher.html')) ||
+        (document.body && (document.body.id === 'teacher-dashboard-page' || document.body.classList.contains('teacher-page')))
+    ));
+    const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
     try {
         authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
         if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
@@ -2663,7 +2714,36 @@ window.getLoggedInTeacherUser = function () {
         }
     } catch (e) {}
 
-    const cleanStr = s => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const defaultTeacher = {
+        id: '1111111',
+        uid: '1111111',
+        firstName: 'Maria',
+        middleName: 'Santos',
+        lastName: 'Ramos',
+        fullName: 'Maria Santos Ramos',
+        name: 'Maria Santos Ramos',
+        email: 'maria.ramos@gmail.com',
+        role: 'Teacher',
+        type: 'Teacher',
+        status: 'Active',
+        gender: 'Female',
+        branch: 'Main Campus',
+        department: 'Senior High School - Faculty',
+        section: 'Rizal',
+        sections: ['Rizal'],
+        assignedSections: ['Rizal'],
+        subject: 'Computer Programming 1',
+        subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+        assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+    };
+
+    const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
+    // Default to Maria Santos Ramos only when no account is authenticated
+    if (!authIdRaw) {
+        authUser = defaultTeacher;
+    }
 
     let allUsers = [];
     const storageKeys = ['sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-teacher-users-v1', 'sigma-users'];
@@ -2703,7 +2783,8 @@ window.getLoggedInTeacherUser = function () {
         const finalFn = matchedUser.firstName || authUser.firstName || 'Teacher';
         const finalLn = matchedUser.lastName || authUser.lastName || '';
         const finalFull = matchedUser.fullName || matchedUser.name || authUser.fullName || `${finalFn} ${finalLn}`.trim();
-        return {
+
+        const baseObj = {
             ...matchedUser,
             ...authUser,
             id: finalId,
@@ -2714,6 +2795,17 @@ window.getLoggedInTeacherUser = function () {
             name: finalFull,
             role: 'Teacher'
         };
+
+        if (finalId === '1111111') {
+            baseObj.section = 'Rizal';
+            baseObj.sections = ['Rizal'];
+            baseObj.assignedSections = ['Rizal'];
+            baseObj.subject = 'Computer Programming 1';
+            baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+            baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+        }
+
+        return baseObj;
     }
 
     if (authId || authFullName || authUser.firstName) {
@@ -2721,7 +2813,7 @@ window.getLoggedInTeacherUser = function () {
         const finalFn = authUser.firstName || (authUser.name ? authUser.name.split(' ')[0] : 'Teacher');
         const finalLn = authUser.lastName || (authUser.name ? authUser.name.split(' ').slice(1).join(' ') : '');
         const finalFull = authUser.fullName || authUser.name || `${finalFn} ${finalLn}`.trim();
-        return {
+        const baseObj = {
             ...authUser,
             id: finalId,
             uid: finalId,
@@ -2731,11 +2823,18 @@ window.getLoggedInTeacherUser = function () {
             name: finalFull,
             role: 'Teacher'
         };
-    }
 
-    const defaultTeacher = allUsers.find(u => String(u.uid || u.id) === '1111111')
-        || allUsers.find(u => (u.role || u.type || '').toLowerCase().includes('teacher'))
-        || { id: '1111111', uid: '1111111', firstName: 'Maria', middleName: 'Santos', lastName: 'Ramos', fullName: 'Maria Santos Ramos', name: 'Maria Santos Ramos', role: 'Teacher' };
+        if (finalId === '1111111') {
+            baseObj.section = 'Rizal';
+            baseObj.sections = ['Rizal'];
+            baseObj.assignedSections = ['Rizal'];
+            baseObj.subject = 'Computer Programming 1';
+            baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+            baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
+        }
+
+        return baseObj;
+    }
 
     return defaultTeacher;
 };
@@ -4145,36 +4244,35 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
 
     // 1. Check if admin section has students array
     const adminSections = (typeof window.getStoredJson === 'function') ? window.getStoredJson('sigma-admin-sections', []) : [];
-    if (Array.isArray(adminSections)) {
+    if (Array.isArray(adminSections) && adminSections.length > 0) {
         let matched = null;
-        if (normSubj) {
-            matched = adminSections.find(s => {
-                if (!s) return false;
-                const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
-                const sClean = stripGrade(sName);
-                const sId = String(s.id || '').trim().toLowerCase();
-                const sGrade = String(s.grade || s.gradeLevel || '').trim().toLowerCase();
-                const sFull = `${sGrade} - ${sClean}`.trim();
-                const matchSec = sId === normSec || sName === normSec || sClean === normClean || sFull === normSec;
+        const sectionRecords = adminSections.filter(s => {
+            if (!s) return false;
+            const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
+            const sClean = stripGrade(sName);
+            const sId = String(s.id || '').trim().toLowerCase();
+            const sGrade = String(s.grade || s.gradeLevel || '').trim().toLowerCase();
+            const sFull = `${sGrade} - ${sClean}`.trim();
+            return sId === normSec || sName === normSec || sClean === normClean || sFull === normSec;
+        });
+
+        if (sectionRecords.length > 0 && normSubj) {
+            matched = sectionRecords.find(s => {
                 const sSubj = String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').trim().toLowerCase();
                 const sCode = String(s.code || s.subjectId || s.subjectCode || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
                 const wantCode = normSubj.replace(/^(card-|subj-)/, '').trim();
-                const matchSubj = sSubj === normSubj || (sSubj && normSubj && (sSubj.includes(normSubj) || normSubj.includes(sSubj))) || (sCode && wantCode && sCode === wantCode);
-                return matchSec && matchSubj;
+                return sSubj === normSubj || (sSubj && normSubj && (sSubj.includes(normSubj) || normSubj.includes(sSubj))) || (sCode && wantCode && sCode === wantCode);
             });
+            // If this section exists in adminSections, but DOES NOT offer this requested subject, reject fallthrough
+            if (!matched) {
+                return [];
+            }
+        } else if (sectionRecords.length > 0 && !normSubj) {
+            matched = sectionRecords[0];
         }
-        if (!matched && !normSubj) {
-            matched = adminSections.find(s => {
-                if (!s) return false;
-                const sName = String(s.name || s.sectionName || '').trim().toLowerCase();
-                const sClean = stripGrade(sName);
-                const sId = String(s.id || '').trim().toLowerCase();
-                const sGrade = String(s.grade || s.gradeLevel || '').trim().toLowerCase();
-                const sFull = `${sGrade} - ${sClean}`.trim();
-                return sId === normSec || sName === normSec || sClean === normClean || sFull === normSec;
-            });
-        }
-        if (matched && Array.isArray(matched.students) && matched.students.length > 0) {
+
+        if (matched && Array.isArray(matched.students)) {
+            if (matched.students.length === 0) return [];
             const list = matched.students.map((st, i) => {
                 const rawName = typeof st === 'string' ? st : (st.name || st.fullName || `${st.lastName || ''}, ${st.firstName || ''}`.trim());
                 const sId = typeof st === 'object' ? (st.id || st.uid || st.lrn || '') : '';
@@ -4336,17 +4434,23 @@ window.isSectionAssignedToTeacher = function (sec, teacher) {
     };
 
     // 1. Authoritative check: Section Teacher Roster
-    // Check sec.teachers array (objects or strings, any role: Teacher, Lead, Co-Teacher, Adviser, etc.)
-    const teacherList = getSafeList(sec.teachers)
-        .concat(getSafeList(sec.assignedTeachers))
+    let teacherList = [];
+    let hasExplicitRoster = false;
+    if (sec.teachers !== undefined && sec.teachers !== null) {
+        teacherList = getSafeList(sec.teachers);
+        hasExplicitRoster = true;
+    } else if (sec.assignedTeachers !== undefined && sec.assignedTeachers !== null) {
+        teacherList = getSafeList(sec.assignedTeachers);
+    }
+
+    teacherList = teacherList
         .concat(getSafeList(sec.coTeachers))
         .concat(getSafeList(sec.instructors));
-
-    let hasExplicitRoster = teacherList.length > 0;
 
     if (teacherList.length > 0) {
         const hasTeacher = teacherList.some(t => isMatch(t));
         if (hasTeacher) return true;
+        hasExplicitRoster = true;
     }
 
     // 2. Check sec.teacher / sec.teacherUid / sec.teacherEmail
@@ -7185,11 +7289,10 @@ window.topicHasReleasedAssessment = function (subjectId, section, topic) {
     if (pools.some(arr => Array.isArray(arr) && arr.some(matches))) return true;
     try {
         const subjectsRaw = localStorage.getItem('sigma-admin-subjects') || '[]';
-        const subjectsLen = subjectsRaw.length;
-        if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.len !== subjectsLen) {
+        if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.raw !== subjectsRaw || window._sigmaSubjectsListCache.key !== 'sigma-admin-subjects') {
             let parsedSubjects = [];
             try { parsedSubjects = JSON.parse(subjectsRaw); } catch (e) { parsedSubjects = []; }
-            window._sigmaSubjectsListCache = { len: subjectsLen, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
+            window._sigmaSubjectsListCache = { raw: subjectsRaw, key: 'sigma-admin-subjects', list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
         }
         const list = window._sigmaSubjectsListCache.list;
         const cleanId = String(subjectId).replace(/^(card-|subj-)/, '').trim().toLowerCase();
@@ -8635,6 +8738,12 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         }
 
         const isMobileScreen = (typeof window !== 'undefined' && window.innerWidth <= 768);
+        const mobilePanelPage = window.location.pathname + window.location.hash;
+        if (isMobileScreen && window._mobileGradePanelPage !== mobilePanelPage) {
+            window._mobileGradePanelPage = mobilePanelPage;
+            window._mobileScorePanelCollapsed = true;
+            window._mobileGradePanelMinimized = false;
+        }
         // Submission sheets begin collapsed on phones. Desktop and mobile keep
         // independent state so a previously open desktop panel cannot open the
         // mobile bottom sheet on arrival.
@@ -8654,14 +8763,16 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                 <i class="fa-solid fa-award text-[#15803d] text-[11px] sm:text-xs"></i>
                                 <span>Grade</span>
                             </span>
+                            <span class="mobile-grade-header-actions ml-auto inline-flex items-center gap-1 shrink-0">
                             <button type="button" class="mobile-grade-minimize-btn" title="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" aria-label="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" onclick="window.toggleMobileGradePanelMinimize(event)">
-                                <i class="fa-solid ${window._mobileGradePanelMinimized ? 'fa-plus' : 'fa-minus'}" aria-hidden="true"></i>
+                                <span>${window._mobileGradePanelMinimized ? 'Restore' : 'Minimize'}</span>
                             </button>
                             <button type="button" onclick="event.stopPropagation(); window.toggleGradingPanelCollapse?.(event)"
                                 class="desktop-grading-toggle-btn ml-auto w-6 h-6 flex items-center justify-center text-[#15803d] hover:text-[#166534] bg-transparent border-0 cursor-pointer shrink-0 transition-colors"
                                 title="${isPanelCollapsed ? 'Expand grading panel' : 'Collapse grading panel'}">
                                 <i id="desktop-grading-panel-chevron" class="fa-solid ${isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
                             </button>
+                            </span>
                         </div>
 
                         <!-- Student Switcher Header -->
@@ -8866,7 +8977,7 @@ window.renderSharedTeacherTopicSelectionRail = function (data, state = window.cu
 window.toggleMobileGradePanelMinimize = function (event) {
     event?.stopPropagation();
     event?.preventDefault();
-    if (window.innerWidth > 767) return;
+    if (window.innerWidth > 768) return;
     const card = event?.target?.closest('.topic-score-sticky');
     if (!card) return;
     const minimized = card.classList.toggle('is-minimized');
@@ -8875,7 +8986,7 @@ window.toggleMobileGradePanelMinimize = function (event) {
     const button = card.querySelector('.mobile-grade-minimize-btn');
     button.title = minimized ? 'Restore Grade panel' : 'Minimize Grade panel';
     button.setAttribute('aria-label', button.title);
-    button.querySelector('i').className = minimized ? 'fa-solid fa-plus' : 'fa-solid fa-minus';
+    button.querySelector('span').textContent = minimized ? 'Restore' : 'Minimize';
     card.querySelector('.desktop-grading-header').tabIndex = minimized ? 0 : -1;
 };
 
@@ -8911,8 +9022,8 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         if (toggleBtn) toggleBtn.title = 'Expand grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = true;
-        window._desktopGradingPanelCollapsed = true;
-        window._mobileScorePanelCollapsed = true;
+        if (window.innerWidth <= 768) window._mobileScorePanelCollapsed = true;
+        else window._desktopGradingPanelCollapsed = true;
     } else {
         card.classList.remove('is-collapsed', 'is-desktop-collapsed');
         card.classList.add('is-expanded');
@@ -8926,8 +9037,8 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         if (toggleBtn) toggleBtn.title = 'Collapse grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = false;
-        window._desktopGradingPanelCollapsed = false;
-        window._mobileScorePanelCollapsed = false;
+        if (window.innerWidth <= 768) window._mobileScorePanelCollapsed = false;
+        else window._desktopGradingPanelCollapsed = false;
     }
 };
 
@@ -10764,7 +10875,6 @@ window.deduplicateMaterialsArray = function (materials, options = {}) {
 window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultAssessments = [], sectionName = '', topicHint = null) {
     const isFakeAssessment = window.isFakeAssessment;
     const rawList = Array.isArray(defaultAssessments) && defaultAssessments.length ? defaultAssessments.filter(it => !isFakeAssessment(it)) : [];
-    const list = window.deduplicateMaterialsArray(rawList, { collapseRoles: true });
     const isAllAssessmentsTab = (tab === 'assessments' || !tab);
     const labels = { assignments: 'Task', tasks: 'Task', task: 'Task', quiz: 'Quiz', activity: 'Task', performance: 'Task', assessments: 'Task' };
     const label = labels[tab] || 'Task';
@@ -10780,6 +10890,14 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
         ''
     ).trim().toLowerCase();
     const normSection = (value) => String(value || '').trim().toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim();
+    const defaultSectionMatches = item => {
+        const section = String(item.section || item.roomSection || '').trim().toLowerCase();
+        if (!section || section === 'all') return true;
+        const canonical = value => typeof window.canonicalizeSectionLookup === 'function'
+            ? (window.canonicalizeSectionLookup(value) || value) : value;
+        return Boolean(targetSec) && normSection(canonical(section)) === normSection(canonical(targetSec));
+    };
+    const list = window.deduplicateMaterialsArray(rawList.filter(defaultSectionMatches), { collapseRoles: true });
 
     try {
         const isMatchingType = (matType) => {
@@ -10813,11 +10931,10 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
         // 1. From Subject Storage (sigma-admin-subjects / window.SUBJECTS_STORAGE_KEY)
         const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
         const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-        const subjectsLen = rawSubjects.length;
-        if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.len !== subjectsLen || window._sigmaSubjectsListCache.key !== storageKey) {
+        if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.raw !== rawSubjects || window._sigmaSubjectsListCache.key !== storageKey) {
             let parsedSubjects = [];
             try { parsedSubjects = JSON.parse(rawSubjects); } catch (e) { parsedSubjects = []; }
-            window._sigmaSubjectsListCache = { len: subjectsLen, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
+            window._sigmaSubjectsListCache = { raw: rawSubjects, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
         }
         const subjects = window._sigmaSubjectsListCache.list;
         let curSubject = null;
@@ -10932,7 +11049,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                     const mSec = String(m.section || m.roomSection || '').trim().toLowerCase();
                     const rawRole = m.authorRole || m.role || (m.isAdmin ? 'Admin' : (m.isTeacher ? 'Teacher' : ''));
                     const isTeacherMat = rawRole === 'Teacher' || m.isTeacher;
-                    if (!onStaffPortal && isTeacherMat && mSec && mSec !== 'all' && !sectionsMatch(mSec)) return;
+                    if (mSec && mSec !== 'all' && !sectionsMatch(mSec)) return;
                     const matchesType = assessmentOwnedSet.has(m) || isMatchingType(m.type) || isMatchingType(m.category);
                     const matchesTopic = belongsToTopic(m);
 
@@ -11042,7 +11159,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
             const cleanPageSubj = String(subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
             if (cleanMatSubj && cleanPageSubj && cleanMatSubj !== cleanPageSubj) return false;
             const mSec = String(m.section || m.roomSection || '').trim().toLowerCase();
-            if (!onStaffPortal && mSec && mSec !== 'all' && !sectionsMatch(mSec)) return false;
+            if (mSec && mSec !== 'all' && !sectionsMatch(mSec)) return false;
             return belongsToTopic(m);
         });
 
@@ -11155,7 +11272,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
                 const mSec = String(m.section || m.roomSection || '').trim();
                 const rawRole = m.authorRole || m.role || (m.isAdmin ? 'Admin' : (m.isTeacher ? 'Teacher' : ''));
                 const isTeacherMat = rawRole === 'Teacher' || m.isTeacher;
-                if (!onStaffPortal && isTeacherMat && mSec && mSec.toLowerCase() !== 'all' && !sectionsMatch(mSec)) return;
+                if (mSec && mSec.toLowerCase() !== 'all' && !sectionsMatch(mSec)) return;
                 if (!belongsToTopic(m)) return;
                 const already = list.some(item => {
                     const itemIds = [item && item.id, item && item.origId, item && item.originalAdminId, item && item.title, item && item.name]
@@ -11605,7 +11722,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                         <i class="${iconCls} text-lg ${quizDetails.iconColor}"${iconStyleAttr}></i>
                     </div>
                     <div class="min-w-0 flex-1 flex flex-col justify-center">
-                        <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
+                        <h4 ${clickAction ? `role="link" tabindex="0" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" onclick="event.stopPropagation(); ${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>
                             ${escape(liveTitle)}
                         </h4>
                         <p class="sigma-file-panel-meta text-[11px] sm:text-xs font-medium text-black-fade mt-0.5 flex items-center gap-1.5 flex-wrap font-['Inter']">
@@ -11763,7 +11880,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
                     <span class="text-[9px] sm:text-[9.5px] px-2 py-0.5 whitespace-nowrap ${badgeClass} border font-bold rounded-md leading-tight inline-flex items-center justify-center text-center capitalize">${escape(typeLabel)}</span>
                 </div>
                 <div class="min-w-0 flex-1 flex flex-col justify-center">
-                    <h4 ${clickAction ? `onclick="${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
+                    <h4 ${clickAction ? `role="link" tabindex="0" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }" onclick="event.stopPropagation(); ${clickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full"` : `class="sigma-file-panel-title text-[12px] sm:text-[19px] font-bold transition-colors truncate leading-snug font-['Inter'] w-fit max-w-full"`}>${escape(displayTitle)}</h4>
                     ${(size || subtitle) ? `<p class="sigma-file-panel-meta text-[11px] sm:text-xs text-black-fade font-medium mt-0.5">${escape(size || subtitle)}</p>` : ''}
                 </div>
             </div>
@@ -12366,6 +12483,7 @@ window.openQuizStartDialog = function (options = {}) {
             confirmText: 'Start Quiz',
             cancelText: 'Cancel',
             type: 'primary',
+            variant: 'quiz-start',
             icon: hasTimer ? 'fa-solid fa-stopwatch text-[#15803d]' : 'fa-solid fa-pen-nib text-[#15803d]',
             onConfirm: () => {
                 window.openQuizFormModal({ ...options, hasTimer: hasTimer, timeLimit: timeLimitStr, autoSubmitOnExit });
@@ -16089,6 +16207,31 @@ window.invalidateSharedAssessmentSubmissionsStorage = function () {
     _sharedSubsCache.ts = 0;
     _sharedSubsCache.data = null;
 };
+
+window.invalidateSigmaViewCaches = function () {
+    window._sigmaSubjectsListCache = null;
+    window._quizStorageListCache = null;
+    window._studentAssessmentDetailsCache?.clear();
+    window._teacherStatsCache?.clear();
+    window._teacherSecStudentsCache?.clear();
+    window.invalidateTeacherGradebookCache?.();
+    window.invalidateSharedAssessmentSubmissionsStorage?.();
+    window.clearCategoryDetailsCache?.();
+};
+
+(function installFreshViewReads() {
+    // Clear derived reads before action handlers render, never reload or replace drafts.
+    document.addEventListener('click', function (event) {
+        if (event.target.closest?.('a, button, [role="button"], [role="link"], [onclick]')) {
+            window.invalidateSigmaViewCaches();
+        }
+    }, true);
+    window.addEventListener('popstate', window.invalidateSigmaViewCaches, true);
+    window.addEventListener('hashchange', window.invalidateSigmaViewCaches, true);
+    window.addEventListener('storage', window.invalidateSigmaViewCaches);
+    window.addEventListener('pageshow', window.invalidateSigmaViewCaches);
+    window.addEventListener('focus', window.invalidateSigmaViewCaches);
+})();
 
 let _scoreRefreshDebounceTimer = null;
 window.refreshAllScorePanelsAndTables = function (meta, fromStorage = false) {
@@ -21212,6 +21355,15 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
 
         const finalizeSubmission = (sub) => {
             if (!matchesScope(sub)) return null;
+            const targetQuizId = matItem && typeof matItem === 'object'
+                ? (matItem.quizId || matItem.selectedQuizId || matItem.rawItem?.quizId || matItem.rawItem?.selectedQuizId)
+                : null;
+            const submissionHasQuizIdentity = Boolean(sub?.quizId || sub?.selectedQuizId
+                || sub?.answers || sub?.userAnswers || sub?.questions || sub?.quizQuestions);
+            const submissionHasUploadedFile = Boolean(sub?.fileName
+                || (Array.isArray(sub?.files) && sub.files.some(file => file && file.type !== 'quiz' && file.url !== 'quiz')));
+            // A task upload can share a material slot with a quiz, but it is never a quiz attempt.
+            if (targetQuizId && submissionHasUploadedFile && !submissionHasQuizIdentity) return null;
             if (matItem && typeof matItem === 'object' && typeof window.submissionMatchesAssessment === 'function'
                 && !window.submissionMatchesAssessment(sub, matItem)) {
                 return null;
@@ -21333,6 +21485,8 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                 if (studentBucket && typeof studentBucket === 'object') {
                     const itemHasQuiz = Boolean(matItem && typeof matItem === 'object' && (
                         matItem.isQuiz === true || matItem.isScheduleQuiz === true
+                        || matItem.quizId || matItem.selectedQuizId
+                        || matItem.rawItem?.quizId || matItem.rawItem?.selectedQuizId
                         || (Array.isArray(matItem.questions) && matItem.questions.length)
                         || (Array.isArray(matItem.quizQuestions) && matItem.quizQuestions.length)
                     ));
@@ -24982,11 +25136,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         try {
             const storageKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
             const rawSubjects = localStorage.getItem(storageKey) || localStorage.getItem('sigma_subjects_v2') || '[]';
-            const subjectsLen = rawSubjects.length;
-            if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.len !== subjectsLen || window._sigmaSubjectsListCache.key !== storageKey) {
+            if (!window._sigmaSubjectsListCache || window._sigmaSubjectsListCache.raw !== rawSubjects || window._sigmaSubjectsListCache.key !== storageKey) {
                 let parsedSubjects = [];
                 try { parsedSubjects = JSON.parse(rawSubjects); } catch (e) { parsedSubjects = []; }
-                window._sigmaSubjectsListCache = { len: subjectsLen, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
+                window._sigmaSubjectsListCache = { raw: rawSubjects, key: storageKey, list: Array.isArray(parsedSubjects) ? parsedSubjects : [] };
             }
             const subjects = window._sigmaSubjectsListCache.list;
             if (Array.isArray(subjects)) {
@@ -25162,7 +25315,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const instructions = ass.description || ass.instructions || 'No instructions provided.';
 
         const isStudentSubmissionMode = role === 'student' && Boolean(window._studentSubmissionMode);
-        const isViewSubmissionMode = Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
+        let isViewSubmissionMode = Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
 
         if (isViewSubmissionMode && typeof window.scrollSubmissionViewToTop === 'function') {
             window.scrollSubmissionViewToTop();
@@ -25917,6 +26070,37 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             }
         }
 
+        // A quiz only has a submission when it carries quiz identity or answers. A file upload
+        // that happened to use the same material slot belongs to another assessment.
+        const normalizedQuizId = String(ass.selectedQuizId || ass.quizId || ass.rawItem?.selectedQuizId || ass.rawItem?.quizId || '')
+            .trim().toLowerCase();
+        const storedQuizIds = [subData?.quizId, subData?.selectedQuizId]
+            .filter(Boolean)
+            .map(value => String(value).trim().toLowerCase());
+        const hasQuizAnswers = Boolean(subData?.answers || subData?.userAnswers || subData?.questions || subData?.quizQuestions);
+        const hasMatchingQuizId = Boolean(normalizedQuizId && storedQuizIds.includes(normalizedQuizId));
+        const hasNonQuizUpload = Boolean(subData?.fileName
+            || (Array.isArray(subData?.files) && subData.files.some(file => file && file.type !== 'quiz' && file.url !== 'quiz')));
+        const hasQuizStatus = Boolean(subData?.submittedAt || subData?.completedAt || subData?.submissionDate
+            || ['submitted', 'pending', 'graded'].includes(String(subData?.status || '').toLowerCase()));
+        const hasQuizAttempt = Boolean(subData && (hasQuizAnswers
+            || (Array.isArray(subData.attempts) && subData.attempts.some(attempt => attempt?.answers || attempt?.userAnswers || (attempt?.quizId && (attempt?.submittedAt || attempt?.completedAt))))
+            || (hasMatchingQuizId && hasQuizStatus && !hasNonQuizUpload)));
+        if (isAnyQuiz && hasAttachedDigitalQuiz && hasNonQuizUpload && !hasQuizAttempt) {
+            subData = null;
+        }
+
+        // Do not leave an unsubmitted quiz on a stale submission URL. Restore its material page.
+        if (role === 'student' && isViewSubmissionMode && isAnyQuiz && hasAttachedDigitalQuiz && !hasQuizAttempt) {
+            isViewSubmissionMode = false;
+            window._studentViewSubmissionMode = false;
+            window._sharedViewSubmissionMode = false;
+            const materialHash = `#topic-content:${subjectId}:${topicIdx}:${tab}:${activeIdx}`;
+            if (window.location?.hash !== materialHash) {
+                history.replaceState({ page: materialHash.slice(1), subjectId, topicIdx, tab, videoIdx: activeIdx, viewSubmission: false }, '', materialHash);
+            }
+        }
+
         if (subData && window._latestSubmissionForScorePanel) {
             window._latestSubmissionForScorePanel.subData = subData;
             if (!window._latestSubmissionForScorePanel.studentId && (subData.studentId || subData.studentObj?.id)) {
@@ -26398,10 +26582,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const endChunk = Math.min(startChunk + 4, totalAttemptPages);
 
         let activeAttemptFiles = [];
-        const hasRealSubmittedAttemptFiles = (Array.isArray(activeAttempt.files) && activeAttempt.files.length > 0 && activeAttempt.files.some(f => f && f.type !== 'quiz' && f.url !== 'quiz'))
+        // A digital quiz is always opened through its attached quiz file. A document
+        // from another material must never replace that quiz in the submission view.
+        const hasRealSubmittedAttemptFiles = !hasAttachedDigitalQuiz && ((Array.isArray(activeAttempt.files) && activeAttempt.files.length > 0 && activeAttempt.files.some(f => f && f.type !== 'quiz' && f.url !== 'quiz'))
             || (activeAttempt.fileName && activeAttempt.fileName !== 'quiz')
             || (Array.isArray(subData?.files) && subData.files.length > 0 && subData.files.some(f => f && f.type !== 'quiz' && f.url !== 'quiz'))
-            || (subData?.fileName && subData.fileName !== 'quiz');
+            || (subData?.fileName && subData.fileName !== 'quiz'));
 
         if (hasRealSubmittedAttemptFiles) {
             activeAttemptFiles = (Array.isArray(activeAttempt.files) && activeAttempt.files.length > 0)
@@ -30449,6 +30635,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 `;
             }
         } else if (qType === 'Essay' || qType === 'Paragraph') {
+            const isPendingQ = _isReviewMode && isQuestionPendingReview(idx);
             const rubricText = (q.rubric || q.sampleAnswer || q.notes || q.answerKey || '').trim();
             const essayResponse = typeof curAns === 'string' ? curAns : (curAns?.text || '');
             const rubricHtml = (rubricText && (_isTeacherPreviewMode || isTeacherUser || _showCorrectAnswers)) ? `
@@ -32961,6 +33148,18 @@ window.SIGMA_ENABLE_ONLINE_PRESENCE = false; // Set to true to switch online pre
         try {
             sessionStorage.clear();
         } catch (e) { }
+        try {
+            localStorage.removeItem('sigma-authenticated-user');
+            localStorage.removeItem('sigma-logged-in-user');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('sigma_active_user');
+            localStorage.removeItem('sigma-teacher-nav-state');
+            if (typeof window !== 'undefined') {
+                window._cachedTeacherSectionCards = null;
+                window._cachedTeacherSectionCardsOwner = null;
+                window._cachedTeacherSectionCardsTime = 0;
+            }
+        } catch (e) { }
     }
 
     global.SigmaPresenceTracker = {
@@ -35416,6 +35615,51 @@ window.showTeacherReleaseToast = function (message, type = 'released') {
     window.addEventListener('resize', update, { passive: true });
     window.visualViewport?.addEventListener('resize', update, { passive: true });
     window.visualViewport?.addEventListener('scroll', update, { passive: true });
+})();
+
+(function syncMaterialMobileDockClearance() {
+    let dock = null;
+    let frame = 0;
+    const schedule = () => {
+        if (!frame) frame = requestAnimationFrame(update);
+    };
+    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;
+    const update = () => {
+        frame = 0;
+        const material = Array.from(document.querySelectorAll('.assessment-material-detail-view'))
+            .find(element => !element.closest('.hidden') && Array.from(element.children).some(child => child.getClientRects().length > 0));
+        const rail = material?.closest('.teacher-topic-page-grid, .topic-detail-grid')?.querySelector('#topic-right-section');
+        const nextDock = window.innerWidth <= 768 && rail && getComputedStyle(rail).position === 'fixed'
+            && rail.getClientRects().length > 0 ? rail : null;
+        if (nextDock !== dock) {
+            if (dock) resizeObserver?.unobserve(dock);
+            dock = nextDock;
+            if (dock) resizeObserver?.observe(dock);
+        }
+        const height = dock ? Math.ceil(dock.getBoundingClientRect().height) : 0;
+        const root = document.documentElement;
+        const value = `${height}px`;
+        if (root.style.getPropertyValue('--material-mobile-dock-height') !== value) {
+            root.style.setProperty('--material-mobile-dock-height', value);
+        }
+        const viewport = window.visualViewport;
+        const bottom = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+        const inset = `${bottom}px`;
+        if (root.style.getPropertyValue('--material-mobile-viewport-bottom') !== inset) {
+            root.style.setProperty('--material-mobile-viewport-bottom', inset);
+        }
+    };
+    const start = () => {
+        new MutationObserver(schedule).observe(document.body, {
+            childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style']
+        });
+        schedule();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
+    window.addEventListener('resize', schedule, { passive: true });
+    window.visualViewport?.addEventListener('resize', schedule, { passive: true });
+    window.visualViewport?.addEventListener('scroll', schedule, { passive: true });
 })();
 
 window.flushTeacherReleaseToastQueue = function () {

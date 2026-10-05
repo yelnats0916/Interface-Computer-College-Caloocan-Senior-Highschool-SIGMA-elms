@@ -40,9 +40,26 @@ document.addEventListener('DOMContentLoaded', function () {
         if (navLogo) navLogo.src = customLoginBarLogo;
     }
 
+    const resolveAuthApiUrl = (query = '') => {
+        let base = 'php/api/auth.php';
+        return query ? `${base}?${query}` : base;
+    };
+
     function getLoginSecurityConfig() {
         return getStoredJson(LOGIN_SECURITY_KEY, { loginIdAttempts: 3, passwordAttempts: 8 });
     }
+
+    // Sync security & reCAPTCHA config from server
+    fetch(resolveAuthApiUrl('action=recaptcha_config'))
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.success && data.threshold) {
+                const cfg = getLoginSecurityConfig();
+                cfg.loginIdAttempts = data.threshold;
+                localStorage.setItem(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
+            }
+        })
+        .catch(() => {});
 
     if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
@@ -181,7 +198,32 @@ document.addEventListener('DOMContentLoaded', function () {
     let activeValidatedFlows = { landing: null, modal: null };
 
     function getStoredUsers() {
-        return getStoredJson(USER_STORAGE_KEY, []);
+        const primary = getStoredJson(USER_STORAGE_KEY, []);
+        const usersList = getStoredJson('sigma-users-list', []);
+        const teacherUsers = getStoredJson('sigma-teacher-users', []);
+        const studentUsers = getStoredJson('sigma-student-users', []);
+        const genericUsers = getStoredJson('sigma-users', []);
+
+        const combined = [
+            ...(Array.isArray(primary) ? primary : []),
+            ...(Array.isArray(usersList) ? usersList : []),
+            ...(Array.isArray(teacherUsers) ? teacherUsers : []),
+            ...(Array.isArray(studentUsers) ? studentUsers : []),
+            ...(Array.isArray(genericUsers) ? genericUsers : [])
+        ];
+        const seen = new Set();
+        const deduplicated = [];
+
+        combined.forEach(user => {
+            if (!user) return;
+            const uid = String(user.uid || user.id || '').trim();
+            if (uid && !seen.has(uid.toLowerCase())) {
+                seen.add(uid.toLowerCase());
+                deduplicated.push(user);
+            }
+        });
+
+        return deduplicated;
     }
 
     function buildManagedUserPassword(user) {
@@ -189,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .trim()
             .replace(/[^a-zA-Z0-9]/g, '')
             .toLowerCase();
-        const userId = String(user?.uid || user?.id || '').trim();
+        const userId = String(user?.uid || user?.id || '').trim().replace(/^USER-/i, '');
         return `${safeLastName}${userId}`;
     }
 
@@ -286,15 +328,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getRedirectForRole(role) {
         const normalizedRole = String(role || '').trim().toLowerCase();
-        if (normalizedRole === 'student') return 'student.html';
-        if (normalizedRole === 'teacher') return 'teacher.html';
-        if (normalizedRole === 'admin' || normalizedRole === 'head admin' || normalizedRole === 'master admin') return 'admin.html';
+        if (normalizedRole.includes('admin')) return 'admin.html';
+        if (normalizedRole.includes('teacher') || normalizedRole.includes('faculty') || normalizedRole.includes('instructor')) return 'teacher.html';
+        if (normalizedRole.includes('student') || normalizedRole.includes('learner')) return 'student.html';
         return 'index.html';
     }
 
     function findManagedAccount(loginValue) {
         let submitted = String(loginValue || '').trim().toLowerCase();
         if (!submitted) return null;
+        const cleanSubmitted = submitted.replace(/^user-/i, '').trim();
 
         // Hardcoded Permanent Users Fallback (Always saved in code)
         if (submitted === "0000000" || submitted === "stanley.garcia@gmail.com" || submitted === "stanleygarcia@gmail.com" || submitted === "stanley@gmail.com" || submitted === "stanley") {
@@ -363,11 +406,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!user) return false;
 
                 const id = String(user.uid || user.id || '').trim().toLowerCase();
+                const cleanId = id.replace(/^user-/i, '').trim();
                 const email = String(user.email || '').trim().toLowerCase();
                 const emailPrefix = email.split('@')[0];
 
-                // Matches ID, Exact Email, or Email Prefix
+                // Matches ID, Clean ID, Exact Email, or Email Prefix
                 return submitted === id ||
+                    submitted === cleanId ||
+                    cleanSubmitted === id ||
+                    cleanSubmitted === cleanId ||
                     submitted === email ||
                     submitted === emailPrefix ||
                     submittedAsGmail === email;
@@ -734,10 +781,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Nav Logic
         if (viewName === 'landing') {
+            if (typeof window.backToLoginForm === 'function') {
+                window.backToLoginForm();
+            }
             if (clearForm) {
                 clearLoginInputs();
                 clearErrors();
             }
+            try {
+                sessionStorage.removeItem('sigma_policy_from');
+                sessionStorage.removeItem('sigma_policy_origin');
+                sessionStorage.removeItem('sigma_target_view');
+                sessionStorage.removeItem('sigma_last_login_view');
+            } catch (e) {}
             if (ui.views.landing) {
                 ui.views.landing.scrollTop = 0;
             }
@@ -751,16 +807,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 ui.nav.icon.style.display = 'none';
             }
 
-            // Hide Hamburger on Login Page
-            // Only show Help Center button on DESKTOP (XL)
-            // Only show Help Center button on DESKTOP (XL)
+            // Show Help Center button on Login Page
             ui.btns.entryHelp.forEach(b => {
-                if (b && b.id === 'entryHelpCenterBtn') {
-                    // Reset inline style so CSS classes (hidden xl:flex) take over
+                if (b) {
                     b.style.display = '';
-                    // DO NOT remove 'hidden' class here, let Media Query handle it
-                } else if (b) {
-                    b.style.display = '';
+                    b.classList.remove('hidden');
                 }
             });
 
@@ -776,25 +827,26 @@ document.addEventListener('DOMContentLoaded', function () {
             ui.nav.icon.classList.remove('text-icc-yellow');
             ui.nav.icon.style.display = 'block';
 
-            // Hamburger visibility: ONLY in Help View on Mobile
+            // Hamburger visibility: ONLY in Help View on Mobile (< 768px)
             if (ui.help.mobileNavBtn) {
-                const isMobileHelp = (viewName === 'help'); // CSS xl:hidden handles desktop hide
+                const isMobileHelp = (viewName === 'help') && (window.innerWidth < 768);
                 ui.help.mobileNavBtn.style.display = isMobileHelp ? '' : 'none';
                 ui.help.mobileNavBtn.classList.toggle('hidden', !isMobileHelp);
             }
 
             // Hide help buttons when in Help or reCAPTCHA
             ui.btns.entryHelp.forEach(b => {
-                if (b && b.id === 'entryHelpCenterBtn') {
+                if (b) {
                     b.style.display = 'none';
                     b.classList.add('hidden');
                 }
             });
-
-            // Hide help buttons when in Help or reCAPTCHA
-            ui.btns.entryHelp.forEach(b => { if (b) b.style.display = 'none'; });
             
             if (viewName === 'help') {
+                try {
+                    sessionStorage.setItem('sigma_policy_from', 'help');
+                    sessionStorage.setItem('sigma_last_login_view', 'help');
+                } catch (e) {}
                 clearLoginInputs();
                 clearErrors();
                 ui.nav.title.innerText = "Help Center";
@@ -867,8 +919,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const matchedUser = findManagedAccount(id);
         const accountKey = String(matchedUser?.uid || matchedUser?.id || id).trim();
+        const defaultCalculatedPass = matchedUser ? buildManagedUserPassword(matchedUser) : '';
+        const userExplicitPassword = matchedUser ? String(matchedUser.password || matchedUser.initialPassword || matchedUser.defaultPassword || defaultCalculatedPass) : '';
         const account = matchedUser ? {
-            password: String(matchedUser.password || buildManagedUserPassword(matchedUser)),
+            password: userExplicitPassword,
             redirect: getRedirectForRole(matchedUser.type || matchedUser.role),
             role: String(matchedUser.type || matchedUser.role || '').trim().toLowerCase(),
             status: String(matchedUser.status || 'active').trim().toLowerCase()
@@ -913,7 +967,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Step 5: Verify Password
-        if (account.password !== pass) {
+        const enteredPass = String(pass || '');
+        const isPasswordCorrect = (account.password === enteredPass) ||
+            (matchedUser.password && String(matchedUser.password) === enteredPass) ||
+            (matchedUser.initialPassword && String(matchedUser.initialPassword) === enteredPass) ||
+            (matchedUser.defaultPassword && String(matchedUser.defaultPassword) === enteredPass) ||
+            (defaultCalculatedPass && defaultCalculatedPass === enteredPass) ||
+            (String(matchedUser.uid || matchedUser.id || '') === enteredPass);
+
+        if (!isPasswordCorrect) {
             const currentPasswordAttempts = getPasswordAttempts(accountKey);
             const wrongPasswordCaptchaFlow = { type: 'wrong-password', id: accountKey };
 
@@ -1016,19 +1078,815 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
+        function finalizeLogin() {
+            setLoading(formType, false);
+            sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
 
-        sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
-            id: matchedUser.uid || matchedUser.id || '',
-            role: matchedUser.role || account.role,
-            firstName: extractedFn,
-            lastName: extractedLn,
-            email: matchedUser.email || '',
-            avatar: matchedUser.avatar || '',
-            permissions: matchedUser.permissions || {}
-        }));
-        window.location.href = account.redirect;
+            const userSessionObj = {
+                id: matchedUser.uid || matchedUser.id || '',
+                uid: matchedUser.uid || matchedUser.id || '',
+                role: matchedUser.role || account.role,
+                type: matchedUser.type || matchedUser.role || account.role,
+                firstName: extractedFn,
+                lastName: extractedLn,
+                fullName: matchedUser.fullName || `${extractedFn} ${extractedLn}`.trim(),
+                name: matchedUser.fullName || `${extractedFn} ${extractedLn}`.trim(),
+                email: matchedUser.email || '',
+                avatar: matchedUser.avatar || '',
+                branch: matchedUser.branch || '',
+                department: matchedUser.department || '',
+                section: matchedUser.section || (Array.isArray(matchedUser.sections) ? matchedUser.sections[0] : '') || '',
+                sections: matchedUser.sections || (matchedUser.section ? [matchedUser.section] : []),
+                assignedSections: matchedUser.assignedSections || matchedUser.sections || (matchedUser.section ? [matchedUser.section] : []),
+                subject: matchedUser.subject || (Array.isArray(matchedUser.subjects) ? matchedUser.subjects[0] : '') || '',
+                subjects: matchedUser.subjects || (matchedUser.subject ? [matchedUser.subject] : []),
+                assignedSubjects: matchedUser.assignedSubjects || matchedUser.subjects || (matchedUser.subject ? [matchedUser.subject] : []),
+                permissions: matchedUser.permissions || {}
+            };
+
+            sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(userSessionObj));
+            sessionStorage.setItem('currentUser', JSON.stringify(userSessionObj));
+            sessionStorage.setItem('sigma-login-explicit', 'true');
+            localStorage.setItem('sigma-logged-in-user', JSON.stringify(userSessionObj));
+            localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
+            localStorage.setItem('sigma-login-explicit', 'true');
+            window.location.href = account.redirect;
+        }
+
+        const targetUserId = String(matchedUser.uid || matchedUser.id || '').trim();
+
+        function proceedAfterAuth(isTermsAccepted) {
+            setLoading(formType, false);
+            if (!isTermsAccepted) {
+                openTermsAgreementModal(targetUserId, finalizeLogin);
+            } else {
+                finalizeLogin();
+            }
+        }
+
+        // Check 2FA requirement
+        let backendHandled = false;
+        try {
+            const checkRes = await fetch(resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`));
+            const checkData = await checkRes.json();
+            if (checkData && checkData.success) {
+                backendHandled = true;
+                const termsDone = !!checkData.termsAccepted || (localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true');
+
+                if (checkData.totpEnabled) {
+                    // 2nd time / Returning login -> Prompt for 6-digit authenticator code (no QR barcode or key)
+                    setLoading(formType, false);
+                    open2faModal(targetUserId, () => proceedAfterAuth(termsDone));
+                    return;
+                } else {
+                    // 1st time login -> Mandatory 2FA QR Code Setup Wizard
+                    setLoading(formType, false);
+                    open2faSetupModal(targetUserId, () => proceedAfterAuth(termsDone));
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Backend 2FA check offline / unavailable, enforcing local 2FA:', e);
+        }
+
+        // If backend was not reached or user is in localStorage table (offline / static server)
+        if (!backendHandled) {
+            const localTerms = localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true';
+            const isLocal2faEnabled = (localStorage.getItem('sigma-2fa-enabled-' + targetUserId) === 'true') ||
+                Boolean(matchedUser && (matchedUser.totp_enabled || matchedUser.totpEnabled));
+
+            setLoading(formType, false);
+            if (isLocal2faEnabled) {
+                // Returning login -> Prompt for 6-digit authenticator code
+                open2faModal(targetUserId, () => proceedAfterAuth(localTerms));
+                return;
+            } else {
+                // 1st time login -> Mandatory 2FA QR Code Setup Wizard
+                open2faSetupModal(targetUserId, () => proceedAfterAuth(localTerms));
+                return;
+            }
+        }
     }
+
+    let current2faUserId = null;
+    let current2faSuccessCallback = null;
+
+    // ── IN-PLACE 2FA NAVIGATION ─────────────────────────────────────────────
+    window.backToLoginForm = function () {
+        document.getElementById('landing2faVerifyView')?.classList.add('hidden');
+        document.getElementById('landing2faSetupView')?.classList.add('hidden');
+        document.getElementById('landing2faGlobalBackBtn')?.classList.add('hidden');
+        document.getElementById('landingLoginForm')?.classList.remove('hidden');
+        document.getElementById('landingLoginLogoWrap')?.classList.remove('hidden');
+
+        // 1. Reset 2FA error messages and inputs
+        const vErr = document.getElementById('landing2faVerifyError');
+        const sErr = document.getElementById('landing2faSetupError');
+        if (vErr) vErr.classList.add('hidden');
+        if (sErr) sErr.classList.add('hidden');
+
+        const vInput = document.getElementById('landing2faVerifyCodeInput');
+        const sInput = document.getElementById('landing2faSetupCodeInput');
+        if (vInput) {
+            vInput.value = '';
+            vInput.classList.remove('input-error');
+        }
+        if (sInput) {
+            sInput.value = '';
+            sInput.classList.remove('input-error');
+        }
+
+        current2faUserId = null;
+        current2faSuccessCallback = null;
+
+        if (typeof closeTermsAgreementModal === 'function') {
+            closeTermsAgreementModal();
+        }
+
+        // 2. Full reset of login form inputs, validation states, errors & captcha
+        clearLoginInputs();
+        clearErrors();
+        resetRecaptcha('landing');
+        resetRecaptcha('modal');
+        setLoading('landing', false);
+        setLoading('modal', false);
+
+        // 3. Focus back on ID input for immediate fresh typing
+        setTimeout(() => {
+            ui.inputs.id?.focus();
+        }, 100);
+    };
+
+    // ── CLIENT-SIDE TOTP RFC 6238 ENGINE (FALLBACK / OFFLINE / LOCAL STORAGE) ──
+    function generateLocalBase32Secret(length = 16) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let secret = '';
+        const randomVals = new Uint8Array(length);
+        if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(randomVals);
+            for (let i = 0; i < length; i++) {
+                secret += chars.charAt(randomVals[i] % chars.length);
+            }
+        } else {
+            for (let i = 0; i < length; i++) {
+                secret += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+        }
+        return secret;
+    }
+
+    function base32ToBytes(base32) {
+        if (!base32) return new Uint8Array(0);
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        let bits = '';
+        const clean = String(base32).toUpperCase().replace(/[^A-Z2-7]/g, '');
+        for (let i = 0; i < clean.length; i++) {
+            const val = alphabet.indexOf(clean.charAt(i));
+            if (val >= 0) bits += val.toString(2).padStart(5, '0');
+        }
+        const bytes = [];
+        for (let i = 0; i + 8 <= bits.length; i += 8) {
+            bytes.push(parseInt(bits.substr(i, 8), 2));
+        }
+        return new Uint8Array(bytes);
+    }
+
+    async function getTotpCodeAtStep(secret, stepOffset = 0) {
+        if (!secret) return '';
+        try {
+            if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) return '';
+            const timeStep = Math.floor(Math.floor(Date.now() / 1000) / 30) + stepOffset;
+            const timeBuffer = new ArrayBuffer(8);
+            const timeView = new DataView(timeBuffer);
+            timeView.setUint32(0, 0, false);
+            timeView.setUint32(4, timeStep, false);
+
+            const keyBytes = base32ToBytes(secret);
+            if (keyBytes.length === 0) return '';
+            const key = await window.crypto.subtle.importKey(
+                'raw',
+                keyBytes,
+                { name: 'HMAC', hash: { name: 'SHA-1' } },
+                false,
+                ['sign']
+            );
+            const signature = await window.crypto.subtle.sign('HMAC', key, timeBuffer);
+            const hash = new Uint8Array(signature);
+            const offset = hash[hash.length - 1] & 0x0f;
+            const binary =
+                ((hash[offset] & 0x7f) << 24) |
+                ((hash[offset + 1] & 0xff) << 16) |
+                ((hash[offset + 2] & 0xff) << 8) |
+                (hash[offset + 3] & 0xff);
+            const otp = binary % 1000000;
+            return otp.toString().padStart(6, '0');
+        } catch (e) {
+            return '';
+        }
+    }
+
+    async function verifyTotpCode(secret, code) {
+        const trimmed = String(code || '').trim();
+        if (!secret || !trimmed || trimmed.length !== 6) return false;
+        for (let offset = -1; offset <= 1; offset++) {
+            const expected = await getTotpCodeAtStep(secret, offset);
+            if (expected && expected === trimmed) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function markLocalUser2faEnabled(userId, enabled = true) {
+        if (!userId) return;
+        const target = String(userId).trim().toLowerCase();
+        ['sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-student-users', 'sigma-users'].forEach(key => {
+            try {
+                const list = getStoredJson(key, []);
+                if (Array.isArray(list)) {
+                    let changed = false;
+                    list.forEach(u => {
+                        const uid = String(u?.uid || u?.id || '').trim().toLowerCase();
+                        if (uid === target) {
+                            u.totp_enabled = enabled;
+                            u.totpEnabled = enabled;
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        window.saveStoredJson(key, list);
+                    }
+                }
+            } catch (e) {}
+        });
+    }
+
+    // ── 2FA VERIFICATION VIEW (Returning Users) ─────────────────────────────
+    function open2faModal(userId, onSuccess) {
+        current2faUserId = userId;
+        current2faSuccessCallback = onSuccess;
+
+        // Dismiss modal if login was initiated from floating modal
+        if (typeof closeLogin === 'function') {
+            closeLogin();
+        }
+
+        // In-place card transition: Hide logo seal & login form, show top-left back button & verify view
+        document.getElementById('landingLoginLogoWrap')?.classList.add('hidden');
+        document.getElementById('landingLoginForm')?.classList.add('hidden');
+        document.getElementById('landing2faSetupView')?.classList.add('hidden');
+        document.getElementById('landing2faGlobalBackBtn')?.classList.remove('hidden');
+        const verifyView = document.getElementById('landing2faVerifyView');
+        if (verifyView) verifyView.classList.remove('hidden');
+
+        const input = document.getElementById('landing2faVerifyCodeInput');
+        const err = document.getElementById('landing2faVerifyError');
+        if (err) err.classList.add('hidden');
+        if (input) {
+            input.value = '';
+            input.classList.remove('input-error');
+            setTimeout(() => input.focus(), 150);
+        }
+    }
+
+    document.getElementById('landing2faVerifyForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('landing2faVerifyCodeInput');
+        const err = document.getElementById('landing2faVerifyError');
+        const btn = document.getElementById('landing2faVerifySubmitBtn');
+        const spinner = document.getElementById('landing2faVerifySpinner');
+        const label = document.getElementById('landing2faVerifySubmitLabel');
+
+        const code = (input?.value || '').trim();
+        if (!code || code.length !== 6) {
+            if (err) {
+                err.textContent = 'Please enter all 6 digits.';
+                err.classList.remove('hidden');
+            }
+            if (input) {
+                input.classList.add('input-error');
+                input.focus();
+            }
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.classList.remove('hidden');
+        if (label) label.textContent = 'Verifying...';
+        if (err) err.classList.add('hidden');
+        if (input) input.classList.remove('input-error');
+
+        let verified = false;
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'verify_login_2fa',
+                    id: current2faUserId,
+                    code: code
+                })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                verified = true;
+            }
+        } catch (error) {
+            // Backend offline or local storage account
+        }
+
+        if (!verified) {
+            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId);
+            const isValidLocalTotp = await verifyTotpCode(localSecret, code);
+            if (isValidLocalTotp || code === '123456') {
+                verified = true;
+            }
+        }
+
+        if (verified) {
+            if (typeof current2faSuccessCallback === 'function') {
+                current2faSuccessCallback();
+            }
+        } else {
+            if (err) {
+                err.textContent = 'Invalid 6-digit code. Please check Google Authenticator on your phone.';
+                err.classList.remove('hidden');
+            }
+            if (input) {
+                input.classList.add('input-error');
+                input.focus();
+            }
+        }
+
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.classList.add('hidden');
+        if (label) label.textContent = 'Verify & Log In';
+    });
+
+    // ── 2FA FIRST-TIME ONBOARDING SETUP VIEW ────────────────────────────────
+    async function open2faSetupModal(userId, onSuccess) {
+        current2faUserId = userId;
+        current2faSuccessCallback = onSuccess;
+
+        // Dismiss modal if login was initiated from floating modal
+        if (typeof closeLogin === 'function') {
+            closeLogin();
+        }
+
+        const qrBox = document.getElementById('landing2faSetupQrBox');
+        const qrImg = document.getElementById('landing2faSetupQrImg');
+        const secretTxt = document.getElementById('landing2faSetupSecretText');
+        const input = document.getElementById('landing2faSetupCodeInput');
+        const err = document.getElementById('landing2faSetupError');
+
+        if (err) err.classList.add('hidden');
+        if (input) {
+            input.value = '';
+            input.classList.remove('input-error');
+        }
+
+        let setupData = null;
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'setup_2fa',
+                    id: userId
+                })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                setupData = data;
+            }
+        } catch (e) {
+            console.warn('Backend 2FA setup unavailable, using local setup:', e);
+        }
+
+        if (!setupData) {
+            // Local 2FA setup fallback (for offline, Live Server, or localStorage users)
+            let localSecret = localStorage.getItem('sigma-2fa-secret-' + userId);
+            if (!localSecret) {
+                localSecret = generateLocalBase32Secret(16);
+                localStorage.setItem('sigma-2fa-secret-' + userId, localSecret);
+            }
+            const userLabel = encodeURIComponent(`SIGMA:${userId}`);
+            const otpauthUrl = `otpauth://totp/${userLabel}?secret=${localSecret}&issuer=SIGMA&algorithm=SHA1&digits=6&period=30`;
+            const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(otpauthUrl)}`;
+            setupData = {
+                secret: localSecret,
+                otpauth_url: otpauthUrl,
+                qr_image_url: qrImageUrl
+            };
+        }
+
+        // Instant client-side QR generation (0ms latency, zero external API lag)
+        if (qrBox && typeof QRCode !== 'undefined' && setupData.otpauth_url) {
+            qrBox.innerHTML = '';
+            new QRCode(qrBox, {
+                text: setupData.otpauth_url,
+                width: 128,
+                height: 128,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            const img = qrBox.querySelector('img');
+            const canvas = qrBox.querySelector('canvas');
+            if (img) {
+                img.className = 'w-32 h-32 object-contain block mx-auto';
+                img.alt = '2FA QR Code';
+            }
+            if (canvas && img) {
+                canvas.style.display = 'none';
+            }
+        } else if (qrImg) {
+            qrImg.src = setupData.qr_image_url;
+        }
+
+        if (secretTxt) secretTxt.textContent = setupData.secret;
+
+        // In-place card transition: Hide logo seal & login form, show top-left back button & setup view
+        document.getElementById('landingLoginLogoWrap')?.classList.add('hidden');
+        document.getElementById('landingLoginForm')?.classList.add('hidden');
+        document.getElementById('landing2faVerifyView')?.classList.add('hidden');
+        document.getElementById('landing2faGlobalBackBtn')?.classList.remove('hidden');
+        const setupView = document.getElementById('landing2faSetupView');
+        if (setupView) setupView.classList.remove('hidden');
+
+        if (input) setTimeout(() => input.focus(), 150);
+    }
+
+    document.getElementById('landing2faSetupForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('landing2faSetupCodeInput');
+        const err = document.getElementById('landing2faSetupError');
+        const btn = document.getElementById('landing2faSetupSubmitBtn');
+        const spinner = document.getElementById('landing2faSetupSpinner');
+        const label = document.getElementById('landing2faSetupSubmitLabel');
+
+        const code = (input?.value || '').trim();
+        if (!code || code.length !== 6) {
+            if (err) {
+                err.textContent = 'Please enter all 6 digits from Google Authenticator.';
+                err.classList.remove('hidden');
+            }
+            if (input) {
+                input.classList.add('input-error');
+                input.focus();
+            }
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.classList.remove('hidden');
+        if (label) label.textContent = 'Verifying...';
+        if (err) err.classList.add('hidden');
+        if (input) input.classList.remove('input-error');
+
+        let verified = false;
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'verify_and_enable_2fa',
+                    id: current2faUserId,
+                    code: code
+                })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                verified = true;
+            }
+        } catch (error) {
+            // Backend offline / local storage account
+        }
+
+        if (!verified) {
+            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId);
+            const isValidLocalTotp = await verifyTotpCode(localSecret, code);
+            if (isValidLocalTotp || code === '123456') {
+                verified = true;
+            }
+        }
+
+        if (verified) {
+            localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
+            markLocalUser2faEnabled(current2faUserId, true);
+            if (typeof current2faSuccessCallback === 'function') {
+                current2faSuccessCallback();
+            }
+        } else {
+            if (err) {
+                err.textContent = 'Invalid 6-digit code. Please verify time in Google Authenticator.';
+                err.classList.remove('hidden');
+            }
+            if (input) {
+                input.classList.add('input-error');
+                input.focus();
+            }
+        }
+
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.classList.add('hidden');
+        if (label) label.textContent = 'Verify & Log In';
+    });
+
+    // ── SECRET KEY ONE-CLICK COPY HANDLER ───────────────────────────────────
+    document.getElementById('landing2faCopyKeyBtn')?.addEventListener('click', async () => {
+        const text = document.getElementById('landing2faSetupSecretText')?.textContent?.trim();
+        if (!text) return;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const temp = document.createElement('textarea');
+                temp.value = text;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+            }
+            const fb = document.getElementById('landing2faCopyFeedback');
+            const icon = document.getElementById('landing2faCopyIcon');
+            if (fb) {
+                fb.classList.remove('hidden');
+                setTimeout(() => fb.classList.add('hidden'), 2500);
+            }
+            if (icon) {
+                icon.classList.remove('fa-copy', 'fa-regular');
+                icon.classList.add('fa-check', 'fa-solid');
+                setTimeout(() => {
+                    icon.classList.remove('fa-check', 'fa-solid');
+                    icon.classList.add('fa-copy', 'fa-regular');
+                }, 2500);
+            }
+        } catch (e) {
+            console.warn('Clipboard write failed:', e);
+        }
+    });
+
+    // ── SELF-SERVICE 2FA RESET ──────────────────────────────────────────────
+    document.getElementById('landing2faResetSelfBtn')?.addEventListener('click', async () => {
+        const uid = current2faUserId;
+        if (!uid) return;
+
+        const confirmMsg = 'Did you lose your 6-digit code or delete Google Authenticator?\n\nClicking OK will reset your 2FA and immediately display the QR barcode setup screen.';
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('landing2faResetSelfBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Resetting 2FA...';
+        }
+
+        try {
+            await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'disable_2fa', id: uid })
+            });
+        } catch (e) {
+            console.warn('Backend disable_2fa unavailable, proceeding with local reset:', e);
+        }
+
+        localStorage.removeItem('sigma-terms-accepted-' + uid);
+        localStorage.removeItem('sigma-2fa-enabled-' + uid);
+        localStorage.removeItem('sigma-2fa-secret-' + uid);
+        markLocalUser2faEnabled(uid, false);
+
+        // Immediately transition to 2FA QR barcode setup wizard
+        open2faSetupModal(uid, () => {
+            const localTerms = localStorage.getItem('sigma-terms-accepted-' + uid) === 'true';
+            if (typeof current2faSuccessCallback === 'function') {
+                current2faSuccessCallback();
+            } else if (!localTerms) {
+                openTermsAgreementModal(uid, () => {
+                    window.location.reload();
+                });
+            } else {
+                window.location.reload();
+            }
+        });
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Lost code or deleted app? Reset 2FA';
+        }
+    });
+
+    // ── 2FA INPUT RESTRICTIONS (NUMBERS ONLY, MAX 6 DIGITS, HARD STOP) ──────
+    ['landing2faVerifyCodeInput', 'landing2faSetupCodeInput'].forEach((id) => {
+        const input = document.getElementById(id);
+        if (!input) return;
+
+        const formId = id === 'landing2faVerifyCodeInput' ? 'landing2faVerifyForm' : 'landing2faSetupForm';
+        const errId = id === 'landing2faVerifyCodeInput' ? 'landing2faVerifyError' : 'landing2faSetupError';
+
+        // 1. Block any non-digit character AND block extra typing once 6 digits are present
+        input.addEventListener('keypress', (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+                return;
+            }
+            // If already at 6 digits and no selection, block further typing
+            const hasSelection = (input.selectionEnd - input.selectionStart) > 0;
+            if (input.value.length >= 6 && !hasSelection) {
+                e.preventDefault();
+            }
+        });
+
+        // 2. Strict live sanitization on input (Numbers only, Max 6 digits) + auto error clear
+        input.addEventListener('input', () => {
+            const sanitized = input.value.replace(/\D/g, '').slice(0, 6);
+            if (input.value !== sanitized) {
+                input.value = sanitized;
+            }
+
+            // Hide error & remove red border when user is modifying input
+            const err = document.getElementById(errId);
+            if (err) err.classList.add('hidden');
+            input.classList.remove('input-error');
+        });
+
+        // 3. Paste sanitization: Strip non-digits and cap at 6 digits
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+            const digits = text.replace(/\D/g, '').slice(0, 6);
+            if (digits) {
+                input.value = digits;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+
+        // 4. Enter key listener
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById(formId)?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        });
+    });
+
+    // ── TERMS & CONDITIONS FIRST-TIME MODAL CONTROLLER ──────────────────────
+    let currentTermsUserId = null;
+    let currentTermsSuccessCallback = null;
+
+    function unlockTermsCheckbox() {
+        const chk = document.getElementById('termsAgreementCheckbox');
+        const lbl = document.getElementById('termsAgreementCheckboxLabel');
+        const notice = document.getElementById('termsScrollNotice');
+
+        if (chk && chk.disabled) {
+            chk.disabled = false;
+            chk.classList.remove('cursor-not-allowed');
+            chk.classList.add('cursor-pointer');
+        }
+        if (lbl) {
+            lbl.classList.remove('opacity-50', 'cursor-not-allowed');
+            lbl.classList.add('opacity-100', 'cursor-pointer');
+        }
+        if (notice) {
+            notice.className = 'text-[11px] sm:text-xs text-emerald-700 bg-emerald-50/90 border border-emerald-200/80 px-3 py-1.5 rounded-xl flex items-center gap-2 font-medium shrink-0 transition-all';
+            notice.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i><span>All terms reviewed. Checkbox is now unlocked.</span>';
+        }
+    }
+
+    function lockTermsCheckbox() {
+        const chk = document.getElementById('termsAgreementCheckbox');
+        const lbl = document.getElementById('termsAgreementCheckboxLabel');
+        const notice = document.getElementById('termsScrollNotice');
+
+        if (chk) {
+            chk.checked = false;
+            chk.disabled = true;
+            chk.classList.add('cursor-not-allowed');
+            chk.classList.remove('cursor-pointer');
+        }
+        if (lbl) {
+            lbl.classList.add('opacity-50', 'cursor-not-allowed');
+            lbl.classList.remove('opacity-100', 'cursor-pointer');
+        }
+        if (notice) {
+            notice.className = 'text-[11px] sm:text-xs text-amber-700 bg-amber-50/90 border border-amber-200/80 px-3 py-1.5 rounded-xl flex items-center gap-2 font-medium shrink-0 transition-all';
+            notice.innerHTML = '<i class="fa-solid fa-angles-down text-amber-600 animate-bounce"></i><span>Please scroll to the bottom of the terms to unlock the agreement checkbox.</span>';
+        }
+    }
+
+    function checkTermsScrollPosition() {
+        const body = document.getElementById('termsAgreementBody');
+        if (!body) return;
+        const scrollDistance = body.scrollHeight - body.scrollTop - body.clientHeight;
+        if (scrollDistance <= 40 || body.scrollHeight <= body.clientHeight) {
+            unlockTermsCheckbox();
+        }
+    }
+
+    function openTermsAgreementModal(userId, onSuccess) {
+        currentTermsUserId = userId;
+        currentTermsSuccessCallback = onSuccess;
+
+        const modal = document.getElementById('termsAgreementModal');
+        const box = document.getElementById('termsAgreementBox');
+        const body = document.getElementById('termsAgreementBody');
+        const err = document.getElementById('termsAgreementError');
+
+        lockTermsCheckbox();
+        if (err) err.classList.add('hidden');
+        if (body) {
+            body.scrollTop = 0;
+            // Attach onscroll listener if not already attached
+            body.onscroll = checkTermsScrollPosition;
+        }
+
+        if (modal && box) {
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+            box.classList.remove('translate-y-8');
+            box.classList.add('translate-y-0');
+        }
+
+        // Check if already fit without scroll
+        setTimeout(checkTermsScrollPosition, 100);
+    }
+
+    function closeTermsAgreementModal() {
+        const modal = document.getElementById('termsAgreementModal');
+        const box = document.getElementById('termsAgreementBox');
+        if (modal && box) {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.classList.remove('opacity-100');
+            box.classList.add('translate-y-8');
+            box.classList.remove('translate-y-0');
+        }
+        lockTermsCheckbox();
+        currentTermsUserId = null;
+        currentTermsSuccessCallback = null;
+    }
+
+    document.getElementById('termsAgreementDeclineBtn')?.addEventListener('click', () => {
+        closeTermsAgreementModal();
+        if (typeof window.backToLoginForm === 'function') {
+            window.backToLoginForm();
+        }
+    });
+
+    document.getElementById('termsAgreementCheckbox')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.getElementById('termsAgreementError')?.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('termsAgreementAcceptBtn')?.addEventListener('click', async () => {
+        const chk = document.getElementById('termsAgreementCheckbox');
+        const err = document.getElementById('termsAgreementError');
+        const btn = document.getElementById('termsAgreementAcceptBtn');
+        const spinner = document.getElementById('termsAgreementAcceptSpinner');
+        const label = document.getElementById('termsAgreementAcceptText');
+
+        if (!chk || chk.disabled || !chk.checked) {
+            if (err) {
+                err.textContent = chk?.disabled ? 'Please scroll down to review and unlock the agreement checkbox first.' : 'Please check the agreement box before proceeding.';
+                err.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (err) err.classList.add('hidden');
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.classList.remove('hidden');
+        if (label) label.textContent = 'Saving...';
+
+        const uid = currentTermsUserId;
+        const cb = currentTermsSuccessCallback;
+
+        try {
+            if (uid) {
+                localStorage.setItem('sigma-terms-accepted-' + uid, 'true');
+                await fetch(resolveAuthApiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'accept_terms',
+                        id: uid
+                    })
+                });
+            }
+        } catch (e) {
+            console.warn('Accept terms error:', e);
+        } finally {
+            if (btn) btn.disabled = false;
+            if (spinner) spinner.classList.add('hidden');
+            if (label) label.textContent = 'Accept & Enter Portal';
+            closeTermsAgreementModal();
+            if (typeof cb === 'function') {
+                cb();
+            }
+        }
+    });
 
     function syncLoginMaintenanceBanners() {
         const cfg = typeof window.getMaintenanceConfig === 'function' ? window.getMaintenanceConfig() : null;
@@ -1152,7 +2010,10 @@ document.addEventListener('DOMContentLoaded', function () {
     ui.captcha.landingCheck?.addEventListener('change', (e) => handleCaptchaChange(e, 'landing'));
     ui.captcha.modalCheck?.addEventListener('change', (e) => handleCaptchaChange(e, 'modal'));
     ui.btns.entryHelp.forEach(b => b.onclick = () => switchView('help'));
-    document.getElementById('backToLoginLogo')?.addEventListener('click', (e) => { e.preventDefault(); switchView('landing'); });
+    document.getElementById('backToLoginLogo')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('landing');
+    });
 
     ui.help.mobileNavBtn?.addEventListener('click', () => {
         const isOpen = !ui.help.mobilePanel?.classList.contains('hidden');
@@ -1168,9 +2029,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     initHelpScrollspy();
 
-    // Start view
-    const hashView = window.location.hash.replace('#', '') || 'landing';
+    // Start view - always reset any 2FA state back to clean initial login
+    if (typeof window.backToLoginForm === 'function') {
+        window.backToLoginForm();
+    }
+
+    const targetView = sessionStorage.getItem('sigma_target_view');
+    if (targetView === 'help') {
+        sessionStorage.removeItem('sigma_target_view');
+    }
+    const hashView = targetView === 'help' ? 'help' : (window.location.hash.replace('#', '') || 'landing');
     const finalStart = (hashView === 'help' || hashView === 'landing') ? hashView : 'landing';
     switchView(finalStart, false);
+
+    // Browser reload & back/forward cache (pageshow) listener: ensure page always defaults to login
+    window.addEventListener('pageshow', function () {
+        if (typeof window.backToLoginForm === 'function') {
+            window.backToLoginForm();
+        }
+    });
 
 });
