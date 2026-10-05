@@ -1226,6 +1226,41 @@
         document.body.classList.toggle('sigma-account-settings-active', Boolean(enabled));
     }
 
+    function isAccountSettingsHash() {
+        return String(window.location.hash || '').startsWith('#account-settings');
+    }
+
+    function syncAccountSettingsPageMode() {
+        if (!isAccountSettingsHash()) {
+            setAccountSettingsPageMode(false);
+        }
+    }
+
+    function watchAccountSettingsExit(settingsView) {
+        if (!settingsView || settingsView.dataset.settingsExitObserver === 'ready') return;
+        settingsView.dataset.settingsExitObserver = 'ready';
+        const observer = new MutationObserver(() => {
+            if (settingsView.classList.contains('hidden')) {
+                setAccountSettingsPageMode(false);
+            }
+        });
+        observer.observe(settingsView, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    function patchAccountSettingsHistoryExit() {
+        if (window.__sigmaAccountSettingsHistoryPatched) return;
+        window.__sigmaAccountSettingsHistoryPatched = true;
+        ['pushState', 'replaceState'].forEach(method => {
+            const original = history[method];
+            if (typeof original !== 'function') return;
+            history[method] = function (...args) {
+                const result = original.apply(this, args);
+                setTimeout(syncAccountSettingsPageMode, 0);
+                return result;
+            };
+        });
+    }
+
     window.openSettingsCategory = function (containerId, tab) {
         const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         if (!container) return;
@@ -1309,10 +1344,9 @@
         const profToggle = document.getElementById('profile-toggle') || document.getElementById('profileDropdownBtn');
         if (profToggle) profToggle.classList.remove('active');
 
-        // Hide all dynamic sections, including sections previously locked visible/hidden by mobile bootstrap styles.
+        // Hide all dynamic sections; the temporary guard below prevents mobile home/dashboard overlap.
         document.querySelectorAll('.dynamic-section').forEach(s => {
             s.classList.add('hidden');
-            s.style.display = 'none';
         });
 
         // Close sub-sidebar overlay if open
@@ -1342,6 +1376,8 @@
 
         settingsView.classList.remove('hidden');
         settingsView.style.display = '';
+        watchAccountSettingsExit(settingsView);
+        patchAccountSettingsHistoryExit();
 
         const isMobile = typeof window !== 'undefined' && (window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
@@ -1388,9 +1424,7 @@
     // Browser back/forward handler for seamless mobile list <-> detail transitions
     if (typeof window !== 'undefined') {
         window.addEventListener('hashchange', () => {
-            if (!String(window.location.hash || '').startsWith('#account-settings')) {
-                setAccountSettingsPageMode(false);
-            }
+            syncAccountSettingsPageMode();
         });
 
         window.addEventListener('popstate', () => {
