@@ -1235,6 +1235,11 @@
     };
 
     window.navigateToAccountSettings = function (tabName = 'notifications') {
+        document.getElementById('early-home-style')?.remove();
+        document.getElementById('early-dashboard-style')?.remove();
+        document.getElementById('sigma-early-hash-style')?.remove();
+        document.documentElement.classList.remove('sigma-hash-navigating');
+
         // 0. Force dismiss any pending or stuck top-nav loading sweep
         if (typeof window.forceHideTopNavLoading === 'function') {
             window.forceHideTopNavLoading();
@@ -1283,8 +1288,11 @@
         const profToggle = document.getElementById('profile-toggle') || document.getElementById('profileDropdownBtn');
         if (profToggle) profToggle.classList.remove('active');
 
-        // Hide all dynamic sections
-        document.querySelectorAll('.dynamic-section').forEach(s => s.classList.add('hidden'));
+        // Hide all dynamic sections, including sections previously locked visible/hidden by mobile bootstrap styles.
+        document.querySelectorAll('.dynamic-section').forEach(s => {
+            s.classList.add('hidden');
+            s.style.display = 'none';
+        });
 
         // Close sub-sidebar overlay if open
         const subSidebar = document.getElementById('sub-sidebar');
@@ -1312,6 +1320,7 @@
         }
 
         settingsView.classList.remove('hidden');
+        settingsView.style.display = '';
 
         const isMobile = typeof window !== 'undefined' && (window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
