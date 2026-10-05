@@ -1206,6 +1206,26 @@
     }
     window.addEventListener('resize', updateMobileSettingsHeight);
 
+    function ensureAccountSettingsVisibilityGuard() {
+        if (document.getElementById('account-settings-visibility-guard')) return;
+        const style = document.createElement('style');
+        style.id = 'account-settings-visibility-guard';
+        style.textContent = `
+            body.sigma-account-settings-active .dynamic-section:not(#user-settings-view) {
+                display: none !important;
+            }
+            body.sigma-account-settings-active #user-settings-view {
+                display: block !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function setAccountSettingsPageMode(enabled) {
+        ensureAccountSettingsVisibilityGuard();
+        document.body.classList.toggle('sigma-account-settings-active', Boolean(enabled));
+    }
+
     window.openSettingsCategory = function (containerId, tab) {
         const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         if (!container) return;
@@ -1235,6 +1255,7 @@
     };
 
     window.navigateToAccountSettings = function (tabName = 'notifications') {
+        setAccountSettingsPageMode(true);
         document.getElementById('early-home-style')?.remove();
         document.getElementById('early-dashboard-style')?.remove();
         document.getElementById('sigma-early-hash-style')?.remove();
@@ -1366,6 +1387,12 @@
 
     // Browser back/forward handler for seamless mobile list <-> detail transitions
     if (typeof window !== 'undefined') {
+        window.addEventListener('hashchange', () => {
+            if (!String(window.location.hash || '').startsWith('#account-settings')) {
+                setAccountSettingsPageMode(false);
+            }
+        });
+
         window.addEventListener('popstate', () => {
             const container = document.getElementById('user-settings-view');
             if (!container || container.classList.contains('hidden')) return;
