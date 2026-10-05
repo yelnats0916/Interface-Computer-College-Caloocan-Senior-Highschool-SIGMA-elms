@@ -59,16 +59,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Sync security & reCAPTCHA config from server
-    fetch(resolveAuthApiUrl('action=recaptcha_config'))
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.success && data.threshold) {
-                const cfg = getLoginSecurityConfig();
-                cfg.loginIdAttempts = data.threshold;
-                localStorage.setItem(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
-            }
-        })
-        .catch(() => {});
+    const recaptchaApiUrl = resolveAuthApiUrl('action=recaptcha_config');
+    if (recaptchaApiUrl) {
+        fetch(recaptchaApiUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success && data.threshold) {
+                    const cfg = getLoginSecurityConfig();
+                    cfg.loginIdAttempts = data.threshold;
+                    localStorage.setItem(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
+                }
+            })
+            .catch(() => {});
+    }
 
     if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
@@ -1742,11 +1745,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            await fetch(resolveAuthApiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'disable_2fa', id: uid })
-            });
+            const disableApiUrl = resolveAuthApiUrl();
+            if (disableApiUrl) {
+                await fetch(disableApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'disable_2fa', id: uid })
+                });
+            }
         } catch (e) {
             console.warn('Backend disable_2fa unavailable, proceeding with local reset:', e);
         }
@@ -1970,14 +1976,17 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             if (uid) {
                 localStorage.setItem('sigma-terms-accepted-' + uid, 'true');
-                await fetch(resolveAuthApiUrl(), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'accept_terms',
-                        id: uid
-                    })
-                });
+                const termsApiUrl = resolveAuthApiUrl();
+                if (termsApiUrl) {
+                    await fetch(termsApiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'accept_terms',
+                            id: uid
+                        })
+                    });
+                }
             }
         } catch (e) {
             console.warn('Accept terms error:', e);
