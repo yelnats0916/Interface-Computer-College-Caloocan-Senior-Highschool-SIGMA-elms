@@ -2110,6 +2110,8 @@ window.resetUser2FA = function (userId) {
                 }
             }
             localStorage.removeItem('sigma-terms-accepted-' + cleanId);
+            localStorage.removeItem('sigma-2fa-enabled-' + cleanId);
+            localStorage.removeItem('sigma-2fa-secret-' + cleanId);
 
             let base = 'php/api/auth.php';
             await fetch(base, {

@@ -263,8 +263,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Master Admin",
                 type: "Master Admin",
                 status: "Active",
-                totp_enabled: true,
-                totpEnabled: true,
+                totp_enabled: false,
+                totpEnabled: false,
                 gender: "Male",
                 branch: "Main Campus",
                 createdAt: "2026-06-01T08:00:00+08:00",
@@ -282,8 +282,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Teacher",
                 type: "Teacher",
                 status: "Active",
-                totp_enabled: true,
-                totpEnabled: true,
+                totp_enabled: false,
+                totpEnabled: false,
                 gender: "Female",
                 branch: "Main Campus",
                 department: "Senior High School - Faculty",
@@ -302,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Student",
                 type: "Student",
                 status: "Active",
-                totp_enabled: true,
-                totpEnabled: true,
+                totp_enabled: false,
+                totpEnabled: false,
                 gender: "Male",
                 branch: "Main Campus",
                 gradeSection: "Grade 11 - ICT A",
@@ -1169,10 +1169,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // If backend was not reached or user is in localStorage table (offline / static server)
         if (!backendHandled) {
             const localTerms = localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true';
-            const isLocal2faEnabled = (localStorage.getItem('sigma-2fa-enabled-' + targetUserId) !== 'false') &&
-                (Boolean(matchedUser && (matchedUser.totp_enabled || matchedUser.totpEnabled)) ||
-                 localStorage.getItem('sigma-2fa-enabled-' + targetUserId) === 'true' ||
-                 Boolean(matchedUser));
+            // A user is enrolled ONLY if THIS user completed QR setup on this device:
+            // their own enabled flag is set AND their own secret exists.
+            const isLocal2faEnabled = isUserLocally2faEnrolled(targetUserId);
 
             setLoading(formType, false);
             if (isLocal2faEnabled) {
@@ -1189,6 +1188,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let current2faUserId = null;
     let current2faSuccessCallback = null;
+    let current2faSetupFromServer = false; // true = QR came from PHP backend; local fallback must not override
 
     // ── IN-PLACE 2FA NAVIGATION ─────────────────────────────────────────────
     window.backToLoginForm = function () {
@@ -1217,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         current2faUserId = null;
         current2faSuccessCallback = null;
+        current2faSetupFromServer = false;
 
         if (typeof closeTermsAgreementModal === 'function') {
             closeTermsAgreementModal();
@@ -1328,6 +1329,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return false;
     }
 
+    function get2faSecretKey(userId) {
+        return 'sigma-2fa-secret-' + String(userId || '').trim();
+    }
+
+    function get2faEnabledKey(userId) {
+        return 'sigma-2fa-enabled-' + String(userId || '').trim();
+    }
+
+    // Per-user local enrollment: true only after that specific user verified their QR setup.
+    function isUserLocally2faEnrolled(userId) {
+        if (!userId) return false;
+        const enabled = localStorage.getItem(get2faEnabledKey(userId)) === 'true';
+        const secret = localStorage.getItem(get2faSecretKey(userId));
+        return enabled && !!secret;
+    }
+
+    // Returns this user's own secret, creating a fresh random one if none exists yet.
+    function getOrCreateUser2faSecret(userId) {
+        const key = get2faSecretKey(userId);
+        let secret = localStorage.getItem(key);
+        if (!secret) {
+            secret = generateLocalBase32Secret(32); // random, unique per user
+            localStorage.setItem(key, secret);
+        }
+        return secret;
+    }
+
     function markLocalUser2faEnabled(userId, enabled = true) {
         if (!userId) return;
         const target = String(userId).trim().toLowerCase();
@@ -1408,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (input) input.classList.remove('input-error');
 
         let verified = false;
+        let serverRejected = false;
         try {
             const res = await fetch(resolveAuthApiUrl(), {
                 method: 'POST',
@@ -1421,17 +1450,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (data && data.success) {
                 verified = true;
+            } else if (res.status === 401) {
+                // Server checked this user's secret and the code is wrong — final answer.
+                serverRejected = true;
             }
         } catch (error) {
             // Backend offline or local storage account
         }
 
-        if (!verified) {
-            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId) || generateLocalBase32Secret(16, current2faUserId);
-            const isValidLocalTotp = await verifyTotpCode(localSecret, code);
-            if (isValidLocalTotp || code === '123456') {
-                verified = true;
-            }
+        // Local fallback only when the server is unreachable / doesn't manage this account.
+        // Codes are checked ONLY against this user's own secret. No master/bypass codes.
+        if (!verified && !serverRejected) {
+            const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
+            verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
         }
 
         if (verified) {
@@ -1489,18 +1520,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (data && data.success) {
                 setupData = data;
+                current2faSetupFromServer = true;
             }
         } catch (e) {
             console.warn('Backend 2FA setup unavailable, using local setup:', e);
         }
 
+        current2faSetupFromServer = !!setupData; // false if falling back to local
+
         if (!setupData) {
             // Local 2FA setup fallback (for offline, Live Server, or localStorage users)
-            let localSecret = localStorage.getItem('sigma-2fa-secret-' + userId);
-            if (!localSecret) {
-                localSecret = generateLocalBase32Secret(16, userId);
-                localStorage.setItem('sigma-2fa-secret-' + userId, localSecret);
-            }
+            const localSecret = getOrCreateUser2faSecret(userId);
             const userLabel = encodeURIComponent(`SIGMA:${userId}`);
             const otpauthUrl = `otpauth://totp/${userLabel}?secret=${localSecret}&issuer=SIGMA&algorithm=SHA1&digits=6&period=30`;
             const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(otpauthUrl)}`;
@@ -1576,6 +1606,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (input) input.classList.remove('input-error');
 
         let verified = false;
+        let serverRejected = false;
         try {
             const res = await fetch(resolveAuthApiUrl(), {
                 method: 'POST',
@@ -1589,17 +1620,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (data && data.success) {
                 verified = true;
+            } else if (res.status === 401 || current2faSetupFromServer) {
+                serverRejected = true;
             }
         } catch (error) {
             // Backend offline / local storage account
         }
 
-        if (!verified) {
-            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId) || generateLocalBase32Secret(16, current2faUserId);
-            const isValidLocalTotp = await verifyTotpCode(localSecret, code);
-            if (isValidLocalTotp || code === '123456') {
-                verified = true;
-            }
+        // Local fallback only for locally-generated setups. No master/bypass codes.
+        if (!verified && !serverRejected && !current2faSetupFromServer) {
+            const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
+            verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
         }
 
         if (verified) {

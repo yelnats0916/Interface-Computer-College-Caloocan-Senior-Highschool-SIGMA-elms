@@ -4565,8 +4565,8 @@
         box-shadow: none !important;
     }
 
-    #section-home:has(.sigma-announcements-empty-state),
-    #section-dashboard:has(.sigma-announcements-empty-state) {
+    #section-home:not(.hidden):has(.sigma-announcements-empty-state),
+    #section-dashboard:not(.hidden):has(.sigma-announcements-empty-state) {
         display: flex !important;
         flex-direction: column !important;
         flex: 1 1 auto !important;

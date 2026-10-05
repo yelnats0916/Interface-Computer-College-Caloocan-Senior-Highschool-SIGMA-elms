@@ -122,8 +122,19 @@
         }
 
         // 2. Update Top-Left Logo / Home button
+        // Inside a role portal (Admin / Teacher / Student), the logo is static branding only.
+        // Returning to the portal is handled by the explicit "Back to Portal" link.
         const logoLink = document.getElementById('backToLoginLogo');
-        if (logoLink) {
+        const isRoleContext = ['admin', 'teacher', 'student'].includes(ctx.role);
+        if (logoLink && isRoleContext) {
+            logoLink.removeAttribute('href');
+            logoLink.removeAttribute('title');
+            logoLink.setAttribute('aria-disabled', 'true');
+            logoLink.setAttribute('tabindex', '-1');
+            logoLink.style.cursor = 'default';
+            logoLink.style.pointerEvents = 'none';
+            logoLink.onclick = function (e) { e.preventDefault(); };
+        } else if (logoLink) {
             logoLink.href = ctx.file;
             logoLink.title = ctx.label;
             logoLink.onclick = function (e) {
@@ -131,10 +142,6 @@
                 if (isHelpOrigin) {
                     sessionStorage.setItem('sigma_target_view', 'help');
                     window.location.href = 'index.html#help';
-                    return;
-                }
-                if (activeRole) {
-                    window.location.href = ctx.file;
                     return;
                 }
                 sessionStorage.removeItem('sigma_policy_from');
