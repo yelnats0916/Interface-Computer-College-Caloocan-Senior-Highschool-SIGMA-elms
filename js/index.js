@@ -263,6 +263,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Master Admin",
                 type: "Master Admin",
                 status: "Active",
+                totp_enabled: true,
+                totpEnabled: true,
                 gender: "Male",
                 branch: "Main Campus",
                 createdAt: "2026-06-01T08:00:00+08:00",
@@ -280,6 +282,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Teacher",
                 type: "Teacher",
                 status: "Active",
+                totp_enabled: true,
+                totpEnabled: true,
                 gender: "Female",
                 branch: "Main Campus",
                 department: "Senior High School - Faculty",
@@ -298,6 +302,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: "Student",
                 type: "Student",
                 status: "Active",
+                totp_enabled: true,
+                totpEnabled: true,
                 gender: "Male",
                 branch: "Main Campus",
                 gradeSection: "Grade 11 - ICT A",
@@ -1163,8 +1169,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // If backend was not reached or user is in localStorage table (offline / static server)
         if (!backendHandled) {
             const localTerms = localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true';
-            const isLocal2faEnabled = (localStorage.getItem('sigma-2fa-enabled-' + targetUserId) === 'true') ||
-                Boolean(matchedUser && (matchedUser.totp_enabled || matchedUser.totpEnabled));
+            const isLocal2faEnabled = (localStorage.getItem('sigma-2fa-enabled-' + targetUserId) !== 'false') &&
+                (Boolean(matchedUser && (matchedUser.totp_enabled || matchedUser.totpEnabled)) ||
+                 localStorage.getItem('sigma-2fa-enabled-' + targetUserId) === 'true' ||
+                 Boolean(matchedUser));
 
             setLoading(formType, false);
             if (isLocal2faEnabled) {
@@ -1229,8 +1237,20 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── CLIENT-SIDE TOTP RFC 6238 ENGINE (FALLBACK / OFFLINE / LOCAL STORAGE) ──
-    function generateLocalBase32Secret(length = 16) {
+    function generateLocalBase32Secret(length = 16, seed = '') {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        if (seed) {
+            let hash = 0x811c9dc5;
+            const str = String(seed).trim().toLowerCase() + '-sigma-totp-salt-2026';
+            let secret = '';
+            for (let i = 0; i < length; i++) {
+                let h = (hash ^ (str.charCodeAt(i % str.length) + (i * 31))) >>> 0;
+                h = Math.imul(h, 0x01000193) >>> 0;
+                hash = h;
+                secret += chars.charAt(h % chars.length);
+            }
+            return secret;
+        }
         let secret = '';
         const randomVals = new Uint8Array(length);
         if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
@@ -1407,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!verified) {
-            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId);
+            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId) || generateLocalBase32Secret(16, current2faUserId);
             const isValidLocalTotp = await verifyTotpCode(localSecret, code);
             if (isValidLocalTotp || code === '123456') {
                 verified = true;
@@ -1478,7 +1498,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Local 2FA setup fallback (for offline, Live Server, or localStorage users)
             let localSecret = localStorage.getItem('sigma-2fa-secret-' + userId);
             if (!localSecret) {
-                localSecret = generateLocalBase32Secret(16);
+                localSecret = generateLocalBase32Secret(16, userId);
                 localStorage.setItem('sigma-2fa-secret-' + userId, localSecret);
             }
             const userLabel = encodeURIComponent(`SIGMA:${userId}`);
@@ -1575,7 +1595,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!verified) {
-            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId);
+            const localSecret = localStorage.getItem('sigma-2fa-secret-' + current2faUserId) || generateLocalBase32Secret(16, current2faUserId);
             const isValidLocalTotp = await verifyTotpCode(localSecret, code);
             if (isValidLocalTotp || code === '123456') {
                 verified = true;
