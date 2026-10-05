@@ -124,12 +124,12 @@ window.normalizeUserRole = normalizeUserRole;
         gender: "Female",
         branch: "Main Campus",
         department: "Senior High School - Faculty",
-        section: "Rizal",
-        sections: ["Rizal"],
-        assignedSections: ["Rizal"],
-        subject: "Computer Programming 1",
-        subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
-        assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
+        section: "",
+        sections: [],
+        assignedSections: [],
+        subject: "",
+        subjects: [],
+        assignedSubjects: [],
         createdAt: "2026-09-02T08:00:00+08:00",
         createdVia: "system-seed",
         permissions: { bio: true, achievements: true, subjects: true, sections: true, actionView: true, actionEdit: true }
@@ -369,7 +369,7 @@ window.normalizeUserRole = normalizeUserRole;
 
         if (!hasTeachers || !hasStudents) {
             const defaultTeachers = [
-                { id: "1111111", uid: "1111111", firstName: "Maria", middleName: "Santos", lastName: "Ramos", fullName: "Maria Santos Ramos", email: "maria.ramos@gmail.com", password: "ramos1111111", role: "Teacher", type: "Teacher", status: "Active", gender: "Female", branch: "Main Campus", department: "Senior High School - Faculty", section: "Rizal", sections: ["Rizal"], assignedSections: ["Rizal"], subject: "Computer Programming 1", subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"], assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"], createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
+                { id: "1111111", uid: "1111111", firstName: "Maria", middleName: "Santos", lastName: "Ramos", fullName: "Maria Santos Ramos", email: "maria.ramos@gmail.com", password: "ramos1111111", role: "Teacher", type: "Teacher", status: "Active", gender: "Female", branch: "Main Campus", department: "Senior High School - Faculty", section: "", sections: [], assignedSections: [], subject: "", subjects: [], assignedSubjects: [], createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
             ];
 
             const defaultStudents = [
@@ -4405,6 +4405,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (sectionId === 'dashboard-view') {
+            if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+                window.SigmaAnnouncements.resetToDefaultTab();
+            } else if (typeof renderAdminAnnouncements === 'function') {
+                renderAdminAnnouncements();
+            }
             if (typeof window.updateDashboardUserStats === 'function') {
                 window.updateDashboardUserStats('all');
             }
@@ -6315,7 +6320,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Dashboard Announcements (Unified in js/announcements.js) ---
     function renderAdminAnnouncements() {
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
+        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+            window.SigmaAnnouncements.resetToDefaultTab();
+        } else if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
             window.SigmaAnnouncements.refresh();
         }
     }

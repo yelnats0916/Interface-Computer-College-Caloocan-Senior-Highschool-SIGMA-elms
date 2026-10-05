@@ -643,8 +643,78 @@
         return false;
     };
 
+    window.toggleSelfEditGenderDropdown = function (event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const menu = document.getElementById('self-edit-gender-menu');
+        const arrow = document.getElementById('self-edit-gender-arrow');
+        const btn = document.getElementById('self-edit-gender-btn');
+        if (!menu) return;
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) {
+            menu.classList.remove('hidden');
+            btn?.setAttribute('aria-expanded', 'true');
+            if (arrow) arrow.style.transform = 'rotate(180deg)';
+        } else {
+            menu.classList.add('hidden');
+            btn?.setAttribute('aria-expanded', 'false');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+    };
+
+    window.closeSelfEditGenderDropdown = function () {
+        const menu = document.getElementById('self-edit-gender-menu');
+        const arrow = document.getElementById('self-edit-gender-arrow');
+        const btn = document.getElementById('self-edit-gender-btn');
+        if (menu && !menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+            btn?.setAttribute('aria-expanded', 'false');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+    };
+
+    window.selectSelfEditGender = function (val) {
+        const select = document.getElementById('self-edit-gender');
+        const display = document.getElementById('self-edit-gender-display');
+        const menu = document.getElementById('self-edit-gender-menu');
+        if (select) {
+            select.value = val;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (display) {
+            display.textContent = val || 'Select Gender';
+            if (val) {
+                display.classList.remove('text-black/40');
+                display.classList.add('text-black', 'font-medium');
+            } else {
+                display.classList.remove('text-black', 'font-medium');
+                display.classList.add('text-black/40');
+            }
+        }
+        if (menu) {
+            menu.querySelectorAll('.self-edit-gender-opt').forEach(opt => {
+                const isSelected = opt.getAttribute('data-value') === val;
+                opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                if (isSelected) {
+                    opt.className = 'self-edit-gender-opt px-3.5 py-2.5 text-sm sm:text-base rounded-lg cursor-pointer flex items-center transition-colors selected bg-emerald-50 text-[#15803d] font-bold';
+                } else {
+                    opt.className = 'self-edit-gender-opt px-3.5 py-2.5 text-sm sm:text-base rounded-lg cursor-pointer flex items-center transition-colors font-medium text-black hover:bg-slate-100';
+                }
+            });
+        }
+        window.closeSelfEditGenderDropdown();
+        document.getElementById('self-edit-gender-btn')?.focus();
+        if (typeof window.checkSelfEditFormChanges === 'function') {
+            window.checkSelfEditFormChanges();
+        }
+    };
+
     let editInformationReturnFocus;
     window.closeSelfEditInformation = function () {
+        window.closeSelfEditGenderDropdown?.();
+        window.checkSelfEditFormChanges = null;
         document.getElementById('self-edit-information')?.remove();
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
@@ -725,16 +795,42 @@
                         <!-- Gender Field -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div class="space-y-3">
-                                <label for="self-edit-gender" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Gender <span class="text-red-500">*</span></label>
-                                <div class="relative">
-                                    <select id="self-edit-gender" required
-                                        class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
+                                <label id="self-edit-gender-label" for="self-edit-gender-btn" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Gender <span class="text-red-500">*</span></label>
+                                <div class="relative w-full" id="self-edit-gender-container">
+                                    <select id="self-edit-gender" name="gender" tabindex="-1" aria-hidden="true"
+                                        class="sr-only pointer-events-none" style="position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; pointer-events: none !important;">
                                         <option value="" disabled ${!user.gender ? 'selected' : ''} hidden>Select Gender</option>
                                         <option value="Male" ${user.gender === 'Male' ? 'selected' : ''}>Male</option>
                                         <option value="Female" ${user.gender === 'Female' ? 'selected' : ''}>Female</option>
                                         ${user.gender && user.gender !== 'Male' && user.gender !== 'Female' ? `<option value="${_esc(user.gender)}" selected>${_esc(user.gender)}</option>` : ''}
                                     </select>
-                                    <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
+                                    <button type="button" id="self-edit-gender-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="self-edit-gender-label self-edit-gender-display"
+                                        onclick="window.toggleSelfEditGenderDropdown(event)"
+                                        class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all cursor-pointer font-['Inter'] shadow-none text-left">
+                                        <span id="self-edit-gender-display" class="${user.gender ? 'text-black font-medium' : 'text-black/40'} block truncate">${_esc(user.gender || 'Select Gender')}</span>
+                                    </button>
+                                    <i id="self-edit-gender-arrow" class="fa-solid fa-chevron-down absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none transition-transform duration-200"></i>
+
+                                    <div id="self-edit-gender-menu" role="listbox" aria-labelledby="self-edit-gender-label"
+                                        class="hidden absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-1 font-['Inter'] w-full max-w-full box-border"
+                                        onclick="event.stopPropagation()">
+                                        <div role="option" aria-selected="${user.gender === 'Male'}" data-value="Male"
+                                            onclick="window.selectSelfEditGender('Male')"
+                                            class="self-edit-gender-opt px-3.5 py-2.5 text-sm sm:text-base rounded-lg cursor-pointer flex items-center transition-colors ${user.gender === 'Male' ? 'selected bg-emerald-50 text-[#15803d] font-bold' : 'font-medium text-black hover:bg-slate-100'}">
+                                            <span>Male</span>
+                                        </div>
+                                        <div role="option" aria-selected="${user.gender === 'Female'}" data-value="Female"
+                                            onclick="window.selectSelfEditGender('Female')"
+                                            class="self-edit-gender-opt px-3.5 py-2.5 text-sm sm:text-base rounded-lg cursor-pointer flex items-center transition-colors ${user.gender === 'Female' ? 'selected bg-emerald-50 text-[#15803d] font-bold' : 'font-medium text-black hover:bg-slate-100'}">
+                                            <span>Female</span>
+                                        </div>
+                                        ${user.gender && user.gender !== 'Male' && user.gender !== 'Female' ? `
+                                        <div role="option" aria-selected="true" data-value="${_esc(user.gender)}"
+                                            onclick="window.selectSelfEditGender('${_esc(user.gender)}')"
+                                            class="self-edit-gender-opt px-3.5 py-2.5 text-sm sm:text-base rounded-lg cursor-pointer flex items-center transition-colors selected bg-emerald-50 text-[#15803d] font-bold">
+                                            <span>${_esc(user.gender)}</span>
+                                        </div>` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -765,8 +861,9 @@
 
                     <!-- Pinned Modal Footer -->
                     <div class="sigma-modal-footer flex items-center justify-end gap-3 px-10 py-5 border-t border-slate-200 bg-white sticky bottom-0 z-30 font-['Inter']">
-                        <button type="submit" form="self-edit-form" id="self-edit-save-btn"
-                            class="sigma-btn sigma-btn-primary sigma-btn-md !h-[48px] !px-8 !rounded-xl !text-base !font-bold transition-all cursor-pointer">
+                        <button type="submit" form="self-edit-form" id="self-edit-save-btn" disabled
+                            class="sigma-btn sigma-btn-primary sigma-btn-md !h-[48px] !px-8 !rounded-xl !text-base !font-bold transition-all is-locked opacity-45 cursor-not-allowed pointer-events-none"
+                            aria-disabled="true">
                             <span>Save Changes</span>
                         </button>
                     </div>
@@ -776,22 +873,116 @@
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
 
-        overlay.querySelector('#self-edit-form').addEventListener('submit', event => {
+        const formEl = overlay.querySelector('#self-edit-form');
+        const firstNameInput = overlay.querySelector('#self-edit-firstname');
+        const middleNameInput = overlay.querySelector('#self-edit-middlename');
+        const lastNameInput = overlay.querySelector('#self-edit-lastname');
+        const genderSelect = overlay.querySelector('#self-edit-gender');
+        const saveBtn = overlay.querySelector('#self-edit-save-btn');
+
+        const initialFormValues = {
+            firstName: (user.firstName || '').trim(),
+            middleName: (user.middleName || '').trim(),
+            lastName: (user.lastName || '').trim(),
+            gender: (user.gender || '').trim()
+        };
+
+        function evaluateSelfEditDirtyState() {
+            if (!saveBtn) return;
+            const currentFirst = (firstNameInput?.value || '').trim();
+            const currentMiddle = (middleNameInput?.value || '').trim();
+            const currentLast = (lastNameInput?.value || '').trim();
+            const currentGender = (genderSelect?.value || '').trim();
+
+            const isDirty = (
+                currentFirst !== initialFormValues.firstName ||
+                currentMiddle !== initialFormValues.middleName ||
+                currentLast !== initialFormValues.lastName ||
+                currentGender !== initialFormValues.gender
+            );
+
+            const hasRequiredFields = Boolean(currentFirst && currentLast && currentGender);
+            const canSave = isDirty && hasRequiredFields;
+
+            if (canSave) {
+                saveBtn.disabled = false;
+                saveBtn.removeAttribute('disabled');
+                saveBtn.removeAttribute('aria-disabled');
+                saveBtn.classList.remove('is-locked', 'opacity-45', 'opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                saveBtn.classList.add('cursor-pointer');
+            } else {
+                saveBtn.disabled = true;
+                saveBtn.setAttribute('disabled', 'disabled');
+                saveBtn.setAttribute('aria-disabled', 'true');
+                saveBtn.classList.add('is-locked', 'opacity-45', 'cursor-not-allowed', 'pointer-events-none');
+                saveBtn.classList.remove('cursor-pointer');
+            }
+        }
+
+        window.checkSelfEditFormChanges = evaluateSelfEditDirtyState;
+
+        ['input', 'change', 'keyup', 'paste'].forEach(evt => {
+            firstNameInput?.addEventListener(evt, evaluateSelfEditDirtyState);
+            middleNameInput?.addEventListener(evt, evaluateSelfEditDirtyState);
+            lastNameInput?.addEventListener(evt, evaluateSelfEditDirtyState);
+        });
+        genderSelect?.addEventListener('change', evaluateSelfEditDirtyState);
+
+        formEl?.addEventListener('submit', event => {
             event.preventDefault();
+            const currentFirst = (firstNameInput?.value || '').trim();
+            const currentLast = (lastNameInput?.value || '').trim();
+            const currentGender = (genderSelect?.value || '').trim();
+            const isDirty = (
+                currentFirst !== initialFormValues.firstName ||
+                (middleNameInput?.value || '').trim() !== initialFormValues.middleName ||
+                currentLast !== initialFormValues.lastName ||
+                currentGender !== initialFormValues.gender
+            );
+            if (!isDirty || !currentFirst || !currentLast || !currentGender) {
+                return;
+            }
             window.handleSaveAccountInfo(String(user.id || user.uid || ''));
+        });
+
+        // Initialize button lock state
+        evaluateSelfEditDirtyState();
+
+        overlay.addEventListener('click', event => {
+            if (!event.target.closest('#self-edit-gender-container')) {
+                window.closeSelfEditGenderDropdown();
+            }
         });
 
         overlay.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 event.preventDefault();
+                const menu = document.getElementById('self-edit-gender-menu');
+                if (menu && !menu.classList.contains('hidden')) {
+                    window.closeSelfEditGenderDropdown();
+                    document.getElementById('self-edit-gender-btn')?.focus();
+                    return;
+                }
                 window.closeSelfEditInformation();
             }
             if (event.key === 'Tab') {
-                const controls = [...overlay.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled])')];
+                window.closeSelfEditGenderDropdown();
+                const controls = [...overlay.querySelectorAll('button:not([disabled]):not([tabindex="-1"]),input:not([disabled]):not([tabindex="-1"]),select:not([disabled]):not([tabindex="-1"])')];
                 if (controls.length > 0) {
                     const first = controls[0], last = controls[controls.length - 1];
                     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
                     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                }
+            }
+        });
+
+        const genderBtn = overlay.querySelector('#self-edit-gender-btn');
+        genderBtn?.addEventListener('keydown', event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                const menu = document.getElementById('self-edit-gender-menu');
+                if (menu && menu.classList.contains('hidden')) {
+                    window.toggleSelfEditGenderDropdown();
                 }
             }
         });
@@ -814,6 +1005,12 @@
 
         if (!fname || !lname) {
             alert('First name and last name cannot be empty.');
+            return;
+        }
+
+        if (!gender) {
+            alert('Please select a gender.');
+            window.toggleSelfEditGenderDropdown?.();
             return;
         }
 

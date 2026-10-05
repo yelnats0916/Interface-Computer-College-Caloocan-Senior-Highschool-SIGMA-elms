@@ -772,6 +772,77 @@ button.sigma-settings-cat-btn.bg-icc-yellow .sigma-settings-cat-icon {
     display: none;
 }
 
+#self-edit-information #self-edit-gender-container {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#self-edit-information #self-edit-gender-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+#self-edit-information #self-edit-gender-menu {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 6px !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+    padding: 6px !important;
+    z-index: 60 !important;
+    overflow: hidden !important;
+}
+
+#self-edit-information .self-edit-gender-opt {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+    user-select: none !important;
+}
+
+#self-edit-information .self-edit-gender-opt:hover {
+    background-color: #f1f5f9 !important;
+}
+
+#self-edit-information .self-edit-gender-opt.selected {
+    background-color: #ecfdf5 !important;
+    color: #15803d !important;
+    font-weight: 700 !important;
+}
+
+#self-edit-information #self-edit-save-btn:disabled,
+#self-edit-information #self-edit-save-btn[disabled],
+#self-edit-information #self-edit-save-btn.is-locked {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
 @media (max-width: 1023px) {
     #self-edit-information {
         inset: 0 !important;
@@ -842,6 +913,21 @@ button.sigma-settings-cat-btn.bg-icc-yellow .sigma-settings-cat-icon {
         min-height: 40px !important;
     }
     #self-edit-information .sigma-subject-select { padding-right: 36px !important; }
+    #self-edit-information #self-edit-gender-menu {
+        border-radius: 12px !important;
+        padding: 4px !important;
+        margin-top: 4px !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    #self-edit-information .self-edit-gender-opt {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+        min-height: 38px !important;
+    }
     #self-edit-information .sigma-modal-footer { padding: 10px 16px max(10px, env(safe-area-inset-bottom, 0px)) !important; }
     #user-settings-view .sigma-account-settings .sigma-btn,
     #self-edit-information #self-edit-save-btn {

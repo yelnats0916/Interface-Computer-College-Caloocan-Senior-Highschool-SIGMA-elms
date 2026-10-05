@@ -2750,12 +2750,12 @@ window.getLoggedInTeacherUser = function () {
         gender: 'Female',
         branch: 'Main Campus',
         department: 'Senior High School - Faculty',
-        section: 'Rizal',
-        sections: ['Rizal'],
-        assignedSections: ['Rizal'],
-        subject: 'Computer Programming 1',
-        subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
-        assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+        section: '',
+        sections: [],
+        assignedSections: [],
+        subject: '',
+        subjects: [],
+        assignedSubjects: []
     };
 
     const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
@@ -2815,15 +2815,6 @@ window.getLoggedInTeacherUser = function () {
             role: 'Teacher'
         };
 
-        if (finalId === '1111111') {
-            baseObj.section = 'Rizal';
-            baseObj.sections = ['Rizal'];
-            baseObj.assignedSections = ['Rizal'];
-            baseObj.subject = 'Computer Programming 1';
-            baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-            baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-        }
-
         return baseObj;
     }
 
@@ -2842,15 +2833,6 @@ window.getLoggedInTeacherUser = function () {
             name: finalFull,
             role: 'Teacher'
         };
-
-        if (finalId === '1111111') {
-            baseObj.section = 'Rizal';
-            baseObj.sections = ['Rizal'];
-            baseObj.assignedSections = ['Rizal'];
-            baseObj.subject = 'Computer Programming 1';
-            baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-            baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-        }
 
         return baseObj;
     }

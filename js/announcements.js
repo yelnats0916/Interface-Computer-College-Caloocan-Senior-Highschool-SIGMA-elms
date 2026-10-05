@@ -5293,6 +5293,14 @@
         syncTabButtonsUI(currentActiveTab);
     }
 
+    function resetToDefaultTab(forceRefresh = true) {
+        currentActiveTab = 'all';
+        syncTabButtonsUI('all');
+        if (forceRefresh) {
+            refreshAllFeeds();
+        }
+    }
+
     // Dynamically build and unify Announcement Tabs across all portals
     function ensureTabsDOM() {
         detectContext();
@@ -5313,9 +5321,12 @@
             }
 
             const isStudent = currentRole === 'student';
+            const isAll = (currentActiveTab === 'all' || !currentActiveTab);
+            const isImp = (currentActiveTab === 'important');
+            const isPost = (currentActiveTab === 'posts');
             const tabsHTML = isStudent
-                ? `<button type="button" class="sigma-feed-tab-btn" data-announcement-tab="all">Announcements</button><button type="button" class="sigma-feed-tab-btn" data-announcement-tab="important">Important</button>`
-                : `<button type="button" class="sigma-feed-tab-btn" data-announcement-tab="all">Announcements</button><button type="button" class="sigma-feed-tab-btn" data-announcement-tab="important">Important</button><button type="button" class="sigma-feed-tab-btn" data-announcement-tab="posts">Posts</button>`;
+                ? `<button type="button" class="sigma-feed-tab-btn ${isAll ? 'active' : ''}" data-announcement-tab="all">Announcements</button><button type="button" class="sigma-feed-tab-btn ${isImp ? 'active' : ''}" data-announcement-tab="important">Important</button>`
+                : `<button type="button" class="sigma-feed-tab-btn ${isAll ? 'active' : ''}" data-announcement-tab="all">Announcements</button><button type="button" class="sigma-feed-tab-btn ${isImp ? 'active' : ''}" data-announcement-tab="important">Important</button><button type="button" class="sigma-feed-tab-btn ${isPost ? 'active' : ''}" data-announcement-tab="posts">Posts</button>`;
 
             if (tabsContainer) {
                 tabsContainer.innerHTML = tabsHTML;
@@ -5326,6 +5337,7 @@
                 feedEl.parentElement.insertBefore(newTabs, feedEl);
             }
         });
+        syncTabButtonsUI(currentActiveTab);
     }
 
     // Auto-bind to trigger buttons and tabs on the page
@@ -5394,13 +5406,30 @@
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
+            currentActiveTab = 'all';
             autoBindTriggers();
-            refreshAllFeeds();
+            resetToDefaultTab(true);
         });
     } else {
+        currentActiveTab = 'all';
         autoBindTriggers();
-        refreshAllFeeds();
+        resetToDefaultTab(true);
     }
+
+    // Always reset to Announcements on pageshow (e.g. reload or back/forward cache restore)
+    window.addEventListener('pageshow', () => {
+        resetToDefaultTab(true);
+    });
+
+    // Reset to Announcements when navigating history back/forward to Home/Dashboard
+    function handleHistoryHomeNav() {
+        const hash = (window.location.hash || '').toLowerCase();
+        if (!hash || hash === '#' || hash === '#dashboard' || hash === '#home' || hash === '#nav-dashboard' || hash === '#nav-home') {
+            resetToDefaultTab(true);
+        }
+    }
+    window.addEventListener('popstate', handleHistoryHomeNav);
+    window.addEventListener('hashchange', handleHistoryHomeNav);
 
     function removeAttachedImage(index) {
         if (index >= 0 && index < attachedImages.length) {
@@ -5461,6 +5490,8 @@
         startReply: startReply,
         cancelReply: cancelReply,
         refresh: refreshAllFeeds,
+        resetToDefaultTab: resetToDefaultTab,
+        resetToDefault: resetToDefaultTab,
         getActiveRoomSectionName: getActiveRoomSectionName,
         getActiveRoomSubjectName: getActiveRoomSubjectName,
         formatTimeAgo: formatTimeAgo,
@@ -5546,10 +5577,24 @@
     window.openComposerModal = (postId = null, audience = null, subject = null) => openComposerModal(postId, audience, subject);
     window.openUniversalImageLightbox = (urlOrFile, idx = 0) => openPostLightbox(urlOrFile, idx);
     window.enlargeAnnouncementImage = (url) => openPostLightbox(url);
-    window.renderTeacherAnnouncements = () => refreshAllFeeds();
-    window.renderAdminAnnouncements = () => refreshAllFeeds();
-    window.renderStudentHomeAnnouncements = () => refreshAllFeeds();
-    window.renderInstitutionalAnnouncements = () => refreshAllFeeds();
+    window.resetAnnouncementFeedToDefault = resetToDefaultTab;
+    window.resetAnnouncementTabs = resetToDefaultTab;
+    window.renderTeacherAnnouncements = (resetTab = true) => {
+        if (resetTab) resetToDefaultTab(true);
+        else refreshAllFeeds();
+    };
+    window.renderAdminAnnouncements = (resetTab = true) => {
+        if (resetTab) resetToDefaultTab(true);
+        else refreshAllFeeds();
+    };
+    window.renderStudentHomeAnnouncements = (resetTab = true) => {
+        if (resetTab) resetToDefaultTab(true);
+        else refreshAllFeeds();
+    };
+    window.renderInstitutionalAnnouncements = (resetTab = true) => {
+        if (resetTab) resetToDefaultTab(true);
+        else refreshAllFeeds();
+    };
     window.loadDemoData = () => window.SigmaAnnouncements.loadDemoData();
     window.clearAllAnnouncements = () => window.SigmaAnnouncements.clearAll();
     window.openAnnouncementDeleteDialog = (postId) => openDeleteDialog(postId);

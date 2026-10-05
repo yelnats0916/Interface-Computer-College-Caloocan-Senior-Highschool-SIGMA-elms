@@ -1484,12 +1484,12 @@
             gender: 'Female',
             branch: 'Main Campus',
             department: 'Senior High School - Faculty',
-            section: 'Rizal',
-            sections: ['Rizal'],
-            assignedSections: ['Rizal'],
-            subject: 'Computer Programming 1',
-            subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
-            assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
+            section: '',
+            sections: [],
+            assignedSections: [],
+            subject: '',
+            subjects: [],
+            assignedSubjects: [],
             email: 'maria.ramos@gmail.com'
         };
 
@@ -1548,14 +1548,6 @@
                 name: finalFull,
                 role: 'Teacher'
             };
-            if (finalId === '1111111') {
-                baseObj.section = 'Rizal';
-                baseObj.sections = ['Rizal'];
-                baseObj.assignedSections = ['Rizal'];
-                baseObj.subject = 'Computer Programming 1';
-                baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-            }
             return baseObj;
         }
 
@@ -1574,14 +1566,6 @@
                 name: finalFull,
                 role: 'Teacher'
             };
-            if (finalId === '1111111') {
-                baseObj.section = 'Rizal';
-                baseObj.sections = ['Rizal'];
-                baseObj.assignedSections = ['Rizal'];
-                baseObj.subject = 'Computer Programming 1';
-                baseObj.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                baseObj.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-            }
             return baseObj;
         }
 
@@ -1886,49 +1870,7 @@
                 });
             }
 
-        if (results.length === 0) {
-            const isMaria = teacherId === '1111111' ||
-                (teacherFirst === 'maria' && teacherLast === 'ramos') ||
-                (teacherFullName.includes('maria') && teacherFullName.includes('ramos'));
-            if (isMaria) {
-                const defaultMariaItems = [
-                    {
-                        id: 'sec-rizal-computer_programming_1',
-                        sectionName: 'Rizal',
-                        grade: 'Grade 11',
-                        subject: 'Computer Programming 1',
-                        role: 'Teacher',
-                        semester: '1st Semester',
-                        quarters: [1, 2],
-                        room: 'Room 302',
-                        schedule: 'Mon-Fri 09:00 AM - 10:30 AM'
-                    },
-                    {
-                        id: 'sec-rizal-empowerment_technologies',
-                        sectionName: 'Rizal',
-                        grade: 'Grade 11',
-                        subject: 'Empowerment Technologies',
-                        role: 'Teacher',
-                        semester: '2nd Semester',
-                        quarters: [3, 4],
-                        room: 'Room 302',
-                        schedule: 'Mon-Fri 03:00 PM - 04:30 PM'
-                    },
-                    {
-                        id: 'sec-rizal-oral_communication',
-                        sectionName: 'Rizal',
-                        grade: 'Grade 11',
-                        subject: 'Oral Communication',
-                        role: 'Teacher',
-                        semester: '1st Semester',
-                        quarters: [1, 2],
-                        room: 'Room 302',
-                        schedule: 'Mon-Fri 10:30 AM - 12:00 PM'
-                    }
-                ];
-                defaultMariaItems.forEach(item => results.push(item));
-            }
-        }
+
 
         results.sort((a, b) => {
             const subjA = String(a.subject || a.name || '').trim();

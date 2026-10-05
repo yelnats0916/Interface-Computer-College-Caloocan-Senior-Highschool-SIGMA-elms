@@ -4241,12 +4241,12 @@ function initTeacherPortal() {
             gender: 'Female',
             branch: 'Main Campus',
             department: 'Senior High School - Faculty',
-            section: 'Rizal',
-            sections: ['Rizal'],
-            assignedSections: ['Rizal'],
-            subject: 'Computer Programming 1',
-            subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
-            assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+            section: '',
+            sections: [],
+            assignedSections: [],
+            subject: '',
+            subjects: [],
+            assignedSubjects: []
         };
 
         const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
@@ -4353,18 +4353,6 @@ function initTeacherPortal() {
             const combinedAssignedSections = Array.from(new Set(combinedSectionsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s).trim()).filter(Boolean)));
             const combinedAssignedSubjects = Array.from(new Set(combinedSubjectsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.subject) : s).trim()).filter(Boolean)));
 
-            if (finalId === '1111111' && assignedFromCanonical.length === 0) {
-                if (!combinedAssignedSections.some(s => s.toLowerCase() === 'rizal')) {
-                    combinedAssignedSections.push('Rizal');
-                }
-                const mariaSubjs = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                mariaSubjs.forEach(s => {
-                    if (!combinedAssignedSubjects.some(sub => sub.toLowerCase() === s.toLowerCase())) {
-                        combinedAssignedSubjects.push(s);
-                    }
-                });
-            }
-
             return {
                 ...matchedUser,
                 ...authUser,
@@ -4403,13 +4391,7 @@ function initTeacherPortal() {
         if (fallbackMaria) {
             return {
                 ...defaultTeacher,
-                ...fallbackMaria,
-                section: 'Rizal',
-                sections: ['Rizal'],
-                assignedSections: ['Rizal'],
-                subject: 'Computer Programming 1',
-                subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
-                assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+                ...fallbackMaria
             };
         }
 
@@ -4689,112 +4671,6 @@ function initTeacherPortal() {
                 }
             }
 
-            // Fallback ONLY when NO sections exist in the database at all:
-            if (result.length === 0 && combinedSections.length === 0) {
-                // Source 3: Teacher profile explicit assignedSubjects or subjects
-                const profileSubjs = (Array.isArray(currentTeacher.assignedSubjects) ? currentTeacher.assignedSubjects : [])
-                    .concat(Array.isArray(currentTeacher.subjects) ? currentTeacher.subjects : [])
-                    .concat(currentTeacher.subject ? [currentTeacher.subject] : []);
-
-                if (profileSubjs.length > 0) {
-                    const defaultSecName = currentTeacher.section || (Array.isArray(currentTeacher.assignedSections) && currentTeacher.assignedSections[0]) || (Array.isArray(currentTeacher.sections) && currentTeacher.sections[0]) || 'Section A';
-                    profileSubjs.forEach(ps => {
-                        const psName = String(typeof ps === 'object' ? (ps.name || ps.subject || ps.title) : ps).trim();
-                        const psSec = String(typeof ps === 'object' ? (ps.section || ps.sectionName || defaultSecName) : defaultSecName).trim();
-                        if (psName) {
-                            const isMaria = String(currentTeacher?.id || currentTeacher?.uid || '').replace(/^#/, '').trim() === '1111111' ||
-                                (cleanStr(currentTeacher?.firstName) === 'maria' && cleanStr(currentTeacher?.lastName) === 'ramos');
-                            const mariaSchedule = psName.toLowerCase().includes('programming') ? 'Mon-Fri 09:00 AM - 10:30 AM' :
-                                (psName.toLowerCase().includes('empowerment') ? 'Mon-Fri 03:00 PM - 04:30 PM' : 'Mon-Fri 10:30 AM - 12:00 PM');
-                            addCard({
-                                subject: psName,
-                                name: psName,
-                                sectionName: psSec,
-                                section: psSec,
-                                grade: currentTeacher.gradeLevel || 'Grade 11',
-                                room: isMaria ? 'Room 302' : (currentTeacher.room || 'Room 101'),
-                                schedule: isMaria ? mariaSchedule : (currentTeacher.schedule || 'Regular Schedule'),
-                                teacher: currentTeacher.fullName || 'Teacher'
-                            });
-                        }
-                    });
-                }
-
-                // Source 4: sigma-admin-subjects / sigma_subjects_v2 where teacher is assigned to the subject
-                const adminSubjects = getStoredJson('sigma-admin-subjects', getStoredJson('sigma_subjects_v2', []));
-                if (Array.isArray(adminSubjects)) {
-                    adminSubjects.forEach(s => {
-                        if (!s) return;
-                        const sName = String(s.name || s.subject || s.title || '').trim();
-                        if (!sName) return;
-
-                        let isSubjTeacher = false;
-                        if (Array.isArray(s.teachers) && s.teachers.length > 0) {
-                            isSubjTeacher = s.teachers.some(t => {
-                                const tName = typeof t === 'object' ? (t.name || t.fullName) : t;
-                                const tId = typeof t === 'object' ? (t.id || t.uid) : '';
-                                return (tId && String(tId).toLowerCase() === String(currentTeacher.id).toLowerCase()) ||
-                                    (tName && String(tName).toLowerCase().includes(String(currentTeacher.lastName || currentTeacher.name || '').toLowerCase()));
-                            });
-                        }
-                        if (s.teacher && String(s.teacher).toLowerCase().includes(String(currentTeacher.lastName || currentTeacher.name || '').toLowerCase())) {
-                            isSubjTeacher = true;
-                        }
-                        if (isSubjTeacher) {
-                            const secArray = Array.isArray(s.sections) && s.sections.length ? s.sections : [s.section || currentTeacher.section || 'Section A'];
-                            secArray.forEach(secName => {
-                                addCard({
-                                    id: s.id,
-                                    subject: sName,
-                                    name: sName,
-                                    sectionName: String(secName).trim(),
-                                    section: String(secName).trim(),
-                                    grade: s.gradeLevel || s.grade || 'Grade 11',
-                                    teacher: currentTeacher.fullName || 'Teacher',
-                                    icon: s.icon
-                                });
-                            });
-                        }
-                    });
-                }
-            }
-
-            if (result.length === 0) {
-                const teacherIdStr = String(currentTeacher?.id || currentTeacher?.uid || '').replace(/^#/, '').trim();
-                const teacherFullName = cleanStr(currentTeacher?.fullName || currentTeacher?.name || `${currentTeacher?.firstName || ''} ${currentTeacher?.lastName || ''}`);
-                const isMaria = teacherIdStr === '1111111' ||
-                    (cleanStr(currentTeacher?.firstName) === 'maria' && cleanStr(currentTeacher?.lastName) === 'ramos') ||
-                    (teacherFullName.includes('maria') && teacherFullName.includes('ramos'));
-                const isAna = teacherIdStr === '26010214' ||
-                    (cleanStr(currentTeacher?.firstName) === 'ana' && cleanStr(currentTeacher?.lastName) === 'bautista') ||
-                    (teacherFullName.includes('ana') && teacherFullName.includes('bautista'));
-
-                if (isMaria) {
-                    const defaultMariaCards = [
-                        { subject: 'Computer Programming 1', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 09:00 AM - 10:30 AM' },
-                        { subject: 'Empowerment Technologies', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 03:00 PM - 04:30 PM' },
-                        { subject: 'Oral Communication', sectionName: 'Rizal', grade: 'Grade 11', room: 'Room 302', schedule: 'Mon-Fri 10:30 AM - 12:00 PM' }
-                    ];
-                    defaultMariaCards.forEach(c => addCard({
-                        ...c,
-                        name: c.subject,
-                        section: c.sectionName,
-                        teacher: currentTeacher.fullName || 'Maria Santos Ramos'
-                    }));
-                } else if (isAna) {
-                    const defaultAnaCards = [
-                        { subject: 'Computer Programming 1', sectionName: 'Einstein', grade: 'Grade 11', room: 'Room 201' },
-                        { subject: 'General Mathematics', sectionName: 'Newton', grade: 'Grade 11', room: 'Room 202' }
-                    ];
-                    defaultAnaCards.forEach(c => addCard({
-                        ...c,
-                        name: c.subject,
-                        section: c.sectionName,
-                        teacher: currentTeacher.fullName || 'Ana Villanueva Bautista'
-                    }));
-                }
-            }
-
             if (result.length > 0) {
                 const sorted = (typeof window.sortClassroomCards === 'function') 
                     ? window.sortClassroomCards(result) 
@@ -5050,8 +4926,8 @@ function initTeacherPortal() {
                             subjectName = matchedSubj.name || matchedSubj.title || '';
                         }
                     }
-                    if (!subjectName) subjectName = 'Computer Programming 1';
-                    if (!sectionName) sectionName = 'Grade 11 - ICT A';
+                    if (!subjectName) subjectName = sub.subject || 'Subject';
+                    if (!sectionName) sectionName = sub.section || 'General';
 
                     // Resolve REAL Assessment Title (NOT the student's uploaded filename!)
                     let activityTitle = sub.assessmentTitle || sub.title || '';
@@ -5165,8 +5041,8 @@ function initTeacherPortal() {
                             if (typeof window.closeMobileTopPanel === 'function') {
                                 window.closeMobileTopPanel();
                             }
-                            if (typeof window.showStudentList === 'function') {
-                                window.showStudentList(item.sectionName || item.section || 'Grade 11 - ICT A', item.name || item.subject || 'Computer Programming 1', 'room');
+                            if (typeof window.showStudentList === 'function' && item) {
+                                window.showStudentList(item.sectionName || item.section || '', item.name || item.subject || '', 'room');
                             }
                         }
                     });
@@ -5193,13 +5069,12 @@ function initTeacherPortal() {
         try {
             let waitingRows = getRealTeacherPendingSubmissions();
             const sectionCards = getTeacherSectionCards();
-
             waitingRows.forEach(row => {
-                const sId = row.subjectId || row.subject || 'card-prog1';
-                if (!groupedMap[sId]) {
+                const sId = row.subjectId || row.subject || '';
+                if (sId && !groupedMap[sId]) {
                     if (Object.keys(groupedMap).length < 4) {
                         groupedMap[sId] = {
-                            subjectName: row.subject || row.subjectName || 'Computer Programming 1',
+                            subjectName: row.subject || row.subjectName || 'Subject',
                             subjectId: sId,
                             activitiesMap: {},
                             activities: []
@@ -5212,7 +5087,7 @@ function initTeacherPortal() {
                     if (!group.activitiesMap[actKey]) {
                         if (group.activities.length < 8) {
                             const matchedCard = sectionCards.find(c => c.id === sId || c.name === row.subject);
-                            const sectionLabel = row.section || (matchedCard ? matchedCard.sectionName : 'Grade 11 - ICT A');
+                            const sectionLabel = row.section || (matchedCard ? matchedCard.sectionName : '');
                             group.activitiesMap[actKey] = {
                                 ...row,
                                 sectionName: sectionLabel,
@@ -5442,7 +5317,7 @@ function initTeacherPortal() {
                         <i class="fa-solid fa-door-closed text-xl text-black-fade"></i>
                     </div>
                     <p class="text-sm font-bold text-black mb-1">No Classes Available</p>
-                    <p class="text-xs text-black-fade">No classes have been published yet.</p>
+                    <p class="text-xs text-black-fade">No classes have been assigned yet.</p>
                 </div>
             `;
         } else {
@@ -19129,7 +19004,11 @@ function initTeacherPortal() {
 
         // Auto-refresh sections on switch
         if (navId === 'nav-dashboard') {
-            if (typeof renderTeacherAnnouncements === 'function') renderTeacherAnnouncements();
+            if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+                window.SigmaAnnouncements.resetToDefaultTab();
+            } else if (typeof renderTeacherAnnouncements === 'function') {
+                renderTeacherAnnouncements();
+            }
             if (typeof renderTeacherHomeDashboardPanels === 'function') renderTeacherHomeDashboardPanels();
             if (typeof window.initAllPocketCardRails === 'function') window.initAllPocketCardRails();
         }
@@ -23423,7 +23302,7 @@ function initTeacherPortal() {
                 { id: 'tvl-immersion', label: 'TVL Strands (ICT & HE) — Work Immersion / Practicum', desc: 'Hands-on Industry Practicum, Culminating Activity, Work Immersion', ww: 20, pt: 60, qa: 20 }
             ]);
 
-        const curSubject = gradebookState.selectedSubject || 'Computer Programming 1';
+        const curSubject = gradebookState.selectedSubject || '';
         // Determine current matching preset index for active subject
         const curW = loadGradebookWeights(curSubject);
         gradebookState.weights = curW;
@@ -23683,8 +23562,8 @@ function initTeacherPortal() {
                     id: c.id || c.subject || c.name,
                     name: c.name || c.subject,
                     grade: c.grade || 'Grade 11',
-                    sections: [c.sectionName || c.section || 'Grade 11 - ICT A'],
-                    section: c.sectionName || c.section || 'Grade 11 - ICT A'
+                    sections: c.sectionName ? [c.sectionName] : (c.section ? [c.section] : []),
+                    section: c.sectionName || c.section || ''
                 }));
                 _cachedAllSubjectsRaw = result;
                 _cachedAllSubjectsRawTime = now;
@@ -23714,8 +23593,8 @@ function initTeacherPortal() {
                 id: c.id || c.subject || c.name,
                 name: c.name || c.subject,
                 grade: c.grade || 'Grade 11',
-                sections: [c.sectionName || c.section || 'Grade 11 - ICT A'],
-                section: c.sectionName || c.section || 'Grade 11 - ICT A'
+                sections: c.sectionName ? [c.sectionName] : (c.section ? [c.section] : []),
+                section: c.sectionName || c.section || ''
             }));
             _cachedAllSubjectsRaw = result;
             _cachedAllSubjectsRawTime = now;
@@ -23735,8 +23614,8 @@ function initTeacherPortal() {
                 id: s.id || s.name || s.subject,
                 name: s.name || s.subject,
                 grade: s.grade || 'Grade 11',
-                sections: Array.isArray(s.sections) && s.sections.length ? s.sections : [s.section || 'Grade 11 - ICT A'],
-                section: s.section || (Array.isArray(s.sections) && s.sections.length ? s.sections[0] : 'Grade 11 - ICT A')
+                sections: Array.isArray(s.sections) && s.sections.length ? s.sections : (s.section ? [s.section] : []),
+                section: s.section || (Array.isArray(s.sections) && s.sections.length ? s.sections[0] : '')
             }));
             _cachedAllSubjectsRaw = result;
             _cachedAllSubjectsRawTime = now;
@@ -26706,8 +26585,8 @@ function initTeacherPortal() {
 
 
     window.exportGradebookExcel = () => {
-        const subject = gradebookState.selectedSubject || 'Computer Programming 1';
-        const section = gradebookState.selectedSection || 'Grade 11 - Rizal';
+        const subject = gradebookState.selectedSubject || 'Subject';
+        const section = gradebookState.selectedSection || 'Section';
         const q = gradebookState.currentQuarter || 1;
         const weights = loadGradebookWeights(subject);
         const students = getGradebookStudents();
@@ -26743,8 +26622,8 @@ function initTeacherPortal() {
     };
 
     window.printGradebookReportCard = () => {
-        const subject = gradebookState.selectedSubject || 'Computer Programming 1';
-        const section = gradebookState.selectedSection || 'Grade 11 - Rizal';
+        const subject = gradebookState.selectedSubject || 'Subject';
+        const section = gradebookState.selectedSection || 'Section';
         const q = gradebookState.currentQuarter || 1;
         const weights = loadGradebookWeights(subject);
         const students = getGradebookStudents();
@@ -26858,8 +26737,8 @@ function initTeacherPortal() {
         const existing = document.getElementById('gradebook-card-modal-backdrop');
         if (existing) existing.remove();
 
-        const subject = gradebookState.selectedSubject || 'Computer Programming 1';
-        const section = gradebookState.selectedSection || 'Grade 11 - Rizal';
+        const subject = gradebookState.selectedSubject || 'Subject';
+        const section = gradebookState.selectedSection || 'Section';
         const q = gradebookState.currentQuarter || 1;
         const weights = loadGradebookWeights(subject);
         const students = getGradebookStudents();
@@ -27407,7 +27286,9 @@ function initTeacherPortal() {
 
 
     function renderTeacherAnnouncements() {
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
+        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+            window.SigmaAnnouncements.resetToDefaultTab();
+        } else if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
             window.SigmaAnnouncements.refresh();
         }
     }

@@ -36,25 +36,14 @@
         const auth = readJson(sessionStorage, SESSION_KEY);
         const cur = readJson(sessionStorage, 'currentUser');
 
-        // On teacher portal, the permanent hardcoded teacher is Maria Santos Ramos (1111111).
+        // On teacher portal, the permanent default teacher is Maria Santos Ramos (1111111).
         // Only accept another teacher account in sessionStorage IF the user explicitly logged in during this session.
         if (isTeacherPage) {
-            const enrichMaria = (u) => {
-                if (idOf(u) === '1111111') {
-                    u.section = 'Rizal';
-                    u.sections = ['Rizal'];
-                    u.assignedSections = ['Rizal'];
-                    u.subject = 'Computer Programming 1';
-                    u.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                    u.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                }
-                return u;
-            };
             if (auth && idOf(auth)) {
-                return enrichMaria(auth);
+                return auth;
             }
             if (cur && idOf(cur)) {
-                return enrichMaria(cur);
+                return cur;
             }
         } else {
             if (auth && idOf(auth)) return auth;
@@ -65,22 +54,11 @@
         const sharedRole = String(shared?.role || shared?.type || '').toLowerCase();
 
         if (isTeacherPage) {
-            const enrichMaria = (u) => {
-                if (idOf(u) === '1111111') {
-                    u.section = 'Rizal';
-                    u.sections = ['Rizal'];
-                    u.assignedSections = ['Rizal'];
-                    u.subject = 'Computer Programming 1';
-                    u.subjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                    u.assignedSubjects = ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'];
-                }
-                return u;
-            };
             if (shared && idOf(shared) && (sharedRole.includes('teach') || sharedRole.includes('faculty'))) {
                 try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(shared)); } catch (_) {}
-                return enrichMaria(shared);
+                return shared;
             }
-            // Permanent hardcoded default teacher Maria Santos Ramos (1111111) when no teacher is logged in
+            // Permanent default teacher Maria Santos Ramos (1111111) when no teacher is logged in
             const defaultTeacher = {
                 id: '1111111',
                 uid: '1111111',
@@ -96,12 +74,12 @@
                 gender: 'Female',
                 branch: 'Main Campus',
                 department: 'Senior High School - Faculty',
-                section: 'Rizal',
-                sections: ['Rizal'],
-                assignedSections: ['Rizal'],
-                subject: 'Computer Programming 1',
-                subjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'],
-                assignedSubjects: ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']
+                section: '',
+                sections: [],
+                assignedSections: [],
+                subject: '',
+                subjects: [],
+                assignedSubjects: []
             };
             try {
                 sessionStorage.setItem(SESSION_KEY, JSON.stringify(defaultTeacher));

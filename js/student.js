@@ -1807,7 +1807,11 @@ if (overlay) overlay.classList.add('hidden');
         else if (navId === 'nav-home') {
             hideStudentClassroomSectionsSidebar();
             if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
-            if (typeof renderInstitutionalAnnouncements === 'function') renderInstitutionalAnnouncements();
+            if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+                window.SigmaAnnouncements.resetToDefaultTab();
+            } else if (typeof renderInstitutionalAnnouncements === 'function') {
+                renderInstitutionalAnnouncements();
+            }
         }
         else {
             hideStudentClassroomSectionsSidebar();
@@ -6548,7 +6552,9 @@ if (overlay) overlay.classList.add('hidden');
     }
 
     function renderStudentHomeAnnouncements() {
-        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
+        if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
+            window.SigmaAnnouncements.resetToDefaultTab();
+        } else if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.refresh === 'function') {
             window.SigmaAnnouncements.refresh();
         }
     }

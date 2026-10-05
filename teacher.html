@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/shared-components.css?v=20261004neutralQuizDetails1">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261005mobile2level2">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261005editInfoSaveLock1">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
@@ -54,7 +54,7 @@
         }
     </style>
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261003opaqueshimmer1">
-    <script src="js/tab-session.js?v=20261005tab1"></script>
+    <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
 </head>
 
@@ -83,7 +83,7 @@
                     <i class="fa-solid fa-bars text-[17px] text-black"></i>
                 </button>
                 <div id="logo-container">
-                    <button id="nav-logo-btn" title="Go to Dashboard" onclick="window.switchTab('nav-dashboard');">
+                    <button id="nav-logo-btn" title="Go to Dashboard" onclick="window.switchTab('nav-dashboard'); if (window.SigmaAnnouncements?.resetToDefaultTab) window.SigmaAnnouncements.resetToDefaultTab();">
                         <img src="image/ICC logo.jpg" alt="ICC Logo">
                     </button>
                 </div>
@@ -1293,7 +1293,7 @@
 
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
-    <script src="js/shared-components.js?v=20261005teacherFix2"></script>
+    <script src="js/shared-components.js?v=20261005noFakeClasses1"></script>
     <script src="js/topbar.js?v=20261005loadingfix1"></script>
     <script src="js/sidebar.js?v=20261003viewportreset1"></script>
     <script src="js/notifications.js?v=20261004separateprefs1"></script>
@@ -1302,21 +1302,21 @@
     <script src="js/calendar.js?v=20260929dateselect1"></script>
     <script src="js/dialog.js?v=20261005quizStartDesktop1"></script>
     <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
-    <script src="js/settings-view.js?v=20261005mobileSettingsExit4"></script>
+    <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
     <script src="js/classroom-room.js?v=20261004tabAlignExact1"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/announcements.js?v=20261004fixscroll1"></script>
+    <script src="js/announcements.js?v=20261005defaultAnnouncements1"></script>
     <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
-    <script src="js/sigma-analytics.js?v=20261005teacherFix2"></script>
+    <script src="js/sigma-analytics.js?v=20261005noFakeClasses1"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
     <script src="js/subject-editor.js?v=20261004desktopTemplatesLayout1"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/teacher.js?v=20261005mobilefix1"></script>
+    <script src="js/teacher.js?v=20261005noFakeClasses1"></script>
     <script src="js/curriculum-release.js?v=20261004assignedStudentsFlow1" data-initialize-after-dom="true"></script>
 </body>
 </html>

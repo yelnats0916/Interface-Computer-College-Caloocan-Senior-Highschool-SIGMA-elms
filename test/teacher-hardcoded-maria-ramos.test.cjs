@@ -42,9 +42,8 @@ test('teacher portal defaults to Maria Santos Ramos (1111111) when opened fresh 
     const sessionUser = context.window.getTabSessionUser();
     assert.equal(sessionUser.id, '1111111', 'tab-session must default to Maria Santos Ramos when no account is logged in');
     assert.equal(sessionUser.fullName, 'Maria Santos Ramos');
-    assert.equal(sessionUser.section, 'Rizal');
-    assert.deepEqual(Array.from(sessionUser.assignedSections), ['Rizal']);
-    assert.deepEqual(Array.from(sessionUser.assignedSubjects), ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication']);
+    assert.deepEqual(Array.from(sessionUser.assignedSections || []), [], 'Fresh session must have no fake assigned sections');
+    assert.deepEqual(Array.from(sessionUser.assignedSubjects || []), [], 'Fresh session must have no fake assigned subjects');
 });
 
 test('each teacher logs in to their own account and does NOT become Maria Ramos', () => {
@@ -148,7 +147,7 @@ test('shared-components getLoggedInTeacherUser preserves logged in teacher accou
     assert.equal(teacher.fullName, 'Jose Cruz Dela Pena', 'Jose Dela Pena must NOT become Maria Ramos');
 });
 
-test('teacher.js getTeacherSectionCards returns Maria Ramos default 3 subjects with Room 302', () => {
+test('teacher.js getTeacherSectionCards returns empty on fresh storage and loads real sections when configured', () => {
     const mockStorage = {};
     const mockSession = {};
 
@@ -170,7 +169,7 @@ test('teacher.js getTeacherSectionCards returns Maria Ramos default 3 subjects w
             setItem: (k, v) => { mockSession[k] = v; }
         },
         USER_STORAGE_KEY: 'sigma-admin-users',
-        getStoredJson: (k, fb) => fb,
+        getStoredJson: (k, fb) => (mockStorage[k] ? JSON.parse(mockStorage[k]) : fb),
         console: { log: () => {}, warn: () => {}, error: () => {} }
     });
 
@@ -180,20 +179,35 @@ test('teacher.js getTeacherSectionCards returns Maria Ramos default 3 subjects w
     );
     vm.runInContext(resolverSnippet, context);
 
+    const isSectionAssignedSnippet = teacherSource.slice(
+        teacherSource.indexOf('    function isSectionAssignedToTeacher(sec, teacher) {'),
+        teacherSource.indexOf('    function getTeacherSectionCards(forceRefresh = false) {')
+    );
+    vm.runInContext(isSectionAssignedSnippet, context);
+
     const cardsSnippet = teacherSource.slice(
         teacherSource.indexOf('    function getTeacherSectionCards(forceRefresh = false) {'),
         teacherSource.indexOf('    window.getTeacherSectionCards = getTeacherSectionCards;') + '    window.getTeacherSectionCards = getTeacherSectionCards;'.length
     );
     vm.runInContext('var _cachedTeacherSectionCards = null; var _cachedTeacherSectionCardsOwner = null; var _cachedTeacherSectionCardsTime = 0;\n' + cardsSnippet, context);
 
-    const cards = context.window.getTeacherSectionCards(true);
-    assert.equal(cards.length, 3, 'Must have 3 cards for Maria Ramos');
-    const subjects = cards.map(c => c.subject);
-    assert.ok(subjects.includes('Computer Programming 1'));
-    assert.ok(subjects.includes('Empowerment Technologies'));
-    assert.ok(subjects.includes('Oral Communication'));
-    cards.forEach(c => {
-        assert.equal(c.sectionName, 'Rizal', 'Every card section must be Rizal');
-        assert.equal(c.room, 'Room 302', 'Every card room must be Room 302');
-    });
+    // Fresh storage: no sections or subjects configured
+    const freshCards = context.window.getTeacherSectionCards(true);
+    assert.equal(freshCards.length, 0, 'Fresh browser must have 0 cards (no fake subjects or sections)');
+
+    // When admin creates a section in storage
+    mockStorage['sigma-admin-sections'] = JSON.stringify([
+        {
+            id: 'sec-1',
+            name: 'Rizal',
+            subject: 'Empowerment Technologies',
+            grade: 'Grade 11',
+            room: 'Room 302',
+            teachers: [{ id: '1111111', name: 'Maria Santos Ramos' }]
+        }
+    ]);
+    const configuredCards = context.window.getTeacherSectionCards(true);
+    assert.equal(configuredCards.length, 1, 'Configured browser must return the real assigned section');
+    assert.equal(configuredCards[0].subject, 'Empowerment Technologies');
+    assert.equal(configuredCards[0].sectionName, 'Rizal');
 });

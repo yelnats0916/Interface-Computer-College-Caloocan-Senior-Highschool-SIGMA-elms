@@ -395,12 +395,12 @@
             gender: "Female",
             status: "Active",
             department: "Senior High School - Faculty",
-            section: "Rizal",
-            sections: ["Rizal"],
-            assignedSections: ["Rizal"],
-            subject: "Computer Programming 1",
-            subjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"],
-            assignedSubjects: ["Computer Programming 1", "Empowerment Technologies", "Oral Communication"]
+            section: "",
+            sections: [],
+            assignedSections: [],
+            subject: "",
+            subjects: [],
+            assignedSubjects: []
         };
     }
 

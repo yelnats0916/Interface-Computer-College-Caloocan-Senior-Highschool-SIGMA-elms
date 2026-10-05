@@ -26,8 +26,9 @@ assert.ok(indexJs.includes('function markLocalUser2faEnabled'), 'Has user record
 assert.ok(indexJs.includes('open2faModal(targetUserId'), 'Triggers 2FA verification for returning accounts');
 assert.ok(indexJs.includes('open2faSetupModal(targetUserId'), 'Triggers 2FA QR setup for first-time accounts');
 
-// 5. Verify local fallback support in setup and verify forms
-assert.ok(indexJs.includes('isValidLocalTotp || code === \'123456\''), 'Allows verified TOTP code and test bypass');
+// 5. Verify local TOTP verification without bypass
+assert.ok(indexJs.includes('verifyTotpCode(localSecret, code)'), 'Verifies real TOTP code against user secret');
+assert.ok(!indexJs.includes('code === \'123456\''), 'Does not allow 123456 bypass code');
 assert.ok(indexJs.includes('sigma-2fa-secret-'), 'Persists user secret key locally');
 assert.ok(indexJs.includes('sigma-2fa-enabled-'), 'Persists user 2FA status locally');
 

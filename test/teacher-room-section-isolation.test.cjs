@@ -187,12 +187,9 @@ const mariaFallbackContext = vm.createContext({
 });
 vm.runInContext(source.slice(cardsStart, cardsEnd + cardsMarker.length), mariaFallbackContext);
 const mariaCards = mariaFallbackContext.window.getTeacherSectionCards(true);
-assert.equal(mariaCards.length, 3, 'Maria Ramos must have exactly 3 designated fallback subjects');
-assert.deepEqual(JSON.parse(JSON.stringify(mariaCards.map(c => c.sectionName))), ['Rizal', 'Rizal', 'Rizal'], 'All 3 subjects for Maria Ramos must be in Rizal');
-assert.deepEqual(JSON.parse(JSON.stringify(mariaCards.map(c => c.subject).sort())), ['Computer Programming 1', 'Empowerment Technologies', 'Oral Communication'].sort(),
-    'Maria Ramos must have Computer Programming 1, Empowerment Technologies, and Oral Communication');
+assert.equal(mariaCards.length, 0, 'Maria Ramos must have 0 cards when no sections or subjects are assigned in storage');
 
-// Verify default fallback cards for Ana Bautista
+// Verify no fabricated fallback cards for Ana Bautista when unassigned
 const anaTeacher = { id: '26010214', uid: '26010214', firstName: 'Ana', lastName: 'Bautista', fullName: 'Ana Villanueva Bautista' };
 const anaFallbackContext = vm.createContext({
     window: {
@@ -206,8 +203,7 @@ const anaFallbackContext = vm.createContext({
 });
 vm.runInContext(source.slice(cardsStart, cardsEnd + cardsMarker.length), anaFallbackContext);
 const anaCards = anaFallbackContext.window.getTeacherSectionCards(true);
-assert.equal(anaCards.length, 2, 'Ana Bautista must have exactly 2 designated subjects');
-assert.ok(anaCards.some(c => c.subject === 'Computer Programming 1' && c.sectionName === 'Einstein'), 'Ana Bautista must have Computer Programming 1 in Einstein');
+assert.equal(anaCards.length, 0, 'Ana Bautista must have 0 cards when no sections are assigned in storage');
 assert.ok(!anaCards.some(c => c.sectionName === 'Rizal'), 'Ana Bautista must not have any Rizal section assignments');
 
 console.log('PASS: canonical teacher assignments isolate same-subject sections and legacy data remains a fallback');
