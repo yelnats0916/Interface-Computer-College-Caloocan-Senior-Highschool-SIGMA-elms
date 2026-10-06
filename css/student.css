@@ -6513,6 +6513,160 @@ body.curriculum-mode .student-topic-progress-rail {
 #grades-layout .student-grades-summary-table th:nth-child(2) { width: 25%; }
 #grades-layout .student-grades-summary-table th { white-space: normal; overflow-wrap: normal; }
 #grades-layout .student-grades-summary-table td { overflow-wrap: anywhere; }
+
+#grades-layout .student-grades-summary-table th,
+#grades-layout .student-grades-summary-table td {
+    border-left-color: rgba(0, 0, 0, 0.08) !important;
+    border-right-color: rgba(0, 0, 0, 0.08) !important;
+    border-top-color: rgba(0, 0, 0, 0.08) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+#grades-layout .student-grades-summary-table thead {
+    border-bottom-color: #137638 !important;
+}
+
+#grades-layout .student-grades-summary-table th:not(:last-child) {
+    border-right: 1px solid #137638 !important;
+}
+
+#grades-layout .student-grades-summary-table tbody tr {
+    border-top-color: rgba(0, 0, 0, 0.08) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+#grades-layout .student-grades-summary-table td:first-child {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (min-width: 769px) {
+    #grades-layout .student-grades-summary-table td:nth-child(2),
+    #grades-layout .student-grades-summary-table td:nth-child(6) {
+        border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    #grades-layout .student-grades-summary-table td:nth-child(n+3):nth-child(-n+5) {
+        border-right: 0 !important;
+    }
+}
+
+#grades-layout .student-grades-column-next,
+#grades-layout .student-grades-column-prev {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #grades-layout .student-grades-summary-table th:nth-child(2) {
+        border-right: 0 !important;
+    }
+
+    #grades-layout .student-grades-show-quarters td:nth-child(6) {
+        border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    #grades-layout .student-grades-show-quarters td:nth-child(n+3):nth-child(-n+5) {
+        border-right: 0 !important;
+    }
+
+    #grades-layout .student-grades-summary-table {
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: fixed;
+    }
+
+    #grades-layout .student-grades-summary-table th:first-child {
+        width: 55%;
+    }
+
+    #grades-layout .student-grades-summary-table th:nth-child(2) {
+        width: 45%;
+    }
+
+    #grades-layout .student-grades-summary-table:not(.student-grades-show-quarters) th:nth-child(n+3),
+    #grades-layout .student-grades-summary-table:not(.student-grades-show-quarters) td:nth-child(n+3),
+    #grades-layout .student-grades-show-quarters th:nth-child(-n+2),
+    #grades-layout .student-grades-show-quarters td:nth-child(-n+2) {
+        display: none;
+    }
+
+    #grades-layout .student-grades-show-quarters th:nth-child(n+3) {
+        width: 20%;
+    }
+
+    #grades-layout .student-grades-column-heading,
+    #grades-layout .student-grades-quarter-heading {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    #grades-layout .student-grades-column-heading {
+        justify-content: space-between;
+    }
+
+    #grades-layout .student-grades-quarter-heading {
+        position: relative;
+        justify-content: center;
+        width: 100%;
+    }
+
+    #grades-layout .student-grades-quarter-heading > span {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+
+    #grades-layout .student-grades-column-next,
+    #grades-layout .student-grades-column-prev {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 12px;
+        height: 24px;
+        flex: 0 0 12px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: white;
+        cursor: pointer;
+    }
+
+    #grades-layout .student-grades-column-prev {
+        position: absolute;
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    #grades-layout .student-grades-column-next i,
+    #grades-layout .student-grades-column-prev i {
+        font-size: 9px;
+    }
+
+    #grades-layout .student-grades-summary-table th,
+    #grades-layout .student-grades-summary-table td {
+        padding: 8px !important;
+        font-size: 11px !important;
+        line-height: 15px !important;
+    }
+
+    #grades-layout .student-grades-summary-table td span,
+    #grades-layout .student-grades-summary-table td button {
+        font-size: 11px !important;
+        line-height: 15px !important;
+    }
+
+    #grades-layout .student-grades-summary-table td:nth-child(2) > div {
+        gap: 6px;
+    }
+
+    #grades-layout .student-grades-summary-table .student-grade-teacher-avatar {
+        width: 20px !important;
+        height: 20px !important;
+    }
+}
 @media (max-width: 768px) {
     #grades-layout .student-performance-section { gap: 16px; }
     #grades-layout .student-performance-filter { gap: 8px; }
@@ -6652,4 +6806,3 @@ body.curriculum-mode .student-topic-progress-rail {
         background: white;
     }
 }
-

@@ -3958,7 +3958,7 @@
         padding: 0 0.6rem !important;
     }
 
-    /* Mobile Attendance Summary Columns (P, A, L) - Full Remaining Width to completely cover dates */
+    /* Expanded mobile summaries fill the remaining table width. */
     .attendance-month-table th.attendance-summary-th,
     .attendance-month-table td.attendance-summary-td {
         width: var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3)) !important;
@@ -3991,7 +3991,7 @@
     .attendance-month-table th.attendance-summary-th--l,
     .attendance-month-table td.attendance-summary-td--l {
         left: calc(220px + 2 * var(--attendance-mobile-summary-col-width, calc((100vw - 220px) / 3))) !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.18) !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
         box-shadow: 2px 0 5px -1px rgba(0, 0, 0, 0.08) !important;
     }
 
@@ -4100,7 +4100,7 @@
     .attendance-month-table th.day-col {
         padding: 0 !important;
         text-align: center !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+        border-right: 1px solid #137638 !important;
     }
 
     .attendance-month-table th.day-col .attendance-th-date {
@@ -10388,4 +10388,33 @@
     color: rgba(0, 0, 0, 0.45) !important;
 }
 
+/* Add/Edit Topics & Materials: keep mobile material icons identical to desktop. */
+[id^="topic-dropdown-"] .material-panel-icon-group,
+[id^="topic-dropdown-"] .mat-icon-col {
+    width: 60px !important;
+    min-width: 60px !important;
+    gap: 4px !important;
+}
 
+[id^="topic-dropdown-"] .material-panel-icon-group > div,
+[id^="topic-dropdown-"] .mat-icon-box {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 8px !important;
+}
+
+[id^="topic-dropdown-"] .material-panel-icon-group > div > i,
+[id^="topic-dropdown-"] .mat-icon-box i {
+    font-size: 22px !important;
+}
+
+[id^="topic-dropdown-"] .material-panel-icon-group > span,
+[id^="topic-dropdown-"] .mat-type-badge {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 16px !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+}

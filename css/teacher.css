@@ -635,7 +635,7 @@ body.gradebook-workstation-mode #section-grades {
 #gradebook-spreadsheet thead th.sticky,
 #gradebook-outer-spreadsheet thead th.sticky {
     background-color: #15803d !important;
-    border-right-color: #166534 !important;
+    border-right-color: #137638 !important;
 }
 
 /* Mouse Cursor Rules: Normal cursor on non-clickable headers, pointer only on clickable ones */
@@ -6097,7 +6097,7 @@ input:active,
     font-size: 12px !important;
     font-weight: 700 !important;
     border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
     padding: 0 4px !important;
     user-select: none !important;
     height: 3.25rem;
@@ -6165,7 +6165,7 @@ input:active,
         min-width: 64px !important;
         max-width: 64px !important;
         left: 398px !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.18) !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
         box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.08) !important;
     }
 }
@@ -6257,7 +6257,7 @@ input:active,
 .attendance-month-table th.blank-col {
     background: #15803d !important;
     border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
     cursor: default !important;
     pointer-events: none !important;
 }
@@ -6275,7 +6275,7 @@ input:active,
 }
 
 .attendance-month-table th.day-col {
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
 }
 
 .attendance-month-table th.day-col:not(.is-today):not(.is-expanded):hover {
@@ -6290,7 +6290,7 @@ input:active,
 .attendance-month-table th.day-col.is-today:not(.is-expanded) {
     background: #FFD000 !important;
     border-bottom: 2px solid #d97706 !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
 }
 
 .attendance-month-table th.day-col.is-today:not(.is-expanded):hover {
@@ -6307,7 +6307,7 @@ input:active,
 .attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded) {
     background: #15803d !important;
     border-bottom: 2px solid rgba(0, 0, 0, 0.18) !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
 }
 
 .attendance-month-table th.day-col.is-selected:not(.is-today):not(.is-expanded):hover {
@@ -6332,7 +6332,7 @@ input:active,
 .attendance-month-table th.day-col.is-expanded {
     background: #fef08a !important;
     border-bottom: 2px solid #ca8a04 !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-right: 1px solid #137638 !important;
 }
 
 .attendance-month-table th.day-col.is-expanded:hover {
@@ -6590,7 +6590,7 @@ input:active,
     .attendance-month-table th.day-col {
         padding: 0 !important;
         text-align: center !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+        border-right: 1px solid #137638 !important;
     }
 
     .attendance-month-table th.day-col .attendance-th-date {
@@ -8714,6 +8714,7 @@ span.gradebook-dash,
     color: #FFD000 !important;
 }
 
+
 /* Teacher Grades Header Panel & Subject Picker Dropdown */
 #teacher-grades-header-panel,
 #teacher-grades-shared-navbar {
@@ -8790,7 +8791,7 @@ aside#sub-sidebar.sub-sidebar-visible {
 
 #table-focus-view thead th:first-child,
 #table-all-assessments-view thead th:first-child {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     border-bottom: 2px solid #0d652d !important;
 }
 
@@ -8862,7 +8863,7 @@ aside#sub-sidebar.sub-sidebar-visible {
 #gradebook-card-modal-backdrop th,
 #gradebook-card-modal-backdrop td {
     box-sizing: border-box !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.12) !important;
 }
 
@@ -9446,7 +9447,7 @@ aside#sub-sidebar.sub-sidebar-visible {
     z-index: 30 !important;
     background-color: #15803d !important;
     border-bottom: 1px solid #166534 !important;
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     box-shadow: 0 1px 0 #166534 !important;
     color: #ffffff !important;
 }
@@ -9467,7 +9468,7 @@ aside#sub-sidebar.sub-sidebar-visible {
     left: 0 !important;
     z-index: 35 !important;
     background-color: #15803d !important;
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     color: #ffffff !important;
 }
 
@@ -9571,13 +9572,13 @@ aside#sub-sidebar.sub-sidebar-visible {
 #table-focus-view thead th:first-child,
 #table-all-assessments-view thead th:first-child {
     background-color: #f1f5f9 !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.10) !important;
+    border-right: 1px solid #137638 !important;
     color: #000000 !important;
 }
 #table-focus-view tbody td:first-child,
 #table-all-assessments-view tbody td:first-child {
     background-color: #f8fafc !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.10) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
     color: #64748b !important;
 }
 #table-focus-view td#mat-table-raw,
@@ -10827,34 +10828,34 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
     [id^="topic-dropdown-"] .mat-icon-col,
     .teacher-portal [id^="topic-dropdown-"] .mat-icon-col,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child {
-        width: 34px !important;
-        min-width: 34px !important;
-        gap: 2.5px !important;
+        width: 60px !important;
+        min-width: 60px !important;
+        gap: 4px !important;
     }
 
     [id^="topic-dropdown-"] .mat-icon-box,
     .teacher-portal [id^="topic-dropdown-"] .mat-icon-box,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > div:first-child {
-        width: 28px !important;
-        height: 28px !important;
-        min-width: 28px !important;
-        border-radius: 7px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        border-radius: 8px !important;
     }
 
     [id^="topic-dropdown-"] .mat-icon-box i,
     .teacher-portal [id^="topic-dropdown-"] .mat-icon-box i,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > div:first-child i {
-        font-size: 11.5px !important;
+        font-size: 22px !important;
     }
 
-    /* Mobile Only: Scaled Down Badges */
+    /* Mobile editor badges match desktop material cards. */
     [id^="topic-dropdown-"] .mat-type-badge,
     .teacher-portal [id^="topic-dropdown-"] .mat-type-badge,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > span {
-        font-size: 8px !important;
-        padding: 1px 4px !important;
+        font-size: 12px !important;
+        padding: 2px 6px !important;
         border-radius: 4px !important;
-        line-height: 1.15 !important;
+        line-height: 16px !important;
     }
 
     [id^="topic-dropdown-"] .sigma-black-fade-panel .bg-black\/5,
@@ -11836,6 +11837,18 @@ body:has(#teacher-header) #subject-segmented-header,
 
     #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table table {
         min-width: 540px;
+        table-layout: fixed;
+    }
+
+    #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table th:first-child,
+    #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table td:first-child {
+        width: 180px !important;
+        min-width: 180px !important;
+        max-width: 180px !important;
+    }
+
+    #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table th:not(:first-child) {
+        width: 72px !important;
     }
 
     body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-close {
@@ -11851,5 +11864,3 @@ body:has(#teacher-header) #subject-segmented-header,
         background: white;
     }
 }
-
-

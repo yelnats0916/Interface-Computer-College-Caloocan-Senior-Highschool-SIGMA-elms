@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Responsive Gradebook Table Test</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/sigma-analytics.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <main class="sigma-grades-page">
+        <div id="admin-gradebook-workspace-content">
+            <div class="w-full overflow-x-auto px-10">
+                <table id="admin-gradebook-spreadsheet" class="gb-overview-table w-full min-w-[700px] table-fixed border-collapse">
+                    <colgroup><col style="width:25%;min-width:240px"><col class="gb-mobile-total"><col class="gb-mobile-total"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col class="gb-desktop-total" style="width:15%"><col class="gb-desktop-total" style="width:15%"></colgroup>
+                    <thead class="bg-[#15803d] text-white"><tr class="h-[52px]">
+                        <th class="px-4 py-3"><div class="flex items-center justify-center gap-2"><span>Students</span><button title="Sort students"><i>+</i></button><button class="gb-mobile-totals-toggle" aria-expanded="false" title="Show Initial Grade and Quarterly Grade" onclick="const t=this.closest('table');const open=t.classList.toggle('gb-totals-expanded');this.setAttribute('aria-expanded',open)"><span>Grades</span><i>&gt;</i></button></div></th>
+                        <th class="gb-mobile-total text-center"><span>Initial<br>Grade</span></th><th class="gb-mobile-total text-center"><span>Quarterly<br>Grade</span></th>
+                        <th class="px-4 py-3"><div class="flex flex-col items-center"><div class="inline-flex items-center gap-1.5"><span>Written Works</span><button title="View Written Works"><i>+</i></button></div><span>30%</span></div></th>
+                        <th class="px-4 py-3"><div class="flex flex-col items-center"><div class="inline-flex items-center gap-1.5"><span>Performance Task</span><button title="View Performance Task"><i>+</i></button></div><span>50%</span></div></th>
+                        <th class="px-4 py-3"><div class="flex flex-col items-center"><div class="inline-flex items-center gap-1.5"><span>Quarterly Assessment</span><button title="View Quarterly Assessment"><i>+</i></button></div><span>20%</span></div></th>
+                        <th class="gb-desktop-total px-4 py-3"><span>Initial Grade</span></th>
+                        <th class="gb-desktop-total px-4 py-3"><span>Quarterly Grade</span></th>
+                    </tr></thead>
+                    <tbody><tr>
+                        <td class="gb-student-cell px-4 py-3.5 border"><div class="flex items-center gap-3"><div class="shrink-0 rounded-full">Avatar</div><div class="min-w-0 flex-1"><p class="text-sm font-semibold truncate">Dela Cruz, Juan Abad</p><p class="gradebook-student-id">ID: 2222222</p></div></div></td>
+                        <td class="gb-mobile-total text-center">87.00%</td><td class="gb-mobile-total text-center">91</td><td class="px-4 py-3.5 text-center border">80.00%</td><td class="border text-center">92.00%</td><td class="border text-center">85.00%</td><td class="gb-desktop-total border text-center">87.00%</td><td class="gb-desktop-total border text-center">91</td>
+                    </tr></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

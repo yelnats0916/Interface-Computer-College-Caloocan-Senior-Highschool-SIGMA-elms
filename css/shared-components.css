@@ -407,7 +407,7 @@ button[onclick*="openAdminClassroomComposer"]:active {
 /* User Accounts Table: Right borderline strictly on Profile/Name column (3rd column) */
 #users-view thead th:nth-child(3),
 table:has(#userTableBody) thead th:nth-child(3) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 #users-view tbody td:nth-child(3),
@@ -1652,7 +1652,7 @@ body.sorting-subject-topics * {
 #gradebook-outer-spreadsheet thead th,
 #admin-gradebook-spreadsheet thead th {
     background-color: #15803d !important;
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     border-left: none !important;
     border-top: none !important;
     border-bottom: 1px solid #166534 !important;
@@ -1703,7 +1703,7 @@ body.sorting-subject-topics * {
 #admin-gradebook-spreadsheet thead th:first-child {
     z-index: 40 !important;
     background-color: #15803d !important;
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 #gradebook-spreadsheet tbody td.gb-student-cell,
@@ -1717,7 +1717,7 @@ body.sorting-subject-topics * {
 #gradebook-spreadsheet thead th.gb-col-divider,
 #gradebook-outer-spreadsheet thead th.gb-col-divider,
 #admin-gradebook-spreadsheet thead th.gb-col-divider {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 #gradebook-spreadsheet tbody td,
@@ -2241,12 +2241,56 @@ td:has(.gradebook-dash) {
 }
 
 .gradebook-sort-option.active {
-    background-color: rgba(255, 208, 0, 0.22) !important;
+    background-color: #e7f5ec !important;
     color: #000000 !important;
 }
 
 .gradebook-sort-option.active:hover {
-    background-color: rgba(255, 208, 0, 0.32) !important;
+    background-color: #d5eddf !important;
+}
+
+@media (max-width: 767px) {
+    .gradebook-sort-popover {
+        width: 220px;
+        min-width: 0;
+        max-width: calc(100vw - 20px);
+        padding: 4px !important;
+        border-radius: 8px !important;
+        overflow-y: auto;
+    }
+
+    .gradebook-sort-popover > div:first-child {
+        padding: 6px !important;
+    }
+
+    .gradebook-sort-popover > div:first-child p:first-child,
+    .gradebook-sort-option p:first-child {
+        font-size: 10px !important;
+        line-height: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .gradebook-sort-popover > div:first-child p:last-child,
+    .gradebook-sort-option p:last-child {
+        font-size: 9px !important;
+        line-height: 12px !important;
+    }
+
+    .gradebook-sort-option {
+        min-height: 34px;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 6px;
+    }
+
+    .gradebook-sort-option > div:first-child {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .gradebook-sort-option i {
+        font-size: 10px !important;
+    }
 }
 
 /* Score Panel Animated Progress Bar */
@@ -2735,9 +2779,12 @@ textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-
     gap: 0.5rem !important;
     padding: 0 !important;
     box-sizing: border-box !important;
+    min-width: 0;
+    overflow-x: auto;
 }
 
 .canonical-tab-btn {
+    flex-shrink: 0;
     position: relative !important;
     height: 100% !important;
     padding: 0 0.875rem !important;
@@ -3280,30 +3327,30 @@ textarea[class*="sigma-underline"]:focus,
 
     [id^="topic-dropdown-"] .mat-icon-col,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child {
-        width: 34px !important;
-        min-width: 34px !important;
-        gap: 2.5px !important;
+        width: 60px !important;
+        min-width: 60px !important;
+        gap: 4px !important;
     }
 
     [id^="topic-dropdown-"] .mat-icon-box,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > div:first-child {
-        width: 28px !important;
-        height: 28px !important;
-        min-width: 28px !important;
-        border-radius: 7px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        border-radius: 8px !important;
     }
 
     [id^="topic-dropdown-"] .mat-icon-box i,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > div:first-child i {
-        font-size: 11.5px !important;
+        font-size: 22px !important;
     }
 
     [id^="topic-dropdown-"] .mat-type-badge,
     [id^="topic-dropdown-"] .sigma-black-fade-panel > div:first-child > div:first-child > span {
-        font-size: 8px !important;
-        padding: 1px 4px !important;
+        font-size: 12px !important;
+        padding: 2px 6px !important;
         border-radius: 4px !important;
-        line-height: 1.15 !important;
+        line-height: 16px !important;
     }
 
     [id^="topic-dropdown-"] .sigma-black-fade-panel .bg-black\/5,
@@ -4286,56 +4333,54 @@ body p.material-detail-body-text {
     }
 }
 
-/* Shared desktop material icons: portal lists and the admin/teacher editor. */
-@media (min-width: 768px) {
-    .material-panel-icon-group {
-        width: 60px !important;
-        min-width: 60px !important;
-        gap: 4px !important;
-    }
+/* Shared material icons: portal lists and the admin/teacher editor. */
+.material-panel-icon-group {
+    width: 60px !important;
+    min-width: 60px !important;
+    gap: 4px !important;
+}
 
-    .material-panel-icon-group > div,
-    .material-panel-play-icon {
-        width: 44px !important;
-        height: 44px !important;
-        min-width: 44px !important;
-    }
+.material-panel-icon-group > div,
+.material-panel-play-icon {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+}
 
-    .material-panel-icon-group > div {
-        border-radius: 8px !important;
-    }
+.material-panel-icon-group > div {
+    border-radius: 8px !important;
+}
 
-    .material-panel-icon-group > div > i {
-        font-size: 22px !important;
-    }
+.material-panel-icon-group > div > i {
+    font-size: 22px !important;
+}
 
-    .material-panel-icon-group > span,
-    .material-detail-type-badge {
-        box-sizing: border-box !important;
-        font-size: 12px !important;
-        font-weight: 600 !important;
-        line-height: 16px !important;
-        padding: 2px 0 !important;
-        border-radius: 4px !important;
-        border-width: 1px !important;
-        letter-spacing: 0 !important;
-        white-space: nowrap !important;
-    }
+.material-panel-icon-group > span,
+.material-detail-type-badge {
+    box-sizing: border-box !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 16px !important;
+    padding: 2px 0 !important;
+    border-radius: 4px !important;
+    border-width: 1px !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+}
 
-    .material-panel-icon-group > span {
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        font-size: 12px !important;
-        padding: 2px 6px !important;
-    }
+.material-panel-icon-group > span {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+}
 
-    .material-detail-type-badge {
-        font-size: 11px !important;
-        padding: 2px 6px !important;
-    }
+.material-detail-type-badge {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+}
 
-    .material-detail-type-badge > i {
-        font-size: 10px !important;
-    }
+.material-detail-type-badge > i {
+    font-size: 10px !important;
 }

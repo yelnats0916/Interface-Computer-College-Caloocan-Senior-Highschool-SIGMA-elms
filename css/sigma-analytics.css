@@ -812,6 +812,713 @@ body #analytics-dropdown .sigma-panel-see-all {
 }
 
 /* ═══ Universal Header Title Switcher (Analytics | Gradebooks) ══════════════ */
+#admin-gradebook-weight-modal h4,
+#admin-gradebook-weight-modal span.inline-flex {
+    color: #000000 !important;
+}
+
+.sigma-grades-page .grades-submit-export {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.sigma-grades-page .grades-submit-export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #15803d;
+    color: #ffffff;
+    font: 600 12px/20px 'Inter', sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.sigma-grades-page .grades-submit-export-btn:hover {
+    background: #166534;
+}
+
+.sigma-grades-page .grades-submit-export-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 100%;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+    padding: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 200;
+}
+
+.sigma-grades-page .grades-submit-export-menu button:not(.hidden) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 6px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #111111;
+    font: 500 12px/18px 'Inter', sans-serif;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sigma-grades-page .grades-submit-export-menu button:hover {
+    background: #f1f5f9;
+}
+
+.sigma-grades-page .grades-submit-export-menu button span {
+    font-size: inherit !important;
+    line-height: inherit;
+    min-width: 0;
+}
+
+.sigma-grades-page .grades-submit-export-menu i {
+    width: 16px;
+    color: #15803d;
+    text-align: center;
+}
+
+.sigma-grades-page .grades-submit-export-divider {
+    height: 1px;
+    margin: 5px 4px;
+    background: #e2e8f0;
+}
+
+.sigma-grades-page .grades-submit-export button:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 2px;
+}
+
+.sigma-grades-page .sigma-header-tab-group > .sigma-header-tab-btn {
+    position: relative;
+    letter-spacing: 0 !important;
+}
+
+.sigma-grades-page .sigma-header-tab-group > .sigma-header-tab-btn--active::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -8px;
+    height: 3px;
+    background: #15803d;
+}
+
+.sigma-grades-page .sigma-header-tab-btn:focus-visible {
+    outline: none !important;
+    background-color: #f1f5f9 !important;
+}
+
+@media (min-width: 768px) {
+    .sigma-grades-page--admin #admin-grades-shared-navbar > div:first-child {
+        display: grid;
+        grid-template-columns: minmax(0, max-content) max-content;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .sigma-grades-page--admin #admin-gradebook-teacher-picker-btn {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .sigma-grades-page #admin-grades-shared-navbar {
+        flex-wrap: wrap;
+        align-items: flex-end;
+        row-gap: 8px;
+        padding-bottom: 12px !important;
+    }
+
+    .sigma-grades-page #admin-grades-shared-navbar > div:first-child {
+        flex: 1 1 auto;
+    }
+
+    .sigma-grades-page #admin-gradebook-action-buttons {
+        margin-left: auto;
+        padding-bottom: 4px;
+    }
+}
+
+.sigma-grades-page--admin #admin-gradebook-action-buttons .gb-status-key {
+    order: 0;
+}
+
+.sigma-grades-page--admin #admin-btn-assessment-weights {
+    order: 1;
+}
+
+.sigma-grades-page--admin #admin-btn-assessment-weights + span {
+    order: 2;
+}
+
+.sigma-grades-page--admin #grades-submit-export {
+    order: 3;
+}
+
+.sigma-grades-page .gb-component-header {
+    position: relative;
+    transition: background-color 0.15s ease;
+}
+
+.sigma-grades-page #admin-gradebook-spreadsheet th.gradebook-task-header-cell {
+    border-right: 1px solid #137638 !important;
+}
+
+.sigma-grades-page #admin-gradebook-spreadsheet td.gradebook-task-cell {
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.sigma-grades-page #admin-gradebook-spreadsheet th .gb-component-cell-button {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    padding: 0 !important;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer !important;
+}
+
+.sigma-grades-page .gb-component-header:has(.gb-component-cell-button:hover) {
+    background-color: #166534 !important;
+}
+
+.sigma-grades-page .gb-component-cell-button:focus-visible {
+    outline: 2px solid white !important;
+    outline-offset: -3px;
+}
+
+.sigma-grades-page .gb-component-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: rgba(255, 255, 255, 0.9);
+    pointer-events: none;
+}
+
+.sigma-grades-page .gb-component-short {
+    display: none;
+}
+
+/* Keep the shared desktop gradebook independent of admin's general table rules. */
+@media (min-width: 769px) {
+    .sigma-grades-page #admin-gradebook-spreadsheet th {
+        padding: 8px 16px !important;
+        border-bottom: 1px solid #166534 !important;
+        box-sizing: border-box;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th:first-child {
+        padding: 12px 14px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th.gradebook-task-header-cell {
+        padding: 6px 8px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet td {
+        padding: 14px 16px !important;
+        font-weight: 500 !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet td.gradebook-task-cell {
+        padding: 8px 6px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-col-compact {
+        padding: 6px 4px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-thin-nav-col {
+        padding: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .font-bold {
+        font-weight: 700 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .font-semibold {
+        font-weight: 600 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .font-medium {
+        font-weight: 500 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .font-normal {
+        font-weight: 400 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .text-\[\#FFD000\] {
+        color: #FFD000 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .text-white\/80 {
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .text-white\/90 {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+}
+
+.sigma-grades-page #admin-grades-quarters-wrapper > div {
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
+.sigma-grades-page .gb-mobile-total,
+.sigma-grades-page .gb-mobile-totals-toggle {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .sigma-grades-page .gb-component-full {
+        display: none;
+    }
+
+    .sigma-grades-page .gb-component-short {
+        display: inline;
+    }
+    .sigma-grades-page div:has(> .sigma-header-tab-group) {
+        padding: 20px 16px !important;
+        justify-content: center !important;
+    }
+
+    .sigma-grades-page > div.bg-white {
+        min-height: 0 !important;
+    }
+
+    .sigma-grades-page #admin-grades-shared-navbar {
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 16px 16px !important;
+        gap: 12px;
+    }
+
+    .sigma-grades-page #admin-grades-shared-navbar > div:first-child {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) max-content;
+        width: 100%;
+        min-width: 0;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sigma-grades-page #admin-gradebook-teacher-picker-btn {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .sigma-grades-page #admin-grades-subject-section-dropdown-wrapper {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-btn {
+        width: 100%;
+        min-width: 0 !important;
+        height: auto !important;
+        min-height: 48px !important;
+        padding: 7px 10px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-label {
+        flex: 1;
+        min-width: 0;
+        font-size: 12px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-label > div {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-label .truncate {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: 12px !important;
+        line-height: 17px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-label > span {
+        font-size: 11px !important;
+        line-height: 15px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-label .shrink-0 {
+        font-size: 9px !important;
+        line-height: 13px !important;
+        padding: 2px 6px !important;
+        margin-left: 4px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-btn > i {
+        font-size: 9px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        padding: 4px 0 !important;
+        border-radius: 10px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu [onclick] {
+        min-height: 44px;
+        padding: 8px 12px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu .min-w-0 > div {
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu .truncate {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: 12px !important;
+        line-height: 17px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu .min-w-0 > span {
+        font-size: 11px !important;
+        line-height: 15px !important;
+    }
+
+    .sigma-grades-page #admin-grades-subject-picker-menu .shrink-0 {
+        font-size: 9px !important;
+        line-height: 13px !important;
+        padding: 2px 5px !important;
+    }
+
+    .sigma-grades-page #admin-grades-quarters-wrapper {
+        max-width: 118px;
+        align-self: center;
+        overflow-x: auto;
+    }
+
+    .sigma-grades-page #admin-grades-quarters-wrapper button {
+        width: 52px;
+        min-width: 52px;
+        min-height: 36px;
+        padding: 4px !important;
+        font-size: 10px !important;
+        line-height: 14px !important;
+        white-space: normal;
+    }
+
+    .sigma-grades-page #admin-grades-quarters-wrapper > div {
+        padding: 3px !important;
+        gap: 3px !important;
+    }
+
+    .sigma-grades-page #admin-grades-quarters-wrapper[data-quarter-count="3"] > div,
+    .sigma-grades-page #admin-grades-quarters-wrapper[data-quarter-count="4"] > div {
+        display: grid;
+        grid-template-columns: repeat(2, 52px);
+    }
+
+    .sigma-grades-page #admin-gradebook-action-buttons {
+        width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    .sigma-grades-page #admin-gradebook-action-buttons .gb-status-key {
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        justify-content: flex-start;
+        gap: 5px;
+        font-size: 9px !important;
+        line-height: 16px;
+    }
+
+    .sigma-grades-page #admin-gradebook-action-buttons .gb-status-key span {
+        font-size: inherit !important;
+        white-space: nowrap;
+    }
+
+    .sigma-grades-page .grades-submit-export-btn {
+        min-height: 32px;
+        gap: 4px;
+        padding: 6px 8px;
+        font-size: 10px;
+        line-height: 20px;
+    }
+
+    .sigma-grades-page .grades-submit-export-menu {
+        padding: 3px;
+    }
+
+    .sigma-grades-page .grades-submit-export-menu button:not(.hidden) {
+        min-height: 36px;
+        padding: 6px 4px;
+        gap: 5px;
+        font-size: 10px;
+        line-height: 15px;
+    }
+
+    .sigma-grades-page .grades-submit-export-menu i {
+        width: 12px;
+        font-size: 10px;
+    }
+
+    .sigma-grades-page .sigma-header-tab-group {
+        max-width: 100%;
+        gap: 8px !important;
+    }
+
+    .sigma-grades-page .sigma-header-tab-group > .sigma-header-tab-btn {
+        min-height: 44px;
+        padding: 8px 0 !important;
+        margin: 0 !important;
+        font-size: 20px !important;
+        line-height: 28px !important;
+        white-space: nowrap;
+    }
+
+    .sigma-grades-page .sigma-header-tab-divider {
+        height: 18px !important;
+        margin: 0 4px !important;
+    }
+
+    .sigma-grades-page .sigma-header-tab-group > .sigma-header-tab-btn--active::after {
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+
+    .sigma-grades-page #admin-gradebook-workspace-content > div {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet {
+        width: 100%;
+        min-width: 680px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet col {
+        min-width: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet col:first-child {
+        width: 220px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet col:not(:first-child) {
+        width: 92px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th,
+    .sigma-grades-page #admin-gradebook-spreadsheet td {
+        padding: 4px 6px !important;
+        height: 38px !important;
+        font-size: 10px !important;
+        line-height: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet thead tr {
+        height: 42px !important;
+        min-height: 42px !important;
+        max-height: 42px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet tbody tr,
+    .sigma-grades-page #admin-gradebook-spreadsheet tbody td,
+    .sigma-grades-page #admin-gradebook-spreadsheet tbody td.gb-student-cell {
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet thead th:first-child,
+    .sigma-grades-page #admin-gradebook-spreadsheet tbody td:first-child {
+        width: 220px !important;
+        min-width: 220px !important;
+        max-width: 220px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th span,
+    .sigma-grades-page #admin-gradebook-spreadsheet td p,
+    .sigma-grades-page #admin-gradebook-spreadsheet td input {
+        font-size: 10px !important;
+        line-height: 14px !important;
+        letter-spacing: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gradebook-student-id {
+        display: none !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-student-cell > div > .shrink-0 {
+        display: none !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-student-cell p:first-child {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.15 !important;
+        margin: 0 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-student-cell {
+        padding: 4px 0.6rem !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .gap-2,
+    .sigma-grades-page #admin-gradebook-spreadsheet th .gap-1\.5 {
+        gap: 3px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .inline-flex {
+        display: flex !important;
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th > .flex-col {
+        width: 100%;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th span {
+        min-width: 0;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .inline-flex > span {
+        flex: 1 1 0;
+        text-align: center;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th button {
+        width: 20px !important;
+        min-width: 20px !important;
+        height: 24px !important;
+        padding: 0 !important;
+        flex-shrink: 0;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th .inline-flex > .gb-component-arrow {
+        position: absolute;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px !important;
+        min-width: 16px !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet i {
+        font-size: 9px !important;
+    }
+
+    /* The first four overview columns occupy exactly one mobile viewport. */
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-overview-table {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-overview-table col:first-child,
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-overview-table th:first-child,
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-overview-table td:first-child {
+        width: 40% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-overview-table col:not(:first-child) {
+        width: 20% !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-desktop-total {
+        display: none;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded {
+        width: 100% !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded col:first-child,
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded th:first-child,
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded td:first-child {
+        width: 40% !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded col:not(:first-child) {
+        width: 30% !important;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded col:nth-child(n+4):nth-child(-n+6),
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded th:nth-child(n+4):nth-child(-n+6),
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded td:nth-child(n+4):nth-child(-n+6) {
+        display: none;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded .gb-mobile-total {
+        display: table-cell;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet.gb-totals-expanded col.gb-mobile-total {
+        display: table-column;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet th:first-child > div {
+        flex-wrap: wrap;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-mobile-totals-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        width: auto !important;
+        min-width: 0 !important;
+        padding: 2px 4px !important;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+    }
+
+    .sigma-grades-page #admin-gradebook-spreadsheet .gb-mobile-totals-toggle span {
+        font-size: 9px !important;
+    }
+}
+
 .sigma-header-tab-group {
     display: inline-flex !important;
     align-items: center !important;
@@ -972,7 +1679,3 @@ body #analytics-dropdown .sigma-panel-see-all {
 #admin-gradebook-spreadsheet thead th .cursor-pointer * {
     cursor: pointer !important;
 }
-
-
-
-

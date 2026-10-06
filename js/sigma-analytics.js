@@ -1603,8 +1603,23 @@
 
     // Unified Grades State for Admin / Cross-Role Portal
     const initialIsTeacher = isCurrentPageTeacherPortal();
+    const navigationType = window.performance?.getEntriesByType?.('navigation')?.[0]?.type;
+    const gradesHash = /^#(?:grades(?::.*)?|school-grades(?::.*)?|nav-(?:school-)?grades|analytics|gradebooks?)$/;
+    if (navigationType === 'reload' && gradesHash.test(window.location.hash)) {
+        // A full refresh starts at Gradebooks while retaining the saved grading context.
+        window.history.replaceState(window.history.state, '', initialIsTeacher ? '#grades:gradebook' : '#school-grades:gradebook');
+        const storageKey = getGradesStorageKey(initialIsTeacher);
+        try {
+            const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+            if (saved) {
+                saved.activeTab = 'gradebook';
+                sessionStorage.setItem(storageKey, JSON.stringify(saved));
+            }
+        } catch (e) {}
+        if (!initialIsTeacher) window._gradebookReturnPending = true;
+    }
     window.sigmaGradesState = {
-        activeTab: 'analytics', // 'analytics' or 'gradebook'
+        activeTab: 'gradebook', // 'analytics' or 'gradebook'
         activeQuarter: 1,
         activeStrand: 'ALL',
         isTeacherPage: initialIsTeacher,
@@ -1953,7 +1968,7 @@
         window.sigmaGradesState.selectedSection = '';
         window.sigmaGradesState.selectedSubject = '';
         window.sigmaGradesState.activeQuarter = 1;
-        window.sigmaGradesState.activeTab = 'analytics';
+        window.sigmaGradesState.activeTab = 'gradebook';
         window.sigmaGradesState.currentView = 'overview';
         window.sigmaGradesState.assessmentPage = 0;
         window._pendingAdminTeacher = null;
@@ -1968,6 +1983,18 @@
             ? opts.explicitTab
             : '';
         const hashWantsGradebook = !!(opts && opts.hashWantsGradebook);
+
+        if (isTeacher) {
+            if (enteringGrades) hydrateSigmaGradesState('teacher');
+            const rememberedTab = window.sigmaGradesState?.activeTab;
+            const savedTab = loadSigmaGradesState(true)?.activeTab;
+            const targetTab = explicitTab || (hashWantsGradebook ? 'gradebook' : '')
+                || savedTab || rememberedTab || 'gradebook';
+            if (enteringGrades && window.sigmaGradesState) window.sigmaGradesState.activeTab = targetTab;
+            window._gradebookReturnPending = false;
+            window._skipNextGradebookReset = false;
+            return { targetTab, keepSelection: true };
+        }
 
         if (!enteringGrades) {
             if (window._skipNextGradebookReset) {
@@ -1991,10 +2018,10 @@
         window._gradebookReturnPending = false;
         window._skipNextGradebookReset = false;
 
-        let targetTab = 'analytics';
+        let targetTab = 'gradebook';
         if (explicitTab) targetTab = explicitTab;
         else if (hashWantsGradebook) targetTab = 'gradebook';
-        else if (keepSelection) targetTab = window.sigmaGradesState?.activeTab || 'analytics';
+        else if (keepSelection) targetTab = window.sigmaGradesState?.activeTab || 'gradebook';
         if (window.sigmaGradesState) window.sigmaGradesState.activeTab = targetTab;
         return { targetTab, keepSelection, restoreContext };
     };
@@ -2021,7 +2048,7 @@
 
         if (!window.sigmaGradesState) {
             window.sigmaGradesState = {
-                activeTab: 'analytics',
+                activeTab: 'gradebook',
                 activeQuarter: 1,
                 activeStrand: 'ALL',
                 isTeacherPage: isTeacher,
@@ -2038,6 +2065,10 @@
 
         window.sigmaGradesState.isTeacherPage = isTeacher;
         window.sigmaGradesState.role = isTeacher ? 'teacher' : 'admin';
+
+        if (isTeacher && !saved && !window.sigmaGradesState.selectedSubjectSection) {
+            window.sigmaGradesState.activeTab = 'gradebook';
+        }
 
         if (isTeacher) {
             const currentTeacher = getEffectiveTeacher();
@@ -2414,8 +2445,7 @@
                 <div onclick="window.selectAdminSubjectSection(${idx})"
                     style="${isSelected ? 'background-color: #e7f6ec !important;' : ''}"
                     class="px-4 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 relative font-['Inter'] ${isSelected ? 'sigma-selected-teacher-row' : 'hover:bg-slate-50'}">
-                    ${isSelected ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-[#15803d]"></div>` : ''}
-                    <div class="min-w-0 flex-1 ${isSelected ? 'pl-1' : ''}">
+                    <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-bold text-black truncate leading-snug">${escapeHtml(item.subject)}</span>
                             ${roleBadge}
@@ -2464,6 +2494,9 @@
     };
 
     window.switchAdminQuarter = function (quarter) {
+        const subject = window.sigmaGradesState.selectedSubjectSection;
+        const available = subject && window.getSubjectAvailableQuarters(subject.subject);
+        if (!available || !available.includes(Number(quarter))) return;
         window.sigmaGradesState.activeQuarter = Number(quarter);
         saveSigmaGradesState();
         window.renderAdminQuartersTabs();
@@ -2483,7 +2516,13 @@
         }
 
         quartersContainer.classList.remove('hidden');
-        const quarters = subSec.quarters || [1, 2];
+        const quarters = window.getSubjectAvailableQuarters(subSec.subject);
+        subSec.quarters = quarters;
+        if (!quarters.includes(Number(window.sigmaGradesState.activeQuarter))) {
+            window.sigmaGradesState.activeQuarter = quarters[0];
+            saveSigmaGradesState();
+        }
+        quartersContainer.dataset.quarterCount = String(quarters.length);
         const quarterNames = {
             1: '1st Quarter',
             2: '2nd Quarter',
@@ -2582,7 +2621,9 @@
         // 3. Quarters Tabs UI
         window.renderAdminQuartersTabs();
 
-        // 4. Action Buttons UI (Assessment Weights & Transfer / View) - STRICTLY only on Gradebooks tab
+        document.getElementById('grades-publish-preview-btn')?.classList.toggle('hidden', subSec?.role !== 'Adviser');
+
+        // 4. Action Buttons UI - only on the Gradebooks tab.
         const actBtns = document.getElementById('admin-gradebook-action-buttons');
         if (actBtns) {
             const isGradebookTab = (window.sigmaGradesState.activeTab === 'gradebook');
@@ -2610,9 +2651,34 @@
 
     window.updateAdminTeacherTriggerUI = window.updateAdminSharedNavbarUI;
 
+    window.closeGradesSubmitExportMenu = function () {
+        document.getElementById('grades-submit-export-menu')?.classList.add('hidden');
+        document.getElementById('grades-submit-export-btn')?.setAttribute('aria-expanded', 'false');
+    };
+
+    window.toggleGradesSubmitExportMenu = function () {
+        const menu = document.getElementById('grades-submit-export-menu');
+        const button = document.getElementById('grades-submit-export-btn');
+        if (!menu || !button) return;
+        const opening = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', !opening);
+        button.setAttribute('aria-expanded', String(opening));
+    };
+
+    document.addEventListener('keydown', function (event) {
+        const menu = document.getElementById('grades-submit-export-menu');
+        if (event.key === 'Escape' && menu && !menu.classList.contains('hidden')) {
+            window.closeGradesSubmitExportMenu();
+            document.getElementById('grades-submit-export-btn')?.focus();
+        }
+    });
+
     // Close subject dropdown when clicking anywhere outside
     if (typeof document !== 'undefined') {
         document.addEventListener('click', function (e) {
+            if (!document.getElementById('grades-submit-export')?.contains(e.target)) {
+                window.closeGradesSubmitExportMenu();
+            }
             const dropdownWrapper = document.getElementById('admin-grades-subject-section-dropdown-wrapper');
             const menu = document.getElementById('admin-grades-subject-picker-menu');
             if (menu && !menu.classList.contains('hidden')) {
@@ -2986,6 +3052,7 @@
     };
 
     window.openAdminGradebookWeightModal = function () {
+        if (isCurrentPageTeacherPortal()) return;
         let modal = document.getElementById('admin-gradebook-weight-modal');
         if (!modal) {
             modal = document.createElement('div');
@@ -3020,6 +3087,8 @@
         if (selIdx === -1) selIdx = 0;
 
         const renderModal = (chosenIdx) => {
+            const chosen = presets[chosenIdx];
+            const unchanged = !chosen || ['ww', 'pt', 'qa'].every(key => Number(chosen[key]) === Number(curWeights[key]));
             modal.innerHTML = `
                 <div class="curriculum-hub-panel curriculum-release-panel-fixed weight-modal-card w-full !max-w-[860px] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-2xl rounded-3xl" style="height: 740px; min-height: min(740px, calc(100vh - 40px)); max-height: calc(100vh - 40px); max-width: 860px;" onclick="event.stopPropagation()">
                     <!-- Header -->
@@ -3027,7 +3096,7 @@
                         <div>
                             <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">Assessment Weights</h2>
                             <p class="text-xs font-normal text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45);">
-                                DepEd Senior High School Grading System Presets <span class="mx-1 text-slate-300">•</span> <span class="font-semibold text-slate-700">${escapeHtml(curSubject)}</span>
+                                DepEd Senior High School Grading System Presets
                             </p>
                         </div>
                     </div>
@@ -3072,9 +3141,8 @@
                             class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer font-['Inter']">
                             Cancel
                         </button>
-                        <button type="button" onclick="window._applyAdminWeightPreset(${chosenIdx})"
-                            class="sigma-btn sigma-btn-primary sigma-btn-md cursor-pointer font-['Inter']">
-                            <i class="fa-solid fa-check text-xs"></i>
+                        <button type="button" onclick="window._applyAdminWeightPreset(${chosenIdx})" ${unchanged ? 'disabled' : ''}
+                            class="sigma-btn sigma-btn-primary sigma-btn-md cursor-pointer font-['Inter']" style="${unchanged ? 'opacity: 0.45; cursor: not-allowed;' : ''}">
                             <span>Apply Weights</span>
                         </button>
                     </div>
@@ -3084,7 +3152,9 @@
 
         window._setAdminWeightPreset = (idx) => renderModal(idx);
         window._applyAdminWeightPreset = (idx) => {
+            if (isCurrentPageTeacherPortal()) return;
             const chosen = presets[idx] || presets[0];
+            if (['ww', 'pt', 'qa'].every(key => Number(chosen[key]) === Number(curWeights[key]))) return;
             const weights = { ww: chosen.ww, pt: chosen.pt, qa: chosen.qa };
             const targetSubject = window.sigmaGradesState.selectedSubjectSection?.subject || window.sigmaGradesState.selectedSubject || curSubject;
             window.sigmaGradesState.weights = weights;
@@ -3134,6 +3204,8 @@
     }
 
     function getAdminGradebookStudentItemScore(student, category, itemIdx, item, subjectId, quarter) {
+        const section = window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || '';
+        if (item && section) item = { ...item, section };
         const itemCat = String(item?._category || item?.category || item?.type || (item?.quizId ? 'quiz' : '') || category || '').trim().toLowerCase();
         const normCat = (itemCat === 'pt' || itemCat === 'perf. task') ? 'perf. task' : itemCat;
         const hasActualSubmission = (typeof window.studentHasAssessmentSubmission === 'function' && item)
@@ -3154,10 +3226,7 @@
                         }
                         return null;
                     }
-                    if (isQuizItem && !hasActualSubmission) {
-                        return null;
-                    }
-                    if (eff.isManualOverride) {
+                    if (eff.isManualOverride || eff.teacherSaved) {
                         if (eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
                             return Number(eff.score);
                         }
@@ -3311,6 +3380,17 @@
         const pct = totalHPS > 0 ? ((rowSum / totalHPS) * 100).toFixed(2) : '0.00';
         pctCell.textContent = pct + '%';
         return true;
+    };
+
+    window.toggleMobileGradeTotals = function (button) {
+        const table = button.closest('.gb-overview-table');
+        if (!table) return;
+        const expanded = table.classList.toggle('gb-totals-expanded');
+        window.sigmaGradesState.mobileGradesExpanded = expanded;
+        button.setAttribute('aria-expanded', String(expanded));
+        button.title = expanded ? 'Hide Initial Grade and Quarterly Grade' : 'Show Initial Grade and Quarterly Grade';
+        button.querySelector('i').className = `fa-solid fa-chevron-${expanded ? 'left' : 'right'}`;
+        table.parentElement.scrollLeft = 0;
     };
 
     window.setSigmaGradebookView = function (view) {
@@ -3540,11 +3620,13 @@
                 }
 
                 const initialDisplay = initialGrade !== null ? `${Number(initialGrade).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-                const finalDisplay = initialGrade !== null ? `${Math.round(initialGrade)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const finalDisplay = initialGrade !== null ? `${SigmaGradeEngine.transmute(initialGrade)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
                 return `
                     <tr class="bg-white border-b border-black/[0.08] font-['Inter'] cursor-default select-none">
                         ${renderStudentCell(s)}
+                        <td class="gb-mobile-total gb-summary-green text-center" title="Initial Grade">${initialDisplay}</td>
+                        <td class="gb-mobile-total gb-summary-green text-center" title="Quarterly Grade">${finalDisplay}</td>
                         <td class="px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-medium transition-colors align-middle gb-data-cell ${wwVal !== null ? 'text-slate-900 font-semibold' : 'text-black/40 font-normal'}">
                             ${wwDisplay}
                         </td>
@@ -3554,10 +3636,10 @@
                         <td class="gb-col-divider px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-medium transition-colors align-middle gb-data-cell ${qaVal !== null ? 'text-slate-900 font-semibold' : 'text-black/40 font-normal'}">
                             ${qaDisplay}
                         </td>
-                        <td class="px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold text-slate-900 tracking-wide transition-colors align-middle gb-data-cell gb-summary-green" style="background-color: rgba(16, 185, 129, 0.08);">
+                        <td class="gb-desktop-total px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold text-slate-900 tracking-wide transition-colors align-middle gb-data-cell gb-summary-green" style="background-color: rgba(16, 185, 129, 0.08);">
                             ${initialDisplay}
                         </td>
-                        <td class="px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold ${initialGrade !== null ? 'text-slate-900' : 'text-black/40'} tracking-wide transition-colors align-middle gb-data-cell gb-summary-green" style="background-color: rgba(16, 185, 129, 0.08);">
+                        <td class="gb-desktop-total px-4 py-3.5 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold ${initialGrade !== null ? 'text-slate-900' : 'text-black/40'} tracking-wide transition-colors align-middle gb-data-cell gb-summary-green" style="background-color: rgba(16, 185, 129, 0.08);">
                             ${finalDisplay}
                         </td>
                     </tr>
@@ -3566,14 +3648,16 @@
 
             workspaceContainer.innerHTML = `
                 <div class="flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-10">
-                    <table id="admin-gradebook-spreadsheet" class="w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
+                    <table id="admin-gradebook-spreadsheet" class="gb-overview-table ${window.sigmaGradesState.mobileGradesExpanded ? 'gb-totals-expanded' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                         <colgroup>
                             <col style="width: 25%; min-width: 240px;">
+                            <col class="gb-mobile-total">
+                            <col class="gb-mobile-total">
                             <col style="width: 15%; min-width: 120px;">
                             <col style="width: 15%; min-width: 120px;">
                             <col style="width: 15%; min-width: 120px;">
-                            <col style="width: 15%; min-width: 110px;">
-                            <col style="width: 15%; min-width: 110px;">
+                            <col class="gb-desktop-total" style="width: 15%; min-width: 110px;">
+                            <col class="gb-desktop-total" style="width: 15%; min-width: 110px;">
                         </colgroup>
                         <thead class="sticky top-0 z-30 bg-[#15803d] shadow-xs rounded-none border-b border-[#166534]">
                             <tr class="border-b border-[#166534] bg-[#15803d] rounded-none h-[52px]">
@@ -3585,55 +3669,49 @@
                                             title="Sort students roster">
                                             <i class="fa-solid ${sortIconClass} text-xs pointer-events-none"></i>
                                         </button>
+                                        <button type="button" class="gb-mobile-totals-toggle" title="Show Initial Grade and Quarterly Grade" aria-expanded="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradeTotals(this)"><span>Grades</span><i class="fa-solid fa-chevron-${window.sigmaGradesState.mobileGradesExpanded ? 'left' : 'right'}" aria-hidden="true"></i></button>
                                     </div>
                                 </th>
-                                <th class="px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
+                                <th class="gb-mobile-total bg-[#15803d] text-white text-center"><span>Initial<br>Grade</span></th>
+                                <th class="gb-mobile-total bg-[#15803d] text-white text-center"><span>Quarterly<br>Grade</span></th>
+                                <th class="gb-component-header px-4 py-2 text-center bg-[#15803d] select-none rounded-none align-middle">
+                                    <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('ww')" aria-label="View Written Works breakdown" title="View Written Works breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none">Written Works</span>
-                                            <button type="button" onclick="window.setSigmaGradebookView('ww')"
-                                                class="gradebook-nav-btn"
-                                                title="View Written Works breakdown">
-                                                <i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i>
-                                            </button>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Written Works"><span class="gb-component-full">Written Works</span><span class="gb-component-short">WW%</span></span>
+                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.ww}%</span>
                                     </div>
                                 </th>
-                                <th class="px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
+                                <th class="gb-component-header px-4 py-2 text-center bg-[#15803d] select-none rounded-none align-middle">
+                                    <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('pt')" aria-label="View Performance Task breakdown" title="View Performance Task breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none">Performance Task</span>
-                                            <button type="button" onclick="window.setSigmaGradebookView('pt')"
-                                                class="gradebook-nav-btn"
-                                                title="View Performance Task breakdown">
-                                                <i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i>
-                                            </button>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Performance Task"><span class="gb-component-full">Performance Task</span><span class="gb-component-short">PT%</span></span>
+                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.pt}%</span>
                                     </div>
                                 </th>
-                                <th class="gb-col-divider px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
+                                <th class="gb-component-header gb-col-divider px-4 py-2 text-center bg-[#15803d] select-none rounded-none align-middle">
+                                    <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('qa')" aria-label="View Quarterly Assessment breakdown" title="View Quarterly Assessment breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none">Quarterly Assessment</span>
-                                            <button type="button" onclick="window.setSigmaGradebookView('qa')"
-                                                class="gradebook-nav-btn"
-                                                title="View Quarterly Assessment breakdown">
-                                                <i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i>
-                                            </button>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Quarterly Assessment"><span class="gb-component-full">Quarterly Assessment</span><span class="gb-component-short">QA%</span></span>
+                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.qa}%</span>
                                     </div>
                                 </th>
-                                <th class="px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
+                                <th class="gb-desktop-total px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Initial Grade</span>
                                     </div>
                                 </th>
-                                <th class="px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
+                                <th class="gb-desktop-total px-4 py-2 text-center bg-[#15803d] cursor-default select-none rounded-none align-middle">
                                     <div class="flex flex-col items-center justify-center leading-tight">
-                                        <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Quarterly Final</span>
+                                        <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter']">Quarterly Grade</span>
                                     </div>
                                 </th>
                             </tr>
@@ -3747,6 +3825,8 @@
                             data-category="${String(itCat).replace(/"/g, '&quot;')}"
                             data-item-idx="${itIdx}"
                             data-subject="${String(it.subjectId || subSec.subject || '').replace(/"/g, '&quot;')}"
+                            data-section="${escapeHtml(subSec.sectionName || '')}"
+                            data-quarter="${currentQ}"
                             data-topic-idx="${topicIdxAttr}"
                             data-topic-item-idx="${topicItemAttr}"
                             data-item-id="${itemId}"
@@ -3770,6 +3850,8 @@
                             data-category="${String(itCat).replace(/"/g, '&quot;')}"
                             data-item-idx="${itIdx}"
                             data-subject="${String(it.subjectId || subSec.subject || '').replace(/"/g, '&quot;')}"
+                            data-section="${escapeHtml(subSec.sectionName || '')}"
+                            data-quarter="${currentQ}"
                             data-topic-idx="${topicIdxAttr}"
                             data-topic-item-idx="${topicItemAttr}"
                             data-item-id="${itemId}"
@@ -3836,14 +3918,14 @@
                              title="${escapeHtml(topicFullTooltip)}">
                            ${escapeHtml(rawTitle)}
                        </span>`
-                    : `<span class="font-bold text-white hover:text-[#FFD000] no-underline hover:no-underline transition-all cursor-pointer text-center block w-full leading-tight gradebook-task-title ${titleSizeClass}" 
-                             title="${escapeHtml(topicFullTooltip)}"
-                             onclick="event.stopPropagation(); window.navigateToAssessmentFromGradebook('${itCat}', ${itIdx}, '${escapeHtml(subSec?.subject || '')}', '${escapeHtml(subSec?.sectionName || '')}')">
+                    : `<span class="font-bold text-white text-center block w-full leading-tight gradebook-task-title ${titleSizeClass}"
+                             title="${escapeHtml(topicFullTooltip)}">
                            ${escapeHtml(rawTitle)}
                        </span>`;
 
                 taskHeadersHtml += `
-                    <th class="gradebook-task-header-cell bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
+                    <th class="gradebook-task-header-cell ${isFake ? '' : 'gb-component-header'} bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
+                        ${isFake ? '' : `<button type="button" class="gb-component-cell-button" aria-label="${escapeHtml('Open assessment: ' + rawTitle)}" title="${escapeHtml(topicFullTooltip)}" onclick="window.navigateToAssessmentFromGradebook('${itCat}', ${itIdx}, '${escapeHtml(subSec?.subject || '')}', '${escapeHtml(subSec?.sectionName || '')}')"></button>`}
                         <div class="flex flex-col items-center justify-between w-full h-[58px] py-1 select-none font-['Inter']">
                             <div class="flex items-center gap-1.5 leading-none">
                                 <span class="text-[10px] font-semibold text-white tracking-tight leading-none">${formattedDate}</span>
@@ -3932,7 +4014,9 @@
     };
 
     window.switchAdminGradesTab = function (tabId) {
+        window.closeGradesSubmitExportMenu();
         if (!window.sigmaGradesState) window.sigmaGradesState = {};
+        const previousTab = window.sigmaGradesState.activeTab;
         window.sigmaGradesState.activeTab = tabId;
         saveSigmaGradesState();
 
@@ -3973,11 +4057,17 @@
             if (tabId === 'gradebook') {
                 analyticsView.classList.add('hidden');
                 gradebookView.classList.remove('hidden');
-                window.renderAdminGradebookWorkspace();
+                const workspace = document.getElementById('admin-gradebook-workspace-content');
+                if (previousTab !== tabId || !workspace?.hasChildNodes()) {
+                    window.renderAdminGradebookWorkspace();
+                }
             } else {
                 gradebookView.classList.add('hidden');
                 analyticsView.classList.remove('hidden');
-                window.renderAdminAnalyticsWorkspace();
+                const workspace = document.getElementById('admin-analytics-workspace-content');
+                if (previousTab !== tabId || !workspace?.hasChildNodes()) {
+                    window.renderAdminAnalyticsWorkspace();
+                }
             }
         }
 
@@ -4002,6 +4092,11 @@
     for (const name of ['renderAdminGradebookWorkspace', 'renderAdminAnalyticsWorkspace']) {
         const render = window[name];
         window[name] = function (...args) {
+            const tab = name === 'renderAdminGradebookWorkspace' ? 'gradebook' : 'analytics';
+            if (window.sigmaGradesState?.activeTab !== tab) return;
+            const workspaceId = tab === 'gradebook' ? 'admin-gradebook-workspace-content' : 'admin-analytics-workspace-content';
+            const workspace = document.getElementById(workspaceId);
+            if (!workspace || workspace.closest('.hidden, [hidden]')) return;
             const run = () => render.apply(this, args);
             return typeof window.withGradebookReadCache === 'function'
                 ? window.withGradebookReadCache(run) : run();
@@ -4147,22 +4242,19 @@
         saveSigmaGradesState();
 
         container.innerHTML = `
-            <div class="flex flex-col flex-1 w-full h-full bg-white min-h-0 border-b border-slate-200">
+            <div class="sigma-grades-page ${isTeacherPage ? '' : 'sigma-grades-page--admin'} flex flex-col flex-1 w-full h-full bg-white min-h-0 border-b border-slate-200">
                 
                 <!-- Page Header (Exact Standard Parity with Sections & Subjects: px-10 py-8) -->
                 <div class="px-10 py-8 flex justify-between items-center">
                     <div class="sigma-header-tab-group">
-                        <button id="admin-grades-tab-analytics" type="button" onclick="window.switchAdminGradesTab('analytics')"
-                            class="sigma-header-tab-btn ${state.activeTab === 'analytics' ? 'sigma-header-tab-btn--active' : 'sigma-header-tab-btn--inactive'}"
-                            style="${state.activeTab === 'analytics' ? 'color: #000000;' : 'color: rgba(0, 0, 0, 0.30);'}">
-                            Analytics
-                        </button>
-                        <span class="sigma-header-tab-divider"></span>
-                        <button id="admin-grades-tab-gradebook" type="button" onclick="window.switchAdminGradesTab('gradebook')"
-                            class="sigma-header-tab-btn ${state.activeTab === 'gradebook' ? 'sigma-header-tab-btn--active' : 'sigma-header-tab-btn--inactive'}"
-                            style="${state.activeTab === 'gradebook' ? 'color: #000000;' : 'color: rgba(0, 0, 0, 0.30);'}">
-                            Gradebooks
-                        </button>
+                        ${['gradebook', 'analytics'].map((tab, index) => `
+                            ${index ? '<span class="sigma-header-tab-divider"></span>' : ''}
+                            <button id="admin-grades-tab-${tab}" type="button" onclick="window.switchAdminGradesTab('${tab}')"
+                                class="sigma-header-tab-btn ${state.activeTab === tab ? 'sigma-header-tab-btn--active' : 'sigma-header-tab-btn--inactive'}"
+                                style="${state.activeTab === tab ? 'color: #000000;' : 'color: rgba(0, 0, 0, 0.30);'}">
+                                ${tab === 'gradebook' ? 'Gradebooks' : 'Analytics'}
+                            </button>
+                        `).join('')}
                     </div>
                 </div>
 
@@ -4233,12 +4325,23 @@
                             <span><i class="gb-key-swatch gb-key-incomplete"></i>Incomplete</span>
                             <span><i class="gb-key-swatch gb-key-excuse"></i>Excuse</span>
                         </div>
-                        <button id="admin-btn-view-pdf" type="button" onclick="window.viewAdminGradebookPDF()"
-                            class="inline-flex items-center gap-1.5 text-xs font-semibold text-black hover:text-[#FFD000] transition-colors cursor-pointer bg-transparent border-0 p-0 group shrink-0"
-                            title="Transfer & View Report Card (PDF / Excel)">
-                            <i class="fa-solid fa-file-invoice text-[#15803d] text-xs group-hover:text-[#FFD000] transition-colors"></i>
-                            <span class="group-hover:text-[#FFD000] transition-colors">Transfer / View (PDF & Excel)</span>
-                        </button>
+                        <div id="grades-submit-export" class="grades-submit-export">
+                            <button id="grades-submit-export-btn" type="button" class="grades-submit-export-btn"
+                                aria-expanded="false" aria-controls="grades-submit-export-menu"
+                                onclick="window.toggleGradesSubmitExportMenu()">
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                <span>Submit & Export</span>
+                                <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                            </button>
+                            <div id="grades-submit-export-menu" class="grades-submit-export-menu hidden" aria-label="Submit and export options">
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Submit to Adviser</span></button>
+                                <button id="grades-publish-preview-btn" class="hidden" type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>Publish to Students</span></button>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-eye" aria-hidden="true"></i><span>Preview Grades</span></button>
+                                <div class="grades-submit-export-divider"></div>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Download Excel</span></button>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>Download PDF</span></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -4362,4 +4465,3 @@
         initAllPocketCardRails();
     }
 })();
-

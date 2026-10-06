@@ -15,19 +15,19 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css?v=20261004cellsize1">
+    <link rel="stylesheet" href="css/admin.css?v=20261006desktopGrades8">
     <link rel="stylesheet" href="css/topbar.css?v=20261001noglow1">
-    <link rel="stylesheet" href="css/forms.css?v=20261005quizStartDesktop1">
+    <link rel="stylesheet" href="css/forms.css?v=20261006accountTableDividers7">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261004neutralQuizDetails1">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261004sharedMobileDots1">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261005editInfoSaveLock1">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261006accountTableDividers7">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261006accountTableDividers7">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261006defaultBackground1">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/sigma-analytics.css?v=20261003metricsnormbtn3">
-    <link rel="stylesheet" href="css/mobile.css?v=20261005mobileprofile2">
+    <link rel="stylesheet" href="css/sigma-analytics.css?v=20261006desktopTable21">
+    <link rel="stylesheet" href="css/mobile.css?v=20261006accountTableDividers7">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -603,11 +603,11 @@
                     <div id="reports-submenu" class="sidebar-submenu hidden">
                         <a href="#" id="nav-reports-ai" class="nav-sublink no-underline">
                             <i class="fa-solid fa-brain"></i>
-                            <span>AI Reports</span>
+                            <span>AI Analytics</span>
                         </a>
                         <a href="#" id="nav-reports-attendance" class="nav-sublink no-underline">
                             <i class="fa-solid fa-calendar-check"></i>
-                            <span>Attendance Reports</span>
+                            <span>Attendance</span>
                         </a>
                     </div>
                 </div>
@@ -625,31 +625,14 @@
 
 
 
-                <div class="nav-group" data-sidebar-group="audit-logs">
-                    <button id="nav-audit-logs" type="button" data-toggle="submenu"
-                        class="nav-link nav-link--group w-full no-underline group cursor-pointer">
+                <div class="nav-group">
+                    <a href="#" id="nav-audit-logs" class="nav-link no-underline group">
                         <div class="sidebar-rail-icon">
                             <i class="fa-solid fa-clipboard-list text-xl"></i>
                             <span class="rail-label">Audit Logs</span>
                         </div>
                         <span class="full-label text-[13px] whitespace-nowrap overflow-hidden font-medium">Audit Logs</span>
-                        <i class="fa-solid fa-chevron-right sidebar-group-chevron text-[10px] transition-transform duration-300 ml-auto mr-2"
-                            id="audit-logs-chevron"></i>
-                    </button>
-                    <div id="audit-logs-submenu" class="sidebar-submenu hidden">
-                        <a href="#" id="nav-audit-ai" class="nav-sublink no-underline">
-                            <i class="fa-solid fa-robot"></i>
-                            <span>AI Logs</span>
-                        </a>
-                        <a href="#" id="nav-audit-activity" class="nav-sublink no-underline">
-                            <i class="fa-solid fa-shoe-prints"></i>
-                            <span>Activity Logs</span>
-                        </a>
-                        <a href="#" id="nav-audit-auth" class="nav-sublink no-underline">
-                            <i class="fa-solid fa-right-to-bracket"></i>
-                            <span>Authentication Logs</span>
-                        </a>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="nav-group" data-sidebar-group="settings">
@@ -3542,15 +3525,13 @@
 
                 <!-- REPORTS AI VIEW -->
                 <section id="reports-ai-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
+                    <div class="reports-page">
                         <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight">AI Reports</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">AI-generated analytics across
-                                    descriptive, predictive, and prescriptive models</p>
+                            class="relative flex flex-col">
+                            <div class="reports-page-header">
+                                <h1 class="text-2xl font-bold text-black tracking-tight">AI Analytics</h1>
                             </div>
-                            <div class="px-10 py-8 space-y-10">
+                            <div class="reports-page-content space-y-10">
 
                                 <!-- Descriptive Analytics -->
                                 <div class="space-y-4">
@@ -3824,15 +3805,13 @@
 
                 <!-- REPORTS ATTENDANCE VIEW -->
                 <section id="reports-attendance-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
+                    <div class="reports-page">
                         <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight">Attendance Reports</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">Student attendance tracking and
-                                    analytics</p>
+                            class="relative flex flex-col">
+                            <div class="reports-page-header">
+                                <h1 class="text-2xl font-bold text-black tracking-tight">Attendance</h1>
                             </div>
-                            <div class="px-10 py-8 space-y-8">
+                            <div class="reports-page-content space-y-8">
                                 <!-- Summary Cards -->
                                 <div class="grid grid-cols-4 gap-4">
                                     <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
@@ -3873,7 +3852,7 @@
                                     </div>
                                 </div>
                                 <!-- Filter Row -->
-                                <div class="flex items-center gap-3">
+                                <div class="attendance-report-filters flex items-center gap-3">
                                      <select id="admin-attendance-filter-section" name="attendance_section" aria-label="Filter by Section"
                                          class="w-40 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
                                          <option value="">All Sections</option>
@@ -3900,7 +3879,7 @@
                                          class="ml-auto px-5 h-9 bg-[#15803d] text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-[#166534] transition-all">Export</button>
                                  </div>
                                 <!-- Attendance Table -->
-                                <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                                <div class="attendance-report-table border border-slate-200">
                                     <table class="w-full text-left border-collapse">
                                         <thead class="bg-slate-50 border-b border-slate-200">
                                             <tr>
@@ -4229,12 +4208,25 @@
 
                 <!-- AUDIT LOGS: AI LOGS VIEW -->
                 <section id="audit-ai-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
+                    <div class="w-full">
                         <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">AI Logs</h1>
-                            </div>
+                            class="audit-log-layout bg-white border-b border-slate-200 min-h-screen p-0 relative">
+                            <aside class="audit-log-sidebar">
+                                <nav class="flex flex-col gap-2" aria-label="Audit log categories">
+                                    <button type="button" onclick="window.switchTab('nav-audit-ai')" class="audit-log-tab active">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <span>AI Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-activity')" class="audit-log-tab">
+                                        <i class="fa-solid fa-shoe-prints"></i>
+                                        <span>Activity Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-auth')" class="audit-log-tab">
+                                        <i class="fa-solid fa-right-to-bracket"></i>
+                                        <span>Authentication Logs</span>
+                                    </button>
+                                </nav>
+                            </aside>
                             <div class="flex-1">
                                 <!-- AI Logs Table -->
                                 <div class="overflow-x-auto">
@@ -4298,12 +4290,25 @@
 
                 <!-- AUDIT LOGS: ACTIVITY LOGS VIEW -->
                 <section id="audit-activity-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
+                    <div class="w-full">
                         <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Activity Logs</h1>
-                            </div>
+                            class="audit-log-layout bg-white border-b border-slate-200 min-h-screen p-0 relative">
+                            <aside class="audit-log-sidebar">
+                                <nav class="flex flex-col gap-2" aria-label="Audit log categories">
+                                    <button type="button" onclick="window.switchTab('nav-audit-ai')" class="audit-log-tab">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <span>AI Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-activity')" class="audit-log-tab active">
+                                        <i class="fa-solid fa-shoe-prints"></i>
+                                        <span>Activity Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-auth')" class="audit-log-tab">
+                                        <i class="fa-solid fa-right-to-bracket"></i>
+                                        <span>Authentication Logs</span>
+                                    </button>
+                                </nav>
+                            </aside>
                             <div class="flex-1">
                                 <!-- Activity Logs Table -->
                                 <div class="overflow-x-auto">
@@ -4367,12 +4372,25 @@
 
                 <!-- AUDIT LOGS: AUTHENTICATION LOGS VIEW -->
                 <section id="audit-auth-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
+                    <div class="w-full">
                         <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Authentication Logs</h1>
-                            </div>
+                            class="audit-log-layout bg-white border-b border-slate-200 min-h-screen p-0 relative">
+                            <aside class="audit-log-sidebar">
+                                <nav class="flex flex-col gap-2" aria-label="Audit log categories">
+                                    <button type="button" onclick="window.switchTab('nav-audit-ai')" class="audit-log-tab">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <span>AI Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-activity')" class="audit-log-tab">
+                                        <i class="fa-solid fa-shoe-prints"></i>
+                                        <span>Activity Logs</span>
+                                    </button>
+                                    <button type="button" onclick="window.switchTab('nav-audit-auth')" class="audit-log-tab active">
+                                        <i class="fa-solid fa-right-to-bracket"></i>
+                                        <span>Authentication Logs</span>
+                                    </button>
+                                </nav>
+                            </aside>
                             <div class="flex-1">
                                 <!-- Authentication Logs Table -->
                                 <div class="overflow-x-auto">
@@ -6469,7 +6487,7 @@
 
 
     <!-- SCRIPTS -->
-    <script src="js/shared-components.js?v=20261005noFakeClasses1"></script>
+    <script src="js/shared-components.js?v=20261006scoreSync20"></script>
     <script src="js/topbar.js?v=20261005loadingfix1"></script>
     <script src="js/sidebar.js?v=20261003viewportreset1"></script>
     <script src="js/notifications.js?v=20261004separateprefs1"></script>
@@ -6485,14 +6503,14 @@
     <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/sigma-analytics.js?v=20261004gradepercent1"></script>
+    <script src="js/sigma-analytics.js?v=20261006scoreSync20"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261004desktopTemplatesLayout1"></script>
+    <script src="js/subject-editor.js?v=20261006fourQuarters4"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/classroom-room.js?v=20261004tabAlignExact1"></script>
+    <script src="js/classroom-room.js?v=20261006fullWidthPAL4"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
     <script src="js/curriculum-release.js?v=20261004assignedStudentsFlow1"></script>
-    <script src="js/admin.js?v=20261004materialLimitsAsking3"></script>
+    <script src="js/admin.js?v=20261006gradebookDefault4"></script>
 </body>
 </html>

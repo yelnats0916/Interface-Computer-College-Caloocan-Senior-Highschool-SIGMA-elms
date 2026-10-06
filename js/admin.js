@@ -3508,6 +3508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'nav-settings-api': 'settings-integrations-view',
         'nav-profile': 'user-profile-view',
         'nav-profile-dropdown': 'user-profile-view',
+        'nav-audit-logs': 'audit-ai-view',
         'nav-audit-ai': 'audit-ai-view',
         'nav-audit-activity': 'audit-activity-view',
         'nav-audit-auth': 'audit-auth-view',
@@ -3860,13 +3861,6 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'System Settings',
             childIds: ['nav-settings-security', 'nav-settings-branding', 'nav-settings-integrations']
         },
-        'audit-logs': {
-            button: document.getElementById('nav-audit-logs'),
-            submenu: document.getElementById('audit-logs-submenu'),
-            chevron: document.getElementById('audit-logs-chevron'),
-            title: 'Audit Logs',
-            childIds: ['nav-audit-ai', 'nav-audit-activity', 'nav-audit-auth']
-        },
     };
 
     // Direct accordion listener binding (matching teacher and student)
@@ -4210,9 +4204,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 enteringGrades,
                 gradesWasVisible,
                 role: 'admin',
+                explicitTab: window._adminGradesEntryTab,
                 hashWantsGradebook: String(window.location.hash || '').includes('gradebook')
             })
-            : { targetTab: 'analytics' };
+            : { targetTab: 'gradebook' };
+        if (enteringGrades) window._adminGradesEntryTab = null;
 
         sections.forEach((section) => {
             section.classList.add('hidden');
@@ -4304,7 +4300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sectionId === 'school-grades-view') {
             const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
             if (topbarLabel) topbarLabel.textContent = 'Grades';
-            const targetTab = gradesNav.targetTab || 'analytics';
+            const targetTab = gradesNav.targetTab || 'gradebook';
             if (window.sigmaGradesState) window.sigmaGradesState.activeTab = targetTab;
             if (typeof window.renderSigmaGradebookWorkstation === 'function') {
                 window.renderSigmaGradebookWorkstation('school-grades-view', { role: 'admin', tab: targetTab });
@@ -4368,6 +4364,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (sectionId === 'user-profile-view' || navId === 'nav-profile') {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('Interface Computer College');
+            }
+        } else if (sectionId === 'classroom-detail-view') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('School Management', 'Section Details');
             }
         } else if (sectionId === 'section-topic-content' || sectionId === 'section-topic-detail') {
             // Do not override breadcrumb header for topic workstation/materials/submissions or topic detail
@@ -4544,9 +4544,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skipHashUpdate) window.location.hash = 'settings-recaptcha-view';
             return;
         }
+        else if (tabId === 'nav-audit-logs' || tabId === 'audit-logs' || tabId === 'nav-audit-ai' || tabId === 'audit-ai-view') {
+            sectionId = 'audit-ai-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection(sectionId, 'nav-audit-logs');
+            if (!skipHashUpdate) window.location.hash = 'nav-audit-ai';
+            return;
+        }
+        else if (tabId === 'nav-audit-activity' || tabId === 'audit-activity-view') {
+            sectionId = 'audit-activity-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection(sectionId, 'nav-audit-logs');
+            if (!skipHashUpdate) window.location.hash = 'nav-audit-activity';
+            return;
+        }
+        else if (tabId === 'nav-audit-auth' || tabId === 'audit-auth-view') {
+            sectionId = 'audit-auth-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection(sectionId, 'nav-audit-logs');
+            if (!skipHashUpdate) window.location.hash = 'nav-audit-auth';
+            return;
+        }
         else sectionId = tabId.replace('nav-', '') + '-view';
 
         hideHeaderOverlays();
+        if (sectionId === 'school-grades-view' && !skipHashUpdate) {
+            window._adminGradesEntryTab = ['nav-analytics', 'nav-reports-performance'].includes(tabId) ? 'analytics' : 'gradebook';
+        }
         window.showSection(sectionId, tabId);
 
         if (!skipHashUpdate) {
@@ -11570,10 +11597,6 @@ window.showAdminClassroom = function (sectionName, subjectName, initialTab = 'ro
     resetAdminClassroomScroll();
     window.showSection('classroom-detail-view', 'nav-school-sections');
     resetAdminClassroomScroll();
-    const headerTitle = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
-    if (headerTitle) {
-        headerTitle.textContent = 'School Management';
-    }
 
     // 5. Switch to active tab and update URL hash
     const roomTabs = ['room', 'attendance', 'topics', 'members'];
@@ -11806,8 +11829,8 @@ window.openAdminClassroomGradesModal = function (classroomId) {
             <!-- Modal Header -->
             <div class="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 font-['Inter']">
                 <div class="min-w-0">
-                    <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">${escapeHtml(subjectName)}</h2>
-                    <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)} (${studentRows.length} ${studentRows.length === 1 ? 'student' : 'students'})</p>
+                    <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate"><span class="admin-room-grades-original-title">${escapeHtml(subjectName)}</span><span class="admin-room-grades-desktop-title" hidden>Grades</span></h2>
+                    <p class="admin-room-grades-subtitle text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)} (${studentRows.length} ${studentRows.length === 1 ? 'student' : 'students'})</p>
                 </div>
             </div>
 
@@ -11831,11 +11854,11 @@ window.openAdminClassroomGradesModal = function (classroomId) {
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-[#15803d] text-white select-none">
-                                    <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>
-                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q1</th>
-                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q2</th>
-                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q3</th>
-                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q4</th>
+                                    <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid var(--admin-grades-header-divider, #166534) !important;">Students</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid var(--admin-grades-header-divider, #166534) !important;">Q1</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid var(--admin-grades-header-divider, #166534) !important;">Q2</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid var(--admin-grades-header-divider, #166534) !important;">Q3</th>
+                                    <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid var(--admin-grades-header-divider, #166534) !important;">Q4</th>
                                     <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-16 sm:w-24 text-[11px] sm:text-xs" style="border-right: none !important;">Final</th>
                                 </tr>
                             </thead>
@@ -11864,7 +11887,7 @@ window.openAdminClassroomGradesModal = function (classroomId) {
                                         <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q2}</td>
                                         <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q3}</td>
                                         <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q4}</td>
-                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-black gb-summary-green border-l border-slate-200 text-[11.5px] sm:text-xs" style="border-left: 1px solid #e2e8f0 !important;">${std.overall}</td>
+                                        <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-black gb-summary-green border-l border-slate-200 text-[11.5px] sm:text-xs" style="border-left: 1px solid var(--admin-grades-body-divider, #e2e8f0) !important;">${std.overall}</td>
                                     </tr>
                                 `}).join('')}
                             </tbody>
@@ -12618,7 +12641,7 @@ window.navigateToAssessmentFromGradebook = function (category, index, customSubj
 
     const getCatFn = (typeof window.getCategoryDetails === 'function') ? window.getCategoryDetails : null;
     let items = getCatFn ? (getCatFn(category, currentQ, subjectId, section) || []) : [];
-    let item = items[index];
+    let item = items.find(it => Number(it.itemIdx) === Number(index)) || items[index];
     if (!item && getCatFn) {
         const wwItems = getCatFn('ww', currentQ, subjectId, section) || [];
         item = wwItems[index] || wwItems.find(it => it.itemIdx === index || it.id === index);
@@ -15902,7 +15925,7 @@ function renderSectionsTable() {
                             <div id="section-action-menu-${startIndex + idx}" class="action-dropdown-menu">
                                 <button onclick="window.viewSection('${escapeHtml(sec.id || sec.name)}', '${escapeHtml(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '')}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-eye"></i>
-                                    <span>View Section</span>
+                                    <span>Open Section</span>
                                 </button>
                                 <button onclick="window.editSection('${escapeHtml(sec.id || sec.name)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-pen-to-square"></i>
@@ -17662,7 +17685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.switchTab('nav-resources', true);
         } else if (hash === 'grades' || hash === 'nav-grades' || hash === 'school-grades' || hash === 'nav-school-grades' || hash === 'gradebooks' || hash === 'analytics' || hash.startsWith('grades:') || hash.startsWith('school-grades:')) {
             const savedState = (typeof window.loadSigmaGradesState === 'function') ? window.loadSigmaGradesState(false) : null;
-            let targetTab = 'analytics';
+            let targetTab = 'gradebook';
             if (hash.includes('gradebook') || hash === 'gradebooks') {
                 targetTab = 'gradebook';
             } else if (window._gradebookReturnPending && savedState?.activeTab === 'gradebook') {
@@ -17673,6 +17696,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.sigmaGradesState) {
                 window.sigmaGradesState.activeTab = targetTab;
             }
+            window._adminGradesEntryTab = targetTab;
             window.switchTab('nav-school-grades', true);
         } else if (hash === 'settings-gdrive-view' || hash === 'settings-gdrive' || hash === 'gdrive' || hash === 'google-drive') {
             window.switchTab('nav-settings-gdrive', true);
@@ -20041,10 +20065,6 @@ window.applyCurrentAdminPermissions = function () {
     const canAuditAi = isMaster || (canAuditMain && perms.auditAi !== false);
     const canAuditActivity = isMaster || (canAuditMain && perms.auditActivity !== false);
     const canAuditAuth = isMaster || (canAuditMain && perms.auditAuth !== false);
-
-    toggleElement('nav-audit-ai', canAuditAi);
-    toggleElement('nav-audit-activity', canAuditActivity);
-    toggleElement('nav-audit-auth', canAuditAuth);
 
     const hasAnyAuditSublink = canAuditAi || canAuditActivity || canAuditAuth;
     const canAuditGroup = isMaster || (canAuditMain && hasAnyAuditSublink);

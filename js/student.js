@@ -3353,7 +3353,7 @@ if (overlay) overlay.classList.add('hidden');
         return rows;
     }
     function renderGradesAnalytics(rows, filteredSubjectName = '') {
-        if (!rows || !rows.length) return { top: '', breakdown: '' };
+        rows = Array.isArray(rows) ? rows : [];
 
         const validOverallRows = rows.filter(r => typeof r.overallVal === 'number' && !isNaN(r.overallVal));
         const hasGrades = validOverallRows.length > 0;
@@ -3375,7 +3375,7 @@ if (overlay) overlay.classList.add('hidden');
             }
         });
 
-        let aiMessage = 'No grades recorded yet.';
+        let aiMessage = rows.length ? 'No grades recorded yet.' : 'No grades to display.';
         if (hasGrades) {
             if (filteredSubjectName) {
                 if (gwa >= 90) {
@@ -3435,22 +3435,7 @@ if (overlay) overlay.classList.add('hidden');
         const layout = document.getElementById('grades-layout');
         if (!layout) return;
         try {
-            const allRows = getSubjectGradeRows();
-
-            if (!allRows || allRows.length === 0) {
-                layout.innerHTML = `
-                    <div class="space-y-8 font-['Inter']">
-                        <div class="bg-white border border-slate-200 rounded-2xl standard-panel-shadow overflow-hidden w-full flex flex-col items-center justify-center py-24 text-center select-none font-['Inter']">
-                            <div class="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center mb-4 shadow-sm">
-                                <i class="fa-solid fa-chart-bar text-3xl text-black-fade"></i>
-                            </div>
-                            <h2 class="text-base md:text-lg font-bold text-black tracking-tight font-['Inter'] mb-1">No Grades Recorded Yet</h2>
-                            <p class="text-xs md:text-sm text-black-fade max-w-sm font-['Inter']">No grades or enrolled subjects have been published yet.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
+            const allRows = getSubjectGradeRows() || [];
 
             let rows = allRows;
             let filterBannerHtml = '';
@@ -3484,12 +3469,12 @@ if (overlay) overlay.classList.add('hidden');
             filterBannerHtml = `
                 <div class="student-performance-filter flex items-center flex-wrap gap-3">
                     <button type="button" id="student-subject-filter-toggle" aria-pressed="${selectingComparisonSubjects}">
-                        <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                        <i class="fa-solid ${selectingComparisonSubjects ? 'fa-list-check text-green-700' : 'fa-filter'}" aria-hidden="true"></i>
                         <span>Filter by Subject</span>
                     </button>
-                    ${selectingComparisonSubjects ? '<button type="button" id="student-subject-filter-done" class="sigma-btn sigma-btn-sm sigma-btn-primary"><span>Done</span></button>' : ''}
-                    ${selectingComparisonSubjects ? `<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="student-comparison-all" ${analyticsRows.length === allRows.length ? 'checked' : ''} style="accent-color:#15803d;">All Subjects</label>` : `<span class="text-xs text-black-fade">${analyticsRows.length === allRows.length ? 'All Subjects' : `${analyticsRows.length} Subjects Selected`}</span>`}
                     ${selectingComparisonSubjects ? '<button type="button" id="student-subject-filter-reset" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-transparent hover:bg-gray-100 text-green-700 cursor-pointer" title="Reset subject filter" aria-label="Reset subject filter"><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i></button>' : ''}
+                    ${selectingComparisonSubjects ? `<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="student-comparison-all" ${analyticsRows.length === allRows.length ? 'checked' : ''} style="accent-color:#15803d;">All Subjects</label>` : `<span class="text-xs text-black-fade">${analyticsRows.length === allRows.length ? 'All Subjects' : `${analyticsRows.length} Subjects Selected`}</span>`}
+                    ${selectingComparisonSubjects ? '<button type="button" id="student-subject-filter-done" class="sigma-btn sigma-btn-sm sigma-btn-primary"><span>Done</span></button>' : ''}
                 </div>`;
 
             gradesCarouselIndex = 0;
@@ -3504,16 +3489,16 @@ if (overlay) overlay.classList.add('hidden');
 
                 <div class="student-grades-summary-panel w-full bg-white font-['Inter']">
                     <div class="overflow-x-auto font-['Inter']">
-                        <table class="student-grades-summary-table w-full text-left border-collapse font-['Inter']">
+                        <table class="student-grades-summary-table ${window.studentGradesShowQuarters ? 'student-grades-show-quarters' : ''} w-full text-left border-collapse font-['Inter']">
                             <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#166534]">
                                 <tr class="bg-[#15803d] select-none text-white font-['Inter']">
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-left font-['Inter'] w-1/3">Subject</th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-left font-['Inter']">Teacher</th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">1st Quarter</th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-left font-['Inter']"><div class="student-grades-column-heading"><span>Teacher</span><button type="button" class="student-grades-column-next" title="Show quarterly and final grades" aria-label="Show quarterly and final grades"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div></th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><div class="student-grades-quarter-heading"><button type="button" class="student-grades-column-prev" title="Show subjects and teachers" aria-label="Show subjects and teachers"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span>1st Quarter</span></div></th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">2nd Quarter</th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">3rd Quarter</th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">4th Quarter</th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Overall</th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Final Grade</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-['Inter']">
@@ -3590,6 +3575,16 @@ if (overlay) overlay.classList.add('hidden');
                 });
 
             });
+
+            const summaryTable = layout.querySelector('.student-grades-summary-table');
+            const switchMobileColumns = showQuarters => {
+                window.studentGradesShowQuarters = showQuarters;
+                summaryTable?.classList.toggle('student-grades-show-quarters', showQuarters);
+                if (summaryTable?.parentElement) summaryTable.parentElement.scrollLeft = 0;
+                layout.querySelector(showQuarters ? '.student-grades-column-prev' : '.student-grades-column-next')?.focus({ preventScroll: true });
+            };
+            layout.querySelector('.student-grades-column-next')?.addEventListener('click', () => switchMobileColumns(true));
+            layout.querySelector('.student-grades-column-prev')?.addEventListener('click', () => switchMobileColumns(false));
 
 
 
@@ -7584,8 +7579,7 @@ if (overlay) overlay.classList.add('hidden');
                     <div class="flex items-center gap-2 min-w-0">
                         <button type="button" class="student-grades-modal-back" aria-label="Back" title="Back" onclick="window.closeStudentClassroomGradesModal()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                     <div class="min-w-0">
-                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">${escapeHtml(subjectName)}</h2>
-                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)}</p>
+                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Grades</h2>
                     </div>
                     </div>
                 </div>

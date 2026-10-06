@@ -1691,20 +1691,20 @@ table thead th:first-child,
 .sigma-th:first-child,
 .admin-table-striped thead th:first-child,
 .admin-table-striped th:first-child {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     border-left: none !important;
 }
 
 /* User Accounts Table: Right borderline strictly on Profile/Name column (3rd column) */
 #users-view thead th:nth-child(3),
 table:has(#userTableBody) thead th:nth-child(3) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 /* School Year table: Year End | Quarter, and Date End | Status */
 table:has(#schoolYearTableBody) thead th:nth-child(3),
 table:has(#schoolYearTableBody) thead th:nth-child(6) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 table tbody td,
@@ -3037,4 +3037,10 @@ input.bg-transparent:focus,
     #subject-global-footer button i {
         font-size: 13px !important;
     }
+}
+#subject-materials-quarter-pills,
+#subject-topics-quarter-pills {
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
 }

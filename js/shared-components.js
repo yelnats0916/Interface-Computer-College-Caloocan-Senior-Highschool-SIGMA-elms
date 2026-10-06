@@ -1779,7 +1779,6 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                         <p class="text-xs font-semibold leading-tight text-black truncate font-['Inter']" style="color: #000000 !important;">${opt.label}</p>
                         <p class="text-[10px] leading-tight truncate font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${opt.desc}</p>
                     </div>
-                    ${isActive ? '<i class="fa-solid fa-check text-xs text-[#15803d] shrink-0 ml-1" style="color: #15803d !important;"></i>' : ''}
                 </button>
             `;
         });
@@ -1790,7 +1789,11 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         const rect = triggerEl.getBoundingClientRect();
         popover.style.position = 'fixed';
         popover.style.top = `${rect.bottom + 6}px`;
-        popover.style.left = `${Math.max(10, Math.min(window.innerWidth - 290, rect.left - 100))}px`;
+        const panelWidth = popover.getBoundingClientRect().width;
+        popover.style.left = `${Math.max(10, Math.min(window.innerWidth - panelWidth - 10, rect.left - 100))}px`;
+        if (window.innerWidth < 768) {
+            popover.style.maxHeight = `${Math.max(0, window.innerHeight - rect.bottom - 16)}px`;
+        }
         popover.style.zIndex = '9999';
 
         popover.querySelectorAll('.gradebook-sort-option').forEach(btn => {
@@ -8254,16 +8257,28 @@ window.getSubjectActiveQuarters = function (subjectId, subjectData) {
             if (rawAdmin) {
                 const adminSubjects = JSON.parse(rawAdmin);
                 if (Array.isArray(adminSubjects)) {
-                    subj = adminSubjects.find(s => String(s.id) === String(subjectId) || String(s.code) === String(subjectId) || String(s.name || '').toLowerCase() === String(subjectId || '').toLowerCase());
+                    const clean = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+                    subj = adminSubjects.find(s => [s.id, s.code, s.name, s.title].some(value => value && clean(value) === clean(subjectId)));
                 }
             }
         } catch (e) { }
     }
 
+    if (!subj && typeof window.getAllSubjectsRaw === 'function') {
+        try {
+            const clean = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+            subj = window.getAllSubjectsRaw().find(s => [s.id, s.code, s.name, s.title].some(value => value && clean(value) === clean(subjectId)));
+        } catch (_) {}
+    }
+
     if (subj) {
         // 1. Explicit activeQuarters array
-        if (Array.isArray(subj.activeQuarters) && subj.activeQuarters.length > 0) {
-            const valid = subj.activeQuarters.map(q => String(q).toLowerCase()).filter(q => ['q1', 'q2', 'q3', 'q4'].includes(q));
+        const explicitQuarters = Array.isArray(subj.activeQuarters) && subj.activeQuarters.length ? subj.activeQuarters : subj.quarters;
+        if (Array.isArray(explicitQuarters) && explicitQuarters.length > 0) {
+            const valid = explicitQuarters.map(q => {
+                const match = String(q).trim().toLowerCase().match(/^(?:q)?([1-4])$/);
+                return match ? `q${match[1]}` : null;
+            }).filter(Boolean);
             if (valid.length > 0) {
                 const order = ['q1', 'q2', 'q3', 'q4'];
                 return order.filter(q => valid.includes(q));
@@ -8280,8 +8295,8 @@ window.getSubjectActiveQuarters = function (subjectId, subjectData) {
             if (hasSem2) return ['q3', 'q4'];
         }
         // 3. Explicit semester string
-        if (subj.semester) {
-            const semStr = String(subj.semester).toLowerCase();
+        if (subj.semester || subj.term) {
+            const semStr = String(subj.semester || subj.term).toLowerCase();
             const hasSem1 = semStr.includes('1') || semStr.includes('sem1') || semStr.includes('first');
             const hasSem2 = semStr.includes('2') || semStr.includes('sem2') || semStr.includes('second');
             const hasBoth = semStr.includes('both') || semStr.includes('full') || semStr.includes('year') || (hasSem1 && hasSem2);
@@ -8296,6 +8311,10 @@ window.getSubjectActiveQuarters = function (subjectId, subjectData) {
         return ['q3', 'q4'];
     }
     return ['q1', 'q2'];
+};
+
+window.getSubjectAvailableQuarters = function (subjectId, subjectData) {
+    return window.getSubjectActiveQuarters(subjectId, subjectData).map(q => Number(q.slice(1)));
 };
 
 window.rememberTopicQuarter = function (subjectId, quarterKey) {
@@ -16177,19 +16196,23 @@ window._getTeacherGradebookCached = function (force = false) {
     }
     let allScores = {};
     let allStatuses = {};
+    let hasPersistedScores = false;
+    let hasPersistedStatuses = false;
     try {
         const rawScores = localStorage.getItem('sigma-teacher-gradebook-scores-v2') || localStorage.getItem('sigma_gradebook_scores') || localStorage.getItem('gradebookScores');
+        hasPersistedScores = Boolean(rawScores);
         if (rawScores) allScores = JSON.parse(rawScores);
         const rawStatuses = localStorage.getItem('sigma-teacher-gradebook-statuses-v2') || localStorage.getItem('sigma_gradebook_statuses') || localStorage.getItem('gradebookStatuses');
+        hasPersistedStatuses = Boolean(rawStatuses);
         if (rawStatuses) allStatuses = JSON.parse(rawStatuses);
     } catch (e) { }
-    if (typeof gradebookScores !== 'undefined' && gradebookScores && typeof gradebookScores === 'object') {
+    if (!hasPersistedScores && typeof gradebookScores !== 'undefined' && gradebookScores && typeof gradebookScores === 'object') {
         for (const k of Object.keys(gradebookScores)) {
             if (!allScores[k]) allScores[k] = gradebookScores[k];
             else allScores[k] = Object.assign({}, allScores[k], gradebookScores[k]);
         }
     }
-    if (typeof gradebookStatuses !== 'undefined' && gradebookStatuses && typeof gradebookStatuses === 'object') {
+    if (!hasPersistedStatuses && typeof gradebookStatuses !== 'undefined' && gradebookStatuses && typeof gradebookStatuses === 'object') {
         for (const k of Object.keys(gradebookStatuses)) {
             if (!allStatuses[k]) allStatuses[k] = gradebookStatuses[k];
             else allStatuses[k] = Object.assign({}, allStatuses[k], gradebookStatuses[k]);
@@ -16235,12 +16258,37 @@ window.invalidateSigmaViewCaches = function () {
 })();
 
 let _scoreRefreshDebounceTimer = null;
+let _pendingExternalScoreRefresh = null;
+function isScoreRefreshBlocked() {
+    const active = document.activeElement;
+    const openForm = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .form-overlay, .sigma-modal-overlay'))
+        .some(dialog => dialog.getClientRects().length && dialog.querySelector('input, textarea, select, [contenteditable="true"]'));
+    return document.hidden || Boolean(
+        openForm ||
+        active?.matches?.('input, textarea, select, [contenteditable="true"]') ||
+        document.querySelector('.gb-open-score-editor, input.gb-open-score-counter, td.gb-row-active')
+    );
+}
+function retryPendingScoreRefresh() {
+    if (!_pendingExternalScoreRefresh || isScoreRefreshBlocked()) return;
+    const meta = _pendingExternalScoreRefresh;
+    _pendingExternalScoreRefresh = null;
+    window.refreshAllScorePanelsAndTables(meta, true);
+}
+document.addEventListener('focusout', () => setTimeout(retryPendingScoreRefresh, 0));
+document.addEventListener('click', () => setTimeout(retryPendingScoreRefresh, 0));
+document.addEventListener('visibilitychange', retryPendingScoreRefresh);
+window.addEventListener('focus', retryPendingScoreRefresh);
 window.refreshAllScorePanelsAndTables = function (meta, fromStorage = false) {
+    // Keep external changes queued until the tab is visible and editing has finished.
+    if (fromStorage) _pendingExternalScoreRefresh = meta || {};
     if (_scoreRefreshDebounceTimer) {
         clearTimeout(_scoreRefreshDebounceTimer);
     }
     _scoreRefreshDebounceTimer = setTimeout(() => {
         _scoreRefreshDebounceTimer = null;
+        if (fromStorage && isScoreRefreshBlocked()) return;
+        if (fromStorage) _pendingExternalScoreRefresh = null;
         try {
             // 1. Invalidate in-memory caches
             if (typeof window.invalidateTeacherGradebookCache === 'function') {
@@ -16311,6 +16359,9 @@ window.refreshAllScorePanelsAndTables = function (meta, fromStorage = false) {
                 if (typeof window.renderGradebookDetailView === 'function') {
                     try { window.renderGradebookDetailView(); } catch (_) { }
                 }
+                if (typeof window.renderAdminAnalyticsWorkspace === 'function') {
+                    try { window.renderAdminAnalyticsWorkspace(); } catch (_) { }
+                }
             }
 
             // 6. Auto-refresh Student Grades Table & Analytics Top Panels (student.html#grades)
@@ -16374,6 +16425,8 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
         if (!e || !e.key) return;
         const isScoreOrGradeKey = (
             e.key === 'sigma-assessment-scored-broadcast' ||
+            e.key === 'sigma-gradebook-subject-weights' ||
+            e.key === 'sigma-teacher-gradebook-weights' ||
             e.key === 'sigma-teacher-gradebook-scores-v2' ||
             e.key === 'sigma-teacher-gradebook-statuses-v2' ||
             e.key === 'sigma_gradebook_scores' ||
@@ -16397,6 +16450,9 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
             }
             window.refreshAllScorePanelsAndTables(meta, true);
         }
+    });
+    window.addEventListener('sigma-gradebook-weights-changed', function () {
+        window.refreshAllScorePanelsAndTables({ source: 'weights_changed' }, true);
     });
     window.addEventListener('focus', function () {
         if (!window.location.pathname.includes('student')) return;
@@ -17204,7 +17260,7 @@ window.syncSharedScoreAndStatus = function (params) {
     });
 
     const tableState = source === 'gradebook_table' ? (window.sigmaGradesState || {}) : {};
-    const section = String(tableState.selectedSubjectSection?.sectionName || tableState.selectedSection || params.section || window.currentTopicState?.selectedSection || '').trim();
+    const section = String(params.section || tableState.selectedSubjectSection?.sectionName || tableState.selectedSection || window.currentTopicState?.selectedSection || '').trim();
 
     // Look up section students to add any other alias
     const secStudents = (typeof window.getUnifiedSectionStudents === 'function' ? window.getUnifiedSectionStudents(section) : null)
@@ -17258,7 +17314,7 @@ window.syncSharedScoreAndStatus = function (params) {
     const subAliases = (typeof window.getUnifiedSubjectAliases === 'function' && subjectId) ? window.getUnifiedSubjectAliases(subjectId) : [subjectId];
 
     // 3. Resolve quarter
-    const quarter = Number(tableState.activeQuarter || params.quarter || window.currentTopicState?.quarter || 1);
+    const quarter = Number(params.quarter || tableState.activeQuarter || window.currentTopicState?.quarter || 1);
     const qKeys = Array.from(new Set([quarter, `Q${quarter}`, `q${quarter}`, String(quarter)])).filter(Boolean);
 
     // 4. Resolve section keys (clean, raw, and unsectioned root)
@@ -17270,6 +17326,18 @@ window.syncSharedScoreAndStatus = function (params) {
         cleanSec ? ('sec:' + cleanSec.replace(/\s+/g, '_')) : '',
         cleanSec ? ('sec:' + cleanSec.replace(/\s+/g, '-')) : ''
     ].filter(Boolean)));
+    if (section && typeof window.submissionSectionKey === 'function') {
+        const wantSection = window.submissionSectionKey(section);
+        for (const data of [gradebookScores, gradebookStatuses]) {
+            for (const sb of subAliases) {
+                for (const qk of qKeys) {
+                    for (const key of Object.keys(data[sb]?.[qk] || {})) {
+                        if (key.startsWith('sec:') && window.submissionSectionKey(key.slice(4)) === wantSection && !secKeys.includes(key)) secKeys.push(key);
+                    }
+                }
+            }
+        }
+    }
 
     // 5. Resolve category & item index
     const category = String(params.category || 'assignment').trim().toLowerCase();
@@ -17536,8 +17604,10 @@ window.syncSharedScoreAndStatus = function (params) {
             const matKey = itemId ? `${cleanSubj}_sec_${cleanSec}_mat_${itemId.toLowerCase()}` : '';
             const topKey = `${cleanSubj}_sec_${cleanSec}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
             const unsecTopKey = `${cleanSubj}_top_${topicIdx}_${tabKey}_${topicItemIdx}`;
-            const legacyKeys = [unsecTopKey, itemId, taskTitle].filter(key => key && allSubs[sk][key]?.section === section);
-            const targetKeys = Array.from(new Set([matKey, topKey, ...legacyKeys].filter(Boolean)));
+            const matchesQuarter = row => !row?.quarter || Number(String(row.quarter).replace(/\D/g, '')) === quarter;
+            const scopedKey = key => key && allSubs[sk][key] && !matchesQuarter(allSubs[sk][key]) ? `${key}_q${quarter}` : key;
+            const legacyKeys = [unsecTopKey, itemId, taskTitle].filter(key => key && allSubs[sk][key]?.section === section && matchesQuarter(allSubs[sk][key]));
+            const targetKeys = Array.from(new Set([scopedKey(matKey), scopedKey(topKey), ...legacyKeys].filter(Boolean)));
 
             targetKeys.forEach(tKey => {
                 if (!allSubs[sk][tKey]) allSubs[sk][tKey] = {};
@@ -17559,6 +17629,8 @@ window.syncSharedScoreAndStatus = function (params) {
                 target.section = section;
                 target.subjectId = subjectId;
                 target.quarter = quarter;
+                target.category = canonicalCategory;
+                target.maxScore = maxScore;
                 target.topicIdx = topicIdx;
                 target.topicItemIdx = topicItemIdx;
                 if (taskTitle) target.title = taskTitle;
@@ -17646,6 +17718,7 @@ window.syncSharedScoreAndStatus = function (params) {
                     if (raw) existingSub = JSON.parse(raw);
                 } catch (_) {}
                 if (existingSub.section && existingSub.section !== section) return;
+                if (existingSub.quarter && Number(String(existingSub.quarter).replace(/\D/g, '')) !== quarter) return;
                 existingSub.section = section;
                 existingSub.subjectId = subjectId;
                 existingSub.quarter = quarter;
@@ -19079,7 +19152,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         const fIdx = categoryItemList.findIndex(it => {
             const itId = String(it.id || it.origId || it.quizId || '').trim().toLowerCase();
             const itTitle = String(it.title || it.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-            if (itemIdStr && itId && itemIdStr === itId) return true;
+            if (itemIdStr && itId) return itemIdStr === itId;
             if (cleanItemTitle && itTitle && cleanItemTitle === itTitle) return true;
             return false;
         });
@@ -19248,6 +19321,10 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
                 if (resolvedCol.category && !catKeys.includes(resolvedCol.category)) catKeys.push(resolvedCol.category);
                 if (resolvedCol.itemIdx !== undefined && resolvedCol.itemIdx !== null && !idxKeys.includes(Number(resolvedCol.itemIdx))) {
                     idxKeys.push(Number(resolvedCol.itemIdx));
+                }
+                // Topic-local and display indices can belong to a different assessment.
+                if (Number.isFinite(Number(resolvedCol.itemIdx))) {
+                    idxKeys.splice(0, idxKeys.length, Number(resolvedCol.itemIdx));
                 }
             }
         } catch (_) {}
@@ -19437,9 +19514,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
 
 
     // Direct in-memory / storage fallback for gradebookStatuses (works in both teacher and student views)
-    const statusesSource = (typeof gradebookStatuses !== 'undefined' && gradebookStatuses && Object.keys(gradebookStatuses).length)
-        ? gradebookStatuses
-        : (allStatuses && Object.keys(allStatuses).length ? allStatuses : null);
+    const statusesSource = allStatuses || null;
     if (!savedStatus && statusesSource && typeof statusesSource === 'object') {
         for (const sb of subKeys) {
             for (const qk of qKeys) {
@@ -20502,6 +20577,8 @@ window.openGradebookScoreEditor = function (cell) {
         data-category="${esc(cell.dataset.category)}"
         data-item-idx="${esc(cell.dataset.itemIdx)}"
         data-subject="${esc(cell.dataset.subject)}"
+        data-section="${esc(cell.dataset.section)}"
+        data-quarter="${esc(cell.dataset.quarter)}"
         data-topic-idx="${esc(cell.dataset.topicIdx)}"
         data-topic-item-idx="${esc(cell.dataset.topicItemIdx)}"
         data-item-id="${esc(cell.dataset.itemId)}"
@@ -20666,8 +20743,8 @@ window.applyOpenGradebookStatus = function (btn) {
     const itemId = (input && input.dataset.itemId) || cell.dataset.itemId || '';
     const taskTitle = (input && input.dataset.taskTitle) || cell.dataset.taskTitle || '';
     const subjectId = (input && input.dataset.subject) || cell.dataset.subject || (typeof gradebookState !== 'undefined' && gradebookState.selectedSubject) || '';
-    const section = (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection) || '';
-    const quarter = (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1;
+    const section = cell.dataset.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection) || '';
+    const quarter = Number(cell.dataset.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1);
 
     // Shared sync across all storage locations and live DOM (Score panel, Gradebook table, Analytics)
     if (typeof window.syncSharedScoreAndStatus === 'function') {
@@ -20815,10 +20892,10 @@ window.persistGradebookScorePanelRecord = function (input) {
     const category = String(input.dataset.category || '').trim();
     const itemIdx = Number(input.dataset.itemIdx);
     const subjectId = String(input.dataset.subject || (typeof gradebookState !== 'undefined' && gradebookState.selectedSubject) || '').trim();
-    const section = (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection)
+    const section = input.dataset.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection)
         || (typeof currentTopicState !== 'undefined' && currentTopicState?.selectedSection)
         || '';
-    const quarter = (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1;
+    const quarter = Number(input.dataset.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1);
     const raw = String(input.value ?? '').trim();
     const cleared = raw === '' || raw === '-';
     const score = cleared ? '' : Number(raw);
@@ -21012,8 +21089,8 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
             topicIdx: topicIdx,
             topicItemIdx: topicItemIdx,
             subjectId: input.dataset.subject || (cell && cell.dataset.subject) || (typeof gradebookState !== 'undefined' && gradebookState.selectedSubject) || '',
-            section: (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection) || '',
-            quarter: (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1,
+            section: input.dataset.section || cell?.dataset.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || (typeof gradebookState !== 'undefined' && gradebookState?.selectedSection) || '',
+            quarter: Number(input.dataset.quarter || cell?.dataset.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) || 1),
             score: input.value,
             status: applyAttendance,
             maxScore: itemMax,
@@ -32606,6 +32683,25 @@ window.saveSubjectGradebookWeights = function (subjectName, weights) {
         localStorage.setItem('sigma-teacher-gradebook-weights', JSON.stringify(legacyObj));
     } catch (e) {}
 
+    // Keep the admin subject editor's stored weights in sync with the gradebook.
+    if (String(window.location?.pathname || '').toLowerCase().includes('admin')) {
+        try {
+            const subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+            const keys = new Set(window.getGradebookSubjectWeightKeys(sStr).map(key => String(key).toLowerCase()));
+            const preset = window.getDepEdWeightPresets().find(item =>
+                ['ww', 'pt', 'qa'].every(key => Number(item[key]) === safeWeights[key]));
+            let changed = false;
+            if (Array.isArray(subjects)) {
+                subjects.forEach(subject => {
+                    if (![subject.id, subject.code, subject.name, subject.title].some(value => value && keys.has(String(value).toLowerCase()))) return;
+                    subject.weights = { ...safeWeights, ...(preset ? { preset: preset.id } : {}) };
+                    changed = true;
+                });
+                if (changed) localStorage.setItem('sigma-admin-subjects', JSON.stringify(subjects));
+            }
+        } catch (e) {}
+    }
+
     // 3. Dispatch event for real-time synchronization
     try {
         if (typeof window.dispatchEvent === 'function') {
@@ -35697,4 +35793,3 @@ window.flushTeacherReleaseToastQueue = function () {
         }, idx * 220);
     });
 };
-

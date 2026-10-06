@@ -6,6 +6,28 @@
 (function (global) {
     "use strict";
 
+    let attendanceLayoutObserver = null;
+    let attendanceLayoutFrame = null;
+    global.observeAttendanceLayout = function (slider, align) {
+        attendanceLayoutObserver?.disconnect();
+        if (attendanceLayoutFrame !== null) cancelAnimationFrame(attendanceLayoutFrame);
+        if (!slider || typeof ResizeObserver === 'undefined') return;
+        const headers = [slider, ...slider.querySelectorAll('thead th.student-name-col, thead th.attendance-summary-th')];
+        const dimensions = () => headers.map(el => el.getBoundingClientRect().width).join(':');
+        let previous = dimensions();
+        attendanceLayoutObserver = new ResizeObserver(() => {
+            const current = dimensions();
+            if (current === previous) return;
+            previous = current;
+            if (attendanceLayoutFrame !== null) cancelAnimationFrame(attendanceLayoutFrame);
+            attendanceLayoutFrame = requestAnimationFrame(() => {
+                attendanceLayoutFrame = null;
+                if (slider.isConnected && slider.getClientRects().length) align();
+            });
+        });
+        headers.forEach(el => attendanceLayoutObserver.observe(el));
+    };
+
     const getStoredJson = (typeof window !== 'undefined' && typeof window.getStoredJson === 'function')
         ? window.getStoredJson
         : function (key, fallback) {
@@ -2299,7 +2321,8 @@
         const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
         if (!dayTh) return;
 
-        const lastStickyTh = slider.querySelector('thead th.attendance-summary-th--l') || slider.querySelector('thead th.student-name-col');
+        const summaryTh = slider.querySelector('thead th.attendance-summary-th--l');
+        const lastStickyTh = summaryTh?.getClientRects().length ? summaryTh : slider.querySelector('thead th.student-name-col');
         if (!lastStickyTh) return;
 
         const dayRect = dayTh.getBoundingClientRect();
@@ -2679,6 +2702,10 @@
 
         initAttendanceDragScroll();
         updateAttendanceMobileSummaryWidth();
+        global.observeAttendanceLayout(slider, () => {
+            const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol : (isCurrentMonth ? todayDay : null);
+            if (day !== null) slideToBesideStudentCol(slider, day, false);
+        });
     }
     window.renderClassroomAttendanceTab = renderClassroomAttendanceTab;
     window.findAttendanceClassroomRecord = findAttendanceClassroomRecord;
@@ -3665,15 +3692,22 @@
         return realSubmissions;
     };
 
+    let attendanceResizeTimer = null;
     window.addEventListener('resize', () => {
-        updateAttendanceMobileSummaryWidth();
-        if (expandedAttendanceCol !== -1) {
+        if (document.getElementById('teacher-header')) return;
+        clearTimeout(attendanceResizeTimer);
+        attendanceResizeTimer = setTimeout(() => requestAnimationFrame(() => {
+            updateAttendanceMobileSummaryWidth();
             const container = document.getElementById('detail-section-attendance');
             const slider = container ? container.querySelector('.attendance-grid-container') : null;
-            if (slider) {
-                slideToBesideStudentCol(slider, expandedAttendanceCol, false);
+            if (!slider || !slider.getClientRects().length) return;
+            const now = new Date();
+            const currentMonth = attendanceViewingMonth === now.getMonth() && attendanceViewingYear === now.getFullYear();
+            const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol : (currentMonth ? now.getDate() : null);
+            if (day !== null) {
+                slideToBesideStudentCol(slider, day, false);
             }
-        }
+        }), 120);
     });
 
     window.addEventListener('storage', (e) => {
@@ -3696,5 +3730,3 @@
     });
 
 })(typeof window !== "undefined" ? window : this);
-
-

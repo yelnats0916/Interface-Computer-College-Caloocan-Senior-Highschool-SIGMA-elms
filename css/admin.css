@@ -14,7 +14,7 @@ body #users-view table:has(#userTableBody) thead th:not(:last-child) {
 /* Keep the account Role and Status body columns visibly separated. */
 body #userTableBody > tr > td:nth-child(5) {
     border-left: none !important;
-    border-right: 1px solid #e2e8f0 !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 body #userTableBody > tr > td:nth-child(6) {
@@ -137,7 +137,7 @@ table:not(.attendance-month-table) th:first-child,
 #school-year-view thead th:first-child,
 #school-sections-view thead th:first-child,
 #school-subjects-view thead th:first-child {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
     border-left: none !important;
 }
 
@@ -146,7 +146,7 @@ table:not(.attendance-month-table) th:first-child,
 #school-sections-view thead th:nth-child(6),
 table:has(#sectionTableBody) thead th:nth-child(4),
 table:has(#sectionTableBody) thead th:nth-child(6) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 #school-sections-view tbody td:nth-child(4),
@@ -159,7 +159,7 @@ table:has(#sectionTableBody) thead th:nth-child(6) {
 /* Subjects table: line between Subject and Type */
 #school-subjects-view thead th:nth-child(3),
 table:has(#subjectTableBody) thead th:nth-child(3) {
-    border-right: 1px solid #166534 !important;
+    border-right: 1px solid #137638 !important;
 }
 
 #school-subjects-view tbody td:nth-child(3),
@@ -1959,6 +1959,55 @@ input#curriculum-scope-search-input::placeholder {
 }
 
 /* Admin Grades Header Panel & Subject Picker Dropdown */
+@media (min-width: 769px) {
+    #school-grades-view #admin-teacher-modal-list .sigma-selected-teacher-row > .absolute {
+        display: none !important;
+    }
+
+    #school-grades-view #admin-teacher-modal-list .sigma-selected-teacher-row > .flex {
+        padding-left: 0 !important;
+    }
+
+    #admin-classroom-grades-modal-overlay .admin-room-grades-original-title,
+    #admin-classroom-grades-modal-overlay .admin-room-grades-subtitle {
+        display: none !important;
+    }
+
+    #admin-classroom-grades-modal-overlay .admin-room-grades-desktop-title {
+        display: inline !important;
+    }
+
+    #admin-classroom-grades-modal-overlay table {
+        table-layout: fixed;
+        --admin-grades-header-divider: #137638;
+        --admin-grades-body-divider: rgba(0, 0, 0, 0.08);
+    }
+
+    #admin-classroom-grades-modal-overlay th:first-child {
+        width: 32%;
+    }
+
+    #admin-classroom-grades-modal-overlay tbody td:first-child {
+        border-right: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    #admin-classroom-grades-modal-overlay tbody tr {
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    #school-grades-view table th,
+    #classroom-detail-view table th {
+        border-left-color: #137638 !important;
+        border-right-color: #137638 !important;
+    }
+
+    #school-grades-view table td,
+    #classroom-detail-view table td {
+        border-left-color: rgba(0, 0, 0, 0.08) !important;
+        border-right-color: rgba(0, 0, 0, 0.08) !important;
+    }
+}
+
 #admin-grades-shared-navbar {
     position: relative !important;
     z-index: 60 !important;
@@ -2021,6 +2070,166 @@ input#curriculum-scope-search-input::placeholder {
     display: none !important;
 }
 
+.reports-page {
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    padding: 24px;
+    box-sizing: border-box;
+    background: #ffffff;
+}
 
+.reports-page-header {
+    padding-bottom: 24px;
+}
 
+.reports-page-content .bg-slate-50 {
+    background: #ffffff;
+    border-radius: 8px;
+}
 
+.attendance-report-filters {
+    flex-wrap: wrap;
+}
+
+.attendance-report-table {
+    background: #ffffff;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.attendance-report-table table {
+    min-width: 640px;
+}
+
+@media (max-width: 767px) {
+    .reports-page {
+        padding: 16px;
+    }
+
+    .reports-page-content .grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.audit-log-layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    background: var(--admin-bg, #f8fafc);
+}
+
+.audit-log-sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding: 2rem 1.5rem;
+    box-sizing: border-box;
+}
+
+.audit-log-layout > .audit-log-sidebar + div {
+    grid-column: 2;
+    grid-row: 1;
+    background: var(--admin-bg, #f8fafc);
+    min-width: 0;
+    padding: 24px;
+}
+
+.audit-log-layout > .audit-log-sidebar + div > .overflow-x-auto {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow-x: auto;
+}
+
+.audit-log-layout table {
+    min-width: 680px;
+}
+
+.audit-log-layout th {
+    padding: 14px 20px;
+}
+
+.audit-log-layout td {
+    padding: 18px 20px;
+}
+
+.audit-log-tab {
+    width: 100%;
+    min-height: 50px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.audit-log-tab:hover {
+    background: #f8fafc;
+}
+
+.audit-log-tab.active {
+    background: #FFD000;
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(255, 208, 0, 0.22);
+}
+
+.audit-log-tab i {
+    width: 18px;
+    text-align: center;
+    color: currentColor;
+}
+
+@media (max-width: 1023px) {
+    .audit-log-layout {
+        display: block;
+        background: var(--admin-bg, #f8fafc);
+    }
+
+    .audit-log-sidebar {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid #e5e7eb;
+        grid-column: auto;
+        grid-row: auto;
+        padding: 18px 16px;
+    }
+
+    .audit-log-layout > .audit-log-sidebar + div {
+        padding: 12px;
+    }
+
+    .audit-log-sidebar nav {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+
+    .audit-log-sidebar nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .audit-log-tab {
+        width: auto;
+        min-width: max-content;
+        min-height: 42px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+}

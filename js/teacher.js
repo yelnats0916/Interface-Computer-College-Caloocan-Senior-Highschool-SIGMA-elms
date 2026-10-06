@@ -703,7 +703,7 @@ function initTeacherPortal() {
             syncInline();
             const isGradesSectionVisible = !document.getElementById('section-grades')?.classList.contains('hidden');
             if (!isGradesSectionVisible) {
-                const returnTab = window._gradebookReturnPending ? (activeTab || 'gradebook') : 'analytics';
+                const returnTab = window._gradebookReturnPending ? (activeTab || 'gradebook') : 'gradebook';
                 openGradesTab(returnTab);
             }
         }, true);
@@ -3054,6 +3054,10 @@ function initTeacherPortal() {
 
         initAttendanceDragScroll();
         updateAttendanceMobileSummaryWidth();
+        window.observeAttendanceLayout?.(slider, () => {
+            const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol : (isCurrentMonth ? todayDay : null);
+            if (day !== null) slideToBesideStudentCol(slider, day, false);
+        });
     }
 
     function updateAttendanceMobileSummaryWidth() {
@@ -3126,7 +3130,8 @@ function initTeacherPortal() {
         const dayTh = slider.querySelector(`thead th.day-col[data-day="${day}"]`);
         if (!dayTh) return;
 
-        const lastStickyTh = slider.querySelector('thead th.attendance-summary-th--l') || slider.querySelector('thead th.student-name-col');
+        const summaryTh = slider.querySelector('thead th.attendance-summary-th--l');
+        const lastStickyTh = summaryTh?.getClientRects().length ? summaryTh : slider.querySelector('thead th.student-name-col');
         if (!lastStickyTh) return;
 
         const dayRect = dayTh.getBoundingClientRect();
@@ -3185,15 +3190,21 @@ function initTeacherPortal() {
         }
     }
 
+    let attendanceResizeTimer = null;
     window.addEventListener('resize', () => {
-        updateAttendanceMobileSummaryWidth();
-        if (expandedAttendanceCol !== -1) {
+        clearTimeout(attendanceResizeTimer);
+        attendanceResizeTimer = setTimeout(() => requestAnimationFrame(() => {
+            updateAttendanceMobileSummaryWidth();
             const container = document.getElementById('detail-section-attendance');
             const slider = container ? container.querySelector('.attendance-grid-container') : null;
-            if (slider) {
-                slideToBesideStudentCol(slider, expandedAttendanceCol, false);
+            if (!slider || !slider.getClientRects().length) return;
+            const now = new Date();
+            const currentMonth = attendanceViewingMonth === now.getMonth() && attendanceViewingYear === now.getFullYear();
+            const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol : (currentMonth ? now.getDate() : null);
+            if (day !== null) {
+                slideToBesideStudentCol(slider, day, false);
             }
-        }
+        }), 120);
     });
 
     function initAttendanceDragScroll() {
@@ -18924,7 +18935,7 @@ function initTeacherPortal() {
                 explicitTab: gradesExplicitTab,
                 hashWantsGradebook: String(window.location.hash || '').includes('gradebook')
             })
-            : { targetTab: gradesExplicitTab || 'analytics' };
+            : { targetTab: gradesExplicitTab || 'gradebook' };
         if (!enteringGrades && typeof window.resetTeacherGradesSidebarState === 'function') {
             window.resetTeacherGradesSidebarState();
         }
@@ -19039,7 +19050,7 @@ function initTeacherPortal() {
         // Grades tab (Workstation & Analytics)
         if (navId === 'nav-grades') {
             document.getElementById('nav-grades')?.classList.add('active');
-            const targetSubTab = gradesNav.targetTab || gradesExplicitTab || 'analytics';
+            const targetSubTab = gradesNav.targetTab || gradesExplicitTab || 'gradebook';
             if (window.sigmaGradesState) window.sigmaGradesState.activeTab = targetSubTab;
             const gradesOpts = {
                 tab: targetSubTab,
@@ -19321,11 +19332,11 @@ function initTeacherPortal() {
 
         if (hash.startsWith('#grades') || hash === '#gradebooks' || hash === '#gradebook' || hash === '#analytics') {
             const savedState = (typeof window.loadSigmaGradesState === 'function') ? window.loadSigmaGradesState(true) : null;
-            let targetTab = 'analytics';
+            let targetTab = savedState?.activeTab || 'gradebook';
             if (hash.includes('gradebook') || hash === '#gradebooks' || hash === '#gradebook') {
                 targetTab = 'gradebook';
-            } else if (window._gradebookReturnPending && savedState?.activeTab === 'gradebook') {
-                targetTab = 'gradebook';
+            } else if (hash.includes('analytics')) {
+                targetTab = 'analytics';
             }
             switchTab('nav-grades', false, targetTab);
             return;
@@ -19532,11 +19543,11 @@ function initTeacherPortal() {
 
         if (hash.startsWith('#grades') || hash === '#gradebooks' || hash === '#gradebook' || hash === '#analytics') {
             const savedState = (typeof window.loadSigmaGradesState === 'function') ? window.loadSigmaGradesState(true) : null;
-            let targetTab = 'analytics';
+            let targetTab = savedState?.activeTab || 'gradebook';
             if (hash.includes('gradebook') || hash === '#gradebooks' || hash === '#gradebook') {
                 targetTab = 'gradebook';
-            } else if (window._gradebookReturnPending && savedState?.activeTab === 'gradebook') {
-                targetTab = 'gradebook';
+            } else if (hash.includes('analytics')) {
+                targetTab = 'analytics';
             }
             switchTab('nav-grades', false, targetTab);
             return;
@@ -21139,8 +21150,7 @@ function initTeacherPortal() {
                     <div class="flex items-center gap-2 min-w-0">
                         <button type="button" class="teacher-grades-modal-back" aria-label="Back" title="Back" onclick="window.closeTeacherClassroomGradesModal()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                         <div class="min-w-0">
-                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">${escapeHtml(subjectName)}</h2>
-                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5 truncate" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sectionName)} (${studentRows.length} ${studentRows.length === 1 ? 'student' : 'students'})</p>
+                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Grades</h2>
                         </div>
                     </div>
                 </div>
@@ -23956,6 +23966,10 @@ function initTeacherPortal() {
 
         // Evaluate quarters from subject object if found
         if (subject) {
+            if (typeof window.getSubjectActiveQuarters === 'function' &&
+                (subject.activeQuarters?.length || subject.quarters?.length || subject.activeSemesters?.length || subject.semesters?.length || subject.semester || subject.term)) {
+                return window.getSubjectActiveQuarters(subjectNameOrId, subject).map(q => Number(q.slice(1)));
+            }
             // A. Explicit activeQuarters property (e.g. ['q1', 'q2'] or [1, 2])
             if (Array.isArray(subject.activeQuarters) && subject.activeQuarters.length > 0) {
                 const parsed = subject.activeQuarters.map(q => {

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Four Quarter Controls Test</title>
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/sigma-analytics.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <main class="sigma-grades-page">
+        <div id="admin-grades-shared-navbar" class="flex items-center gap-4 px-10">
+            <div class="flex items-center gap-3">
+                <div id="admin-grades-subject-section-dropdown-wrapper">
+                    <button id="admin-grades-subject-picker-btn" class="border rounded-lg text-left">
+                        <span id="admin-grades-subject-picker-label" class="flex flex-col">
+                            <div class="flex items-center"><span class="truncate font-bold">Computer Programming 1</span><span class="shrink-0 bg-yellow-400">ADVISER</span></div>
+                            <span>Grade 11 - Rizal</span>
+                        </span>
+                    </button>
+                </div>
+                <div id="admin-grades-quarters-wrapper" data-quarter-count="4">
+                    <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                        <button class="bg-white rounded-lg px-3.5 py-1.5">1st Quarter</button>
+                        <button class="rounded-lg px-3.5 py-1.5">2nd Quarter</button>
+                        <button class="rounded-lg px-3.5 py-1.5">3rd Quarter</button>
+                        <button class="rounded-lg px-3.5 py-1.5">4th Quarter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

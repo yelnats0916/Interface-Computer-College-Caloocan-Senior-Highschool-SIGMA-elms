@@ -2089,6 +2089,21 @@
             window.subjectEditorOptions = null;
         }
         const overlay = window.ensureSubjectEditOverlay();
+        if (show && typeof window.getDepEdWeightPresets === 'function') {
+            const select = document.getElementById('edit-subject-weights');
+            if (select) {
+                const previousValue = select.value;
+                const options = window.getDepEdWeightPresets().map(preset => {
+                    const option = document.createElement('option');
+                    option.value = preset.id;
+                    option.textContent = `${preset.label} - WW ${preset.ww}% / PT ${preset.pt}% / QA ${preset.qa}%`;
+                    ['ww', 'pt', 'qa'].forEach(key => { option.dataset[key] = String(preset[key]); });
+                    return option;
+                });
+                select.replaceChildren(...options);
+                if (options.some(option => option.value === previousValue)) select.value = previousValue;
+            }
+        }
         const isTeacherEditor = typeof isCurrentEditorTeacher === 'function' ? isCurrentEditorTeacher() : false;
         const isContentFocus = window.subjectEditorOptions?.focus === 'content';
         const isStandalone = Boolean(window.subjectEditorOptions?.standalone);
@@ -2171,7 +2186,7 @@
 
                 const weightsInput = document.getElementById('edit-subject-weights');
                 if (weightsInput) {
-                    const existingW = subjectData.weights || (typeof window.getSubjectGradebookWeights === 'function' ? window.getSubjectGradebookWeights(subjectData.name || subjectData.code) : null);
+                    const existingW = (typeof window.getSubjectGradebookWeights === 'function' ? window.getSubjectGradebookWeights(subjectData.name || subjectData.code) : null) || subjectData.weights;
                     let matchedPreset = existingW?.preset;
                     if (!matchedPreset && existingW) {
                         const ww = Number(existingW.ww);
@@ -2193,8 +2208,8 @@
                     }
                 }
 
-                const activeQuarters = (Array.isArray(subjectData.activeQuarters) && subjectData.activeQuarters.length > 0)
-                    ? subjectData.activeQuarters
+                const activeQuarters = typeof window.getSubjectActiveQuarters === 'function'
+                    ? window.getSubjectActiveQuarters(subjectData.id || subjectData.name, subjectData)
                     : ['q1', 'q2'];
                 
                 const hasSem1 = activeQuarters.includes('q1') || activeQuarters.includes('q2');
@@ -3845,8 +3860,8 @@
         const isViewOnlyScope = isCurrentViewOnlyScope();
         const topicScopeContainer = document.getElementById('subject-topic-scope-container');
         if (topicScopeContainer) {
-            // Hide on Create Subject, for Teachers, or in Standalone mode; show only when Editing an existing subject as Admin
-            if (isTeacher || isStandalone || !isEdit) {
+            // Admins can inspect scopes while editing an existing subject, including the standalone content form.
+            if (isTeacher || !isEdit) {
                 topicScopeContainer.classList.add('hidden');
             } else {
                 topicScopeContainer.classList.remove('hidden');
@@ -5999,8 +6014,8 @@ window.addSubjectTopic = function () {
         const isViewOnlyScope = isCurrentViewOnlyScope();
         const matScopeContainer = document.getElementById('subject-material-scope-container');
         if (matScopeContainer) {
-            // Hide on Create Subject, for Teachers, or in Standalone mode; show only when Editing an existing subject as Admin
-            if (isTeacher || isStandalone || !isEdit) {
+            // Admins can inspect scopes while editing an existing subject, including the standalone content form.
+            if (isTeacher || !isEdit) {
                 matScopeContainer.classList.add('hidden');
             } else {
                 matScopeContainer.classList.remove('hidden');
