@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attendance Export Layout Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link id="portal-css" rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="../css/forms.css">
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css?v=20261007attendanceScroll47">
+    <link rel="stylesheet" href="../css/classroom-room.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <div hidden><button id="shared-exit-reference" type="button" class="fixed top-10 right-10 w-12 h-12 rounded-full hover:bg-slate-200 flex items-center justify-center text-black transition-all"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+    <button id="open-export" type="button">Open Attendance Export</button>
+    <script>
+        (async () => {
+            const teacher = new URLSearchParams(location.search).get('portal') === 'teacher';
+            document.getElementById('portal-css').href = teacher ? '../css/teacher.css' : '../css/admin.css';
+            const source = await (await fetch(teacher ? '../js/teacher.js' : '../js/classroom-room.js')).text();
+            const start = source.indexOf('    window.openAttendanceExportModal = function () {');
+            const end = source.indexOf('\n    };', start) + '\n    };'.length;
+            new Function('attendanceViewingMonth', 'attendanceViewingYear', 'currentClassroomKey', source.slice(start, end))(9, 2026, 'Rizal::Computer Programming 1');
+            window.closeAttendanceExportModal = () => {
+                document.getElementById('attendance-export-modal')?.remove();
+                document.documentElement.classList.remove('has-modal-open');
+            };
+            window.updateAttendanceExportOptionUI = () => {};
+            document.getElementById('open-export').onclick = window.openAttendanceExportModal;
+            window.openAttendanceExportModal();
+        })();
+    </script>
+</body>
+</html>

@@ -17,7 +17,9 @@ const summary = summarizeScores([
 assert.match(summary.text, /Programming: \+10 percentage points/);
 assert.match(summary.text, /Communication: -10 percentage points/);
 assert.match(summary.text, /Communication has your lowest assessment average \(45%\)/);
-assert.match(summary.text, /Next step:.*Quiz \(40%\)/);
+assert.match(summary.text, /\*\*Try:\*\* .*Quiz \(40%\)/);
+assert.match(renderBody(summary.text, 'https://example.com/student.html'), /<strong>Try:<\/strong> Review/);
+assert.match(renderBody(summary.text, 'https://example.com/student.html'), /<br><br>/);
 assert.match(summarizeScores([score('a', 'A', 0)]).text, /average in A is 0%/);
 assert.match(summarizeScores([score('a', 'A', 10), score('a', 'A', 12)]).text, /More dated/);
 assert.match(renderBody(summarizeScores([score('a', '<script>', 10)]).text,

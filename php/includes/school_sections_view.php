@@ -397,7 +397,6 @@
                                 </div>
                                 <button type="button" id="section-assign-subject-header-btn" onclick="window.openSectionSubpage('subject')"
                                     class="inline-flex items-center gap-2 text-sm font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer">
-                                    <i class="fa-solid fa-book-medical text-xs"></i>
                                     <span id="section-assign-subject-btn-text">Assign Subject</span>
                                 </button>
                             </div>
@@ -419,7 +418,6 @@
                                 </div>
                                 <button type="button" id="section-assign-schedule-header-btn" onclick="window.openSectionSubpage('schedule')"
                                     class="inline-flex items-center gap-2 text-sm font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer">
-                                    <i class="fa-solid fa-calendar-days text-xs"></i>
                                     <span id="section-assign-schedule-btn-text">Assign Schedule</span>
                                 </button>
                             </div>
@@ -435,12 +433,12 @@
                                     <div class="flex items-center gap-2.5">
                                         <span id="section-teacher-step-num" class="w-5 h-5 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center font-['Inter'] transition-colors">3</span>
                                         <h3 id="section-teacher-title" class="text-xl font-bold text-black font-['Inter'] transition-colors">Teachers</h3>
+                                        <span id="section-assigned-teachers-count" class="text-xs font-semibold" style="color: rgba(0,0,0,0.45);"></span>
                                     </div>
                                     <p id="section-teacher-subtitle" class="text-xs font-normal mt-0.5" style="color: rgba(0,0,0,0.45);">Assign instructor with schedule conflict check</p>
                                 </div>
                                 <button type="button" id="section-assign-teacher-header-btn" onclick="window.openSectionSubpage('teacher')"
                                     class="inline-flex items-center gap-2 text-sm font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer">
-                                    <i class="fa-solid fa-user-plus text-xs"></i>
                                     <span id="section-assign-teacher-btn-text">Assign Teacher</span>
                                 </button>
                             </div>
@@ -462,7 +460,6 @@
                                 </div>
                                 <button type="button" id="section-assign-students-header-btn" onclick="window.openSectionSubpage('students')"
                                     class="inline-flex items-center gap-2 text-sm font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer">
-                                    <i class="fa-solid fa-user-plus text-xs"></i>
                                     <span id="section-assign-students-btn-text">Assign Students</span>
                                 </button>
                             </div>

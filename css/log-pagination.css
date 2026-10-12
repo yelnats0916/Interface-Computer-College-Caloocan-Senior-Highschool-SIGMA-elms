@@ -1,0 +1,16 @@
+.sigma-log-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 24px; color: #111; }
+.sigma-log-pagination[hidden] { display: none !important; }
+.sigma-audit-table tbody tr[hidden] { display: none !important; }
+.sigma-log-page-count { display: inline-flex; align-items: center; margin: 0; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.sigma-log-page-controls { display: flex; align-items: center; gap: 6px; }
+.sigma-log-page-controls button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; box-sizing: border-box; border: 1px solid #d5dce2; border-radius: 50%; color: #111; background: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
+.sigma-log-page-controls button:not([aria-current=page]):hover:not(:disabled) { background: #f1f5f9; }
+.sigma-log-page-controls button:disabled { opacity: .45; cursor: default; }
+.sigma-log-page-controls button[aria-current=page], .sigma-log-page-controls button[aria-current=page]:hover { opacity: 1; color: #fff; background: #15803d; border-color: #15803d; }
+.sigma-log-page-controls button:focus-visible { outline: 2px solid #15803d !important; outline-offset: 2px; }
+@media (max-width: 600px) {
+    .sigma-log-pagination { justify-content: center; padding-left: 12px; padding-right: 12px; }
+    .sigma-log-page-count { width: 100%; justify-content: center; text-align: center; }
+    .sigma-log-page-controls { gap: 4px; }
+    .sigma-log-page-controls button { width: 32px; height: 32px; }
+}

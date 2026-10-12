@@ -247,7 +247,7 @@ try {
             `students`        = VALUES(`students`),
             `students_count`  = VALUES(`students_count`),
             `status`          = VALUES(`status`),
-            `is_deleted`      = 0";
+            `is_deleted`      = `is_deleted`";
 
         $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([

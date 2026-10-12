@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(require('node:path').join(__dirname, '../js/shared-components.js'), 'utf8');
+const start = source.indexOf('window.getAssessmentScoreBarColor =');
+const window = {};
+vm.runInNewContext(source.slice(start, source.indexOf('\n};', start) + 4), { window });
+const color = window.getAssessmentScoreBarColor;
+assert.equal(color(50, true, 'Missing'), '#dc2626');
+assert.equal(color(80, true, 'Missing'), '#15803d');
+assert.equal(color(90, true, 'Graded'), '#15803d');
+assert.equal(color(100, false, 'Pending'), 'rgba(0, 0, 0, 0.15)');
+assert.equal(color(100, true, 'Excuse'), '#15803d');
+console.log('PASS: score thresholds remain independent of status labels, including Excuse');

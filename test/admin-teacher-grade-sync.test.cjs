@@ -37,6 +37,7 @@ load('resolveGradebookScoreColumn', 'window.applyOfficialQuizScore');
 load('syncSharedScoreAndStatus', 'window.');
 load('getEffectiveAssessmentStatusAndScore', 'window.');
 const readerStart = analytics.indexOf('    function getAdminGradebookStudentItemScore(');
+load('getGradebookStudentItemScore', 'window.calculateGradebookCategoryPercentage');
 const readerEnd = analytics.indexOf('    window.getAdminGradebookAssessmentItems', readerStart);
 vm.runInContext(analytics.slice(readerStart, readerEnd), context);
 const seed = { prog: { 1: { 'sec:rizal': { 'student-1': { assignment: { 0: 80 } } }, 'sec:newton': { 'student-1': { assignment: { 0: 30 } } } }, 2: { 'sec:rizal': { 'student-1': { assignment: { 0: 40 } } } } }, math: { 1: { 'sec:rizal': { 'student-1': { assignment: { 0: 55 } } } } } };

@@ -18,41 +18,55 @@ html.sigma-initial-loading body #main-content .student-attendance-heading {
     will-change: background-position !important;
 }
 
-/* Initial placeholders reuse actual element boxes; shell geometry stays intact. */
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) *:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+/* ══════════════════════════════════════════════════════════════════════
+   1. GLOBAL INITIAL LOADING: SHELL INTACT, TEXT TRANSPARENT, ICONS HIDDEN
+   ══════════════════════════════════════════════════════════════════════ */
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) *:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *, #export-quiz-dropdown-menu, #export-quiz-dropdown-menu *, .dropdown-menu, .dropdown-menu *)) {
     color: transparent !important;
     text-shadow: none !important;
     -webkit-text-fill-color: transparent !important;
     transition: none !important;
 }
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(img, svg):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(img, svg):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *, #export-quiz-dropdown-menu, #export-quiz-dropdown-menu *, .dropdown-menu, .dropdown-menu *)) {
     visibility: hidden !important;
 }
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) input:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *))::placeholder {
+
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) input:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *))::placeholder {
     color: transparent !important;
 }
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,input,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
+
+/* Generic inline text / control placeholders */
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,input,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *)) {
     background-color: var(--sigma-skeleton-base) !important;
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
     border-color: transparent !important;
     box-shadow: none !important;
     pointer-events: none !important;
 }
-html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
-    background-color: var(--sigma-skeleton-base) !important;
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
+
+html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,i,.full-label,.short-label,.sidebar-label,.rail-label):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *, .header-panel *, [data-sigma-loading="exclude"] *)) {
+    border-radius: 4px !important;
 }
-html.sigma-initial-loading body .welcome-panel-overlay:not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
-    opacity: 0 !important;
+
+/* ══════════════════════════════════════════════════════════════════════
+   2. PERSISTENT SHELL PRESERVATION: GREEN HEADER BAR & GREEN SIDEBAR
+   ══════════════════════════════════════════════════════════════════════ */
+/* The green top navigation status strip stays #15803d */
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .top-nav {
+    background-color: #15803d !important;
 }
+
+/* The header body remains crisp white */
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) {
+    background-color: #ffffff !important;
+}
+
+/* Left Sidebar stays solid green #15803d */
+html.sigma-initial-loading body #sidebar {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+}
+
 html.sigma-initial-loading body #sidebar .nav-link:is(a, button),
 html.sigma-initial-loading body #sidebar .nav-sublink:is(a, button) {
     background: transparent !important;
@@ -61,151 +75,699 @@ html.sigma-initial-loading body #sidebar .nav-sublink:is(a, button) {
     animation: none !important;
 }
 
-html.sigma-initial-loading body #sidebar .rail-label {
-    color: transparent !important;
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-color: var(--sigma-skeleton-base) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) .classroom-room-hero-banner:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
-    background-color: var(--sigma-skeleton-base) !important;
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) .classroom-room-hero-banner:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > :is(.absolute, .classroom-banner-watermark) {
-    visibility: hidden !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.topic-card__image-container, .topic-progress-vertical-bar):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-color: var(--sigma-skeleton-base) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
-    box-shadow: none !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) .topic-progress-vertical-bar > *,
-html.sigma-initial-loading body :is(#main-content, #admin-main) .score-progress-fill {
-    visibility: hidden !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) :is(h1,h2,h3,h4,h5) {
-    filter: none !important;
-    box-shadow: none !important;
-}
-
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,i,.full-label,.short-label,.sidebar-label,.rail-label):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *, .header-panel *)) {
-    border-radius: 4px !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) .video-thumbnail-panel:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-color: var(--sigma-skeleton-base) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
-    border-radius: 8px !important;
-    box-shadow: none !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) .video-thumbnail-panel:not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > * {
-    visibility: hidden !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.sigma-black-fade-panel,.topic-progress-card,.topic-card,.sigma-card,.home-dashboard-card,.home-overview-card,.announcement-card,.sigma-announcements-empty-state,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.welcome-panel,.classroom-room-hero-banner):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) {
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-color: var(--sigma-skeleton-base) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    will-change: background-position !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
-}
-
-html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.sigma-black-fade-panel,.topic-progress-card,.topic-card,.sigma-card,.home-dashboard-card,.home-overview-card,.announcement-card,.sigma-announcements-empty-state,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.welcome-panel,.classroom-room-hero-banner):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *)) > * {
-    visibility: hidden !important;
-}
-
-/* Grades has large structural surfaces that need their own loading geometry. */
-html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) {
-    background-image: linear-gradient(90deg, var(--sigma-skeleton-base) 0%, var(--sigma-skeleton-base) 35%, var(--sigma-skeleton-highlight) 50%, var(--sigma-skeleton-base) 65%, var(--sigma-skeleton-base) 100%) !important;
-    background-color: var(--sigma-skeleton-base) !important;
-    background-size: 200% 100% !important;
-    background-repeat: repeat-x !important;
-    animation: sigma-inline-shimmer 1.4s linear infinite !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
-
-html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.subject-performance-card) {
-    border-radius: 24px !important;
-}
-
-html.sigma-initial-loading body #section-grades #grades-layout .student-grades-summary-panel {
-    border-radius: 16px !important;
-    overflow: hidden !important;
-}
-
-html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) > * {
-    visibility: hidden !important;
-}
-
-html.sigma-initial-loading body #section-grades #grades-layout .student-grade-teacher-avatar {
-    border-radius: 50% !important;
-}
-
-@keyframes sigma-inline-shimmer {
-    0% {
-        background-position: 100% 0;
-    }
-    100% {
-        background-position: -100% 0;
-    }
-}
-
-/* A physical highlight band avoids background-position resets that read as blinking. */
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar,.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state,.classroom-room-hero-banner,.topic-card__image-container,.topic-progress-vertical-bar,.video-thumbnail-panel,.sigma-black-fade-panel,.topic-progress-card,.topic-card,.home-overview-card,.announcement-card,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *)) {
-    background-image: none !important;
-    animation: none !important;
+/* Inside the green sidebar: shimmering white/light rounded icons and labels (matching Image 5) */
+html.sigma-initial-loading body #sidebar :is(.nav-link i, .sidebar-item i, .rail-label, .short-label, .sidebar-label) {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    border-radius: 6px !important;
     position: relative !important;
     overflow: hidden !important;
 }
 
-html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,button,select,i,.full-label,.short-label,.sidebar-label,.admin-topbar__logo-btn,.sigma-user-avatar,.welcome-panel,.sigma-card,.home-dashboard-card,.sigma-announcements-empty-state,.classroom-room-hero-banner,.topic-card__image-container,.topic-progress-vertical-bar,.video-thumbnail-panel,.sigma-black-fade-panel,.topic-progress-card,.topic-card,.home-overview-card,.announcement-card,.assessment-material-main-card,.topic-overview-body-card,.topic-video-player-panel,.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *))::after {
-    content: '';
-    position: absolute;
-    z-index: 2;
-    top: 0;
-    bottom: 0;
-    left: -38%;
-    width: 38%;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 22%, rgba(255, 255, 255, 0.72) 50%, rgba(255, 255, 255, 0.08) 78%, transparent 100%);
-    transform: translateX(-100%);
-    animation: sigma-sweep-band 1.4s linear infinite;
+html.sigma-initial-loading body #sidebar :is(.nav-link i, .sidebar-item i, .rail-label, .short-label, .sidebar-label)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 20%, #ffffff 50%, rgba(255, 255, 255, 0.25) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   3. TOPBAR CONTROLS: SEARCH PILL, CIRCULAR BUTTONS & LOGO SKELETONS
+   ══════════════════════════════════════════════════════════════════════ */
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .header-search-container {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    max-width: min(440px, calc(100vw - 440px)) !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .header-search-container::after {
+    display: none !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(.header-search-shell, input[type="search"].header-search-shell) {
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    border-radius: 9999px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    height: 38px !important;
+    max-height: 38px !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(.header-search-shell, input[type="search"].header-search-shell) > * {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(.header-search-shell, input[type="search"].header-search-shell)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 5 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* Ensure desktop action icons cluster stays strictly layered on top of search pill */
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(.admin-topbar__desktop-icons, .admin-topbar__inner > .flex.items-center.gap-2.pr-4, #header-actions-mobile-wrap) {
+    position: relative !important;
+    z-index: 30 !important;
+    pointer-events: none !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#logo-container, .admin-topbar__logo-btn) {
+    background-color: var(--sigma-skeleton-base) !important;
+    border-radius: 8px !important;
+    border-color: transparent !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#logo-container, .admin-topbar__logo-btn)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#sidebarToggleBtn, #mobileSearchToggleBtn, #mobileSidebarToggleBtn, #nav-logo-btn, .header-icon-btn, .header-profile-btn, .admin-topbar__desktop-icons button, .header-avatar, .sigma-user-avatar) {
+    border-radius: 50% !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    position: relative !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    width: 38px !important;
+    height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#sidebarToggleBtn, #mobileSearchToggleBtn, #mobileSidebarToggleBtn, #nav-logo-btn, .header-icon-btn, .header-profile-btn, .admin-topbar__desktop-icons button, .header-avatar)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 31 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#save-quiz-main-btn, #save-quiz-dropdown-trigger, button[title*="preview" i], button[title*="Preview" i]) {
+    border-radius: 12px !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#save-quiz-main-btn, #save-quiz-dropdown-trigger, button[title*="preview" i], button[title*="Preview" i])::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   4. QUIZ CREATOR ACTION BAR: CLEAN WHITE CONTAINER + SHIMMERING BUTTONS
+   ══════════════════════════════════════════════════════════════════════ */
+html.sigma-initial-loading body #quiz-action-bar {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    pointer-events: none !important;
+}
+
+html.sigma-initial-loading body #quiz-action-bar :is(button, .shrink-0, #quiz-stat-questions, #quiz-stat-points, span.flex) {
+    background-color: var(--sigma-skeleton-base) !important;
+    border-radius: 12px !important;
+    color: transparent !important;
+    border-color: transparent !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+}
+
+html.sigma-initial-loading body #quiz-action-bar :is(button, .shrink-0, #quiz-stat-questions, #quiz-stat-points, span.flex) > * {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body #quiz-action-bar :is(button, .shrink-0, #quiz-stat-questions, #quiz-stat-points, span.flex)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   5. INCLUDED CONTENT PANELS & BLANK STATES (SWEEPING SHIMMER BAND)
+   ══════════════════════════════════════════════════════════════════════ */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .welcome-panel,
+    #welcome-panel,
+    .welcome-panel-container,
+    .classroom-room-hero-banner,
+    .sigma-card,
+    .home-dashboard-card,
+    .home-dashboard-group,
+    .home-overview-card,
+    .sigma-interactive-metric-card,
+    .pocket-card,
+    .announcement-card,
+    .sigma-announcement-card,
+    .announcement-composer-trigger-card,
+    .sigma-announcements-empty-state,
+    .home-feed-card,
+    .post-card,
+    .topic-progress-card,
+    .topic-card,
+    .assessment-material-main-card,
+    .topic-overview-body-card,
+    .topic-video-player-panel,
+    .sigma-black-fade-panel,
+    .video-thumbnail-panel,
+    .gwa-card,
+    .student-grades-insights-card,
+    .student-grades-summary-panel,
+    .subject-performance-card,
+    .active-question-card,
+    .deck-thumbnail-card,
+    .quiz-empty-question-state,
+    .quiz-deck-empty-state,
+    .quiz-skeleton-card,
+    .quiz-skeleton-deck-card,
+    #questions-thumbnails-container > .h-64,
+    .quiz-general-image-panel,
+    .sigma-table,
+    table,
+    #attendance-table-container,
+    .attendance-table-wrapper,
+    .admin-table-container,
+    .sigma-empty-state,
+    [data-id="metric-empty-state"],
+    [data-id="pocket-card-empty-state"],
+    .sigma-feed-tab-btn,
+    .sigma-feed-tabs-container button,
+    [data-announcement-tab],
+    #tab-announcement-overall,
+    #tab-announcement-important,
+    #tab-announcement-posts,
+    #announcement-tab-all,
+    #announcement-tab-important,
+    #announcement-tab-posts,
+    .feed-filter-btn,
+    .sigma-filter-pill,
+    .standard-panel-shadow:not(#quiz-action-bar):not([role="dialog"]):not([aria-modal="true"]):not([id*="modal"]):not(.modal):not(.header-panel):not(header):not([id*="header"])
+):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *)) {
+    position: relative !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    background: var(--sigma-skeleton-base) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .welcome-panel,
+    #welcome-panel,
+    .classroom-room-hero-banner,
+    .sigma-card,
+    .home-dashboard-card,
+    .home-dashboard-group,
+    .home-overview-card,
+    .sigma-interactive-metric-card,
+    .pocket-card,
+    .announcement-card,
+    .sigma-announcement-card,
+    .announcement-composer-trigger-card,
+    .sigma-announcements-empty-state,
+    .home-feed-card,
+    .post-card,
+    .topic-progress-card,
+    .topic-card,
+    .assessment-material-main-card,
+    .topic-overview-body-card,
+    .topic-video-player-panel,
+    .sigma-black-fade-panel,
+    .video-thumbnail-panel,
+    .gwa-card,
+    .student-grades-insights-card,
+    .student-grades-summary-panel,
+    .subject-performance-card,
+    .active-question-card,
+    .deck-thumbnail-card,
+    .quiz-empty-question-state,
+    .quiz-deck-empty-state,
+    .quiz-skeleton-card,
+    .quiz-skeleton-deck-card,
+    #questions-thumbnails-container > .h-64,
+    .quiz-general-image-panel,
+    .sigma-table,
+    table,
+    #attendance-table-container,
+    .attendance-table-wrapper,
+    .admin-table-container,
+    .sigma-empty-state,
+    [data-id="metric-empty-state"],
+    [data-id="pocket-card-empty-state"],
+    .sigma-feed-tab-btn,
+    .sigma-feed-tabs-container button,
+    [data-announcement-tab],
+    #tab-announcement-overall,
+    #tab-announcement-important,
+    #tab-announcement-posts,
+    #announcement-tab-all,
+    #announcement-tab-important,
+    #announcement-tab-posts,
+    .feed-filter-btn,
+    .sigma-filter-pill,
+    .standard-panel-shadow:not(#quiz-action-bar):not([role="dialog"]):not([aria-modal="true"]):not([id*="modal"]):not(.modal):not(.header-panel):not(header):not([id*="header"])
+):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *)) > * {
+    visibility: hidden !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .welcome-panel,
+    #welcome-panel,
+    .welcome-panel-container,
+    .classroom-room-hero-banner,
+    .sigma-card,
+    .home-dashboard-card,
+    .home-dashboard-group,
+    .home-overview-card,
+    .sigma-interactive-metric-card,
+    .pocket-card,
+    .announcement-card,
+    .sigma-announcement-card,
+    .announcement-composer-trigger-card,
+    .sigma-announcements-empty-state,
+    .home-feed-card,
+    .post-card,
+    .topic-progress-card,
+    .topic-card,
+    .assessment-material-main-card,
+    .topic-overview-body-card,
+    .topic-video-player-panel,
+    .sigma-black-fade-panel,
+    .video-thumbnail-panel,
+    .gwa-card,
+    .student-grades-insights-card,
+    .student-grades-summary-panel,
+    .subject-performance-card,
+    .active-question-card,
+    .deck-thumbnail-card,
+    .quiz-empty-question-state,
+    .quiz-deck-empty-state,
+    .quiz-skeleton-card,
+    .quiz-skeleton-deck-card,
+    #questions-thumbnails-container > .h-64,
+    .quiz-general-image-panel,
+    .sigma-table,
+    table,
+    #attendance-table-container,
+    .attendance-table-wrapper,
+    .admin-table-container,
+    .sigma-empty-state,
+    [data-id="metric-empty-state"],
+    [data-id="pocket-card-empty-state"],
+    .sigma-feed-tab-btn,
+    .sigma-feed-tabs-container button,
+    [data-announcement-tab],
+    #tab-announcement-overall,
+    #tab-announcement-important,
+    #tab-announcement-posts,
+    #announcement-tab-all,
+    #announcement-tab-important,
+    #announcement-tab-posts,
+    .feed-filter-btn,
+    .sigma-filter-pill,
+    .standard-panel-shadow:not(#quiz-action-bar):not([role="dialog"]):not([aria-modal="true"]):not([id*="modal"]):not(.modal):not(.header-panel):not(header):not([id*="header"])
+):not(:where([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"], [data-sigma-loading="exclude"] *))::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* Explicit high-specificity rule for Quiz Creator desktop cards */
+html.sigma-initial-loading body :is(#active-question-container > div, .active-question-card, #quiz-editor-workspace .active-question-card, .quiz-empty-question-state, .quiz-deck-empty-state, #questions-thumbnails-container > div, .deck-thumbnail-card)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+html.sigma-initial-loading body #questions-sidebar-wrap :is(h3, span#sidebar-question-count-badge) {
+    background-color: var(--sigma-skeleton-base) !important;
+    border-radius: 6px !important;
+    color: transparent !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+html.sigma-initial-loading body #questions-sidebar-wrap :is(h3, span#sidebar-question-count-badge)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* Standalone heading placeholders sweeping shimmer */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(h1,h2,h3,h4,h5):not(:where([role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"] *, .welcome-panel *, #welcome-panel *, .classroom-room-hero-banner *, .sigma-card *, .home-dashboard-card *, .home-overview-card *, .announcement-card *, .post-card *, .topic-card *, .active-question-card *)) {
+    position: relative !important;
+    overflow: hidden !important;
+}
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(h1,h2,h3,h4,h5):not(:where([role="dialog"] *, [aria-modal="true"] *, [id*="modal"] *, .modal *, .header-panel *, [data-sigma-loading="exclude"] *, .welcome-panel *, #welcome-panel *, .classroom-room-hero-banner *, .sigma-card *, .home-dashboard-card *, .home-overview-card *, .announcement-card *, .post-card *, .topic-card *, .active-question-card *))::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    inset: 0 auto 0 -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   6. STRUCTURAL BORDER RADIUSES MATCHING IMAGE 5 SKELETON
+   ══════════════════════════════════════════════════════════════════════ */
+/* Large Hero / Welcome banners */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .welcome-panel,
+    #welcome-panel,
+    .welcome-panel-container,
+    .classroom-room-hero-banner
+) {
+    border-radius: 24px !important;
+    overflow: hidden !important;
+}
+
+/* Pill Tabs & Category Filter Buttons (matching Image 5 middle row) */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .sigma-feed-tab-btn,
+    .sigma-feed-tabs-container button,
+    [data-announcement-tab],
+    #tab-announcement-overall,
+    #tab-announcement-important,
+    #tab-announcement-posts,
+    #announcement-tab-all,
+    #announcement-tab-important,
+    #announcement-tab-posts,
+    .feed-filter-btn,
+    .sigma-filter-pill
+) {
+    border-radius: 9999px !important;
+    overflow: hidden !important;
+}
+
+/* Dashboard Cards, Feed Cards, Announcement Cards, Metric Cards, Topic Cards & Standard Panels */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .sigma-card,
+    .home-dashboard-card,
+    .home-dashboard-group,
+    .home-overview-card,
+    .announcement-card,
+    .sigma-announcement-card,
+    .announcement-composer-trigger-card,
+    .home-feed-card,
+    .post-card,
+    .topic-progress-card,
+    .topic-card,
+    .assessment-material-main-card,
+    .topic-overview-body-card,
+    .topic-video-player-panel,
+    .sigma-black-fade-panel,
+    .video-thumbnail-panel,
+    .sigma-interactive-metric-card,
+    .pocket-card,
+    .gwa-card,
+    .student-grades-insights-card,
+    .subject-performance-card,
+    .student-grades-summary-panel,
+    .standard-panel-shadow:not(#quiz-action-bar)
+) {
+    border-radius: 20px !important;
+    overflow: hidden !important;
+}
+
+/* Sub-cards, Question Cards, Deck Cards, Thumbnail Panels, Empty States & Tables */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+    .active-question-card,
+    .deck-thumbnail-card,
+    .quiz-empty-question-state,
+    .quiz-deck-empty-state,
+    .quiz-skeleton-card,
+    .quiz-skeleton-deck-card,
+    .quiz-general-image-panel,
+    #questions-thumbnails-container > .h-64,
+    .sigma-table,
+    table,
+    #attendance-table-container,
+    .attendance-table-wrapper,
+    .admin-table-container,
+    .sigma-empty-state,
+    .sigma-announcements-empty-state,
+    [data-id="metric-empty-state"],
+    [data-id="pocket-card-empty-state"]
+) {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+/* Action Bar Buttons & Form Control Skeletons */
+html.sigma-initial-loading body #quiz-action-bar :is(button, .shrink-0, #quiz-stat-questions, #quiz-stat-points, span.flex),
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#save-quiz-main-btn, #save-quiz-dropdown-trigger, button[title*="preview" i], button[title*="Preview" i]) {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+/* Sweeping highlight animation */
 @keyframes sigma-sweep-band {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(465%); }
+    from { transform: translateX(0%); }
+    to { transform: translateX(365%); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) * {
-        animation: none !important;
-    }
+@keyframes sigma-inline-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   7. RENDERING LOADING (DYNAMIC SKELETON WITH IDENTICAL IMAGE 5 STYLE)
+   ══════════════════════════════════════════════════════════════════════ */
+.sigma-rendering-loading,
+[data-sigma-rendering="true"] {
+    position: relative !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    background: var(--sigma-skeleton-base, #e2e8f0) !important;
+    background-color: var(--sigma-skeleton-base, #e2e8f0) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    min-height: 48px;
+    border-radius: 20px !important;
+}
+
+.sigma-rendering-loading > *,
+[data-sigma-rendering="true"] > * {
+    visibility: hidden !important;
+}
+
+.sigma-rendering-loading::after,
+[data-sigma-rendering="true"]::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+/* Contextual & modifier border radii for rendering loading */
+.sigma-rendering-loading:is(.welcome-panel, #welcome-panel, .welcome-panel-container, .classroom-room-hero-banner),
+.sigma-rendering-loading--hero {
+    border-radius: 24px !important;
+}
+
+.sigma-rendering-loading:is(
+    .sigma-card,
+    .home-dashboard-card,
+    .home-overview-card,
+    .announcement-card,
+    .home-feed-card,
+    .post-card,
+    .topic-progress-card,
+    .topic-card,
+    .assessment-material-main-card,
+    .topic-overview-body-card,
+    .topic-video-player-panel,
+    .sigma-black-fade-panel,
+    .video-thumbnail-panel,
+    .sigma-interactive-metric-card,
+    .pocket-card,
+    .gwa-card,
+    .student-grades-insights-card,
+    .subject-performance-card,
+    .student-grades-summary-panel,
+    .standard-panel-shadow
+),
+.sigma-rendering-loading--card {
+    border-radius: 20px !important;
+}
+
+.sigma-rendering-loading:is(
+    .active-question-card,
+    .deck-thumbnail-card,
+    .quiz-empty-question-state,
+    .quiz-deck-empty-state,
+    .quiz-general-image-panel,
+    #questions-thumbnails-container > .h-64,
+    .sigma-table,
+    table,
+    #attendance-table-container,
+    .attendance-table-wrapper,
+    .admin-table-container,
+    .sigma-empty-state,
+    .sigma-announcements-empty-state
+),
+.sigma-rendering-loading--panel,
+.sigma-rendering-loading--table {
+    border-radius: 16px !important;
+}
+
+.sigma-rendering-loading:is(
+    .sigma-feed-tab-btn,
+    .sigma-feed-tabs-container button,
+    [data-announcement-tab],
+    .header-search-shell,
+    button
+),
+.sigma-rendering-loading--pill {
+    border-radius: 9999px !important;
+}
+
+.sigma-rendering-loading:is(
+    .sigma-user-avatar,
+    .header-icon-btn,
+    .header-profile-btn,
+    .teacher-avatar,
+    .header-avatar
+),
+.sigma-rendering-loading--circle {
+    border-radius: 50% !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   8. STRICT EXCLUSIONS: MODALS, DIALOGS, DROPDOWNS & OVERLAYS
+   ══════════════════════════════════════════════════════════════════════ */
+html.sigma-initial-loading body :is([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [data-sigma-loading="exclude"], #export-quiz-dropdown-menu, .dropdown-menu) {
+    background-image: none !important;
+    pointer-events: auto;
+}
+
+html.sigma-initial-loading body :is([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [data-sigma-loading="exclude"], #export-quiz-dropdown-menu, .dropdown-menu) * {
+    color: inherit !important;
+    -webkit-text-fill-color: initial !important;
+    visibility: visible !important;
+    background-image: none !important;
+}
+
+html.sigma-initial-loading body :is([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [data-sigma-loading="exclude"], #export-quiz-dropdown-menu, .dropdown-menu)::after,
+html.sigma-initial-loading body :is([role="dialog"], [aria-modal="true"], [id*="modal"], .modal, .header-panel, [data-sigma-loading="exclude"], #export-quiz-dropdown-menu, .dropdown-menu) *::after {
+    display: none !important;
+    animation: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   9. DYNAMIC SKELETON OVERLAY (SIGMA SKELETON ENGINE)
+   ══════════════════════════════════════════════════════════════════════ */
+/* Explicit skeleton background & transparent text for feed tab buttons during initial load */
+html.sigma-initial-loading body :is(#main-content, #admin-main) :is(.sigma-feed-tab-btn,[data-announcement-tab],#tab-announcement-overall,#tab-announcement-important,#tab-announcement-posts,#announcement-tab-all,#announcement-tab-important,#announcement-tab-posts) {
+    background: var(--sigma-skeleton-base) !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    color: transparent !important;
+    border-color: transparent !important;
+}
+html.sigma-initial-loading body :is(#noti-badge,#mobile-noti-badge,.mobile-subbar-badge) {
+    visibility: hidden !important;
 }
 
 .sigma-skeleton {
@@ -223,13 +785,18 @@ html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main
 .sigma-skeleton-top { display: flex; gap: 16px; align-items: center; height: 72px; border-bottom: 1px solid #e2e8f0; }
 .sigma-skeleton-block { position: relative; overflow: hidden; background: var(--sigma-skeleton-base); border-radius: 4px; }
 .sigma-skeleton-block::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%);
-    animation: sigma-skeleton-wave 1.4s linear infinite;
-    will-change: transform;
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
 }
 .sigma-skeleton-icon { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; }
 .sigma-skeleton-title { width: 210px; max-width: 45%; height: 20px; }
@@ -245,34 +812,149 @@ html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main
 .sigma-skeleton[data-layout="table"] .sigma-skeleton-large { height: 56px; }
 .sigma-skeleton[data-layout="detail"] .sigma-skeleton-panel { height: 100px; }
 
-@keyframes sigma-skeleton-wave {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100%);
-    }
-}
-
+/* ══════════════════════════════════════════════════════════════════════
+   10. MOBILE RESPONSIVE ADAPTATION (DESKTOP & MOBILE PARITY)
+   ══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
     .sigma-skeleton { padding: 0; }
-    html.sigma-initial-loading body #section-grades #grades-layout :is(.gwa-card,.student-grades-insights-card,.student-grades-summary-panel,.subject-performance-card) {
+    
+    /* Large Hero / Welcome banners on Mobile */
+    html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+        .welcome-panel,
+        #welcome-panel,
+        .welcome-panel-container,
+        .classroom-room-hero-banner
+    ),
+    .sigma-rendering-loading:is(.welcome-panel, #welcome-panel, .welcome-panel-container, .classroom-room-hero-banner),
+    .sigma-rendering-loading--hero {
+        border-radius: 20px !important;
+    }
+
+    /* Cards & Panels on Mobile */
+    html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+        .sigma-card,
+        .home-dashboard-card,
+        .home-dashboard-group,
+        .home-overview-card,
+        .announcement-card,
+        .sigma-announcement-card,
+        .announcement-composer-trigger-card,
+        .home-feed-card,
+        .post-card,
+        .topic-progress-card,
+        .topic-card,
+        .assessment-material-main-card,
+        .topic-overview-body-card,
+        .topic-video-player-panel,
+        .sigma-black-fade-panel,
+        .video-thumbnail-panel,
+        .sigma-interactive-metric-card,
+        .pocket-card,
+        .gwa-card,
+        .student-grades-insights-card,
+        .subject-performance-card,
+        .student-grades-summary-panel,
+        .standard-panel-shadow:not(#quiz-action-bar)
+    ),
+    .sigma-rendering-loading:is(
+        .sigma-card,
+        .home-dashboard-card,
+        .home-overview-card,
+        .announcement-card,
+        .home-feed-card,
+        .post-card,
+        .topic-progress-card,
+        .topic-card,
+        .assessment-material-main-card,
+        .topic-overview-body-card,
+        .topic-video-player-panel,
+        .sigma-black-fade-panel,
+        .video-thumbnail-panel,
+        .sigma-interactive-metric-card,
+        .pocket-card,
+        .gwa-card,
+        .student-grades-insights-card,
+        .subject-performance-card,
+        .student-grades-summary-panel,
+        .standard-panel-shadow
+    ),
+    .sigma-rendering-loading--card {
         border-radius: 16px !important;
     }
-    html.sigma-initial-loading body #section-grades #grades-layout .student-grade-teacher-avatar {
+
+    /* Subcards, Question Cards, Deck Cards & Tables on Mobile */
+    html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+        .active-question-card,
+        .deck-thumbnail-card,
+        .quiz-empty-question-state,
+        .quiz-deck-empty-state,
+        .quiz-skeleton-card,
+        .quiz-skeleton-deck-card,
+        .quiz-general-image-panel,
+        #questions-thumbnails-container > .h-64,
+        .sigma-table,
+        table,
+        #attendance-table-container,
+        .attendance-table-wrapper,
+        .admin-table-container,
+        .sigma-empty-state,
+        .sigma-announcements-empty-state,
+        [data-id="metric-empty-state"],
+        [data-id="pocket-card-empty-state"]
+    ),
+    .sigma-rendering-loading:is(
+        .active-question-card,
+        .deck-thumbnail-card,
+        .quiz-empty-question-state,
+        .quiz-deck-empty-state,
+        .quiz-general-image-panel,
+        #questions-thumbnails-container > .h-64,
+        .sigma-table,
+        table,
+        #attendance-table-container,
+        .attendance-table-wrapper,
+        .admin-table-container,
+        .sigma-empty-state,
+        .sigma-announcements-empty-state
+    ),
+    .sigma-rendering-loading--panel,
+    .sigma-rendering-loading--table {
+        border-radius: 12px !important;
+    }
+
+    /* Pill Tabs on Mobile */
+    html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
+        .sigma-feed-tab-btn,
+        .sigma-feed-tabs-container button,
+        [data-announcement-tab],
+        .feed-filter-btn,
+        .sigma-filter-pill
+    ),
+    .sigma-rendering-loading:is(
+        .sigma-feed-tab-btn,
+        .sigma-feed-tabs-container button,
+        [data-announcement-tab]
+    ),
+    .sigma-rendering-loading--pill {
+        border-radius: 9999px !important;
+    }
+
+    html.sigma-initial-loading body #section-grades #grades-layout .student-grade-teacher-avatar,
+    .sigma-rendering-loading--circle {
         border-radius: 50% !important;
     }
-    /* The fixed mobile header uses compact icon and search-control shapes. */
-    html.sigma-initial-loading body #student-header :is(#sidebarToggleBtn,#mobileSearchToggleBtn,#mobileSidebarToggleBtn,#nav-logo-btn,.header-icon-btn,.header-profile-btn) {
+
+    /* Fixed mobile header uses compact icon and search-control shapes across all portals */
+    html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#sidebarToggleBtn,#mobileSearchToggleBtn,#mobileSidebarToggleBtn,#nav-logo-btn,.header-icon-btn,.header-profile-btn) {
         border-radius: 50% !important;
     }
-    html.sigma-initial-loading body #student-header #logo-container {
+    html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) #logo-container {
         border-radius: 6px !important;
     }
-    html.sigma-initial-loading body #student-header :is(.header-search-container,.header-search-shell) {
-        border-radius: 999px !important;
+    html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .header-search-shell {
+        border-radius: 9999px !important;
     }
-    html.sigma-initial-loading body #student-header :is(.admin-topbar__brand-label,.top-nav__lang span) {
+    html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(.admin-topbar__brand-label,.top-nav__lang span,#header-brand-title) {
         border-radius: 4px !important;
     }
     html.sigma-initial-loading body #mobile-header-subbar .mobile-subbar-btn {
@@ -282,4 +964,10 @@ html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main
     .sigma-skeleton-tools .sigma-skeleton-icon:last-child { display: none; }
     .sigma-skeleton-top { gap: 10px; }
 }
-@media (prefers-reduced-motion: reduce) { .sigma-skeleton-block::after { animation: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .sigma-skeleton-block::after { animation: none !important; }
+    html.sigma-initial-loading body :is(#main-content, #admin-main, header, #sidebar) *::after { animation: none !important; }
+    .sigma-rendering-loading::after, [data-sigma-rendering="true"]::after { animation: none !important; }
+}
+

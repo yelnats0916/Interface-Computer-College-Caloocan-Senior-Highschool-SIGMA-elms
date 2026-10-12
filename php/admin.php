@@ -5,11 +5,11 @@
  */
 
 $pageTitle = "Interface Computer College - Admin";
-$extraCss  = ["css/admin.css", "css/settings-view.css"];
+$extraCss  = ["css/admin.css", "css/settings-view.css", "css/ai-log-details.css", "css/service-vault-security.css"];
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<link rel="stylesheet" href="css/classroom-room.css"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/admin.js"];
+$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/recaptcha-client.js", "js/system-settings-history.js", "js/ai-routing-settings.js", "js/notification-logs.js", "js/audit-log-search.js", "js/admin.js", "js/admin-insight-report.js"];
 $topbarHeaderId = "admin-header";
 
 require_once __DIR__ . "/../config/app.php";
@@ -562,448 +562,463 @@ require_once __DIR__ . "/includes/topbar.php";
                 <?php require_once __DIR__ . "/includes/school_subjects_view.php"; ?>
 
                 <!-- REPORTS AI VIEW -->
-                <section id="reports-ai-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
-                        <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight">AI Reports</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">AI-generated analytics across
-                                    descriptive, predictive, and prescriptive models</p>
+<?php include __DIR__ . '/includes/ai_insight_report.php'; ?>
+
+                                <!-- REPORTS ATTENDANCE VIEW -->
+                <section id="reports-attendance-view" class="dynamic-section hidden">
+                    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
+                        <!-- Metric / Counter Cards (Universal Elevated Suite) -->
+                        <div class="px-10 pt-8 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Present -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span id="metric-attendance-present-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Present Today</span>
+                                        <span id="metric-attendance-present" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">193</span>
+                                    </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span id="metric-attendance-present-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Present Today</span>
+                                        <span id="metric-attendance-present-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">193</span>
+                                    </div>
+                                </div>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-user-check metric-icon-base"></i>
+                                    <i class="fa-solid fa-user-check metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
                             </div>
-                            <div class="px-10 py-8 space-y-10">
 
-                                <!-- Descriptive Analytics -->
-                                <div class="space-y-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-1 h-6 bg-[#15803d] rounded-full"></div>
-                                        <h3 class="text-[11px] font-bold text-black uppercase tracking-widest">
-                                            Descriptive Analytics</h3>
-                                        <span
-                                            class="px-3 py-1 bg-slate-100 text-slate-500 text-[9px] font-bold rounded-full uppercase tracking-widest">What
-                                            Happened</span>
+                            <!-- Absent -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span id="metric-attendance-absent-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Absent Today</span>
+                                        <span id="metric-attendance-absent" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">10</span>
                                     </div>
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-1">
-                                            <div
-                                                class="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center mb-3">
-                                                <i class="fa-solid fa-users text-[#15803d] text-sm"></i>
-                                            </div>
-                                            <p class="text-3xl font-black text-black">1,248</p>
-                                            <p class="text-xs text-slate-500 font-medium">Total enrolled students this
-                                                quarter</p>
-                                            <p
-                                                class="text-[9px] text-green-600 font-bold uppercase tracking-widest mt-2">
-                                                ↑ 4.2% vs last quarter</p>
-                                        </div>
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-1">
-                                            <div
-                                                class="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center mb-3">
-                                                <i class="fa-solid fa-calendar-check text-blue-500 text-sm"></i>
-                                            </div>
-                                            <p class="text-3xl font-black text-black">91.3%</p>
-                                            <p class="text-xs text-slate-500 font-medium">Average daily attendance rate
-                                            </p>
-                                            <p
-                                                class="text-[9px] text-blue-500 font-bold uppercase tracking-widest mt-2">
-                                                ↑ 1.8% vs last quarter</p>
-                                        </div>
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-1">
-                                            <div
-                                                class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
-                                                <i class="fa-solid fa-graduation-cap text-amber-500 text-sm"></i>
-                                            </div>
-                                            <p class="text-3xl font-black text-black">87.6%</p>
-                                            <p class="text-xs text-slate-500 font-medium">Overall student pass rate</p>
-                                            <p
-                                                class="text-[9px] text-amber-500 font-bold uppercase tracking-widest mt-2">
-                                                ↓ 0.5% vs last quarter</p>
-                                        </div>
-                                    </div>
-                                    <!-- Bar Chart -->
-                                    <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50">
-                                        <p class="text-xs font-bold text-black uppercase tracking-widest mb-5">Monthly
-                                            Performance Overview</p>
-                                        <div class="flex items-end gap-3 h-32">
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">78%</span>
-                                                <div class="w-full bg-[#15803d]/30 rounded-t-lg" style="height:60%">
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">85%</span>
-                                                <div class="w-full bg-[#15803d]/50 rounded-t-lg" style="height:75%">
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">72%</span>
-                                                <div class="w-full bg-[#15803d]/30 rounded-t-lg" style="height:50%">
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">88%</span>
-                                                <div class="w-full bg-[#15803d]/60 rounded-t-lg" style="height:80%">
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">91%</span>
-                                                <div class="w-full bg-[#15803d] rounded-t-lg" style="height:90%"></div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">84%</span>
-                                                <div class="w-full bg-[#15803d]/50 rounded-t-lg" style="height:70%">
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 flex flex-col items-center gap-1">
-                                                <span class="text-[8px] text-slate-400 font-bold">87%</span>
-                                                <div class="w-full bg-[#15803d]/60 rounded-t-lg" style="height:78%">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex gap-3 mt-2 border-t border-slate-200 pt-2">
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Aug
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Sep
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Oct
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Nov
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Dec
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Jan
-                                            </div>
-                                            <div class="flex-1 text-center text-[8px] text-slate-400 font-medium">Feb
-                                            </div>
-                                        </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span id="metric-attendance-absent-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Absent Today</span>
+                                        <span id="metric-attendance-absent-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">10</span>
                                     </div>
                                 </div>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-user-xmark metric-icon-base"></i>
+                                    <i class="fa-solid fa-user-xmark metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
+                            </div>
 
-                                <!-- Predictive Analytics -->
-                                <div class="space-y-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
-                                        <h3 class="text-[11px] font-bold text-black uppercase tracking-widest">
-                                            Predictive Analytics</h3>
-                                        <span
-                                            class="px-3 py-1 bg-blue-50 text-blue-500 text-[9px] font-bold rounded-full uppercase tracking-widest">What
-                                            Will Happen</span>
+                            <!-- Late -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span id="metric-attendance-late-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Late Today</span>
+                                        <span id="metric-attendance-late" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">6</span>
                                     </div>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-3">
-                                            <div class="flex items-center justify-between mb-1">
-                                                <p class="text-xs font-bold text-black">At-Risk Students Forecast</p>
-                                                <span
-                                                    class="px-2 py-0.5 bg-red-100 text-red-500 text-[9px] font-bold rounded-full">High
-                                                    Priority</span>
-                                            </div>
-                                            <div class="space-y-2">
-                                                <div
-                                                    class="flex items-center justify-between py-1.5 border-b border-slate-100">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 bg-red-400 rounded-full"></div><span
-                                                            class="text-xs text-slate-700 font-medium">Juan dela
-                                                            Cruz</span>
-                                                    </div>
-                                                    <span class="text-[9px] font-bold text-red-500">65% fail risk</span>
-                                                </div>
-                                                <div
-                                                    class="flex items-center justify-between py-1.5 border-b border-slate-100">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 bg-orange-400 rounded-full"></div><span
-                                                            class="text-xs text-slate-700 font-medium">Maria
-                                                            Santos</span>
-                                                    </div>
-                                                    <span class="text-[9px] font-bold text-orange-500">52% fail
-                                                        risk</span>
-                                                </div>
-                                                <div
-                                                    class="flex items-center justify-between py-1.5 border-b border-slate-100">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 bg-yellow-400 rounded-full"></div><span
-                                                            class="text-xs text-slate-700 font-medium">Carlo
-                                                            Reyes</span>
-                                                    </div>
-                                                    <span class="text-[9px] font-bold text-yellow-600">41% fail
-                                                        risk</span>
-                                                </div>
-                                                <div class="flex items-center justify-between py-1.5">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 bg-yellow-300 rounded-full"></div><span
-                                                            class="text-xs text-slate-700 font-medium">Ana Flores</span>
-                                                    </div>
-                                                    <span class="text-[9px] font-bold text-yellow-500">38% fail
-                                                        risk</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-3">
-                                            <p class="text-xs font-bold text-black mb-2">Grade Trend Projection — Next
-                                                Quarter</p>
-                                            <div class="relative h-28">
-                                                <div class="absolute inset-0 flex flex-col justify-between">
-                                                    <div
-                                                        class="border-b border-dashed border-slate-200 flex items-center">
-                                                        <span class="text-[8px] text-slate-400 mr-1">95</span>
-                                                    </div>
-                                                    <div
-                                                        class="border-b border-dashed border-slate-200 flex items-center">
-                                                        <span class="text-[8px] text-slate-400 mr-1">85</span>
-                                                    </div>
-                                                    <div
-                                                        class="border-b border-dashed border-slate-200 flex items-center">
-                                                        <span class="text-[8px] text-slate-400 mr-1">75</span>
-                                                    </div>
-                                                    <div class="flex items-center"><span
-                                                            class="text-[8px] text-slate-400 mr-1">65</span></div>
-                                                </div>
-                                                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 80"
-                                                    preserveAspectRatio="none">
-                                                    <polyline points="0,55 40,45 80,38 120,30 160,25 200,20" fill="none"
-                                                        stroke="#15803d" stroke-width="2" stroke-linecap="round" />
-                                                    <polyline points="120,30 160,25 200,20" fill="none" stroke="#15803d"
-                                                        stroke-width="2" stroke-dasharray="4,3"
-                                                        stroke-linecap="round" />
-                                                    <circle cx="120" cy="30" r="3" fill="#15803d" />
-                                                    <text x="122" y="26" font-size="7" fill="#64748b">Now</text>
-                                                </svg>
-                                            </div>
-                                            <p class="text-[9px] text-slate-400 font-medium">Projected class average:
-                                                <span class="text-[#15803d] font-bold">89.4%</span> by end of quarter
-                                            </p>
-                                        </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span id="metric-attendance-late-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Late Today</span>
+                                        <span id="metric-attendance-late-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">6</span>
                                     </div>
                                 </div>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-clock metric-icon-base"></i>
+                                    <i class="fa-solid fa-clock metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
+                            </div>
 
-                                <!-- Prescriptive Analytics -->
-                                <div class="space-y-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-1 h-6 bg-amber-500 rounded-full"></div>
-                                        <h3 class="text-[11px] font-bold text-black uppercase tracking-widest">
-                                            Prescriptive Analytics</h3>
-                                        <span
-                                            class="px-3 py-1 bg-amber-50 text-amber-500 text-[9px] font-bold rounded-full uppercase tracking-widest">What
-                                            To Do</span>
+                            <!-- Attendance Rate -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Attendance Rate</span>
+                                        <span id="metric-attendance-rate" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">92.3%</span>
                                     </div>
-                                    <div class="space-y-3">
-                                        <div
-                                            class="border border-slate-200 rounded-2xl p-5 bg-slate-50 flex items-start gap-5">
-                                            <div
-                                                class="w-10 h-10 bg-red-100 rounded-xl shrink-0 flex items-center justify-center">
-                                                <i class="fa-solid fa-triangle-exclamation text-red-500 text-sm"></i>
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-sm font-bold text-black">Schedule remedial sessions for
-                                                    Grade 10-A</p>
-                                                <p class="text-xs text-slate-500 mt-0.5">AI detected a 22% drop in Math
-                                                    scores over the past 4 weeks. Immediate intervention recommended.
-                                                </p>
-                                            </div>
-                                            <span
-                                                class="shrink-0 px-3 py-1 bg-red-100 text-red-600 text-[9px] font-bold rounded-xl uppercase tracking-widest">Urgent</span>
-                                        </div>
-                                        <div
-                                            class="border border-slate-200 rounded-2xl p-5 bg-slate-50 flex items-start gap-5">
-                                            <div
-                                                class="w-10 h-10 bg-amber-100 rounded-xl shrink-0 flex items-center justify-center">
-                                                <i class="fa-solid fa-bell text-amber-500 text-sm"></i>
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-sm font-bold text-black">Notify parents of students with
-                                                    3+ absences</p>
-                                                <p class="text-xs text-slate-500 mt-0.5">18 students have exceeded the
-                                                    absence threshold this month. Parent notifications should be sent.
-                                                </p>
-                                            </div>
-                                            <span
-                                                class="shrink-0 px-3 py-1 bg-amber-100 text-amber-600 text-[9px] font-bold rounded-xl uppercase tracking-widest">Action
-                                                Needed</span>
-                                        </div>
-                                        <div
-                                            class="border border-slate-200 rounded-2xl p-5 bg-slate-50 flex items-start gap-5">
-                                            <div
-                                                class="w-10 h-10 bg-blue-100 rounded-xl shrink-0 flex items-center justify-center">
-                                                <i class="fa-solid fa-lightbulb text-blue-500 text-sm"></i>
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-sm font-bold text-black">Introduce peer tutoring program
-                                                    in Science</p>
-                                                <p class="text-xs text-slate-500 mt-0.5">Top 10% of performers can
-                                                    mentor struggling students. Predicted to improve pass rate by 8-12%.
-                                                </p>
-                                            </div>
-                                            <span
-                                                class="shrink-0 px-3 py-1 bg-blue-100 text-blue-600 text-[9px] font-bold rounded-xl uppercase tracking-widest">Suggested</span>
-                                        </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span class="text-xs font-bold tracking-normal block font-['Inter']">Attendance Rate</span>
+                                        <span id="metric-attendance-rate-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">92.3%</span>
                                     </div>
                                 </div>
-
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-chart-pie metric-icon-base"></i>
+                                    <i class="fa-solid fa-chart-pie metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </section>
 
-                <!-- REPORTS ATTENDANCE VIEW -->
-                <section id="reports-attendance-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
-                        <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <h1 class="text-2xl font-bold text-black tracking-tight">Attendance Reports</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">Student attendance tracking and
-                                    analytics</p>
+                        <!-- Actions & Search Toolbar (Single Unified Row - Shared Code) -->
+                        <div id="attendance-report-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-between gap-4">
+                            <!-- Left: Export Button -->
+                            <button onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('All')"
+                                class="sigma-btn sigma-btn-primary sigma-btn-md gap-3 shrink-0">
+                                <i class="fa-solid fa-file-export text-xs"></i>
+                                <span>Export Report</span>
+                            </button>
+
+                            <!-- Right: Combined Search, Role/Filter, and Search Button -->
+                            <div class="flex flex-wrap items-center gap-3">
+                                <!-- Search Section / Subject / Teacher -->
+                                <div class="w-[280px] relative">
+                                    <input type="text" id="attendance-search-query" aria-label="Search section, subject or teacher" 
+                                        placeholder="Search Section, Subject or Teacher"
+                                        maxlength="50"
+                                        autocomplete="off"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        spellcheck="false"
+                                        oninput="this.value = this.value.replace(/^\s+/, '').replace(/[^a-zA-Z0-9\s.\-']/g, '').replace(/\s{2,}/g, ' ')"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();window.applyAttendanceSearch && window.applyAttendanceSearch();}"
+                                        class="sigma-input">
+                                </div>
+
+                                <!-- Filter Section Dropdown -->
+                                <div class="w-[180px] relative">
+                                    <div class="sigma-select-wrapper">
+                                        <select id="attendance-filter-section" onchange="window.applyAttendanceSearch && window.applyAttendanceSearch()" aria-label="Filter by Section" class="sigma-select">
+                                            <option value="" selected>All Sections</option>
+                                            <option value="11-Einstein">Grade 11 - Einstein</option>
+                                            <option value="11-Rizal">Grade 11 - Rizal</option>
+                                            <option value="12-Newton">Grade 12 - Newton</option>
+                                        </select>
+                                        <i class="fa-solid fa-chevron-down sigma-select-icon"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Filter Date Range Dropdown -->
+                                <div class="w-[160px] relative">
+                                    <div class="sigma-select-wrapper">
+                                        <select id="attendance-filter-date" onchange="window.applyAttendanceSearch && window.applyAttendanceSearch()" aria-label="Filter by Date Range" class="sigma-select">
+                                            <option value="today" selected>Today</option>
+                                            <option value="week">This Week</option>
+                                            <option value="month">This Month</option>
+                                            <option value="last_month">Last Month</option>
+                                        </select>
+                                        <i class="fa-solid fa-chevron-down sigma-select-icon"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Search Button -->
+                                <button onclick="window.applyAttendanceSearch && window.applyAttendanceSearch()"
+                                    class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px]">
+                                    <span>Search</span>
+                                </button>
                             </div>
-                            <div class="px-10 py-8 space-y-8">
-                                <!-- Summary Cards -->
-                                <div class="grid grid-cols-4 gap-4">
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-user-check text-[#15803d] text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">1,104</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Present
-                                            Today</p>
-                                    </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-user-xmark text-red-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">87</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Absent
-                                            Today</p>
-                                    </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-yellow-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-clock text-yellow-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">57</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Late
-                                        </p>
-                                    </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-chart-pie text-blue-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">91.3%</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                                            Attendance Rate</p>
-                                    </div>
-                                </div>
-                                <!-- Filter Row -->
-                                <div class="flex items-center gap-3">
-                                    <select id="admin-attendance-filter-section" name="attendance_section" aria-label="Filter by Section"
-                                        class="w-40 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
-                                        <option value="">All Sections</option>
-                                        <option value="11-ICT-A">Grade 11 - ICT A</option>
-                                        <option value="11-ABM-A">Grade 11 - ABM A</option>
-                                        <option value="11-STEM-A">Grade 11 - STEM A</option>
-                                        <option value="12-ICT-A">Grade 12 - ICT A</option>
-                                        <option value="12-HUMSS-A">Grade 12 - HUMSS A</option>
-                                    </select>
-                                    <select id="admin-attendance-filter-date" name="attendance_date" aria-label="Filter by Date Range"
-                                        class="w-40 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
-                                        <option value="month">This Month</option>
-                                        <option value="week">This Week</option>
-                                        <option value="last_month">Last Month</option>
-                                    </select>
-                                    <select id="admin-attendance-filter-status" name="attendance_status" aria-label="Filter by Status"
-                                        class="w-32 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
-                                        <option value="">All Status</option>
-                                        <option value="present">Present</option>
-                                        <option value="absent">Absent</option>
-                                        <option value="late">Late</option>
-                                    </select>
-                                    <button
-                                        class="ml-auto px-5 h-9 bg-[#15803d] text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-[#166534] transition-all">Export</button>
-                                </div>
-                                <!-- Attendance Table -->
-                                <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead class="bg-[#15803d] border-b border-[#137638]">
-                                            <tr>
-                                                <th
-                                                    class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                                                    Student Name</th>
-                                                <th
-                                                    class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                                                    ID No.</th>
-                                                <th
-                                                    class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                                                    Section</th>
-                                                <th
-                                                    class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                                                    Status</th>
-                                                <th
-                                                    class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
-                                                    Date</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            <tr>
-                                                <td class="px-5 py-3 text-sm font-medium text-black">Juan dela Cruz</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">2024-0001</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Grade 10 - Rizal</td>
-                                                <td class="px-5 py-3"><span
-                                                        class="px-3 py-1 bg-green-100 text-green-700 text-[9px] font-bold rounded-xl uppercase">Present</span>
-                                                </td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Apr 29, 2026</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="px-5 py-3 text-sm font-medium text-black">Maria Santos</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">2024-0002</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Grade 10 - Bonifacio</td>
-                                                <td class="px-5 py-3"><span
-                                                        class="px-3 py-1 bg-red-100 text-red-700 text-[9px] font-bold rounded-xl uppercase">Absent</span>
-                                                </td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Apr 29, 2026</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="px-5 py-3 text-sm font-medium text-black">Carlo Reyes</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">2024-0003</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Grade 9 - Mabini</td>
-                                                <td class="px-5 py-3"><span
-                                                        class="px-3 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded-xl uppercase">Late</span>
-                                                </td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Apr 29, 2026</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="px-5 py-3 text-sm font-medium text-black">Ana Flores</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">2024-0004</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Grade 8 - Luna</td>
-                                                <td class="px-5 py-3"><span
-                                                        class="px-3 py-1 bg-green-100 text-green-700 text-[9px] font-bold rounded-xl uppercase">Present</span>
-                                                </td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Apr 29, 2026</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="px-5 py-3 text-sm font-medium text-black">Ramon Garcia</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">2024-0005</td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Grade 7 - Aguinaldo</td>
-                                                <td class="px-5 py-3"><span
-                                                        class="px-3 py-1 bg-green-100 text-green-700 text-[9px] font-bold rounded-xl uppercase">Present</span>
-                                                </td>
-                                                <td class="px-5 py-3 text-xs text-slate-500">Apr 29, 2026</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                    <div
-                                        class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-                                        <p class="text-xs text-slate-400 font-medium">Showing 5 of 1,248 records</p>
-                                        <div class="flex gap-2">
-                                            <button
-                                                class="w-8 h-7 bg-white border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-100">‹</button>
-                                            <button
-                                                class="w-8 h-7 bg-[#15803d] border border-[#15803d] rounded-lg text-xs text-white font-bold">1</button>
-                                            <button
-                                                class="w-8 h-7 bg-white border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-100">2</button>
-                                            <button
-                                                class="w-8 h-7 bg-white border border-slate-200 rounded-lg text-xs text-slate-500 hover:bg-slate-100">›</button>
-                                        </div>
-                                    </div>
+                        </div>
+
+                        <!-- Standardized Institutional Table (Exact User Accounts Style, Non-Paneled) -->
+                        <div class="flex-1 flex flex-col bg-white px-10">
+                                                        <table class="sigma-table w-full border-collapse table-fixed">
+                                <colgroup>
+                                    <col style="width: 16%;">  <!-- Section -->
+                                    <col style="width: 16%;">  <!-- Subject -->
+                                    <col style="width: 16%;">  <!-- Teacher -->
+                                    <col style="width: 8%;">   <!-- Enrolled -->
+                                    <col style="width: 8.5%;"> <!-- Present -->
+                                    <col style="width: 8.5%;"> <!-- Absent -->
+                                    <col style="width: 8%;">   <!-- Late -->
+                                    <col style="width: 14%;">  <!-- Attendance Rate -->
+                                    <col style="width: 5%;">   <!-- Action -->
+                                </colgroup>
+                                <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
+                                    <tr>
+                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Section</th>
+                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Subject</th>
+                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Teacher</th>
+                                        <th class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Enrolled</th>
+                                        <th id="th-attendance-present" title="Present" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Present</th>
+                                        <th id="th-attendance-absent" title="Absent" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Absent</th>
+                                        <th id="th-attendance-late" title="Late" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Late</th>
+                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Attendance Rate</th>
+                                        <th class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis" title="Actions"><span class="sr-only">Actions</span><i class="fa-solid fa-ellipsis"></i></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceReportTableBody" class="divide-y divide-slate-100">
+                                    <tr class="transition-colors hover:bg-slate-50/80">
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Einstein</div>
+                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Statistics and Probability</div>
+                                        </td>
+                                        <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="flex items-center justify-start gap-2.5 text-left">
+                                                <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                                                    <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                                                </div>
+                                                <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                                                    Jose Cruz Dela Pena
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">40</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">38</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">95.0%</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="flex justify-center">
+                                                <div class="action-dropdown-container">
+                                                    <button type="button" onclick="window.toggleAttendanceActionDropdown(1, event)"
+                                                        id="attendance-dots-btn-1"
+                                                        class="action-dots-btn cursor-pointer" 
+                                                        title="Actions">
+                                                        <i class="fa-solid fa-ellipsis"></i>
+                                                    </button>
+                                                    <div id="attendance-action-menu-1" class="action-dropdown-menu">
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Einstein'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                            <span>View Details</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Einstein'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                            <span>Export Sheet</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="transition-colors bg-slate-50/60 hover:bg-slate-50/80">
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Oral Communication</div>
+                                        </td>
+                                        <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="flex items-center justify-start gap-2.5 text-left">
+                                                <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                                                    <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                                                </div>
+                                                <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                                                    Maria Santos Ramos
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">44</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">41</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">93.2%</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="flex justify-center">
+                                                <div class="action-dropdown-container">
+                                                    <button type="button" onclick="window.toggleAttendanceActionDropdown(2, event)"
+                                                        id="attendance-dots-btn-2"
+                                                        class="action-dots-btn cursor-pointer" 
+                                                        title="Actions">
+                                                        <i class="fa-solid fa-ellipsis"></i>
+                                                    </button>
+                                                    <div id="attendance-action-menu-2" class="action-dropdown-menu">
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                            <span>View Details</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                            <span>Export Sheet</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="transition-colors hover:bg-slate-50/80">
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Empowerment Technologies</div>
+                                        </td>
+                                        <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="flex items-center justify-start gap-2.5 text-left">
+                                                <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                                                    <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                                                </div>
+                                                <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                                                    Jose Cruz Dela Pena
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">42</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">39</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">92.9%</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="flex justify-center">
+                                                <div class="action-dropdown-container">
+                                                    <button type="button" onclick="window.toggleAttendanceActionDropdown(3, event)"
+                                                        id="attendance-dots-btn-3"
+                                                        class="action-dots-btn cursor-pointer" 
+                                                        title="Actions">
+                                                        <i class="fa-solid fa-ellipsis"></i>
+                                                    </button>
+                                                    <div id="attendance-action-menu-3" class="action-dropdown-menu">
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                            <span>View Details</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                            <span>Export Sheet</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="transition-colors bg-slate-50/60 hover:bg-slate-50/80">
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Computer Programming 1</div>
+                                        </td>
+                                        <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="flex items-center justify-start gap-2.5 text-left">
+                                                <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                                                    <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                                                </div>
+                                                <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                                                    Maria Santos Ramos
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">45</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">42</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">93.3%</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="flex justify-center">
+                                                <div class="action-dropdown-container">
+                                                    <button type="button" onclick="window.toggleAttendanceActionDropdown(4, event)"
+                                                        id="attendance-dots-btn-4"
+                                                        class="action-dots-btn cursor-pointer" 
+                                                        title="Actions">
+                                                        <i class="fa-solid fa-ellipsis"></i>
+                                                    </button>
+                                                    <div id="attendance-action-menu-4" class="action-dropdown-menu">
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                            <span>View Details</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                            <span>Export Sheet</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="transition-colors hover:bg-slate-50/80">
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Newton</div>
+                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 12</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">General Mathematics</div>
+                                        </td>
+                                        <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="flex items-center justify-start gap-2.5 text-left">
+                                                <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                                                    <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                                                </div>
+                                                <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                                                    Jose Cruz Dela Pena
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">38</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">35</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                        </td>
+                                        <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">92.1%</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center">
+                                            <div class="flex justify-center">
+                                                <div class="action-dropdown-container">
+                                                    <button type="button" onclick="window.toggleAttendanceActionDropdown(5, event)"
+                                                        id="attendance-dots-btn-5"
+                                                        class="action-dots-btn cursor-pointer" 
+                                                        title="Actions">
+                                                        <i class="fa-solid fa-ellipsis"></i>
+                                                    </button>
+                                                    <div id="attendance-action-menu-5" class="action-dropdown-menu">
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 12 - Newton'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-eye"></i>
+                                                            <span>View Details</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 12 - Newton'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                            <span>Export Sheet</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <!-- Pagination Footer -->
+                            <div id="attendance-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-between bg-white">
+                                <p class="text-xs text-slate-400 font-medium font-['Inter']">Showing 1 to 5 of 12 records</p>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" class="w-8 h-8 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 flex items-center justify-center transition-colors">‹</button>
+                                    <button type="button" class="w-8 h-8 rounded-lg bg-[#15803d] text-xs font-semibold text-white flex items-center justify-center">1</button>
+                                    <button type="button" class="w-8 h-8 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 flex items-center justify-center transition-colors">2</button>
+                                    <button type="button" class="w-8 h-8 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 flex items-center justify-center transition-colors">›</button>
                                 </div>
                             </div>
                         </div>
@@ -1246,6 +1261,9 @@ require_once __DIR__ . "/includes/topbar.php";
                     </div>
                 </section>
                 <!-- RESOURCES VIEW -->
+                <!-- SHARED CALENDAR PAGE COMPONENT -->
+                <?php include __DIR__ . '/includes/calendar_page.php'; ?>
+
                 <section id="resources-view" class="dynamic-section hidden">
                     <div class="mx-auto max-w-[1024px] w-full">
                         <div
@@ -1543,59 +1561,19 @@ require_once __DIR__ . "/includes/topbar.php";
                                 <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">AI Logs</h1>
                             </div>
                             <div class="flex-1">
-                                <!-- AI Logs Table -->
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse">
+<!-- AI Logs Table -->
+                                <div class="sigma-table-container overflow-x-auto">
+                                    <table class="sigma-table sigma-audit-table" aria-label="AI interaction logs">
                                         <thead>
-                                            <tr class="bg-black">
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">User</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Interaction</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Model</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-right border-b border-white/10">Timestamp</th>
+                                            <tr>
+                                                <th class="text-left">User</th>
+                                                <th class="text-left">AI Feature</th>
+                                                <th class="text-left">Model</th>
+                                                <th>Status</th>
+                                                <th class="text-right">Timestamp</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">JD</div>
-                                                        <span class="text-xs font-bold text-black">John Doe</span>
-                                                    </div>
-                                                </td>
-                                                <td class="px-8 py-6">
-                                                    <div class="max-w-[400px]">
-                                                        <p class="text-xs font-bold text-black mb-1">Generate lesson plan for Calculus I</p>
-                                                        <p class="text-[11px] text-slate-400 line-clamp-1">Response: Here is a comprehensive lesson plan for your Calculus course...</p>
-                                                    </div>
-                                                </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase">Gemini 1.5 Pro</span>
-                                                </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">2m ago</span>
-                                                </td>
-                                            </tr>
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">AS</div>
-                                                        <span class="text-xs font-bold text-black">Alice Smith</span>
-                                                    </div>
-                                                </td>
-                                                <td class="px-8 py-6">
-                                                    <div class="max-w-[400px]">
-                                                        <p class="text-xs font-bold text-black mb-1">Analyze student performance trends</p>
-                                                        <p class="text-[11px] text-slate-400 line-clamp-1">Response: Analysis shows a 15% improvement in quiz scores...</p>
-                                                    </div>
-                                                </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase">Gemini 1.0 Ultra</span>
-                                                </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">15m ago</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+<tbody><tr><td colspan="5" class="text-black-fade">No AI logs yet.</td></tr></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -1612,56 +1590,56 @@ require_once __DIR__ . "/includes/topbar.php";
                                 <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Activity Logs</h1>
                             </div>
                             <div class="flex-1">
-                                <!-- Activity Logs Table -->
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse">
+<!-- Activity Logs Table -->
+                                <div class="sigma-table-container overflow-x-auto">
+                                    <table class="sigma-table sigma-audit-table" aria-label="Activity logs">
                                         <thead>
-                                            <tr class="bg-black">
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Admin / User</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Action</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Module</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-right border-b border-white/10">Timestamp</th>
+                                            <tr>
+                                                <th>Admin / User</th>
+                                                <th>Action</th>
+                                                <th>Module</th>
+                                                <th>Timestamp</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
+                                        <tbody>
+                                            <tr>
+                                                <td>
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">MA</div>
+                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
                                                         <div>
-                                                            <p class="text-xs font-bold text-black">Master Admin</p>
-                                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Administrator</p>
+                                                            <p class="text-black">Master Admin</p>
+                                                            <p class="text-sm text-black-fade">Administrator</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="text-xs font-bold text-black">Updated School Year Configuration</span>
+                                                <td>
+                                                    <span class="text-black">Updated School Year Configuration</span>
                                                 </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase">System</span>
+                                                <td>
+                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">System</span>
                                                 </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">1h ago</span>
+                                                <td>
+                                                    <span class="text-sm text-black-fade">1h ago</span>
                                                 </td>
                                             </tr>
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
+                                            <tr>
+                                                <td>
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">JS</div>
+                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
                                                         <div>
-                                                            <p class="text-xs font-bold text-black">Jane Smith</p>
-                                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Teacher</p>
+                                                            <p class="text-black">Jane Smith</p>
+                                                            <p class="text-sm text-black-fade">Teacher</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="text-xs font-bold text-black">Modified Grade Entry - Math 101</span>
+                                                <td>
+                                                    <span class="text-black">Modified Grade Entry - Math 101</span>
                                                 </td>
-                                                <td class="px-8 py-6">
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded uppercase">Grades</span>
+                                                <td>
+                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">Grades</span>
                                                 </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">3h ago</span>
+                                                <td>
+                                                    <span class="text-sm text-black-fade">3h ago</span>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -1681,68 +1659,68 @@ require_once __DIR__ . "/includes/topbar.php";
                                 <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Authentication Logs</h1>
                             </div>
                             <div class="flex-1">
-                                <!-- Authentication Logs Table -->
-                                <div class="overflow-x-auto">
-                                    <table class="w-full border-collapse">
+<!-- Authentication Logs Table -->
+                                <div class="sigma-table-container overflow-x-auto">
+                                    <table class="sigma-table sigma-audit-table" aria-label="Authentication logs">
                                         <thead>
-                                            <tr class="bg-black">
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">User</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">Event</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-left border-b border-white/10">IP / Device</th>
-                                                <th class="px-8 py-5 text-[10px] font-medium text-white uppercase tracking-[0.2em] text-right border-b border-white/10">Timestamp</th>
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Event</th>
+                                                <th>IP / Device</th>
+                                                <th>Timestamp</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
+                                        <tbody>
+                                            <tr>
+                                                <td>
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">MK</div>
+                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
                                                         <div>
-                                                            <p class="text-xs font-bold text-black">Mark Kevin</p>
-                                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Teacher</p>
+                                                            <p class="text-black">Mark Kevin</p>
+                                                            <p class="text-sm text-black-fade">Teacher</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
+                                                <td>
                                                     <div class="flex items-center gap-2">
                                                         <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                                        <span class="text-xs font-bold text-black">Login Successful</span>
+                                                        <span class="text-black">Login Successful</span>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
+                                                <td>
                                                     <div class="flex flex-col">
-                                                        <span class="text-xs font-bold text-black">192.168.1.45</span>
-                                                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Chrome / Windows</span>
+                                                        <span class="text-black">192.168.1.45</span>
+                                                        <span class="text-sm text-black-fade">Chrome / Windows</span>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">5m ago</span>
+                                                <td>
+                                                    <span class="text-sm text-black-fade">5m ago</span>
                                                 </td>
                                             </tr>
-                                            <tr class="hover:bg-slate-50 transition-colors">
-                                                <td class="px-8 py-6">
+                                            <tr>
+                                                <td>
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">ST</div>
+                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
                                                         <div>
-                                                            <p class="text-xs font-bold text-black">Stanley Tan</p>
-                                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Student</p>
+                                                            <p class="text-black">Stanley Tan</p>
+                                                            <p class="text-sm text-black-fade">Student</p>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
+                                                <td>
                                                     <div class="flex items-center gap-2">
                                                         <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                                                        <span class="text-xs font-bold text-black">Failed Login Attempt</span>
+                                                        <span class="text-black">Failed Login Attempt</span>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6">
+                                                <td>
                                                     <div class="flex flex-col">
-                                                        <span class="text-xs font-bold text-black">10.0.0.122</span>
-                                                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Safari / iOS</span>
+                                                        <span class="text-black">10.0.0.122</span>
+                                                        <span class="text-sm text-black-fade">Safari / iOS</span>
                                                     </div>
                                                 </td>
-                                                <td class="px-8 py-6 text-right">
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase">12m ago</span>
+                                                <td>
+                                                    <span class="text-sm text-black-fade">12m ago</span>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -1753,6 +1731,23 @@ require_once __DIR__ . "/includes/topbar.php";
                     </div>
                 </section>
 
+                <section id="audit-notifications-view" class="dynamic-section hidden">
+                    <div class="audit-log-layout bg-white border-b border-slate-200 min-h-screen p-0 relative">
+                        <aside class="audit-log-sidebar">
+                            <nav class="flex flex-col gap-2" aria-label="Audit log categories" id="notification-log-navigation"></nav>
+                        </aside>
+                        <div class="flex-1 min-w-0">
+                            <div class="sigma-table-container overflow-x-auto">
+                                <table class="sigma-table sigma-audit-table" aria-label="Notification logs">
+                                    <thead><tr><th>Recipient</th><th>Notification</th><th>Channel</th><th>Status</th><th>Read</th><th>Timestamp</th></tr></thead>
+                                    <tbody id="notification-log-rows"></tbody>
+                                </table>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 p-5">
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </main>
 
         <!-- USER ACCOUNT CREATE/EDIT OVERLAY (Standardized Workstation) -->

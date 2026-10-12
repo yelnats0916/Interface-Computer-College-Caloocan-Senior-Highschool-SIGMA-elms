@@ -1988,7 +1988,7 @@ body > .sortable-drag-clone .card-body-main,
     min-width: 20px !important;
     height: 20px !important;
     border-radius: 9999px !important;
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: transparent !important;
     color: #ffffff !important;
     cursor: pointer !important;
     flex-shrink: 0 !important;
@@ -1997,7 +1997,6 @@ body > .sortable-drag-clone .card-body-main,
     transition: background-color 0.15s ease, transform 0.15s ease !important;
 }
 
-.attendance-month-table th.student-name-col:hover .attendance-students-expand-btn,
 .attendance-month-table th.student-name-col .attendance-students-expand-btn:hover {
     background: rgba(255, 255, 255, 0.45) !important;
     transform: scale(1.08) !important;
@@ -2981,7 +2980,7 @@ body > .sortable-drag-clone .card-body-main,
         min-width: 20px !important;
         height: 20px !important;
         border-radius: 9999px !important;
-        background: rgba(255, 255, 255, 0.25) !important;
+        background: transparent !important;
         color: #ffffff !important;
         cursor: pointer !important;
         flex-shrink: 0 !important;

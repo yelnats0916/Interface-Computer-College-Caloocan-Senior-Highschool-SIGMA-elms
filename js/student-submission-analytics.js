@@ -31,7 +31,10 @@
                 score: row.score !== null && row.score !== '' && Number.isFinite(Number(row.score)) ? Number(row.score) : null,
                 maximumScore: row.max !== null && row.max !== '' && Number.isFinite(Number(row.max)) ? Number(row.max) : null,
                 dueAt: date(row.dueDate), submittedAt: date(row.submittedOn), gradedAt: date(row.gradedOn),
-                internalUrl
+                internalUrl,
+                sources: [{ id: 'submission-records', label: 'Submission Records' },
+                    ...(row.score !== null && row.score !== '' && Number.isFinite(Number(row.score))
+                        ? [{ id: 'assessment-results', label: 'Assessment Results' }] : [])]
             });
             scopes.set(JSON.stringify([subjectId, sectionId]), { subjectId, sectionId });
         }

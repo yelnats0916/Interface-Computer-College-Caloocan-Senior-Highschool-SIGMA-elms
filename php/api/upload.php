@@ -8,8 +8,11 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+require_once dirname(__DIR__) . '/includes/service_key_validation.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
@@ -29,8 +32,7 @@ function jsonOut(array $data, int $code = 200): void {
 }
 
 function getGoogleAccessToken(string $keyFile) {
-    if (!file_exists($keyFile)) return null;
-    $keyData = json_decode(file_get_contents($keyFile), true);
+    $keyData = loadServiceSettings()['google_drive']['service_account'] ?? null;
     if (!$keyData || empty($keyData['client_email']) || empty($keyData['private_key'])) return null;
 
     $now = time();
@@ -108,10 +110,10 @@ function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $file
 // GET status endpoint
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $keyPath = $rootDir . '/config/google_service_account.json';
-    $hasKey = file_exists($keyPath);
+    $hasKey = !empty($driveConfig['service_account']['private_key']);
     $email = '';
     if ($hasKey) {
-        $k = json_decode(file_get_contents($keyPath), true);
+        $k = $driveConfig['service_account'];
         $email = $k['client_email'] ?? '';
     }
 
@@ -135,11 +137,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $rawInput = file_get_contents('php://input');
 $jsonPayload = json_decode($rawInput, true) ?: [];
 $action = $_POST['action'] ?? $jsonPayload['action'] ?? 'upload';
+if (in_array($action, ['test_connection', 'save_config', 'upload_key'], true)) requireServiceVaultAccess();
 
 // ── Action: TEST CONNECTION ──────────────────────────────────────────────────
 if ($action === 'test_connection') {
     $keyPath = $rootDir . '/config/google_service_account.json';
-    if (!file_exists($keyPath)) {
+    if (empty($driveConfig['service_account']['private_key'])) {
         jsonOut(['success' => false, 'error' => 'Service account key file not found on server.'], 404);
     }
     $auth = getGoogleAccessToken($keyPath);
@@ -184,9 +187,7 @@ if ($action === 'save_config') {
         }
         $services['google_drive']['folder_id'] = $newFolderId;
         $services['google_drive']['folder_url'] = 'https://drive.google.com/drive/folders/' . $newFolderId;
-        
-        $configExport = "<?php\n/**\n * SIGMA ELMS - API Credentials & Services Configuration\n */\n\nreturn " . var_export($services, true) . ";\n";
-        file_put_contents($rootDir . '/config/services.php', $configExport);
+        saveServiceSettings($services);
     }
     jsonOut(['success' => true, 'message' => 'Google Drive configuration saved successfully.', 'folder_id' => $newFolderId]);
 }
@@ -197,17 +198,18 @@ if ($action === 'upload_key') {
     if (!$keyUpload || $keyUpload['error'] !== UPLOAD_ERR_OK) {
         jsonOut(['success' => false, 'error' => 'Please select a valid .json key file.'], 400);
     }
+    if ($keyUpload['size'] > 32768 || strtolower(pathinfo($keyUpload['name'], PATHINFO_EXTENSION)) !== 'json' || !is_uploaded_file($keyUpload['tmp_name'])) jsonOut(['success' => false, 'error' => 'Use a service-account JSON file smaller than 32 KB.'], 400);
     $content = file_get_contents($keyUpload['tmp_name']);
     $parsed = json_decode($content, true);
     if (!$parsed || empty($parsed['client_email']) || empty($parsed['private_key'])) {
         jsonOut(['success' => false, 'error' => 'Invalid Google Service Account JSON file.'], 400);
     }
-    $targetKeyPath = $rootDir . '/config/google_service_account.json';
-    file_put_contents($targetKeyPath, $content);
+    try { $parsed = validateGoogleServiceAccount($parsed); }
+    catch (InvalidArgumentException $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 400); }
+    $services['google_drive']['service_account'] = $parsed;
 
     $services['google_drive']['service_account_email'] = $parsed['client_email'];
-    $configExport = "<?php\n/**\n * SIGMA ELMS - API Credentials & Services Configuration\n */\n\nreturn " . var_export($services, true) . ";\n";
-    file_put_contents($rootDir . '/config/services.php', $configExport);
+    saveServiceSettings($services);
 
     jsonOut(['success' => true, 'message' => 'Service account key uploaded and validated successfully.', 'email' => $parsed['client_email']]);
 }
@@ -268,7 +270,7 @@ $rootFolderId = $driveConfig['folder_id'] ?? '';
 $targetGdriveFolderId = $rootFolderId;
 
 $keyPath = $rootDir . '/config/google_service_account.json';
-$auth = file_exists($keyPath) ? getGoogleAccessToken($keyPath) : null;
+$auth = !empty($driveConfig['service_account']['private_key']) ? getGoogleAccessToken($keyPath) : null;
 $token = $auth['token'] ?? null;
 
 // Check if a specific contextual path is requested for this upload

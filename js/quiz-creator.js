@@ -102,7 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateGlobalSYDisplay();
     }
     initUserAvatar();
-    initQuizCreator();
+    if (window.SigmaPageLoading?.waitForInitial) {
+        window.SigmaPageLoading.waitForInitial(initQuizCreator).catch(console.error);
+    } else {
+        initQuizCreator();
+    }
 });
 
 let currentQuizTitle = 'Custom Quiz';
@@ -227,7 +231,23 @@ function _saveBeforeExit() {
 
 // ─── End autosave helpers ──────────────────────────────────────────────────────
 
-function initQuizCreator() {
+function resolveEditorQuiz(quizId) {
+    const matches = quiz => [quiz?.id, quiz?.quizId, quiz?.selectedQuizId, quiz?.code].some(id => id !== undefined && id !== null && String(id) === String(quizId));
+    const listed = getStoredQuizLibrary().find(matches);
+    const resolved = typeof window.findStoredQuizFile === 'function' ? window.findStoredQuizFile([quizId], []) : null;
+    const quiz = resolved ? { ...listed, ...resolved } : listed;
+    if (!quiz) return null;
+    for (const key of ['questions', 'quizQuestions', 'questionList']) {
+        let items = quiz[key];
+        if (typeof items === 'string') {
+            try { items = JSON.parse(items); } catch (_) { continue; }
+        }
+        if (Array.isArray(items) && items.length) return { ...quiz, questions: items };
+    }
+    return null;
+}
+
+async function initQuizCreator() {
     try {
         const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
         if (raw) {
@@ -245,6 +265,19 @@ function initQuizCreator() {
     quizMode = urlParams.get('mode') || (isExplicitNew ? 'create' : null);
     let targetId = urlParams.get('id');
 
+    let loadedQuiz = null;
+    if (!loadedQuiz && targetId && (quizMode === 'edit' || quizMode === 'customize')) {
+        loadedQuiz = resolveEditorQuiz(targetId);
+        if (!loadedQuiz && typeof window.fetchQuizLibraryFromServer === 'function') {
+            await window.fetchQuizLibraryFromServer();
+            loadedQuiz = resolveEditorQuiz(targetId);
+        }
+        if (!loadedQuiz) {
+            window.showValidationToast?.({ title: 'Quiz could not be loaded', message: 'The saved questions could not be found. Open the library and try again.', type: 'warning' });
+            return;
+        }
+    }
+
     const titleHeading = document.getElementById('page-quiz-title-heading');
 
     if (isExplicitNew) {
@@ -257,8 +290,7 @@ function initQuizCreator() {
     }
 
     if (quizMode === 'edit' && targetId) {
-        const library = getStoredQuizLibrary();
-        const quiz = library.find(q => q.id === targetId);
+        const quiz = loadedQuiz;
         if (quiz) {
             currentQuizId = quiz.id;
             currentQuizCode = quiz.code || ('#QZ-' + (String(quiz.id || '').replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000)).padStart(4, '0')));
@@ -279,8 +311,7 @@ function initQuizCreator() {
             localStorage.setItem('sigma_active_quiz_creator_id', quiz.id);
         }
     } else if (quizMode === 'customize' && targetId) {
-        const library = getStoredQuizLibrary();
-        const quiz = library.find(q => q.id === targetId);
+        const quiz = loadedQuiz;
         if (quiz) {
             currentQuizId = null; // Save as new
             currentQuizCode = null; // Generate new code on save
@@ -359,8 +390,47 @@ window.handleImageUpload = function (event) {
     const files = Array.from(event.target?.files || []);
     if (files.length === 0) return;
 
+    window.quizGeneralImages = window.quizGeneralImages || [];
+    const MAX_GENERAL_IMAGES = 5;
+    const remainingSlots = MAX_GENERAL_IMAGES - window.quizGeneralImages.length;
+    if (remainingSlots <= 0) {
+        if (typeof window.openAskingPanel === 'function') {
+            window.openAskingPanel({
+                title: 'Maximum Images Reached',
+                message: `You can only add up to ${MAX_GENERAL_IMAGES} banner images per quiz.`,
+                type: 'warning'
+            });
+        } else {
+            alert(`Maximum of ${MAX_GENERAL_IMAGES} banner images per quiz.`);
+        }
+        if (event.target) event.target.value = '';
+        return;
+    }
+
+    const validFiles = [];
+    files.slice(0, remainingSlots).forEach(file => {
+        if (file.size > 5 * 1024 * 1024) {
+            if (typeof window.openAskingPanel === 'function') {
+                window.openAskingPanel({
+                    title: 'File Too Large',
+                    message: `"${file.name}" exceeds the 5MB image limit.`,
+                    type: 'warning'
+                });
+            } else {
+                alert(`"${file.name}" exceeds the 5MB image limit.`);
+            }
+            return;
+        }
+        validFiles.push(file);
+    });
+
+    if (validFiles.length === 0) {
+        if (event.target) event.target.value = '';
+        return;
+    }
+
     let loadedCount = 0;
-    files.forEach(file => {
+    validFiles.forEach(file => {
         const reader = new FileReader();
         reader.onload = function (e) {
             window.quizGeneralImages.push({
@@ -369,12 +439,13 @@ window.handleImageUpload = function (event) {
                 title: ''
             });
             loadedCount++;
-            if (loadedCount === files.length) {
+            if (loadedCount === validFiles.length) {
                 window.renderQuizGeneralImages();
             }
         };
         reader.readAsDataURL(file);
     });
+    if (event.target) event.target.value = '';
 };
 
 window.removeQuizGeneralImage = function (gIdx) {
@@ -387,6 +458,21 @@ window.removeQuizGeneralImage = function (gIdx) {
 window.changeQuizGeneralImage = function (gIdx, event) {
     const file = event.target?.files?.[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+        if (typeof window.openAskingPanel === 'function') {
+            window.openAskingPanel({
+                title: 'File Too Large',
+                message: 'Image file size must be under 5MB.',
+                type: 'warning'
+            });
+        } else {
+            alert('Image file size must be under 5MB.');
+        }
+        if (event.target) event.target.value = '';
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = function (e) {
         if (window.quizGeneralImages && window.quizGeneralImages[gIdx]) {
@@ -395,6 +481,7 @@ window.changeQuizGeneralImage = function (gIdx, event) {
         }
     };
     reader.readAsDataURL(file);
+    if (event.target) event.target.value = '';
 };
 
 window.renderQuizGeneralImages = function () {
@@ -1277,7 +1364,7 @@ function renderQuestions() {
 
         if (totalCount === 0) {
             thumbContainer.innerHTML = `
-                <div class="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl select-none animate-in fade-in duration-200">
+                <div class="quiz-deck-empty-state h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl select-none animate-in fade-in duration-200">
                     <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-black-fade mb-3 shadow-2xs">
                         <i class="fa-solid fa-layer-group text-lg text-black-fade"></i>
                     </div>
@@ -2126,7 +2213,6 @@ window.selectQuizInLibraryModal = function (quizId, event) {
 window.confirmSelectedLibraryQuiz = function () {
     if (!window._selectedLibraryModalQuizId) return;
     window.loadQuizIntoEditor(window._selectedLibraryModalQuizId, false);
-    window.closeQuizLibraryModal();
 };
 
 window.openQuizLibraryModal = function () {
@@ -2711,13 +2797,18 @@ window.confirmResumeDraft = function (quizId, event) {
 };
 
 window.loadQuizIntoEditor = function (quizId, openInNewTab = false) {
+    const selectedQuiz = resolveEditorQuiz(quizId);
+    if (!selectedQuiz) {
+        window.showValidationToast?.({ title: 'Quiz could not be loaded', message: 'This quiz has no saved questions available. Please try again after the library finishes loading.', type: 'warning' });
+        return false;
+    }
     if (openInNewTab) {
         window.open(`quiz-creator.html?mode=edit&id=${encodeURIComponent(quizId)}`, '_blank');
         return;
     }
 
     // 1. If loading the same file that is already loaded in the editor on the main page:
-    if (currentQuizId && currentQuizId === quizId) {
+    if (currentQuizId && String(currentQuizId) === String(quizId)) {
         window.closeQuizLibraryModal();
         if (typeof window.showToastNotification === 'function') {
             window.showToastNotification('This quiz is already open in the editor.', 'info');
@@ -2737,6 +2828,7 @@ window.loadQuizIntoEditor = function (quizId, openInNewTab = false) {
 
     // 3. Otherwise (fresh editor with no active quiz/questions): load into current tab
     window.location.href = `quiz-creator.html?mode=edit&id=${encodeURIComponent(quizId)}`;
+    return true;
 };
 
 window.goBackToCaller = function () {
@@ -3571,23 +3663,34 @@ window.clearAllBorrowedMaterials = function () {
 let currentAIGenFile = null;
 let currentAIGenFileText = '';
 
-window.handleAIGenFileSelect = function (event) {
-    const file = event.target?.files?.[0];
-    if (file) {
-        window.processAIGenFile(file);
+window.openSigmaQuestionUpload = function (event, inputId) {
+    if (event.target?.id === inputId) return;
+    if (event.type === 'keydown') {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
     }
+    document.getElementById(inputId)?.click();
+};
+
+window.setSigmaQuestionUploadDragging = function (event, active) {
+    if (active) event.preventDefault();
+    if (!active && event.currentTarget.contains(event.relatedTarget)) return;
+    event.currentTarget.classList.toggle('is-dragging', active);
+};
+
+function handleSigmaQuestionUploadFile(event, dropzoneId, processFile) {
+    if (event.dataTransfer) event.preventDefault();
+    document.getElementById(dropzoneId)?.classList.remove('is-dragging');
+    const file = event.dataTransfer?.files?.[0] || event.target?.files?.[0];
+    if (file) processFile(file);
+}
+
+window.handleAIGenFileSelect = function (event) {
+    handleSigmaQuestionUploadFile(event, 'ai-gen-dropzone', window.processAIGenFile);
 };
 
 window.handleAIGenFileDrop = function (event) {
-    event.preventDefault();
-    const dropzone = document.getElementById('ai-gen-dropzone');
-    if (dropzone) {
-        dropzone.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10');
-    }
-    const file = event.dataTransfer?.files?.[0];
-    if (file) {
-        window.processAIGenFile(file);
-    }
+    handleSigmaQuestionUploadFile(event, 'ai-gen-dropzone', window.processAIGenFile);
 };
 
 window.processAIGenFile = async function (file) {
@@ -4475,13 +4578,13 @@ window.openAIConfirmGenerateModal = function () {
     if (isNaN(count) || count < 1) count = 1;
     if (count > 50) count = 50;
 
-    const engineLabel = engine === 'grok' ? 'xAI Grok' : (engine === 'both' ? 'Hybrid AI (Gemini + Grok)' : 'Google Gemini');
+    const engineLabel = engine === 'groq' ? 'Groq' : (engine === 'both' ? 'Hybrid AI (Gemini + Groq)' : 'Google Gemini');
 
     const titleEl = document.getElementById('ai-confirm-generate-title');
     const descEl = document.getElementById('ai-confirm-generate-desc');
 
     if (titleEl) titleEl.textContent = `Generate ${count} ${count === 1 ? 'Question' : 'Questions'}?`;
-    if (descEl) descEl.textContent = `AI will automatically create ${count} ${selectedType} questions grounded in your selected materials and Senior High curriculum competencies using ${engineLabel}.`;
+    if (descEl) descEl.textContent = `Create ${count} ${selectedType} questions using the AI provider configured for Assessment Generation.`;
 
     const modal = document.getElementById('ai-confirm-generate-modal');
     if (modal) {
@@ -4569,6 +4672,11 @@ window.generateAIQuestions = function () {
 };
 
 window.executeAIQuestionGeneration = async function () {
+    const submitBtn = document.getElementById('ai-generate-submit-btn');
+    if (submitBtn?.dataset.generating === 'true') return;
+    const typeSelect = document.getElementById('ai-gen-type');
+    const countInput = document.getElementById('ai-gen-count');
+    const difficultyRadio = document.querySelector('input[name="ai-difficulty"]:checked');
     window.closeAIConfirmGenerateModal();
 
     const borrowPanel = document.getElementById('ai-panel-borrow');
@@ -4618,6 +4726,10 @@ window.executeAIQuestionGeneration = async function () {
             const ext = (currentAIGenFile.name.split('.').pop() || '').toLowerCase();
             const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext) || currentAIGenFile.type.startsWith('image/');
             const isVideo = ext === 'mp4' || currentAIGenFile.type === 'video/mp4';
+            if (isImage || isVideo) {
+                window.showWarningToast?.('Use extracted document text or a written topic for AI generation. Image and video analysis is not connected yet.');
+                return;
+            }
 
             if (!currentAIGenFileText) {
                 if (isImage) {
@@ -4646,7 +4758,6 @@ window.executeAIQuestionGeneration = async function () {
         }
     }
 
-    const engine = engineSelect?.value || 'gemini';
     const selectedType = typeSelect?.value || 'Mixed';
     
     // Main page limit of MAX_QUIZ_QUESTIONS questions check
@@ -4672,134 +4783,63 @@ window.executeAIQuestionGeneration = async function () {
     if (count > remainingSlots) count = remainingSlots;
 
     const difficulty = difficultyRadio?.value || 'Medium';
-    const engineLabel = engine === 'grok' ? 'xAI Grok' : (engine === 'both' ? 'Hybrid AI (Gemini + Grok)' : 'Google Gemini');
 
     // Show Loading State on Submit Button
     if (submitBtn) {
         submitBtn.disabled = true;
+        submitBtn.dataset.generating = 'true';
         submitBtn.innerHTML = `
             <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
-            <span>Generating with ${engineLabel}...</span>
+            <span>Generating...</span>
         `;
     }
 
-    setTimeout(() => {
-        const generated = buildAIPromptQuestions(topic, selectedType, count, difficulty, fileContent);
+    try {
+        const apiUrl = new URL(resolveCourseMaterialsApiUrl(), location.href);
+        apiUrl.pathname = apiUrl.pathname.replace(/subjects\.php$/, 'quiz_ai.php');
+        const response = await fetch(apiUrl.href, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source: fileContent || topic, type: selectedType, count, difficulty })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success || !Array.isArray(result.questions) || result.questions.length !== count) throw new Error(result.error || 'AI generation returned invalid questions.');
+        const generated = result.questions;
         const startIndex = questions.length;
         questions.push(...generated);
         activeQuestionIndex = startIndex < questions.length ? startIndex : Math.max(0, questions.length - 1);
         window._quizIsAIGenerated = true;
+        window._quizAiModel = result.model;
+        window._quizAiProvider = result.provider;
+        try {
+            const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            if (user.id || user.uid) window.SigmaAiLogs?.record({ userId: String(user.id || user.uid), feature: 'quiz', model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, status: result.status,
+                timestamp: new Date().toISOString(), prompt: `Generate ${count} ${selectedType} questions about ${topic}`, response: JSON.stringify(generated), actionDescription: `Generated ${count} quiz questions` });
+        } catch (error) { console.warn('Quiz generated, but the AI audit log could not be saved.', error); }
 
         renderQuestions();
         updateStats();
         window.closeAIGeneratorModal(true);
-
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = `
-                <i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i>
-                <span>Generate</span>
-            `;
-            window.syncAIGenerateButtonState();
-        }
 
         // Scroll to the new active question
         const container = document.getElementById('active-question-container');
         if (container) {
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }, 750);
-};
-
-function buildAIPromptQuestions(topic, selectedType, count, difficulty, fileContent = '') {
-    const result = [];
-
-    // Curriculum keyword and domain extraction from file content or topic
-    const sourceText = (fileContent && fileContent.length > 20) ? fileContent : topic;
-    const topicClean = sourceText.replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
-    const words = topicClean.split(/\s+/).filter(w => w.length > 3 && !['this', 'that', 'with', 'from', 'have', 'were', 'which', 'their', 'about'].includes(w.toLowerCase()));
-    const uniqueWords = [...new Set(words)];
-    const primaryKey = uniqueWords[0] || 'Core Concept';
-    const secondaryKey = uniqueWords[1] || 'Standard Procedure';
-    const tertiaryKey = uniqueWords[2] || 'System Architecture';
-    const availableTypes = ['Multiple Choice', 'True or False', 'Short Answer', 'Essay', 'Matching Type', 'Enumeration'];
-
-    for (let i = 0; i < count; i++) {
-        let type = selectedType;
-        if (selectedType === 'Mixed') {
-            type = availableTypes[i % availableTypes.length];
-        }
-
-        // Restriction: Default points must be exactly 0 for all generated question types
-        if (type === 'Multiple Choice') {
-            const questionText = `In ${topic}, what is the fundamental purpose or role of ${primaryKey}?`;
-            const correctChoice = `Facilitates verified execution, standardized processing, and structured operations in ${primaryKey}`;
-            const choices = [
-                correctChoice,
-                `Bypasses structural layer protocols to eliminate validation checks`,
-                `Compresses raw data streams without preserving ${secondaryKey} indexing`,
-                `Suppresses system logging and prevents exception handling execution`
-            ];
-            result.push({
-                type: 'Multiple Choice',
-                question: questionText,
-                choices: choices,
-                answer: correctChoice,
-                points: 0
-            });
-        } else if (type === 'True or False') {
-            const isTrue = (i % 2 === 0);
-            result.push({
-                type: 'True or False',
-                question: isTrue 
-                    ? `In ${topic}, the standard operational framework of ${primaryKey} requires consistent data integrity and synchronized execution.`
-                    : `In ${topic}, ${primaryKey} operates completely independent of system validation rules and security protocols.`,
-                answer: isTrue ? 'True' : 'False',
-                points: 0
-            });
-        } else if (type === 'Short Answer') {
-            result.push({
-                type: 'Short Answer',
-                question: `Identify the core standard terminology or protocol utilized for ${primaryKey} in ${topic}.`,
-                answers: [`${primaryKey} Protocol`, `${primaryKey}`],
-                answer: `${primaryKey} Protocol`,
-                points: 0
-            });
-        } else if (type === 'Essay') {
-            result.push({
-                type: 'Essay',
-                question: `Explain the practical significance and core principles of ${primaryKey} within the context of ${topic}.`,
-                rubric: `Clear explanation of ${primaryKey} foundational principles (3 pts), accurate application to ${topic} (1 pt), and coherent technical structure (1 pt).`,
-                evaluationMode: 'manual',
-                points: 0
-            });
-        } else if (type === 'Matching Type') {
-            result.push({
-                type: 'Matching Type',
-                question: `Match each ${topic} component with its corresponding technical definition.`,
-                pairs: [
-                    { premise: `${primaryKey} Control Unit`, target: `Main operational and management module for ${topic}`, points: 0 },
-                    { premise: `${secondaryKey} Protocol`, target: `Standardized specification governing data exchange and verification`, points: 0 },
-                    { premise: `${tertiaryKey} Interface`, target: `System boundary connecting internal processing with external services`, points: 0 }
-                ],
-                points: 0
-            });
-        } else if (type === 'Enumeration') {
-            result.push({
-                type: 'Enumeration',
-                question: `Enumerate the essential components or architectural phases of ${topic}.`,
-                items: [
-                    `${primaryKey} Foundation Layer`,
-                    `${secondaryKey} Control Interface`,
-                    `${tertiaryKey} Data Processing Unit`
-                ],
-                points: 0
-            });
+    } catch (error) {
+        const warning = document.getElementById('ai-gen-validation-warning');
+        const text = document.getElementById('ai-gen-warning-text');
+        if (text) text.textContent = error.message || 'Unable to connect to the AI provider.';
+        warning?.classList.remove('hidden');
+    } finally {
+        if (submitBtn) {
+            delete submitBtn.dataset.generating;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i><span>Generate</span>';
+            window.syncAIGenerateButtonState();
         }
     }
+};
 
-    return result;
-}
 
 let currentImportFile = null;
 
@@ -5062,22 +5102,11 @@ window.clearImportUploadedFile = function (event) {
 };
 
 window.handleImportFileSelect = function (event) {
-    const file = event.target?.files?.[0];
-    if (file) {
-        window.processImportedFile(file);
-    }
+    handleSigmaQuestionUploadFile(event, 'import-dropzone', window.processImportedFile);
 };
 
 window.handleImportFileDrop = function (event) {
-    event.preventDefault();
-    const dropzone = document.getElementById('import-dropzone');
-    if (dropzone) {
-        dropzone.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10');
-    }
-    const file = event.dataTransfer?.files?.[0];
-    if (file) {
-        window.processImportedFile(file);
-    }
+    handleSigmaQuestionUploadFile(event, 'import-dropzone', window.processImportedFile);
 };
 
 window.processImportedFile = async function (file) {
@@ -6101,6 +6130,7 @@ ${300 + textStream.length}
 
 let currentPreviewQuestionIndex = 0;
 window.previewUserAnswers = window.previewUserAnswers || {};
+window.previewConfirmedAnswers = {};
 
 let currentPreviewPillsPage = 0;
 
@@ -6126,6 +6156,7 @@ window.openStudentQuizPreviewModal = function () {
     if (!modal) return;
 
     window.previewUserAnswers = {};
+    window.previewConfirmedAnswers = {};
     window.previewShuffledChoices = {};
     window.previewShuffledPairs = {};
     currentPreviewQuestionIndex = 0;
@@ -6133,6 +6164,7 @@ window.openStudentQuizPreviewModal = function () {
     window.renderStudentPreview();
     modal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    resetStudentPreviewScroll();
 };
 
 window.openStudentPreview = window.openStudentQuizPreviewModal;
@@ -6143,6 +6175,7 @@ window.closeStudentQuizPreviewModal = function () {
         modal.classList.add('hidden');
     }
     window.previewUserAnswers = {};
+    window.previewConfirmedAnswers = {};
     window.previewShuffledPairs = {};
     currentPreviewQuestionIndex = 0;
     currentPreviewPillsPage = 0;
@@ -6174,11 +6207,26 @@ window.closeImageFullscreen = function () {
     if (typeof syncBodyScrollLock === 'function') syncBodyScrollLock();
 };
 
+function resetStudentPreviewScroll() {
+    const scrollArea = document.getElementById('student-preview-modal');
+    if (scrollArea) {
+        try {
+            scrollArea.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        } catch (_) {
+            scrollArea.scrollTop = 0;
+            scrollArea.scrollLeft = 0;
+        }
+        scrollArea.scrollTop = 0;
+        scrollArea.scrollLeft = 0;
+    }
+}
+
 window.prevPreviewQuestion = function () {
     if (currentPreviewQuestionIndex > 0) {
         currentPreviewQuestionIndex--;
         currentPreviewPillsPage = Math.floor(currentPreviewQuestionIndex / 10);
         window.renderStudentPreview();
+        resetStudentPreviewScroll();
     }
 };
 
@@ -6187,6 +6235,7 @@ window.nextPreviewQuestion = function () {
         currentPreviewQuestionIndex++;
         currentPreviewPillsPage = Math.floor(currentPreviewQuestionIndex / 10);
         window.renderStudentPreview();
+        resetStudentPreviewScroll();
     }
 };
 
@@ -6195,6 +6244,7 @@ window.jumpToPreviewQuestion = function (idx) {
         currentPreviewQuestionIndex = idx;
         currentPreviewPillsPage = Math.floor(currentPreviewQuestionIndex / 10);
         window.renderStudentPreview();
+        resetStudentPreviewScroll();
     }
 };
 
@@ -6288,6 +6338,10 @@ window.getQuestionItemCounts = function (qIdx) {
     const q = questions[qIdx];
     const ans = window.previewUserAnswers ? window.previewUserAnswers[qIdx] : undefined;
     const qType = q.type || 'Multiple Choice';
+
+    if (['Short Answer', 'Identification', 'Enumeration'].includes(qType) && !window.previewConfirmedAnswers[qIdx]) {
+        return { correct: 0, total: 1, isFullyCorrect: false, isAnswered: false, hasPartial: false };
+    }
 
     if (qType === 'Multiple Choice') {
         const rawChoices = (Array.isArray(q.choices) && q.choices.length > 0) ? q.choices : ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
@@ -6465,6 +6519,7 @@ window.setPreviewAnswer = function (qIdx, val) {
 };
 
 window.setPreviewTextAnswer = function (qIdx, val) {
+    delete window.previewConfirmedAnswers[qIdx];
     window.previewUserAnswers[qIdx] = val;
     if (typeof window.updatePreviewTextValidation === 'function') {
         window.updatePreviewTextValidation(qIdx);
@@ -6472,6 +6527,7 @@ window.setPreviewTextAnswer = function (qIdx, val) {
 };
 
 window.setPreviewEnumAnswer = function (qIdx, itemIdx, val) {
+    delete window.previewConfirmedAnswers[qIdx];
     if (!Array.isArray(window.previewUserAnswers[qIdx])) {
         window.previewUserAnswers[qIdx] = [];
     }
@@ -6479,6 +6535,14 @@ window.setPreviewEnumAnswer = function (qIdx, itemIdx, val) {
     if (typeof window.updatePreviewEnumValidation === 'function') {
         window.updatePreviewEnumValidation(qIdx);
     }
+};
+
+window.confirmPreviewTextAnswer = function (qIdx, event) {
+    if (event.type === 'keydown' && (event.key !== 'Enter' || event.isComposing)) return;
+    if (event.type === 'keydown') event.preventDefault();
+    window.previewConfirmedAnswers[qIdx] = true;
+    if (questions[qIdx]?.type === 'Enumeration') window.updatePreviewEnumValidation(qIdx);
+    else window.updatePreviewTextValidation(qIdx);
 };
 
 window.getQuestionPoints = function (qIdx) {
@@ -6517,11 +6581,9 @@ window.updatePreviewCounter = function () {
     const isEssay = qType === 'Essay';
 
     let totalQuizPoints = 0;
-    let totalEarnedPoints = 0;
     for (let i = 0; i < totalQ; i++) {
         const pInfo = window.getQuestionPoints(i);
         totalQuizPoints += pInfo.max;
-        totalEarnedPoints += pInfo.earned;
     }
 
     const curStats = window.getQuestionItemCounts(idx);
@@ -6535,33 +6597,11 @@ window.updatePreviewCounter = function () {
 
     const counterEl = document.getElementById('student-preview-counter');
     if (counterEl) {
-        let badgeHtml = '';
-        if (isEssay) {
-            badgeHtml = `
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-2xs bg-amber-100 text-amber-800 border border-amber-300">
-                    <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
-                    <span>Teacher Review • ${pts} ${pts === 1 ? 'Point' : 'Points'}</span>
-                </span>
-            `;
-        } else {
-            badgeHtml = `
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-2xs bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
-                    <span>${totalEarnedPoints}/${totalQuizPoints} Points</span>
-                </span>
-            `;
-        }
-
         counterEl.innerHTML = `
             <div class="flex flex-col gap-0.5">
-                <div class="flex items-center gap-3 flex-wrap">
-                    <span class="inline-flex items-center gap-1.5 font-semibold text-black"><i class="fa-solid fa-star text-[#FFD000] text-xs"></i><span>${pts} ${pts === 1 ? 'Point' : 'Points'}</span></span>
-                    ${badgeHtml}
-                </div>
+                ${window.renderSharedQuizPointsHtml({ totalPoints: totalQuizPoints, questionPoints: pts })}
                 ${(isAnsProvided && !isEssay) ? `
-                    <div class="text-xs text-black font-semibold">
-                        ${curStats.correct} out of ${curStats.total} ${curStats.total === 1 ? 'correct answer' : 'correct answers'}
-                    </div>
+                    ${window.renderSharedQuizAnswerStatsHtml({ correct: curStats.correct, total: curStats.total, earned: window.getQuestionPoints(idx).earned, max: window.getQuestionPoints(idx).max })}
                 ` : ''}
             </div>
         `;
@@ -6581,7 +6621,7 @@ window.updatePreviewTextValidation = function (qIdx) {
 
     const escapeFn = window.escapeHtml || function (s) { return s || ''; };
     const cleanUser = String(val || '').trim().toLowerCase();
-    const hasAnswered = cleanUser.length > 0;
+    const hasAnswered = cleanUser.length > 0 && Boolean(window.previewConfirmedAnswers[qIdx]);
     const isCorrect = hasAnswered && window.isPreviewQuestionCorrect(qIdx);
 
     const rawAnswers = Array.isArray(q.answers) && q.answers.length > 0
@@ -6639,7 +6679,7 @@ window.updatePreviewEnumValidation = function (qIdx) {
     const slotIndices = Array.from({ length: slotCount }, (_, i) => i);
     const curList = Array.isArray(window.previewUserAnswers[qIdx]) ? window.previewUserAnswers[qIdx] : [];
 
-    const allFilled = slotIndices.length > 0 && slotIndices.every((_, iIdx) => curList[iIdx] && String(curList[iIdx]).trim().length > 0);
+    const allFilled = Boolean(window.previewConfirmedAnswers[qIdx]) && slotIndices.length > 0 && slotIndices.every((_, iIdx) => curList[iIdx] && String(curList[iIdx]).trim().length > 0);
 
     const matchedExpectedIndices = new Set();
     const slotCorrectMap = {};
@@ -6722,6 +6762,12 @@ window.updatePreviewEnumValidation = function (qIdx) {
             if (iconEl) {
                 iconEl.innerHTML = '';
             }
+        }
+        if (badgeEl) badgeEl.classList.add('sigma-quiz-enum-marker');
+        const earnedEl = document.getElementById(`preview-enum-earned-${qIdx}-${iIdx}`);
+        if (earnedEl) {
+            const max = window.getQuestionPoints(qIdx).max / Math.max(1, slotCount);
+            earnedEl.innerHTML = window.renderSharedMatchingEarnedHtml({ earned: isSlotCorrect ? max : 0, max, visible: allFilled });
         }
     });
 
@@ -7037,7 +7083,7 @@ window.renderStudentPreview = function () {
         }
 
         bodyHtml = `
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 max-w-xl">
+            <div class="sigma-quiz-true-false grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
                 <!-- True Option Card -->
                 <button type="button" onclick="window.setPreviewAnswer(${idx}, 'True')"
                     style="${trueCardStyle}"
@@ -7074,7 +7120,7 @@ window.renderStudentPreview = function () {
         const expectedAnswerText = answersList.join(' / ') || q.correct || q.correctAnswer || q.sampleAnswer || '';
 
         const ansText = typeof curAns === 'string' ? curAns : '';
-        const hasAnswer = Boolean(ansText.trim().length > 0);
+        const hasAnswer = Boolean(ansText.trim().length > 0 && window.previewConfirmedAnswers[idx]);
         const isMatch = hasAnswer && isCurrentCorrect;
 
         let inputClass = 'bg-slate-50/60 border-2 border-slate-200 focus:border-[#FFD000] focus:bg-white text-black';
@@ -7113,13 +7159,15 @@ window.renderStudentPreview = function () {
         bodyHtml = `
             <div class="pt-2 w-full space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                    <label class="text-xs font-bold text-black-fade block">Response</label>
+                    <label class="text-xs font-bold text-black-fade block">Your Response</label>
                     <div id="preview-text-status-${idx}">${statusBadge}</div>
                 </div>
                 <input type="text" id="preview-text-input-${idx}" placeholder="Type your answer here..."
                     maxlength="100"
                     value="${escapeFn(ansText)}"
                     oninput="window.setPreviewTextAnswer(${idx}, this.value)"
+                    onkeydown="window.confirmPreviewTextAnswer(${idx}, event)"
+                    onblur="window.confirmPreviewTextAnswer(${idx}, event)"
                     style="outline: none !important;"
                     class="w-full rounded-2xl transition-colors duration-150 shadow-2xs px-4 py-3 text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal ${inputClass}">
                 <div id="preview-text-answers-${idx}">${answerKeyHtml}</div>
@@ -7134,7 +7182,7 @@ window.renderStudentPreview = function () {
         const curList = Array.isArray(window.previewUserAnswers[idx]) ? window.previewUserAnswers[idx] : [];
 
         // Check if all slots are filled with non-empty text
-        const allFilled = slotIndices.length > 0 && slotIndices.every((_, iIdx) => curList[iIdx] && String(curList[iIdx]).trim().length > 0);
+        const allFilled = Boolean(window.previewConfirmedAnswers[idx]) && slotIndices.length > 0 && slotIndices.every((_, iIdx) => curList[iIdx] && String(curList[iIdx]).trim().length > 0);
 
         // Compute individual slot correctness when allFilled
         const matchedExpectedIndices = new Set();
@@ -7216,7 +7264,7 @@ window.renderStudentPreview = function () {
 
                     return `
                         <div id="preview-enum-row-${idx}-${iIdx}" style="${rowContainerStyle} outline: none !important;" class="flex items-center gap-3.5 rounded-2xl px-4 py-3 transition-colors duration-150 shadow-2xs overflow-hidden ${rowContainerClass}">
-                            <span id="preview-enum-badge-${idx}-${iIdx}" style="${badgeStyle}" class="w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center shrink-0 shadow-2xs ${badgeClass}">
+                            <span id="preview-enum-badge-${idx}-${iIdx}" style="${badgeStyle}" class="sigma-quiz-enum-marker w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center shrink-0 shadow-2xs ${badgeClass}">
                                 ${iIdx + 1}
                             </span>
                             <input type="text" id="preview-enum-input-${idx}-${iIdx}" placeholder="Item ${iIdx + 1} answer..."
@@ -7224,9 +7272,12 @@ window.renderStudentPreview = function () {
                                 value="${escapeFn(curVal)}"
                                 style="${inputStyle} outline: none !important;"
                                 oninput="window.setPreviewEnumAnswer(${idx}, ${iIdx}, this.value)"
+                                onkeydown="window.confirmPreviewTextAnswer(${idx}, event)"
+                                onblur="window.confirmPreviewTextAnswer(${idx}, event)"
                                 class="flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
                             <div id="preview-enum-icon-${idx}-${iIdx}">${statusIcon}</div>
                         </div>
+                        <div id="preview-enum-earned-${idx}-${iIdx}">${window.renderSharedMatchingEarnedHtml({ earned: isSlotCorrect ? window.getQuestionPoints(idx).max / Math.max(1, slotCount) : 0, max: window.getQuestionPoints(idx).max / Math.max(1, slotCount), visible: allFilled })}</div>
                     `;
                 }).join('')}
                 <div id="preview-enum-answers-${idx}">${enumAnswerKeyHtml}</div>
@@ -7249,7 +7300,7 @@ window.renderStudentPreview = function () {
 
         bodyHtml = `
             <div class="pt-2 space-y-2 w-full">
-                <label class="text-xs font-bold text-black-fade block">Response Area</label>
+                <label class="text-xs font-bold text-black-fade block">Your Response</label>
                 <textarea rows="5" placeholder="Type your essay or paragraph answer here..."
                     maxlength="8000"
                     oninput="window.setPreviewTextAnswer(${idx}, this.value, false)"
@@ -7276,9 +7327,9 @@ window.renderStudentPreview = function () {
         const usedTracker = {};
 
         bodyHtml = `
-            <div class="space-y-6 pt-2">
+            <div class="sigma-quiz-matching-layout space-y-6 pt-2">
                 <!-- Choices Bank (Draggable pills) -->
-                <div class="bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
+                <div class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
                     <div class="flex items-center justify-between text-xs font-bold text-black">
                         <div class="flex items-center gap-2">
                             <span class="w-6 h-6 rounded-lg bg-emerald-100 text-[#15803d] flex items-center justify-center text-xs shadow-2xs">
@@ -7310,7 +7361,7 @@ window.renderStudentPreview = function () {
                 </div>
 
                 <!-- Matching Target Rows -->
-                <div class="space-y-4">
+                <div class="sigma-quiz-matching-rows space-y-4">
                     ${pairs.map((pair, pIdx) => {
                         const placed = curSlots[pIdx] || '';
                         const expectedTarget = String(pair.target || '').trim().toLowerCase();
@@ -7376,6 +7427,7 @@ window.renderStudentPreview = function () {
                                          class="min-h-[52px] rounded-2xl border-2 ${slotBorderBgClass} px-6 py-3.5 flex items-center justify-between text-xs transition-all cursor-pointer select-none group/slot overflow-hidden min-w-0">
                                         ${slotInnerHtml}
                                     </div>
+                                    ${window.renderSharedMatchingEarnedHtml({ earned: isPairMatch ? window.getQuestionPoints(idx).max / Math.max(1, pairs.length) : 0, max: window.getQuestionPoints(idx).max / Math.max(1, pairs.length), visible: hasPlaced })}
                                 </div>
                             </div>
                         `;
@@ -7422,7 +7474,7 @@ window.renderStudentPreview = function () {
             ${generalImagesHtml}
 
             <!-- Numbered Prompt -->
-            <div class="flex items-center gap-3.5">
+            <div class="sigma-quiz-numbered-prompt flex items-start gap-3.5">
                 <span class="w-8 h-8 rounded-full bg-[#15803d] text-white flex items-center justify-center text-sm font-black shrink-0 shadow-2xs">${qNum}</span>
                 <h3 class="text-lg sm:text-xl font-bold text-black leading-snug font-['Inter']">${escapedPrompt}</h3>
             </div>
@@ -7477,18 +7529,7 @@ window.handlePreviewChoiceDragStart = function (e, text) {
     e.dataTransfer.setData('text/plain', text);
     e.dataTransfer.effectAllowed = 'move';
 
-    // 100% Solid Drag Image Preview
-    const dragGhost = document.createElement('div');
-    dragGhost.style.position = 'fixed';
-    dragGhost.style.top = '-9999px';
-    dragGhost.style.left = '-9999px';
-    dragGhost.style.zIndex = '999999';
-    dragGhost.style.opacity = '1';
-    dragGhost.className = 'px-4 py-2.5 rounded-xl bg-white border-2 border-black text-xs md:text-sm font-bold text-black shadow-2xl flex items-center gap-2 pointer-events-none';
-    dragGhost.innerHTML = `<i class="fa-solid fa-grip-vertical text-black text-xs"></i><span>${window.escapeHtml(text)}</span>`;
-    document.body.appendChild(dragGhost);
-    e.dataTransfer.setDragImage(dragGhost, 30, 20);
-    setTimeout(() => { if (dragGhost.parentElement) dragGhost.remove(); }, 0);
+    window.startQuizChoiceDragVisual(e, text);
 
     const getScrollContainers = () => {
         const list = [];
@@ -7590,6 +7631,7 @@ window.handlePreviewChoiceDragStart = function (e, text) {
 };
 
 window.handlePreviewChoiceDragEnd = function (e) {
+    window.endQuizChoiceDragVisual();
     _previewCurrentDragY = null;
     if (_previewDragScrollAnimId) {
         cancelAnimationFrame(_previewDragScrollAnimId);

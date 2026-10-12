@@ -18,12 +18,12 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/admin.css">
-    <link rel="stylesheet" href="css/forms.css?v=20260930greyhover1">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261004gradeMinimizeLabel1">
+    <link rel="stylesheet" href="css/forms.css?v=20261011footerCounter430">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261012mobileUpload649">
 
     <!-- TAILWIND: Compiled CSS -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261004closedgapfix1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261011attendancePicker352">
 
     <style>
         * {
@@ -1789,10 +1789,52 @@
                 border-radius: 8px !important;
             }
         }
+        @media (min-width: 1024px) {
+            body:not(:has(.sigma-modal-overlay:not(.hidden))) {
+                overflow: visible !important;
+            }
+            #quiz-editor-workspace {
+                position: sticky;
+                top: 96px;
+                align-self: flex-start;
+            }
+        }
     </style>
+    <style>
+        #ai-gen-type-wrapper {
+            flex: 0 0 auto;
+            width: 280px;
+            max-width: 100%;
+            align-self: flex-start;
+        }
+        @media (max-width: 639px) {
+            #ai-gen-type-wrapper { width: 240px; }
+        }
+        #ai-gen-count-control {
+            flex: 0 0 88px;
+            width: 88px;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        #ai-gen-count-control #ai-gen-count {
+            width: 100% !important;
+            min-width: 0;
+            height: 100%;
+            padding: 0 10px;
+            border: 0;
+            border-radius: inherit;
+            text-align: center !important;
+            box-sizing: border-box;
+        }
+    </style>
+    <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261012skeletonShimmerImage5">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col font-['Inter'] text-black">
+    <script src="js/page-skeleton.js?v=20261012skeletonShimmerImage5"></script>
 
     <!-- TOP NAVIGATION BAR -->
     <header id="admin-header"
@@ -1827,7 +1869,7 @@
             </div>
 
             <!-- Center Search Bar -->
-            <div class="header-search-container absolute left-1/2 -translate-x-1/2 w-full max-w-[480px] hidden md:block z-[101]">
+            <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] hidden md:block z-[10]">
                 <div
                     class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all overflow-hidden">
                     <span
@@ -1911,11 +1953,11 @@
     </header>
 
     <!-- MAIN CONTAINER (Matches Material Viewer Placement with Right Question Navigator) -->
-    <main class="flex-1 pt-24 pb-0 pl-6 md:pl-12 pr-6 md:pr-8 w-full max-w-full animate-in fade-in duration-200">
+    <main id="main-content" class="flex-1 pt-24 pb-0 pl-6 md:pl-12 pr-6 md:pr-8 w-full max-w-full animate-in fade-in duration-200">
         <div class="flex flex-col lg:flex-row items-start gap-6 w-full">
             
             <!-- Left: Active Question Editor Workspace (Fixed 1024px matching Image 2 Subject Panel) -->
-            <div class="w-full lg:w-[1024px] max-w-[1024px] shrink-0 space-y-3.5 pb-8">
+            <div id="quiz-editor-workspace" class="w-full lg:w-[1024px] max-w-[1024px] shrink-0 space-y-3.5 pb-8 lg:sticky lg:top-24">
                 <!-- Action Panel (Add Question, Add Image) in black fade -->
                 <div id="quiz-action-bar" class="w-full min-h-[64px] bg-white rounded-[24px] border border-slate-300 standard-panel-shadow px-6 sm:px-8 py-3.5 flex items-center justify-between gap-4 select-none">
                     <div class="flex items-center gap-2 sm:gap-4 md:gap-5 shrink-0">
@@ -1970,12 +2012,16 @@
 
                 <!-- Active Question Container -->
                 <div id="active-question-container">
-                    <!-- Currently Active Question Editor Card Rendered Here -->
+                    <div class="active-question-card quiz-empty-question-state bg-white rounded-2xl border border-slate-200/90 standard-panel-shadow p-8 sm:p-12 text-center text-black-fade font-medium">
+                        <i class="fa-solid fa-list-check text-3xl mb-3 text-black-fade block"></i>
+                        <p class="text-sm font-bold text-black">No Questions Added Yet</p>
+                        <p class="text-xs text-black-fade mt-1">Click <button type="button" onclick="window.addQuestion('Multiple Choice')" class="text-emerald-700 font-bold hover:underline cursor-pointer">+ Add Question</button> in the toolbar above to start creating your assessment.</p>
+                    </div>
                 </div>
             </div>
 
             <!-- Right: Smaller Scale Questions List / Sidebar -->
-            <div id="questions-sidebar-wrap" class="flex-1 min-w-[340px] max-w-[480px] w-full shrink-0 sticky top-24 flex flex-col h-[calc(100vh-96px)] space-y-3 pb-0">
+            <div id="questions-sidebar-wrap" class="flex-1 min-w-[340px] max-w-[480px] w-full shrink-0 flex flex-col space-y-3 pb-0">
                 <div class="flex items-center justify-between px-2 shrink-0">
                     <div class="flex items-center gap-2">
                         <h3 class="text-xs font-bold text-black">Question Deck</h3>
@@ -1988,8 +2034,14 @@
                     </div>
                     <span id="sidebar-question-count-badge" class="text-xs font-bold text-black">0 / 100 items</span>
                 </div>
-                <div id="questions-thumbnails-container" class="space-y-2.5 flex-1 overflow-y-auto pr-3 pb-8 w-full">
-                    <!-- Smaller scale cards rendered here -->
+                <div id="questions-thumbnails-container" class="space-y-2.5 flex-1 overflow-visible pr-3 pb-8 w-full">
+                    <div class="quiz-deck-empty-state h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl select-none animate-in fade-in duration-200">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-black-fade mb-3 shadow-2xs">
+                            <i class="fa-solid fa-layer-group text-lg text-black-fade"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-black mb-1">No other questions</p>
+                        <p class="text-[11px] text-black-fade max-w-[200px]">Added questions will appear here for quick switching.</p>
+                    </div>
                 </div>
             </div>
 
@@ -2003,14 +2055,13 @@
             <!-- VIEW 1: Main AI Generator Configuration View -->
             <div id="ai-generator-main-view" class="flex flex-col flex-1 overflow-hidden min-h-0">
                 <!-- Modal Header Nav Bar (Release Panel Style) -->
-                <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                <div class="sigma-modal-header px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
                     <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                         <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[#FFD000] text-white flex items-center justify-center shrink-0 shadow-xs">
                             <i class="fa-solid fa-bolt text-sm sm:text-lg text-white"></i>
                         </div>
                         <div class="min-w-0 flex-1">
                             <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Generate Questions with SIGMA AI</h2>
-                            <p class="text-[10px] sm:text-xs font-normal text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Describe your lesson topic or upload reference materials, and SIGMA AI will automatically create question items with correct answer keys.</p>
                         </div>
                     </div>
                 </div>
@@ -2081,25 +2132,26 @@
                             <span class="text-xs sm:text-sm font-semibold text-black block mb-1">Upload Reference Document, Image, or Video</span>
                             <div class="space-y-2">
                                 <!-- Dropzone Active / Empty State -->
-                                <div id="ai-gen-dropzone" onclick="document.getElementById('ai-gen-file-input').click()"
-                                    ondragover="event.preventDefault(); this.classList.add('border-[#FFD000]', 'bg-[#FFD000]/10')"
-                                    ondragleave="this.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                                <div id="ai-gen-dropzone" role="button" tabindex="0" aria-label="Upload reference material"
+                                    onclick="window.openSigmaQuestionUpload(event, 'ai-gen-file-input')" onkeydown="window.openSigmaQuestionUpload(event, 'ai-gen-file-input')"
+                                    ondragover="window.setSigmaQuestionUploadDragging(event, true)"
+                                    ondragleave="window.setSigmaQuestionUploadDragging(event, false)"
                                     ondrop="window.handleAIGenFileDrop(event)"
-                                    class="sigma-dashed-dropzone rounded-xl sm:rounded-2xl p-2.5 sm:p-4 text-center cursor-pointer space-y-1 group transition-all">
-                                    <div class="sigma-dropzone-icon-box w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto shadow-2xs text-black-fade">
-                                        <i class="fa-solid fa-cloud-arrow-up text-xs sm:text-base"></i>
+                                    class="sigma-dashed-dropzone sigma-question-upload group">
+                                    <div class="sigma-dropzone-icon-box sigma-question-upload-icon">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
                                     </div>
                                     <div>
-                                        <p class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors leading-tight">
+                                        <p class="sigma-question-upload-title text-black">
                                             Drag &amp; drop document, image, or video to ground AI, or <span class="underline text-black group-hover:text-[#FFD000] transition-colors">browse</span>
                                         </p>
-                                        <p class="text-[9.5px] sm:text-[11px] text-black-fade mt-0.5">Supports <strong>.docx, .pdf, .txt, .md, .pptx, images, .mp4</strong> (Up to 25MB)</p>
+                                        <p class="sigma-question-upload-meta text-black-fade">Supports <strong>.docx, .pdf, .txt, .md, .pptx</strong> (up to 10MB); images and .mp4 (up to 25MB)</p>
                                     </div>
                                     <input type="file" id="ai-gen-file-input" accept=".txt,.docx,.doc,.pdf,.md,.pptx,.csv,image/*,.png,.jpg,.jpeg,.webp,.mp4,video/mp4" class="hidden" onchange="window.handleAIGenFileSelect(event)">
                                 </div>
 
                                 <!-- Uploaded File Badge / Preview Card -->
-                                <div id="ai-gen-uploaded-file-card" class="hidden sigma-black-fade-panel group relative rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
+                                <div id="ai-gen-uploaded-file-card" class="hidden sigma-question-file sigma-black-fade-panel group relative flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
                                     <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                                         <div class="w-10 sm:w-16 flex flex-col items-center gap-1 shrink-0 select-none">
                                             <div id="ai-gen-file-icon-wrap" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -2152,43 +2204,10 @@
                     </div>
 
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 w-full relative z-30" id="ai-gen-engine-type-row">
-                        <!-- Engine Custom Dropdown Panel -->
-                        <div class="flex-1 min-w-0 relative z-20" id="ai-gen-engine-wrapper">
-                            <select id="ai-gen-engine" class="hidden" aria-hidden="true" tabindex="-1">
-                                <option value="gemini" selected>Google Gemini</option>
-                                <option value="grok">xAI Grok</option>
-                                <option value="both">Both (Hybrid AI)</option>
-                            </select>
-
-                            <button type="button" id="ai-gen-engine-btn" onclick="window.toggleAIEngineDropdown(event)"
-                                class="w-full flex items-center justify-between gap-2 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-3 sm:pr-3.5 h-10 sm:h-12 transition-all cursor-pointer font-['Inter'] text-left">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Engine:</span>
-                                    <span id="ai-gen-engine-label" class="text-xs sm:text-sm font-normal text-black truncate">Google Gemini</span>
-                                </div>
-                                <i class="fa-solid fa-chevron-down text-xs text-black shrink-0 transition-transform duration-200" id="ai-gen-engine-chevron"></i>
-                            </button>
-
-                            <!-- Engine Panel List (Opens downward in natural dropdown direction) -->
-                            <div id="ai-gen-engine-menu"
-                                class="hidden absolute top-full mt-1.5 left-0 w-full bg-white border border-slate-200 rounded-xl sm:rounded-2xl shadow-2xl z-[100] p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 font-['Inter']">
-                                <button type="button" onclick="window.selectAIEngine('gemini', 'Google Gemini')"
-                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-emerald-50 text-[#15803d] hover:bg-slate-100 cursor-pointer transition-colors" data-value="gemini">
-                                    <span>Google Gemini</span>
-                                </button>
-                                <button type="button" onclick="window.selectAIEngine('grok', 'xAI Grok')"
-                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="grok">
-                                    <span>xAI Grok</span>
-                                </button>
-                                <button type="button" onclick="window.selectAIEngine('both', 'Both (Hybrid AI)')"
-                                    class="ai-engine-opt w-full flex items-center justify-between px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-normal text-black hover:bg-slate-100 cursor-pointer transition-colors" data-value="both">
-                                    <span>Both (Hybrid AI)</span>
-                                </button>
-                            </div>
-                        </div>
 
                         <!-- Type Custom Dropdown Panel -->
                         <div class="flex-1 min-w-0 relative z-20" id="ai-gen-type-wrapper">
+                            <span id="ai-gen-type-heading" class="block text-xs sm:text-sm font-semibold text-black mb-1.5 sm:mb-2">Type</span>
                             <select id="ai-gen-type" class="hidden" aria-hidden="true" tabindex="-1">
                                 <option value="Mixed" selected>Mixed Types</option>
                                 <option value="Multiple Choice">Multiple Choice</option>
@@ -2199,10 +2218,9 @@
                                 <option value="Enumeration">Enumeration</option>
                             </select>
 
-                            <button type="button" id="ai-gen-type-btn" onclick="window.toggleAITypeDropdown(event)"
+                            <button type="button" id="ai-gen-type-btn" aria-labelledby="ai-gen-type-heading ai-gen-type-label" onclick="window.toggleAITypeDropdown(event)"
                                 class="w-full flex items-center justify-between gap-2 bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-xl sm:rounded-2xl pl-3 sm:pl-4 pr-3 sm:pr-3.5 h-10 sm:h-12 transition-all cursor-pointer font-['Inter'] text-left">
                                 <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Type:</span>
                                     <span id="ai-gen-type-label" class="text-xs sm:text-sm font-normal text-black truncate">Mixed Types</span>
                                 </div>
                                 <i class="fa-solid fa-chevron-down text-xs text-black shrink-0 transition-transform duration-200" id="ai-gen-type-chevron"></i>
@@ -2243,14 +2261,16 @@
                         </div>
 
                         <div class="w-[135px] sm:w-[150px] max-w-[150px] self-start sm:self-auto shrink-0" id="ai-gen-count-wrapper">
-                            <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl pl-2.5 sm:pl-3.5 pr-2.5 sm:pr-3.5 h-10 sm:h-12 focus-within:border-[#FFD000] focus-within:bg-white transition-all">
-                                <span class="text-xs sm:text-sm font-normal text-black-fade select-none shrink-0">Count:</span>
+                            <label for="ai-gen-count" class="block text-xs sm:text-sm font-semibold text-black mb-1.5 sm:mb-2">Count</label>
+                            <div class="flex items-center gap-2.5">
+                                <div id="ai-gen-count-control" class="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl h-10 sm:h-12 focus-within:border-[#FFD000] focus-within:bg-white transition-all">
                                 <input type="number" id="ai-gen-count" min="1" max="100" value="5" inputmode="numeric"
                                     onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
                                     oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (parseInt(this.value) > 100) { this.value = 100; } else if (parseInt(this.value) < 1 && this.value !== '') { this.value = 1; }"
                                     onblur="if (!this.value || parseInt(this.value) < 1) { this.value = 1; } else if (parseInt(this.value) > 100) { this.value = 100; }"
                                     class="w-9 sm:w-10 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
-                                <span id="ai-gen-count-max-label" class="text-black-fade text-[10px] sm:text-xs font-normal shrink-0">/ 100</span>
+                                </div>
+                                <span id="ai-gen-count-max-label" class="text-black text-[10px] sm:text-xs font-normal shrink-0">/ 100</span>
                             </div>
                         </div>
                     </div>
@@ -2295,7 +2315,7 @@
             <!-- VIEW 2: Next Page - Borrow Course Materials & Uploads -->
             <div id="ai-generator-borrow-view" class="hidden flex flex-col flex-1 overflow-hidden min-h-0 animate-in slide-in-from-right-3 duration-200">
                 <!-- Header with Back Button -->
-                <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+                <div class="sigma-modal-header px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
                     <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                         <button type="button" onclick="event.stopPropagation(); window.backToAIGeneratorMain(event);"
                             id="ai-borrow-header-back-btn"
@@ -2305,7 +2325,6 @@
                         </button>
                         <div class="min-w-0 flex-1">
                             <h2 class="text-sm sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Course Materials & Uploads</h2>
-                            <p class="text-[10px] sm:text-xs font-normal text-black-fade font-['Inter'] mt-0.5 whitespace-normal line-clamp-3 leading-tight sm:leading-normal">Search and select Senior High materials to ground your quiz generation.</p>
                         </div>
                     </div>
                 </div>
@@ -2439,7 +2458,7 @@
     <div id="import-questions-modal" class="hidden fixed inset-0 z-[300] bg-black/50 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
         <div class="bg-white rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 standard-panel-shadow curriculum-release-panel-fixed w-full sm:!max-w-[860px] h-full sm:h-[740px] flex flex-col overflow-hidden relative font-['Inter']" style="max-width: 860px;">
             <!-- Modal Header Nav Bar (Release Panel Style) -->
-            <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+            <div class="sigma-modal-header px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
                 <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 shadow-xs">
                         <i class="fa-solid fa-file-import text-sm sm:text-lg"></i>
@@ -2511,25 +2530,26 @@
                     <!-- Dropzone / File Picker Container -->
                     <div class="shrink-0 space-y-2">
                         <!-- Dropzone Active / Empty State -->
-                        <div id="import-dropzone" onclick="document.getElementById('import-file-input').click()"
-                            ondragover="event.preventDefault(); this.classList.add('border-[#FFD000]', 'bg-[#FFD000]/10')"
-                            ondragleave="this.classList.remove('border-[#FFD000]', 'bg-[#FFD000]/10')"
+                        <div id="import-dropzone" role="button" tabindex="0" aria-label="Upload existing questions"
+                            onclick="window.openSigmaQuestionUpload(event, 'import-file-input')" onkeydown="window.openSigmaQuestionUpload(event, 'import-file-input')"
+                            ondragover="window.setSigmaQuestionUploadDragging(event, true)"
+                            ondragleave="window.setSigmaQuestionUploadDragging(event, false)"
                             ondrop="window.handleImportFileDrop(event)"
-                            class="sigma-dashed-dropzone rounded-xl sm:rounded-2xl p-3.5 sm:p-6 text-center cursor-pointer space-y-1.5 sm:space-y-2 group transition-all">
-                            <div class="sigma-dropzone-icon-box w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto shadow-2xs text-black-fade">
-                                <i class="fa-solid fa-cloud-arrow-up text-base sm:text-xl"></i>
+                            class="sigma-dashed-dropzone sigma-question-upload group">
+                            <div class="sigma-dropzone-icon-box sigma-question-upload-icon">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
                             </div>
                             <div>
-                                <p class="text-xs sm:text-sm font-bold text-black group-hover:text-[#FFD000] transition-colors">
+                                <p class="sigma-question-upload-title text-black">
                                     Drag & drop your file here, or <span class="underline text-black group-hover:text-[#FFD000] transition-colors">browse</span>
                                 </p>
-                                <p class="text-[10px] sm:text-xs text-black-fade mt-0.5">Supports <strong>.docx, .pdf, .txt, .md, .pptx</strong> (Up to 10MB)</p>
+                                <p class="sigma-question-upload-meta text-black-fade">Supports <strong>.docx, .pdf, .txt, .md, .pptx</strong> (Up to 10MB)</p>
                             </div>
                             <input type="file" id="import-file-input" accept=".txt,.docx,.doc,.pdf,.md,.pptx,.csv" class="hidden" onchange="window.handleImportFileSelect(event)">
                         </div>
 
                         <!-- Uploaded File Badge / Preview Card -->
-                        <div id="import-uploaded-file-card" class="hidden sigma-black-fade-panel group relative rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
+                        <div id="import-uploaded-file-card" class="hidden sigma-question-file sigma-black-fade-panel group relative flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs animate-in fade-in duration-150">
                             <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                                 <div class="w-12 sm:w-20 flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 select-none">
                                     <div id="import-file-icon-wrap" class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -2600,7 +2620,7 @@
     <div id="save-quiz-metadata-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
         <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150 font-['Inter'] max-h-[92vh] overflow-y-auto scrollbar-thin" onclick="event.stopPropagation()">
             <!-- Modal Header -->
-            <div class="flex items-start justify-between gap-4">
+            <div class="sigma-modal-header flex items-start justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <div id="save-metadata-icon-wrap" class="w-10 h-10 rounded-2xl bg-emerald-100 text-[#15803d] flex items-center justify-center shrink-0">
                         <i id="save-metadata-icon" class="fa-solid fa-check text-base"></i>
@@ -2683,7 +2703,7 @@
     <div id="open-quiz-library-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150">
         <div id="open-quiz-library-dialog" class="bg-white rounded-none sm:rounded-3xl border-0 sm:border border-slate-200 standard-panel-shadow curriculum-release-panel-fixed w-full sm:!max-w-[860px] h-full sm:h-[740px] flex flex-col overflow-hidden relative font-['Inter']" onclick="event.stopPropagation()">
             <!-- Modal Header (Release Panel Style) -->
-            <div class="px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
+            <div class="sigma-modal-header px-4 py-3 sm:px-8 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter'] bg-white">
                 <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-yellow-100 text-yellow-500 flex items-center justify-center shrink-0 shadow-xs">
                         <i class="fa-solid fa-folder-open text-xs sm:text-base text-yellow-500"></i>
@@ -2776,7 +2796,7 @@
     <!-- VIEW / EXPORT QUIZ PDF MODAL -->
     <div id="download-quiz-modal" class="hidden fixed inset-0 z-[300] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
         <div class="bg-white rounded-3xl border border-slate-200 standard-panel-shadow w-full max-w-lg p-6 md:p-8 space-y-6 relative">
-            <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div class="sigma-modal-header flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                 <div class="flex items-center gap-3">
                     <div id="download-modal-format-icon" class="w-10 h-10 rounded-2xl bg-emerald-50 text-[#15803d] flex items-center justify-center shrink-0 shadow-xs text-lg">
                         <i class="fa-solid fa-file-pdf"></i>
@@ -2854,7 +2874,8 @@
             <!-- White Panel (Full Height Column) -->
             <div class="sigma-modal-panel min-h-screen">
                 <!-- Header (Quiz Title & Student Preview Badge) -->
-                <div class="border-b border-slate-100 sticky top-0 bg-white z-20">
+                <div class="sigma-quiz-sticky-header">
+                <div class="border-b border-slate-100 bg-white z-20">
                     <div class="px-8 sm:px-12 pt-8 pb-4 flex items-center justify-between gap-4 flex-wrap">
                         <div class="min-w-0 flex-1 flex items-center gap-2">
                             <button type="button" onclick="window.closeStudentQuizPreviewModal()"
@@ -2884,6 +2905,7 @@
                 </div>
 
                 <!-- Assessment Body (Vertically & Horizontally Centered Question Area) -->
+                </div>
                 <div class="flex-1 px-8 sm:px-12 py-8 overflow-y-auto flex flex-col justify-center">
                     <div id="student-preview-questions-list" class="w-full max-w-3xl mx-auto space-y-6 my-auto">
                         <!-- Question content rendered dynamically -->
@@ -2933,11 +2955,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- CORE JAVASCRIPT CONTROLLERS (Consistent with Teacher/Admin Pages) -->
-    <script src="js/shared-components.js?v=20261004gradeMinimizeLabel1"></script>
+<script src="js/shared-components.js?v=20261012preserveUpload459"></script>
     <script src="js/quiz-components.js?v=20261004alignfix1"></script>
-    <script src="js/quiz-creator.js?v=20261004alignfix1"></script>
+    <script src="js/ai-log-store.js?v=20261010featureStatus291"></script>
+    <script src="js/quiz-creator.js?v=20261012singleLoading540"></script>
     <script src="js/notifications.js?v=20260916strictdef14"></script>
-    <script src="js/topbar.js?v=20260916strictdef14"></script>
+    <script src="js/topbar.js?v=20261011outsideDismiss361"></script>
     <script src="js/sidebar.js?v=20260916strictdef14"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>

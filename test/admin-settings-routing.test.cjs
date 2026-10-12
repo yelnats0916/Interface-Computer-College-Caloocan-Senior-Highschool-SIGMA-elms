@@ -23,3 +23,9 @@ for (const [hash, expected] of [
     assert.equal(actual, expected, hash);
 }
 console.log('PASS: Settings routes and existing nav prefixes resolve correctly');
+for (const title of ['SIGMA AI Integration Engines', 'Google Drive Cloud Storage', 'Google reCAPTCHA Protection', 'File Upload Size Limits']) {
+    assert.ok(source.includes("window.setPortalHeader('System Settings', '" + title + "')"), 'Navbar must match panel title: ' + title);
+    assert.ok(source.includes('<span class="breadcrumb-topic">' + title + '</span>'), 'Fallback navbar must retain breadcrumb styling: ' + title);
+}
+assert.ok(!source.includes("setPortalHeader('System Settings', 'AI Integration Engines')"));
+assert.ok(!source.includes("setPortalHeader('System Settings', 'Google reCAPTCHA')"));

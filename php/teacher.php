@@ -14,7 +14,7 @@ $extraCss  = [
 ];
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/assessments-page.js", "js/teacher.js", "js/curriculum-release.js"];
+$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/assessments-page.js", "js/student-analytics.js", "js/student-insight-view.js", "js/teacher.js", "js/teacher-analytics.js", "js/analytics-ai-client.js", "js/curriculum-release.js"];
 $topbarHeaderId = "teacher-header";
 
 require_once __DIR__ . "/../config/app.php";
@@ -784,89 +784,8 @@ require_once __DIR__ . "/includes/topbar.php";
                         </div>
                 </section>
 
-                <!-- ATTENDANCE SECTION -->
-                <section id="section-attendance"
-                    class="dynamic-section hidden flex-1 flex flex-col overflow-hidden pt-6 px-4 pb-4">
-                    <div class="mb-2 flex flex-col md:flex-row items-center justify-start gap-3 flex-shrink-0">
-
-                        <div class="flex items-center gap-3">
-                            <div class="relative group">
-                                <select id="attendance-year-select" aria-label="Select attendance year"
-                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[100px]">
-                                    <option value="2019">2019</option>
-                                    <option value="2020">2020</option>
-                                    <option value="2021">2021</option>
-                                    <option value="2022">2022</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2025">2025</option>
-                                    <option value="2026" selected>2026</option>
-                                    <option value="2027">2027</option>
-                                </select>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', -1)"
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', 1)"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
-                            </div>
-
-                            <div class="relative group">
-                                <select id="attendance-month-select" aria-label="Select attendance month"
-                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[140px]">
-                                    <option value="0">January</option>
-                                    <option value="1">February</option>
-                                    <option value="2" selected>March</option>
-                                    <option value="3">April</option>
-                                    <option value="4">May</option>
-                                    <option value="5">June</option>
-                                    <option value="6">July</option>
-                                    <option value="7">August</option>
-                                    <option value="8">September</option>
-                                    <option value="9">October</option>
-                                    <option value="10">November</option>
-                                    <option value="11">December</option>
-                                </select>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', -1)"
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', 1)"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
-                            </div>
-
-                            <button id="attendance-today-btn"
-                                class="px-5 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-xs font-bold shadow-sm hover:bg-gray-100 transition-colors focus:outline-none focus:ring-0">Today</button>
-                        </div>
-                    </div>
-
-                    <div id="attendance-calendar-shell"
-                        class="flex-1 bg-white rounded-xl border border-black shadow-sm flex flex-col overflow-hidden relative w-full max-w-6xl ml-0 mb-0">
-                        <div class="grid grid-cols-7 border-b border-black bg-white flex-shrink-0">
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
-                                Sun</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Mon</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Tue</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Wed</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Thu</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Fri</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
-                                Sat</div>
-                        </div>
-
-                        <div id="attendance-full-calendar-grid" class="flex-1 grid grid-cols-7 overflow-hidden">
-                        </div>
-
-                    </div>
-                </section>
+                <!-- SHARED CALENDAR PAGE COMPONENT -->
+                <?php include __DIR__ . '/includes/calendar_page.php'; ?>
         </main>
     </div>
 
@@ -1056,7 +975,6 @@ require_once __DIR__ . "/includes/topbar.php";
                 <button type="button" id="noti-tab-all" class="notif-tab-btn active">All</button>
                 <button type="button" id="noti-tab-unread" class="notif-tab-btn">Unread</button>
             </div>
-            <a href="#" class="notif-see-all-btn" onclick="event.preventDefault()">See all</a>
         </div>
 
         <!-- Scrollable Notifications Area -->

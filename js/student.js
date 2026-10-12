@@ -62,6 +62,7 @@ function initStudentPortal() {
         if (!e || !e.key) return;
         const isScoreOrGradeKey = (
             e.key === 'sigma-assessment-scored-broadcast' ||
+            e.key === 'sigma-manual-grade-closures-v1' ||
             e.key === 'sigma-teacher-gradebook-scores-v2' ||
             e.key === 'sigma-teacher-gradebook-statuses-v2' ||
             e.key === 'sigma_gradebook_scores' ||
@@ -85,7 +86,10 @@ function initStudentPortal() {
                     if (!isUserTyping) {
                         const prevScrollY = window.scrollY;
                         const prevScrollX = window.scrollX;
-                        _renderTopicContentMain();
+                        const previousSuppression = window._suppressSubmissionScrollToTop;
+                        window._suppressSubmissionScrollToTop = true;
+                        try { _renderTopicContentMain(); }
+                        finally { window._suppressSubmissionScrollToTop = previousSuppression; }
                         try { window.scrollTo({ left: prevScrollX, top: prevScrollY, behavior: 'instant' }); } catch (_) { }
                     }
                 }
@@ -164,6 +168,10 @@ function initStudentPortal() {
         'nav-assessments': 'section-assignments',
         'nav-grades': 'section-grades',
         'nav-attendance': 'section-attendance',
+        'nav-calendar': 'section-attendance',
+        'attendance': 'section-attendance',
+        'calendar': 'section-attendance',
+        'resources': 'resources-view',
         'nav-resources': 'resources-view',
         'nav-profile': 'user-profile-view',
         'nav-settings': 'user-settings-view',
@@ -181,13 +189,19 @@ function initStudentPortal() {
         'assessments': 'nav-assignments',
         'grades': 'nav-grades',
         'attendance': 'nav-attendance',
+        'calendar': 'nav-attendance',
+        'nav-attendance': 'nav-attendance',
+        'nav_attendance': 'nav-attendance',
+        'nav-calendar': 'nav-attendance',
+        'nav_calendar': 'nav-attendance',
+        'section-attendance': 'nav-attendance',
         'resources': 'nav-resources',
         'profile': 'nav-profile',
         'courses': 'nav-courses',
         'topic-detail': 'nav-topic-detail',
         'topic-content': 'nav-topic-content',
         'settings': 'nav-settings',
-        'account-settings': 'nav-settings'
+        'account-settings': 'nav-settings',
     };
 
     const USER_STORAGE_KEY = 'sigma-admin-users';
@@ -576,7 +590,7 @@ function initStudentPortal() {
             ...matchedUser,
             ...authUser,
             id: id,
-            uid: id,
+            uid: String(matchedUser?.uid || authUser?.uid || authId || id).trim(),
             firstName: fn,
             lastName: ln,
             fullName: full,
@@ -1334,6 +1348,7 @@ function initStudentPortal() {
     function renderStudentAttendanceCalendarPopup() {
         const popup = document.getElementById('student-attendance-calendar-popup');
         if (!popup) return;
+        window.prepareSigmaCalendarPopup(popup);
 
         if (!popup.dataset.clickBound) {
             popup.dataset.clickBound = 'true';
@@ -1341,100 +1356,36 @@ function initStudentPortal() {
             popup.addEventListener('pointerdown', (e) => e.stopPropagation());
         }
 
-        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayNow = new Date();
 
         if (studentAttendanceCalendarPopupMode === 'months') {
-            let monthsHtml = '';
-            shortMonths.forEach((m, idx) => {
-                const isSelected = (studentAttendancePickerYear === studentAttendanceViewingYear && idx === studentAttendanceViewingMonth);
-                monthsHtml += `
-                    <button type="button" class="cal-picker-month-btn ${isSelected ? 'active' : ''}" style="color: ${isSelected ? '#ffffff' : '#000000'} !important; font-weight: 600;" onclick="window.selectStudentAttendancePopupMonth(${idx}, event)">
-                        ${m}
-                    </button>
-                `;
-            });
-
-            popup.innerHTML = `
-                <div class="cal-picker-header flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeStudentAttendancePickerYear(-1, event)" title="Previous Year">
-                        <i class="fa-solid fa-chevron-left text-xs text-black"></i>
-                    </button>
-                    <span class="cal-picker-year-label text-[15px] font-bold text-black font-['Inter']">${studentAttendancePickerYear}</span>
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeStudentAttendancePickerYear(1, event)" title="Next Year">
-                        <i class="fa-solid fa-chevron-right text-xs text-black"></i>
-                    </button>
-                </div>
-                <div class="cal-picker-months-grid grid grid-cols-3 gap-2 mb-3">
-                    ${monthsHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarMonthPanel({
+                year: studentAttendancePickerYear, activeYear: studentAttendanceViewingYear, activeMonth: studentAttendanceViewingMonth,
+                onYearChange: 'changeStudentAttendancePickerYear', onMonthSelect: 'selectStudentAttendancePopupMonth',
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectStudentAttendancePopupThisMonth(event)">
                         This month
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchStudentAttendancePopupMode('days', event)">
                         Days view
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         } else {
             const year = studentAttendancePopupViewingYear;
             const month = studentAttendancePopupViewingMonth;
-            const firstDayIndex = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-
-            let daysHtml = '';
-            for (let i = 0; i < firstDayIndex; i++) {
-                daysHtml += `<div class="calendar-day-cell calendar-day-cell--empty"></div>`;
-            }
-
-            for (let d = 1; d <= totalDays; d++) {
-                const isToday = (todayNow.getFullYear() === year && todayNow.getMonth() === month && todayNow.getDate() === d);
-                const isSelected = (studentAttendanceViewingYear === year && studentAttendanceViewingMonth === month && studentAttendanceSelectedDay === d);
-
-                let cellClasses = 'calendar-day-cell font-semibold transition-all';
-                let styleExtra = '';
-
-                if (isToday) {
-                    cellClasses += ' calendar-day-cell--today font-bold cursor-pointer';
-                    styleExtra = 'background-color: #FFD000 !important; color: #000000 !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else if (isSelected) {
-                    cellClasses += ' calendar-day-cell--selected font-bold cursor-pointer';
-                    styleExtra = 'background-color: #15803d !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else {
-                    cellClasses += ' text-black cursor-pointer';
-                    styleExtra = 'color: #000000 !important;';
-                }
-
-                daysHtml += `
-                    <button type="button" class="${cellClasses}" style="${styleExtra}" onclick="window.selectStudentAttendancePopupDay(${year}, ${month}, ${d}, event)">
-                        ${d}
-                    </button>
-                `;
-            }
-
-            popup.innerHTML = `
-                <div class="grid grid-cols-7 gap-1 text-center mb-1">
-                    <div class="calendar-weekday-header">Sun</div>
-                    <div class="calendar-weekday-header">Mon</div>
-                    <div class="calendar-weekday-header">Tue</div>
-                    <div class="calendar-weekday-header">Wed</div>
-                    <div class="calendar-weekday-header">Thu</div>
-                    <div class="calendar-weekday-header">Fri</div>
-                    <div class="calendar-weekday-header">Sat</div>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                    ${daysHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarDayPanel({
+                year, month, activeYear: studentAttendanceViewingYear, activeMonth: studentAttendanceViewingMonth,
+                activeDay: studentAttendanceSelectedDay, onDaySelect: 'selectStudentAttendancePopupDay', today: todayNow,
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectStudentAttendancePopupToday(event)">
                         Today
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchStudentAttendancePopupMode('months', event)">
                         Month & Year
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         }
     }
 
@@ -1577,10 +1528,10 @@ function initStudentPortal() {
         const statAbsentEls = document.querySelectorAll('[data-attendance-stat="absent"], #student-attendance-stat-absent, #classroom-attendance-stat-absent');
 
         if (totalCount === 0) {
-            statPercentEls.forEach(el => { el.textContent = '--'; });
-            statPresentEls.forEach(el => { el.textContent = '0'; });
-            statLateEls.forEach(el => { el.textContent = '0'; });
-            statAbsentEls.forEach(el => { el.textContent = '0'; });
+            statPercentEls.forEach(el => { el.textContent = '-'; });
+            statPresentEls.forEach(el => { el.textContent = '-'; });
+            statLateEls.forEach(el => { el.textContent = '-'; });
+            statAbsentEls.forEach(el => { el.textContent = '-'; });
         } else {
             const attendanceRate = ((presentCount + lateCount) / totalCount * 100).toFixed(1);
             statPercentEls.forEach(el => { el.textContent = `${attendanceRate}%`; });
@@ -1762,9 +1713,29 @@ if (overlay) overlay.classList.add('hidden');
             renderGradesPage();
 
         }
-        else if (navId === 'nav-attendance') {
-            updateStudentAttendanceStatus();
-            renderStudentAttendanceHistory();
+        else if (navId === 'nav-attendance' || navId === 'nav-calendar' || navId === 'calendar' || navId === 'attendance') {
+            document.body.classList.add('calendar-page-mode');
+            if (typeof window.resetCalendarDropdown === 'function') {
+                window.resetCalendarDropdown();
+            }
+            if (!window._preserveCalendarDateOnNextOpen) {
+                const now = new Date();
+                window.selectedCalendarDate = {
+                    year: now.getFullYear(),
+                    month: now.getMonth(),
+                    day: now.getDate()
+                };
+                const yearSelect = document.getElementById('attendance-year-select');
+                const monthSelect = document.getElementById('attendance-month-select');
+                if (yearSelect) yearSelect.value = String(now.getFullYear());
+                if (monthSelect) monthSelect.value = String(now.getMonth());
+            }
+            if (typeof window.setupAttendanceCalendar === 'function') {
+                window.setupAttendanceCalendar();
+            }
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
         }
         else if (navId === 'nav-settings') {
             setNavContext('Account Settings');
@@ -1816,6 +1787,18 @@ if (overlay) overlay.classList.add('hidden');
         else {
             hideStudentClassroomSectionsSidebar();
         }
+
+        if (navId !== 'nav-attendance' && navId !== 'nav-calendar' && navId !== 'calendar' && navId !== 'attendance') {
+            document.body.classList.remove('calendar-page-mode');
+            window._preserveCalendarDateOnNextOpen = false;
+            if (typeof window.resetCalendarDropdown === 'function') {
+                window.resetCalendarDropdown();
+            }
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+        }
+
         // Nav context title per tab
 
         const navContextMap = {
@@ -1824,7 +1807,7 @@ if (overlay) overlay.classList.add('hidden');
 
             'nav-assignments': 'Interface Computer College', 'nav-grades': 'Grades',
 
-            'nav-attendance': 'Attendance', 'nav-mail': 'Mail', 'nav-profile': 'Interface Computer College'
+            'nav-attendance': 'Calendar', 'nav-calendar': 'Calendar', 'attendance': 'Calendar', 'calendar': 'Calendar', 'nav-mail': 'Mail', 'nav-profile': 'Interface Computer College'
 
         };
         const ctx = navContextMap[navId] || '';
@@ -2387,7 +2370,7 @@ if (overlay) overlay.classList.add('hidden');
         if (window.studentQuizPlayerIsOpen()) {
             return;
         }
-        if (typeof window.__hasOpenMobileOverlay === 'function' && window.__hasOpenMobileOverlay()) {
+        if (window._sigmaHistoryDirection !== 'forward' && typeof window.__hasOpenMobileOverlay === 'function' && window.__hasOpenMobileOverlay()) {
             window.__closeOpenMobileOverlay();
             return;
         }
@@ -2395,7 +2378,7 @@ if (overlay) overlay.classList.add('hidden');
         const landedKey = window.studentHistoryScreenKey(window.location.hash);
         const shownKey = window._studentShownHistoryKey;
         const sameScreen = Boolean(shownKey) && landedKey === shownKey;
-        if (sameScreen && (window._studentSameScreenSkips || 0) < 12) {
+        if (window._sigmaHistoryDirection !== 'forward' && sameScreen && (window._studentSameScreenSkips || 0) < 12) {
             window._studentSkippingSameScreen = true;
             window._studentSameScreenSkips = (window._studentSameScreenSkips || 0) + 1;
             const beforeHref = window.location.href;
@@ -4187,16 +4170,20 @@ if (overlay) overlay.classList.add('hidden');
         const nextMonthBtn = document.getElementById('calendarDropdownNextMonthBtn');
         if (prevMonthBtn) {
             prevMonthBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (typeof currentCalDate !== 'undefined') currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-                if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+                if (typeof window.navCalendarDropdownMonth === 'function') {
+                    window.navCalendarDropdownMonth(-1, e);
+                } else if (typeof renderCalendarGrid === 'function') {
+                    renderCalendarGrid();
+                }
             };
         }
         if (nextMonthBtn) {
             nextMonthBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (typeof currentCalDate !== 'undefined') currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-                if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+                if (typeof window.navCalendarDropdownMonth === 'function') {
+                    window.navCalendarDropdownMonth(1, e);
+                } else if (typeof renderCalendarGrid === 'function') {
+                    renderCalendarGrid();
+                }
             };
         }
 
@@ -4209,7 +4196,7 @@ if (overlay) overlay.classList.add('hidden');
         }
     }
 
-    const WELCOME_MSG = `Hello, <strong>User!</strong> I'm <span class="font-black">SIGMA</span>, your system AI. What do you need today?`;
+    const WELCOME_MSG = window.getSigmaWelcomeMessage();
     let isDragging = false;
     let startX = 0;
     let startRight = 0;
@@ -4341,22 +4328,12 @@ if (overlay) overlay.classList.add('hidden');
     }
     document.querySelectorAll('.sigma-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            addAiMessage(chip.textContent.trim(), true);
-            setTimeout(() => addAiMessage('Full AI integration coming soon!', false), 600);
+            window.sendSigmaChatMessage?.(chip.textContent.trim());
         });
     });
 
     function sendAiMessage() {
-        if (sigmaAiWaiting) return;
-        const v = sigmaAiInput?.value.trim();
-        if (!v) return;
-        addAiMessage(v, true);
-        sigmaAiInput.value = '';
-        setSigmaAiWaiting(true);
-        setTimeout(() => {
-            addAiMessage('Wireframe mode — Gemini AI coming next semester.', false);
-            setSigmaAiWaiting(false);
-        }, 600);
+        return window.sendSigmaChatMessage?.();
     }
     if (sigmaAiSendBtn) sigmaAiSendBtn.addEventListener('click', sendAiMessage);
     if (sigmaAiCloseBtn) sigmaAiCloseBtn.addEventListener('click', closeAiPanel);
@@ -4374,11 +4351,7 @@ if (overlay) overlay.classList.add('hidden');
 
         sessionStorage.setItem('sigmaFirstVisit', 'true');
 
-        setTimeout(() => {
-
-            addAiMessage(WELCOME_MSG, false);
-
-        }, 900);
+        addAiMessage(WELCOME_MSG, false);
 
     }
     else {
@@ -5264,9 +5237,13 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
         window.noteStudentHistoryScreen?.();
-        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
+        if (!window._suppressSubmissionScrollToTop) {
+            window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
+        }
         _renderTopicContentMain(_tcSubjectId, _tcTopicIdx, tab);
-        window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
+        if (!window._suppressSubmissionScrollToTop) {
+            window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
+        }
         if (isSubMode) {
             window.scrollSubmissionViewToTop?.();
         }
@@ -5540,7 +5517,7 @@ if (overlay) overlay.classList.add('hidden');
 
         window.relocateAssessmentPrimaryAction?.(page);
 
-        if (isDetailView) {
+        if (isDetailView && !window._suppressSubmissionScrollToTop) {
             const _resetDetailScrollToTop = () => {
                 try {
                     window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
@@ -5754,18 +5731,28 @@ if (overlay) overlay.classList.add('hidden');
             );
 
             const studentUser = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
-            const taskRows = assessments.map((a, i) => ({ a, i })).filter(({ a, i }) => {
-                if (!isSubmissionPage || i === numDetailIdx) return true;
-                if (!studentUser || typeof window.studentHasAssessmentSubmission !== 'function') return false;
-                return window.studentHasAssessmentSubmission(studentUser, a, subjectId, a._category || a.category || a.type || 'assessments');
+            const taskRows = assessments.map((a, i) => {
+                const assessment = { ...a, topicIdx, itemIdx: i, section: a.section || studentSec };
+                const submission = window.getStudentAssessmentSubmission?.(subjectId, 'assessments', i, topicIdx, assessment, studentUser);
+                const details = window.resolveStudentAssessmentSubmissionDetails?.(assessment, subjectId, topicIdx, i, studentSec, studentUser);
+                let submitted = Boolean(studentUser && (window.studentHasTurnedInWork?.(submission)
+                    || window.studentHasTurnedInWork?.(details?.sub)
+                    || assessment.submittedAt || assessment.submissionDate || assessment.isSubmitted
+                    || window.studentHasAssessmentSubmission?.(studentUser, assessment, subjectId, a._category || a.category || a.type || 'assessments')));
+                if (window.resolveNoDeadlineAssessment?.(assessment, subjectId, studentSec, assessment.quarter || 1)) {
+                    submitted = Boolean(window.findAssessmentSubmittedWork?.(studentUser, assessment, subjectId, studentSec, assessment.quarter || 1, [submission, details?.sub]));
+                }
+                return { a, i, submitted };
             });
-            tasksPanelHtml = (typeof window.renderSharedTasksPanelHtml === 'function')
+            const isUploadForm = Boolean(window._studentSubmissionMode || /:submit(?:$|:)/.test(location.hash || ''));
+            tasksPanelHtml = (!isUploadForm && typeof window.renderSharedTasksPanelHtml === 'function')
                 ? window.renderSharedTasksPanelHtml({
                     forceShow: true,
-                    items: taskRows.map(({ a, i }) => ({
+                    title: 'Tasks',
+                    items: taskRows.map(({ a, i, submitted }) => ({
                         title: a.title,
                         isActive: i === numDetailIdx,
-                        onClick: isSubmissionPage ? `window.openSubmissionTask(${i})` : `window.openMaterialTask(${i})`
+                        onClick: isSubmissionPage && submitted ? `window.openSubmissionTask(${i})` : `window.openMaterialTask(${i})`
                     }))
                 })
                 : '';
@@ -6854,7 +6841,7 @@ if (overlay) overlay.classList.add('hidden');
                             <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1">Attendance</p>
-                                    <h3 id="classroom-attendance-stat-percent" data-attendance-stat="percent" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
+                                    <h3 id="classroom-attendance-stat-percent" data-attendance-stat="percent" class="text-2xl font-black text-black font-['Inter'] leading-none">-</h3>
                                 </div>
                                 <div class="w-11 h-11 rounded-full bg-emerald-50 text-[#15803d] flex items-center justify-center text-lg shrink-0">
                                     <i class="fa-solid fa-chart-pie"></i>
@@ -6865,7 +6852,7 @@ if (overlay) overlay.classList.add('hidden');
                             <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1">Present</p>
-                                    <h3 id="classroom-attendance-stat-present" data-attendance-stat="present" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
+                                    <h3 id="classroom-attendance-stat-present" data-attendance-stat="present" class="text-2xl font-black text-black font-['Inter'] leading-none">-</h3>
                                 </div>
                                 <div class="w-11 h-11 rounded-full bg-green-50 text-green-600 flex items-center justify-center text-lg shrink-0">
                                     <i class="fa-solid fa-circle-check"></i>
@@ -6876,7 +6863,7 @@ if (overlay) overlay.classList.add('hidden');
                             <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1">Late</p>
-                                    <h3 id="classroom-attendance-stat-late" data-attendance-stat="late" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
+                                    <h3 id="classroom-attendance-stat-late" data-attendance-stat="late" class="text-2xl font-black text-black font-['Inter'] leading-none">-</h3>
                                 </div>
                                 <div class="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-lg shrink-0">
                                     <i class="fa-solid fa-clock"></i>
@@ -6887,7 +6874,7 @@ if (overlay) overlay.classList.add('hidden');
                             <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1">Absent</p>
-                                    <h3 id="classroom-attendance-stat-absent" data-attendance-stat="absent" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
+                                    <h3 id="classroom-attendance-stat-absent" data-attendance-stat="absent" class="text-2xl font-black text-black font-['Inter'] leading-none">-</h3>
                                 </div>
                                 <div class="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-lg shrink-0">
                                     <i class="fa-solid fa-circle-xmark"></i>
@@ -7552,7 +7539,13 @@ if (overlay) overlay.classList.add('hidden');
         const assessmentBars = assessmentRows.filter(row =>
             normalizeAssessmentScope(row.section) === normalizeAssessmentScope(sectionName)
             && normalizeAssessmentScope(row.subject) === normalizeAssessmentScope(subjectName)
-        ).map(row => {
+        ).sort((a, b) => {
+            const quarter = row => Number(String(row.quarter || '').toLowerCase().replace(/^q/, '')) || 0;
+            const index = value => value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : Number.MAX_SAFE_INTEGER;
+            return quarter(a) - quarter(b)
+                || index(a.topicIdx) - index(b.topicIdx)
+                || index(a.unifiedIdx ?? a.itemIdx) - index(b.unifiedIdx ?? b.itemIdx);
+        }).map(row => {
             const hasScore = row.score !== null && row.score !== undefined
                 && String(row.score).trim() !== '' && Number.isFinite(Number(row.score));
             const scored = hasScore

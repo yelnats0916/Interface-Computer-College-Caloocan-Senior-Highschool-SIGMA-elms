@@ -1,0 +1,11 @@
+.service-vault-auth { width: 420px; max-width: calc(100vw - 32px); padding: 24px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #000; box-sizing: border-box; }
+.service-vault-auth::backdrop { background: rgba(0,0,0,.45); }
+.service-vault-auth h2 { margin: 0 0 20px; font-size: 20px; font-weight: 600; }
+.service-vault-auth label { display: block; margin: 12px 0; font-size: 14px; }
+.service-vault-auth input { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; color: #000; }
+.service-vault-auth input:focus { outline: 2px solid #ffd000; outline-offset: 1px; }
+.service-vault-auth-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.service-vault-auth button { min-height: 44px; padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #000; font: inherit; cursor: pointer; }
+.service-vault-auth button[type="submit"] { background: #15803d; color: #fff; border-color: #15803d; }
+.service-vault-auth button:disabled { opacity: .5; cursor: wait; }
+.service-vault-error { color: #b91c1c; font-size: 13px; overflow-wrap: anywhere; }

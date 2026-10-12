@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
 
     const resolveAuthApiUrl = (query = '') => {
+        if (window.SigmaRecaptcha) return window.SigmaRecaptcha.apiUrl(query);
         if (isStaticHost) return null;
         let base = 'php/api/auth.php';
         return query ? `${base}?${query}` : base;
@@ -60,18 +61,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Sync security & reCAPTCHA config from server
     const recaptchaApiUrl = resolveAuthApiUrl('action=recaptcha_config');
-    if (recaptchaApiUrl) {
-        fetch(recaptchaApiUrl)
+    const recaptchaConfigReady = recaptchaApiUrl
+        ? fetch(recaptchaApiUrl)
             .then(res => res.json())
             .then(data => {
                 if (data && data.success && data.threshold) {
                     const cfg = getLoginSecurityConfig();
                     cfg.loginIdAttempts = data.threshold;
+                    cfg.recaptchaEnabled = data.enabled !== false;
                     localStorage.setItem(LOGIN_SECURITY_KEY, JSON.stringify(cfg));
                 }
             })
-            .catch(() => {});
-    }
+            .catch(() => {}) : Promise.resolve();
 
     if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
@@ -109,9 +110,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function initSliderContent(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
+        const escapeAttribute = value => String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
         container.innerHTML = SLIDER_CONFIG.map((img, i) => `
             <div class="slide ${i === 0 ? 'active' : ''}" style="position: absolute; inset: 0; transition: opacity 1s ease-in-out; opacity: ${i === 0 ? '1' : '0'}; background: #ffffff;">
-                <img class="slide-img" src="${resolveImgPath(img.src)}" alt="${img.alt}" style="width: 100%; height: 100%; object-fit: fill; position: relative; z-index: 10;">
+                <img class="slide-img" src="${escapeAttribute(resolveImgPath(img.src))}" alt="${escapeAttribute(img.alt)}" style="width: 100%; height: 100%; object-fit: contain; position: relative; z-index: 10;">
             </div>
         `).join('');
     }
@@ -486,13 +488,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         captcha: {
             landingContainer: document.getElementById('landingRecaptchaContainer'),
-            landingCheck: document.getElementById('landingCaptchaCheck'),
-            landingVisual: document.getElementById('landingCaptchaVisual'),
-            landingSpinner: document.getElementById('landingCaptchaSpinner'),
-            modalContainer: document.getElementById('modalRecaptchaContainer'),
-            modalCheck: document.getElementById('modalCaptchaCheck'),
-            modalVisual: document.getElementById('modalCaptchaVisual'),
-            modalSpinner: document.getElementById('modalCaptchaSpinner')
+            modalContainer: document.getElementById('modalRecaptchaContainer')
         },
         help: {
             desktop: document.getElementById('helpCategoriesDesktop'),
@@ -676,37 +672,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function setRecaptchaLoading(formType, isLoading, isComplete = false) {
-        const visual = formType === 'modal' ? ui.captcha.modalVisual : ui.captcha.landingVisual;
-        const spinner = formType === 'modal' ? ui.captcha.modalSpinner : ui.captcha.landingSpinner;
-        const check = formType === 'modal' ? ui.captcha.modalCheck : ui.captcha.landingCheck;
-        const btn = formType === 'modal' ? ui.btns.modalSubmit : ui.btns.submit;
-
-        if (isLoading) {
-            if (visual) visual.classList.add('hidden');
-            if (spinner) spinner.classList.remove('hidden');
-            if (btn) btn.disabled = true;
-        } else {
-            if (spinner) spinner.classList.add('hidden');
-            if (visual) {
-                visual.classList.remove('hidden');
-                if (isComplete) {
-                    visual.classList.add('bg-green-600', 'border-green-600');
-                    const icon = visual.querySelector('i');
-                    if (icon) icon.classList.remove('opacity-0');
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                } else {
-                    visual.classList.remove('bg-green-600', 'border-green-600');
-                    const icon = visual.querySelector('i');
-                    if (icon) icon.classList.add('opacity-0');
-                }
-            }
-        }
-        if (check) check.disabled = isLoading || isComplete;
-    }
 
     function getPasswordAttempts(id) {
         return passwordFailedAttempts[id] || 0;
@@ -722,6 +687,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetRecaptcha(formType) {
+        if (pendingCaptchaSubmission?.formType === formType) {
+            pendingCaptchaFlow = null;
+            pendingCaptchaSubmission = null;
+        }
         if (formType === 'modal') {
             activeValidatedFlows.modal = null;
             ui.captcha.modalContainer?.classList.add('hidden');
@@ -750,13 +719,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const formType = submission.formType;
         const container = formType === 'modal' ? ui.captcha.modalContainer : ui.captcha.landingContainer;
-        const check = formType === 'modal' ? ui.captcha.modalCheck : ui.captcha.landingCheck;
 
         if (container) {
             container.classList.remove('hidden');
             container.classList.add('animate-in', 'fade-in', 'slide-in-from-top-2', 'duration-500');
         }
-        if (check) check.checked = false;
         
         // Disable login button until verified
         const btn = formType === 'modal' ? ui.btns.modalSubmit : ui.btns.submit;
@@ -765,7 +732,19 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.classList.add('opacity-50', 'cursor-not-allowed');
         }
         
-        setRecaptchaLoading(formType, false, false);
+        if (container && window.SigmaRecaptcha) {
+            window.SigmaRecaptcha.challenge(container, () => {
+                if (pendingCaptchaFlow !== flow) return;
+                activeValidatedFlows[formType] = flow;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+                container.classList.add('hidden');
+            }, () => {
+                if (pendingCaptchaFlow !== flow) return;
+                activeValidatedFlows[formType] = null;
+                container.classList.remove('hidden');
+                if (btn) btn.disabled = true;
+            });
+        }
     }
 
     /* ===== VIEW SWITCHER ===== */
@@ -904,6 +883,7 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ===== ACTIONS & EVENTS ===== */
 
     async function handleLogin(rawId, rawPass, formType, options = {}) {
+        await recaptchaConfigReady;
         const id = String(rawId || '').slice(0, 64000);
         const pass = String(rawPass || '').slice(0, 64000);
         const { validatedCaptchaFlow = null } = options;
@@ -916,21 +896,13 @@ document.addEventListener('DOMContentLoaded', function () {
             ? !ui.captcha.modalContainer.classList.contains('hidden')
             : !ui.captcha.landingContainer.classList.contains('hidden');
             
-        const isChecked = formType === 'modal' ? ui.captcha.modalCheck.checked : ui.captcha.landingCheck.checked;
         
         // If we have a previously validated flow for this form, use it
         const currentValidatedFlow = formType === 'modal' ? activeValidatedFlows.modal : activeValidatedFlows.landing;
         const finalValidatedFlow = validatedCaptchaFlow || currentValidatedFlow;
 
-        if (isRecaptchaActive && !isChecked && !finalValidatedFlow) {
+        if (isRecaptchaActive && !finalValidatedFlow) {
             setLoading(formType, false);
-            // Shake the recaptcha box to get attention
-            const container = formType === 'modal' ? ui.captcha.modalContainer : ui.captcha.landingContainer;
-            const box = container.querySelector('.login-captcha-box');
-            if (box) {
-                box.classList.add('border-red-500', 'animate-shake');
-                setTimeout(() => box.classList.remove('border-red-500', 'animate-shake'), 1000);
-            }
             return;
         }
 
@@ -956,18 +928,18 @@ document.addEventListener('DOMContentLoaded', function () {
             role: String(matchedUser.type || matchedUser.role || '').trim().toLowerCase(),
             status: String(matchedUser.status || 'active').trim().toLowerCase()
         } : null;
+        const securityPolicy = getLoginSecurityConfig();
+        const challengeFlow = getPasswordAttempts(accountKey) >= securityPolicy.loginIdAttempts
+            ? { type: 'wrong-password', id: accountKey } : { type: 'invalid-login-id' };
+        if (window.SigmaRecaptcha.isChallengeRequired(securityPolicy, invalidLoginIdAttempts, getPasswordAttempts(accountKey))
+            && !isSameCaptchaFlow(finalValidatedFlow, challengeFlow)) {
+            setLoading(formType, false);
+            prepareCaptchaFlow(challengeFlow, { id, pass, formType });
+            return;
+        }
 
         // Step 3: Match Account ID BEFORE checking password presence
         if (!account) {
-            const invalidLoginCaptchaFlow = { type: 'invalid-login-id' };
-
-            const securityConfig = getLoginSecurityConfig();
-            if (invalidLoginIdAttempts >= securityConfig.loginIdAttempts && !isSameCaptchaFlow(finalValidatedFlow, invalidLoginCaptchaFlow)) {
-                setLoading(formType, false);
-                prepareCaptchaFlow(invalidLoginCaptchaFlow, { id, pass, formType });
-                return;
-            }
-
             invalidLoginIdAttempts++;
             setLoading(formType, false);
             resetRecaptcha(formType);
@@ -1005,22 +977,13 @@ document.addEventListener('DOMContentLoaded', function () {
             (String(matchedUser.uid || matchedUser.id || '') === enteredPass);
 
         if (!isPasswordCorrect) {
-            const currentPasswordAttempts = getPasswordAttempts(accountKey);
-            const wrongPasswordCaptchaFlow = { type: 'wrong-password', id: accountKey };
-
             const securityConfig = getLoginSecurityConfig();
-            if (currentPasswordAttempts >= securityConfig.loginIdAttempts && !isSameCaptchaFlow(finalValidatedFlow, wrongPasswordCaptchaFlow)) {
-                setLoading(formType, false);
-                prepareCaptchaFlow(wrongPasswordCaptchaFlow, { id, pass, formType });
-                return;
-            }
-
             const nextPasswordAttempts = incrementPasswordAttempts(accountKey);
             setLoading(formType, false);
             resetRecaptcha(formType);
             const err = formType === 'modal' ? ui.errors.modalPass : ui.errors.pass;
             const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass;
-            if (nextPasswordAttempts > securityConfig.passwordAttempts) {
+            if (nextPasswordAttempts >= securityConfig.passwordAttempts) {
                 const users = getStoredUsers();
                 const userIdx = users.findIndex(u => String(u.uid || u.id || '') === String(accountKey));
                 if (userIdx !== -1) {
@@ -1565,6 +1528,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── 2FA FIRST-TIME ONBOARDING SETUP VIEW ────────────────────────────────
     async function open2faSetupModal(userId, onSuccess) {
         current2faUserId = userId;
+        current2faSuccessCallback = onSuccess;
         if (document.activeElement && typeof document.activeElement.blur === 'function') {
             document.activeElement.blur();
         }
@@ -1697,6 +1661,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let verified = false;
         let serverRejected = false;
         const setupVerifyApiUrl = resolveAuthApiUrl();
+        let verificationError = '';
 
         try {
             if (setupVerifyApiUrl) {
@@ -1715,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         verified = true;
                     } else if (res.status === 401 || current2faSetupFromServer) {
                         serverRejected = true;
+                        verificationError = data?.error || 'Authenticator verification could not be completed. Please try again.';
                     }
                 } catch (error) {
                     // Backend offline / unreachable
@@ -1735,7 +1701,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } else {
                 if (err) {
-                    err.textContent = 'Invalid 6-digit code. Please verify time in Google Authenticator.';
+                    err.textContent = verificationError || 'Invalid 6-digit code. Please verify time in Google Authenticator.';
                     err.classList.remove('hidden');
                 }
                 if (input) {
@@ -2004,6 +1970,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    document.getElementById('termsAgreementCheckboxLabel')?.addEventListener('click', (event) => {
+        if (event.target.closest('input[type="checkbox"], a')) return;
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
+
     document.getElementById('termsAgreementCheckbox')?.addEventListener('change', (e) => {
         if (e.target.checked) {
             document.getElementById('termsAgreementError')?.classList.add('hidden');
@@ -2152,36 +2124,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    const handleCaptchaChange = (e, formType) => {
-        const ok = e.target.checked;
-        if (!ok) {
-            setRecaptchaLoading(formType, false);
-            return;
-        }
-        setRecaptchaLoading(formType, true);
-        setTimeout(() => {
-            const resolvedCaptchaFlow = pendingCaptchaFlow;
-            pendingCaptchaFlow = null;
-            pendingCaptchaSubmission = null;
-            
-            // Store validation state for this form type
-            if (formType === 'modal') activeValidatedFlows.modal = resolvedCaptchaFlow || { type: 'verified' };
-            else activeValidatedFlows.landing = resolvedCaptchaFlow || { type: 'verified' };
-            
-            setRecaptchaLoading(formType, false, true);
-
-            // Hide the reCAPTCHA container after brief verification checkmark display
-            setTimeout(() => {
-                const container = formType === 'modal' ? ui.captcha.modalContainer : ui.captcha.landingContainer;
-                if (container) {
-                    container.classList.add('hidden');
-                }
-            }, 600);
-        }, 800);
-    };
-
-    ui.captcha.landingCheck?.addEventListener('change', (e) => handleCaptchaChange(e, 'landing'));
-    ui.captcha.modalCheck?.addEventListener('change', (e) => handleCaptchaChange(e, 'modal'));
     ui.btns.entryHelp.forEach(b => b.onclick = () => switchView('help'));
     document.getElementById('backToLoginLogo')?.addEventListener('click', (e) => {
         e.preventDefault();

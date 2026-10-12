@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS system_service_settings (
+    id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    encrypted_settings LONGTEXT NOT NULL,
+    key_location VARCHAR(1024) NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS service_vault_sessions (
+    token_hash CHAR(64) NOT NULL PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX vault_user_idx (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS service_vault_login_attempts (
+    client_hash CHAR(64) NOT NULL PRIMARY KEY,
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    blocked_until DATETIME NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

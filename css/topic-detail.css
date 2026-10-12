@@ -375,12 +375,12 @@
    overflow-x: clip plus overflow-y: auto computes to hidden, so the rail
    sticks to the body while the window scrolls and the rail slides away. */
 @media (min-width: 768px) {
-    html:has(#section-topic-content:not(.hidden)) {
+    html:has(#section-topic-content:not(.hidden)):not(:has(#subject-edit-overlay:not(.hidden))):not(:has(.sigma-modal-overlay:not(.hidden))):not(.modal-open):not(.dialog-open):not(.has-modal-open):not(.sigma-modal-open) {
         overflow-x: clip !important;
         overflow-y: auto !important;
     }
 
-    body:has(#section-topic-content:not(.hidden)) {
+    body:has(#section-topic-content:not(.hidden)):not(:has(#subject-edit-overlay:not(.hidden))):not(:has(.sigma-modal-overlay:not(.hidden))):not(.modal-open):not(.dialog-open):not(.has-modal-open):not(.sigma-modal-open) {
         overflow: visible !important;
     }
 
@@ -2551,11 +2551,30 @@
     }
 }
 
-/* Quiz form, view mode, and view score cover the topic page: the page scrollbar stays off. */
+/* Quiz form, view mode, subject editor, and modal overlays cover the topic page: the page scrollbar stays off. */
 html:has(#section-topic-content:not(.hidden)):has(#universal-quiz-preview-modal:not(.hidden)),
 html:has(#section-topic-content:not(.hidden)):has(#sigma-quiz-form-modal:not(.hidden)),
-html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hidden)) {
+html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hidden)),
+html:has(#section-topic-content:not(.hidden)):has(#subject-edit-overlay:not(.hidden)),
+html:has(#section-topic-content:not(.hidden)):has(.sigma-modal-overlay:not(.hidden)),
+html:has(#subject-edit-overlay:not(.hidden)),
+html:has(.sigma-modal-overlay:not(.hidden)),
+html.modal-open,
+html.sigma-modal-open,
+html.has-modal-open,
+body:has(#section-topic-content:not(.hidden)):has(#universal-quiz-preview-modal:not(.hidden)),
+body:has(#section-topic-content:not(.hidden)):has(#sigma-quiz-form-modal:not(.hidden)),
+body:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hidden)),
+body:has(#section-topic-content:not(.hidden)):has(#subject-edit-overlay:not(.hidden)),
+body:has(#section-topic-content:not(.hidden)):has(.sigma-modal-overlay:not(.hidden)),
+body:has(#subject-edit-overlay:not(.hidden)),
+body:has(.sigma-modal-overlay:not(.hidden)),
+body.modal-open,
+body.sigma-modal-open,
+body.has-modal-open {
     overflow: hidden !important;
+    height: 100vh !important;
+    scrollbar-width: none !important;
 }
 
 .gb-status-key {

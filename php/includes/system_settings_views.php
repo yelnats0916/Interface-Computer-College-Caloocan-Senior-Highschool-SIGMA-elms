@@ -20,7 +20,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-robot text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">reCAPTCHA Bot Defense</span>
+                    <span class="sigma-settings-cat-text text-inherit">reCAPTCHA Protection</span>
                 </button>
                 <button type="button" 
                     class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
@@ -31,7 +31,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-user-lock text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">Account Lockout Policy</span>
+                    <span class="sigma-settings-cat-text text-inherit">Account Lockout</span>
                 </button>
                 <button type="button" 
                     id="nav-settings-maintenance"
@@ -54,30 +54,23 @@
                 <!-- Card 1: reCAPTCHA Protection -->
                 <div id="sec-recaptcha-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">reCAPTCHA Bot Defense</h2>
-                        <p class="sigma-panel-subtitle">Configure automated challenge thresholds when repeated suspicious login attempts occur.</p>
+                        <h2 class="sigma-panel-title">reCAPTCHA Protection</h2>
+                        <p class="sigma-panel-subtitle">Verification settings for failed login attempts.</p>
                     </div>
                     <div class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 items-center py-4 border-b border-slate-50 gap-4">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Login Attempts Threshold</p>
-                                <span class="text-xs text-black-fade font-medium">Failed identifier submissions</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Number of attempts before reCAPTCHA challenge appears (Max: 50)</p>
-                            </div>
-                            <div class="flex items-center justify-start md:justify-end gap-3">
-                                <input type="number" id="login-id-attempts" aria-label="Failed identifier submissions attempt threshold" value="3" max="50" min="1"
-                                    class="w-24 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                <span class="text-[10px] font-bold text-black uppercase tracking-widest font-['Inter']">Attempts</span>
-                            </div>
+                        <div class="recaptcha-rule-row">
+                            <label for="recaptcha-page-threshold-input" class="text-sm font-bold">Failed Login Attempts</label>
+                            <p id="recaptcha-attempts-description" class="recaptcha-rule-description text-xs text-black-fade">Number of failed login attempts before verification is required.</p>
+                            <div class="recaptcha-rule-control"><input type="number" id="recaptcha-page-threshold-input" aria-describedby="recaptcha-attempts-description" min="1" max="50" value="3" oninput="window.scheduleRecaptchaDefenseSave()" class="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-center"></div>
                         </div>
-                        <div class="flex justify-end pt-2">
-                            <button type="button" onclick="window.saveSecuritySettings()"
-                                class="flex items-center gap-2 px-6 py-2.5 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm">
-                                <i class="fa-solid fa-check"></i>
-                                <span>Save Threshold</span>
-                            </button>
+                        <div class="recaptcha-rule-row">
+                            <label for="recaptcha-page-enabled-toggle" class="text-sm font-bold">Enable reCAPTCHA</label>
+                            <p id="recaptcha-enabled-description" class="recaptcha-rule-description text-xs text-black-fade">Require verification after repeated failed login attempts.</p>
+                            <label class="recaptcha-rule-control relative inline-flex items-center cursor-pointer"><input type="checkbox" id="recaptcha-page-enabled-toggle" aria-describedby="recaptcha-enabled-description" checked class="sr-only peer" onchange="window.scheduleRecaptchaDefenseSave(true)"><div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#15803d]"></div></label>
+                        </div>
+                        <div class="flex items-center justify-end flex-wrap gap-3">
+                            <button type="button" id="btn-security-configure-recaptcha" onclick="window.openRecaptchaSettingsPage()" class="sigma-btn sigma-btn-white sigma-btn-md gap-2"><i class="fa-solid fa-sliders text-xs text-[#15803d]" aria-hidden="true"></i><span>Configure</span></button>
+                            <span id="recaptcha-defense-save-status" role="status" aria-live="polite" class="text-xs text-black-fade"></span>
                         </div>
                     </div>
                 </div>
@@ -85,30 +78,20 @@
                 <!-- Card 2: Account Lockout -->
                 <div id="sec-lockout-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">Account Lockout Policy</h2>
-                        <p class="sigma-panel-subtitle">Safeguard user credentials by automatically freezing accounts upon repeated password failures.</p>
+                        <h2 class="sigma-panel-title">Account Lockout</h2>
+                        <p class="sigma-panel-subtitle">Lockout settings for repeated incorrect passwords.</p>
                     </div>
                     <div class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 items-center py-4 border-b border-slate-50 gap-4">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Password Failure Limit</p>
-                                <span class="text-xs text-black-fade font-medium">Brute-force mitigation</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Number of attempts before account lockout occurs (Max: 50)</p>
-                            </div>
-                            <div class="flex items-center justify-start md:justify-end gap-3">
-                                <input type="number" id="password-lockout-attempts" aria-label="Brute-force password failure limit attempts" value="8" max="50" min="1"
-                                    class="w-24 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                <span class="text-[10px] font-bold text-black uppercase tracking-widest font-['Inter']">Attempts</span>
+                        <div class="recaptcha-rule-row">
+                            <label for="password-lockout-attempts" class="text-sm font-bold">Failed Password Attempts</label>
+                            <p id="lockout-attempts-description" class="recaptcha-rule-description text-xs text-black-fade">Number of incorrect password attempts before account lockout.</p>
+                            <div class="recaptcha-rule-control">
+                                <input type="number" id="password-lockout-attempts" aria-describedby="lockout-attempts-description" value="8" max="50" min="1" oninput="window.scheduleSecuritySettingsSave()"
+                                    class="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-center">
                             </div>
                         </div>
-                        <div class="flex justify-end pt-2">
-                            <button type="button" id="security-save-btn" onclick="window.saveSecuritySettings()"
-                                class="flex items-center gap-2 px-6 py-2.5 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm">
-                                <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                <span>Save Policy</span>
-                            </button>
+                        <div class="flex justify-end">
+                            <span id="security-save-status" role="status" aria-live="polite" class="text-xs text-black-fade"></span>
                         </div>
                     </div>
                 </div>
@@ -186,7 +169,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-image text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">Institutional Logos</span>
+                    <span class="sigma-settings-cat-text text-inherit">Institution Logo</span>
                 </button>
                 <button type="button" 
                     class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
@@ -216,114 +199,32 @@
         <!-- Right Content Area (Single continuous scrollable page) -->
         <section class="sigma-settings-main">
             <div class="sigma-settings-inner">
-                <!-- Card 1: Institutional Logos -->
+                <!-- Card 1: Institution Logo -->
                 <div id="brand-logos-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">Institutional Logos</h2>
-                        <p class="sigma-panel-subtitle">Manage official logos utilized across login portals, landing headers, and dashboard navigation bars.</p>
+                        <h2 class="sigma-panel-title">Institution Logo</h2>
                     </div>
-
-                    <div class="space-y-8">
-                        <!-- Login Form Logo -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-6 py-4 border-b border-slate-50">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Login Form Logo</p>
-                                <span class="text-xs text-black-fade font-medium">Main authentication modal &amp; card</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Main login portal center logo displayed in authentication boxes.</p>
-                            </div>
-                            <div class="flex flex-col items-center justify-center">
-                                <div class="w-[11rem] h-[11rem] bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteBranding('login-logo')"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10" title="Delete logo">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-logo-preview" src="image/ICC logo.jpg" class="max-h-[100px] w-auto object-contain rounded-lg" alt="Login Form Logo">
-                                        <div id="login-logo-placeholder" class="hidden flex flex-col items-center justify-center text-slate-400">
-                                            <i class="fa-solid fa-cloud-arrow-up text-2xl mb-2"></i>
-                                            <span class="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="login-logo-input" class="hidden" accept="image/*" aria-label="Upload Login Form Logo">
-                                    <button type="button" onclick="document.getElementById('login-logo-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <button type="button" id="login-logo-cancel" onclick="window.clearBrandingPreview('login-logo')"
-                                    class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
+                    <div class="institution-logo-row">
+                        <div class="institution-logo-editor">
+                            <img id="institution-logo-preview" class="institution-logo-preview" src="image/ICC logo.jpg" alt="Institution logo">
+                            <div class="institution-logo-controls">
+                            <input id="institution-logo-input" type="file" accept="image/png,image/jpeg,image/webp" hidden aria-label="Upload institution logo">
+                            <button type="button" id="institution-logo-change" class="sigma-btn sigma-btn-white sigma-btn-md">Change Logo</button>
+                            <button type="button" id="institution-logo-upload" class="sigma-btn sigma-btn-white sigma-btn-md" hidden>Upload Logo</button>
+                            <button type="button" id="institution-logo-restore" class="sigma-btn sigma-btn-white sigma-btn-md institution-logo-restore" title="Restore default logo" aria-label="Restore default logo" hidden><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i></button>
                             </div>
                         </div>
-
-                        <!-- Login Bar Logo -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-6 py-4 border-b border-slate-50">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Login Bar Logo</p>
-                                <span class="text-xs text-black-fade font-medium">Public landing page header</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Landing page top navigation logo displayed in public portal navbar.</p>
-                            </div>
-                            <div class="flex flex-col items-center justify-center">
-                                <div class="w-[11rem] h-[11rem] bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteBranding('login-bar-logo')"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10" title="Delete logo">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-bar-logo-preview" src="image/ICC logo.jpg" class="max-h-[100px] w-auto object-contain rounded-lg" alt="Login Bar Logo">
-                                        <div id="login-bar-logo-placeholder" class="hidden flex flex-col items-center justify-center text-slate-400">
-                                            <i class="fa-solid fa-cloud-arrow-up text-2xl mb-2"></i>
-                                            <span class="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="login-bar-logo-input" class="hidden" accept="image/*" aria-label="Upload Login Bar Logo">
-                                    <button type="button" onclick="document.getElementById('login-bar-logo-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <button type="button" id="login-bar-logo-cancel" onclick="window.clearBrandingPreview('login-bar-logo')"
-                                    class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                            </div>
-                        </div>
-
-                        <!-- Users Bar Logo -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-6 py-4">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Users Bar Logo</p>
-                                <span class="text-xs text-black-fade font-medium">In-app topbar across all roles</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Dashboard navigation logo displayed for Admin, Teacher, and Student views.</p>
-                            </div>
-                            <div class="flex flex-col items-center justify-center">
-                                <div class="w-[11rem] h-[11rem] bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteBranding('nav-logo')"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10" title="Delete logo">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="nav-logo-preview" src="image/ICC logo.jpg" class="max-h-[100px] w-auto object-contain rounded-lg" alt="Nav Logo">
-                                        <div id="nav-logo-placeholder" class="hidden flex flex-col items-center justify-center text-slate-400">
-                                            <i class="fa-solid fa-cloud-arrow-up text-2xl mb-2"></i>
-                                            <span class="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="nav-logo-input" class="hidden" accept="image/*" aria-label="Upload Nav Logo">
-                                    <button type="button" onclick="document.getElementById('nav-logo-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <button type="button" id="nav-logo-cancel" onclick="window.clearBrandingPreview('nav-logo')"
-                                    class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end pt-4">
-                            <button type="button" id="branding-save-btn" onclick="window.saveBrandingSettings()"
-                                class="flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer">
-                                <i class="fa-solid fa-circle-notch fa-spin hidden"></i>
-                                <span>Save Institutional Logos</span>
-                            </button>
-                        </div>
+                        <p class="institution-logo-description">Official institution logo for the login page, navigation header, and browser tab.</p>
+                    </div>
+                    <div class="institution-logo-previews" hidden>
+                        <figure><div class="institution-logo-sample institution-logo-sample-login"><img data-institution-logo-preview src="image/ICC logo.jpg" alt=""></div><figcaption>Login<span class="institution-logo-size">Preview: 96 x 96 px</span></figcaption></figure>
+                        <figure><div class="institution-logo-sample institution-logo-sample-header"><img data-institution-logo-preview src="image/ICC logo.jpg" alt=""><span>Interface Computer College</span></div><figcaption>Header<span class="institution-logo-size">Preview: 40 x 40 px</span></figcaption></figure>
+                        <figure><div class="institution-logo-sample institution-logo-sample-tab"><img data-institution-logo-preview src="image/ICC logo.jpg" alt=""><span>SIGMA ELMS</span></div><figcaption>Browser Icon<span class="institution-logo-size">Preview: 16 x 16 px</span></figcaption></figure>
+                    </div>
+                    <p id="institution-logo-feedback" role="status" aria-live="polite" class="text-xs text-black-fade mt-4"></p>
+                    <div id="institution-logo-actions" class="flex justify-end gap-3 mt-6" hidden>
+                        <button type="button" id="institution-logo-cancel" class="sigma-btn sigma-btn-white sigma-btn-md" hidden>Cancel</button>
+                        <button type="button" id="institution-logo-save" class="sigma-btn sigma-btn-primary sigma-btn-md" disabled>Save Changes</button>
                     </div>
                 </div>
 
@@ -331,168 +232,34 @@
                 <div id="brand-slides-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
                         <h2 class="sigma-panel-title">Login Slideshow</h2>
-                        <p class="sigma-panel-subtitle">Configure auto-rotating promotional and campus imagery on public login page. Recommended Ratio: 16:9 (1920x1080). Max 7 slides.</p>
+                        <p class="sigma-panel-subtitle">Campus and admissions images. Up to 7 slides. Recommended: 1920 x 1080 px.</p>
                     </div>
-
-                    <div class="space-y-6">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                            <!-- Slide 1 -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 1</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(1)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-1-preview" src="image/ICC Shs.jpg" class="w-full h-full object-cover rounded-lg" alt="Slide 1">
-                                    </div>
-                                    <input type="file" id="login-slide-1-input" class="hidden" accept="image/*" aria-label="Upload Slide 1" onchange="window.handleSlideUpload(event, 1)">
-                                    <button type="button" onclick="document.getElementById('login-slide-1-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-1-cancel" onclick="window.clearSlidePreview(1)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 2 -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 2</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(2)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-2-preview" src="image/ICC Enrollment.jpg" class="w-full h-full object-cover rounded-lg" alt="Slide 2">
-                                    </div>
-                                    <input type="file" id="login-slide-2-input" class="hidden" accept="image/*" aria-label="Upload Slide 2" onchange="window.handleSlideUpload(event, 2)">
-                                    <button type="button" onclick="document.getElementById('login-slide-2-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-2-cancel" onclick="window.clearSlidePreview(2)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 3 -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 3</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(3)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-3-preview" src="image/ICC Immersion.jpg" class="w-full h-full object-cover rounded-lg" alt="Slide 3">
-                                    </div>
-                                    <input type="file" id="login-slide-3-input" class="hidden" accept="image/*" aria-label="Upload Slide 3" onchange="window.handleSlideUpload(event, 3)">
-                                    <button type="button" onclick="document.getElementById('login-slide-3-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-3-cancel" onclick="window.clearSlidePreview(3)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 4 -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 4</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(4)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-4-preview" src="image/ICC Interfacer.jpg" class="w-full h-full object-cover rounded-lg" alt="Slide 4">
-                                    </div>
-                                    <input type="file" id="login-slide-4-input" class="hidden" accept="image/*" aria-label="Upload Slide 4" onchange="window.handleSlideUpload(event, 4)">
-                                    <button type="button" onclick="document.getElementById('login-slide-4-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-4-cancel" onclick="window.clearSlidePreview(4)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 5 -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 5</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(5)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-5-preview" src="image/ICC Learning.jpg" class="w-full h-full object-cover rounded-lg" alt="Slide 5">
-                                    </div>
-                                    <input type="file" id="login-slide-5-input" class="hidden" accept="image/*" aria-label="Upload Slide 5" onchange="window.handleSlideUpload(event, 5)">
-                                    <button type="button" onclick="document.getElementById('login-slide-5-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-5-cancel" onclick="window.clearSlidePreview(5)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 6 (Slot) -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 6</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 border-dashed rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(6)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-6-preview" src="" class="w-full h-full object-cover rounded-lg hidden" alt="Slide 6">
-                                        <i class="fa-solid fa-image text-3xl text-slate-200" id="login-slide-6-placeholder"></i>
-                                    </div>
-                                    <input type="file" id="login-slide-6-input" class="hidden" accept="image/*" aria-label="Upload Slide 6" onchange="window.handleSlideUpload(event, 6)">
-                                    <button type="button" onclick="document.getElementById('login-slide-6-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Upload</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-6-cancel" onclick="window.clearSlidePreview(6)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
-
-                            <!-- Slide 7 (Slot) -->
-                            <div class="space-y-3">
-                                <p class="text-[10px] font-bold text-black-fade uppercase tracking-widest text-center">Slide 7</p>
-                                <div class="w-full aspect-square bg-slate-50 border border-slate-200 border-dashed rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden">
-                                    <button type="button" onclick="window.deleteSlide(7)"
-                                        class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10">
-                                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                    </button>
-                                    <div class="flex-1 flex items-center justify-center w-full">
-                                        <img id="login-slide-7-preview" src="" class="w-full h-full object-cover rounded-lg hidden" alt="Slide 7">
-                                        <i class="fa-solid fa-image text-3xl text-slate-200" id="login-slide-7-placeholder"></i>
-                                    </div>
-                                    <input type="file" id="login-slide-7-input" class="hidden" accept="image/*" aria-label="Upload Slide 7" onchange="window.handleSlideUpload(event, 7)">
-                                    <button type="button" onclick="document.getElementById('login-slide-7-input').click()"
-                                        class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Upload</button>
-                                </div>
-                                <div class="flex justify-center">
-                                    <button type="button" id="login-slide-7-cancel" onclick="window.clearSlidePreview(7)"
-                                        class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                                </div>
-                            </div>
+                    <div class="slideshow-toolbar" hidden>
+                        <div class="slideshow-view-tools">
+                        <div class="slideshow-modes" role="group" aria-label="Slideshow view">
+                            <button type="button" data-slide-mode="grid" aria-pressed="true"><i class="fa-solid fa-table-cells" aria-hidden="true"></i> Grid</button>
+                            <button type="button" data-slide-mode="preview" aria-pressed="false"><i class="fa-solid fa-play" aria-hidden="true"></i> Preview</button>
                         </div>
-
-                        <div class="flex justify-end pt-4">
-                            <button type="button" id="slides-save-btn" onclick="window.saveSlidesSettings()"
-                                class="flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer">
-                                <i class="fa-solid fa-circle-notch fa-spin hidden"></i>
-                                <span>Save Slideshow</span>
-                            </button>
+                        <button type="button" id="slideshow-restore" class="sigma-btn sigma-btn-md limits-restore-button" hidden><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i><span>Restore Changes</span></button>
                         </div>
+                    </div>
+                    <input type="file" id="slideshow-input" accept="image/png,image/jpeg,image/webp" multiple hidden aria-label="Upload slideshow images">
+                    <div class="slideshow-preview">
+                        <div class="slideshow-frame"><img id="slideshow-preview-image" alt=""></div>
+                        <div class="slideshow-preview-controls">
+                            <button type="button" data-slide-action="previous" title="Previous slide" aria-label="Previous slide"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+                            <span id="slideshow-position" role="status"></span>
+                            <button type="button" data-slide-action="play" title="Play slideshow" aria-label="Play slideshow"><i class="fa-solid fa-play" aria-hidden="true"></i></button>
+                            <button type="button" data-slide-action="next" title="Next slide" aria-label="Next slide"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
+                    <div id="slideshow-grid" class="slideshow-grid" hidden></div>
+                    <div class="slideshow-summary"><button type="button" id="slideshow-manage" class="sigma-btn sigma-btn-white sigma-btn-md">Manage Slideshow</button></div>
+                    <p id="slideshow-feedback" role="status" aria-live="polite"></p>
+                    <div id="slideshow-actions" class="slideshow-actions" hidden>
+                        <span id="slideshow-count"></span>
+                        <button type="button" id="slideshow-cancel" class="sigma-btn sigma-btn-white sigma-btn-md">Cancel</button>
+                        <button type="button" id="slides-save-btn" class="sigma-btn sigma-btn-primary sigma-btn-md" disabled>Save Changes</button>
                     </div>
                 </div>
 
@@ -500,41 +267,24 @@
                 <div id="brand-welcome-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
                         <h2 class="sigma-panel-title">Dashboard Welcome Banner</h2>
-                        <p class="sigma-panel-subtitle">Manage greeting panel banner displayed atop user dashboards. Recommended Ratio: 16:9 (1920x1080).</p>
+                        <p class="sigma-panel-subtitle">Background image behind the welcome greeting on administrator, teacher, and student dashboards.</p>
                     </div>
-
-                    <div class="space-y-6">
-                        <div class="max-w-xl">
-                            <div class="w-full aspect-video bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-between p-4 group relative overflow-hidden cursor-pointer"
-                                onclick="document.getElementById('welcome-panel-input').click()">
-                                <button type="button" onclick="event.stopPropagation(); window.deleteWelcomePanel()"
-                                    class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/80 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white transition-all opacity-0 group-hover:opacity-100 z-10" title="Delete banner">
-                                    <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                </button>
-                                <div class="flex-1 flex items-center justify-center w-full">
-                                    <img id="welcome-panel-preview" src="image/Welcome.jpg" class="w-full h-full object-cover rounded-lg" alt="Welcome Panel">
-                                    <div id="welcome-panel-placeholder" class="hidden flex flex-col items-center justify-center text-slate-400">
-                                        <i class="fa-solid fa-cloud-arrow-up text-2xl mb-2"></i>
-                                        <span class="text-[10px] font-bold uppercase tracking-widest">Upload Photo</span>
-                                    </div>
-                                </div>
-                                <input type="file" id="welcome-panel-input" class="hidden" accept="image/*" aria-label="Upload Welcome Banner" onchange="window.handleWelcomePanelUpload(event)">
-                                <button type="button" onclick="event.stopPropagation(); document.getElementById('welcome-panel-input').click()"
-                                    class="w-full py-2 bg-white border border-slate-200 text-[10px] font-bold text-black uppercase tracking-widest rounded-lg hover:bg-slate-100 transition-all font-['Inter'] mt-3 cursor-pointer">Replace</button>
-                            </div>
-                            <div class="flex justify-center">
-                                <button type="button" id="welcome-panel-cancel" onclick="window.clearWelcomePanelPreview()"
-                                    class="hidden mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:text-red-700 transition-all">Cancel</button>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end pt-4">
-                            <button type="button" id="welcome-panel-save-btn" onclick="window.saveWelcomePanelSettings()"
-                                class="flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer">
-                                <i class="fa-solid fa-circle-notch fa-spin hidden"></i>
-                                <span>Save Welcome Banner</span>
-                            </button>
-                        </div>
+                    <div class="welcome-banner-preview"><img id="welcome-panel-preview" src="image/ICC Goals.jpeg" alt="Dashboard welcome banner"></div>
+                    <p id="welcome-banner-size" class="welcome-banner-size" hidden></p>
+                    <div class="welcome-banner-controls">
+                        <button type="button" id="welcome-banner-change" class="sigma-btn sigma-btn-white sigma-btn-md">Change Banner</button>
+                        <button type="button" id="welcome-banner-upload" class="sigma-btn sigma-btn-white sigma-btn-md" hidden>Upload Banner</button>
+                        <button type="button" id="welcome-banner-restore" class="sigma-btn sigma-btn-white sigma-btn-md" title="Restore default banner" aria-label="Restore default banner" hidden><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i></button>
+                    </div>
+                    <input type="file" id="welcome-panel-input" accept="image/png,image/jpeg,image/webp" aria-label="Upload welcome banner" hidden>
+                    <section id="welcome-banner-library" class="welcome-banner-library" hidden>
+                        <h3>Uploaded Banners</h3>
+                        <div id="welcome-banner-gallery" class="welcome-banner-gallery"></div>
+                    </section>
+                    <p id="welcome-banner-feedback" role="status" aria-live="polite"></p>
+                    <div id="welcome-banner-actions" class="welcome-banner-actions" hidden>
+                        <button type="button" id="welcome-panel-cancel" class="sigma-btn sigma-btn-white sigma-btn-md">Cancel</button>
+                        <button type="button" id="welcome-panel-save-btn" class="sigma-btn sigma-btn-primary sigma-btn-md" disabled>Save Changes</button>
                     </div>
                 </div>
             </div>
@@ -558,7 +308,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-brain text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">AI Intelligence Engines</span>
+                    <span class="sigma-settings-cat-text text-inherit">SIGMA AI Integration Engines</span>
                 </button>
                 <button type="button" 
                     class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
@@ -569,7 +319,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-brands fa-google-drive text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">Cloud Storage API</span>
+                    <span class="sigma-settings-cat-text text-inherit">Google Drive Cloud Storage</span>
                 </button>
                 <button type="button" 
                     class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
@@ -580,7 +330,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-key text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">reCAPTCHA API Key</span>
+                    <span class="sigma-settings-cat-text text-inherit">Google reCAPTCHA Protection</span>
                 </button>
                 <button type="button" 
                     class="sigma-settings-cat-btn text-black hover:bg-slate-100" 
@@ -591,7 +341,7 @@
                     <span class="sigma-settings-cat-icon">
                         <i class="fa-solid fa-hard-drive text-inherit"></i>
                     </span>
-                    <span class="sigma-settings-cat-text text-inherit">Material Limits &amp; Quotas</span>
+                    <span class="sigma-settings-cat-text text-inherit">File Upload Size Limits</span>
                 </button>
             </nav>
         </aside>
@@ -602,107 +352,74 @@
                 <!-- Card 1: AI Integrations -->
                 <div id="integ-ai-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">AI Intelligence Engines</h2>
-                        <p class="sigma-panel-subtitle">Manage vault credentials for Google Gemini and Groq AI acceleration layers.</p>
+                        <h2 class="sigma-panel-title">SIGMA AI Integration Engines</h2>
                     </div>
 
                     <div class="space-y-6">
                         <!-- Gemini -->
-                        <div id="row-gemini" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
+                        <div id="row-gemini" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden cursor-default">
                             <div class="flex flex-row items-center p-5 gap-6">
-                                <div class="w-56 shrink-0 space-y-0.5">
-                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Google Gemini</p>
-                                    <span class="text-xs text-black-fade font-medium leading-normal block">Assistant intelligence</span>
+                                <div class="w-56 shrink-0">
+                                    <p class="text-sm font-bold text-[#15803d] font-['Inter'] leading-tight">Google Gemini</p>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs text-black-fade font-medium leading-relaxed">Primary intelligence engine powering the SIGMA AI bot for automated institutional assistance.</p>
                                 </div>
-                                <div class="w-1/5 text-center">
-                                    <div id="mask-gemini" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
-                                </div>
                                 <div class="flex justify-end shrink-0">
-                                    <button type="button" onclick="window.triggerVault('gemini')" id="btn-vault-gemini"
-                                        class="flex items-center gap-2 px-5 py-2 bg-slate-50 text-xs font-bold text-black rounded-xl hover:bg-[#FFD000] hover:text-black transition-all cursor-pointer">
-                                        <i class="fa-solid fa-lock text-[10px]"></i>
-                                        <span>Open</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="key-field-gemini" class="hidden p-6 bg-slate-50/50 border-t border-slate-100">
-                                <div class="space-y-3">
-                                    <div class="flex justify-between items-center">
-                                        <label for="api-key-gemini" class="text-xs font-bold text-black">Gemini API Key</label>
-                                        <button type="button" onclick="window.triggerPasswordChange('gemini')" class="text-xs font-bold text-[#15803d] hover:underline">Change Master Password</button>
-                                    </div>
-                                    <input type="text" id="api-key-gemini" maxlength="200" class="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-mono font-bold text-black outline-none focus:border-[#15803d] transition-all" placeholder="Paste your Gemini API key here...">
-                                    <div class="flex justify-end gap-2 pt-1">
-                                        <button type="button" onclick="window.saveKeyField('gemini')" class="px-5 py-2 bg-[#15803d] text-white text-xs font-bold rounded-xl hover:bg-[#166534] transition-all">Save Changes</button>
-                                        <button type="button" onclick="window.cancelKeyField('gemini')" class="px-5 py-2 bg-slate-100 text-black text-xs font-bold rounded-xl hover:bg-slate-200 transition-all">Cancel</button>
-                                    </div>
+                                    <span id="badge-gemini-live-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 pointer-events-none select-none cursor-default">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                        <span class="gemini-status-text">Not Configured</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Groq -->
-                        <div id="row-groq" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
+                        <div id="row-groq" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden cursor-default">
                             <div class="flex flex-row items-center p-5 gap-6">
-                                <div class="w-56 shrink-0 space-y-0.5">
-                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Groq LPU Acceleration</p>
-                                    <span class="text-xs text-black-fade font-medium leading-normal block">Predictive &amp; Prescriptive analytics</span>
+                                <div class="w-56 shrink-0">
+                                    <p class="text-sm font-bold text-[#15803d] font-['Inter'] leading-tight">Groq</p>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-xs text-black-fade font-medium leading-relaxed">High-performance processing logic driving descriptive, predictive, and prescriptive data analytics.</p>
-                                </div>
-                                <div class="w-1/5 text-center">
-                                    <div id="mask-groq" class="text-slate-300 font-mono tracking-[0.3em] text-xs">••••••••••••••••</div>
+                                    <p class="text-xs text-black-fade font-medium leading-relaxed">Advanced reasoning and real-time generative intelligence engine developed by Groq.</p>
                                 </div>
                                 <div class="flex justify-end shrink-0">
-                                    <button type="button" onclick="window.triggerVault('groq')" id="btn-vault-groq"
-                                        class="flex items-center gap-2 px-5 py-2 bg-slate-50 text-xs font-bold text-black rounded-xl hover:bg-[#FFD000] hover:text-black transition-all cursor-pointer">
-                                        <i class="fa-solid fa-lock text-[10px]"></i>
-                                        <span>Open</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="key-field-groq" class="hidden p-6 bg-slate-50/50 border-t border-slate-100">
-                                <div class="space-y-3">
-                                    <div class="flex justify-between items-center">
-                                        <label for="api-key-groq" class="text-xs font-bold text-black">Groq API Key</label>
-                                        <button type="button" onclick="window.triggerPasswordChange('groq')" class="text-xs font-bold text-[#15803d] hover:underline">Change Master Password</button>
-                                    </div>
-                                    <input type="text" id="api-key-groq" maxlength="200" class="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-mono font-bold text-black outline-none focus:border-[#15803d] transition-all" placeholder="Paste your Groq API key here...">
-                                    <div class="flex justify-end gap-2 pt-1">
-                                        <button type="button" onclick="window.saveKeyField('groq')" class="px-5 py-2 bg-[#15803d] text-white text-xs font-bold rounded-xl hover:bg-[#166534] transition-all">Save Changes</button>
-                                        <button type="button" onclick="window.cancelKeyField('groq')" class="px-5 py-2 bg-slate-100 text-black text-xs font-bold rounded-xl hover:bg-slate-200 transition-all">Cancel</button>
-                                    </div>
+                                    <span id="badge-groq-live-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 pointer-events-none select-none cursor-default">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                        <span class="groq-status-text">Not Configured</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    <div class="flex justify-end mt-6">
+                        <button type="button" onclick="window.openAiSettingsPage()" id="btn-manage-ai-engines"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md">
+                            <span>Manage AI</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Card 2: Cloud Storage API -->
+                <!-- Card 2: Google Drive Cloud Storage -->
                 <div id="integ-cloud-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
                         <h2 class="sigma-panel-title">Google Drive Cloud Storage</h2>
-                        <p class="sigma-panel-subtitle">Institutional cloud integration for secure document management, repository access, and lecture materials.</p>
                     </div>
 
                     <div class="space-y-6">
                         <div id="row-drive" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
                             <div class="flex flex-row items-center p-5 gap-6">
-                                <div class="w-56 shrink-0 space-y-0.5">
-                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">Google Drive Storage</p>
-                                    <span class="text-xs text-black-fade font-medium leading-normal block">Service account credentials</span>
+                                <div class="w-56 shrink-0">
+                                    <p class="text-sm font-bold text-[#15803d] font-['Inter'] leading-tight">Google Drive Storage</p>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs text-black-fade font-medium leading-relaxed">Institutional storage integration for secure document management and repository asset routing.</p>
                                 </div>
                                 <div class="flex justify-end shrink-0">
                                     <button type="button" onclick="window.openGoogleDriveSettingsPage()" id="btn-manage-drive"
-                                        class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer whitespace-nowrap">
-                                        <i class="fa-solid fa-sliders text-xs"></i>
-                                        <span>Manage Google Drive</span>
+                                        class="sigma-btn sigma-btn-white sigma-btn-md gap-2">
+                                        <i class="fa-solid fa-sliders text-xs text-[#15803d]"></i>
+                                        <span>Configure</span>
                                     </button>
                                 </div>
                             </div>
@@ -710,28 +427,26 @@
                     </div>
                 </div>
 
-                <!-- Card 3: reCAPTCHA API Key -->
+                <!-- Card 3: Google reCAPTCHA Protection -->
                 <div id="integ-recaptcha-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
                         <h2 class="sigma-panel-title">Google reCAPTCHA Protection</h2>
-                        <p class="sigma-panel-subtitle">Security credential for enterprise-grade bot protection and challenge validation.</p>
                     </div>
 
                     <div class="space-y-6">
                         <div id="row-recaptcha" class="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 transition-all overflow-hidden">
                             <div class="flex flex-row items-center p-5 gap-6">
-                                <div class="w-56 shrink-0 space-y-0.5">
-                                    <p class="text-sm font-bold text-black font-['Inter'] leading-tight">reCAPTCHA Protection</p>
-                                    <span class="text-xs text-black-fade font-medium leading-normal block">Bot defense &amp; handshake validation</span>
+                                <div class="w-56 shrink-0">
+                                    <p class="text-sm font-bold text-[#15803d] font-['Inter'] leading-tight">reCAPTCHA Protection</p>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-xs text-black-fade font-medium leading-relaxed">Enterprise-grade bot defense and challenge validation for login security and brute-force mitigation.</p>
                                 </div>
                                 <div class="flex justify-end shrink-0">
                                     <button type="button" onclick="window.openRecaptchaSettingsPage()" id="btn-manage-recaptcha"
-                                        class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer whitespace-nowrap">
-                                        <i class="fa-solid fa-sliders text-xs"></i>
-                                        <span>Manage reCAPTCHA</span>
+                                        class="sigma-btn sigma-btn-white sigma-btn-md gap-2">
+                                        <i class="fa-solid fa-sliders text-xs text-[#15803d]"></i>
+                                        <span>Configure</span>
                                     </button>
                                 </div>
                             </div>
@@ -743,14 +458,13 @@
                 <div id="integ-limits-panel" class="sigma-settings-panel-card">
                     <div class="sigma-panel-header">
                         <h2 class="sigma-panel-title">File Upload Size Limits</h2>
-                        <p class="sigma-panel-subtitle">Configure upload allocations and supported file formats across the institution (Standard: 250–700 MB • Extension: 25–100 MB).</p>
                     </div>
 
                     <div class="space-y-5 font-['Inter']">
                         <!-- Group 1: Video Materials -->
                         <div class="space-y-2">
                             <div class="pb-1.5 border-b border-black/10">
-                                <p class="text-xs font-bold text-black uppercase tracking-wider">Video Materials</p>
+                                <p class="text-xs font-bold text-[#15803d]">Video Materials</p>
                             </div>
                             
                             <!-- Embedded YouTube Video -->
@@ -761,9 +475,11 @@
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
                                     <span class="text-[11px] font-bold text-black">Max Duration:</span>
-                                    <select id="limit-video-embed" aria-label="Embedded YouTube video maximum playback duration" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-all font-['Inter'] cursor-pointer">
-                                        <option value="1" selected>1 Hour</option>
-                                        <option value="2">2 Hours</option>
+                                    <select id="limit-video-embed" aria-label="Embedded YouTube video maximum duration" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:outline-none focus:ring-0 focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                        <option value="15">15 Mins</option>
+                                        <option value="30" selected>30 Mins</option>
+                                        <option value="60">1 Hour</option>
+                                        <option value="90">1 Hour 30 Mins</option>
                                     </select>
                                 </div>
                             </div>
@@ -772,24 +488,20 @@
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between py-2.5 px-2 rounded-xl hover:bg-slate-50/70 transition-colors border-b border-black/5 gap-3">
                                 <div class="min-w-0">
                                     <p class="text-xs sm:text-sm font-semibold text-black leading-tight">Direct Video Uploads (.MP4)</p>
-                                    <p class="text-[11px] text-black-fade font-normal leading-snug mt-0.5">Maximum file size allocation for direct MP4 video lecture recordings.</p>
+                                    <p class="text-[11px] text-black-fade font-normal leading-snug mt-0.5">Maximum file size allocation for direct MP4 video lecture recordings (~20-25 min).</p>
                                 </div>
                                 <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-[11px] font-bold text-black">Standard:</span>
-                                        <select id="limit-video-mp4" aria-label="Direct video upload MP4 standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-all font-['Inter'] cursor-pointer">
-                                            <option value="250">250 MB</option>
-                                            <option value="500" selected>500 MB</option>
-                                            <option value="700">700 MB</option>
+                                        <select id="limit-video-mp4" aria-label="Direct video MP4 standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:outline-none focus:ring-0 focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                            <option value="100">100 MB</option>
+                                            <option value="200" selected>200 MB</option>
+                                            <option value="350">350 MB</option>
+                                            <option value="500">500 MB</option>
                                         </select>
                                     </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[11px] font-bold text-black">Extension:</span>
-                                        <div class="flex items-center gap-1">
-                                            <input type="number" value="50" min="25" max="100" step="5" id="limit-video-ext" aria-label="Direct video upload MP4 extension size limit"
-                                                class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                            <span class="text-xs font-medium text-black">MB</span>
-                                        </div>
+                                    <div class="flex items-center gap-1.5 hidden">
+                                        <input type="hidden" value="50" id="limit-video-ext">
                                     </div>
                                 </div>
                             </div>
@@ -798,7 +510,7 @@
                         <!-- Group 2: Document & Presentation Files -->
                         <div class="space-y-2 pt-2">
                             <div class="pb-1.5 border-b border-black/10">
-                                <p class="text-xs font-bold text-black uppercase tracking-wider">Document & Presentation Files</p>
+                                <p class="text-xs font-bold text-[#15803d]">Document & Presentation Files</p>
                             </div>
 
                             <!-- DOCX -->
@@ -810,20 +522,13 @@
                                 <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-[11px] font-bold text-black">Standard:</span>
-                                        <select id="limit-docx-std" aria-label="Word document standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-all font-['Inter'] cursor-pointer">
-                                            <option value="250">250 MB</option>
-                                            <option value="500" selected>500 MB</option>
-                                            <option value="700">700 MB</option>
+                                        <select id="limit-docx-std" aria-label="Word document standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:outline-none focus:ring-0 focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                            <option value="10">10 MB</option>
+                                            <option value="20" selected>20 MB</option>
+                                            <option value="30">30 MB</option>
                                         </select>
                                     </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[11px] font-bold text-black">Extension:</span>
-                                        <div class="flex items-center gap-1">
-                                            <input type="number" value="50" min="25" max="100" step="5" id="limit-docx-ext" aria-label="Word document extension size limit"
-                                                class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                            <span class="text-xs font-medium text-black">MB</span>
-                                        </div>
-                                    </div>
+                                    <input type="hidden" value="25" id="limit-docx-ext">
                                 </div>
                             </div>
 
@@ -836,20 +541,13 @@
                                 <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-[11px] font-bold text-black">Standard:</span>
-                                        <select id="limit-pdf-std" aria-label="PDF document standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-all font-['Inter'] cursor-pointer">
-                                            <option value="250">250 MB</option>
-                                            <option value="500" selected>500 MB</option>
-                                            <option value="700">700 MB</option>
+                                        <select id="limit-pdf-std" aria-label="PDF document standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:outline-none focus:ring-0 focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                            <option value="15">15 MB</option>
+                                            <option value="25" selected>25 MB</option>
+                                            <option value="35">35 MB</option>
                                         </select>
                                     </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[11px] font-bold text-black">Extension:</span>
-                                        <div class="flex items-center gap-1">
-                                            <input type="number" value="50" min="25" max="100" step="5" id="limit-pdf-ext" aria-label="PDF document extension size limit"
-                                                class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                            <span class="text-xs font-medium text-black">MB</span>
-                                        </div>
-                                    </div>
+                                    <input type="hidden" value="25" id="limit-pdf-ext">
                                 </div>
                             </div>
 
@@ -862,31 +560,27 @@
                                 <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-[11px] font-bold text-black">Standard:</span>
-                                        <select id="limit-pptx-std" aria-label="PowerPoint presentation standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-all font-['Inter'] cursor-pointer">
-                                            <option value="250">250 MB</option>
-                                            <option value="500" selected>500 MB</option>
-                                            <option value="700">700 MB</option>
+                                        <select id="limit-pptx-std" aria-label="PowerPoint presentation standard size limit" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:outline-none focus:ring-0 focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                            <option value="30">30 MB</option>
+                                            <option value="50" selected>50 MB</option>
+                                            <option value="75">75 MB</option>
                                         </select>
                                     </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-[11px] font-bold text-black">Extension:</span>
-                                        <div class="flex items-center gap-1">
-                                            <input type="number" value="50" min="25" max="100" step="5" id="limit-pptx-ext" aria-label="PowerPoint presentation extension size limit"
-                                                class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-all font-['Inter']">
-                                            <span class="text-xs font-medium text-black">MB</span>
-                                        </div>
-                                    </div>
+                                    <input type="hidden" value="25" id="limit-pptx-ext">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-end gap-3 pt-4">
-                            <span id="limits-save-status" role="status" class="text-xs font-medium text-black-fade"></span>
-                            <button type="button" id="limits-save-btn" onclick="window.saveMaterialLimits()" disabled
-                                class="flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none">
-                                <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                <span>Save File Limits</span>
+                        <!-- Footer: Advanced Settings (Left) + Save File Limits (Right) -->
+                        <div class="flex items-center justify-between pt-4 border-t border-black/5">
+                            <button type="button" onclick="window.openAdvancedLimitsPage()"
+                                class="px-3.5 py-2 text-[#15803d] hover:bg-slate-100 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center">
+                                <span>Advanced Settings</span>
                             </button>
+                            <div class="flex items-center gap-3">
+                                <span id="limits-save-status" role="status" class="text-xs font-medium text-black-fade"></span>
+                                <button type="button" id="limits-restore-btn" onclick="window.restoreMaterialLimitsDefaults()" hidden class="sigma-btn sigma-btn-md limits-restore-button"><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i><span>Restore Default</span></button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -899,10 +593,7 @@
 <section id="settings-gdrive-view" class="dynamic-section hidden">
     <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200 font-['Inter']">
         <div class="gdrive-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
-            <!-- Page Header -->
-            <div class="py-8">
-                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Manage Google Drive</h1>
-            </div>
+            <h1 class="sr-only">Google Drive Cloud Storage</h1>
 
             <!-- Main Content Container -->
             <div class="pb-12 space-y-6">
@@ -915,7 +606,7 @@
                         <span id="gdrive-page-connection-status" role="status" class="gdrive-connection-status" data-state="idle">Not Connected</span>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="gdrive-status-container grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="gdrive-detail-row space-y-1">
                             <span class="text-[11px] font-semibold text-black-fade">Google Account</span>
                             <p class="text-xs font-semibold text-black break-all" id="gdrive-page-display-email">Not configured</p>
@@ -993,7 +684,7 @@
                     </button>
                     <button type="button" onclick="window.saveGoogleDrivePageConfig()" id="btn-save-gdrive-page-config" disabled
                         class="sigma-btn sigma-btn-primary sigma-btn-md cursor-pointer">
-                        Save Changes
+                        Save
                     </button>
                 </div>
             </div>
@@ -1003,136 +694,273 @@
 
 <!-- ═══ SYSTEM SETTINGS 5: DEDICATED RECAPTCHA MANAGER PAGE VIEW ═══ -->
 <section id="settings-recaptcha-view" class="dynamic-section hidden">
-    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200 font-['Inter']">
-        <div class="recaptcha-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
-            <!-- Page Header -->
-            <div class="py-8 flex items-center justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Manage Google reCAPTCHA</h1>
-                    <p class="text-xs text-black-fade font-medium mt-1">Configure bot defense credentials and test live challenge verification.</p>
+    <div class="bg-white min-h-screen font-['Inter']">
+        <div class="recaptcha-settings-content mx-auto w-full px-6 sm:px-10">
+            <h1 class="sr-only">Google reCAPTCHA</h1>
+            <div class="pb-12">
+                <div class="recaptcha-settings-section space-y-4">
+                    <div class="flex items-center justify-between gap-4"><h2 class="text-sm font-bold">Status &amp; Verification</h2><span id="recaptcha-page-connection-status" role="status">Checking...</span></div>
+                    <div class="recaptcha-status-container grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="recaptcha-detail-row space-y-1"><span class="text-xs text-black">Active Version</span><p id="recaptcha-page-display-version" class="text-sm">Not configured</p></div>
+                        <div class="recaptcha-detail-row space-y-1"><span class="text-xs text-black">Protection</span><p id="recaptcha-page-display-mode" class="text-sm">Checking...</p></div>
+                    </div>
+                    <button type="button" onclick="window.openRecaptchaTestModal()" id="btn-page-test-recaptcha" class="sigma-btn sigma-btn-primary sigma-btn-md gap-2"><i class="fa-solid fa-vial-circle-check"></i><span>Test reCAPTCHA</span></button>
+                    <div id="recaptcha-page-test-feedback" role="status" class="hidden text-xs text-black-fade"></div>
                 </div>
-                <button type="button" onclick="window.backToIntegrationsSettings()" class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
-                    <i class="fa-solid fa-arrow-left text-xs"></i>
-                    <span>Back to Integrations</span>
-                </button>
+                <div class="recaptcha-settings-section space-y-4">
+                    <h2 class="text-sm font-bold">API Credentials</h2>
+                    <fieldset class="recaptcha-version-options">
+                        <legend class="text-xs font-bold">Select reCAPTCHA Version</legend>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                            <label id="recaptcha-radio-card-v2" class="border border-slate-200 flex items-center gap-3 cursor-pointer"><input type="radio" name="recaptcha-version" value="v2" checked onchange="window.onRecaptchaVersionChanged(this.value)"><span class="text-sm">v2 (Checkbox)</span></label>
+                            <label id="recaptcha-radio-card-v3" class="border border-slate-200 flex items-center gap-3 cursor-pointer"><input type="radio" name="recaptcha-version" value="v3" onchange="window.onRecaptchaVersionChanged(this.value)"><span class="text-sm">v3 (Score-based)</span></label>
+                        </div>
+                    </fieldset>
+                    <div id="recaptcha-site-key-display" class="recaptcha-key-display">
+                        <div><h3 class="text-xs font-bold">Public Site Key</h3><p id="recaptcha-site-key-value" class="recaptcha-key-value">Not configured</p></div>
+                        <button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm gap-2" onclick="window.setRecaptchaKeyEditing('site', true)"><i class="fa-solid fa-pen"></i><span>Edit</span></button>
+                    </div>
+                    <div id="recaptcha-site-key-editor" class="hidden space-y-3">
+                        <label for="recaptcha-page-site-key-input" class="text-xs font-bold">Public Site Key</label>
+                        <div class="settings-key-field">
+                            <input type="password" id="recaptcha-page-site-key-input" maxlength="255" autocomplete="off" class="w-full border border-slate-200 px-4 py-2.5 text-xs focus:border-[#FFD000] outline-none" oninput="window.updateRecaptchaSaveButtons(); window.syncSettingsKeyEye(this)">
+                            <button type="button" id="btn-toggle-recaptcha-site" aria-pressed="false" aria-label="Show key" title="Show key" class="settings-key-eye" hidden onclick="window.toggleRecaptchaKeyVisibility('site')"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i></button>
+                        </div>
+                        <button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="window.setRecaptchaKeyEditing('site', false)">Cancel</button>
+                    </div>
+                    <div id="recaptcha-secret-key-display" class="recaptcha-key-display">
+                        <div><h3 class="text-xs font-bold">Server Secret Key</h3><p id="recaptcha-secret-key-value" class="recaptcha-key-value">Not configured</p></div>
+                        <button type="button" id="btn-edit-recaptcha-secret" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="window.setRecaptchaKeyEditing('secret', true)">Add Key</button>
+                    </div>
+                    <div id="recaptcha-secret-key-editor" class="hidden space-y-3">
+                        <label for="recaptcha-page-secret-key-input" class="text-xs font-bold">Server Secret Key</label>
+                        <div class="settings-key-field">
+                            <input type="password" id="recaptcha-page-secret-key-input" maxlength="255" autocomplete="off" class="w-full border border-slate-200 px-4 py-2.5 text-xs focus:border-[#FFD000] outline-none" oninput="window.updateRecaptchaSaveButtons(); window.syncSettingsKeyEye(this)">
+                            <button type="button" id="btn-toggle-recaptcha-secret" aria-pressed="false" aria-label="Show key" title="Show key" class="settings-key-eye" hidden onclick="window.toggleRecaptchaKeyVisibility('secret')"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i></button>
+                        </div>
+                        <button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="window.setRecaptchaKeyEditing('secret', false)">Cancel</button>
+                    </div>
+                    <p id="recaptcha-secret-saved-hint" class="text-xs text-black-fade">Secret keys remain on the server.</p>
+                    <div class="flex justify-end"><button type="button" onclick="window.saveRecaptchaPageSettings()" id="btn-save-recaptcha-page-config" disabled class="sigma-btn sigma-btn-primary sigma-btn-md">Save</button></div>
+                </div>
+                <div class="recaptcha-settings-section space-y-4">
+                    <h2 class="text-sm font-bold">Protection Settings</h2>
+                    <p id="recaptcha-protection-summary" class="text-xs text-black-fade">Checking...</p>
+                    <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md gap-2" onclick="window.switchTab('nav-settings-security')"><i class="fa-solid fa-shield-halved"></i><span>Security &amp; Access</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SYSTEM SETTINGS: UNIFIED AI INTEGRATION ENGINES & VAULT VIEW ═══ -->
+<section id="settings-ai-view" class="dynamic-section hidden bg-white w-full min-h-screen font-['Inter']">
+    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
+        <div class="max-w-5xl mx-auto w-full px-6 sm:px-10">
+            <h1 class="sr-only">AI Credentials &amp; Engine Vault</h1>
+
+            <div class="py-8 space-y-6">
+
+                
+                <div class="ai-engine-tabs" role="tablist" aria-label="AI configuration">
+                    <button type="button" id="ai-functions-tab" class="ai-engine-tab" role="tab" aria-selected="true" aria-pressed="true" aria-controls="ai-functions-panel" onclick="window.selectAiSettingsTab('functions')">Function Assignments</button>
+                    <button type="button" id="ai-keys-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="ai-provider-panel" onclick="window.selectAiSettingsTab('keys')">Provider Keys</button>
+                </div>
+                <div id="ai-functions-panel" role="tabpanel" aria-labelledby="ai-functions-tab" class="ai-settings-section">
+                    <h2 class="text-sm font-bold text-black">Function Assignments</h2>
+                    <div class="ai-routing-table-wrap">
+                        <table class="sigma-table ai-routing-table">
+                            <thead><tr><th scope="col">AI Feature</th><th scope="col">Preferred Provider</th><th scope="col">Default Key</th><th scope="col">Status</th></tr></thead>
+                            <tbody id="ai-routing-rows"></tbody>
+                        </table>
+                    </div>
+                    <div class="ai-routing-footer">
+                        <label class="ai-fallback-switch">
+                            <input id="ai-allow-fallback" type="checkbox" role="switch" onchange="window.autoSaveAiRoutingSettings()">
+                            <span class="ai-switch-track" aria-hidden="true"></span>
+                            <span>Allow Temporary Fallback</span>
+                        </label>
+                    </div>
+                    <p id="ai-routing-feedback" class="text-xs mt-3" role="status" aria-live="polite"></p>
+                </div>
+                <div id="ai-provider-panel" role="tabpanel" aria-labelledby="ai-keys-tab" class="ai-settings-section" hidden>
+                    <div id="ai-provider-defaults" class="ai-provider-defaults"></div>
+                    <div class="ai-routing-footer">
+                        <p id="ai-provider-feedback" class="text-xs" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+
+                <!-- 2. Add New API Key Card (Collapsible) -->
+                <div id="ai-add-key-card" class="hidden bg-white rounded-2xl border-2 border-[#15803d]/40 p-6 space-y-4 shadow-sm transition-all">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h2 id="ai-key-form-title" class="ai-key-form-heading">Add API Key</h2>
+                    </div>
+
+                    <form id="ai-key-add-form" onsubmit="window.handleSaveAiKeySubmit(event)" class="space-y-4">
+                        <input type="hidden" id="ai-form-key-id" value="">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Model Selector -->
+                            <div id="ai-form-model-field" hidden>
+                                <label for="ai-form-model-select" class="text-xs font-bold text-black block mb-1.5">Model</label>
+                                <select id="ai-form-model-select" required disabled
+                                    class="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all cursor-pointer">
+                                    <option value="">Select a model</option>
+                                </select>
+                            </div>
+
+                            <!-- API Key Input -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label for="ai-form-key-input" class="text-xs font-bold text-black">API Key</label>
+                                </div>
+                                <div class="settings-key-field">
+                                <input type="password" id="ai-form-key-input" required maxlength="2048" autocomplete="off" spellcheck="false" oninput="window.detectAiFormKey(); window.syncSettingsKeyEye(this)"
+                                    placeholder="Paste a Gemini or Groq API key"
+                                    class="w-full bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
+                                    <button type="button" onclick="window.toggleAiFormKeyVisibility()" id="btn-toggle-ai-form-key" class="settings-key-eye" aria-label="Show key" title="Show key" aria-pressed="false" hidden><i class="fa-solid fa-eye-slash" aria-hidden="true"></i></button>
+                                </div>
+                                <span id="ai-form-provider-badge" class="ai-detected-provider" role="status" aria-live="polite" hidden></span>
+                                <p id="ai-form-detection-feedback" class="text-xs text-slate-500 mt-2" role="status" aria-live="polite"></p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-2 flex-wrap gap-3">
+                            <button type="button" id="btn-delete-ai-key" hidden onclick="window.deleteAiVaultKey(document.getElementById('ai-form-key-id').value)" class="sigma-btn sigma-btn-white sigma-btn-md">Delete</button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="window.toggleAddAiKeyForm(false)"
+                                    class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer">Cancel</button>
+                                <button type="submit" id="btn-submit-ai-key"
+                                    class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
+                                    <span>Save</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 3. Configured Keys List -->
+                <div id="ai-configured-keys" class="space-y-3" hidden>
+                    <div class="flex items-center justify-between pb-1 flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-bold text-black">Configured API Keys</h2>
+                            <span id="ai-keys-count-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">0 Keys</span>
+                        </div>
+                        <button type="button" onclick="window.openAiKeyEditor()" id="btn-open-add-ai-key" class="sigma-btn sigma-btn-primary sigma-btn-md">Add API Key</button>
+                    </div>
+
+                    <!-- Keys Container (Dynamic List) -->
+                    <div id="ai-keys-list-container" class="space-y-3">
+                        <div class="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 text-slate-400">
+                            <i class="fa-solid fa-spinner fa-spin text-lg mb-2"></i>
+                            <p class="text-xs font-medium">Loading AI keys vault...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SYSTEM SETTINGS 6: DEDICATED ADVANCED UPLOAD ALLOCATIONS & SANDBOX PAGE VIEW ═══ -->
+<section id="settings-limits-view" class="dynamic-section hidden bg-white w-full min-h-screen">
+    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200 font-['Inter']">
+        <div class="max-w-5xl mx-auto w-full px-6 sm:px-10">
+            <!-- Page Header -->
+            <div class="py-8">
+                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Advanced Settings</h1>
             </div>
 
-            <!-- Main Content Container -->
+            <!-- Content Cards -->
             <div class="pb-12 space-y-6">
-                <!-- Card 1: Connection & Live Status -->
-                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
-                    <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-[#15803d] flex items-center justify-center font-bold text-sm">
-                                <i class="fa-solid fa-shield-halved"></i>
-                            </div>
-                            <h2 class="text-sm font-bold text-black">reCAPTCHA Status &amp; Verification</h2>
+                <!-- Card 1: Extension Buffer Headroom -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h2 class="text-sm font-bold text-black">Extension Buffer Headroom</h2>
+                            <p class="text-[11px] text-black-fade">Additional allowance on top of standard limits for special materials.</p>
                         </div>
-                        <span id="recaptcha-page-connection-status" role="status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
-                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                            <span>Checking...</span>
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
-                            <span class="text-[11px] font-semibold text-black-fade block">Site Key Status</span>
-                            <p class="text-xs font-bold text-black" id="recaptcha-page-display-site-key">Not configured</p>
-                        </div>
-                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
-                            <span class="text-[11px] font-semibold text-black-fade block">Secret Key Status</span>
-                            <p class="text-xs font-bold text-black" id="recaptcha-page-display-secret-status">Not configured</p>
-                        </div>
-                        <div class="space-y-1 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100">
-                            <span class="text-[11px] font-semibold text-black-fade block">Bot Protection Mode</span>
-                            <p class="text-xs font-bold text-emerald-700" id="recaptcha-page-display-mode">Active (Enabled)</p>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons inside Status -->
-                    <div class="flex items-center gap-3 pt-2 flex-wrap">
-                        <button type="button" onclick="window.openRecaptchaTestModal()" id="btn-page-test-recaptcha"
-                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
-                            <i class="fa-solid fa-vial-circle-check text-xs"></i>
-                            <span>Test reCAPTCHA</span>
-                        </button>
-                    </div>
-
-                    <!-- Live Test Diagnostic Feedback Box -->
-                    <div id="recaptcha-page-test-feedback" role="status" class="hidden p-3.5 rounded-xl text-xs font-medium transition-all"></div>
-                </div>
-
-                <!-- Card 2: API Credentials -->
-                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
-                    <div class="pb-2 border-b border-slate-100">
-                        <h2 class="text-sm font-bold text-black">API Credentials</h2>
-                        <p class="text-xs text-black-fade font-medium mt-0.5">Google reCAPTCHA v2 / v3 public site key and server secret key.</p>
                     </div>
 
                     <div class="space-y-4">
-                        <div>
-                            <label for="recaptcha-page-site-key-input" class="text-xs font-bold text-black block mb-1.5">Public Site Key</label>
-                            <input type="text" id="recaptcha-page-site-key-input" maxlength="255"
-                                placeholder="Paste Google reCAPTCHA Site Key..."
-                                class="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label for="recaptcha-page-secret-key-input" class="text-xs font-bold text-black">Server Secret Key</label>
-                                <button type="button" onclick="window.toggleRecaptchaSecretVisibility()" id="btn-toggle-recaptcha-secret" class="text-xs font-semibold text-slate-500 hover:text-black cursor-pointer">Show Key</button>
+                        <!-- Video Extension -->
+                        <div class="flex items-center justify-between py-2.5 border-b border-slate-100 text-xs gap-4">
+                            <div class="w-48 sm:w-56 shrink-0">
+                                <span class="font-bold text-black block">MP4 Video Headroom</span>
                             </div>
-                            <input type="password" id="recaptcha-page-secret-key-input" maxlength="255"
-                                placeholder="Enter Google reCAPTCHA Secret Key..."
-                                class="w-full bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-mono font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all">
-                            <span class="text-[11px] text-black-fade block mt-1">Leave secret key blank to preserve the currently saved secret key.</span>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-xs text-black-fade font-normal">Added to direct MP4 video lecture limit</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <input type="number" id="adv-limit-video-ext" min="10" max="100" step="5" value="25"
+                                    inputmode="numeric" pattern="[0-9]*" maxlength="3"
+                                    onkeydown="if(window.handleCounterKeydown) window.handleCounterKeydown(event);"
+                                    oninput="if(window.sanitizeCounterInput) window.sanitizeCounterInput(this, 10, 100); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onblur="if(window.normalizeCounterInput) window.normalizeCounterInput(this, 10, 100, 25, 5); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onchange="if(window.normalizeCounterInput) window.normalizeCounterInput(this, 10, 100, 25, 5); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onpaste="if(window.handleCounterPaste) window.handleCounterPaste(event, 10, 100);"
+                                    class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-colors font-['Inter']">
+                                <span class="text-xs font-medium text-black">MB</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="flex items-center justify-end gap-3 pt-2">
-                        <button type="button" onclick="window.saveRecaptchaPageSettings()" id="btn-save-recaptcha-page-config"
-                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
-                            <i class="fa-solid fa-floppy-disk text-xs"></i>
-                            <span>Save reCAPTCHA Settings</span>
-                        </button>
+                        <!-- Document Extension -->
+                        <div class="flex items-center justify-between py-2.5 text-xs gap-4">
+                            <div class="w-48 sm:w-56 shrink-0">
+                                <span class="font-bold text-black block">Document Headroom</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-xs text-black-fade font-normal">Added to Word, PDF, and PowerPoint limits</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <input type="number" id="adv-limit-doc-ext" min="5" max="50" step="5" value="5"
+                                    inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                                    onkeydown="if(window.handleCounterKeydown) window.handleCounterKeydown(event);"
+                                    oninput="if(window.sanitizeCounterInput) window.sanitizeCounterInput(this, 5, 50); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onblur="if(window.normalizeCounterInput) window.normalizeCounterInput(this, 5, 50, 5, 5); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onchange="if(window.normalizeCounterInput) window.normalizeCounterInput(this, 5, 50, 5, 5); if(window.updateAdvSandboxCeiling) window.updateAdvSandboxCeiling();"
+                                    onpaste="if(window.handleCounterPaste) window.handleCounterPaste(event, 5, 50);"
+                                    class="w-16 bg-slate-50 border border-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold text-black text-center outline-none focus:border-[#FFD000] transition-colors font-['Inter']">
+                                <span class="text-xs font-medium text-black">MB</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Card 3: Defense Rules & Thresholds -->
-                <div class="recaptcha-settings-section bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
-                    <div class="pb-2 border-b border-slate-100">
-                        <h2 class="text-sm font-bold text-black">Bot Defense Thresholds</h2>
-                        <p class="text-xs text-black-fade font-medium mt-0.5">Control when reCAPTCHA challenges trigger on user login attempts.</p>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50/70 rounded-xl border border-slate-100">
+                <!-- Card 2: Max Limits Per Upload Panel -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-xs">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <div>
-                            <p class="text-xs font-bold text-black">Failed Login Trigger Threshold</p>
-                            <p class="text-xs text-black-fade font-medium">Number of consecutive failed login attempts before challenging the user.</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="recaptcha-page-threshold-input" min="1" max="50" value="3"
-                                class="w-20 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold text-center text-black outline-none focus:border-[#15803d] transition-all">
-                            <span class="text-xs font-bold text-black-fade">Attempts</span>
+                            <h2 class="text-sm font-bold text-black">Max Limit Per Upload Panel</h2>
+                            <p class="text-[11px] text-black-fade">Multi-file submission quota for student coursework.</p>
                         </div>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50/70 rounded-xl border border-slate-100">
-                        <div>
-                            <p class="text-xs font-bold text-black">Bot Defense Status</p>
-                            <p class="text-xs text-black-fade font-medium">Enable or disable challenge enforcement across login portals.</p>
+                    <div class="space-y-4">
+                        <!-- Student Multi-File Batch Quota -->
+                        <div class="flex items-center justify-between py-2.5 text-xs gap-4">
+                            <div class="w-48 sm:w-56 shrink-0">
+                                <span class="font-bold text-black block">Student Submission Quota</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-xs text-black-fade font-normal">Maximum combined size for all files in one submission</span>
+                            </div>
+                            <div class="shrink-0">
+                                <select id="adv-limit-batch-quota" onchange="window.updateAdvSandboxCeiling()" class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-black outline-none focus:border-[#FFD000] transition-colors font-['Inter'] cursor-pointer">
+                                    <option value="100">100 MB</option>
+                                    <option value="150" selected>150 MB</option>
+                                    <option value="200">200 MB</option>
+                                    <option value="250">250 MB</option>
+                                </select>
+                            </div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="recaptcha-page-enabled-toggle" checked class="sr-only peer">
-                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#15803d]"></div>
-                        </label>
+
                     </div>
 
                     <div class="flex items-center justify-end gap-3 pt-2">
-                        <button type="button" onclick="window.saveRecaptchaPageSettings()" id="btn-save-recaptcha-thresholds"
-                            class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 cursor-pointer">
-                            <i class="fa-solid fa-floppy-disk text-xs"></i>
-                            <span>Save Defense Thresholds</span>
+                        <span id="adv-limits-save-status" class="text-xs font-medium text-black-fade"></span>
+                        <button type="button" id="adv-limits-save-btn" disabled onclick="window.saveAdvancedLimits()"
+                            class="flex items-center justify-center px-6 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none">
+                            <span>Save Advanced Rules</span>
                         </button>
                     </div>
                 </div>
@@ -1142,71 +970,19 @@
 </section>
 
 <!-- ═══ RECAPTCHA TEST MODAL ═══ -->
-<div id="recaptchaTestModal" class="fixed inset-0 bg-black/65 z-[999999] hidden items-center justify-center p-4 backdrop-blur-xs font-['Inter']">
-    <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-        <!-- Modal Header -->
+<div id="recaptchaTestModal" role="dialog" aria-modal="true" aria-labelledby="recaptcha-test-title" class="fixed inset-0 bg-black/65 z-[999999] hidden items-center justify-center p-4 font-['Inter']">
+    <div class="bg-white rounded-xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-base">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-black font-['Inter']">Test Google reCAPTCHA</h3>
-                    <p class="text-xs text-black-fade font-medium">Verify handshake and token validation</p>
-                </div>
-            </div>
-            <button type="button" onclick="window.closeRecaptchaTestModal()"
-                class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 hover:text-black transition-all cursor-pointer" aria-label="Close modal">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
+            <h3 id="recaptcha-test-title" class="text-base font-bold">Test Google reCAPTCHA</h3>
+            <button type="button" onclick="window.closeRecaptchaTestModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center" aria-label="Close modal"><i class="fa-solid fa-xmark text-sm"></i></button>
         </div>
-
-        <!-- Modal Body -->
         <div class="p-6 overflow-y-auto space-y-5">
-            <div class="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs text-slate-700 leading-relaxed">
-                Click the verification challenge below to test client-side token acquisition and server-side verification with the Google reCAPTCHA service.
-            </div>
-
-            <!-- reCAPTCHA Interactive Box -->
-            <div class="flex flex-col items-center justify-center py-2">
-                <div id="recaptchaModalBox" class="w-full max-w-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl p-4 transition-all select-none cursor-pointer flex items-center justify-between" onclick="window.runRecaptchaTestChallenge()">
-                    <div class="flex items-center gap-3.5">
-                        <div id="recaptchaModalCheckbox" class="w-7 h-7 rounded-lg border-2 border-slate-400 bg-white flex items-center justify-center transition-all">
-                            <i id="recaptchaModalCheckIcon" class="fa-solid fa-check text-[#15803d] text-sm hidden"></i>
-                            <i id="recaptchaModalSpinner" class="fa-solid fa-circle-notch fa-spin text-slate-600 text-sm hidden"></i>
-                        </div>
-                        <span id="recaptchaModalLabel" class="text-xs font-bold text-black">I'm not a robot</span>
-                    </div>
-                    <div class="flex flex-col items-center justify-center text-slate-400 pl-2">
-                        <i class="fa-brands fa-google text-lg"></i>
-                        <span class="text-[9px] font-bold tracking-tight text-slate-400 mt-0.5">reCAPTCHA</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Diagnostics Details Box -->
-            <div id="recaptchaModalDiagnostic" class="hidden rounded-2xl p-4 text-xs font-mono border space-y-2">
-                <div class="flex items-center justify-between font-sans">
-                    <span class="font-bold text-xs" id="recaptchaDiagTitle">Verification Result</span>
-                    <span id="recaptchaDiagBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Passed</span>
-                </div>
-                <div class="space-y-1 text-[11px] pt-1 text-slate-600" id="recaptchaDiagDetails">
-                    <!-- Dynamic details -->
-                </div>
-            </div>
+            <div id="recaptcha-test-widget"></div>
+            <div id="recaptcha-test-result" role="status" class="text-xs"></div>
         </div>
-
-        <!-- Modal Footer -->
-        <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <button type="button" onclick="window.resetRecaptchaTestModal()"
-                class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
-                <i class="fa-solid fa-rotate-right text-xs"></i>
-                <span>Reset Test</span>
-            </button>
-            <button type="button" onclick="window.closeRecaptchaTestModal()"
-                class="sigma-btn sigma-btn-primary sigma-btn-md px-6 cursor-pointer">
-                <span>Done</span>
-            </button>
+        <div class="px-6 py-4 border-t border-slate-100 flex justify-between gap-3">
+            <button type="button" onclick="window.resetRecaptchaTestModal()" class="sigma-btn sigma-btn-white sigma-btn-md gap-2"><i class="fa-solid fa-rotate-right"></i><span>Reset Test</span></button>
+            <button type="button" onclick="window.closeRecaptchaTestModal()" class="sigma-btn sigma-btn-primary sigma-btn-md">Done</button>
         </div>
     </div>
 </div>

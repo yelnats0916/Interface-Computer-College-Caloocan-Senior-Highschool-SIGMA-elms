@@ -4,9 +4,21 @@
  */
 ?>
     <!-- CORE SHARED COMPONENT CONTROLLERS -->
+    <?php if (($topbarHeaderId ?? '') === 'admin-header'): ?>
+    <link rel="stylesheet" href="../css/log-pagination.css?v=<?= filemtime(dirname(__DIR__, 2) . '/css/log-pagination.css') ?>">
+    <script src="../js/log-pagination.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/log-pagination.js') ?>"></script>
+    <link rel="stylesheet" href="../css/record-lifecycle.css?v=<?= filemtime(dirname(__DIR__, 2) . '/css/record-lifecycle.css') ?>">
+    <script src="../js/service-vault-security.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/service-vault-security.js') ?>"></script>
+    <?php endif; ?>
     <script src="../js/shared-components.js?v=<?= time() ?>"></script>
+    <?php if (($topbarHeaderId ?? '') === 'teacher-header'): ?>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <?php endif; ?>
+    <script src="../js/submission-ai-client.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/submission-ai-client.js') ?>"></script>
     <script src="../js/secure-input-guard.js?v=<?= time() ?>"></script>
     <script src="../js/topbar.js?v=<?= time() ?>"></script>
+    <script src="../js/sigma-chat-client.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/sigma-chat-client.js') ?>"></script>
     <script src="../js/sidebar.js?v=<?= time() ?>"></script>
     <script src="../js/notifications.js?v=<?= time() ?>"></script>
     <script src="../js/calendar.js?v=<?= time() ?>"></script>
@@ -21,7 +33,12 @@
     <script src="../js/subject-content-editor.js?v=<?= time() ?>"></script>
     <script src="../js/subject-editor.js?v=<?= time() ?>"></script>
 
+    <script src="../js/ai-database-store.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/ai-database-store.js') ?>"></script>
+    <?php if (($topbarHeaderId ?? '') === 'admin-header'): ?>
+    <script src="../js/record-lifecycle.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/record-lifecycle.js') ?>"></script>
+    <?php endif; ?>
     <!-- OPTIONAL PAGE-SPECIFIC JAVASCRIPT INJECTION -->
+    <script src="../js/recaptcha-client.js?v=<?= time() ?>"></script>
     <?php if (isset($extraJs)): ?>
         <?php if (is_array($extraJs)): ?>
             <?php foreach ($extraJs as $jsFile): ?>
@@ -38,6 +55,13 @@
     <?php endif; ?>
 
     <!-- INLINE SCRIPTS -->
+    <script src="../js/sigma-conversations.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/sigma-conversations.js') ?>"></script>
+    <script src="../js/ai-log-store.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/ai-log-store.js') ?>"></script>
+    <script src="../js/ai-log-preview.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/ai-log-preview.js') ?>"></script>
+    <script src="../js/ai-log-details.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/ai-log-details.js') ?>"></script>
+    <script src="../js/institution-branding.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/institution-branding.js') ?>"></script>
+    <script src="../js/slideshow-settings.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/slideshow-settings.js') ?>"></script>
+    <script src="../js/welcome-banner-settings.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/welcome-banner-settings.js') ?>"></script>
     <?php if (isset($inlineJs)) echo "<script>{$inlineJs}</script>"; ?>
 </body>
 </html>

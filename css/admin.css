@@ -2,6 +2,112 @@
     display: none !important;
 }
 
+/* ==========================================================================
+   UNIVERSAL ELIMINATION OF BROWSER FOCUS/BLUR BLACK BORDER FLICKER
+   Prevents Chromium/WebKit from flashing black outline or border rings
+   when clicking, focusing, or clicking outside/blurring elements.
+   ========================================================================== */
+*,
+*::before,
+*::after {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus,
+*:focus-visible,
+*:focus-within {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+}
+
+input,
+select,
+textarea,
+button,
+a,
+summary,
+[tabindex] {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+    outline: none !important;
+}
+
+input:focus,
+input:focus-visible,
+input:focus-within,
+input:active,
+input:not(:focus),
+select:focus,
+select:focus-visible,
+select:focus-within,
+select:active,
+select:not(:focus),
+textarea:focus,
+textarea:focus-visible,
+textarea:focus-within,
+textarea:active,
+textarea:not(:focus),
+button:focus,
+button:focus-visible,
+button:focus-within,
+button:active,
+button:not(:focus) {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+}
+
+/* Material Limits & Settings Form Controls blur/focus stability */
+#integ-limits-panel select,
+#integ-limits-panel input,
+#integ-limits-panel button,
+#settings-view select,
+#settings-view input,
+.sigma-settings-main select,
+.sigma-settings-main input {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+#integ-limits-panel select:focus,
+#integ-limits-panel select:focus-visible,
+#integ-limits-panel select:not(:focus),
+#integ-limits-panel input:focus,
+#integ-limits-panel input:focus-visible,
+#integ-limits-panel input:not(:focus) {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+    box-shadow: none !important;
+}
+
+#integ-limits-panel select:focus,
+#integ-limits-panel select:focus-visible,
+#integ-limits-panel input:focus,
+#integ-limits-panel input:focus-visible {
+    border-color: #FFD000 !important;
+}
+
+#integ-limits-panel select:not(:focus),
+#integ-limits-panel input:not(:focus) {
+    border-color: #e2e8f0 !important;
+}
+
+
 /* Solid equivalent of 8% black over the green header for collapsed borders. */
 body #users-view table:has(#userTableBody) thead th {
     border-left: none !important;
@@ -291,6 +397,13 @@ table:not(.attendance-month-table) tbody td:last-child,
     padding-left: 40px !important;
     padding-right: 40px !important;
     box-sizing: border-box !important;
+}
+
+#users-view div:has(> #user-pagination-container),
+#school-year-view div:has(> #school-year-pagination-container),
+#school-sections-view div:has(> #section-pagination-container),
+#school-subjects-view div:has(> #subject-pagination-container) {
+    padding-bottom: 24px;
 }
 
 /* Zebra striping applied per cell */
@@ -2053,6 +2166,9 @@ input#curriculum-scope-search-input::placeholder {
     vertical-align: middle;
     line-height: 1 !important;
     flex-shrink: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 11px !important;
 }
 
 #section-subject-step-num svg,
@@ -2061,6 +2177,8 @@ input#curriculum-scope-search-input::placeholder {
 #section-students-step-num svg {
     display: block !important;
     margin: auto !important;
+    width: 8.5px !important;
+    height: 8.5px !important;
 }
 
 /* Hide subject segmented nav bar in topics/materials or standalone mode */
@@ -2112,12 +2230,38 @@ input#curriculum-scope-search-input::placeholder {
     }
 }
 
+
+#notification-log-more {
+    min-height: 40px;
+    padding: 8px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #000;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.audit-log-sidebar > .audit-log-search { margin-bottom: 20px; }
+
 .audit-log-layout {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
     grid-template-rows: 1fr;
     min-height: calc(100vh - var(--sidebar-top-offset, 82px));
     background: var(--admin-bg, #f8fafc);
+}
+
+.dynamic-section .audit-log-layout {
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+}
+
+#users-view > div,
+#school-year-view > div,
+#school-sections-view > div,
+#school-subjects-view > div {
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
 }
 
 .audit-log-sidebar {
@@ -2136,26 +2280,6 @@ input#curriculum-scope-search-input::placeholder {
     background: var(--admin-bg, #f8fafc);
     min-width: 0;
     padding: 24px;
-}
-
-.audit-log-layout > .audit-log-sidebar + div > .overflow-x-auto {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    overflow-x: auto;
-}
-
-.audit-log-layout table {
-    min-width: 680px;
-}
-
-.audit-log-layout th {
-    padding: 14px 20px;
-}
-
-.audit-log-layout td {
-    padding: 18px 20px;
 }
 
 .audit-log-tab {

@@ -550,8 +550,8 @@ html.sidebar-viewport-reset body #sidebar-overlay {
     }
 
     .mobile-sidebar-avatar-wrap {
-        width: 38px !important;
-        height: 38px !important;
+        width: 34px !important;
+        height: 34px !important;
         border-radius: 9999px !important;
         background-color: #f1f5f9 !important;
         background: #f1f5f9 !important;
@@ -573,7 +573,7 @@ html.sidebar-viewport-reset body #sidebar-overlay {
     }
 
     .mobile-sidebar-avatar-wrap i {
-        font-size: 16px !important;
+        font-size: 14px !important;
         color: #64748b !important;
     }
 

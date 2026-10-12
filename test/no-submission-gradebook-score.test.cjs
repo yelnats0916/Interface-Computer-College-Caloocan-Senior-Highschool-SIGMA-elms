@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(require('node:path').join(__dirname, '../js/shared-components.js'), 'utf8');
+const start = source.indexOf('window.getGradebookStudentItemScore = function');
+const end = source.indexOf('\nwindow.findAssessmentSubmittedWork', start);
+const window = { findAssessmentSubmittedWork: () => null, resolveNoDeadlineAssessment: item => item.dueDate ? null : item,
+    getEffectiveAssessmentStatusAndScore: () => ({ score: 42, status: 'missing' }) };
+vm.runInNewContext(source.slice(start, end), { window });
+const student = { id: 's', section: 'Rizal' };
+assert.equal(window.getGradebookStudentItemScore(student, 'quiz', 0, { id: 'q', max: 55 }, 'prog', 1), 42);
+window.getEffectiveAssessmentStatusAndScore = () => ({ score: 0, status: 'excuse' });
+assert.equal(window.getGradebookStudentItemScore(student, 'quiz', 0, { id: 'q', max: 55 }, 'prog', 1), 0);
+window.getEffectiveAssessmentStatusAndScore = () => ({ score: '', status: '' });
+assert.equal(window.getGradebookStudentItemScore(student, 'quiz', 0, { id: 'q', dueDate: '2026-10-20' }, 'prog', 1), null);
+const calculateStart = source.indexOf('window.calculateGradebookCategoryPercentage = function');
+const calculateEnd = source.indexOf('\nwindow.calculateCategoryPercentage =', calculateStart);
+vm.runInNewContext(source.slice(calculateStart, calculateEnd), { window });
+const items = [{ id: 'task', max: 100, itemIdx: 0 }, { id: 'quiz', max: 55, itemIdx: 1 }];
+window.getCategoryDetails = () => items;
+window.getEffectiveAssessmentStatusAndScore = (student, category, index) => ({ score: index === 0 ? 50 : 42, status: 'missing', isManualOverride: true });
+window.getAdminGradebookStudentItemScore = (...args) => window.getGradebookStudentItemScore(...args);
+assert.equal(window.calculateGradebookCategoryPercentage(student, 'ww', 'prog', 1, 'Rizal'), 92 / 155 * 100);
+console.log('PASS: unsubmitted no-deadline gradebook scores include explicit zero; deadline guard remains');

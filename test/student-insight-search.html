@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Insight search regression fixture</title>
+    <link rel="stylesheet" href="../css/sigma-analytics.css">
+    <style>
+        body { margin: 24px; font-family: Arial, sans-serif; }
+        main { max-width: 360px; }
+        #analytics-dropdown { display: none; }
+        @media (max-width: 768px) {
+            body { margin: 0; }
+            main { display: none; }
+            #analytics-dropdown { display: block; }
+            .mobile-panel-header { display: flex; padding: 12px; }
+            .mobile-panel-header-left { display: flex; }
+            #analytics-dropdown-cards { padding: 12px; }
+        }
+    </style>
+    <script>
+        // Fixture-only storage prevents pin tests from changing real account preferences.
+        const fixtureStorage = new Map();
+        const localStorage = {
+            getItem: key => fixtureStorage.get(key) || null,
+            setItem: (key, value) => fixtureStorage.set(key, value)
+        };
+        window.SigmaStudentAnalytics = { getCards: () => Array.from({ length: 6 }, (_, index) => ({
+            id: 'search-fixture-' + index,
+            concernTitle: index === 5 ? 'Your Biology Feedback' : 'Your Assessment Summary ' + (index + 1),
+            categoryIcon: 'fa-chart-column',
+            datePlacement: 'footer',
+            concernText: '<p>' + (index === 5 ? 'Review photosynthesis feedback.' : 'Review your recorded results.') + '</p>',
+            date: 'Oct 9, 2026'
+        })) };
+    </script>
+</head>
+<body>
+    <main><div id="sigma-panels-container"></div></main>
+    <div id="analytics-dropdown">
+        <div class="notif-header mobile-panel-header">
+            <div class="mobile-panel-header-left"><h3>SIGMA Analytics</h3></div>
+            <button type="button" class="sigma-insight-search-toggle" aria-label="Search insights">Search</button>
+        </div>
+        <div id="analytics-dropdown-cards"></div>
+    </div>
+    <script src="../js/sigma-analytics.js"></script>
+    <script src="../js/student-insight-view.js?v=20261009insightReturn120"></script>
+    <script>window.renderMobileInsightCards();</script>
+</body>
+</html>

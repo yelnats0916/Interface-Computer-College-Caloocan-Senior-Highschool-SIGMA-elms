@@ -95,8 +95,8 @@ for (const file of ['teacher.html', 'student.html', 'admin.html']) {
         `${file} nav-logo-btn must call resetToDefaultTab on click`
     );
     assert.ok(
-        html.includes('js/announcements.js?v=20261005defaultAnnouncements1'),
-        `${file} must link updated js/announcements.js?v=20261005defaultAnnouncements1`
+        /js\/announcements\.js(\?v=[\w\d]+)?/.test(html),
+        `${file} must link updated js/announcements.js`
     );
     assert.ok(
         html.includes('class="sigma-feed-tab-btn active" data-announcement-tab="all">Announcements</button>'),

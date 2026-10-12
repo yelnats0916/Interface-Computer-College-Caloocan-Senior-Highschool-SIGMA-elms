@@ -1600,6 +1600,35 @@ textarea::placeholder {
     box-sizing: border-box;
 }
 
+#termsAgreementBox p, #termsAgreementBox .terms-num-badge,
+#termsAgreementCheckboxLabel > span { color: #000 !important; }
+#termsAgreementBox .terms-num-badge {
+    background: transparent !important;
+    border-radius: 0 !important;
+    margin-top: 0 !important;
+    align-items: flex-start !important;
+    line-height: 20px !important;
+}
+#termsAgreementCheckboxLabel {
+    opacity: 1 !important;
+    cursor: default !important;
+    align-items: flex-start !important;
+}
+#termsAgreementCheckbox { margin-top: 2px !important; }
+#termsAgreementCheckboxLabel .terms-agreement-link {
+    color: #15803d !important;
+    font-weight: 600;
+    text-decoration: none;
+}
+#termsAgreementCheckboxLabel .terms-agreement-link:hover { text-decoration: underline; }
+#termsAgreementBox .modal-footer-actions button {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 18px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+}
+
 #termsAgreementBox {
     width: 100% !important;
     max-width: min(760px, calc(100vw - 20px)) !important;
@@ -1609,6 +1638,12 @@ textarea::placeholder {
 @media (max-width: 639px) {
     #termsAgreementModal {
         padding: 10px !important;
+    }
+    #termsAgreementBox .modal-footer-actions button {
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
     }
 
     #termsAgreementBox {
@@ -1697,8 +1732,8 @@ textarea::placeholder {
     #termsAgreementAcceptBtn {
         flex: 1 1 0 !important;
         min-width: 0 !important;
-        height: 32px !important;
-        min-height: 32px !important;
+        height: 38px !important;
+        min-height: 38px !important;
         padding: 0 6px !important;
         font-size: 10.5px !important;
         border-radius: 8px !important;

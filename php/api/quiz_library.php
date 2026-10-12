@@ -240,7 +240,7 @@ try {
             `icon`            = VALUES(`icon`),
             `color`           = VALUES(`color`),
             `is_ai`           = VALUES(`is_ai`),
-            `is_deleted`      = 0";
+            `is_deleted`      = `is_deleted`";
 
         $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([

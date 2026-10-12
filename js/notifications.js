@@ -21,6 +21,37 @@
     const currentRole = getCurrentRole();
     const NOTIF_STORAGE_KEY = `sigma-notifications-${currentRole}-v3`;
     const INITIAL_LIMIT = 5;
+    const LOG_STORAGE_KEY = 'sigma-notification-logs-v1';
+
+    function getNotificationLogs() {
+        try {
+            const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]');
+            return Array.isArray(logs) ? logs.filter(log => log && log.notificationId && log.role) : [];
+        } catch (_) { return []; }
+    }
+
+    function recordNotificationLog(role, notif, status = 'Stored in-app') {
+        if (!notif?.id || !['admin', 'teacher', 'student'].includes(role)) return;
+        const logs = getNotificationLogs();
+        const recipientId = String(notif.recipientId || '');
+        const id = JSON.stringify([role, String(notif.id), recipientId]);
+        const existing = logs.find(log => log.id === id);
+        if (existing) {
+            if (notif.read && !existing.readAt) existing.readAt = new Date().toISOString();
+            if (status === 'Stored in-app') existing.status = status;
+        } else {
+            logs.unshift({ id, notificationId: String(notif.id), role, recipientId,
+                recipient: String(notif.recipientName || notif.targetTeacher || recipientId || (notif.assignmentScope?.section ? `${role}: ${notif.assignmentScope.section}` : `${role} audience`)),
+                type: String(notif.type || 'General'), title: String(notif.title || 'Notification'),
+                related: String(notif.target?.materialTitle || notif.assignmentScope?.subjectName || notif.assignmentScope?.subjectId || ''),
+                channel: 'In-app', status, timestamp: new Date().toISOString(),
+                readAt: notif.read ? new Date().toISOString() : null });
+        }
+        try {
+            localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+            window.dispatchEvent(new Event('notification-logs-updated'));
+        } catch (error) { console.error('[SIGMA Notifications] Audit save error:', error); }
+    }
 
     // ─── Relative Time Helper for Mock / Seed Data ────────────────────────────
     function secsAgo(s)  { return new Date(Date.now() - s * 1000).toISOString(); }
@@ -319,6 +350,9 @@
             const existing = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
             const otherRecipients = Array.isArray(existing) ? existing.filter(n => !isVisibleNotification(n)) : [];
             localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify([...notifs, ...otherRecipients]));
+            // Update read state only for previously recorded notifications, not demo/legacy feed data.
+            const loggedIds = new Set(getNotificationLogs().filter(log => log.role === currentRole).map(log => log.notificationId));
+            notifs.filter(notif => notif.read && loggedIds.has(String(notif.id))).forEach(notif => recordNotificationLog(currentRole, notif));
         } catch (e) {
             console.error('[SIGMA Notifications] Storage save error:', e);
         }
@@ -394,8 +428,63 @@
     // ─── Feed Rendering State ────────────────────────────────────────────────
     let currentTab = 'all'; // 'all' | 'unread'
     let isExpanded = false; // toggled by "Previous Notifications"
+    let visibleLimit = 0;
+    let batchSize = INITIAL_LIMIT;
+    let loadingOlder = false;
+    let hasOlder = false;
+    let feedVersion = 0;
+
+    function loadOlderNotifications() {
+        if (loadingOlder || !hasOlder) return;
+        loadingOlder = true;
+        const version = feedVersion;
+        const feed = document.getElementById('noti-dropdown-feed');
+        const indicator = document.createElement('div');
+        indicator.className = 'notif-batch-loading';
+        indicator.setAttribute('role', 'status');
+        indicator.setAttribute('aria-label', 'Loading notifications');
+        indicator.setAttribute('aria-busy', 'true');
+        indicator.innerHTML = Array.from({ length: batchSize },
+            () => '<div class="sigma-batch-placeholder sigma-batch-placeholder--notification" aria-hidden="true"></div>').join('');
+        feed?.appendChild(indicator);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            loadingOlder = false;
+            if (version !== feedVersion) { indicator.remove(); return; }
+            isExpanded = true;
+            visibleLimit += batchSize;
+            renderFeed();
+            indicator.remove();
+        }));
+    }
+
+    function resolveCourseworkTeacher(notif) {
+        try {
+            const scope = notif.assignmentScope || {};
+            const norm = value => String(value || '').toLowerCase().replace(/^grade\s*\d+\s*[-\u2013]?\s*/, '').replace(/[^a-z0-9]/g, '');
+            const subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+            const subject = subjects.find(s => [s.id, s.name].some(v => norm(v) === norm(scope.subjectId) || norm(v) === norm(scope.subjectName)));
+            const names = [scope.subjectId, scope.subjectName, subject?.name, subject?.id].filter(Boolean).map(norm);
+            const sections = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+            const section = sections.find(s => [s.id, s.name, s.sectionName].some(v => v && norm(v) === norm(scope.section))
+                && [s.subject, s.subjectId, s.assignedSubject, ...(s.assignedSubjects || [])].some(v => v && names.includes(norm(v))));
+            const teacher = section?.teachers?.find(t => t.isPrimary) || section?.teachers?.[0] || section?.teacher;
+            const name = typeof teacher === 'object' ? teacher?.name || teacher?.fullName : teacher;
+            if (!name) return null;
+            const users = JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
+            const account = users.find(u => String(u.role || '').toLowerCase() === 'teacher' && [u.name, u.fullName].some(v => norm(v) === norm(name)));
+            return { senderName: name, senderId: account?.id || account?.uid || '', avatarImg: account?.avatar || account?.profilePicture || '', senderType: 'teacher' };
+        } catch (_) { return null; }
+    }
 
     function buildNotificationItem(notif) {
+        if (['submission-graded', 'due-reminder'].includes(notif.type) && String(notif.id || '').startsWith(`${notif.type}:`)) {
+            notif = { ...notif, senderId: '', senderName: 'Coursework Updates', avatarImg: '',
+                senderInitials: '', icon: 'fa-book', senderColor: '#15803d', senderType: 'system' };
+            if (notif.type === 'submission-graded') {
+                const teacher = resolveCourseworkTeacher(notif);
+                if (teacher) notif = { ...notif, ...teacher };
+            }
+        }
         if (notif.senderId) {
             try {
                 const senderId = String(notif.senderId);
@@ -420,22 +509,21 @@
         const item = document.createElement('div');
         item.className = `notif-item ${!notif.read ? 'notif-unread' : ''}`;
         item.dataset.id = notif.id;
+        item.setAttribute('role', 'button');
+        item.tabIndex = 0;
+        item.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
+        });
 
         // Support FontAwesome icon, image avatar, or initials
         let avatarInner = '';
-        const useProfile = !!notif.assignmentScope || isRemovalNotification(notif);
+        const useProfile = true;
         const profileFallback = useProfile && !notif.avatarImg;
         const profileFallbackHtml = '<i class="fa-solid fa-user text-[15px]" style="color:#94a3b8"></i>';
         if (notif.avatarImg) {
             avatarInner = '<img alt="Sender profile">';
         } else if (useProfile) {
             avatarInner = profileFallbackHtml;
-        } else if (notif.icon) {
-            avatarInner = `<i class="fa-solid ${notif.icon} text-[15px] text-white"></i>`;
-        } else if (notif.avatarImg) {
-            avatarInner = `<img src="${notif.avatarImg}" alt="${notif.senderName || 'Avatar'}">`;
-        } else {
-            avatarInner = notif.senderInitials || 'SYS';
         }
 
         item.innerHTML = `
@@ -485,6 +573,10 @@
             }
 
             // Navigate if notification points to a material / coursework
+            if (notif.target?.postId) {
+                window.SigmaAnnouncements?.openPostDialog(notif.target.postId);
+                return;
+            }
             if (currentRole === 'teacher' && notif.assignmentScope && typeof window.openTopicContent === 'function') {
                 const target = notif.target || {};
                 window.openTopicContent(target.subjectId, target.topicIdx, target.tab || 'assessments', target.itemIdx, true, {
@@ -518,16 +610,17 @@
     }
 
     function renderFeed() {
+        const notifs = getNotifications();
+        updateBadge(notifs);
         const feedContainer = document.getElementById('noti-dropdown-feed');
         const prevBtnWrap = document.getElementById('noti-prev-wrapper');
         const scrollArea = document.querySelector('#noti-dropdown .notif-scroll-area');
         if (!feedContainer) return;
-
-        const notifs = getNotifications();
-        updateBadge(notifs);
+        const previousScrollTop = scrollArea?.scrollTop || 0;
 
         // Filter based on selected tab
-        const filtered = currentTab === 'unread'
+        const selectedTab = window.matchMedia('(max-width: 768px)').matches ? 'all' : currentTab;
+        const filtered = selectedTab === 'unread'
             ? notifs.filter(n => !n.read)
             : notifs;
 
@@ -537,7 +630,7 @@
             feedContainer.innerHTML = `
                 <div class="notif-empty">
                     <i class="fa-regular fa-bell-slash"></i>
-                    <p>${currentTab === 'unread' ? 'No unread notifications' : 'No notifications right now'}</p>
+                    <p>${selectedTab === 'unread' ? 'No unread notifications' : 'No notifications right now'}</p>
                 </div>
             `;
             if (prevBtnWrap) prevBtnWrap.style.display = 'none';
@@ -545,12 +638,29 @@
             return;
         }
 
-        // Apply 5-limit rule unless expanded
-        const hasMany = filtered.length > INITIAL_LIMIT;
-        const visibleItems = isExpanded ? filtered : filtered.slice(0, INITIAL_LIMIT);
+        // Measure a real row so the collapsed list fills the available screen height.
+        const sample = buildNotificationItem(filtered[0]);
+        feedContainer.appendChild(sample);
+        if (prevBtnWrap) prevBtnWrap.style.display = 'block';
+        const rowHeight = sample.getBoundingClientRect().height || 80;
+        const availableHeight = scrollArea?.clientHeight || 0;
+        const initialLimit = availableHeight > 0
+            ? Math.max(1, Math.ceil(availableHeight / rowHeight))
+            : INITIAL_LIMIT;
+        feedContainer.innerHTML = '';
+        const hasMany = filtered.length > initialLimit;
+        batchSize = initialLimit;
+        visibleLimit = isExpanded ? Math.max(visibleLimit, initialLimit) : initialLimit;
+        hasOlder = filtered.length > visibleLimit;
+        const visibleItems = filtered.slice(0, visibleLimit);
 
         visibleItems.forEach(notif => {
-            feedContainer.appendChild(buildNotificationItem(notif));
+            const item = buildNotificationItem(notif);
+            if (!isExpanded && hasMany && availableHeight > 0) {
+                const height = `${availableHeight / visibleItems.length}px`;
+                ['height', 'min-height', 'max-height'].forEach(property => item.style.setProperty(property, height, 'important'));
+            }
+            feedContainer.appendChild(item);
         });
 
         // "Previous Notifications" button logic
@@ -565,26 +675,28 @@
                 }
             }
         }
+        if (scrollArea) scrollArea.scrollTop = previousScrollTop;
     }
 
+    window.addEventListener('resize', () => {
+        const panel = document.getElementById('noti-dropdown');
+        if (panel?.getBoundingClientRect().height) renderFeed();
+    });
+
     // ─── Component Initialization ────────────────────────────────────────────
+    function setTab(tab) {
+        currentTab = tab === 'unread' ? 'unread' : 'all';
+        isExpanded = false;
+        visibleLimit = 0;
+        feedVersion++;
+        document.getElementById('noti-tab-all')?.classList.toggle('active', currentTab === 'all');
+        document.getElementById('noti-tab-unread')?.classList.toggle('active', currentTab === 'unread');
+        renderFeed();
+    }
     function setupTabs() {
         const tabAll = document.getElementById('noti-tab-all');
         const tabUnread = document.getElementById('noti-tab-unread');
         if (!tabAll || !tabUnread) return;
-
-        function setTab(tab) {
-            currentTab = tab;
-            isExpanded = false; // reset expand on tab switch
-            if (tab === 'all') {
-                tabAll.classList.add('active');
-                tabUnread.classList.remove('active');
-            } else {
-                tabAll.classList.remove('active');
-                tabUnread.classList.add('active');
-            }
-            renderFeed();
-        }
 
         tabAll.onclick = (e) => {
             e.preventDefault();
@@ -602,16 +714,50 @@
         const notiDropdown = document.getElementById('noti-dropdown');
         const markAllReadBtn = document.getElementById('notiMarkAllReadBtn');
         const prevBtn = document.getElementById('notiPrevNotificationsBtn');
+        document.querySelector('#noti-dropdown .notif-scroll-area')?.addEventListener('scroll', event => {
+            const area = event.currentTarget;
+            if (isExpanded && area.scrollHeight > area.clientHeight && area.scrollTop + area.clientHeight >= area.scrollHeight - 32) {
+                loadOlderNotifications();
+            }
+        });
+
+        if (notiDropdown) {
+            const resetPanelView = () => {
+                isExpanded = false;
+                visibleLimit = 0;
+                loadingOlder = false;
+                hasOlder = false;
+                feedVersion++;
+                const area = notiDropdown.querySelector('.notif-scroll-area');
+                if (area) {
+                    area.classList.remove('can-scroll');
+                    area.scrollTop = 0;
+                }
+                notiDropdown.scrollTop = 0;
+                notiDropdown.querySelectorAll('.notif-batch-loading').forEach(node => node.remove());
+            };
+            let wasOpen = !notiDropdown.classList.contains('hidden');
+            const observer = new MutationObserver(() => {
+                const isOpen = !notiDropdown.classList.contains('hidden');
+                if (isOpen !== wasOpen) resetPanelView();
+                wasOpen = isOpen;
+                if (isOpen) {
+                    requestAnimationFrame(() => renderFeed());
+                }
+            });
+            observer.observe(notiDropdown, { attributes: true, attributeFilter: ['class'] });
+        }
 
         const initialNotifs = getNotifications();
         updateBadge(initialNotifs);
+        // Portal identity and assignment readers are exposed by later startup handlers.
+        setTimeout(() => updateBadge(getNotifications()), 0);
         setupTabs();
 
         if (prevBtn) {
             prevBtn.onclick = (e) => {
                 e.preventDefault();
-                isExpanded = true;
-                renderFeed();
+                loadOlderNotifications();
             };
         }
 
@@ -647,15 +793,14 @@
                     notiToggleBtn.classList.remove('active');
                 } else {
                     isExpanded = false;
-                    currentTab = 'all';
                     const tabAll = document.getElementById('noti-tab-all');
                     const tabUnread = document.getElementById('noti-tab-unread');
-                    if (tabAll) tabAll.classList.add('active');
-                    if (tabUnread) tabUnread.classList.remove('active');
+                    if (tabAll) tabAll.classList.toggle('active', currentTab === 'all');
+                    if (tabUnread) tabUnread.classList.toggle('active', currentTab === 'unread');
 
-                    renderFeed();
                     notiDropdown.classList.remove('hidden');
                     notiToggleBtn.classList.add('active');
+                    requestAnimationFrame(() => renderFeed());
                 }
             });
 
@@ -728,7 +873,9 @@
             })
         },
         sendToRole(targetRole, notif) {
-            if (notif.assignmentScope && !notif.senderId) {
+            if (!['admin', 'teacher', 'student'].includes(targetRole) || !notif?.id) return;
+            if (notif.assignmentScope && !notif.senderId && notif.senderType !== 'system'
+                && !(['submission-graded', 'due-reminder'].includes(notif.type) && String(notif.id).startsWith(`${notif.type}:`))) {
                 try {
                     const sender = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
                     const profile = currentRole === 'teacher' ? (window.getEffectiveTeacher?.() || sender) : sender;
@@ -753,7 +900,9 @@
             list.unshift(notif);
             try {
                 localStorage.setItem(targetKey, JSON.stringify(list));
+                recordNotificationLog(targetRole, notif);
             } catch (e) {
+                recordNotificationLog(targetRole, notif, 'Failed to store');
                 console.error('[SIGMA Notifications] Save error for role', targetRole, e);
             }
             if (currentRole === targetRole) {
@@ -761,15 +910,9 @@
             }
         },
         add(notif, role) {
-            if (role && role !== currentRole) {
-                window.SigmaNotifications.sendToRole(role, notif);
-                return;
-            }
-            const list = getNotifications();
-            list.unshift(notif);
-            saveNotifications(list);
-            renderFeed();
+            return window.SigmaNotifications.sendToRole(role || currentRole, notif);
         },
+        getLogs: getNotificationLogs,
         getAll: getNotifications,
         refresh: renderFeed,
         // Developer / Designer Preview Helpers
@@ -793,6 +936,13 @@
     window.renderNotificationsFeed = renderFeed;
     window.loadDemoNotifications = () => window.SigmaNotifications.loadDemoData();
     window.clearDemoNotifications = () => window.SigmaNotifications.clearAll();
+    window.addEventListener('storage', event => {
+        if (event.key === NOTIF_STORAGE_KEY || event.key === null) renderFeed();
+    });
+    window.addEventListener('notifications-updated', renderFeed);
+    window.addEventListener('pageshow', () => updateBadge(getNotifications()));
+    document.addEventListener('sigma:teacher-portal-ready', () => updateBadge(getNotifications()));
+    window.matchMedia('(max-width: 768px)').addEventListener('change', renderFeed);
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initNotificationsComponent);
@@ -800,4 +950,3 @@
         initNotificationsComponent();
     }
 })();
-

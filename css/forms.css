@@ -6,6 +6,71 @@
  */
 
 /* ==========================================================================
+   0. UNIVERSAL ELIMINATION OF BROWSER FOCUS/BLUR BLACK BORDER FLICKER
+   Prevents Chromium/WebKit from flashing black outline or border rings
+   when clicking, focusing, or clicking outside/blurring elements.
+   ========================================================================== */
+*,
+*::before,
+*::after {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus,
+*:focus-visible,
+*:focus-within {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+}
+
+input,
+select,
+textarea,
+button,
+a,
+summary,
+[tabindex] {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+    outline: none !important;
+}
+
+input:focus,
+input:focus-visible,
+input:focus-within,
+input:active,
+input:not(:focus),
+select:focus,
+select:focus-visible,
+select:focus-within,
+select:active,
+select:not(:focus),
+textarea:focus,
+textarea:focus-visible,
+textarea:focus-within,
+textarea:active,
+textarea:not(:focus),
+button:focus,
+button:focus-visible,
+button:focus-within,
+button:active,
+button:not(:focus),
+a:focus,
+a:focus-visible,
+a:focus-within,
+a:active,
+a:not(:focus) {
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-color: transparent !important;
+    outline-style: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-focus-ring-color: transparent !important;
+}
+
+/* ==========================================================================
    1. GLOBAL TYPOGRAPHY & FONT STANDARDIZATION
    ========================================================================== */
 html,
@@ -746,7 +811,7 @@ select:focus:hover {
 /* ==========================================================================
    4.3 UNIVERSAL DESCRIPTION BOXES & TEXTAREAS (ALL 4 BORDERS & ROUNDED)
    ========================================================================== */
-textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input),
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(:where(#student-preview-questions-list textarea, #uqp-body textarea, #sigma-quiz-form-modal textarea)),
 .sigma-textarea,
 .sigma-form-textarea,
 #topic-editor-desc-input,
@@ -771,7 +836,7 @@ textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline
     box-sizing: border-box !important;
 }
 
-textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input)::placeholder,
+textarea:not(#sigmaAiInput):not(.sigma-one-border-textarea):not(.sigma-underline-item-textarea):not(.sigma-underline-field):not(#active-question-container textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(:where(#student-preview-questions-list textarea, #uqp-body textarea, #sigma-quiz-form-modal textarea))::placeholder,
 .sigma-textarea::placeholder,
 .sigma-form-textarea::placeholder {
     color: rgba(0, 0, 0, 0.40) !important;
@@ -1335,6 +1400,25 @@ body:has(.sigma-modal-overlay:not(.hidden)) {
     padding: 0;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+}
+
+.sigma-modal-overlay::-webkit-scrollbar {
+    width: 6px !important;
+}
+
+.sigma-modal-overlay::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.sigma-modal-overlay::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 9999px !important;
+}
+
+.sigma-modal-overlay::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8 !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -1357,6 +1441,13 @@ body:has(.sigma-modal-overlay:not(.hidden)) {
 
 .sigma-modal-overlay.hidden {
     display: none !important;
+}
+
+/* The review overlay owns scrolling, not the locked page behind it. */
+#universal-quiz-preview-modal {
+    width: 100% !important;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
 }
 
 .sigma-modal-shell {
@@ -1498,9 +1589,6 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
     margin-bottom: 0 !important;
 }
 
-#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
-#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
-#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar,
 #user-edit-overlay #user-edit-form-body::-webkit-scrollbar,
 #section-edit-overlay #section-edit-form-body::-webkit-scrollbar,
 #subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar,
@@ -1512,9 +1600,6 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
     height: 6px;
 }
 
-#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
-#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
-#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
 #user-edit-overlay #user-edit-form-body::-webkit-scrollbar-track,
 #section-edit-overlay #section-edit-form-body::-webkit-scrollbar-track,
 #subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-track,
@@ -1525,9 +1610,6 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
     background: transparent;
 }
 
-#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
-#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
-#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
 #user-edit-overlay #user-edit-form-body::-webkit-scrollbar-thumb,
 #section-edit-overlay #section-edit-form-body::-webkit-scrollbar-thumb,
 #subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-thumb,
@@ -1539,9 +1621,6 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
     border-radius: 9999px;
 }
 
-#universal-quiz-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
-#sigma-quiz-form-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
-#student-preview-modal .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
 #user-edit-overlay #user-edit-form-body::-webkit-scrollbar-thumb:hover,
 #section-edit-overlay #section-edit-form-body::-webkit-scrollbar-thumb:hover,
 #subject-edit-overlay #subject-edit-form-body::-webkit-scrollbar-thumb:hover,
@@ -1642,6 +1721,51 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Audit tables share the base table and these column conventions. */
+.sigma-table-container.sigma-table-container--unframed:has(> table) {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+.sigma-table-container:has(> .sigma-audit-table) {
+    min-width: 0;
+    max-width: 100%;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+.sigma-table.sigma-audit-table {
+    min-width: 960px;
+}
+.sigma-table.sigma-audit-table tbody td {
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.sigma-table.sigma-audit-table th:first-child,
+.sigma-table.sigma-audit-table td:first-child {
+    width: 280px;
+    min-width: 280px;
+}
+.sigma-table.sigma-audit-table thead th {
+    text-align: center !important;
+}
+.sigma-table.sigma-audit-table thead th:not(:last-child) {
+    border-right: 1px solid #137638 !important;
+}
+.sigma-table.sigma-audit-table tbody td:not(:last-child) {
+    border-right: 1px solid rgba(0, 0, 0, .08) !important;
+}
+.sigma-table.sigma-audit-table tbody td:nth-child(n+3) {
+    text-align: center !important;
+}
+.sigma-table.sigma-audit-table tbody td:nth-child(n+3) > div {
+    align-items: center;
+}
+.sigma-audit-table tbody td:first-child span {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
 }
 
 /* Global Default Clean Grey Data Table Theme */
@@ -2892,6 +3016,95 @@ div:has(#teacher-schedule-max-score:disabled):active {
     display: none !important;
 }
 
+/* One desktop header and toolbar layout for the shared content editor. */
+@media (min-width: 769px) {
+    #subject-edit-overlay.content-mode #subject-modal-header > div {
+        min-height: 72px;
+        padding: 16px 40px;
+        gap: 16px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-editor-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 28px;
+        letter-spacing: 0;
+    }
+
+    #subject-edit-overlay.content-mode #subject-edit-form-body {
+        padding: 32px 40px 40px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-bar {
+        align-items: center;
+        gap: 12px;
+        margin-top: 0;
+        padding-bottom: 12px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-bar > div {
+        align-items: center;
+        gap: 12px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-pills {
+        padding: 4px;
+        gap: 4px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-pills button {
+        min-height: 40px;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-content-reorder-btn,
+    #subject-edit-overlay.content-mode #subject-content-add-topic-btn,
+    #subject-edit-overlay.content-mode #add-material-trigger,
+    #subject-edit-overlay.content-mode #subject-material-scope-container button {
+        height: 40px;
+        min-height: 40px;
+        padding: 0 16px;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-bar button span,
+    #subject-edit-overlay.content-mode #subject-materials-quarter-bar button i {
+        font-size: 14px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-quarter-bar button span {
+        font-weight: inherit;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-main-view .shared-kebab-menu {
+        width: 176px;
+        padding: 6px;
+        border-radius: 8px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-main-view .shared-kebab-menu button {
+        min-height: 40px;
+        padding: 8px 12px;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 20px;
+        border-radius: 6px;
+    }
+
+    #subject-edit-overlay.content-mode #subject-materials-main-view .shared-kebab-menu button i {
+        width: 16px;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+}
+
 /* Topic Accordion Panel Hover Highlight Grey */
 [id^="subject-topic-panel-"] {
     transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
@@ -2983,6 +3196,8 @@ input.bg-transparent:focus,
     #subject-global-footer {
         padding: 10px 16px !important;
     }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-footer .sigma-btn,
+    body #uqp-teacher-grading-area .sigma-btn,
     #subject-modal-footer button,
     #subject-modal-footer .sigma-btn,
     #subject-modal-footer .sigma-btn-md,
@@ -3000,6 +3215,7 @@ input.bg-transparent:focus,
         border-radius: 10px !important;
         gap: 6px !important;
     }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-footer .sigma-btn i,
     #subject-modal-footer button i,
     #subject-global-footer button i {
         font-size: 12px !important;
@@ -3043,4 +3259,504 @@ input.bg-transparent:focus,
     max-width: 100%;
     min-width: 0;
     flex-wrap: wrap;
+}
+
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :has(> .sigma-quiz-enum-marker) > input,
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :has(> .sigma-quiz-enum-marker) > input:hover,
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :has(> .sigma-quiz-enum-marker) > input:focus {
+    background: transparent !important;
+}
+
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .sigma-quiz-enum-marker,
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .grid > button > span:first-child,
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) [id*="enum-row-"] > span:first-child,
+body .sigma-quiz-matching-rows :is(.flex.items-center.gap-3\.5) > span:first-child {
+    width: var(--sigma-quiz-marker-size, 32px) !important;
+    height: var(--sigma-quiz-marker-size, 32px) !important;
+    min-width: var(--sigma-quiz-marker-size, 32px) !important;
+    border-radius: 50% !important;
+    aspect-ratio: 1;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    box-shadow: none !important;
+}
+
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .sigma-quiz-enum-marker.bg-white,
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) button > span:is(.bg-slate-100, .bg-slate-50) {
+    background-color: transparent !important;
+    border: 1px solid var(--sigma-black-fade-border) !important;
+    color: var(--sigma-black-fade-dark) !important;
+}
+
+.sigma-quiz-matching-layout > * {
+    min-width: 0;
+}
+
+body .sigma-quiz-matching-rows > div:hover,
+body .sigma-quiz-matching-rows > div > div:hover {
+    border-color: #e2e8f0 !important;
+}
+
+body .sigma-quiz-matching-rows [ondragover] {
+    cursor: default !important;
+}
+
+body .sigma-quiz-matching-rows [ondragover].border-black {
+    border: 2px solid #FFD000 !important;
+    background-color: #fffbea !important;
+    box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.18) !important;
+}
+
+body .sigma-quiz-matching-rows [ondragover].border-dashed:hover:not(.border-black) {
+    background-color: rgba(248, 250, 252, 0.6) !important;
+    border-color: #cbd5e1 !important;
+}
+
+body .sigma-quiz-matching-rows :is(.flex.items-center.gap-3\.5) > span:first-child {
+    background: transparent !important;
+    border: 1px solid var(--sigma-black-fade-border) !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+    color: var(--sigma-black-fade-dark) !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+}
+
+.sigma-quiz-choice-dragging > * {
+    visibility: hidden !important;
+}
+
+.sigma-quiz-choice-dragging {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sigma-quiz-choice-drag-visual {
+    position: fixed;
+    z-index: 2147483647;
+    pointer-events: none;
+    opacity: 1;
+    background: white;
+    color: black;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+    font: 600 14px/20px Inter, sans-serif;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.sigma-quiz-matching-bank > div:last-child > div {
+    display: grid !important;
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: center;
+    justify-content: stretch !important;
+    column-gap: 10px;
+    width: 100%;
+    text-align: left;
+}
+
+.sigma-quiz-matching-bank > div:last-child > div > i {
+    width: 16px;
+    text-align: center;
+}
+
+.sigma-quiz-matching-bank > div:last-child > div > span {
+    text-align: left !important;
+    overflow-wrap: anywhere;
+}
+
+body .sigma-quiz-matching-bank [draggable="true"]:hover:not(.sigma-quiz-choice-dragging) {
+    border-color: #e2e8f0 !important;
+    background-color: var(--sigma-black-fade-bg) !important;
+}
+
+@media (min-width: 1024px) {
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal .sigma-modal-panel > .flex-1 > div) {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    .sigma-quiz-matching-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 32%);
+        gap: 28px;
+        align-items: start;
+    }
+    .sigma-quiz-matching-layout > * {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    .sigma-quiz-matching-rows {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    .sigma-quiz-matching-bank {
+        grid-column: 2;
+        grid-row: 1;
+        position: sticky;
+        top: 180px;
+        padding: 16px !important;
+        border-radius: 8px !important;
+    }
+    .sigma-quiz-matching-bank > div:first-child > div {
+        flex-wrap: wrap;
+    }
+    .sigma-quiz-matching-bank [draggable] {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+    }
+    .sigma-quiz-matching-bank > div:last-child {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+}
+
+.sigma-quiz-numbered-prompt {
+    align-items: flex-start !important;
+}
+
+.sigma-quiz-numbered-prompt > span {
+    margin-top: 0 !important;
+}
+
+.sigma-modal-panel > .sigma-quiz-sticky-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20;
+    background: white;
+    flex-shrink: 0;
+}
+
+/* User quiz forms have one viewport-edge scrollbar, never a nested body scrollbar. */
+html:has(body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal):not(.hidden)),
+body:has(:is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal):not(.hidden)) {
+    overflow: hidden !important;
+    scrollbar-width: none !important;
+    scrollbar-gutter: auto !important;
+}
+
+html:has(body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal):not(.hidden))::-webkit-scrollbar,
+body:has(:is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal):not(.hidden))::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+body:has(:is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal):not(.hidden)) :is(#main-content, #admin-main, #layout-wrapper):not(:has(:is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal))) {
+    overflow: hidden !important;
+    scrollbar-width: none !important;
+    scrollbar-gutter: auto !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) {
+    width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: auto;
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-shell,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1 {
+    flex: 1 0 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
+    justify-content: safe center !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-shell > .sigma-modal-panel {
+    display: grid !important;
+    grid-template-rows: auto minmax(min-content, 1fr) auto;
+    flex: none !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > :not(.flex-1) {
+    flex-shrink: 0;
+}
+
+/* User quiz forms and preview modals: restore standard main page scrollbar style with buttons */
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-track,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-track,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-track {
+    background-color: #f1f1f1 !important;
+    border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-thumb,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1 !important;
+    border: 3px solid #f1f1f1 !important;
+    border-radius: 9999px !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-thumb:hover,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:hover,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background-color: #a8a8a8 !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-thumb:active,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-thumb:active,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-thumb:active {
+    background-color: #787878 !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-button,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-button,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-button {
+    display: block !important;
+    height: 15px !important;
+    width: 15px !important;
+    background-color: #f1f1f1 !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: 8px 8px !important;
+    border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-button:single-button:vertical:decrement,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-button:single-button:vertical:decrement,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-button:single-button:vertical:decrement {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23666666' d='M8 4.8l4.8 5.8H3.2L8 4.8z'/%3E%3C/svg%3E") !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-button:single-button:vertical:decrement:hover,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-button:single-button:vertical:decrement:hover,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+    background-color: #e5e5e5 !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-button:single-button:vertical:increment,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-button:single-button:vertical:increment,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .overflow-y-auto::-webkit-scrollbar-button:single-button:vertical:increment {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23666666' d='M8 11.2L3.2 5.4h9.6L8 11.2z'/%3E%3C/svg%3E") !important;
+}
+
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal)::-webkit-scrollbar-button:single-button:vertical:increment:hover,
+body :is(#universal-quiz-preview-modal, #sigma-quiz-form-modal, #student-preview-modal) .sigma-modal-panel > .flex-1::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+    background-color: #e5e5e5 !important;
+}
+
+@media (max-width: 639px) {
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) {
+        --sigma-quiz-marker-size: 28px;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) {
+        scrollbar-width: none !important;
+        scrollbar-gutter: auto !important;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal)::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:last-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:last-child > div:last-child {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        padding-bottom: 2px;
+    }
+    body :is(#preview-question-pills-strip, #uqp-pills-strip) > div {
+        flex-wrap: nowrap !important;
+        flex-shrink: 0;
+    }
+    body #student-preview-modal .sigma-modal-shell,
+    body #student-preview-modal .sigma-modal-panel {
+        height: auto !important;
+        min-height: var(--sigma-visible-viewport-height, 100dvh) !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-shell > .sigma-modal-panel {
+        display: grid !important;
+        grid-template-rows: auto minmax(min-content, 1fr) auto;
+        min-height: var(--sigma-visible-viewport-height, 100dvh) !important;
+        max-height: none !important;
+        flex: none !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-panel > .flex-1 {
+        flex: 1 0 auto !important;
+        overflow: visible !important;
+        justify-content: safe center !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .grid > button {
+        padding: 8px 10px !important;
+        min-height: 44px !important;
+        gap: 10px !important;
+        border-radius: 8px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .grid > button > span:first-child,
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) [id*="enum-row-"] > span:first-child {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        font-size: 12px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .grid > button > span:not(:first-child),
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .text-sm,
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) .text-base {
+        font-size: 13px !important;
+        line-height: 18px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) [id*="enum-row-"] {
+        padding: 8px 10px !important;
+        gap: 10px !important;
+        border-radius: 8px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) :is(.p-5, .p-6, .p-4) {
+        padding: 12px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal) [draggable] {
+        min-height: 36px !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header > .border-b:first-child > div:first-child {
+        padding: 14px 16px !important;
+        gap: 8px !important;
+    }
+    body #universal-quiz-preview-modal .sigma-quiz-sticky-header > .border-b:first-child {
+        padding: 14px 16px !important;
+        gap: 8px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-sticky-header h1 {
+        font-size: 16px !important;
+        line-height: 22px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-total,
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-question-points {
+        font-size: 12px !important;
+        line-height: 18px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-points-summary {
+        gap: 8px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-quiz-numbered-prompt h3 {
+        font-size: 14px !important;
+        line-height: 20px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body) button,
+    body #sigma-quiz-form-modal .sigma-modal-panel > .flex-1 button {
+        font-size: 14px !important;
+        line-height: 20px !important;
+        padding: 12px 14px !important;
+    }
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) .sigma-modal-footer .sigma-btn {
+        font-weight: 700 !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal .sigma-modal-panel > .flex-1) :is(input[type="text"], textarea) {
+        font-size: 13px !important;
+        line-height: 18px !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal .sigma-modal-panel > .flex-1) :is(input, textarea)::placeholder {
+        font-size: 13px !important;
+        line-height: 18px !important;
+        font-weight: 400 !important;
+    }
+    body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal .sigma-modal-panel > .flex-1) label,
+    body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) :is(.sigma-matching-earned, .sigma-quiz-answer-stats),
+    body .sigma-quiz-matching-bank .text-black-fade {
+        font-size: 11px !important;
+        line-height: 16px !important;
+    }
+    body .sigma-quiz-matching-rows .group\/slot {
+        padding: 10px 12px !important;
+        min-height: 44px !important;
+        font-size: 13px !important;
+        line-height: 18px !important;
+        border-radius: 8px !important;
+    }
+    body .sigma-quiz-matching-rows .group\/slot > span {
+        font-size: 13px !important;
+        line-height: 18px !important;
+    }
+    body .sigma-quiz-matching-rows .group\/slot button {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+    }
+    body .sigma-quiz-matching-rows .space-y-4 > div,
+    body .sigma-quiz-matching-rows > div {
+        gap: 10px !important;
+    }
+}
+
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal)
+    :is(label, [id^="uqp-enum-label-"], .slot-placeholder),
+body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal)
+    .sigma-quiz-matching-bank .text-black-fade {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+body :is(#student-preview-questions-list, #uqp-body, #sigma-quiz-form-modal)
+    :is(input, textarea)::placeholder {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    opacity: 1 !important;
+}
+
+body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal),
+body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal) * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+body :is(#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal)
+    :is(input, textarea, [contenteditable="true"]) {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+body #universal-quiz-preview-modal .sigma-modal-footer {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
+}
+body #uqp-prev-btn { justify-self: start; }
+body #uqp-next-btn { justify-self: end; }
+body #uqp-footer-counter {
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+@media (max-width: 639px) {
+    body #uqp-footer-counter { font-size: 11px !important; line-height: 16px !important; }
 }

@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `avatar` LONGTEXT NULL,
     `permissions` JSON NULL,
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -50,6 +52,8 @@ CREATE TABLE IF NOT EXISTS `school_years` (
     `q4_end` VARCHAR(20) NULL,
     `status` VARCHAR(30) NOT NULL DEFAULT 'Inactive',
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `archived_at` VARCHAR(40) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -81,6 +85,8 @@ CREATE TABLE IF NOT EXISTS `sections` (
     `students_count` INT UNSIGNED DEFAULT 0,
     `status` VARCHAR(30) DEFAULT 'Deployed',
     `is_deleted` TINYINT(1) DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_section_name` (`name`),
@@ -104,6 +110,8 @@ CREATE TABLE IF NOT EXISTS `subjects` (
     `topics` LONGTEXT NULL,
     `materials` LONGTEXT NULL,
     `is_deleted` TINYINT(1) DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_subject_code` (`code`),
@@ -120,6 +128,9 @@ CREATE TABLE IF NOT EXISTS `announcements` (
     `content` TEXT NOT NULL,
     `author_id` INT UNSIGNED NOT NULL,
     `target_role` ENUM('all', 'teacher', 'student') NOT NULL DEFAULT 'all',
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -133,6 +144,9 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     `action` VARCHAR(255) NOT NULL,
     `ip_address` VARCHAR(45) NULL,
     `user_agent` VARCHAR(255) NULL,
+    `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    `deleted_at` DATETIME NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -172,6 +186,7 @@ CREATE TABLE IF NOT EXISTS `quizzes` (
     `is_ai` TINYINT(1) NOT NULL DEFAULT 0,
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
     `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+    `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_quiz_code` (`code`),

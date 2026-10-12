@@ -24,7 +24,7 @@
                 next[id] = { score, reminded: dueSoon ? row.dueDate : old?.reminded || null };
                 const send = (type, title, body) => window.SigmaNotifications.sendToRole('student', {
                     id: `${type}:${studentId}:${id}:${type === 'due-reminder' ? due : score}`,
-                    type, title, body, senderName: 'Coursework Updates', icon: 'fa-book', senderColor: '#15803d',
+                    type, title, body, senderType: 'system', senderName: 'Coursework Updates', icon: 'fa-book', senderColor: '#15803d',
                     recipientId: studentId, read: false, timestamp: new Date().toISOString(),
                     assignmentScope: { section: row.section, subjectId: row.subjectId, subjectName: row.subject },
                     target: { subjectId: row.subjectId, topicIdx: row.topicIdx, tab: 'assessments', itemIdx: row.unifiedIdx, materialTitle: row.activity }

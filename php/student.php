@@ -8,7 +8,7 @@ $pageTitle = "Interface Computer College - Student";
 $extraCss  = "css/student.css";
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<link rel="stylesheet" href="css/classroom-room.css"><script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/classroom-room.js", "js/assessments-page.js", "js/student.js"];
+$extraJs   = ["js/classroom-room.js", "js/assessments-page.js", "js/student.js", "js/student-analytics.js", "js/student-submission-analytics.js", "js/analytics-ai-client.js"];
 $topbarHeaderId = "student-header";
 
 require_once __DIR__ . "/../config/app.php";
@@ -383,121 +383,8 @@ require_once __DIR__ . "/includes/topbar.php";
                     </div>
                 </section>
 
-                <!-- ══ ATTENDANCE ══════════════════════════════════ -->
-                <section id="section-attendance" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full standard-panel-shadow">
-                        <div
-                            class="bg-white border-x border-slate-200 min-h-[calc(100vh-var(--shell-offset))] p-0 relative flex flex-col">
-                            <!-- Title Section -->
-                            <div class="px-10 pt-4 pb-4">
-                                <h2 class="text-3xl font-bold text-gray-800">Attendance</h2>
-                                <p class="text-sm text-gray-500 mt-1">Your attendance records and weekly schedule</p>
-                            </div>
-
-                            <!-- Content Section -->
-                            <div class="px-10 pb-10">
-                                <div id="student-attendance-live-card"
-                                    class="mb-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                    <div class="flex items-start justify-between gap-6">
-                                        <div>
-                                            <p id="student-attendance-live-label"
-                                                class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                Today's
-                                                Status
-                                            </p>
-                                            <p id="student-attendance-live-value"
-                                                class="text-3xl font-black text-gray-800 mt-2">
-                                                Pending</p>
-                                            <p id="student-attendance-live-meta" class="text-sm text-gray-500 mt-2">
-                                                Waiting for
-                                                teacher attendance confirmation.</p>
-                                        </div>
-                                        <div id="student-attendance-live-badge"
-                                            class="px-4 py-2 rounded-xl bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-widest">
-                                            Pending
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="student-attendance-split-layout">
-                                    <!-- Left: Attendance History Table -->
-                                    <div class="student-attendance-split-layout__table bg-white rounded-[22px] border border-slate-200 standard-panel-shadow overflow-hidden flex flex-col">
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-center border-collapse">
-                                                <thead style="background-color: #15803d !important;">
-                                                    <tr style="background-color: #15803d !important;" class="bg-[#15803d] select-none text-white">
-                                                        <th style="background-color: #15803d !important; color: #ffffff !important;"
-                                                            class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">
-                                                            Date</th>
-                                                        <th style="background-color: #15803d !important; color: #ffffff !important;"
-                                                            class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">
-                                                            Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="student-attendance-history-body" class="divide-y divide-slate-100">
-                                                    <!-- Injected by JS -->
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div id="student-attendance-empty-state" class="hidden p-20 text-center">
-                                            <i class="fa-solid fa-calendar-xmark text-4xl text-black-fade mb-4 block"></i>
-                                            <p class="text-sm font-bold text-black">No Attendance Records Found</p>
-                                        </div>
-                                        <div class="p-3.5 border-t border-slate-100 bg-white flex items-center justify-center">
-                                            <div id="student-attendance-pagination-controls" class="w-full flex items-center justify-center"></div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right: Attendance Stat Cards (Vertical Stack) -->
-                                    <div class="student-attendance-split-layout__stats">
-                                        <!-- Stat 1: Overall Attendance Rate -->
-                                        <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1" style="color: rgba(0, 0, 0, 0.45) !important;">Attendance</p>
-                                                <h3 id="student-attendance-stat-percent" data-attendance-stat="percent" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-full bg-emerald-50 text-[#15803d] flex items-center justify-center text-lg shrink-0">
-                                                <i class="fa-solid fa-chart-pie"></i>
-                                            </div>
-                                        </div>
-
-                                        <!-- Stat 2: Present Days -->
-                                        <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1" style="color: rgba(0, 0, 0, 0.45) !important;">Present</p>
-                                                <h3 id="student-attendance-stat-present" data-attendance-stat="present" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-full bg-green-50 text-green-600 flex items-center justify-center text-lg shrink-0">
-                                                <i class="fa-solid fa-circle-check"></i>
-                                            </div>
-                                        </div>
-
-                                        <!-- Stat 3: Late Days -->
-                                        <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1" style="color: rgba(0, 0, 0, 0.45) !important;">Late</p>
-                                                <h3 id="student-attendance-stat-late" data-attendance-stat="late" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-lg shrink-0">
-                                                <i class="fa-solid fa-clock"></i>
-                                            </div>
-                                        </div>
-
-                                        <!-- Stat 4: Absent Days -->
-                                        <div class="bg-white border border-slate-200 rounded-[22px] p-5 standard-panel-shadow flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-semibold text-black-fade font-['Inter'] mb-1" style="color: rgba(0, 0, 0, 0.45) !important;">Absent</p>
-                                                <h3 id="student-attendance-stat-absent" data-attendance-stat="absent" class="text-2xl font-black text-black font-['Inter'] leading-none">--</h3>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-lg shrink-0">
-                                                <i class="fa-solid fa-circle-xmark"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                </section>
+                <!-- SHARED CALENDAR PAGE COMPONENT -->
+                <?php include __DIR__ . '/includes/calendar_page.php'; ?>
 
 
 

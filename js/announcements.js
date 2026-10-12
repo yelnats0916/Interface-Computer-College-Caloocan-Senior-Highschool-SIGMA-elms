@@ -40,10 +40,10 @@
     }
 
     const STORAGE_KEY = 'sigma_announcements_feed_v3';
-    const VIDEO_LIMIT_KEY = 'sigma_settings_video_max_mb';
-    const DEFAULT_VIDEO_LIMIT_MB = 500;
-    const MIN_VIDEO_LIMIT_MB = 250;
-    const MAX_VIDEO_LIMIT_MB = 700;
+    const PERMANENT_FEED_VIDEO_LIMIT_MB = 150;
+    const DEFAULT_VIDEO_LIMIT_MB = 150;
+    const MIN_VIDEO_LIMIT_MB = 150;
+    const MAX_VIDEO_LIMIT_MB = 150;
 
     // Character Limits
     const MAX_TITLE_CHARS = 300;
@@ -888,6 +888,8 @@
 
     function saveStoredAnnouncements(posts) {
         if (!Array.isArray(posts)) return;
+        let previous = [];
+        try { previous = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (_) {}
         window._sigmaAnnouncementsMemoryStore = [...posts];
 
         // Process any large media (e.g. videos or raw image data URLs)
@@ -925,6 +927,16 @@
 
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+            if (window.recordCommunicationActivity) {
+                const fields = post => JSON.stringify([post.title, post.content, post.body, post.text, post.status, post.visibility, post.section, post.subjectId]);
+                sanitized.forEach(post => {
+                    const old = previous.find(p => p.id === post.id);
+                    if (!old || fields(old) !== fields(post)) {
+                        window.recordCommunicationActivity(!old ? 'Announcement created' : (old.status !== post.status && ['published', 'released'].includes(String(post.status).toLowerCase()) ? 'Announcement published' : 'Announcement edited'), { module: 'Announcements', announcementId: post.id, section: post.section || '', subjectId: post.subjectId || '', audience: post.audience || post.visibility || '' });
+                    }
+                });
+                previous.filter(old => !sanitized.some(post => post.id === old.id)).forEach(old => window.recordCommunicationActivity('Announcement deleted', { module: 'Announcements', announcementId: old.id, section: old.section || '', subjectId: old.subjectId || '' }));
+            }
         } catch (e) {
             console.warn('[Announcements] localStorage full, offloading all dataUrl media...', e);
             const minimal = sanitized.map(post => {
@@ -979,12 +991,7 @@
     }
 
     function getMaxVideoLimitMB() {
-        const stored = localStorage.getItem(VIDEO_LIMIT_KEY);
-        const val = parseInt(stored, 10);
-        if (!isNaN(val) && val > 0) {
-            return Math.min(MAX_VIDEO_LIMIT_MB, Math.max(MIN_VIDEO_LIMIT_MB, val));
-        }
-        return DEFAULT_VIDEO_LIMIT_MB;
+        return PERMANENT_FEED_VIDEO_LIMIT_MB;
     }
 
     // Modern Custom Toast Notification Panel (Replaces ugly browser alert popups)
@@ -1964,6 +1971,15 @@
             attachedFile = null; // Clear attached video when adding pictures
 
             for (const file of filesToProcess) {
+                const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB limit per photo
+                if (file.size > MAX_PHOTO_BYTES) {
+                    showToastNotice({
+                        title: 'Photo Too Large',
+                        message: `"${file.name}" exceeds the 10MB photo limit and was not added.`,
+                        type: 'warning'
+                    });
+                    continue;
+                }
                 try {
                     const dataUrl = await compressImageFile(file, 1280, 1280, 0.82);
                     if (dataUrl) {
@@ -3415,7 +3431,7 @@
         }
     }
 
-    function loadNextFeedBatch(feedId) {
+    async function loadNextFeedBatch(feedId) {
         const state = feedPaginationState[feedId];
         if (!state || state.isLoading) return;
         if (state.currentIndex >= state.visiblePosts.length) {
@@ -3427,6 +3443,17 @@
         if (!container) return;
 
         state.isLoading = true;
+        const loadingSentinel = container.querySelector(`.sigma-feed-sentinel[data-feed-id="${feedId}"]`);
+        if (loadingSentinel) {
+            loadingSentinel.setAttribute('role', 'status');
+            loadingSentinel.setAttribute('aria-label', 'Loading more posts');
+            loadingSentinel.setAttribute('aria-busy', 'true');
+            loadingSentinel.innerHTML = Array.from({ length: Math.min(FEED_PAGE_SIZE, state.visiblePosts.length - state.currentIndex) },
+                () => '<div class="sigma-batch-placeholder sigma-batch-placeholder--post" aria-hidden="true"></div>').join('');
+        }
+        // Let the next-batch placeholders paint before preparing and revealing local records.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (feedPaginationState[feedId] !== state || !container.isConnected) return;
         const nextBatch = state.visiblePosts.slice(state.currentIndex, state.currentIndex + FEED_PAGE_SIZE);
         state.currentIndex += nextBatch.length;
 
@@ -3443,6 +3470,10 @@
         }
 
         paintAnnouncementMedia(container);
+        if (loadingSentinel) {
+            loadingSentinel.removeAttribute('aria-busy');
+            loadingSentinel.innerHTML = '';
+        }
 
         if (state.currentIndex >= state.visiblePosts.length) {
             cleanupFeedSentinel(feedId);
@@ -4845,14 +4876,17 @@
                     }
                 } catch (e) {}
 
-                const isCommentTeacher = (c.authorRole === 'teacher' || c.authorRole === 'admin') ||
-                                         (aName.toLowerCase().includes('maria santos') || aName.toLowerCase().includes('ramos') || aName.toLowerCase().includes('teacher'));
+                const commentRole = String(c.authorRole || '').trim().toLowerCase();
+                const staffBadge = ['admin', 'administrator'].includes(commentRole) ? 'Admin' : commentRole === 'teacher' ? 'Teacher' : '';
+                const roleBadge = staffBadge || (commentRole === 'student' ? 'Student' : '');
+                const isCommentTeacher = Boolean(staffBadge);
                 const isPostAuthor = (post.author && c.authorName && post.author.trim().toLowerCase() === c.authorName.trim().toLowerCase()) ||
                                      (post.authorName && c.authorName && post.authorName.trim().toLowerCase() === c.authorName.trim().toLowerCase());
                 const isAuthorOrTeacher = isCommentTeacher || isPostAuthor;
                 
                 // Active user is comment author, or teacher/admin, or post author
-                const canDelete = isOwnComment || isTeacherOrAdmin || isPostAuthor;
+                const protectedAdminReply = currentRole === 'teacher' && ['admin', 'administrator'].includes(commentRole);
+                const canDelete = !protectedAdminReply && (isOwnComment || (currentRole !== 'student' && isTeacherOrAdmin));
 
                 return `
                 <div class="flex items-start gap-2.5 ${indentClass} group" id="dialog-comment-${c.id}">
@@ -4863,12 +4897,12 @@
                         <div class="sigma-comment-bubble">
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="text-xs font-bold text-black">${escapeHtml(c.authorName)}</span>
-                                ${isCommentTeacher ? `<span class="text-[9.5px] font-bold text-black-fade bg-slate-100 border border-black/10 px-1.5 py-0.5 rounded-full leading-none">Teacher</span>` : (isPostAuthor ? `<span class="text-[9.5px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded-full leading-none">Author</span>` : '')}
+                                ${roleBadge ? `<span class="text-[9.5px] font-bold text-black-fade bg-slate-100 border border-black/10 px-1.5 py-0.5 rounded-full leading-none">${roleBadge}</span>` : (isPostAuthor ? `<span class="text-[9.5px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded-full leading-none">Author</span>` : '')}
                             </div>
                             <div class="text-[10.5px] text-black-fade font-normal -mt-0.5 mb-1 leading-tight">
                                 ${formatTimeAgo(c.createdAt)}
                             </div>
-                            <p class="text-[13px] text-slate-800 leading-relaxed break-words m-0">
+                            <p class="text-[13px] text-black leading-relaxed break-words m-0" style="color: #000000;">
                                 ${c.replyToAuthorName ? `<span class="text-[12px] font-semibold text-black bg-slate-100 px-1.5 py-0.5 rounded mr-1 inline-block">@${escapeHtml(c.replyToAuthorName)}</span>` : ''}${escapeHtml(c.text)}
                             </p>
                         </div>
@@ -4932,28 +4966,29 @@
         bodyEl.innerHTML = `
         <div class="flex flex-col">
             <!-- Author Row -->
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+            <div class="sigma-card-header-row sigma-dialog-post-header">
+              <div class="sigma-card-author-meta">
+                <div class="shrink-0">
                     ${authorAvatarHtml}
                 </div>
-                <div class="flex flex-col min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="text-sm font-bold text-black truncate">${escapeHtml(post.authorName)}</span>
+                <div class="sigma-card-author-text-col">
+                    <div class="sigma-card-author-fullname flex items-center gap-1.5 flex-wrap">
+                        <span>${escapeHtml(post.authorName)}</span>
                         ${importantBadgeHtml}
                     </div>
-                    <div class="flex items-center gap-1.5 flex-wrap text-xs text-slate-500 mt-0.5">
-                        <span class="font-medium text-slate-700">${post.authorRole === 'admin' ? 'Administrator' : (post.authorRole === 'student' ? 'Student' : 'Teacher')}</span>
-                        <span class="text-slate-400">&bull;</span>
-                        <span class="text-slate-500">${timeAgo}</span>
+                    <div class="sigma-card-author-subrow flex items-center gap-1.5 flex-wrap">
+                        <span class="sigma-card-author-role-subtitle">${post.authorRole === 'admin' ? 'Administrator' : (post.authorRole === 'student' ? 'Student' : 'Teacher')}</span>
                         ${sectionBadgeHtml}
                         ${targetedBadgeHtml}
                     </div>
                 </div>
+              </div>
+              <div class="sigma-card-header-right"><span class="sigma-card-timestamp-text">${timeAgo}</span></div>
             </div>
 
             <!-- Title & Body -->
-            ${post.title ? `<h4 class="text-base font-bold text-black mb-1.5 leading-snug">${escapeHtml(post.title)}</h4>` : ''}
-            ${post.body ? `<div class="text-[14px] text-slate-800 leading-relaxed font-['Inter'] whitespace-pre-wrap mb-2">${formatAnnouncementRichText(post.body)}</div>` : ''}
+            ${post.title ? `<h3 class="sigma-card-post-title">${escapeHtml(post.title)}</h3>` : ''}
+            ${post.body ? `<div class="sigma-card-post-body">${formatAnnouncementRichText(post.body)}</div>` : ''}
 
             <!-- Media -->
             ${mediaHtml}
@@ -4984,25 +5019,29 @@
                 ? window.renderUserAvatarHtml(currentUser, 'sm')
                 : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-[#94a3b8] text-xs"></i></div>`;
 
+            const replyAuthor = activeReplyTarget ? (post.comments || []).find(comment => comment.id === activeReplyTarget.commentId) : null;
+            const ownReply = Boolean(replyAuthor && (replyAuthor.authorId
+                ? String(replyAuthor.authorId) === String(currentUser.id || currentUser.uid || '')
+                : String(replyAuthor.authorName || '').trim().toLowerCase() === String(currentUser.name || '').trim().toLowerCase()));
             const replyBannerHtml = activeReplyTarget ? `
             <div class="flex items-center justify-between bg-slate-100 text-[11.5px] text-slate-700 px-3 py-1 rounded-t-xl border border-slate-200/80 mb-1.5">
-                <span>Replying to <b class="text-black font-semibold">@${escapeHtml(activeReplyTarget.authorName)}</b></span>
+                <span>${ownReply ? 'Replying to your comment' : `Replying to <b class="text-black font-semibold">@${escapeHtml(activeReplyTarget.authorName)}</b>`}</span>
                 <button type="button" class="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-black hover:bg-slate-200 transition-colors cursor-pointer" onclick="window.SigmaAnnouncements.cancelReply('${post.id}')" title="Cancel reply">
                     <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
             </div>` : '';
 
-            const placeholderText = activeReplyTarget ? `Reply to ${activeReplyTarget.authorName}...` : 'Share your thoughts...';
+            const placeholderText = ownReply ? 'Add a follow-up...' : activeReplyTarget ? `Reply to ${activeReplyTarget.authorName}...` : 'Share your thoughts...';
 
             footerEl.innerHTML = `
             ${replyBannerHtml}
-            <div class="flex items-center gap-2.5">
-                <div class="flex-shrink-0">
+            <div class="sigma-comment-composer-row sigma-announcement-comment-composer flex items-center gap-2.5">
+                <div class="sigma-comment-composer-avatar flex-shrink-0">
                     ${userAvatarHtml}
                 </div>
                 <div class="sigma-comment-input-pill flex-1">
-                    <textarea id="sigma-dialog-comment-input" rows="1" class="sigma-comment-textarea flex-1" placeholder="${escapeHtml(placeholderText)}" maxlength="1000" oninput="window.SigmaAnnouncements ? window.SigmaAnnouncements.autoResizeCommentInput(this) : null" onkeydown="if((event.key==='Enter'||event.keyCode===13||event.which===13)&&!event.shiftKey&&!event.isComposing){event.preventDefault();event.stopPropagation();window.SigmaAnnouncements.submitComment('${post.id}');}"></textarea>
-                    <button type="button" id="sigma-dialog-comment-send-btn" class="w-7 h-7 flex items-center justify-center text-emerald-700 hover:text-emerald-800 transition-transform hover:scale-110 cursor-pointer shrink-0" onclick="window.SigmaAnnouncements.submitComment('${post.id}')" title="Post comment">
+                    <textarea id="sigma-dialog-comment-input" rows="1" class="sigma-comment-textarea flex-1" placeholder="${escapeHtml(placeholderText)}" maxlength="1000" oninput="window.SigmaAnnouncements ? window.SigmaAnnouncements.autoResizeCommentInput(this) : null"></textarea>
+                    <button type="button" id="sigma-dialog-comment-send-btn" class="sigma-comment-send-btn" onclick="window.SigmaAnnouncements.submitComment('${post.id}')" title="Post comment" aria-label="Post comment">
                         <i class="fa-solid fa-paper-plane text-xs"></i>
                     </button>
                 </div>
@@ -5090,6 +5129,9 @@
                 }
             }
 
+            const replyParent = activeReplyTarget ? post.comments.find(c => c.id === activeReplyTarget.commentId) : null;
+            const replyingToSelf = replyParent && (uid && String(replyParent.authorId || '') === String(uid)
+                || !replyParent.authorId && String(replyParent.authorName || '').trim().toLowerCase() === uname.trim().toLowerCase());
             const newComment = {
                 id: 'cmt-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
                 authorId: uid,
@@ -5101,11 +5143,30 @@
                 likes: 0,
                 likedByMe: false,
                 replyToCommentId: activeReplyTarget ? activeReplyTarget.commentId : null,
-                replyToAuthorName: activeReplyTarget ? activeReplyTarget.authorName : null
+                replyToAuthorName: activeReplyTarget && !replyingToSelf ? activeReplyTarget.authorName : null
             };
 
             post.comments.push(newComment);
             saveStoredAnnouncements(posts);
+
+            const recipients = [{ id: post.authorId, name: post.authorName, role: post.authorRole },
+                ...(replyParent ? [{ id: replyParent.authorId, name: replyParent.authorName, role: replyParent.authorRole }] : [])];
+            const notified = new Set();
+            recipients.forEach(recipient => {
+                const recipientId = String(recipient.id || '');
+                if (!recipientId || recipientId === String(uid) || notified.has(recipientId)) return;
+                const role = String(recipient.role || '').toLowerCase();
+                if (!['student', 'teacher', 'admin'].includes(role)) return;
+                notified.add(recipientId);
+                window.SigmaNotifications?.sendToRole(role, {
+                    id: `comment:${newComment.id}:${recipientId}`, type: 'comment-posted',
+                    title: replyParent ? 'New Reply' : 'New Comment',
+                    body: `${uname || 'User'} ${replyParent ? 'replied' : 'commented'} on ${post.title || 'your post'}.`,
+                    senderId: uid, senderName: newComment.authorName, avatarImg: authorAvatar,
+                    recipientId, recipientName: recipient.name, timestamp: newComment.createdAt, read: false,
+                    target: { postId }
+                });
+            });
 
             activeReplyTarget = null;
             renderPostDialogContent(postId);
@@ -5135,6 +5196,9 @@
                                      currentUser.role === 'admin' ||
                                      currentRole === 'teacher' ||
                                      currentRole === 'admin';
+
+            if (!isOwnComment && (currentRole === 'student' || !isTeacherOrAdmin)) return;
+            if (currentRole === 'teacher' && ['admin', 'administrator'].includes(String(targetComment.authorRole || '').trim().toLowerCase())) return;
 
             // If deleted by a teacher or admin (moderation of someone else's comment), mark as deleted with an indicator
             if (isTeacherOrAdmin && !isOwnComment) {
@@ -5251,8 +5315,8 @@
             if (isActive) {
                 btn.classList.add('active', 'bg-[#15803d]', 'text-white');
                 btn.classList.remove('text-slate-900', 'hover:bg-slate-50');
-                btn.style.setProperty('background-color', '#15803d', 'important');
-                btn.style.setProperty('color', '#ffffff', 'important');
+                btn.style.setProperty('background-color', '#15803d');
+                btn.style.setProperty('color', '#ffffff');
             } else {
                 btn.classList.remove('active', 'bg-[#15803d]', 'text-white');
                 btn.classList.add('text-slate-900');

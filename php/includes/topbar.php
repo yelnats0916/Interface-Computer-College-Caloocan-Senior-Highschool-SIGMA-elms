@@ -38,7 +38,7 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
         </div>
 
         <!-- Center Search Bar (Shared Length) -->
-        <div class="header-search-container absolute left-1/2 -translate-x-1/2 w-full max-w-[480px] md:block z-[101]">
+        <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] md:block z-[10]">
             <div
                 class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all overflow-hidden">
                 <span
@@ -179,19 +179,27 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
             </button>
             <h3 class="calendar-header__title mobile-panel-title">Calendar</h3>
         </div>
+        <a href="#" class="view-calendar-anchor calendar-header__action-btn text-black hover:bg-slate-100" title="Open full calendar" aria-label="Open full calendar">
+            <i class="fa-solid fa-arrow-up-right-from-square text-black"></i>
+        </a>
     </div>
 
     <!-- Month Navigation & Calendar Grid -->
-    <div class="px-8 py-6 bg-white flex-shrink-0">
-        <div class="calendar-month-nav flex items-center justify-center mb-5 gap-2 relative">
+    <div class="px-7 pt-5 pb-3 bg-white flex-shrink-0">
+        <div class="calendar-month-nav flex items-center justify-center mb-4 gap-1 sm:gap-2 relative">
+            <button type="button" id="calendarDropdownPrevMonthBtn" class="calendar-nav-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0" onclick="window.navCalendarDropdownMonth?.(-1, event)" title="Previous Month" aria-label="Previous Month">
+                <i class="fa-solid fa-chevron-left text-[11px] sm:text-xs text-black"></i>
+            </button>
             <h3 id="calendarDropdownMonthYear"
                 class="text-[16px] font-bold text-black leading-none tracking-tight text-center font-['Inter'] select-none">August 2026</h3>
-            <button type="button" id="calendarDropdownMonthPickerBtn" class="relative flex items-center justify-center p-1 rounded-md hover:bg-slate-100 text-[#15803d] hover:text-[#166534] transition-all cursor-pointer" onclick="window.openCalendarNativeMonthPicker?.(event)" title="Select Date / Month">
-                <i class="fa-regular fa-calendar text-base text-[#15803d]"></i>
-                <input type="month" id="calendar-dropdown-native-picker" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none z-[-1]" onchange="window.onCalendarNativeMonthPicked?.(this.value)" />
+            <button type="button" id="calendarDropdownMonthPickerBtn" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-[#15803d] hover:text-[#166534] transition-all cursor-pointer border-0" onclick="window.openCalendarNativeMonthPicker?.(event)" title="Select Month & Year">
+                <i class="fa-regular fa-calendar text-sm sm:text-base text-[#15803d]"></i>
+            </button>
+            <button type="button" id="calendarDropdownNextMonthBtn" class="calendar-nav-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0" onclick="window.navCalendarDropdownMonth?.(1, event)" title="Next Month" aria-label="Next Month">
+                <i class="fa-solid fa-chevron-right text-[11px] sm:text-xs text-black"></i>
             </button>
         </div>
-        <div class="grid grid-cols-7 gap-1 text-center border-t border-slate-100 pt-4 mb-2">
+        <div class="grid grid-cols-7 gap-1 text-center border-t border-slate-100 pt-3 mb-2">
             <div class="calendar-weekday-header">Sun</div>
             <div class="calendar-weekday-header">Mon</div>
             <div class="calendar-weekday-header">Tue</div>
@@ -203,17 +211,14 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
         <div id="calendarDropdownDaysGrid" class="grid grid-cols-7 gap-1 text-center">
             <!-- Populated by js/calendar.js -->
         </div>
-
-        <!-- View Calendar Link -->
-        <div class="mt-6 mb-2 flex justify-center">
-            <a href="#" class="view-calendar-anchor" aria-label="View Calendar">
-                View Calendar →
-            </a>
-        </div>
     </div>
 
-    <!-- Bottom Division Line -->
-    <div class="border-t border-gray-100 w-full mt-auto"></div>
+    <!-- Quick Agenda / Events Preview Section -->
+    <div id="calendar-dropdown-agenda" class="calendar-dropdown-agenda p-0 border-t border-slate-100 bg-white flex-1 w-full">
+        <div id="calendar-dropdown-agenda-list" class="calendar-dropdown-agenda-list p-0 m-0 w-full">
+            <!-- Dynamically populated by js/calendar.js -->
+        </div>
+    </div>
 </div>
 
 <!-- Notifications Dropdown -->
@@ -236,7 +241,6 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
             <button type="button" id="noti-tab-all" class="notif-tab-btn active">All</button>
             <button type="button" id="noti-tab-unread" class="notif-tab-btn">Unread</button>
         </div>
-        <a href="#" class="notif-see-all-btn" onclick="event.preventDefault()">See all</a>
     </div>
 
     <!-- Scrollable Notifications Area -->
@@ -289,19 +293,6 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
 
     <!-- ── Menu ── -->
     <nav class="profile-panel-menu">
-        <?php if (isset($topbarHeaderId) && $topbarHeaderId === 'student-header'): ?>
-        <a href="#" id="profile-achievements-link"
-            onclick="if(typeof window.navigateToUserProfile==='function'){ window.navigateToUserProfile(event, 'achievements'); } if(typeof window.hideHeaderOverlays==='function') window.hideHeaderOverlays();"
-            class="profile-menu-item">
-            <div class="profile-menu-item__icon">
-                <i class="fa-solid fa-trophy"></i>
-            </div>
-            <div class="profile-menu-item__text">
-                <span class="profile-menu-item__label">Achievements</span>
-                <span class="profile-menu-item__sublabel">Your badges & milestones</span>
-            </div>
-        </a>
-        <?php endif; ?>
         <a href="#account-settings" id="profile-settings-link"
             onclick="if(typeof window.closeMobileAccountPanel==='function') window.closeMobileAccountPanel(); if(typeof window.closeMobileTopPanel==='function') window.closeMobileTopPanel(); if(typeof window.navigateToAccountSettings==='function'){ window.navigateToAccountSettings('notifications'); } else if(typeof switchTab==='function'){ switchTab('account-settings'); } if(typeof window.hideHeaderOverlays==='function') window.hideHeaderOverlays(); return false;"
             class="profile-menu-item">
@@ -365,9 +356,9 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
             </button>
             <h3 class="notif-header__title mobile-panel-title">SIGMA Analytics</h3>
         </div>
+        <button type="button" class="sigma-insight-search-toggle" title="Search insights" aria-label="Search insights"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
     </div>
     <div id="analytics-dropdown-cards" class="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
         <!-- Injected via syncAnalyticsCards() -->
     </div>
 </div>
-

@@ -185,7 +185,7 @@ try {
                     q4_start = VALUES(q4_start),
                     q4_end = VALUES(q4_end),
                     status = VALUES(status),
-                    is_deleted = 0";
+                    is_deleted = is_deleted";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute([

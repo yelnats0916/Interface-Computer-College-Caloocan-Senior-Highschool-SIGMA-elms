@@ -1650,3 +1650,53 @@
     window.getNotificationPreferences = getNotificationPreferences;
 
 })();
+
+// System settings numeric counters share their markup-defined limits.
+(function () {
+    'use strict';
+    const selector = 'section[id^="settings-"] input[type="number"]';
+    function normalize(input, finalize = false) {
+        if (input.disabled || input.readOnly) return false;
+        input.setAttribute('inputmode', 'numeric');
+        const min = input.min === '' ? 0 : Number(input.min);
+        const max = input.max === '' ? Number.MAX_SAFE_INTEGER : Number(input.max);
+        const step = Number(input.step) > 0 ? Number(input.step) : 1;
+        const raw = input.value;
+        if (!raw && !finalize && !input.validity?.badInput) return false;
+        let value = /^\d+$/.test(raw) ? Number(raw) : Number(input.getAttribute('value'));
+        if (!Number.isFinite(value)) value = min;
+        value = Math.min(max, Math.max(0, value));
+        if (finalize) {
+            value = Math.max(min, value);
+            value = min + Math.round((value - min) / step) * step;
+            if (value > max) value = min + Math.floor((max - min) / step) * step;
+        }
+        input.value = String(value);
+        return raw !== input.value;
+    }
+    function normalizeAll(root = document) {
+        root.querySelectorAll(selector).forEach(input => {
+            if (normalize(input, true)) input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    }
+    const isCounter = input => input?.matches?.(selector);
+    document.addEventListener('keydown', event => {
+        if (isCounter(event.target) && !event.ctrlKey && !event.metaKey && ['e', 'E', '+', '-', '.', ','].includes(event.key)) event.preventDefault();
+    }, true);
+    document.addEventListener('beforeinput', event => {
+        if (isCounter(event.target) && event.data && /[^0-9]/.test(event.data)) event.preventDefault();
+    }, true);
+    document.addEventListener('paste', event => {
+        if (isCounter(event.target) && !/^\d+$/.test(event.clipboardData?.getData('text') || '')) event.preventDefault();
+    }, true);
+    document.addEventListener('input', event => { if (isCounter(event.target)) normalize(event.target); }, true);
+    for (const name of ['change', 'blur']) document.addEventListener(name, event => {
+        if (isCounter(event.target) && normalize(event.target, true)) event.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }, true);
+    document.addEventListener('click', event => {
+        if (event.target.closest?.('section[id^="settings-"] button')) normalizeAll();
+    }, true);
+    window.SigmaSettingsCounters = { normalize, normalizeAll };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => normalizeAll());
+    else normalizeAll();
+})();

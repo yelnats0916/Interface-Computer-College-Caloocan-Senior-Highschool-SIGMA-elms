@@ -151,6 +151,9 @@ $activeTab = $activeTab ?? 'home';
                     <i class="fa-solid fa-plug"></i>
                     <span>Integrations &amp; Storage</span>
                 </a>
+                <a href="admin.php?tab=settings-recovery" id="nav-settings-recovery" data-settings-page="recovery" class="nav-sublink no-underline">
+                    <i class="fa-solid fa-box-archive"></i><span>Record Recovery</span>
+                </a>
             </div>
         </div>
 

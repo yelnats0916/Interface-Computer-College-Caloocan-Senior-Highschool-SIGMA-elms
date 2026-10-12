@@ -177,7 +177,7 @@ try {
             `status`          = VALUES(`status`),
             `topics`          = VALUES(`topics`),
             `materials`       = VALUES(`materials`),
-            `is_deleted`      = 0";
+            `is_deleted`      = `is_deleted`";
 
         $stmt = $pdo->prepare($upsertSql);
         $stmt->execute([

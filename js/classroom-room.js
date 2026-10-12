@@ -2885,6 +2885,7 @@
     function renderTeacherAttendanceCalendarPopup() {
         const popup = document.getElementById('teacher-attendance-calendar-popup');
         if (!popup) return;
+        window.prepareSigmaCalendarPopup(popup);
 
         if (!popup.dataset.clickBound) {
             popup.dataset.clickBound = 'true';
@@ -2892,100 +2893,36 @@
             popup.addEventListener('pointerdown', (e) => e.stopPropagation());
         }
 
-        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayNow = new Date();
 
         if (attendanceCalendarPopupMode === 'months') {
-            let monthsHtml = '';
-            shortMonths.forEach((m, idx) => {
-                const isSelected = (attendancePickerYear === attendanceViewingYear && idx === attendanceViewingMonth);
-                monthsHtml += `
-                    <button type="button" class="cal-picker-month-btn ${isSelected ? 'active' : ''}" style="color: ${isSelected ? '#ffffff' : '#000000'} !important; font-weight: 600;" onclick="window.selectAttendancePopupMonth(${idx}, event)">
-                        ${m}
-                    </button>
-                `;
-            });
-
-            popup.innerHTML = `
-                <div class="cal-picker-header flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeAttendancePickerYear(-1, event)" title="Previous Year">
-                        <i class="fa-solid fa-chevron-left text-xs text-black"></i>
-                    </button>
-                    <span class="cal-picker-year-label text-[15px] font-bold text-black font-['Inter']">${attendancePickerYear}</span>
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeAttendancePickerYear(1, event)" title="Next Year">
-                        <i class="fa-solid fa-chevron-right text-xs text-black"></i>
-                    </button>
-                </div>
-                <div class="cal-picker-months-grid grid grid-cols-3 gap-2 mb-3">
-                    ${monthsHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarMonthPanel({
+                year: attendancePickerYear, activeYear: attendanceViewingYear, activeMonth: attendanceViewingMonth,
+                onYearChange: 'changeAttendancePickerYear', onMonthSelect: 'selectAttendancePopupMonth',
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectAttendancePopupThisMonth(event)">
                         This month
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchAttendancePopupMode('days', event)">
                         Days view
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         } else {
             const year = attendancePopupViewingYear;
             const month = attendancePopupViewingMonth;
-            const firstDayIndex = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-
-            let daysHtml = '';
-            for (let i = 0; i < firstDayIndex; i++) {
-                daysHtml += `<div class="calendar-day-cell calendar-day-cell--empty"></div>`;
-            }
-
-            for (let d = 1; d <= totalDays; d++) {
-                const isToday = (todayNow.getFullYear() === year && todayNow.getMonth() === month && todayNow.getDate() === d);
-                const isSelected = (attendanceViewingYear === year && attendanceViewingMonth === month && attendanceSelectedDay === d);
-
-                let cellClasses = 'calendar-day-cell font-semibold transition-all';
-                let styleExtra = '';
-
-                if (isToday) {
-                    cellClasses += ' calendar-day-cell--today font-bold cursor-pointer';
-                    styleExtra = 'background-color: #FFD000 !important; color: #000000 !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else if (isSelected) {
-                    cellClasses += ' calendar-day-cell--selected font-bold cursor-pointer';
-                    styleExtra = 'background-color: #15803d !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else {
-                    cellClasses += ' text-black cursor-pointer';
-                    styleExtra = 'color: #000000 !important;';
-                }
-
-                daysHtml += `
-                    <button type="button" class="${cellClasses}" style="${styleExtra}" onclick="window.selectAttendancePopupDay(${year}, ${month}, ${d}, event)">
-                        ${d}
-                    </button>
-                `;
-            }
-
-            popup.innerHTML = `
-                <div class="grid grid-cols-7 gap-1 text-center mb-1">
-                    <div class="calendar-weekday-header">Sun</div>
-                    <div class="calendar-weekday-header">Mon</div>
-                    <div class="calendar-weekday-header">Tue</div>
-                    <div class="calendar-weekday-header">Wed</div>
-                    <div class="calendar-weekday-header">Thu</div>
-                    <div class="calendar-weekday-header">Fri</div>
-                    <div class="calendar-weekday-header">Sat</div>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                    ${daysHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarDayPanel({
+                year, month, activeYear: attendanceViewingYear, activeMonth: attendanceViewingMonth,
+                activeDay: attendanceSelectedDay, onDaySelect: 'selectAttendancePopupDay', today: todayNow,
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectAttendancePopupToday(event)">
                         Today
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchAttendancePopupMode('months', event)">
                         Month & Year
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         }
     }
 
@@ -3178,7 +3115,7 @@
         modal.innerHTML = `
             <button type="button" onclick="window.closeAttendanceExportModal()"
                 class="attendance-export-exit-btn fixed top-6 sm:top-10 right-6 sm:right-10 w-10 sm:w-12 h-10 sm:h-12 rounded-full hover:bg-slate-200 hidden sm:flex items-center justify-center text-black transition-all z-[12001] cursor-pointer"
-                title="Exit">
+                title="Exit" aria-label="Close attendance export">
                 <i class="fa-solid fa-xmark text-lg sm:text-xl text-black"></i>
             </button>
             <div class="sigma-modal-shell animate-in slide-in-from-top-4 duration-500">

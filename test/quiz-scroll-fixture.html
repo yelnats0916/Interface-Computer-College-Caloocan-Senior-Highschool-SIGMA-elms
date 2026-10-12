@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="../css/student.css">
+    <link rel="stylesheet" href="../css/topbar.css">
+    <link rel="stylesheet" href="../css/forms.css">
+    <link rel="stylesheet" href="../css/tailwind.css">
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/classroom-room.css">
+    <link rel="stylesheet" href="../css/topic-detail.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+</head>
+<body>
+    <script src="../js/shared-components.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            window.openQuizFormModal({
+                title: 'QZ-9301',
+                role: 'student',
+                quiz: {
+                    id: 'qz-9301',
+                    title: 'QZ-9301',
+                    questions: [
+                        {
+                            type: 'Matching Type',
+                            question: 'Match the data type in Column A with its correct description in Column B.',
+                            points: 20,
+                            pairs: [
+                                { premise: 'int', target: 'Whole numbers only' },
+                                { premise: 'float', target: 'Decimal/floating-point numbers' },
+                                { premise: 'bool', target: 'True or False value' },
+                                { premise: 'str', target: 'Sequence of characters/text' },
+                                { premise: 'extra1', target: 'Extra description 1' },
+                                { premise: 'extra2', target: 'Extra description 2' },
+                                { premise: 'extra3', target: 'Extra description 3' },
+                                { premise: 'extra4', target: 'Extra description 4' }
+                            ]
+                        }
+                    ]
+                }
+            });
+        });
+    </script>
+</body>
+</html>

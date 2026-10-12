@@ -1,0 +1,33 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const source = fs.readFileSync(path.join(root, 'js/sigma-analytics.js'), 'utf8');
+const start = source.indexOf('                pinBtn.onclick = (e) => {');
+const end = source.indexOf('\n                };', start) + '\n                };'.length;
+let pinned = false, prevented = false, stopped = false;
+const context = { pinBtn: {}, isPinned: false, isMaxPinned: false, cardId: 'fixture',
+    executePin: id => { assert.equal(id, 'fixture'); pinned = true; },
+    event: { preventDefault: () => { prevented = true; }, stopPropagation: () => { stopped = true; } } };
+vm.runInNewContext(source.slice(start, end) + '\npinBtn.onclick(event);', context);
+assert.equal(pinned, true); assert.equal(prevented, true); assert.equal(stopped, true);
+let unpinned = false;
+context.isPinned = true;
+context.isMaxPinned = true;
+context.executeUnpin = id => { assert.equal(id, 'fixture'); unpinned = true; };
+vm.runInNewContext(source.slice(start, end) + '\npinBtn.onclick(event);', context);
+assert.equal(unpinned, true, 'Unpin happens immediately even at the pin limit');
+context.isPinned = false;
+pinned = false;
+vm.runInNewContext(source.slice(start, end) + '\npinBtn.onclick(event);', context);
+assert.equal(pinned, false, 'The maximum-pinned limit still applies');
+assert.equal(source.includes('showUnpinConfirmationModal'), false);
+const css = fs.readFileSync(path.join(root, 'css/sigma-analytics.css'), 'utf8');
+assert.equal(css.includes('sigma-card-unpin-modal'), false);
+assert.match(css, /\.sigma-insight-header:hover:not\(:has\(\.sigma-card-pin-btn:hover\)\)/);
+assert.match(css, /\.sigma-insight-open:hover \{ background: transparent; \}/);
+assert.match(source, /if \(!event.target.closest\('\.sigma-card-pin-btn, \.pocket-card-pin-btn'\)\)/);
+assert.match(css, /\.sigma-insight-actions \.sigma-card-pin-btn \{ width: 44px !important; height: 44px !important; \}/);
+assert.match(css, /text-decoration: none !important;/);
+console.log('Title-area highlight and independent 44px mobile pin control passed');

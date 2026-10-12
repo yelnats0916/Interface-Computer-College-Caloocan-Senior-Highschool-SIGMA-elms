@@ -438,7 +438,7 @@
     top: 50% !important;
     transform: translate(-50%, -50%) !important;
     width: 100%;
-    max-width: 440px !important;
+    max-width: min(440px, calc(100vw - 440px)) !important;
     z-index: 10 !important;
     display: block;
     margin: 0 !important;
@@ -447,14 +447,14 @@
 @media (max-width: 1280px) {
     .header-search-container,
     .admin-topbar__inner > div.absolute.left-1\/2 {
-        max-width: 360px !important;
+        max-width: min(360px, calc(100vw - 420px)) !important;
     }
 }
 
 @media (max-width: 1024px) {
     .header-search-container,
     .admin-topbar__inner > div.absolute.left-1\/2 {
-        max-width: 280px !important;
+        max-width: min(280px, calc(100vw - 380px)) !important;
     }
 
     .has-breadcrumb,
@@ -545,6 +545,13 @@
 }
 
 /* ─── 5. Circular Action Buttons (Calendar, Notif, Profile) ────────────── */
+.admin-topbar__desktop-icons,
+.admin-topbar__inner > .flex.items-center.gap-2.pr-4 {
+    position: relative !important;
+    z-index: 20 !important;
+    flex-shrink: 0 !important;
+}
+
 .header-icon-btn {
     width: 38px;
     height: 38px;
@@ -640,6 +647,36 @@
 
 #calendar-toggle.active #calendar-date-number {
     color: #000000 !important;
+}
+
+/* ─── Calendar Page Mode Persistent Selection (Desktop & Mobile) ─── */
+body.calendar-page-mode #calendar-toggle {
+    background-color: rgba(255, 208, 0, 0.18) !important;
+}
+body.calendar-page-mode #calendar-toggle:hover {
+    background-color: rgba(255, 208, 0, 0.28) !important;
+}
+body.calendar-page-mode #calendar-toggle i {
+    color: #FFD000 !important;
+}
+body.calendar-page-mode #calendar-toggle #calendar-date-number {
+    color: #000000 !important;
+}
+body.calendar-page-mode #mobile-subbar-calendar {
+    color: #FFD000 !important;
+}
+body.calendar-page-mode #mobile-subbar-calendar i,
+body.calendar-page-mode #mobile-subbar-calendar .fa-calendar {
+    color: #FFD000 !important;
+}
+body.calendar-page-mode #mobile-subbar-calendar .mobile-subbar-date-number {
+    color: #0f172a !important;
+}
+
+/* When on the full calendar page, keep the mini calendar dropdown hidden because full calendar is already open */
+body.calendar-page-mode #calendar-dropdown,
+body.calendar-page-mode #mobile-calendar-panel {
+    display: none !important;
 }
 
 /* ─── Profile Button (Normal Neutral Grey) ──────────────────────────────── */
@@ -866,6 +903,12 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
+@media (min-width: 769px) {
+    body :is(.header-panel, #calendar-dropdown, #noti-dropdown, #profile-dropdown, #profileDropdownMenu, #sigmaAiPanel) {
+        border-bottom-left-radius: 0 !important;
+    }
+}
+
 #sigmaAiMessages {
     display: flex !important;
     flex-direction: column !important;
@@ -969,6 +1012,7 @@
 
 /* Chat Speech Bubble */
 .sigma-ai-message__bubble {
+    margin: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 13.5px !important;
     line-height: 1.55 !important;

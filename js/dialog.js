@@ -42,6 +42,7 @@
 
         // Variants let high-focus flows use an appropriately sized desktop dialog.
         if (card) card.classList.toggle('sigma-universal-ask-card--quiz-start', options.variant === 'quiz-start');
+        if (card) card.classList.toggle('sigma-universal-ask-card--grading', options.variant === 'grading');
 
         const title = options.title || 'Notice';
         const message = options.message || options.desc || '';

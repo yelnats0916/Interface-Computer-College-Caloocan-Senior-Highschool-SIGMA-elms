@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mobile Assessment Table Layout Test</title>
+    <link rel="stylesheet" href="../css/shared-components.css">
+    <link rel="stylesheet" href="../css/sigma-analytics.css">
+    <link rel="stylesheet" href="../css/mobile.css">
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+        th { background: #15803d; color: white; }
+        td { border-bottom: 1px solid rgba(0,0,0,.08); }
+        .flex { display: flex; align-items: center; }
+        .flex-col { flex-direction: column; }
+        .bg-transparent { background: transparent; }
+        .gb-detail-student-header { width: 280px; }
+        .gradebook-task-header-cell { position: relative; }
+        .gb-assessment-header-content { display: flex; flex-direction: column; justify-content: space-between; height: 58px; }
+        .gb-component-cell-button { color: inherit; }
+        .gb-summary-yellow { background: #fffbd3; }
+        .gradebook-task-cell { background: #ffefa3; }
+        .gb-student-cell p { margin: 0; }
+    </style>
+</head>
+<body>
+<section id="section-grades">
+<main class="sigma-grades-page" style="height: 900px; min-height: 900px; display: flex; flex-direction: column;">
+<div id="admin-grades-gradebook-view" style="height: 900px; flex: 1;">
+<div id="admin-gradebook-workspace-content"><div>
+<table id="admin-gradebook-spreadsheet" class="gb-detail-table" data-assessment-count="2" data-mobile-assessment-index="0">
+<thead><tr>
+    <th class="gb-detail-student-header"><div class="flex"><button class="gradebook-back-btn" title="Back to Overview">&lsaquo;</button><div><span>Written Works</span><br><span>Component (30%)</span></div></div><button class="gb-mobile-summary-toggle" onclick="window.toggleMobileAssessmentSummary(this)" aria-expanded="false"><span>Summary</span><i>&rsaquo;</i></button></th>
+    <th class="gb-thin-nav-col"><button class="gb-thin-nav-btn">&lsaquo;</button></th>
+    <th class="gradebook-task-header-cell gb-component-header gb-mobile-current-assessment"><button class="gb-component-cell-button" aria-label="Open assessment: Variable Declaration Practice"></button><div class="gb-assessment-header-content"><div class="flex"><span>Oct 01, 2026</span><span>Topic 1</span></div><span>Task 1 - Variable Declaration Practice</span><span>HPS: 100 pts</span></div></th>
+    <th class="gradebook-task-header-cell"><div class="gb-assessment-header-content"><span>Sep 30, 2026</span><span>Quiz 1 - Basic Syntax and Data Types</span><span>HPS: 55 pts</span></div></th>
+    <th class="gradebook-task-header-cell gb-empty-cell"></th><th class="gradebook-task-header-cell gb-empty-cell"></th>
+    <th class="gb-thin-nav-col"><button class="gb-thin-nav-btn">&rsaquo;</button></th>
+    <th class="gb-col-compact"><span>Total</span><br><span>155 pts</span></th><th class="gb-col-compact"><span>Score %</span></th>
+</tr></thead>
+<tbody><tr><td class="gb-student-cell"><p>Dela Cruz, Juan Abad</p></td><td class="gb-thin-nav-col"></td><td class="gradebook-task-cell gb-mobile-current-assessment">80</td><td class="gradebook-task-cell">-</td><td class="gradebook-task-cell gb-empty-cell"></td><td class="gradebook-task-cell gb-empty-cell"></td><td class="gb-thin-nav-col"></td><td class="gb-col-compact gb-summary-yellow">80</td><td class="gb-col-compact gb-summary-yellow">51.61%</td></tr></tbody>
+</table>
+</div></div>
+</div>
+</main>
+</section>
+<button type="button" id="add-test-rows" onclick="const body = document.querySelector('tbody'); for (let index = 0; index < 30; index++) body.appendChild(body.rows[0].cloneNode(true)); this.remove();">Add 30 test rows</button>
+<script src="../js/sigma-analytics.js"></script>
+</body>
+</html>

@@ -120,30 +120,7 @@ require_once __DIR__ . '/../config/app.php';
                         </div>
 
                         <!-- INLINE RECAPTCHA -->
-                        <div id="landingRecaptchaContainer" class="hidden mb-6">
-                            <div class="login-captcha-box w-full bg-white p-5 rounded-none shadow-sm flex items-center gap-5 cursor-default">
-                                <div class="relative w-8 h-8 flex items-center justify-center shrink-0">
-                                    <!-- Real hidden checkbox for state -->
-                                    <input type="checkbox" id="landingCaptchaCheck" aria-label="reCAPTCHA verification checkbox" class="absolute inset-0 opacity-0 cursor-pointer z-20">
-                                    <!-- Visual checkbox -->
-                                    <div id="landingCaptchaVisual" class="w-7 h-7 border-2 border-slate-300 rounded bg-white transition-all z-10 flex items-center justify-center">
-                                        <i class="fa-solid fa-check text-white text-sm opacity-0 transition-opacity"></i>
-                                    </div>
-                                    <!-- Loading Spinner -->
-                                    <i id="landingCaptchaSpinner" class="fa-solid fa-circle-notch fa-spin text-black text-xl absolute hidden z-30"></i>
-                                </div>
-                                <div class="flex-1 text-left -ml-2">
-                                    <span class="block text-xl font-bold text-black leading-tight">I'm not a robot</span>
-                                </div>
-                                <div class="flex flex-col items-center text-black shrink-0 gap-1.5">
-                                    <i class="fa-solid fa-rotate-right text-2xl"></i>
-                                    <div class="flex flex-col items-center">
-                                        <span class="text-[9px] font-black uppercase tracking-widest leading-none">reCAPTCHA</span>
-                                        <span class="text-[7px] font-bold text-black-fade uppercase mt-0.5">Privacy - Terms</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<div id="landingRecaptchaContainer" class="hidden mb-6"></div>
 
                         <button type="submit" id="loginSubmitBtn"
                             class="sign-in-btn w-full py-3 text-white font-bold rounded-lg transition-all duration-300 text-base lg:text-sm flex items-center justify-center gap-3">
@@ -368,30 +345,7 @@ require_once __DIR__ . '/../config/app.php';
                 </div>
 
                 <!-- INLINE RECAPTCHA (MODAL) -->
-                <div id="modalRecaptchaContainer" class="hidden mb-6">
-                    <div class="login-captcha-box w-full bg-white p-5 rounded-none shadow-sm flex items-center gap-5 cursor-default">
-                        <div class="relative w-8 h-8 flex items-center justify-center shrink-0">
-                            <!-- Real hidden checkbox for state -->
-                            <input type="checkbox" id="modalCaptchaCheck" aria-label="reCAPTCHA modal verification checkbox" class="absolute inset-0 opacity-0 cursor-pointer z-20">
-                            <!-- Visual checkbox -->
-                            <div id="modalCaptchaVisual" class="w-7 h-7 border-2 border-slate-300 rounded bg-white transition-all z-10 flex items-center justify-center">
-                                <i class="fa-solid fa-check text-white text-sm opacity-0 transition-opacity"></i>
-                            </div>
-                            <!-- Loading Spinner -->
-                            <i id="modalCaptchaSpinner" class="fa-solid fa-circle-notch fa-spin text-black text-xl absolute hidden z-30"></i>
-                        </div>
-                        <div class="flex-1 text-left -ml-2">
-                            <span class="block text-xl font-bold text-black leading-tight">I'm not a robot</span>
-                        </div>
-                        <div class="flex flex-col items-center text-black shrink-0 gap-1.5">
-                            <i class="fa-solid fa-rotate-right text-2xl"></i>
-                            <div class="flex flex-col items-center">
-                                <span class="text-[9px] font-black uppercase tracking-widest leading-none">reCAPTCHA</span>
-                                <span class="text-[7px] font-bold text-slate-400 uppercase mt-0.5">Privacy - Terms</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div id="modalRecaptchaContainer" class="hidden mb-6"></div>
                 <button type="submit" id="modalLoginSubmitBtn"
                     class="w-full bg-icc-yellow text-white font-black py-4 rounded-2xl text-lg shadow-lg shadow-icc-yellow/20 hover:bg-[#ffe047] hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-3">
                     <span class="btn-text">Sign In</span>
@@ -406,9 +360,9 @@ require_once __DIR__ . '/../config/app.php';
          ============================================================= -->
     <script src="../js/shared-components.js?v=<?= time() ?>"></script>
     <script src="../js/secure-input-guard.js?v=<?= time() ?>"></script>
+    <script src="../js/recaptcha-client.js?v=<?= time() ?>"></script>
     <script src="../js/index.js?v=<?= time() ?>"></script>
 
 </body>
 
 </html>
-

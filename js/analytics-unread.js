@@ -15,7 +15,7 @@
         function render() {
             badge.textContent = unread.size > 99 ? '99+' : String(unread.size);
             badge.classList.toggle('hidden', unread.size === 0);
-            button.setAttribute('aria-label', `SIGMA Analytics, ${unread.size} unread insights`);
+            button.setAttribute('aria-label', `SIGMA AI Insights, ${unread.size} unread insights`);
         }
         window.addEventListener('sigma:analytics-insight', event => {
             if (!event.detail || isOpen()) return;

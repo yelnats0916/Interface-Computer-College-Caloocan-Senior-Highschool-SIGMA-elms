@@ -19,13 +19,14 @@
     <link rel="stylesheet" href="css/login-critical.css?v=20261005mobileHelpNav1">
 
     <!-- CSS: Custom Stylesheet -->
-    <link rel="stylesheet" href="css/index.css?v=20261005termsScale1">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261004termsbtn1">
+    <link rel="stylesheet" href="css/index.css?v=20261012terms635">
+    <link rel="stylesheet" href="css/shared-components.css?v=20261012mobileUpload649">
 
     <!-- TAILWIND: Compiled CSS (no CDN, no production warning) -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261005mobileHelpNav1">
+    <link rel="stylesheet" href="css/mobile.css?v=20261011attendancePicker352">
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
+    <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
 
 <body class="flex flex-col bg-gray-50 overflow-x-hidden min-h-screen">
@@ -591,7 +592,7 @@
                         <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">1</div>
                         <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
                             <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Academic Integrity &amp; Authentic Authorship</h4>
-                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">All submitted assignments, laboratory exercises, research papers, quizzes, and examination answers must strictly represent your own original, authentic intellectual work. Plagiarism in any form, unauthorized collaboration during individual assessments, purchasing or copying academic deliverables, and submitting fraudulent records are grave offenses subject to disciplinary action under the ICC Senior High School Student Handbook.</p>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">All submitted assignments, laboratory exercises, research papers, quizzes, and examination answers must strictly represent your <strong>own original, authentic intellectual work</strong>. <strong>Plagiarism</strong> in any form, unauthorized collaboration during individual assessments, purchasing or copying academic deliverables, and submitting fraudulent records are grave offenses subject to disciplinary action under the ICC Senior High School Student Handbook.</p>
                         </div>
                     </div>
 
@@ -613,7 +614,7 @@
                         <div class="terms-num-badge w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10.5px] sm:text-xs shrink-0 mt-0.5">3</div>
                         <div class="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
                             <h4 class="terms-section-title font-bold text-black text-xs sm:text-sm">Account Security &amp; Google Authenticator (2FA)</h4>
-                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Your portal account, institutional Login ID, password, and Google Authenticator Two-Factor Authentication (2FA) security keys are strictly personal and non-transferable. You are accountable for all activities conducted under your credentials. Sharing account credentials, logging into another user's workstation, or attempting to bypass security authentication constitutes an institutional violation.</p>
+                            <p class="terms-section-desc text-slate-600 text-[11px] sm:text-xs leading-relaxed">Your portal account, institutional Login ID, password, and Google Authenticator Two-Factor Authentication (2FA) security keys are <strong>strictly personal and non-transferable</strong>. You are accountable for all activities conducted under your credentials. <strong>Sharing account credentials</strong>, logging into another user's workstation, or attempting to bypass security authentication constitutes an institutional violation.</p>
                         </div>
                     </div>
 
@@ -696,7 +697,7 @@
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs pt-1 sm:pt-2 px-1">
-                    <span class="text-slate-500">Read complete policy documentation:</span>
+                    <span class="text-black-fade" style="color: rgba(0, 0, 0, 0.45);">Read complete policy documentation:</span>
                     <div class="flex items-center gap-3 font-bold">
                         <a href="terms.html" target="_blank" class="text-[#15803d] hover:text-[#166534] underline inline-flex items-center gap-1">
                             <span>Full Terms of Use</span>
@@ -721,12 +722,12 @@
 
                 <!-- Agreement Checkbox -->
                 <div class="flex flex-col gap-1">
-                    <label id="termsAgreementCheckboxLabel" class="flex items-start gap-2 select-none opacity-50 cursor-not-allowed transition-opacity">
-                        <input type="checkbox" id="termsAgreementCheckbox" disabled class="w-4 h-4 mt-0.5 accent-[#15803d] rounded cursor-not-allowed shrink-0">
+                    <div id="termsAgreementCheckboxLabel" class="flex items-start gap-2 select-none transition-opacity">
+                        <input type="checkbox" id="termsAgreementCheckbox" aria-label="I agree to the Terms of Use and Privacy" disabled class="w-4 h-4 mt-0.5 accent-[#15803d] rounded cursor-not-allowed shrink-0">
                         <span class="text-[11.5px] sm:text-sm font-semibold text-slate-800 leading-snug">
-                            I have read, understood, and agree to the <span class="text-black font-bold">Terms of Use</span> and <span class="text-black font-bold">Privacy</span>.
+                            I have read, understood, and agree to the <a href="terms.html" target="_blank" rel="noopener noreferrer" class="terms-agreement-link">Terms of Use</a> and <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="terms-agreement-link">Privacy</a>.
                         </span>
-                    </label>
+                    </div>
                     <div id="termsAgreementError" class="hidden text-[11px] sm:text-xs text-rose-600 font-bold text-left ml-6">
                         Please check the agreement box before proceeding.
                     </div>
@@ -748,10 +749,12 @@
 
         </div>
     </div>
-    <script src="js/shared-components.js?v=20261005noFakeClasses1"></script>
+<script src="js/shared-components.js?v=20261012preserveUpload459"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
     <script src="js/qrcode.min.js?v=20261004qr1"></script>
-    <script src="js/index.js?v=20261005cleanFetch1"></script>
+    <script src="js/recaptcha-client.js?v=20261009securityConnection129"></script>
+    <script src="js/index.js?v=20261012checkboxOnly636"></script>
+    <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
 </body>
 
 </html>

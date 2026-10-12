@@ -1,0 +1,55 @@
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { chromium } = require('playwright');
+(async () => {
+    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    try {
+        const page = await browser.newPage();
+        await page.route('http://fixture.test/**', route => route.fulfill({ body: '<html><body></body></html>', contentType: 'text/html' }));
+        await page.goto('http://fixture.test/student.html');
+        await page.addScriptTag({ path: path.join(__dirname, '../js/shared-components.js') });
+        const results = await page.evaluate(() => {
+            const student = { id: 'test-student', name: 'Test Student', section: 'Rizal' };
+            const item = { id: 'task', title: 'Deadline Task', category: 'assignment', max: 100, maxScore: 100, itemIdx: 0, topicIdx: 0, topicItemIdx: 0, section: 'Rizal', dueDate: '2020-01-01T00:00:00Z', latePermission: false };
+            let late = false;
+            window.currentTopicState = { subjectId: 'prog', selectedSection: 'Rizal', selectedStudent: student.name, topicIdx: 0 };
+            window.getUnifiedSubjectAliases = () => ['prog'];
+            window.getCategoryDetails = () => [item];
+            window.getUnifiedSectionStudents = () => [student];
+            window.getLoggedInStudentUser = () => student;
+            window.getStudentAssessmentSubmission = () => null;
+            window.findAssessmentSubmittedWork = () => null;
+            window.getAssessmentReleaseConfig = () => ({ assessmentEndSchedules: { task: item.dueDate }, assessmentLatePermissions: { task: late } });
+            window.resolveAssessmentHPS = () => ({ points: 100 });
+            window._getTeacherGradebookCached = () => ({ scores: {}, statuses: {} });
+            const read = () => window.getEffectiveAssessmentStatusAndScore(student, 'assignment', 0, 'prog', 1, item);
+            const closed = read();
+            const zero = window.getGradebookStudentItemScore(student, 'assignment', 0, item, 'prog', 1);
+            window._studentAssessmentDetailsCache?.clear();
+            const panel = window.renderSharedAssessmentScorePanelHtml({ ass: item, subjectId: 'prog', section: 'Rizal', role: 'student' });
+            window._sharedViewSubmissionMode = true;
+            const staff = ['teacher', 'admin'].map(role => window.renderSharedAssessmentsTabHtml({ assessments: [item], activeIdx: 0, subjectId: 'prog', topicIdx: 0, section: 'Rizal', tab: 'assessments', role }));
+            late = true;
+            window._studentAssessmentDetailsCache?.clear();
+            const reopened = read();
+            const blank = window.getGradebookStudentItemScore(student, 'assignment', 0, item, 'prog', 1);
+            window._getTeacherGradebookCached = () => ({ scores: { prog: { 1: { 'sec:rizal': { 'test-student': { assignment: { 0: 42 } } } } } }, statuses: { prog: { 1: { 'sec:rizal': { 'test-student': { assignment: { 0: 'incomplete' } } } } } } });
+            const manualLate = read();
+            late = false;
+            const manualClosed = read();
+            return { closed, zero, panel, reopened, blank, staff, manualLate, manualClosed };
+        });
+        assert.equal(results.closed.score, 0);
+        assert.equal(results.closed.status, 'missing');
+        assert.equal(results.closed.isAutoMissing, true);
+        assert.equal(results.zero, 0);
+        assert.match(results.panel, /Missing/);
+        assert.equal(results.blank, null);
+        assert.equal(results.reopened.isAutoMissing, false);
+        for (const html of results.staff) assert.match(html, /Submissions Closed/);
+        assert.equal(results.manualLate.score, 42);
+        assert.equal(results.manualClosed.score, 42);
+        assert.equal(results.manualLate.status, 'incomplete');
+        console.log('PASS: expired deadline gives automatic zero/Missing; allowing late clears automatic grade and gradebook value.');
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

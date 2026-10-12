@@ -57,6 +57,12 @@ assert(
     calendarJs.includes('document.body.classList.contains(\'mobile-panel-open\')'),
     'calendar.js handleCalendarDropdownOutsideDismiss must check mobile-panel-open'
 );
+assert(
+    topbarJs.includes('document.addEventListener(\'pointerdown\', dismissTopbarOverlayFromOutside, true);') &&
+    topbarJs.includes('document.addEventListener(\'click\', dismissTopbarOverlayFromOutside, true);') &&
+    topbarJs.includes('window.closeMobileTopPanel();'),
+    'topbar.js must dismiss open icon panels from outside clicks in capture phase, including mobile top panels'
+);
 
 // 7. Verify material panels to Task Progress gap on mobile matches topic panel gap
 const topicDetailCss = fs.readFileSync(path.join(__dirname, '..', 'css', 'topic-detail.css'), 'utf8');

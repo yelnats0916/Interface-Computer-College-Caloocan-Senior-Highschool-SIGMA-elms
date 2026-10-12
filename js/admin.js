@@ -565,15 +565,17 @@ window.renderPaginationControls = function (containerId, totalItems, state, onPa
 window.onUserPageChange = function (page) {
     window.userPaginationState.currentPage = page;
     renderUserAccountsTable();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.SigmaLogPagination?.scrollToPageStart(document.getElementById('userTableBody')?.closest('table'));
 };
 window.onSectionPageChange = function (page) {
     window.sectionPaginationState.currentPage = page;
     renderSectionsTable();
+    window.SigmaLogPagination?.scrollToPageStart(document.getElementById('sectionTableBody')?.closest('table'));
 };
 window.onSubjectPageChange = function (page) {
     window.subjectPaginationState.currentPage = page;
     renderSubjectsTable();
+    window.SigmaLogPagination?.scrollToPageStart(document.getElementById('subjectTableBody')?.closest('table'));
 };
 
 
@@ -958,6 +960,7 @@ function renderUserAccountsTable() {
     }
 
     const totalItems = displayUsers.length;
+    window.userPaginationState.currentPage = Math.max(1, Math.min(window.userPaginationState.currentPage, Math.ceil(totalItems / window.userPaginationState.itemsPerPage)));
     const startIndex = (window.userPaginationState.currentPage - 1) * window.userPaginationState.itemsPerPage;
     const paginatedUsers = displayUsers.slice(startIndex, startIndex + window.userPaginationState.itemsPerPage);
 
@@ -1104,28 +1107,6 @@ function renderUserAccountsTable() {
         `;
     }).join('');
 
-    // Fill remaining rows to reach itemsPerPage (20) to keep the table height fixed
-    const itemsPerPage = window.userPaginationState.itemsPerPage;
-    const remainingRows = itemsPerPage - paginatedUsers.length;
-    if (remainingRows > 0) {
-        for (let i = 0; i < remainingRows; i++) {
-            const rowIndex = paginatedUsers.length + i;
-            const stripeBg = rowIndex % 2 === 1 ? 'bg-slate-50/60' : '';
-            const emptyRow = `
-                <tr class="border-transparent ${stripeBg}">
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-6 py-4 text-left"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-6 py-4 text-left"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-sm">&nbsp;</div></td>
-                </tr>
-            `;
-            tableBody.innerHTML += emptyRow;
-        }
-    }
 
     renderPaginationControls('user-pagination-container', totalItems, window.userPaginationState, 'onUserPageChange');
 }
@@ -1232,6 +1213,482 @@ window.toggleSectionActionDropdown = function (index, event) {
         }
     }
 };
+
+window.toggleAttendanceActionDropdown = function (index, event) {
+    if (event) event.stopPropagation();
+    const menuId = `attendance-action-menu-${index}`;
+    const btnId = `attendance-dots-btn-${index}`;
+    const menu = document.getElementById(menuId);
+    const btn = document.getElementById(btnId);
+
+    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
+        if (m.id !== menuId) {
+            m.classList.remove('show');
+            m.classList.remove('dropup');
+        }
+    });
+    document.querySelectorAll('.action-dots-btn').forEach(b => {
+        if (b.id !== btnId) b.classList.remove('active');
+    });
+
+    if (menu && btn) {
+        const isShowing = menu.classList.contains('show');
+        if (!isShowing) {
+            menu.classList.add('show');
+            btn.classList.add('active');
+            if (typeof window.positionActionDropdown === 'function') {
+                window.positionActionDropdown(menu, btn);
+            }
+        } else {
+            menu.classList.remove('show');
+            menu.classList.remove('dropup');
+            btn.classList.remove('active');
+        }
+    }
+};
+
+window.viewAttendanceDetails = function (sectionName) {
+    if (typeof window.showToastNotification === 'function') {
+        window.showToastNotification(`Viewing attendance roster for ${sectionName}`, 'info');
+    }
+};
+
+window.exportAttendanceSheet = function (sectionName) {
+    if (typeof window.showToastNotification === 'function') {
+        window.showToastNotification(`Exporting attendance sheet for ${sectionName}...`, 'success');
+    }
+};
+
+// =========================================================================
+// ATTENDANCE REPORT WORKSTATION (Dynamic Date Filter: Today / Week / Month)
+// =========================================================================
+function getAttendanceTodayDateKey() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getAttendanceDateFilterConfig(range) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    if (range === 'today') {
+        return {
+            isMatch: (dateKey) => dateKey === todayStr,
+            scale: 1,
+            label: 'Today',
+            cardPresent: 'Present Today',
+            cardAbsent: 'Absent Today',
+            cardLate: 'Late Today',
+            thPresent: 'Present',
+            thAbsent: 'Absent',
+            thLate: 'Late',
+            emptyText: 'No Matching Attendance Records Found for Today'
+        };
+    }
+
+    if (range === 'week') {
+        const dayOfWeek = now.getDay();
+        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMon);
+        monday.setHours(0, 0, 0, 0);
+
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+
+        return {
+            isMatch: (dateKey) => {
+                const dt = new Date(dateKey + 'T00:00:00');
+                return dt >= monday && dt <= sunday;
+            },
+            scale: 5,
+            label: 'This Week',
+            cardPresent: 'Present (Week)',
+            cardAbsent: 'Absent (Week)',
+            cardLate: 'Late (Week)',
+            thPresent: 'Present',
+            thAbsent: 'Absent',
+            thLate: 'Late',
+            emptyText: 'No Matching Attendance Records Found for This Week'
+        };
+    }
+
+    if (range === 'last_month') {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lmY = lastMonth.getFullYear();
+        const lmM = String(lastMonth.getMonth() + 1).padStart(2, '0');
+        const prefix = `${lmY}-${lmM}`;
+
+        return {
+            isMatch: (dateKey) => String(dateKey || '').startsWith(prefix),
+            scale: 21,
+            label: 'Last Month',
+            cardPresent: 'Total Present',
+            cardAbsent: 'Total Absent',
+            cardLate: 'Total Late',
+            thPresent: 'Present',
+            thAbsent: 'Absent',
+            thLate: 'Late',
+            emptyText: 'No Matching Attendance Records Found for Last Month'
+        };
+    }
+
+    // Default: month (This Month)
+    const currentMonthPrefix = `${y}-${m}`;
+    return {
+        isMatch: (dateKey) => String(dateKey || '').startsWith(currentMonthPrefix),
+        scale: 20,
+        label: 'This Month',
+        cardPresent: 'Total Present',
+        cardAbsent: 'Total Absent',
+        cardLate: 'Total Late',
+        thPresent: 'Present',
+        thAbsent: 'Absent',
+        thLate: 'Late',
+        emptyText: 'No Matching Attendance Records Found for This Month'
+    };
+}
+
+const DEFAULT_ATTENDANCE_REPORT_ITEMS = [
+    { id: 1, section: 'Grade 11 - Einstein', sectionName: 'Einstein', gradeLevel: 'Grade 11', subject: 'Statistics and Probability', teacher: 'Jose Cruz Dela Pena', enrolled: 40, present: 38, absent: 1, late: 1 },
+    { id: 2, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Oral Communication', teacher: 'Maria Santos Ramos', enrolled: 44, present: 41, absent: 2, late: 1 },
+    { id: 3, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Empowerment Technologies', teacher: 'Jose Cruz Dela Pena', enrolled: 42, present: 39, absent: 2, late: 1 },
+    { id: 4, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Computer Programming 1', teacher: 'Maria Santos Ramos', enrolled: 45, present: 42, absent: 2, late: 1 },
+    { id: 5, section: 'Grade 12 - Newton', sectionName: 'Newton', gradeLevel: 'Grade 12', subject: 'General Mathematics', teacher: 'Jose Cruz Dela Pena', enrolled: 38, present: 35, absent: 2, late: 1 }
+];
+
+window.getAttendanceReportRows = function (dateRange) {
+    const range = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
+    const config = getAttendanceDateFilterConfig(range);
+
+    let records = {};
+    try {
+        records = JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}');
+    } catch (e) {
+        records = {};
+    }
+
+    return DEFAULT_ATTENDANCE_REPORT_ITEMS.map((item) => {
+        const cleanSec = String(item.section || '').trim();
+        const baseSec = cleanSec.replace(/^Grade\s*\d+\s*[-–]?\s*/i, '').trim();
+        const cleanSubj = String(item.subject || '').trim();
+        const slugSubj = cleanSubj.replace(/\s+/g, '-');
+
+        const candidateKeys = [
+            `${cleanSec}::${cleanSubj}`,
+            `${baseSec}::${cleanSubj}`,
+            `${cleanSec}::${slugSubj}`,
+            `${baseSec}::${slugSubj}`,
+            `Grade 11 - ${baseSec}::${cleanSubj}`
+        ];
+
+        let liveDays = [];
+        for (const k of candidateKeys) {
+            if (records[k]) {
+                const dates = Object.keys(records[k]).filter(d => config.isMatch(d) && records[k][d]?.statuses);
+                if (dates.length > 0) {
+                    liveDays = dates.map(d => records[k][d].statuses);
+                    break;
+                }
+            }
+        }
+
+        if (liveDays.length === 0) {
+            const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+            const norm = (s) => String(s || '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+            const targetBaseSec = stripGrade(cleanSec);
+            const targetSubj = norm(cleanSubj);
+
+            for (const k of Object.keys(records)) {
+                if (!k.includes('::')) continue;
+                const [kSec, kSubj] = k.split('::').map(x => x.trim());
+                if ((norm(kSec) === norm(cleanSec) || stripGrade(kSec) === targetBaseSec) && norm(kSubj) === targetSubj) {
+                    const dates = Object.keys(records[k]).filter(d => config.isMatch(d) && records[k][d]?.statuses);
+                    if (dates.length > 0) {
+                        liveDays = dates.map(d => records[k][d].statuses);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (liveDays.length > 0) {
+            let presentCount = 0;
+            let absentCount = 0;
+            let lateCount = 0;
+            let maxStudents = 0;
+
+            liveDays.forEach(dayStatuses => {
+                const dayStudentCount = Object.keys(dayStatuses).length;
+                if (dayStudentCount > maxStudents) maxStudents = dayStudentCount;
+
+                Object.values(dayStatuses).forEach(val => {
+                    const s = String(val || '').toLowerCase();
+                    if (s === 'present') presentCount++;
+                    else if (s === 'absent') absentCount++;
+                    else if (s === 'late') lateCount++;
+                });
+            });
+
+            const totalRecorded = presentCount + absentCount + lateCount;
+            const enrolled = Math.max(item.enrolled, maxStudents);
+            const rate = totalRecorded > 0 ? ((presentCount / totalRecorded) * 100).toFixed(1) + '%' : '100.0%';
+            return {
+                ...item,
+                enrolled,
+                present: presentCount,
+                absent: absentCount,
+                late: lateCount,
+                rate
+            };
+        }
+
+        const scale = config.scale || 1;
+        const present = item.present * scale;
+        const absent = item.absent * scale;
+        const late = item.late * scale;
+        const total = present + absent + late;
+        const rate = total > 0 ? ((present / total) * 100).toFixed(1) + '%' : '0.0%';
+
+        return {
+            ...item,
+            present,
+            absent,
+            late,
+            rate
+        };
+    });
+};
+
+window.getAttendanceReportRowsForToday = function () {
+    return window.getAttendanceReportRows('today');
+};
+
+window.updateAttendanceReportMetrics = function (currentRows, dateRange) {
+    const range = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
+    const config = getAttendanceDateFilterConfig(range);
+    const rows = currentRows || window.getAttendanceReportRows(range);
+
+    let totalPresent = 0;
+    let totalAbsent = 0;
+    let totalLate = 0;
+
+    rows.forEach(r => {
+        totalPresent += Number(r.present || 0);
+        totalAbsent += Number(r.absent || 0);
+        totalLate += Number(r.late || 0);
+    });
+
+    const totalStudents = totalPresent + totalAbsent + totalLate;
+    const overallRate = totalStudents > 0
+        ? ((totalPresent / totalStudents) * 100).toFixed(1) + '%'
+        : '0.0%';
+
+    const presentEl = document.getElementById('metric-attendance-present');
+    const presentSpotlight = document.getElementById('metric-attendance-present-spotlight');
+    const absentEl = document.getElementById('metric-attendance-absent');
+    const absentSpotlight = document.getElementById('metric-attendance-absent-spotlight');
+    const lateEl = document.getElementById('metric-attendance-late');
+    const lateSpotlight = document.getElementById('metric-attendance-late-spotlight');
+    const rateEl = document.getElementById('metric-attendance-rate');
+    const rateSpotlight = document.getElementById('metric-attendance-rate-spotlight');
+
+    if (presentEl) presentEl.textContent = totalPresent.toLocaleString();
+    if (presentSpotlight) presentSpotlight.textContent = totalPresent.toLocaleString();
+    if (absentEl) absentEl.textContent = totalAbsent.toLocaleString();
+    if (absentSpotlight) absentSpotlight.textContent = totalAbsent.toLocaleString();
+    if (lateEl) lateEl.textContent = totalLate.toLocaleString();
+    if (lateSpotlight) lateSpotlight.textContent = totalLate.toLocaleString();
+    if (rateEl) rateEl.textContent = overallRate;
+    if (rateSpotlight) rateSpotlight.textContent = overallRate;
+
+    // Update Card Labels dynamically
+    const pLabel = document.getElementById('metric-attendance-present-label');
+    const pSpotlightLabel = document.getElementById('metric-attendance-present-spotlight-label');
+    const aLabel = document.getElementById('metric-attendance-absent-label');
+    const aSpotlightLabel = document.getElementById('metric-attendance-absent-spotlight-label');
+    const lLabel = document.getElementById('metric-attendance-late-label');
+    const lSpotlightLabel = document.getElementById('metric-attendance-late-spotlight-label');
+
+    if (pLabel) pLabel.textContent = config.cardPresent;
+    if (pSpotlightLabel) pSpotlightLabel.textContent = config.cardPresent;
+    if (aLabel) aLabel.textContent = config.cardAbsent;
+    if (aSpotlightLabel) aSpotlightLabel.textContent = config.cardAbsent;
+    if (lLabel) lLabel.textContent = config.cardLate;
+    if (lSpotlightLabel) lSpotlightLabel.textContent = config.cardLate;
+
+    // Update Table Header text dynamically
+    const thP = document.getElementById('th-attendance-present');
+    const thA = document.getElementById('th-attendance-absent');
+    const thL = document.getElementById('th-attendance-late');
+    if (thP) { thP.textContent = config.thPresent; thP.title = config.cardPresent || config.thPresent; }
+    if (thA) { thA.textContent = config.thAbsent; thA.title = config.cardAbsent || config.thAbsent; }
+    if (thL) { thL.textContent = config.thLate; thL.title = config.cardLate || config.thLate; }
+};
+
+window.attendancePaginationState = { currentPage: 1, itemsPerPage: 20 };
+window.onAttendancePageChange = function (page) {
+    window.attendancePaginationState.currentPage = page;
+    window.applyAttendanceSearch(false);
+    window.SigmaLogPagination?.scrollToPageStart(document.getElementById('attendanceReportTableBody')?.closest('table'));
+};
+window.setAttendanceDisplayLimit = function (value) {
+    const limit = Number(value);
+    if (![5, 10, 20, 50, 100].includes(limit)) return;
+    window.attendancePaginationState.itemsPerPage = limit;
+    window.applyAttendanceSearch();
+};
+window.renderAttendanceReportTable = function (filteredRows, dateRange) {
+    const tbody = document.getElementById('attendanceReportTableBody');
+    if (!tbody) return;
+    const range = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
+    const config = getAttendanceDateFilterConfig(range);
+    const rows = filteredRows || window.getAttendanceReportRows(range);
+    const state = window.attendancePaginationState;
+    state.currentPage = Math.max(1, Math.min(state.currentPage, Math.ceil(rows.length / state.itemsPerPage) || 1));
+    const start = (state.currentPage - 1) * state.itemsPerPage;
+    const pageRows = rows.slice(start, start + state.itemsPerPage);
+    if (typeof window.renderPaginationControls === 'function') {
+        window.renderPaginationControls('attendance-pagination-container', rows.length, state, 'onAttendancePageChange');
+    }
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="py-24 text-center">
+                    <div class="flex flex-col items-center justify-center space-y-3">
+                        <i class="fa-solid fa-clipboard-user text-5xl text-black-fade"></i>
+                        <p class="text-sm font-semibold text-black font-['Inter']">${config.emptyText}</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        window.updateAttendanceReportMetrics([], range);
+        return;
+    }
+
+    tbody.innerHTML = pageRows.map((row, idx) => {
+        const rowStripe = idx % 2 === 1 ? 'bg-slate-50/60' : '';
+        const rowId = row.id || (idx + 1);
+        return `
+            <tr class="transition-colors ${rowStripe} hover:bg-slate-50/80">
+                <td class="px-3 py-4 text-center">
+                    <div class="text-[13px] font-bold text-black text-center font-['Inter']">${row.sectionName || row.section}</div>
+                    <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">${row.gradeLevel || (String(row.section).includes('12') ? 'Grade 12' : 'Grade 11')}</div>
+                </td>
+                <td class="px-3 py-4 text-center">
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${row.subject}</div>
+                </td>
+                <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
+                    <div class="flex items-center justify-start gap-2.5 text-left">
+                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
+                            <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
+                        </div>
+                        <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
+                            ${row.teacher}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${row.enrolled}</div>
+                </td>
+                <td class="px-2 py-4 text-center">
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.present).toLocaleString()}</div>
+                </td>
+                <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.absent).toLocaleString()}</div>
+                </td>
+                <td class="px-2 py-4 text-center">
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.late).toLocaleString()}</div>
+                </td>
+                <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
+                    <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">${row.rate}</div>
+                </td>
+                <td class="px-2 py-4 text-center">
+                    <div class="flex justify-center">
+                        <div class="action-dropdown-container">
+                            <button type="button" onclick="window.toggleAttendanceActionDropdown(rowId, event)"
+                                id="attendance-dots-btn-${rowId}"
+                                class="action-dots-btn cursor-pointer" 
+                                title="Actions">
+                                <i class="fa-solid fa-ellipsis"></i>
+                            </button>
+                            <div id="attendance-action-menu-${rowId}" class="action-dropdown-menu">
+                                <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('${row.section}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                    <i class="fa-solid fa-eye"></i>
+                                    <span>View Details</span>
+                                </button>
+                                <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${row.section}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                    <i class="fa-solid fa-file-export"></i>
+                                    <span>Export Sheet</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    window.updateAttendanceReportMetrics(rows, range);
+};
+
+window.applyAttendanceSearch = function (resetPage = true) {
+    if (resetPage) window.attendancePaginationState.currentPage = 1;
+    const queryInput = document.getElementById('attendance-search-query');
+    const sectionSelect = document.getElementById('attendance-filter-section');
+    const dateSelect = document.getElementById('attendance-filter-date');
+    const query = String(queryInput?.value || '').trim().toLowerCase();
+    const sectionFilter = String(sectionSelect?.value || '').trim().toLowerCase();
+    const dateRange = String(dateSelect?.value || 'today').trim();
+
+    const allRows = window.getAttendanceReportRows(dateRange);
+    const filtered = allRows.filter(r => {
+        const matchesQuery = !query ||
+            String(r.section || '').toLowerCase().includes(query) ||
+            String(r.sectionName || '').toLowerCase().includes(query) ||
+            String(r.gradeLevel || '').toLowerCase().includes(query) ||
+            String(r.subject || '').toLowerCase().includes(query) ||
+            String(r.teacher || '').toLowerCase().includes(query);
+
+        let matchesSection = true;
+        if (sectionFilter) {
+            const cleanFilter = sectionFilter.replace(/[^a-z0-9]/gi, '').toLowerCase();
+            const cleanSec = String(r.section || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+            const cleanName = String(r.sectionName || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+            matchesSection = cleanSec.includes(cleanFilter) || cleanFilter.includes(cleanName) || cleanName.includes(cleanFilter);
+        }
+
+        return matchesQuery && matchesSection;
+    });
+
+    window.renderAttendanceReportTable(filtered, dateRange);
+};
+
+window.renderAttendanceReport = function () {
+    window.applyAttendanceSearch();
+};
+
+// Auto-initialize if attendance report table is present in DOM
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('attendanceReportTableBody') && typeof window.renderAttendanceReport === 'function') {
+            window.renderAttendanceReport();
+        }
+    });
+} else {
+    if (document.getElementById('attendanceReportTableBody') && typeof window.renderAttendanceReport === 'function') {
+        window.renderAttendanceReport();
+    }
+}
+
 
 window.toggleSubjectActionDropdown = function (index, event) {
     if (event) event.stopPropagation();
@@ -2173,6 +2630,15 @@ window.resetUser2FA = function (userId) {
 };
 
 // Global click listener to close action dropdowns
+document.addEventListener('pointerdown', (e) => {
+    document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
+        const container = menu.closest('.action-dropdown-container');
+        if (container?.contains(e.target)) return;
+        menu.classList.remove('show', 'dropup');
+        container?.querySelector('.action-dots-btn')?.classList.remove('active');
+    });
+}, true);
+
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.action-dropdown-container')) {
         document.querySelectorAll('.action-dropdown-menu').forEach(m => {
@@ -2703,6 +3169,7 @@ window.closeUserEditView = function () {
 
 // Add listener for the top Edit button to open edit view
 document.addEventListener('DOMContentLoaded', () => {
+    window.loadAiPageData?.(); // init AI badges
     const editBtn = document.getElementById('top-edit-btn');
     if (editBtn) {
         editBtn.addEventListener('click', () => {
@@ -3108,47 +3575,43 @@ window.saveSettings = function () {
     }, 1000);
 };
 
-window.saveSecuritySettings = function () {
-    const btn = document.getElementById('security-save-btn');
-    const icon = btn?.querySelector('i');
-    if (btn) btn.disabled = true;
-    if (icon) {
-        icon.classList.remove('hidden');
-        icon.style.display = 'inline-block';
+let securitySettingsSaveTimer;
+window.scheduleSecuritySettingsSave = function () {
+    clearTimeout(securitySettingsSaveTimer);
+    const value = Number(document.getElementById('password-lockout-attempts')?.value);
+    const status = document.getElementById('security-save-status');
+    if (!Number.isInteger(value) || value < 1 || value > 50) {
+        if (status) status.textContent = 'Enter a limit from 1 to 50.';
+        return;
     }
-
-    const loginIdInput = document.getElementById('login-id-attempts');
+    if (status) status.textContent = 'Saving...';
+    securitySettingsSaveTimer = setTimeout(() => window.saveSecuritySettings(), 500);
+};
+window.saveSecuritySettings = function () {
+    const status = document.getElementById('security-save-status');
     const passwordInput = document.getElementById('password-lockout-attempts');
-    const maintenanceToggle = document.getElementById('settings-maintenance-toggle');
-    const maintenanceMsgInput = document.getElementById('settings-maintenance-message');
-
-    if (loginIdInput && passwordInput) {
+    const attempts = Number(passwordInput?.value);
+    if (!Number.isInteger(attempts) || attempts < 1 || attempts > 50) {
+        window.showToast?.('Enter a limit from 1 to 50.', 'error');
+        return;
+    }
+    const previous = getStoredJson('sigma-login-security-config', {});
+    try {
         const config = {
-            loginIdAttempts: parseInt(loginIdInput.value) || 3,
-            passwordAttempts: parseInt(passwordInput.value) || 8
+            ...previous,
+            passwordAttempts: attempts
         };
         localStorage.setItem('sigma-login-security-config', JSON.stringify(config));
+        if (status) status.textContent = 'Saved';
+    } catch (error) {
+        if (passwordInput) passwordInput.value = previous.passwordAttempts || 8;
+        if (status) status.textContent = 'Could not save. Changes reverted.';
+        window.showToast?.('Could not save account lockout settings.', 'error');
     }
-
-    if (typeof window.setMaintenanceConfig === 'function' && typeof window.canCurrentAdminManageMaintenance === 'function' && window.canCurrentAdminManageMaintenance()) {
-        const payload = {};
-        if (maintenanceToggle) payload.enabled = Boolean(maintenanceToggle.checked);
-        if (maintenanceMsgInput) payload.message = maintenanceMsgInput.value.trim();
-        window.setMaintenanceConfig(payload);
-    }
-
-    setTimeout(() => {
-        if (btn) btn.disabled = false;
-        if (icon) icon.style.display = 'none';
-        if (typeof window.updateAdminAccessLockdownUI === 'function') {
-            window.updateAdminAccessLockdownUI();
-        }
-        if (typeof window.showToast === 'function') window.showToast('Security settings saved successfully!');
-        else alert('Security settings saved successfully!');
-    }, 800);
 };
 
 window.loadLoginSecuritySettings = function () {
+    window.loadRecaptchaPageData?.();
     const raw = localStorage.getItem('sigma-login-security-config');
     if (raw) {
         try {
@@ -3156,7 +3619,7 @@ window.loadLoginSecuritySettings = function () {
             const loginIdInput = document.getElementById('login-id-attempts');
             const passwordInput = document.getElementById('password-lockout-attempts');
             if (loginIdInput) loginIdInput.value = config.loginIdAttempts;
-            if (passwordInput) passwordInput.value = config.passwordAttempts;
+            if (passwordInput && Number.isInteger(config.passwordAttempts)) passwordInput.value = config.passwordAttempts;
         } catch (e) {}
     }
 
@@ -3165,7 +3628,12 @@ window.loadLoginSecuritySettings = function () {
         const maintenanceToggle = document.getElementById('settings-maintenance-toggle');
         const maintenanceMsgInput = document.getElementById('settings-maintenance-message');
         if (maintenanceToggle) maintenanceToggle.checked = Boolean(mConfig.enabled);
-        if (maintenanceMsgInput && !maintenanceMsgInput.value) maintenanceMsgInput.value = mConfig.message || '';
+        if (maintenanceMsgInput && !maintenanceMsgInput.dataset.noticeLoaded) {
+            const saved = getStoredJson('sigma_maintenance_mode', {});
+            const defaultNotice = 'System Maintenance in Progress / Pre-enrollment Period. The portal is currently restricted while Admins configure curriculum and sections.';
+            maintenanceMsgInput.value = saved.message && saved.message !== defaultNotice ? saved.message : '';
+            maintenanceMsgInput.dataset.noticeLoaded = 'true';
+        }
     }
 
     if (typeof window.updateAdminAccessLockdownUI === 'function') {
@@ -3499,10 +3967,13 @@ document.addEventListener('DOMContentLoaded', () => {
         'nav-school-sections': 'school-sections-view',
         'nav-announcements': 'announcements-view',
         'nav-settings-security': 'settings-security-view',
+        'nav-settings-recovery': 'settings-recovery-view',
         'nav-settings-branding': 'settings-branding-view',
         'nav-settings-integrations': 'settings-integrations-view',
+        'nav-settings-ai': 'settings-ai-view',
         'nav-settings-gdrive': 'settings-gdrive-view',
         'nav-settings-recaptcha': 'settings-recaptcha-view',
+        'nav-settings-limits': 'settings-limits-view',
         'nav-settings-preference': 'settings-branding-view',
         'nav-settings-storage': 'settings-integrations-view',
         'nav-settings-api': 'settings-integrations-view',
@@ -3512,6 +3983,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'nav-audit-ai': 'audit-ai-view',
         'nav-audit-activity': 'audit-activity-view',
         'nav-audit-auth': 'audit-auth-view',
+        'nav-audit-notifications': 'audit-notifications-view',
+        'nav-audit-removed': 'settings-recovery-view',
+        'nav-attendance': 'section-attendance',
+        'attendance': 'section-attendance',
+        'nav-calendar': 'section-attendance',
+        'calendar': 'section-attendance',
 
     };
 
@@ -3701,7 +4178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncHeaderToggleState();
 
 
-    const WELCOME_MSG = `Hello, <strong>User!</strong> I'm <span class="font-black">SIGMA</span>, your system AI. What do you need today?`;
+    const WELCOME_MSG = window.getSigmaWelcomeMessage();
 
     let isDragging = false;
     let startX = 0;
@@ -3781,25 +4258,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.sigma-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            addAiMessage(chip.textContent.trim(), true);
-            setTimeout(() => addAiMessage('Full AI integration coming soon!', false), 600);
+            window.sendSigmaChatMessage?.(chip.textContent.trim());
         });
     });
 
     // ─── Calendar Dropdown Logic delegated to unified js/calendar.js ───
 
     function sendAiMessage() {
-        if (sigmaAiWaiting) return;
-        const v = sigmaAiInput?.value.trim();
-        if (!v) return;
-        addAiMessage(v, true);
-        sigmaAiInput.value = '';
-        sigmaAiInput.style.height = 'auto';
-        setSigmaAiWaiting(true);
-        setTimeout(() => {
-            addAiMessage('Wireframe mode — Gemini AI coming next semester.', false);
-            setSigmaAiWaiting(false);
-        }, 600);
+        return window.sendSigmaChatMessage?.();
     }
 
     if (sigmaAiSendBtn) sigmaAiSendBtn.addEventListener('click', sendAiMessage);
@@ -3822,10 +4288,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isFirstVisit) {
         sessionStorage.setItem('sigmaFirstVisit', 'true');
-        setTimeout(() => {
-            // openAiPanel(); // Disabled auto-open on login
-            addAiMessage(WELCOME_MSG, false);
-        }, 900);
+        addAiMessage(WELCOME_MSG, false);
     } else {
         addAiMessage(WELCOME_MSG, false);
     }
@@ -3859,7 +4322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'settings': {
             button: settingsBtn, submenu: settingsSubmenu, chevron: settingsChevron,
             title: 'System Settings',
-            childIds: ['nav-settings-security', 'nav-settings-branding', 'nav-settings-integrations']
+            childIds: ['nav-settings-security', 'nav-settings-branding', 'nav-settings-integrations', 'nav-settings-recovery']
         },
     };
 
@@ -4166,18 +4629,22 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'audit-ai-view':
                 return perms.auditMain !== false && perms.auditAi !== false;
             case 'audit-activity-view':
+            case 'audit-notifications-view':
                 return perms.auditMain !== false && perms.auditActivity !== false;
             case 'audit-auth-view':
                 return perms.auditMain !== false && perms.auditAuth !== false;
             case 'settings-view':
                 return perms.settingsMain !== false;
             case 'settings-security-view':
+            case 'settings-recovery-view':
                 return perms.settingsMain !== false && perms.settingsSecurity !== false;
             case 'settings-branding-view':
                 return perms.settingsMain !== false && perms.settingsBranding !== false;
             case 'settings-integrations-view':
             case 'settings-gdrive-view':
             case 'settings-recaptcha-view':
+            case 'settings-limits-view':
+            case 'settings-ai-view':
                 return perms.settingsMain !== false && perms.settingsApi !== false;
             case 'users-view':
                 return perms.manageAdmins !== false || perms.manageTeachers !== false || perms.manageStudents !== false;
@@ -4189,6 +4656,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.showSection = function (sectionId, navId) {
         window.invalidateSigmaViewCaches?.();
         if (sectionId !== 'settings-integrations-view' && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.showSection(sectionId, navId))) return;
+        if (sectionId !== 'settings-limits-view' && window.confirmAdvancedLimitsLeave && !window.confirmAdvancedLimitsLeave(() => window.showSection(sectionId, navId))) return;
         if (typeof window.canAccessAdminSection === 'function' && !window.canAccessAdminSection(sectionId)) {
             sectionId = 'dashboard-view';
             navId = 'nav-dashboard';
@@ -4239,6 +4707,30 @@ document.addEventListener('DOMContentLoaded', () => {
             targetSection.classList.remove('hidden');
         }
 
+        if (sectionId === 'section-attendance' || navId === 'nav-attendance' || navId === 'attendance' || navId === 'calendar' || navId === 'nav-calendar') {
+            document.body.classList.add('calendar-page-mode');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('Calendar');
+            } else if (headerBrandTitle) {
+                headerBrandTitle.textContent = 'Calendar';
+            }
+            if (typeof window.setupAttendanceCalendar === 'function') {
+                window.setupAttendanceCalendar();
+            }
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+        } else {
+            document.body.classList.remove('calendar-page-mode');
+            window._preserveCalendarDateOnNextOpen = false;
+            if (typeof window.resetCalendarDropdown === 'function') {
+                window.resetCalendarDropdown();
+            }
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+        }
+
         if (sectionId === 'user-profile-view') {
             if (typeof window.closeMobileAccountPanel === 'function') {
                 window.closeMobileAccountPanel();
@@ -4277,9 +4769,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (sectionId === 'settings-recaptcha-view') {
+                if (sectionId === 'settings-integrations-view' && typeof window.loadAiPageData === 'function') {
+            window.loadAiPageData();
+        }
+        if (sectionId === 'settings-ai-view') {
             if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+                window.setPortalHeader('System Settings', 'SIGMA AI Integration Engines');
             } else {
                 const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
                 if (topbarLabel) {
@@ -4287,7 +4782,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     topbarLabel.innerHTML = `
                         <div class="breadcrumb-line-group">
                             <span class="breadcrumb-subject">System Settings</span>
-                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                <span class="breadcrumb-topic">SIGMA AI Integration Engines</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.loadAiPageData === 'function') {
+                window.loadAiPageData();
+            }
+        }
+
+        if (sectionId === 'settings-recaptcha-view') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA Protection');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                <span class="breadcrumb-topic">Google reCAPTCHA Protection</span>
                         </div>
                     `;
                 }
@@ -4337,7 +4852,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (sectionId === 'settings-recaptcha-view' || navId === 'nav-settings-recaptcha') {
             if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA Protection');
             } else {
                 const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
                 if (topbarLabel) {
@@ -4345,7 +4860,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     topbarLabel.innerHTML = `
                         <div class="breadcrumb-line-group">
                             <span class="breadcrumb-subject">System Settings</span>
-                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                <span class="breadcrumb-topic">Google reCAPTCHA Protection</span>
+                        </div>
+                    `;
+                }
+            }
+        } else if (sectionId === 'settings-limits-view' || navId === 'nav-settings-limits') {
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'File Upload Size Limits');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject cursor-pointer" onclick="window.switchTab('nav-settings-integrations')">System Settings</span>
+                            <span class="breadcrumb-topic">File Upload Size Limits</span>
                         </div>
                     `;
                 }
@@ -4357,6 +4887,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.renderSettingsView === 'function') {
                 window.renderSettingsView('user-settings-view', 'notifications');
             }
+        } else if (sectionId === 'settings-recovery-view') {
+            window.setPortalHeader?.('System Settings', 'Record Recovery');
         } else if (sectionId === 'settings-view' || (navId && navId.startsWith('nav-settings'))) {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('System Settings');
@@ -4369,6 +4901,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('School Management', 'Section Details');
             }
+        } else if (['audit-ai-view', 'audit-activity-view', 'audit-auth-view', 'audit-notifications-view'].includes(sectionId)) {
+            const auditTitle = {
+                'audit-ai-view': 'AI Logs',
+                'audit-activity-view': 'Activity Logs',
+                'audit-auth-view': 'Authentication Logs',
+                'audit-notifications-view': 'Notification Logs',
+            }[sectionId];
+            window.setPortalHeader?.('Audit Logs', auditTitle);
         } else if (sectionId === 'section-topic-content' || sectionId === 'section-topic-detail') {
             // Do not override breadcrumb header for topic workstation/materials/submissions or topic detail
         } else if (navId === 'nav-dashboard' || !navId) {
@@ -4385,6 +4925,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        if (sectionId === 'settings-recovery-view') window.renderRecordRecovery?.();
+        if (sectionId === 'audit-activity-view') window.renderRecordLifecycleEvents?.();
         if (sectionId === 'announcements-view') {
             renderAnnouncementActivePosts();
         }
@@ -4415,6 +4957,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        if (sectionId === 'reports-attendance-view') {
+            if (typeof window.renderAttendanceReport === 'function') {
+                window.renderAttendanceReport();
+            }
+        }
+
         if (sectionId === 'logs-view') {
             const logsContainer = document.getElementById('logs-terminal');
             if (logsContainer) {
@@ -4432,6 +4980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.switchTab = function (rawTabId, skipHashUpdate = false) {
         const tabId = String(rawTabId || '').replace(/^#/, '').replace(/_/g, '-');
         if (!['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api'].includes(tabId) && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
+        if (!['nav-settings-limits', 'settings-limits-view', 'settings-limits', 'nav-settings-limits-view'].includes(tabId) && window.confirmAdvancedLimitsLeave && !window.confirmAdvancedLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
         if (tabId && !tabId.includes('profile') && !tabId.includes('edit-user')) {
             window._lastActiveNavTab = tabId;
         }
@@ -4441,6 +4990,30 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (tabId === 'nav-grades' || tabId === 'grades' || tabId === 'nav-school-grades' || tabId === 'school-grades' || tabId === 'nav-reports-gradebooks' || tabId === 'nav-gradebooks' || tabId === 'nav-reports-performance' || tabId === 'nav-analytics') sectionId = 'school-grades-view';
         else if (tabId === 'nav-school-profile') sectionId = 'school-profile-view';
         else if (tabId === 'nav-school-year') sectionId = 'school-year-view';
+        else if (tabId === 'nav-attendance' || tabId === 'attendance' || tabId === 'nav-calendar' || tabId === 'calendar' || tabId === 'section-attendance') {
+            sectionId = 'section-attendance';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection('section-attendance', 'nav-attendance');
+            document.body.classList.add('calendar-page-mode');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('Calendar');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black';
+                    topbarLabel.textContent = 'Calendar';
+                }
+            }
+            if (typeof window.setupAttendanceCalendar === 'function') {
+                window.setupAttendanceCalendar();
+            }
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+            if (!skipHashUpdate) window.location.hash = 'nav-attendance';
+            return;
+        }
         else if (tabId.startsWith('topic:') || tabId.startsWith('nav-topic:')) {
             const cleanTabId = tabId.startsWith('nav-') ? tabId.replace(/^nav-/, '') : tabId;
             const subjId = decodeURIComponent(cleanTabId.split(':')[1] || '');
@@ -4521,13 +5094,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skipHashUpdate) window.location.hash = 'settings-gdrive-view';
             return;
         }
-        else if (tabId === 'nav-settings-recaptcha' || tabId === 'settings-recaptcha-view' || tabId === 'settings-recaptcha' || tabId === 'nav-settings-recaptcha-view') {
-            sectionId = 'settings-recaptcha-view';
+                else if (tabId === 'nav-settings-ai' || tabId === 'settings-ai-view' || tabId === 'settings-ai' || tabId === 'nav-settings-ai-view' || tabId === 'nav-settings-gemini' || tabId === 'settings-gemini-view' || tabId === 'nav-settings-groq' || tabId === 'settings-groq-view') {
+            sectionId = 'settings-ai-view';
             hideHeaderOverlays();
             hideSubSidebarOverlay();
-            window.showSection('settings-recaptcha-view', 'nav-settings-integrations');
+            window.showSection('settings-ai-view', 'nav-settings-integrations');
             if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader('System Settings', 'Google reCAPTCHA');
+                window.setPortalHeader('System Settings', 'SIGMA AI Integration Engines');
             } else {
                 const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
                 if (topbarLabel) {
@@ -4535,7 +5108,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     topbarLabel.innerHTML = `
                         <div class="breadcrumb-line-group">
                             <span class="breadcrumb-subject">System Settings</span>
-                            <span class="breadcrumb-topic">Google reCAPTCHA</span>
+                <span class="breadcrumb-topic">SIGMA AI Integration Engines</span>
+                        </div>
+                    `;
+                }
+            }
+            if (!skipHashUpdate) window.location.hash = 'settings-ai-view';
+            return;
+        }
+        else if (tabId === 'nav-settings-recaptcha' || tabId === 'settings-recaptcha-view' || tabId === 'settings-recaptcha' || tabId === 'nav-settings-recaptcha-view') {
+            sectionId = 'settings-recaptcha-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection('settings-recaptcha-view', 'nav-settings-integrations');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'Google reCAPTCHA Protection');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject">System Settings</span>
+                <span class="breadcrumb-topic">Google reCAPTCHA Protection</span>
                         </div>
                     `;
                 }
@@ -4544,8 +5139,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skipHashUpdate) window.location.hash = 'settings-recaptcha-view';
             return;
         }
+        else if (tabId === 'nav-settings-limits' || tabId === 'settings-limits-view' || tabId === 'settings-limits' || tabId === 'nav-settings-limits-view') {
+            sectionId = 'settings-limits-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection('settings-limits-view', 'nav-settings-integrations');
+            if (typeof window.setPortalHeader === 'function') {
+                window.setPortalHeader('System Settings', 'File Upload Size Limits');
+            } else {
+                const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+                if (topbarLabel) {
+                    topbarLabel.className = 'admin-topbar__brand-label text-black has-breadcrumb';
+                    topbarLabel.innerHTML = `
+                        <div class="breadcrumb-line-group">
+                            <span class="breadcrumb-subject cursor-pointer" onclick="window.switchTab('nav-settings-integrations')">System Settings</span>
+                            <span class="breadcrumb-topic">File Upload Size Limits</span>
+                        </div>
+                    `;
+                }
+            }
+            if (typeof window.initAdvancedLimitsPage === 'function') window.initAdvancedLimitsPage();
+            if (!skipHashUpdate) {
+                if (window.location.hash !== '#settings-limits-view') {
+                    window.location.hash = 'settings-limits-view';
+                }
+            }
+            return;
+        }
         else if (tabId === 'nav-audit-logs' || tabId === 'audit-logs' || tabId === 'nav-audit-ai' || tabId === 'audit-ai-view') {
             sectionId = 'audit-ai-view';
+            if (!skipHashUpdate) window.closeAiUserDetails?.();
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
@@ -4560,12 +5183,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!skipHashUpdate) window.location.hash = 'nav-audit-activity';
             return;
         }
+        else if (tabId === 'nav-audit-notifications' || tabId === 'audit-notifications-view') {
+            sectionId = 'audit-notifications-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection(sectionId, 'nav-audit-logs');
+            window.renderNotificationLogs?.();
+            if (!skipHashUpdate) window.location.hash = 'nav-audit-notifications';
+            return;
+        }
         else if (tabId === 'nav-audit-auth' || tabId === 'audit-auth-view') {
             sectionId = 'audit-auth-view';
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
             if (!skipHashUpdate) window.location.hash = 'nav-audit-auth';
+            return;
+        }
+        else if (['nav-settings-recovery', 'settings-recovery-view', 'settings-recovery', 'nav-audit-removed', 'audit-removed-view'].includes(tabId)) {
+            sectionId = 'settings-recovery-view';
+            hideHeaderOverlays();
+            hideSubSidebarOverlay();
+            window.showSection(sectionId, 'nav-settings-recovery');
+            if (['nav-audit-removed', 'audit-removed-view'].includes(tabId)) window.history.replaceState({ tab: 'nav-settings-recovery' }, '', '#nav-settings-recovery');
+            else if (!skipHashUpdate) window.location.hash = 'nav-settings-recovery';
             return;
         }
         else sectionId = tabId.replace('nav-', '') + '-view';
@@ -4939,119 +5580,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- BRANDING LOGO SYNC ---
-    const brandingLogos = [
-        { inputId: 'login-logo-input', previewId: 'login-logo-preview', storageKey: 'sigma-custom-login-logo', cancelId: 'login-logo-cancel' },
-        { inputId: 'login-bar-logo-input', previewId: 'login-bar-logo-preview', storageKey: 'sigma-custom-login-bar-logo', cancelId: 'login-bar-logo-cancel' },
-        { inputId: 'nav-logo-input', previewId: 'nav-logo-preview', storageKey: 'sigma-custom-nav-logo', cancelId: 'nav-logo-cancel' }
-    ];
-
-    brandingLogos.forEach(logo => {
-        const input = document.getElementById(logo.inputId);
-        const preview = document.getElementById(logo.previewId);
-
-        // Load existing
-        const saved = localStorage.getItem(logo.storageKey);
-        if (saved) {
-            if (preview) {
-                preview.src = saved;
-            }
-
-            // Apply to live instances
-            if (logo.storageKey === 'sigma-custom-nav-logo') {
-                const navLogos = document.querySelectorAll('header img[alt="ICC Logo"], .sidebar img[alt="ICC Logo"]');
-                navLogos.forEach(img => img.src = saved);
-            }
-        }
-
-        if (input) {
-            input.addEventListener('change', (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const img = new Image();
-                    img.onload = () => {
-                        // Compress/Downscale image to keep localStorage healthy
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800; // Sufficient for any logo
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        const compressedUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        if (preview) {
-                            preview.src = compressedUrl;
-                            const cancelBtn = document.getElementById(logo.cancelId);
-                            if (cancelBtn) cancelBtn.classList.remove('hidden');
-                        }
-                    };
-                    img.src = reader.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-    });
-
-    window.saveBrandingSettings = () => {
-        const btn = document.getElementById('branding-save-btn');
-        const icon = btn?.querySelector('i');
-        if (btn) btn.disabled = true;
-        if (icon) {
-            icon.classList.remove('hidden');
-            icon.style.display = 'inline-block';
-        }
-
-        try {
-            brandingLogos.forEach(logo => {
-                const preview = document.getElementById(logo.previewId);
-                if (preview) {
-                    if (preview.src.startsWith('data:')) {
-                        // Save new upload
-                        localStorage.setItem(logo.storageKey, preview.src);
-                    } else if (preview.src.includes('image/ICC logo.jpg')) {
-                        // Reverted to default, remove from storage
-                        localStorage.removeItem(logo.storageKey);
-                    }
-                    // If it's the existing saved URL, we just leave it as is
-
-                    // Live update for the current page (Dashboard Navbar)
-                    if (logo.storageKey === 'sigma-custom-nav-logo') {
-                        const saved = localStorage.getItem(logo.storageKey);
-                        const currentSrc = saved || 'image/ICC logo.jpg';
-                        const navLogos = document.querySelectorAll('header img[alt="ICC Logo"], .sidebar img[alt="ICC Logo"]');
-                        navLogos.forEach(img => img.src = currentSrc);
-                    }
-                }
-            });
-        } catch (err) {
-            console.error('Branding Save Error:', err);
-            alert('Failed to save branding. The image might be too large.');
-        } finally {
-            setTimeout(() => {
-                if (btn) btn.disabled = false;
-                if (icon) icon.style.display = 'none';
-                if (window.showToast) window.showToast('Branding settings saved successfully');
-                else alert('Branding settings saved successfully');
-            }, 800);
-        }
-    };
 
     const profilePictureInput = document.getElementById('profile-picture-input');
     if (profilePictureInput) {
         profilePictureInput.addEventListener('change', (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
+
+            const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB limit
+            if (file.size > MAX_IMAGE_SIZE) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('School profile image exceeds the 10MB limit.', 'error');
+                } else {
+                    alert('School profile image exceeds the 10MB limit.');
+                }
+                profilePictureInput.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = () => {
@@ -5110,6 +5655,17 @@ document.addEventListener('DOMContentLoaded', () => {
         userProfilePictureInput.addEventListener('change', (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
+
+            const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10MB standard limit
+            if (file.size > MAX_AVATAR_SIZE) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Profile picture exceeds the 10MB limit.', 'error');
+                } else {
+                    alert('Profile picture exceeds the 10MB limit.');
+                }
+                userProfilePictureInput.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = () => {
@@ -6729,8 +7285,7 @@ let schoolYearPaginationState = { currentPage: 1, itemsPerPage: 20 };
 window.onSchoolYearPageChange = function (page) {
     schoolYearPaginationState.currentPage = page;
     renderSchoolYearTable();
-    const adminMain = document.getElementById('admin-main');
-    if (adminMain) adminMain.scrollTop = 0;
+    window.SigmaLogPagination?.scrollToPageStart(document.getElementById('schoolYearTableBody')?.closest('table'));
 };
 
 const defaultSchoolYearRecords = [];
@@ -7690,8 +8245,7 @@ window.checkQuarterEndReminders = function () {
                         read: false
                     };
 
-                    existingNotifs.unshift(newNotif);
-                    localStorage.setItem(storageKey, JSON.stringify(existingNotifs));
+                    window.SigmaNotifications?.sendToRole('admin', { ...newNotif, type: 'quarter-reminder' });
 
                     if (window.dispatchEvent) {
                         window.dispatchEvent(new Event('storage'));
@@ -7922,6 +8476,7 @@ const renderSchoolYearTable = () => {
     }
 
     const totalItems = allQuarters.length;
+    schoolYearPaginationState.currentPage = Math.max(1, Math.min(schoolYearPaginationState.currentPage, Math.ceil(totalItems / schoolYearPaginationState.itemsPerPage)));
     const startIndex = (schoolYearPaginationState.currentPage - 1) * schoolYearPaginationState.itemsPerPage;
     const paginatedQuarters = allQuarters.slice(startIndex, startIndex + schoolYearPaginationState.itemsPerPage);
 
@@ -7981,28 +8536,6 @@ const renderSchoolYearTable = () => {
 
     tableBody.innerHTML = html;
 
-    // Fill remaining rows to reach itemsPerPage (20) to keep the table height fixed
-    const syItemsPerPage = schoolYearPaginationState.itemsPerPage;
-    const syRemainingRows = syItemsPerPage - paginatedQuarters.length;
-    if (syRemainingRows > 0) {
-        for (let i = 0; i < syRemainingRows; i++) {
-            const rowIndex = paginatedQuarters.length + i;
-            const stripeBg = rowIndex % 2 === 1 ? 'bg-slate-50/60' : '';
-            const emptyRow = `
-                <tr class="border-transparent ${stripeBg}">
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center border-r border-slate-200"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center border-r border-slate-200"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                </tr>
-            `;
-            tableBody.innerHTML += emptyRow;
-        }
-    }
 
     renderPaginationControls('school-year-pagination-container', totalItems, schoolYearPaginationState, 'onSchoolYearPageChange');
     renderSchoolYearSummaryBar();
@@ -10028,13 +10561,13 @@ window.renderScheduleSubpage = function () {
                     <span class="text-sm font-bold ${isActive ? (dayConflict ? 'text-rose-700' : 'text-black') : 'text-black-fade'}">${escapeHtml(item.fullDay)}</span>
                 </div>
 
-                <!-- Native Browser Hours Pickers -->
+                <!-- Shared Hours Pickers -->
                 <div class="flex items-center gap-3 flex-1 w-full sm:w-auto">
                     <div class="flex items-center gap-2">
                         <!-- Start Time Input Box -->
                         <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
                             <input type="time" value="${item.startTime || ''}"
-                                ${!isActive ? 'disabled' : ''}                                oninput="window.handleScheduleDayTimeChange('${item.day}', 'start', this.value, this)"
+                                ${!isActive ? 'disabled' : ''}
                                 onchange="window.handleScheduleDayTimeChange('${item.day}', 'start', this.value, this)"
                                 style="color-scheme: light;"
                                 class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
@@ -10045,7 +10578,7 @@ window.renderScheduleSubpage = function () {
                         <!-- End Time Input Box -->
                         <div class="time-input-box relative flex items-center ${!isActive ? 'bg-black/[0.03] border border-black/10 opacity-50 pointer-events-none' : (dayConflict ? 'bg-white border border-rose-300' : 'bg-white border border-slate-200 hover:border-slate-300')} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-[170px] sm:w-[195px] shrink-0 cursor-text">
                             <input type="time" value="${item.endTime || ''}"
-                                ${!isActive ? 'disabled' : ''}                                oninput="window.handleScheduleDayTimeChange('${item.day}', 'end', this.value, this)"
+                                ${!isActive ? 'disabled' : ''}
                                 onchange="window.handleScheduleDayTimeChange('${item.day}', 'end', this.value, this)"
                                 style="color-scheme: light;"
                                 class="w-full h-full bg-transparent text-xs font-semibold ${dayConflict ? 'text-rose-700' : 'text-black'} outline-none border-none p-0 font-['Inter']" />
@@ -10067,6 +10600,7 @@ window.renderScheduleSubpage = function () {
         </div>
     `;
     window.validateSubpageScheduleRoomConflict();
+    window.SigmaDateTimeInputs?.scan(listContainer);
 };
 
 function formatSectionTime12(t) {
@@ -10098,156 +10632,22 @@ function parseSectionTime24(t) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-let _adminSharedTimePickerCloseCallback = null;
-
-window.openSharedAdminTimePickerPopover = function ({ anchorElement, initialTime, onChange, onClose }) {
-    let popover = document.getElementById('admin-schedule-time-dial-popover');
-    if (!popover) {
-        popover = document.createElement('div');
-        popover.id = 'admin-schedule-time-dial-popover';
-        popover.style.cssText = 'position: fixed; z-index: 999999; width: 194px; background: #ffffff; border-radius: 0; border: 1px solid #cbd5e1; padding: 0.55rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); display: none; flex-direction: column; align-items: center;';
-        popover.innerHTML = `
-            <div id="admin-schedule-time-dial-mount" style="width: 100%; display: flex; justify-content: center;"></div>
-            <button type="button" onclick="window.closeSharedAdminTimePickerPopover(event)" 
-                style="margin-top: 0.35rem; width: 100%; padding: 0.32rem 0.5rem; background: #f1f5f9; color: #000000; font-size: 11px; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; transition: all 0.15s ease;"
-                onmouseenter="this.style.backgroundColor='#e2e8f0'"
-                onmouseleave="this.style.backgroundColor='#f1f5f9'">
-                Done
-            </button>
-        `;
-        popover.addEventListener('click', (e) => e.stopPropagation());
-        document.body.appendChild(popover);
-
-        window.addEventListener('click', () => {
-            const p = document.getElementById('admin-schedule-time-dial-popover');
-            if (p && p.style.display !== 'none') {
-                window.closeSharedAdminTimePickerPopover();
-            }
-        });
-    }
-
-    _adminSharedTimePickerCloseCallback = onClose || null;
-
-    // Toggle: if this popover is already open and the same icon is clicked, close it
-    const iconBtn = anchorElement?.querySelector('button') || (anchorElement?.tagName === 'BUTTON' ? anchorElement : null);
-    const isAlreadyOpen = popover.style.display !== 'none' && iconBtn?.dataset?.active === 'true';
-    if (isAlreadyOpen) {
-        window.closeSharedAdminTimePickerPopover();
-        return;
-    }
-
-    // Reset previous active buttons & mark current trigger button active
-    document.querySelectorAll('[data-admin-time-btn="true"]').forEach(b => {
-        b.dataset.active = 'false';
-        b.style.backgroundColor = 'transparent';
-        b.style.color = 'rgba(0, 0, 0, 0.45)';
-    });
-    if (iconBtn) {
-        iconBtn.dataset.adminTimeBtn = 'true';
-        iconBtn.dataset.active = 'true';
-        iconBtn.style.backgroundColor = '#e2e8f0';
-        iconBtn.style.color = '#000000';
-    }
-
-    // Position popover right below anchorElement, right-aligned
-    popover.style.display = 'flex';
-    const rect = anchorElement.getBoundingClientRect();
-    const popoverHeight = popover.offsetHeight || 215;
-    let top = Math.round(rect.bottom - 1);
-    let left = Math.round(rect.right - 194); // stick to the right edge
-    if (left < 10) left = 10;
-    if (left + 194 > window.innerWidth - 10) {
-        left = window.innerWidth - 204;
-    }
-    if (top + popoverHeight > window.innerHeight - 8 && rect.top > popoverHeight + 8) {
-        top = Math.round(rect.top - popoverHeight + 1);
-    }
-    popover.style.top = `${top}px`;
-    popover.style.left = `${left}px`;
-
-    const mount = document.getElementById('admin-schedule-time-dial-mount');
-    if (mount && typeof window.createCircularTimePicker === 'function') {
-        mount.innerHTML = '';
-        window._adminSharedTimePickerInstance = window.createCircularTimePicker(mount, {
-            initialTime: (initialTime && initialTime !== '--:-- --') ? initialTime : null,
-            onChange: onChange
-        });
-    }
+window.closeSharedAdminTimePickerPopover = function (event) {
+    event?.stopPropagation();
+    window.SigmaDateTimeInputs?.close();
 };
 
-window.closeSharedAdminTimePickerPopover = function (e) {
-    if (e) e.stopPropagation();
-    const popover = document.getElementById('admin-schedule-time-dial-popover');
-    if (popover) popover.style.display = 'none';
-
-    document.querySelectorAll('[data-admin-time-btn="true"]').forEach(b => {
-        b.dataset.active = 'false';
-        b.style.backgroundColor = 'transparent';
-        b.style.color = 'rgba(0, 0, 0, 0.45)';
-    });
-
-    if (window._adminSharedTimePickerInstance?.unselect) {
-        window._adminSharedTimePickerInstance.unselect();
-    }
-    if (typeof _adminSharedTimePickerCloseCallback === 'function') {
-        const cb = _adminSharedTimePickerCloseCallback;
-        _adminSharedTimePickerCloseCallback = null;
-        cb();
-    }
+window.openScheduleDayTimePicker = function (event, day, type) {
+    event?.stopPropagation();
+    const trigger = event?.currentTarget || event?.target;
+    const container = trigger?.closest('.time-input-box') || trigger?.closest('.relative');
+    window.SigmaDateTimeInputs?.open(container?.querySelector('input[type="time"]'));
 };
 
-window.openScheduleDayTimePicker = function (e, day, type) {
-    if (e) e.stopPropagation();
-    const item = window.stagedSectionDailySchedule?.find(d => d.day === day);
-    if (!item) return;
-
-    const currentVal24 = type === 'start' ? (item.startTime || '09:00') : (item.endTime || '10:30');
-    const triggerBtn = e.currentTarget || e.target;
-    const container = triggerBtn.closest('.relative') || triggerBtn.parentElement;
-
-    window.openSharedAdminTimePickerPopover({
-        anchorElement: container,
-        initialTime: currentVal24,
-        onChange: (t) => {
-            if (type === 'start') {
-                item.startTime = t.time24;
-                if (item.endTime && item.endTime <= t.time24) {
-                    const [h, m] = t.time24.split(':').map(Number);
-                    let nextH = Math.min(23, h + 1);
-                    let nextM = nextH === 23 ? 59 : m;
-                    item.endTime = `${String(nextH).padStart(2, '0')}:${String(nextM).padStart(2, '0')}`;
-                }
-            } else {
-                item.endTime = t.time24;
-            }
-            const input = container.querySelector('input');
-            if (input) input.value = `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')} ${t.period.toUpperCase()}`;
-            window.validateSubpageScheduleRoomConflict?.();
-        },
-        onClose: () => {
-            window.renderScheduleSubpage();
-        }
-    });
-};
-
-window.openMasterScheduleTimePicker = function (e, type) {
-    if (e) e.stopPropagation();
+window.openMasterScheduleTimePicker = function (event, type) {
+    event?.stopPropagation();
     const input = document.getElementById(type === 'start' ? 'subpage-master-start-time' : 'subpage-master-end-time');
-    const container = input ? input.closest('.relative') : (e.currentTarget || e.target).parentElement;
-    const rawVal = input?.value || (type === 'start' ? '09:00' : '10:30');
-    const init24 = parseSectionTime24(rawVal) || (type === 'start' ? '09:00' : '10:30');
-
-    window.openSharedAdminTimePickerPopover({
-        anchorElement: container,
-        initialTime: init24,
-        onChange: (t) => {
-            if (input) {
-                input.value = `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')} ${t.period.toUpperCase()}`;
-                input.dataset.time24 = t.time24;
-            }
-        },
-        onClose: () => {}
-    });
+    window.SigmaDateTimeInputs?.open(input);
 };
 
 window.handleScheduleDayTextInput = function (day, type, value) {
@@ -12432,6 +12832,14 @@ window.openAdminClassroomTopics = function () {
 };
 
 window.returnToRoomFromTopic = function (subjId) {
+    const topicState = window.currentTopicState || {};
+    const subjectId = subjId || topicState.subjectId;
+    const section = topicState.selectedSection;
+    if (subjectId && section) {
+        const { subject } = getAdminTopicSubjectAndData(subjectId, subjectId, section);
+        window.viewSection(section, subject?.name || subjectId, 'topics');
+        return;
+    }
     if (window.currentAdminClassroomSection) {
         window.viewSection(
             window.currentAdminClassroomSection.id || window.currentAdminClassroomSection.name,
@@ -12630,43 +13038,8 @@ window.openTopicContent = function (subjectId, topicIdx = 0, tab = 'videos', sub
 };
 window.switchToTopicContent = window.openTopicContent;
 
-window.navigateToAssessmentFromGradebook = function (category, index, customSubject = '', customSection = '') {
-    if (typeof window.keepGradebookForAssessmentOpen === 'function') {
-        window.keepGradebookForAssessmentOpen();
-    }
-    const subSec = window.sigmaGradesState?.selectedSubjectSection;
-    let subjectId = customSubject || subSec?.subject || '';
-    let section = customSection || subSec?.sectionName || '';
-    const currentQ = window.sigmaGradesState?.activeQuarter || 1;
-
-    const getCatFn = (typeof window.getCategoryDetails === 'function') ? window.getCategoryDetails : null;
-    let items = getCatFn ? (getCatFn(category, currentQ, subjectId, section) || []) : [];
-    let item = items.find(it => Number(it.itemIdx) === Number(index)) || items[index];
-    if (!item && getCatFn) {
-        const wwItems = getCatFn('ww', currentQ, subjectId, section) || [];
-        item = wwItems[index] || wwItems.find(it => it.itemIdx === index || it.id === index);
-    }
-    if (!item && getCatFn) {
-        const ptItems = getCatFn('pt', currentQ, subjectId, section) || [];
-        item = ptItems[index] || ptItems.find(it => it.itemIdx === index || it.id === index);
-    }
-    if (!item && getCatFn) {
-        const qaItems = getCatFn('qa', currentQ, subjectId, section) || [];
-        item = qaItems[index] || qaItems.find(it => it.itemIdx === index || it.id === index);
-    }
-
-    const topicIdx = (item && item.topicIdx !== undefined) ? item.topicIdx : 0;
-    const itemIdx = (item && item.topicItemIdx !== undefined) ? item.topicItemIdx : index;
-    const actualSubjId = (item && item.subjectId) ? item.subjectId : subjectId;
-
-    if (typeof window.openTopicContent === 'function') {
-        window.openTopicContent(actualSubjId, topicIdx, 'assessments', itemIdx, true, {
-            selectedSection: section,
-            viewSubmission: true,
-            _studentViewSubmissionMode: true,
-            _sharedViewSubmissionMode: true
-        });
-    }
+window.navigateToAssessmentFromGradebook = function (...args) {
+    return window.openGradebookAssessment(...args);
 };
 
 window.renderAdminTopicContentWorkstation = function () {
@@ -12711,7 +13084,7 @@ window.renderAdminTopicContentWorkstation = function () {
     const isVideoDetail = (currentTabKey === 'videos' && effItemIdx !== null && effItemIdx !== undefined && !Number.isNaN(Number(effItemIdx)) && Boolean(videos[effItemIdx]));
     const isHandoutDetail = (currentTabKey === 'handouts' && effItemIdx !== null && effItemIdx !== undefined && !Number.isNaN(Number(effItemIdx)) && Boolean(handouts[effItemIdx]));
     const isAssessmentDetail = (['assessments', 'assignments', 'quiz', 'activity', 'performance'].includes(currentTabKey) && effItemIdx !== null && effItemIdx !== undefined && !Number.isNaN(Number(effItemIdx)) && Boolean(assessments[effItemIdx]));
-    const isDetailView = isVideoDetail || isHandoutDetail || isAssessmentDetail || Boolean(window._studentSubmissionMode || window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
+        const isDetailView = isVideoDetail || isHandoutDetail || isAssessmentDetail;
 
     const isViewSubmission = Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
     if (typeof window.setTopicHeaderBreadcrumb === 'function') {
@@ -12870,6 +13243,7 @@ window.renderAdminTopicContentWorkstation = function () {
             </div>
         </div>
     `;
+    window.relocateAssessmentPrimaryAction?.(page);
 };
 
 window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) {
@@ -12912,9 +13286,11 @@ window.switchTopicTab = function (tab, itemIdx = null, preserveSubMode = false) 
     const isSubMode = Boolean(preserveSubMode && (window._studentViewSubmissionMode || window._sharedViewSubmissionMode));
     const subSuffix = isSubMode ? ':submission' : '';
     const itmPart = (effItemIdx !== null && effItemIdx !== undefined && !Number.isNaN(effItemIdx)) ? effItemIdx : '';
-    const hash = `#topic-content:${encodeURIComponent(subjectId || '')}:${Number(topicIdx || 0)}:${normalizedTab}:${itmPart}${subSuffix}`;
+    const selectedSection = window.currentTopicState.selectedSection || '';
+    const secPart = selectedSection ? `:${encodeURIComponent(selectedSection)}` : '';
+    const hash = `#topic-content:${encodeURIComponent(subjectId || '')}:${Number(topicIdx || 0)}:${normalizedTab}:${itmPart}${secPart}${subSuffix}`;
     if (window.location.hash !== hash) {
-        history.pushState({ type: 'admin-topic-content', subjectId, topicIdx, tab: normalizedTab, subIdx: effItemIdx, viewSubmission: isSubMode }, '', hash);
+        history.pushState({ type: 'admin-topic-content', subjectId, topicIdx, tab: normalizedTab, subIdx: effItemIdx, section: selectedSection, viewSubmission: isSubMode }, '', hash);
     }
 
     if (typeof window.renderAdminTopicContentWorkstation === 'function') {
@@ -13674,6 +14050,7 @@ window.toggleSectionExitButton = function (show = true) {
 };
 
 window.openSectionSubpage = function (subpageType, isChangeMode = false) {
+    window.SigmaDateTimeInputs?.close();
     window.toggleSectionExitButton(false);
     const currentSubject = (document.getElementById('edit-section-subject')?.value || window.stagedSectionSubject || '').trim();
     const isSubjectSet = !!currentSubject;
@@ -13952,6 +14329,7 @@ window.confirmSectionSubpage = function () {
 };
 
 window.closeSectionSubpage = function () {
+    window.SigmaDateTimeInputs?.close();
     window.activeSectionSubpage = null;
     window.teacherSubpageReplaceIndex = null;
     const headerContainer = document.getElementById('section-modal-header-container');
@@ -14348,20 +14726,20 @@ window.removeSectionTeacherIndex = function (index) {
     window.renderAssignSectionOverview();
 };
 
-const SECTION_STEP_CHECK_SVG = `<svg class="w-3 h-3 text-white" style="width:12px;height:12px;display:block;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.75L6.5 10.75L12.5 4.75"/></svg>`;
+const SECTION_STEP_CHECK_SVG = `<svg class="w-2.5 h-2.5 text-white" style="width:8.5px;height:8.5px;display:block;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.75L6.5 10.75L12.5 4.75"/></svg>`;
 
 function setSectionStepBadgeState(el, state, stepNum) {
     if (!el) return;
     if (state === 'completed') {
-        el.className = 'w-6 h-6 rounded-full bg-[#15803d] text-white flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
+        el.className = 'w-5 h-5 rounded-full bg-[#15803d] text-white flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
         el.style.backgroundColor = '#15803d';
         el.innerHTML = SECTION_STEP_CHECK_SVG;
     } else if (state === 'locked') {
-        el.className = 'w-6 h-6 rounded-full bg-black/10 text-black/40 text-xs font-bold flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
+        el.className = 'w-5 h-5 rounded-full bg-black/10 text-black/40 text-[11px] font-bold flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
         el.style.backgroundColor = '';
         el.textContent = String(stepNum);
     } else {
-        el.className = 'w-6 h-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
+        el.className = 'w-5 h-5 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
         el.style.backgroundColor = '';
         el.textContent = String(stepNum);
     }
@@ -14372,6 +14750,7 @@ window.renderAssignSectionOverview = function () {
     const subjectDisplay = document.getElementById('section-assigned-subject-display');
     const studentsDisplay = document.getElementById('section-assigned-students-display');
     const studentsCountEl = document.getElementById('section-assigned-students-count');
+    const teacherCountEl = document.getElementById('section-assigned-teachers-count');
 
     // 0. Update Section Context Banner
     const nameVal = document.getElementById('edit-section-name')?.value.trim() || '—';
@@ -14419,9 +14798,9 @@ window.renderAssignSectionOverview = function () {
         assignSubjectHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
         assignSubjectHeaderBtn.removeAttribute('title');
         if (isSubjectSet) {
-            assignSubjectHeaderBtn.innerHTML = `<i class="fa-solid fa-book text-base text-[#15803d]"></i> <span id="section-assign-subject-btn-text">Change Subject</span>`;
+            assignSubjectHeaderBtn.innerHTML = `<span id="section-assign-subject-btn-text">Change Subject</span>`;
         } else {
-            assignSubjectHeaderBtn.innerHTML = `<i class="fa-solid fa-book-medical text-base text-[#15803d]"></i> <span id="section-assign-subject-btn-text">Assign Subject</span>`;
+            assignSubjectHeaderBtn.innerHTML = `<span id="section-assign-subject-btn-text">Assign Subject</span>`;
         }
     }
 
@@ -14486,7 +14865,7 @@ window.renderAssignSectionOverview = function () {
                 setSectionStepBadgeState(scheduleStepNum, 'completed', 2);
             }
             if (assignScheduleHeaderBtn) {
-                assignScheduleHeaderBtn.innerHTML = `<i class="fa-solid fa-calendar-days text-base text-[#15803d]"></i> <span id="section-assign-schedule-btn-text">Change Schedule</span>`;
+                assignScheduleHeaderBtn.innerHTML = `<span id="section-assign-schedule-btn-text">Change Schedule</span>`;
             }
             if (scheduleBadge) {
                 if (conflicts.length > 0) {
@@ -14548,7 +14927,7 @@ window.renderAssignSectionOverview = function () {
                 setSectionStepBadgeState(scheduleStepNum, 'active', 2);
             }
             if (assignScheduleHeaderBtn) {
-                assignScheduleHeaderBtn.innerHTML = `<i class="fa-solid fa-calendar-days text-base text-[#15803d]"></i> <span id="section-assign-schedule-btn-text">Assign Schedule</span>`;
+                assignScheduleHeaderBtn.innerHTML = `<span id="section-assign-schedule-btn-text">Assign Schedule</span>`;
             }
             if (scheduleBadge) scheduleBadge.textContent = '';
             if (scheduleDisplay) scheduleDisplay.innerHTML = '';
@@ -14563,6 +14942,10 @@ window.renderAssignSectionOverview = function () {
     const teacherSubtitle = document.getElementById('section-teacher-subtitle');
     const hasTeachers = teachersList.length > 0;
 
+    if (teacherCountEl) {
+        teacherCountEl.textContent = teachersList.length >= 2 ? `(${teachersList.length})` : '';
+    }
+
     if (!isScheduleSet) {
         // Schedule is not yet set
         if (hasTeachers) {
@@ -14570,11 +14953,13 @@ window.renderAssignSectionOverview = function () {
             if (teacherHeaderRow) teacherHeaderRow.className = 'flex items-center justify-between pb-2 border-b-2 border-black transition-colors gap-3';
             if (teacherTitle) teacherTitle.className = 'text-base sm:text-[17px] font-bold text-black font-[\'Inter\'] tracking-tight transition-colors';
             if (teacherSubtitle) teacherSubtitle.setAttribute('style', 'color: rgba(0,0,0,0.45);');
+            if (teacherCountEl) teacherCountEl.setAttribute('style', 'color: rgba(0,0,0,0.45);');
             setSectionStepBadgeState(teacherStepNum, 'completed', 3);
         } else {
             if (teacherHeaderRow) teacherHeaderRow.className = 'flex items-center justify-between pb-2 border-b border-black/10 transition-colors gap-3';
             if (teacherTitle) teacherTitle.className = 'text-base sm:text-[17px] font-bold text-black/35 font-[\'Inter\'] tracking-tight transition-colors';
             if (teacherSubtitle) teacherSubtitle.setAttribute('style', 'color: rgba(0,0,0,0.25);');
+            if (teacherCountEl) teacherCountEl.setAttribute('style', 'color: rgba(0,0,0,0.25);');
             setSectionStepBadgeState(teacherStepNum, 'locked', 3);
         }
 
@@ -14590,6 +14975,7 @@ window.renderAssignSectionOverview = function () {
         if (teacherHeaderRow) teacherHeaderRow.className = 'flex items-center justify-between pb-2 border-b-2 border-black transition-colors gap-3';
         if (teacherTitle) teacherTitle.className = 'text-base sm:text-[17px] font-bold text-black font-[\'Inter\'] tracking-tight transition-colors';
         if (teacherSubtitle) teacherSubtitle.setAttribute('style', 'color: rgba(0,0,0,0.45);');
+        if (teacherCountEl) teacherCountEl.setAttribute('style', 'color: rgba(0,0,0,0.45);');
         if (hasTeachers) {
             setSectionStepBadgeState(teacherStepNum, 'completed', 3);
         } else {
@@ -14597,15 +14983,20 @@ window.renderAssignSectionOverview = function () {
         }
 
         if (assignTeacherHeaderBtn) {
-            assignTeacherHeaderBtn.classList.remove('hidden', 'opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-            assignTeacherHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
+            assignTeacherHeaderBtn.classList.remove('hidden', 'opacity-40');
             assignTeacherHeaderBtn.removeAttribute('title');
             if (teachersList.length >= 2) {
-                assignTeacherHeaderBtn.innerHTML = `<i class="fa-solid fa-users text-base text-[#15803d]"></i> <span id="section-assign-teacher-btn-text">Teachers (${teachersList.length})</span>`;
-            } else if (hasTeachers) {
-                assignTeacherHeaderBtn.innerHTML = `<i class="fa-solid fa-user-plus text-base text-[#15803d]"></i> <span id="section-assign-teacher-btn-text">Add Teacher</span>`;
+                assignTeacherHeaderBtn.classList.remove('hover:text-[#FFD000]', 'cursor-pointer', 'opacity-40', 'cursor-not-allowed');
+                assignTeacherHeaderBtn.classList.add('cursor-default', 'pointer-events-none');
+                assignTeacherHeaderBtn.innerHTML = `<span id="section-assign-teacher-btn-text">Teachers</span>`;
             } else {
-                assignTeacherHeaderBtn.innerHTML = `<i class="fa-solid fa-user-plus text-base text-[#15803d]"></i> <span id="section-assign-teacher-btn-text">Assign Teacher</span>`;
+                assignTeacherHeaderBtn.classList.remove('cursor-default', 'pointer-events-none', 'opacity-40', 'cursor-not-allowed');
+                assignTeacherHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
+                if (hasTeachers) {
+                    assignTeacherHeaderBtn.innerHTML = `<span id="section-assign-teacher-btn-text">Add Teacher</span>`;
+                } else {
+                    assignTeacherHeaderBtn.innerHTML = `<span id="section-assign-teacher-btn-text">Assign Teacher</span>`;
+                }
             }
         }
     }
@@ -14731,7 +15122,7 @@ window.renderAssignSectionOverview = function () {
             assignStudentsHeaderBtn.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
             assignStudentsHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
             assignStudentsHeaderBtn.removeAttribute('title');
-            assignStudentsHeaderBtn.innerHTML = `<i class="fa-solid fa-user-plus text-base text-[#15803d]"></i> <span id="section-assign-students-btn-text">Assign Students</span>`;
+            assignStudentsHeaderBtn.innerHTML = `<span id="section-assign-students-btn-text">Assign Students</span>`;
         }
     }
 
@@ -15802,6 +16193,7 @@ function renderSectionsTable() {
     const displaySections = getFilteredSectionsBySearch(window.sectionSearchState);
 
     const totalItems = displaySections.length;
+    window.sectionPaginationState.currentPage = Math.max(1, Math.min(window.sectionPaginationState.currentPage, Math.ceil(totalItems / window.sectionPaginationState.itemsPerPage)));
     const startIndex = (window.sectionPaginationState.currentPage - 1) * window.sectionPaginationState.itemsPerPage;
     const paginatedSections = displaySections.slice(startIndex, startIndex + window.sectionPaginationState.itemsPerPage);
 
@@ -15945,29 +16337,6 @@ function renderSectionsTable() {
         `;
     }).join('');
 
-    // Fill remaining rows to reach itemsPerPage to keep the table height fixed
-    const sectionItemsPerPage = window.sectionPaginationState.itemsPerPage;
-    const sectionRemainingRows = sectionItemsPerPage - paginatedSections.length;
-    if (sectionRemainingRows > 0) {
-        for (let i = 0; i < sectionRemainingRows; i++) {
-            const rowIndex = paginatedSections.length + i;
-            const stripeBg = rowIndex % 2 === 1 ? 'bg-slate-50/60' : '';
-            const emptyRow = `
-                <tr class="border-transparent ${stripeBg}">
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                </tr>
-            `;
-            tableBody.innerHTML += emptyRow;
-        }
-    }
 
     renderPaginationControls('section-pagination-container', totalItems, window.sectionPaginationState, 'onSectionPageChange');
 }
@@ -16112,6 +16481,7 @@ function renderSubjectsTable() {
     const displaySubjects = getFilteredSubjectsBySearch(window.subjectSearchState);
 
     const totalItems = displaySubjects.length;
+    window.subjectPaginationState.currentPage = Math.max(1, Math.min(window.subjectPaginationState.currentPage, Math.ceil(totalItems / window.subjectPaginationState.itemsPerPage)));
     const startIndex = (window.subjectPaginationState.currentPage - 1) * window.subjectPaginationState.itemsPerPage;
     const paginatedSubjects = displaySubjects.slice(startIndex, startIndex + window.subjectPaginationState.itemsPerPage);
 
@@ -16217,28 +16587,6 @@ function renderSubjectsTable() {
         `;
     }).join('');
 
-    // Fill remaining rows to reach itemsPerPage to keep the table height fixed
-    const subjectItemsPerPage = window.subjectPaginationState.itemsPerPage;
-    const subjectRemainingRows = subjectItemsPerPage - paginatedSubjects.length;
-    if (subjectRemainingRows > 0) {
-        for (let i = 0; i < subjectRemainingRows; i++) {
-            const rowIndex = paginatedSubjects.length + i;
-            const stripeBg = rowIndex % 2 === 1 ? 'bg-slate-50/60' : '';
-            const emptyRow = `
-                <tr class="border-transparent ${stripeBg}">
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                    <td class="px-4 py-4 text-center"><div class="text-[14px]">&nbsp;</div></td>
-                </tr>
-            `;
-            tableBody.innerHTML += emptyRow;
-        }
-    }
 
     renderPaginationControls('subject-pagination-container', totalItems, window.subjectPaginationState, 'onSubjectPageChange');
 }
@@ -17569,6 +17917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle browser back/forward buttons and hash navigation
     function handleAdminRouteOrPopState(isPopState = false) {
         if (window.guardMaterialLimitsHistory && !window.guardMaterialLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
+        if (window.guardAdvancedLimitsHistory && !window.guardAdvancedLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
         // If an active modal, form, or overlay is currently being closed via back navigation, let modal closer handle it
         if (typeof window.getSigmaActiveModalCloser === 'function' && window.getSigmaActiveModalCloser()) {
             return;
@@ -17665,7 +18014,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (hash.startsWith('profile-')) {
+        if (hash === 'nav-attendance' || hash === 'nav_attendance' || hash === 'attendance' || hash === 'calendar' || hash === 'nav-calendar' || hash === 'nav_calendar' || hash === 'section-attendance') {
+            window.switchTab('nav-attendance', true);
+        } else if (hash.startsWith('profile-')) {
             const userId = hash.replace('profile-', '');
             window.editUser(userId, true);
         } else if (hash.startsWith('edit-user-')) {
@@ -17698,10 +18049,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window._adminGradesEntryTab = targetTab;
             window.switchTab('nav-school-grades', true);
+        } else if (hash === 'settings-ai-view' || hash === 'settings-ai' || hash === 'ai-settings' || hash === 'settings-gemini-view' || hash === 'settings-groq-view') {
+            window.switchTab('nav-settings-ai', true);
         } else if (hash === 'settings-gdrive-view' || hash === 'settings-gdrive' || hash === 'gdrive' || hash === 'google-drive') {
             window.switchTab('nav-settings-gdrive', true);
         } else if (hash === 'settings-recaptcha-view' || hash === 'settings-recaptcha' || hash === 'recaptcha') {
             window.switchTab('nav-settings-recaptcha', true);
+        } else if (hash === 'settings-limits-view' || hash === 'settings-limits' || hash === 'upload-limits' || hash === 'material-limits') {
+            window.switchTab('nav-settings-limits', true);
         } else if (hash === 'account-settings' || hash.startsWith('account-settings-') || hash === 'user-settings') {
             const tab = hash.replace('account-settings-', '').replace('account-settings', '').replace('user-settings', '') || 'notifications';
             if (typeof window.navigateToAccountSettings === 'function') {
@@ -17748,372 +18103,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Default to dashboard if no hash or saved tab
         setTimeout(() => window.switchTab('nav-dashboard', true), 20);
     }
-    // --- SLIDER MANAGEMENT ---
-    window.handleSlideUpload = (event, index) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
 
-        const preview = document.getElementById(`login-slide-${index}-preview`);
-        const placeholder = document.getElementById(`login-slide-${index}-placeholder`);
-        const cancelBtn = document.getElementById(`login-slide-${index}-cancel`);
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-
-                // Proportional resizing (MAX 1920x1080) - NO CROPPING
-                const MAX_WIDTH = 1920;
-                const MAX_HEIGHT = 1080;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height); // Draws the WHOLE image
-
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                if (preview) {
-                    preview.src = dataUrl;
-                    preview.classList.remove('hidden');
-                    if (cancelBtn) cancelBtn.classList.remove('hidden');
-                }
-                if (placeholder) placeholder.classList.add('hidden');
-            };
-            img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-    };
-
-    window.saveSlidesSettings = () => {
-        const btn = document.getElementById('slides-save-btn');
-        const icon = btn?.querySelector('i');
-        if (btn) btn.disabled = true;
-        if (icon) {
-            icon.classList.remove('hidden');
-            icon.style.display = 'inline-block';
-        }
-
-        try {
-            const slides = [];
-            for (let i = 1; i <= 7; i++) {
-                const preview = document.getElementById(`login-slide-${i}-preview`);
-                if (preview && preview.src && !preview.classList.contains('hidden')) {
-                    // Check if it's a valid data URL or a default path
-                    if (preview.src.includes('data:image') || preview.src.includes('image/')) {
-                        slides.push({
-                            src: preview.src,
-                            alt: `Campus Slide ${i}`
-                        });
-                    }
-                }
-            }
-
-            if (slides.length === 0) {
-                localStorage.removeItem('sigma-custom-login-slides');
-            } else {
-                localStorage.setItem('sigma-custom-login-slides', JSON.stringify(slides));
-            }
-        } catch (err) {
-            console.error('Slider Save Error:', err);
-            alert('Failed to save slides. Try fewer or smaller images.');
-        } finally {
-            setTimeout(() => {
-                if (btn) btn.disabled = false;
-                if (icon) icon.style.display = 'none';
-
-                // Hide all cancel buttons as changes are now saved
-                for (let i = 1; i <= 7; i++) {
-                    const cancelBtn = document.getElementById(`login-slide-${i}-cancel`);
-                    if (cancelBtn) cancelBtn.classList.add('hidden');
-                }
-
-                if (window.showToast) window.showToast('Login slideshow saved successfully');
-                else alert('Login slideshow saved successfully');
-            }, 800);
-        }
-    };
-
-    // Initialize Slider Previews from Storage
-    function initSliderPreviews() {
-        const savedRaw = localStorage.getItem('sigma-custom-login-slides');
-        if (savedRaw) {
-            const saved = JSON.parse(savedRaw);
-            saved.forEach((slide, idx) => {
-                const i = idx + 1;
-                const preview = document.getElementById(`login-slide-${i}-preview`);
-                const placeholder = document.getElementById(`login-slide-${i}-placeholder`);
-                const cancelBtn = document.getElementById(`login-slide-${i}-cancel`);
-                if (preview) {
-                    preview.src = slide.src;
-                    preview.classList.remove('hidden');
-                }
-                if (placeholder) placeholder.classList.add('hidden');
-            });
-            // Hide/Clear others beyond saved length
-            for (let i = saved.length + 1; i <= 7; i++) {
-                const preview = document.getElementById(`login-slide-${i}-preview`);
-                const placeholder = document.getElementById(`login-slide-${i}-placeholder`);
-                const cancelBtn = document.getElementById(`login-slide-${i}-cancel`);
-                if (preview) {
-                    preview.src = '';
-                    preview.classList.add('hidden');
-                }
-                if (placeholder) placeholder.classList.remove('hidden');
-                if (cancelBtn) cancelBtn.classList.add('hidden');
-            }
-        }
-    }
-    initSliderPreviews();
-
-    // --- CLEARING / CANCELING FUNCTIONS ---
-    window.clearBrandingPreview = (logoType) => {
-        const preview = document.getElementById(`${logoType}-preview`);
-        const placeholder = document.getElementById(`${logoType}-placeholder`);
-        const cancelBtn = document.getElementById(`${logoType}-cancel`);
-
-        // Revert to last saved photo in localStorage
-        const storageKey = logoType === 'login-logo' ? 'sigma-custom-login-logo' :
-            logoType === 'login-bar-logo' ? 'sigma-custom-login-bar-logo' : 'sigma-custom-nav-logo';
-        const saved = localStorage.getItem(storageKey);
-
-        if (preview) {
-            preview.src = saved ? saved : 'image/ICC logo.jpg';
-            preview.classList.remove('hidden');
-        }
-        if (placeholder) placeholder.classList.add('hidden');
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-
-        const input = document.getElementById(`${logoType}-input`);
-        if (input) input.value = '';
-    };
-
-    window.deleteBranding = (logoType) => {
-        const preview = document.getElementById(`${logoType}-preview`);
-        const placeholder = document.getElementById(`${logoType}-placeholder`);
-        const cancelBtn = document.getElementById(`${logoType}-cancel`);
-
-        if (preview) {
-            preview.src = '';
-            preview.classList.add('hidden');
-        }
-        if (placeholder) placeholder.classList.remove('hidden');
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-
-        const input = document.getElementById(`${logoType}-input`);
-        if (input) input.value = '';
-    };
-
-    window.clearSlidePreview = (index) => {
-        const preview = document.getElementById(`login-slide-${index}-preview`);
-        const placeholder = document.getElementById(`login-slide-${index}-placeholder`);
-        const cancelBtn = document.getElementById(`login-slide-${index}-cancel`);
-
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-
-        // Revert to last saved slide from localStorage
-        const savedRaw = localStorage.getItem('sigma-custom-login-slides');
-        let restored = false;
-        if (savedRaw) {
-            const saved = JSON.parse(savedRaw);
-            // Check if there is a slide at this index (0-indexed in array)
-            if (saved[index - 1]) {
-                if (preview) {
-                    preview.src = saved[index - 1].src;
-                    preview.classList.remove('hidden');
-                }
-                if (placeholder) placeholder.classList.add('hidden');
-                restored = true;
-            }
-        }
-
-        // If no custom saved slide, check for factory defaults (1-5)
-        if (!restored) {
-            const defaults = [
-                'image/ICC Shs.jpg',
-                'image/ICC Enrollment.jpg',
-                'image/ICC Immersion.jpg',
-                'image/ICC Interfacer.jpg',
-                'image/ICC Learning.jpg'
-            ];
-            const factoryDefault = defaults[index - 1];
-
-            if (factoryDefault) {
-                if (preview) {
-                    preview.src = factoryDefault;
-                    preview.classList.remove('hidden');
-                }
-                if (placeholder) placeholder.classList.add('hidden');
-            } else {
-                // Truly blank (Slide 6-7)
-                if (preview) {
-                    preview.src = '';
-                    preview.classList.add('hidden');
-                }
-                if (placeholder) placeholder.classList.remove('hidden');
-            }
-        }
-
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-        // Clear file input
-        const input = document.getElementById(`login-slide-${index}-input`);
-        if (input) input.value = '';
-    };
-
-    window.deleteSlide = (index) => {
-        const preview = document.getElementById(`login-slide-${index}-preview`);
-        const placeholder = document.getElementById(`login-slide-${index}-placeholder`);
-        const cancelBtn = document.getElementById(`login-slide-${index}-cancel`);
-
-        if (preview) {
-            preview.src = '';
-            preview.classList.add('hidden');
-        }
-        if (placeholder) placeholder.classList.remove('hidden');
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-
-        const input = document.getElementById(`login-slide-${index}-input`);
-        if (input) input.value = '';
-    };
-
-    // --- WELCOME PANEL MANAGEMENT ---
-    window.handleWelcomePanelUpload = (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const preview = document.getElementById('welcome-panel-preview');
-        const cancelBtn = document.getElementById('welcome-panel-cancel');
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const img = new Image();
-            img.onload = () => {
-                if (preview) {
-                    preview.src = reader.result;
-                }
-                if (cancelBtn) cancelBtn.classList.remove('hidden');
-            };
-            img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-    };
-
-    window.saveWelcomePanelSettings = () => {
-        const btn = document.getElementById('welcome-panel-save-btn');
-        const icon = btn?.querySelector('i');
-        const cancelBtn = document.getElementById('welcome-panel-cancel');
-        if (btn) btn.disabled = true;
-        if (icon) {
-            icon.classList.remove('hidden');
-            icon.style.display = 'inline-block';
-        }
-
-        try {
-            const welcomePanel = document.getElementById('welcome-panel-preview')?.src || 'image/ICC Goals.jpeg';
-            localStorage.setItem('sigma-welcome-panel', welcomePanel);
-
-            // Immediately update the admin dashboard banner on the live page
-            const adminDashImg = document.getElementById('welcome-panel-admin-img');
-            if (adminDashImg) {
-                adminDashImg.src = welcomePanel;
-            }
-
-            window.dispatchEvent(new CustomEvent('sigma:welcome-panel-changed', { detail: welcomePanel }));
-
-            setTimeout(() => {
-                if (btn) btn.disabled = false;
-                if (icon) {
-                    icon.classList.add('hidden');
-                    icon.style.display = 'none';
-                }
-                if (cancelBtn) cancelBtn.classList.add('hidden');
-                if (window.showToast) window.showToast('Welcome panel saved successfully');
-                else alert('Welcome panel saved successfully');
-            }, 500);
-        } catch (error) {
-            console.error('Error saving welcome panel:', error);
-            if (btn) btn.disabled = false;
-            if (icon) {
-                icon.classList.add('hidden');
-                icon.style.display = 'none';
-            }
-            alert('Failed to save welcome panel');
-        }
-    };
-
-    window.clearWelcomePanelPreview = () => {
-        const preview = document.getElementById('welcome-panel-preview');
-        const cancelBtn = document.getElementById('welcome-panel-cancel');
-
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-
-        let saved = localStorage.getItem('sigma-welcome-panel');
-        if (saved === 'image/Welcome.jpg') {
-            saved = 'image/ICC Goals.jpeg';
-            localStorage.setItem('sigma-welcome-panel', saved);
-        }
-        if (saved) {
-            if (preview) preview.src = saved;
-        } else {
-            if (preview) preview.src = 'image/ICC Goals.jpeg';
-        }
-
-        const input = document.getElementById('welcome-panel-input');
-        if (input) input.value = '';
-    };
-
-    window.deleteWelcomePanel = () => {
-        const preview = document.getElementById('welcome-panel-preview');
-        const cancelBtn = document.getElementById('welcome-panel-cancel');
-
-        if (preview) {
-            preview.src = 'image/ICC Goals.jpeg';
-        }
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-
-        const input = document.getElementById('welcome-panel-input');
-        if (input) input.value = '';
-    };
-
-    function initWelcomePanel() {
-        let saved = localStorage.getItem('sigma-welcome-panel');
-        if (!saved || saved === 'image/Welcome.jpg' || saved === '../image/Welcome.jpg') {
-            saved = 'image/ICC Goals.jpeg';
-            localStorage.setItem('sigma-welcome-panel', saved);
-        }
-        const preview = document.getElementById('welcome-panel-preview');
-        if (preview) {
-            preview.src = saved;
-            preview.onerror = function() { this.src = 'image/ICC Goals.jpeg'; };
-        }
-        const adminDashImg = document.getElementById('welcome-panel-admin-img');
-        if (adminDashImg) {
-            adminDashImg.src = saved;
-            adminDashImg.onerror = function() { this.src = 'image/ICC Goals.jpeg'; };
-        }
-    }
-    initWelcomePanel();
 
     window.addEventListener('storage', (e) => {
         if (e.key === 'sigma-welcome-panel' && e.newValue) {
             const adminDashImg = document.getElementById('welcome-panel-admin-img');
             if (adminDashImg) adminDashImg.src = e.newValue;
-            const previewImg = document.getElementById('welcome-panel-preview');
-            if (previewImg) previewImg.src = e.newValue;
         }
         if (!e || !e.key) return;
+        if (e.key === 'sigma-attendance-records-v1' && typeof window.renderAttendanceReport === 'function') {
+            window.renderAttendanceReport();
+        }
         if (['sigma-announcements-data', 'sigma-classroom-custom-themes-v1', 'sigma-attendance-records-v1', 'sigma-room-comment-mode-v1', 'sigma-admin-subjects'].includes(e.key)) {
             if (window.currentAdminClassroomSection) {
                 const sec = window.currentAdminClassroomSection.name;
@@ -18148,6 +18148,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.renderClassroomAttendanceTab === 'function') {
             window.renderClassroomAttendanceTab(false);
         }
+        if (typeof window.renderAttendanceReport === 'function') {
+            window.renderAttendanceReport();
+        }
     });
 
     window.addEventListener('classroom-banner-theme-changed', () => {
@@ -18174,8 +18177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (url) {
             const adminDashImg = document.getElementById('welcome-panel-admin-img');
             if (adminDashImg) adminDashImg.src = url;
-            const previewImg = document.getElementById('welcome-panel-preview');
-            if (previewImg) previewImg.src = url;
         }
     });
 
@@ -18215,7 +18216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.materialLimitsAreDirty() || !_materialLimitsDraftLocation || window.location.href === _materialLimitsDraftLocation.href) return true;
         const destination = { href: window.location.href, state: window.history.state };
         const hash = new URL(destination.href).hash.replace(/^#/, '');
-        if (['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api', 'settings-integrations'].includes(hash)) return true;
+        if (['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api', 'settings-integrations', 'settings-limits-view', 'nav-settings-limits'].includes(hash)) return true;
         window.history.replaceState(_materialLimitsDraftLocation.state, '', _materialLimitsDraftLocation.href);
         window.confirmMaterialLimitsLeave(function () {
             window.history.replaceState(destination.state, '', destination.href);
@@ -18239,39 +18240,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const materialLimitDefaults = { 'limit-video-embed': '30', 'limit-video-mp4': '200', 'limit-docx-std': '20', 'limit-pdf-std': '25', 'limit-pptx-std': '50' };
     window.updateMaterialLimitsButtonState = function () {
-        const btn = document.getElementById('limits-save-btn') || document.querySelector('#integ-limits-panel button[onclick*="saveMaterialLimits"]');
-        if (!btn) return;
-        const currentSnapshot = getMaterialLimitsFormSnapshot();
-        const isDirty = Boolean(_savedMaterialLimitsSnapshot && (currentSnapshot !== _savedMaterialLimitsSnapshot));
-        if (isDirty && !_materialLimitsDraftLocation) _materialLimitsDraftLocation = { href: window.location.href, state: window.history.state };
-        if (!isDirty) _materialLimitsDraftLocation = null;
-        const status = document.getElementById('limits-save-status');
-        if (status) status.textContent = isDirty ? 'Unsaved changes' : '';
-        
-        btn.disabled = !isDirty;
-        const icon = btn.querySelector('i');
-        const span = btn.querySelector('span');
-        
-        if (isDirty) {
-            // Unsaved changes enable the save action.
-            btn.className = "flex items-center gap-2 px-8 py-3 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-sm cursor-pointer";
-            if (icon) {
-                icon.className = "fa-solid fa-floppy-disk text-xs";
-            }
-            if (span) {
-                span.textContent = "Save File Limits";
-            }
-        } else {
-            // No changes to save.
-            btn.className = "flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none";
-            if (icon) {
-                icon.className = "fa-solid fa-floppy-disk text-xs";
-            }
-            if (span) {
-                span.textContent = "Save File Limits";
-            }
-        }
+        const restore = document.getElementById('limits-restore-btn');
+        if (restore) restore.hidden = Object.entries(materialLimitDefaults).every(([id, value]) => document.getElementById(id)?.value === value);
+        if (!window.materialLimitsAreDirty()) _materialLimitsDraftLocation = null;
+    };
+    window.restoreMaterialLimitsDefaults = function () {
+        Object.entries(materialLimitDefaults).forEach(([id, value]) => {
+            const input = document.getElementById(id);
+            if (input) input.value = value;
+        });
+        window.updateMaterialLimitsButtonState();
+        window.saveMaterialLimits();
     };
 
     window.saveMaterialLimits = function () {
@@ -18279,20 +18260,17 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const input of document.querySelectorAll('#integ-limits-panel input, #integ-limits-panel select')) {
             if (!input.reportValidity()) return;
         }
-        const btn = document.getElementById('limits-save-btn');
-        if (btn) {
-            btn.disabled = true;
-            btn.className = "flex items-center gap-2 px-8 py-3 bg-slate-100 text-slate-500 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-wait transition-all shadow-none";
-            const icon = btn.querySelector('i');
-            if (icon) icon.className = "fa-solid fa-circle-notch fa-spin text-xs";
-            const span = btn.querySelector('span');
-            if (span) span.textContent = "Syncing...";
-        }
 
-        const clampStd = (val, def = 500) => {
+        const clampStd = (val, def = 200) => {
             const num = Number(val);
             if (Number.isNaN(num) || num <= 0) return def;
-            return Math.min(700, Math.max(250, num));
+            return Math.min(500, Math.max(100, num));
+        };
+
+        const clampDocStd = (val, def = 20) => {
+            const num = Number(val);
+            if (Number.isNaN(num) || num <= 0) return def;
+            return Math.min(100, Math.max(10, num));
         };
 
         const clampExt = (val, def = 50) => {
@@ -18301,21 +18279,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return Math.min(100, Math.max(25, num));
         };
 
-        const mp4Val = clampStd(document.getElementById('limit-video-mp4')?.value, 500);
-        const videoExt = clampExt(document.getElementById('limit-video-ext')?.value, 50);
+        const clampDocExt = (val, def = 25) => {
+            const num = Number(val);
+            if (Number.isNaN(num) || num <= 0) return def;
+            return Math.min(50, Math.max(5, num));
+        };
 
-        const docxStd = clampStd(document.getElementById('limit-docx-std')?.value || document.getElementById('limit-docx-reg')?.value, 500);
-        const docxExt = clampExt(document.getElementById('limit-docx-ext')?.value, 50);
+        const savedOld = localStorage.getItem('sigma-material-limits');
+        let parsedOld = {};
+        try { parsedOld = savedOld ? JSON.parse(savedOld) : {}; } catch (_) {}
 
-        const pdfStd = clampStd(document.getElementById('limit-pdf-std')?.value || document.getElementById('limit-pdf-reg')?.value, 500);
-        const pdfExt = clampExt(document.getElementById('limit-pdf-ext')?.value, 50);
+        const mp4Val = clampStd(document.getElementById('limit-video-mp4')?.value, 200);
+        const videoExt = clampExt(document.getElementById('limit-video-ext')?.value || parsedOld.video?.ext, 50);
 
-        const pptxStd = clampStd(document.getElementById('limit-pptx-std')?.value || document.getElementById('limit-pptx-reg')?.value, 500);
-        const pptxExt = clampExt(document.getElementById('limit-pptx-ext')?.value, 50);
+        const docxStd = clampDocStd(document.getElementById('limit-docx-std')?.value || document.getElementById('limit-docx-reg')?.value, 20);
+        const docxExt = clampDocExt(document.getElementById('limit-docx-ext')?.value || parsedOld.docx?.ext, 25);
+
+        const pdfStd = clampDocStd(document.getElementById('limit-pdf-std')?.value || document.getElementById('limit-pdf-reg')?.value, 25);
+        const pdfExt = clampDocExt(document.getElementById('limit-pdf-ext')?.value || parsedOld.pdf?.ext, 25);
+
+        const pptxStd = clampDocStd(document.getElementById('limit-pptx-std')?.value || document.getElementById('limit-pptx-reg')?.value, 50);
+        const pptxExt = clampDocExt(document.getElementById('limit-pptx-ext')?.value || parsedOld.pptx?.ext, 25);
+
+        const batchQuotaVal = Math.min(500, Math.max(50, Number(parsedOld.batchQuota || parsedOld.submissionBatchQuota) || 150));
+
+        let rawEmbed = Number(document.getElementById('limit-video-embed')?.value);
+        if (rawEmbed === 1) rawEmbed = 60;
+        else if (rawEmbed === 2) rawEmbed = 90;
+        const embedVal = Math.min(90, Math.max(15, rawEmbed || 30));
 
         const limits = {
             video: {
-                embed: Math.min(2, Math.max(1, Number(document.getElementById('limit-video-embed')?.value) || 1)),
+                embed: embedVal,
                 mp4: mp4Val,
                 std: mp4Val,
                 ext: videoExt
@@ -18334,20 +18329,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 std: pptxStd,
                 reg: pptxStd,
                 ext: pptxExt
-            }
+            },
+            batchQuota: batchQuotaVal,
+            submissionBatchQuota: batchQuotaVal
         };
 
         try {
             localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
-            localStorage.setItem('sigma_settings_video_max_mb', String(mp4Val + videoExt));
+            try { localStorage.setItem('sigma_settings_video_max_mb', String(mp4Val + videoExt)); }
+            catch (error) {
+                if (savedOld === null) localStorage.removeItem('sigma-material-limits');
+                else localStorage.setItem('sigma-material-limits', savedOld);
+                throw error;
+            }
             _savedMaterialLimitsSnapshot = getMaterialLimitsFormSnapshot();
             window.updateMaterialLimitsButtonState();
             const status = document.getElementById('limits-save-status');
-            if (status) status.textContent = 'Saved successfully';
+            if (status) status.textContent = '';
         } catch (_) {
-            window.updateMaterialLimitsButtonState();
+            window.discardMaterialLimitsDraft();
             const status = document.getElementById('limits-save-status');
-            if (status) status.textContent = 'Could not save. Your changes are still unsaved.';
+            if (status) status.textContent = 'Could not save. Changes reverted.';
         }
     };
 
@@ -18360,24 +18362,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.value = val;
         }
 
-        if (document.getElementById('limit-video-embed')) document.getElementById('limit-video-embed').value = limits.video?.embed || 1;
-        if (document.getElementById('limit-video-mp4')) document.getElementById('limit-video-mp4').value = limits.video?.mp4 || limits.video?.std || 500;
+        if (document.getElementById('limit-video-embed')) {
+            let embVal = limits.video?.embed;
+            if (embVal === 1) embVal = 60;
+            else if (embVal === 2) embVal = 90;
+            document.getElementById('limit-video-embed').value = String(embVal || 30);
+        }
+        if (document.getElementById('limit-video-mp4')) document.getElementById('limit-video-mp4').value = String(limits.video?.mp4 || limits.video?.std || 200);
         setElementVal('limit-video-ext', limits.video?.ext || 50);
         
-        const docxStdVal = limits.docx?.std || limits.docx?.reg || 500;
+        const docxStdVal = limits.docx?.std || limits.docx?.reg || 20;
         setElementVal('limit-docx-std', docxStdVal);
         setElementVal('limit-docx-reg', docxStdVal);
-        setElementVal('limit-docx-ext', limits.docx?.ext || 50);
+        setElementVal('limit-docx-ext', limits.docx?.ext || 25);
 
-        const pdfStdVal = limits.pdf?.std || limits.pdf?.reg || 500;
+        const pdfStdVal = limits.pdf?.std || limits.pdf?.reg || 25;
         setElementVal('limit-pdf-std', pdfStdVal);
         setElementVal('limit-pdf-reg', pdfStdVal);
-        setElementVal('limit-pdf-ext', limits.pdf?.ext || 50);
+        setElementVal('limit-pdf-ext', limits.pdf?.ext || 25);
 
-        const pptxStdVal = limits.pptx?.std || limits.pptx?.reg || 500;
+        const pptxStdVal = limits.pptx?.std || limits.pptx?.reg || 50;
         setElementVal('limit-pptx-std', pptxStdVal);
         setElementVal('limit-pptx-reg', pptxStdVal);
-        setElementVal('limit-pptx-ext', limits.pptx?.ext || 50);
+        setElementVal('limit-pptx-ext', limits.pptx?.ext || 25);
 
         _savedMaterialLimitsSnapshot = getMaterialLimitsFormSnapshot();
         window.updateMaterialLimitsButtonState();
@@ -18386,245 +18393,423 @@ document.addEventListener('DOMContentLoaded', () => {
         if (panel && !panel._limitsListenersBound) {
             panel._limitsListenersBound = true;
             panel.addEventListener('input', window.updateMaterialLimitsButtonState);
-            panel.addEventListener('change', window.updateMaterialLimitsButtonState);
+            panel.addEventListener('change', () => {
+                window.updateMaterialLimitsButtonState();
+                window.saveMaterialLimits();
+            });
         }
     }
     window.initMaterialLimits = initMaterialLimits;
     initMaterialLimits();
 
-    // --- AI API KEY VAULT LOGIC ---
-    let INSTITUTIONAL_PASS = localStorage.getItem('sigma-api-vault-pass') || "INTERFACE-ADMIN-2026";
-    let currentVaultId = null;
-    let originalKeys = {};
-
-    window.triggerVault = function (id) {
-        currentVaultId = id;
-        const overlay = document.getElementById('vault-unlock-overlay');
-        const passInput = document.getElementById('vault-auth-pass');
-        const errorText = document.getElementById('vault-auth-error');
-
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // Lock scroll
-            if (passInput) {
-                passInput.value = '';
-                passInput.focus();
-            }
-            if (errorText) errorText.classList.add('hidden');
+    // --- STRICT NUMERIC RESTRICTION UTILITIES FOR COUNTER BOXES ---
+    window.handleCounterKeydown = function (e) {
+        // Allow navigation and edit keys
+        const allowed = [
+            'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+            'Home', 'End'
+        ];
+        if (allowed.includes(e.key)) return;
+        // Allow Ctrl/Cmd combinations (copy, paste, select-all, undo)
+        if (e.ctrlKey || e.metaKey) return;
+        // Block non-digit characters (explicitly blocks 'e', 'E', '+', '-', '.', letters, symbols)
+        if (!/^[0-9]$/.test(e.key)) {
+            e.preventDefault();
         }
     };
 
-    window.closeVaultModal = function () {
-        const overlay = document.getElementById('vault-unlock-overlay');
-        if (overlay) {
-            overlay.classList.add('hidden');
-            document.body.style.overflow = ''; // Unlock scroll
+    window.sanitizeCounterInput = function (input, min, max) {
+        if (!input) return;
+        let val = String(input.value || '').replace(/\D/g, '');
+        // Strip leading zeros
+        if (val.length > 1 && val.startsWith('0')) {
+            val = val.replace(/^0+/, '') || '';
+        } else if (val === '0' && min > 0) {
+            val = '';
         }
-        currentVaultId = null;
+        if (val !== '') {
+            let num = parseInt(val, 10);
+            if (!isNaN(num) && num > max) {
+                num = max;
+                val = String(num);
+            }
+        }
+        input.value = val;
     };
 
-    window.verifyVaultModal = function () {
-        if (!currentVaultId) return;
-
-        const passInput = document.getElementById('vault-auth-pass');
-        const errorText = document.getElementById('vault-auth-error');
-        const keyField = document.getElementById(`key-field-${currentVaultId}`);
-        const keyInput = document.getElementById(`api-key-${currentVaultId}`);
-        const mask = document.getElementById(`mask-${currentVaultId}`);
-        const btn = document.getElementById(`btn-vault-${currentVaultId}`);
-
-        if (!passInput) return;
-
-        if (passInput.value === INSTITUTIONAL_PASS) {
-            if (keyInput) originalKeys[currentVaultId] = keyInput.value;
-
-            window.closeVaultModal();
-            if (keyField) keyField.classList.remove('hidden');
-            if (btn) btn.classList.add('hidden');
-            if (mask) {
-                mask.textContent = "DECRYPTED ACCESS";
-                mask.classList.replace('text-slate-200', 'text-green-500');
-            }
-            if (window.showToast) window.showToast(`${currentVaultId.toUpperCase()} Vault Unlocked`);
+    window.normalizeCounterInput = function (input, min, max, defaultVal, step) {
+        if (!input) return;
+        let val = String(input.value || '').replace(/\D/g, '');
+        if (val === '') {
+            input.value = String(defaultVal != null ? defaultVal : min);
+            return;
+        }
+        let num = parseInt(val, 10);
+        if (isNaN(num)) {
+            num = defaultVal != null ? defaultVal : min;
         } else {
-            if (errorText) errorText.classList.remove('hidden');
-            passInput.classList.add('border-red-500');
-            setTimeout(() => passInput.classList.remove('border-red-500'), 2000);
+            if (step && step > 1) {
+                num = Math.round(num / step) * step;
+            }
+            num = Math.max(min, Math.min(max, num));
+        }
+        input.value = String(num);
+    };
+
+    window.handleCounterPaste = function (e, min, max) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        let clean = text.replace(/\D/g, '');
+        if (clean.length > 1) clean = clean.replace(/^0+/, '');
+        if (!clean) return;
+        let num = parseInt(clean, 10);
+        if (isNaN(num)) return;
+        if (num > max) num = max;
+        e.target.value = String(num);
+        if (typeof window.updateAdvSandboxCeiling === 'function') {
+            window.updateAdvSandboxCeiling();
         }
     };
 
-    window.saveKeyField = function (id) {
-        const keyInput = document.getElementById(`api-key-${id}`);
-        const keyField = document.getElementById(`key-field-${id}`);
-        const btn = document.getElementById(`btn-vault-${id}`);
-        const mask = document.getElementById(`mask-${id}`);
-
-        if (!keyInput) return;
-
-        const saved = localStorage.getItem('sigma-api-keys');
-        let keys = saved ? JSON.parse(saved) : {};
-        keys[id] = keyInput.value;
-        if (id === 'recaptcha') {
-            keys.recaptcha_secret = document.getElementById('api-key-recaptcha-secret')?.value || '';
-            // Sync to backend auth.php
-            fetch('php/api/auth.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'save_recaptcha_config',
-                    site_key: keys[id],
-                    secret_key: keys.recaptcha_secret
-                })
-            }).catch(e => console.warn('Failed to sync reCAPTCHA to server:', e));
-        }
-        localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
-
-        if (keyField) keyField.classList.add('hidden');
-        if (btn) btn.classList.remove('hidden');
-        if (mask) {
-            mask.textContent = "••••••••••••••••";
-            mask.classList.replace('text-green-500', 'text-slate-200');
-        }
-
-        if (window.showToast) window.showToast(`${id.toUpperCase()} Key Saved Successfully`);
+    window.bindCounterBox = function (input, min, max, defVal, step) {
+        if (!input || input._counterBound) return;
+        input._counterBound = true;
+        input.setAttribute('inputmode', 'numeric');
+        input.setAttribute('pattern', '[0-9]*');
+        input.addEventListener('keydown', window.handleCounterKeydown);
+        input.addEventListener('input', function () {
+            window.sanitizeCounterInput(this, min, max);
+            if (typeof window.updateAdvSandboxCeiling === 'function') window.updateAdvSandboxCeiling();
+            if (typeof window.updateAdvancedLimitsButtonState === 'function') window.updateAdvancedLimitsButtonState();
+        });
+        input.addEventListener('blur', function () {
+            window.normalizeCounterInput(this, min, max, defVal, step);
+            if (typeof window.updateAdvSandboxCeiling === 'function') window.updateAdvSandboxCeiling();
+            if (typeof window.updateAdvancedLimitsButtonState === 'function') window.updateAdvancedLimitsButtonState();
+        });
+        input.addEventListener('change', function () {
+            window.normalizeCounterInput(this, min, max, defVal, step);
+            if (typeof window.updateAdvSandboxCeiling === 'function') window.updateAdvSandboxCeiling();
+            if (typeof window.updateAdvancedLimitsButtonState === 'function') window.updateAdvancedLimitsButtonState();
+        });
+        input.addEventListener('paste', function (e) {
+            window.handleCounterPaste(e, min, max);
+            if (typeof window.updateAdvancedLimitsButtonState === 'function') window.updateAdvancedLimitsButtonState();
+        });
     };
 
-    window.cancelKeyField = function (id) {
-        const keyInput = document.getElementById(`api-key-${id}`);
-        const keyField = document.getElementById(`key-field-${id}`);
-        const btn = document.getElementById(`btn-vault-${id}`);
-        const mask = document.getElementById(`mask-${id}`);
+    // --- ADVANCED UPLOAD ALLOCATIONS & SANDBOX PAGE LOGIC ---
+    let _savedAdvancedLimitsSnapshot = null;
 
-        if (keyInput && originalKeys[id] !== undefined) {
-            keyInput.value = originalKeys[id];
-        }
+    function getAdvancedLimitsSnapshot() {
+        const getVal = (id) => String(document.getElementById(id)?.value ?? '').trim();
+        return JSON.stringify({
+            videoExt: getVal('adv-limit-video-ext'),
+            docExt: getVal('adv-limit-doc-ext'),
+            batchQuota: getVal('adv-limit-batch-quota')
+        });
+    }
 
-        if (keyField) keyField.classList.add('hidden');
-        if (btn) btn.classList.remove('hidden');
-        if (mask) {
-            mask.textContent = "••••••••••••••••";
-            mask.classList.replace('text-green-500', 'text-slate-200');
+    window.advancedLimitsAreDirty = function () {
+        const view = document.getElementById('settings-limits-view');
+        if (!view || view.classList.contains('hidden')) return false;
+        if (!_savedAdvancedLimitsSnapshot) return false;
+        return getAdvancedLimitsSnapshot() !== _savedAdvancedLimitsSnapshot;
+    };
+
+    window.updateAdvancedLimitsButtonState = function () {
+        const btn = document.getElementById('adv-limits-save-btn');
+        if (!btn) return;
+        const isDirty = window.advancedLimitsAreDirty();
+        btn.disabled = !isDirty;
+        if (isDirty) {
+            btn.className = "flex items-center justify-center px-6 py-2.5 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#166534] transition-all shadow-xs cursor-pointer";
+        } else {
+            btn.className = "flex items-center justify-center px-6 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-not-allowed transition-all shadow-none";
         }
     };
 
-    window.triggerPasswordChange = function (id) {
-        currentVaultId = id;
-        const overlay = document.getElementById('vault-password-edit-overlay');
-        const input = document.getElementById('new-vault-password');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // Lock scroll
-            if (input) {
-                input.value = '';
-                input.focus();
+    window.discardAdvancedLimitsDraft = function () {
+        const saved = localStorage.getItem('sigma-material-limits');
+        const limits = saved ? JSON.parse(saved) : {};
+        const vExt = Number(limits.video?.ext) || 25;
+        const dExt = Number(limits.docx?.ext || limits.pdf?.ext || limits.pptx?.ext) || 5;
+        const bQuota = Number(limits.batchQuota || limits.submissionBatchQuota) || 150;
+
+        const elVExt = document.getElementById('adv-limit-video-ext');
+        if (elVExt) elVExt.value = String(vExt);
+        const elDExt = document.getElementById('adv-limit-doc-ext');
+        if (elDExt) elDExt.value = String(dExt);
+        const elBQuota = document.getElementById('adv-limit-batch-quota');
+        if (elBQuota) elBQuota.value = String(bQuota);
+
+        _savedAdvancedLimitsSnapshot = getAdvancedLimitsSnapshot();
+        window.updateAdvancedLimitsButtonState();
+        window.updateAdvSandboxCeiling?.();
+    };
+
+    window.confirmAdvancedLimitsLeave = function (onLeave) {
+        if (!window.advancedLimitsAreDirty()) return true;
+        const askFn = window.openAskingPanel || window.showConfirmDialog;
+        if (typeof askFn === 'function') {
+            askFn({
+                title: 'Unsaved Changes',
+                message: 'Your advanced settings changes have not been saved. Leave this page without saving?',
+                confirmText: 'Discard Changes',
+                cancelText: 'Keep Editing',
+                type: 'warning',
+                onConfirm: function () {
+                    window.discardAdvancedLimitsDraft();
+                    if (typeof onLeave === 'function') onLeave();
+                }
+            });
+            return false;
+        }
+        return true;
+    };
+
+    window.guardAdvancedLimitsHistory = function (resumeNavigation) {
+        if (!window.advancedLimitsAreDirty()) return true;
+        const destination = { href: window.location.href, state: window.history.state };
+        const hash = (destination.href ? new URL(destination.href).hash : '').replace(/^#/, '');
+        if (['nav-settings-limits', 'settings-limits-view', 'settings-limits', 'nav-settings-limits-view'].includes(hash)) return true;
+        window.history.replaceState({ tab: 'nav-settings-limits' }, '', '#settings-limits-view');
+        window.confirmAdvancedLimitsLeave(function () {
+            window.history.replaceState(destination.state, '', destination.href);
+            resumeNavigation?.();
+        });
+        return false;
+    };
+
+    window.openAdvancedLimitsPage = function () {
+        // Record Integrations in browser history so browser back / phone back / outside back returns here
+        const currentHash = (window.location.hash || '').replace(/^#/, '');
+        if (!currentHash || !currentHash.includes('settings')) {
+            window.history.replaceState({ tab: 'nav-settings-integrations' }, '', '#nav-settings-integrations');
+        }
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-settings-limits');
+        } else {
+            window.showSection?.('settings-limits-view', 'nav-settings-integrations');
+            window.location.hash = 'settings-limits-view';
+        }
+        if (typeof window.initAdvancedLimitsPage === 'function') {
+            window.initAdvancedLimitsPage();
+        }
+    };
+
+    window.initAdvancedLimitsPage = function () {
+        const saved = localStorage.getItem('sigma-material-limits');
+        const limits = saved ? JSON.parse(saved) : {};
+        const vExt = Number(limits.video?.ext) || 25;
+        const dExt = Number(limits.docx?.ext || limits.pdf?.ext || limits.pptx?.ext) || 5;
+        const bQuota = Number(limits.batchQuota || limits.submissionBatchQuota) || 150;
+
+        const elVExt = document.getElementById('adv-limit-video-ext');
+        if (elVExt) elVExt.value = String(vExt);
+        const elDExt = document.getElementById('adv-limit-doc-ext');
+        if (elDExt) elDExt.value = String(dExt);
+        const elBQuota = document.getElementById('adv-limit-batch-quota');
+        if (elBQuota) elBQuota.value = String(bQuota);
+
+        if (window.bindCounterBox) {
+            window.bindCounterBox(elVExt, 10, 100, 25, 5);
+            window.bindCounterBox(elDExt, 5, 50, 5, 5);
+        }
+
+        const view = document.getElementById('settings-limits-view');
+        if (view && !view._advLimitsListenersBound) {
+            view._advLimitsListenersBound = true;
+            view.addEventListener('input', window.updateAdvancedLimitsButtonState);
+            view.addEventListener('change', window.updateAdvancedLimitsButtonState);
+        }
+
+        _savedAdvancedLimitsSnapshot = getAdvancedLimitsSnapshot();
+        window.updateAdvancedLimitsButtonState();
+
+        window.updateAdvSandboxCeiling?.();
+        window.advSandboxClear?.();
+    };
+
+    window.updateAdvSandboxCeiling = function () {
+        const dExt = Number(document.getElementById('adv-limit-doc-ext')?.value) || 5;
+        const bQuota = Number(document.getElementById('adv-limit-batch-quota')?.value) || 150;
+        const label = document.getElementById('adv-sandbox-ceiling-label');
+        if (label) {
+            label.textContent = `Max: ${20 + dExt} MB doc with buffer • Max: ${bQuota} MB total quota`;
+        }
+    };
+
+    window.saveAdvancedLimits = function () {
+        window.SigmaSettingsCounters?.normalizeAll();
+        if (!window.advancedLimitsAreDirty()) return;
+        const btn = document.getElementById('adv-limits-save-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.className = "flex items-center justify-center px-6 py-2.5 bg-slate-100 text-slate-500 border border-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl cursor-wait transition-all shadow-none";
+            const span = btn.querySelector('span');
+            if (span) span.textContent = "Syncing...";
+        }
+
+        const saved = localStorage.getItem('sigma-material-limits');
+        const limits = saved ? JSON.parse(saved) : {};
+
+        const elVExt = document.getElementById('adv-limit-video-ext');
+        const elDExt = document.getElementById('adv-limit-doc-ext');
+        const elBQuota = document.getElementById('adv-limit-batch-quota');
+
+        let rawV = Number(elVExt?.value) || 25;
+        let vExt = Math.round(rawV / 5) * 5;
+        vExt = Math.min(100, Math.max(10, vExt));
+        if (elVExt) elVExt.value = vExt;
+
+        let rawD = Number(elDExt?.value) || 5;
+        let dExt = Math.round(rawD / 5) * 5;
+        dExt = Math.min(50, Math.max(5, dExt));
+        if (elDExt) elDExt.value = dExt;
+
+        const bQuota = Math.min(500, Math.max(50, Number(elBQuota?.value) || 150));
+        if (elBQuota) elBQuota.value = bQuota;
+
+        limits.video = limits.video || { std: 200, mp4: 200, embed: 30 };
+        limits.video.ext = vExt;
+
+        limits.docx = limits.docx || { std: 20 };
+        limits.docx.ext = dExt;
+
+        limits.pdf = limits.pdf || { std: 25 };
+        limits.pdf.ext = dExt;
+
+        limits.pptx = limits.pptx || { std: 50 };
+        limits.pptx.ext = dExt;
+
+        limits.batchQuota = bQuota;
+        limits.submissionBatchQuota = bQuota;
+
+        try {
+            localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
+            _savedAdvancedLimitsSnapshot = getAdvancedLimitsSnapshot();
+            window.updateAdvancedLimitsButtonState();
+            const span = btn?.querySelector('span');
+            if (span) span.textContent = "Save Advanced Rules";
+            const status = document.getElementById('adv-limits-save-status');
+            if (status) {
+                status.textContent = 'Saved successfully';
+                setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+            }
+            window.updateAdvSandboxCeiling();
+        } catch (_) {
+            window.updateAdvancedLimitsButtonState();
+            const span = btn?.querySelector('span');
+            if (span) span.textContent = "Save Advanced Rules";
+            const status = document.getElementById('adv-limits-save-status');
+            if (status) status.textContent = 'Could not save rules.';
+        }
+    };
+
+    // Live Sandbox Test Upload Simulator Logic
+    window._advSandboxFiles = [];
+
+    window.advSandboxAdd = function (sizeMb, name) {
+        const saved = localStorage.getItem('sigma-material-limits');
+        const limits = saved ? JSON.parse(saved) : {};
+        const dExt = Number(document.getElementById('adv-limit-doc-ext')?.value || limits.docx?.ext) || 25;
+        const bQuota = Number(document.getElementById('adv-limit-batch-quota')?.value || limits.batchQuota) || 150;
+
+        const ext = (name.split('.').pop() || '').toLowerCase();
+        let baseMax = 20;
+        if (ext === 'pdf') baseMax = 25;
+        else if (ext === 'pptx' || ext === 'ppt') baseMax = 50;
+
+        const maxPerFile = baseMax + dExt;
+        const toast = document.getElementById('adv-sandbox-toast');
+
+        // 1. Check per-file buffer
+        if (sizeMb > maxPerFile) {
+            if (toast) {
+                toast.textContent = `❌ Rejection Test: "${name}" (${sizeMb} MB) exceeds the ${maxPerFile} MB ceiling (Base ${baseMax} MB + ${dExt} MB buffer)!`;
+                toast.className = 'text-xs font-bold p-2.5 rounded-xl border bg-rose-50 border-rose-200 text-rose-700 block';
+                setTimeout(() => { if (toast) toast.className = 'hidden'; }, 4000);
+            }
+            return;
+        }
+
+        // 2. Check batch quota
+        const currentTotal = window._advSandboxFiles.reduce((acc, f) => acc + f.size, 0);
+        if (currentTotal + sizeMb > bQuota) {
+            if (toast) {
+                toast.textContent = `⚠️ Quota Test: Adding "${name}" (${sizeMb} MB) exceeds the total ${bQuota} MB multi-file batch quota!`;
+                toast.className = 'text-xs font-bold p-2.5 rounded-xl border bg-amber-50 border-amber-200 text-amber-800 block';
+                setTimeout(() => { if (toast) toast.className = 'hidden'; }, 4000);
+            }
+            return;
+        }
+
+        window._advSandboxFiles.push({ name, size: sizeMb });
+        window.renderAdvSandbox();
+    };
+
+    window.advSandboxClear = function () {
+        window._advSandboxFiles = [];
+        window.renderAdvSandbox();
+    };
+
+    window.renderAdvSandbox = function () {
+        const saved = localStorage.getItem('sigma-material-limits');
+        const limits = saved ? JSON.parse(saved) : {};
+        const bQuota = Number(document.getElementById('adv-limit-batch-quota')?.value || limits.batchQuota) || 150;
+        const total = window._advSandboxFiles.reduce((acc, f) => acc + f.size, 0);
+        const count = window._advSandboxFiles.length;
+
+        const elCount = document.getElementById('adv-sandbox-count');
+        if (elCount) elCount.textContent = `Attached in Sandbox (${count} file${count === 1 ? '' : 's'})`;
+
+        const elTotal = document.getElementById('adv-sandbox-total');
+        if (elTotal) elTotal.textContent = `Total: ${total.toFixed(1)} MB / ${bQuota} MB`;
+
+        const pct = Math.min(100, Math.round((total / bQuota) * 100));
+        const elBar = document.getElementById('adv-sandbox-bar');
+        if (elBar) {
+            elBar.style.width = pct + '%';
+            if (pct > 90) elBar.className = 'h-full bg-rose-600 transition-all duration-300';
+            else if (pct > 70) elBar.className = 'h-full bg-amber-500 transition-all duration-300';
+            else elBar.className = 'h-full bg-[#15803d] transition-all duration-300';
+        }
+
+        const elChips = document.getElementById('adv-sandbox-chips');
+        if (elChips) {
+            if (count === 0) {
+                elChips.innerHTML = '<span class="text-xs text-black-fade italic">No test files attached. Click simulation buttons above to test live upload behavior.</span>';
+            } else {
+                elChips.innerHTML = window._advSandboxFiles.map((f, i) => `
+                    <div class="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold text-black shadow-2xs">
+                        <span>${f.name}</span>
+                        <span class="text-black-fade font-mono text-[11px]">(${f.size} MB)</span>
+                        <button type="button" onclick="window._advSandboxFiles.splice(${i}, 1); window.renderAdvSandbox();" class="text-black-fade hover:text-red-600 font-bold ml-1 cursor-pointer">&times;</button>
+                    </div>
+                `).join('');
             }
         }
     };
 
-    window.closePasswordChange = function () {
-        const overlay = document.getElementById('vault-password-edit-overlay');
-        if (overlay) {
-            overlay.classList.add('hidden');
-            document.body.style.overflow = ''; // Unlock scroll
-        }
+    // --- AI API KEY VAULT LOGIC ---
+    // Legacy browser-stored credentials are no longer supported.
+    try { localStorage.removeItem('sigma-api-keys'); localStorage.removeItem('sigma-api-vault-pass'); } catch (_) {}
+    const openSecureServiceSettings = id => {
+        if (id === 'recaptcha' || id === 'recaptcha-secret') window.openRecaptchaSettingsPage?.();
+        else if (id === 'drive') window.openGoogleDriveSettingsPage?.();
+        else window.openAiSettingsPage?.();
     };
-
-    window.updateVaultPassword = function () {
-        const input = document.getElementById('new-vault-password');
-        const btn = document.getElementById('vault-password-save-btn');
-        const label = document.getElementById('vault-password-save-label');
-        const loading = document.getElementById('vault-password-save-loading');
-
-        if (!input || !input.value.trim()) return;
-
-        const pass = input.value.trim();
-        if (pass.length > 30) return;
-
-        if (btn) btn.disabled = true;
-        if (label) label.textContent = 'Updating...';
-        if (loading) loading.classList.remove('hidden');
-
-        setTimeout(() => {
-            INSTITUTIONAL_PASS = pass;
-            localStorage.setItem('sigma-api-vault-pass', INSTITUTIONAL_PASS);
-
-            if (btn) btn.disabled = false;
-            if (label) label.textContent = 'Update Global Password';
-            if (loading) loading.classList.add('hidden');
-
-            window.closePasswordChange();
-            if (window.showToast) window.showToast('Institutional Password Updated Successfully');
-            else alert('Institutional Password Updated Successfully');
-        }, 800);
-    };
-
-    window.saveApiKeys = function () {
-        const keys = {
-            gemini: document.getElementById('api-key-gemini')?.value || '',
-            groq: document.getElementById('api-key-groq')?.value || '',
-            recaptcha: document.getElementById('api-key-recaptcha')?.value || '',
-            recaptcha_secret: document.getElementById('api-key-recaptcha-secret')?.value || '',
-            drive: document.getElementById('api-key-drive')?.value || ''
-        };
-
-        localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
-
-        // Sync with backend API
-        fetch('php/api/auth.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'save_recaptcha_config',
-                site_key: keys.recaptcha,
-                secret_key: keys.recaptcha_secret
-            })
-        }).catch(e => console.warn('Failed to sync reCAPTCHA to server:', e));
-
-        const btn = event.currentTarget;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span>Synchronizing...</span>';
-        btn.disabled = true;
-
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<span>Vault Synchronized</span>';
-            btn.classList.add('bg-black');
-            btn.classList.remove('bg-[#15803d]');
-
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.classList.add('bg-[#15803d]');
-                btn.classList.remove('bg-black');
-            }, 2000);
-
-            if (window.showToast) window.showToast('API Vault Synchronized Successfully');
-        }, 1000);
-    };
-
-    function initApiVault() {
-        const saved = localStorage.getItem('sigma-api-keys');
-        if (saved) {
-            const keys = JSON.parse(saved);
-            if (document.getElementById('api-key-gemini')) document.getElementById('api-key-gemini').value = keys.gemini || '';
-            if (document.getElementById('api-key-groq')) document.getElementById('api-key-groq').value = keys.groq || '';
-            if (document.getElementById('api-key-recaptcha')) document.getElementById('api-key-recaptcha').value = keys.recaptcha || '';
-            if (document.getElementById('api-key-recaptcha-secret')) document.getElementById('api-key-recaptcha-secret').value = keys.recaptcha_secret || '';
-            if (document.getElementById('api-key-drive')) document.getElementById('api-key-drive').value = keys.drive || '';
-        }
-
-        // Also fetch from server
-        fetch('php/api/auth.php?action=recaptcha_config')
-            .then(r => r.json())
-            .then(data => {
-                if (data && data.success) {
-                    if (data.site_key && document.getElementById('api-key-recaptcha') && !document.getElementById('api-key-recaptcha').value) {
-                        document.getElementById('api-key-recaptcha').value = data.site_key;
-                    }
-                }
-            })
-            .catch(() => {});
-    }
-    initApiVault();
+    window.triggerVault = openSecureServiceSettings;
+    window.verifyVaultModal = () => openSecureServiceSettings('ai');
+    window.saveKeyField = openSecureServiceSettings;
+    window.saveApiKeys = () => openSecureServiceSettings('ai');
+    window.triggerPasswordChange = () => window.showToast?.('Service credentials use administrator verification, not a browser vault password.');
+    window.updateVaultPassword = window.triggerPasswordChange;
+    window.closeVaultModal = () => document.getElementById('vault-unlock-overlay')?.classList.add('hidden');
+    window.closePasswordChange = () => document.getElementById('vault-password-edit-overlay')?.classList.add('hidden');
+    window.cancelKeyField = id => document.getElementById(`key-field-${id}`)?.classList.add('hidden');
 
     // ─── GOOGLE DRIVE CLOUD STORAGE PAGE VIEW & MANAGER ─────────────────────────
     const resolveUploadApiUrl = () => {
@@ -18667,6 +18852,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (display) display.textContent = input.dataset.savedValue || 'Not configured';
         window.updateGoogleDriveSaveState();
         if (editing) input.focus();
+        if (editing) window.recordSystemSettingsLayer?.({ kind: 'drive-editor' });
+        else window.closeSystemSettingsLayer?.('drive-editor');
     };
     document.getElementById('gdrive-page-folder-input')?.addEventListener('input', window.updateGoogleDriveSaveState);
 
@@ -18843,7 +19030,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Changes';
+                saveBtn.textContent = 'Save';
                 window.updateGoogleDriveSaveState();
             }
         }
@@ -18892,7 +19079,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── GOOGLE RECAPTCHA MANAGER & LIVE TEST MODAL ─────────────────────────
     const resolveAuthApiUrl = (query = '') => {
-        let base = 'php/api/auth.php';
+        if (window.SigmaRecaptcha?.apiUrl) return window.SigmaRecaptcha.apiUrl(query);
+        const { hostname, port, protocol, pathname } = window.location;
+        const base = (hostname === 'localhost' || hostname === '127.0.0.1') && port && !['80', '443'].includes(port)
+            ? `${protocol}//${hostname}/sigma-elms/php/api/auth.php`
+            : pathname.includes('/php/') ? 'api/auth.php' : 'php/api/auth.php';
         return query ? `${base}?${query}` : base;
     };
     window.resolveAuthApiUrl = resolveAuthApiUrl;
@@ -18913,319 +19104,667 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.loadRecaptchaPageData = async function () {
-        const statusEl = document.getElementById('recaptcha-page-connection-status');
-        const siteKeyDisp = document.getElementById('recaptcha-page-display-site-key');
-        const secretDisp = document.getElementById('recaptcha-page-display-secret-status');
-        const modeDisp = document.getElementById('recaptcha-page-display-mode');
-        const siteKeyInput = document.getElementById('recaptcha-page-site-key-input');
-        const secretKeyInput = document.getElementById('recaptcha-page-secret-key-input');
-        const thresholdInput = document.getElementById('recaptcha-page-threshold-input');
-        const enabledToggle = document.getElementById('recaptcha-page-enabled-toggle');
-
-        if (statusEl) {
-            statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
-            statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Checking...</span>';
-        }
-
-        try {
-            const res = await fetch(resolveAuthApiUrl('action=recaptcha_config'));
-            const data = await res.json().catch(() => null);
-
-            if (data && data.success) {
-                if (siteKeyInput && data.site_key !== undefined) siteKeyInput.value = data.site_key;
-                if (thresholdInput && data.threshold !== undefined) thresholdInput.value = data.threshold;
-                if (enabledToggle && data.enabled !== undefined) enabledToggle.checked = !!data.enabled;
-
-                const hasSite = !!(data.site_key && data.site_key.trim());
-                const hasSecret = !!data.has_secret;
-
-                if (siteKeyDisp) {
-                    if (hasSite) {
-                        const raw = data.site_key.trim();
-                        siteKeyDisp.textContent = raw.length > 16 ? (raw.slice(0, 8) + '••••••••' + raw.slice(-4)) : raw;
-                    } else {
-                        siteKeyDisp.textContent = 'Not configured';
-                    }
-                }
-                if (secretDisp) {
-                    secretDisp.textContent = hasSecret ? 'Configured (Encrypted)' : 'Not configured';
-                }
-                if (modeDisp) {
-                    modeDisp.textContent = data.enabled ? 'Active (Enabled)' : 'Disabled';
-                    modeDisp.className = `text-xs font-bold ${data.enabled ? 'text-[#15803d]' : 'text-slate-400'}`;
-                }
-
-                if (statusEl) {
-                    if (hasSite && hasSecret) {
-                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-[#15803d] border border-emerald-200/60';
-                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#15803d]"></span><span>Configured & Ready</span>';
-                    } else if (hasSite || hasSecret) {
-                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60';
-                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Partially Configured</span>';
-                    } else {
-                        statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200';
-                        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Not Configured</span>';
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('[SIGMA] reCAPTCHA config fetch error:', e);
-            if (statusEl) {
-                statusEl.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200/60';
-                statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Offline / Local Mode</span>';
-            }
-        }
-    };
-
-    window.saveRecaptchaPageSettings = async function () {
-        const siteKeyInput = document.getElementById('recaptcha-page-site-key-input');
-        const secretKeyInput = document.getElementById('recaptcha-page-secret-key-input');
-        const thresholdInput = document.getElementById('recaptcha-page-threshold-input');
-        const enabledToggle = document.getElementById('recaptcha-page-enabled-toggle');
-        const saveBtn1 = document.getElementById('btn-save-recaptcha-page-config');
-        const saveBtn2 = document.getElementById('btn-save-recaptcha-thresholds');
-
-        const payload = {
-            action: 'save_recaptcha_config',
-            site_key: siteKeyInput ? siteKeyInput.value.trim() : '',
-            threshold: thresholdInput ? parseInt(thresholdInput.value, 10) || 3 : 3,
-            enabled: enabledToggle ? enabledToggle.checked : true
-        };
-
-        if (secretKeyInput && secretKeyInput.value.trim() !== '') {
-            payload.secret_key = secretKeyInput.value.trim();
-        }
-
-        if (saveBtn1) { saveBtn1.disabled = true; saveBtn1.textContent = 'Saving...'; }
-        if (saveBtn2) { saveBtn2.disabled = true; saveBtn2.textContent = 'Saving...'; }
-
-        try {
-            const res = await fetch(resolveAuthApiUrl(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json().catch(() => null);
-
-            if (data && data.success) {
-                const saved = localStorage.getItem('sigma-api-keys');
-                let keys = saved ? JSON.parse(saved) : {};
-                keys.recaptcha = payload.site_key;
-                if (payload.secret_key) keys.recaptcha_secret = payload.secret_key;
-                localStorage.setItem('sigma-api-keys', JSON.stringify(keys));
-
-                if (secretKeyInput) secretKeyInput.value = '';
-                if (window.showToast) window.showToast('reCAPTCHA Settings Saved Successfully');
-                else alert('reCAPTCHA Settings Saved Successfully');
-
-                window.loadRecaptchaPageData();
-            } else {
-                alert(data?.error || 'Failed to save reCAPTCHA settings.');
-            }
-        } catch (e) {
-            console.error('Error saving reCAPTCHA settings:', e);
-            alert('Failed to connect to auth API. Ensure Apache/PHP is running.');
-        } finally {
-            if (saveBtn1) {
-                saveBtn1.disabled = false;
-                saveBtn1.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i><span>Save reCAPTCHA Settings</span>';
-            }
-            if (saveBtn2) {
-                saveBtn2.disabled = false;
-                saveBtn2.innerHTML = '<i class="fa-solid fa-floppy-disk text-xs"></i><span>Save Defense Thresholds</span>';
-            }
-        }
-    };
-
-    window.toggleRecaptchaSecretVisibility = function () {
-        const input = document.getElementById('recaptcha-page-secret-key-input');
-        const btn = document.getElementById('btn-toggle-recaptcha-secret');
-        if (!input || !btn) return;
-        if (input.type === 'password') {
-            input.type = 'text';
-            btn.textContent = 'Hide Key';
+    window.openAiSettingsPage = function () {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-settings-ai');
+        } else if (typeof window.showSection === 'function') {
+            window.showSection('settings-ai-view', 'nav-settings-integrations');
+            window.location.hash = 'settings-ai-view';
         } else {
-            input.type = 'password';
-            btn.textContent = 'Show Key';
+            document.querySelectorAll('.dynamic-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('settings-ai-view')?.classList.remove('hidden');
+            window.location.hash = 'settings-ai-view';
+            window.loadAiPageData?.();
         }
     };
 
-    // ─── RECAPTCHA TEST MODAL LOGIC ──────────────────────────────────────────
-    window._isRecaptchaTesting = false;
-
-    window.openRecaptchaTestModal = function () {
-        const modal = document.getElementById('recaptchaTestModal');
-        if (!modal) return;
-        window.resetRecaptchaTestModal();
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-    };
-
-    window.closeRecaptchaTestModal = function () {
-        const modal = document.getElementById('recaptchaTestModal');
-        if (!modal) return;
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.style.overflow = '';
-    };
-
-    window.resetRecaptchaTestModal = function () {
-        window._isRecaptchaTesting = false;
-        const box = document.getElementById('recaptchaModalBox');
-        const checkbox = document.getElementById('recaptchaModalCheckbox');
-        const checkIcon = document.getElementById('recaptchaModalCheckIcon');
-        const spinner = document.getElementById('recaptchaModalSpinner');
-        const label = document.getElementById('recaptchaModalLabel');
-        const diag = document.getElementById('recaptchaModalDiagnostic');
-
-        if (box) {
-            box.className = 'w-full max-w-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl p-4 transition-all select-none cursor-pointer flex items-center justify-between';
-        }
-        if (checkbox) {
-            checkbox.className = 'w-7 h-7 rounded-lg border-2 border-slate-400 bg-white flex items-center justify-center transition-all';
-        }
-        if (checkIcon) checkIcon.classList.add('hidden');
-        if (spinner) spinner.classList.add('hidden');
-        if (label) {
-            label.textContent = "I'm not a robot";
-            label.className = 'text-xs font-bold text-black';
-        }
-        if (diag) {
-            diag.classList.add('hidden');
-            diag.className = 'hidden rounded-2xl p-4 text-xs font-mono border space-y-2';
+    window.loadAiPageData = async function () {
+        try {
+            const res = await fetch(resolveAuthApiUrl('action=ai_vault'));
+            const data = await res.json().catch(() => null);
+            if (data && data.success) {
+                window.renderAiRouting?.(data);
+            } else {
+                const feedback = document.getElementById('ai-routing-feedback');
+                if (feedback) feedback.textContent = 'Unable to load AI settings. Refresh to retry.';
+            }
+        } catch (e) {
+            console.warn('[SIGMA] AI vault load error:', e);
+            const feedback = document.getElementById('ai-routing-feedback');
+            if (feedback) feedback.textContent = 'Unable to connect to AI settings. Refresh to retry.';
         }
     };
 
-    window.runRecaptchaTestChallenge = async function () {
-        if (window._isRecaptchaTesting) return;
+    window.persistAiRoutingSettings = async function (routing) {
+        const response = await fetch(resolveAuthApiUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_ai_routing', ...routing })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save AI settings.');
+        return result.routing;
+    };
+    
+    // ── AI CREDENTIALS & ENGINE VAULT CONTROLLER ──
+    let aiKeyDetectionTimer, aiKeyDetectionRequest, aiKeyDetectionRevision = 0;
+    window.syncSettingsKeyEye = function (input) {
+        const button = input?.parentElement?.querySelector('.settings-key-eye');
+        if (!button) return;
+        button.hidden = !input.value;
+        const visible = input.type === 'text';
+        button.setAttribute('aria-pressed', String(visible));
+        button.setAttribute('aria-label', visible ? 'Hide key' : 'Show key');
+        button.title = visible ? 'Hide key' : 'Show key';
+        button.querySelector('i')?.classList.toggle('fa-eye', visible);
+        button.querySelector('i')?.classList.toggle('fa-eye-slash', !visible);
+        button.onmousedown = event => event.preventDefault();
+    };
+    let aiKeyEditor = { provider: '', verifiedKey: '', existing: null };
+    window.resetAiSettingsViewport = function () {
+        if (typeof window.sigmaResetScrollToTop === 'function') {
+            window.sigmaResetScrollToTop('#settings-ai-view');
+        } else {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            for (const id of ['admin-main', 'layout-wrapper', 'settings-ai-view']) {
+                const container = document.getElementById(id);
+                if (container) container.scrollTop = 0;
+            }
+        }
+    };
+    function aiKeyBadge(provider, verified = false) {
+        const badge = document.getElementById('ai-form-provider-badge');
+        badge.hidden = !provider;
+        badge.dataset.provider = provider;
+        badge.textContent = provider ? (provider === 'gemini' ? 'Google Gemini' : 'Groq') + (verified ? ' - Verified' : ' - Detected') : '';
+    }
+    window.toggleAddAiKeyForm = function (show, editKey = null, recordHistory = true) {
+        const card = document.getElementById('ai-add-key-card');
+        const form = document.getElementById('ai-key-add-form');
+        const titleEl = document.getElementById('ai-key-form-title');
+        const idInput = document.getElementById('ai-form-key-id');
+        const modelSelect = document.getElementById('ai-form-model-select');
+        const keyInput = document.getElementById('ai-form-key-input');
 
-        const box = document.getElementById('recaptchaModalBox');
-        const checkbox = document.getElementById('recaptchaModalCheckbox');
-        const checkIcon = document.getElementById('recaptchaModalCheckIcon');
-        const spinner = document.getElementById('recaptchaModalSpinner');
-        const label = document.getElementById('recaptchaModalLabel');
-        const diag = document.getElementById('recaptchaModalDiagnostic');
-        const diagTitle = document.getElementById('recaptchaDiagTitle');
-        const diagBadge = document.getElementById('recaptchaDiagBadge');
-        const diagDetails = document.getElementById('recaptchaDiagDetails');
-        const pageFeedback = document.getElementById('recaptcha-page-test-feedback');
+        if (!card) return;
+        const deleteButton = document.getElementById('btn-delete-ai-key');
+        if (deleteButton) deleteButton.hidden = !show || !editKey?.id;
+        clearTimeout(aiKeyDetectionTimer);
+        aiKeyDetectionRequest?.abort();
+        aiKeyDetectionRevision++;
+        aiKeyEditor = { provider: editKey?.provider || '', verifiedKey: '', existing: editKey };
+        document.getElementById('ai-form-detection-feedback').textContent = '';
+        document.getElementById('ai-form-model-field').hidden = !editKey;
+        modelSelect.replaceChildren(new Option('Select a model', ''));
+        modelSelect.disabled = !editKey;
+        aiKeyBadge(editKey?.provider || '');
+        document.getElementById('btn-submit-ai-key').disabled = !editKey;
 
-        window._isRecaptchaTesting = true;
+        const addButton = document.getElementById('btn-open-add-ai-key');
+        if (addButton) addButton.hidden = !!show;
 
-        if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-slate-400 bg-slate-50 flex items-center justify-center transition-all';
-        if (checkIcon) checkIcon.classList.add('hidden');
-        if (spinner) spinner.classList.remove('hidden');
-        if (label) label.textContent = 'Verifying challenge...';
+        if (show) {
+            card.classList.remove('hidden');
+            if (keyInput) keyInput.type = 'password';
+            const visibilityButton = document.getElementById('btn-toggle-ai-form-key');
+            if (visibilityButton) visibilityButton.hidden = true;
+            if (editKey) {
+                if (titleEl) titleEl.textContent = 'Edit API Key';
+                if (idInput) idInput.value = editKey.id;
+                modelSelect.add(new Option(editKey.model, editKey.model));
+                if (modelSelect) modelSelect.value = editKey.model;
+                window.loadStoredAiKeyModels(editKey);
+                if (keyInput) {
+                    keyInput.value = '';
+                    keyInput.required = false;
+                    keyInput.placeholder = 'Leave blank to preserve currently stored key';
+                }
+            } else {
+                if (titleEl) titleEl.textContent = 'Add API Key';
+                if (form) form.reset();
+                if (idInput) idInput.value = '';
+                if (keyInput) {
+                    keyInput.required = true;
+                    keyInput.placeholder = 'Paste a Gemini or Groq API key';
+                }
+            }
+        } else {
+            card.classList.add('hidden');
+            if (form) form.reset();
+            if (idInput) idInput.value = '';
+        }
+        window.syncAiKeyListVisibility?.();
+        window.syncSettingsKeyEye(keyInput);
+        window.resetAiSettingsViewport();
+        if (show) {
+            keyInput?.focus({ preventScroll: true });
+        } else {
+            addButton?.focus({ preventScroll: true });
+        }
+        if (recordHistory) {
+            if (show) window.recordSystemSettingsLayer?.({ kind: 'ai-editor', tab: 'keys', id: editKey?.id || '' });
+            else window.closeSystemSettingsLayer?.('ai-editor');
+        }
+    };
 
-        const startTime = performance.now();
-        const testToken = 'SIGMA_TEST_RECAPTCHA_TOKEN_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
+    window.loadStoredAiKeyModels = async function (key) {
+        const revision = aiKeyDetectionRevision;
+        const select = document.getElementById('ai-form-model-select');
+        const feedback = document.getElementById('ai-form-detection-feedback');
+        feedback.textContent = 'Loading available models...';
+        const request = new AbortController();
+        aiKeyDetectionRequest = request;
+        try {
+            const response = await fetch(resolveAuthApiUrl(), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: request.signal,
+                body: JSON.stringify({ action: 'discover_ai_key', id: key.id })
+            });
+            const result = await response.json();
+            if (revision !== aiKeyDetectionRevision) return;
+            if (!response.ok || !result.success || !result.models?.length) throw new Error(result.error || 'Unable to load available models.');
+            const selected = select.value || key.model;
+            select.replaceChildren(new Option('Select a model', ''));
+            result.models.forEach(model => select.add(new Option(model.label, model.id)));
+            if (!result.models.some(model => model.id === selected)) select.add(new Option(selected + ' (saved)', selected));
+            select.value = selected;
+            feedback.textContent = '';
+        } catch (error) {
+            if (revision === aiKeyDetectionRevision && error.name !== 'AbortError') feedback.textContent = error.message;
+        }
+    };
+
+    window.detectAiFormKey = function () {
+        clearTimeout(aiKeyDetectionTimer);
+        aiKeyDetectionRequest?.abort();
+        const revision = ++aiKeyDetectionRevision;
+        const key = document.getElementById('ai-form-key-input').value.trim();
+        const modelSelect = document.getElementById('ai-form-model-select');
+        const field = document.getElementById('ai-form-model-field');
+        const feedback = document.getElementById('ai-form-detection-feedback');
+        const save = document.getElementById('btn-submit-ai-key');
+        aiKeyEditor.verifiedKey = '';
+        modelSelect.replaceChildren(new Option('Select a model', ''));
+        modelSelect.disabled = true;
+        field.hidden = true;
+        save.disabled = true;
+        feedback.textContent = '';
+        const provider = /^gsk_[A-Za-z0-9_-]+$/.test(key) ? 'groq'
+            : /^(AIza|AQ[._])[A-Za-z0-9_.-]+$/.test(key) ? 'gemini' : '';
+        aiKeyEditor.provider = provider;
+        aiKeyBadge(provider);
+        if (!key && aiKeyEditor.existing) {
+            const existing = aiKeyEditor.existing;
+            aiKeyEditor.provider = existing.provider;
+            aiKeyBadge(existing.provider);
+            modelSelect.add(new Option(existing.model, existing.model));
+            modelSelect.value = existing.model;
+            modelSelect.disabled = false;
+            field.hidden = false;
+            save.disabled = false;
+            window.loadStoredAiKeyModels(existing);
+            return;
+        }
+        if (!provider || key.length < 20) {
+            if (key) feedback.textContent = 'Paste a complete Gemini or Groq API key.';
+            return;
+        }
+        feedback.textContent = 'Checking key and loading models...';
+        aiKeyDetectionTimer = setTimeout(async () => {
+            aiKeyDetectionRequest = new AbortController();
+            try {
+                const response = await fetch(resolveAuthApiUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: aiKeyDetectionRequest.signal,
+                    body: JSON.stringify({ action: 'discover_ai_key', api_key: key })
+                });
+                const result = await response.json();
+                if (revision !== aiKeyDetectionRevision) return;
+                if (!response.ok || !result.success) throw new Error(result.error || 'Unable to check this key.');
+                if (result.provider !== provider || !result.models?.length) throw new Error('No available models returned.');
+                result.models.forEach(model => modelSelect.add(new Option(model.label, model.id)));
+                aiKeyEditor.provider = result.provider;
+                aiKeyEditor.verifiedKey = key;
+                aiKeyBadge(result.provider, true);
+                modelSelect.disabled = false;
+                field.hidden = false;
+                feedback.textContent = '';
+            } catch (error) {
+                if (revision !== aiKeyDetectionRevision || error.name === 'AbortError') return;
+                feedback.textContent = error.message;
+            }
+        }, 600);
+    };
+
+    document.getElementById('ai-form-model-select')?.addEventListener('change', function () {
+        document.getElementById('btn-submit-ai-key').disabled = !this.value;
+    });
+
+    window.toggleAiFormKeyVisibility = function () {
+        const input = document.getElementById('ai-form-key-input');
+        if (!input) return;
+        input.type = input.type === 'password' ? 'text' : 'password';
+        window.syncSettingsKeyEye(input);
+    };
+
+    window.handleSaveAiKeySubmit = async function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+
+        const btn = document.getElementById('btn-submit-ai-key');
+        const idInput = document.getElementById('ai-form-key-id');
+        const modelSelect = document.getElementById('ai-form-model-select');
+        const keyInput = document.getElementById('ai-form-key-input');
+
+        const keyVal = (keyInput?.value || '').trim();
+        const idVal = (idInput?.value || '').trim();
+        if ((keyVal && aiKeyEditor.verifiedKey !== keyVal) || !aiKeyEditor.provider || !modelSelect?.value) {
+            document.getElementById('ai-form-detection-feedback').textContent = 'Check the key and select a model before saving.';
+            return;
+        }
+
+        if (!idVal && !keyVal) {
+            alert('Please paste a valid API key.');
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i><span>Saving Key...</span>';
+        }
 
         try {
             const res = await fetch(resolveAuthApiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    action: 'verify_recaptcha',
-                    token: testToken
+                    action: 'save_ai_vault_key',
+                    id: idVal,
+                    provider: aiKeyEditor.provider,
+                    model: modelSelect.value,
+                    auto_detect: true,
+                    api_key: keyVal || '__PRESERVE__',
+                    set_active: false,
+                    set_provider_default: false
                 })
             });
-            const latency = Math.round(performance.now() - startTime);
             const data = await res.json().catch(() => null);
 
-            if (spinner) spinner.classList.add('hidden');
-
-            if (res.ok && data && data.success) {
-                if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-[#15803d] bg-emerald-50 flex items-center justify-center transition-all';
-                if (checkIcon) checkIcon.classList.remove('hidden');
-                if (label) {
-                    label.textContent = 'Verification Complete';
-                    label.className = 'text-xs font-bold text-[#15803d]';
-                }
-                if (box) {
-                    box.className = 'w-full max-w-xs bg-emerald-50/40 border border-emerald-300 rounded-2xl p-4 transition-all select-none flex items-center justify-between';
-                }
-
-                if (diag) {
-                    diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-emerald-50/60 border-emerald-200 text-emerald-950 space-y-2 block';
-                    if (diagTitle) diagTitle.textContent = 'Server Handshake Verified';
-                    if (diagBadge) {
-                        diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-[#15803d] border border-emerald-300';
-                        diagBadge.textContent = 'PASSED (200 OK)';
-                    }
-                    if (diagDetails) {
-                        diagDetails.innerHTML = `
-                            <div><span class="text-slate-500 font-sans">Status:</span> Valid token validated by backend API</div>
-                            <div><span class="text-slate-500 font-sans">Handshake Latency:</span> ${latency}ms</div>
-                            <div><span class="text-slate-500 font-sans">Verification Score:</span> ${data.score !== undefined ? data.score : '1.0'}</div>
-                            <div><span class="text-slate-500 font-sans">Service Mode:</span> ${data.mode || 'Enterprise Bot Protection'}</div>
-                            <div><span class="text-slate-500 font-sans">Timestamp:</span> ${new Date().toLocaleTimeString()}</div>
-                        `;
-                    }
-                }
-
-                if (pageFeedback) {
-                    pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-emerald-50 text-[#15803d] border border-emerald-200/70 block';
-                    pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-sm"></i><span><strong>Live Test Passed:</strong> Handshake verified successfully (${latency}ms latency) at ${new Date().toLocaleTimeString()}.</span></div>`;
-                }
-                if (window.showToast) window.showToast('reCAPTCHA Verification Passed (200 OK)');
+            if (data && data.success) {
+                window.toggleAddAiKeyForm(false);
+                await window.loadAiPageData();
+                if (window.showToast) window.showToast('API Key saved to vault successfully.');
+                else alert('API Key saved to vault successfully.');
             } else {
-                if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-rose-500 bg-rose-50 flex items-center justify-center transition-all';
-                if (label) {
-                    label.textContent = 'Verification Failed';
-                    label.className = 'text-xs font-bold text-rose-700';
-                }
-                if (box) {
-                    box.className = 'w-full max-w-xs bg-rose-50/40 border border-rose-300 rounded-2xl p-4 transition-all select-none flex items-center justify-between';
-                }
+                alert(data?.error || 'Failed to save API key.');
+            }
+        } catch (err) {
+            console.error('[SIGMA] Save AI key error:', err);
+            alert('Failed to connect to backend server.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        }
+    };
 
-                if (diag) {
-                    diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-rose-50/60 border-rose-200 text-rose-950 space-y-2 block';
-                    if (diagTitle) diagTitle.textContent = 'Verification Error';
-                    if (diagBadge) {
-                        diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300';
-                        diagBadge.textContent = 'FAILED';
-                    }
-                    if (diagDetails) {
-                        diagDetails.innerHTML = `
-                            <div><span class="text-rose-600 font-sans">Error:</span> ${data?.error || 'Validation failed on server'}</div>
-                            <div><span class="text-rose-600 font-sans">Response Latency:</span> ${latency}ms</div>
-                            <div><span class="text-rose-600 font-sans">Timestamp:</span> ${new Date().toLocaleTimeString()}</div>
-                        `;
-                    }
-                }
+    window.deleteAiVaultKey = async function (keyId) {
+        if (!keyId) return;
+        const confirmDelete = confirm('Are you sure you want to delete this API key from the vault?');
+        if (!confirmDelete) return;
 
-                if (pageFeedback) {
-                    pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/70 block';
-                    pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-sm"></i><span><strong>Live Test Failed:</strong> ${data?.error || 'Challenge handshake failed'}.</span></div>`;
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete_ai_key',
+                    id: keyId
+                })
+            });
+            const data = await res.json().catch(() => null);
+
+            if (data && data.success) {
+                if (document.getElementById('ai-form-key-id')?.value === keyId) window.toggleAddAiKeyForm(false);
+                await window.loadAiPageData();
+                if (window.showToast) window.showToast('API key removed from vault.');
+            } else {
+                alert(data?.error || 'Failed to delete API key.');
+            }
+        } catch (err) {
+            console.error('[SIGMA] Delete AI key error:', err);
+            alert('Failed to connect to backend server.');
+        }
+    };
+
+    window.testAiVaultKey = async function (keyId, btnEl) {
+        const feedbackEl = document.getElementById('test-feedback-' + keyId);
+        const labelSpan = btnEl?.querySelector('.test-label');
+        const origLabel = labelSpan ? labelSpan.textContent : 'Test';
+
+        if (btnEl) btnEl.disabled = true;
+        if (labelSpan) labelSpan.textContent = 'Testing...';
+
+        if (feedbackEl) {
+            feedbackEl.className = 'mt-3 p-3 rounded-xl text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 block';
+            feedbackEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Testing live handshake with provider API...';
+        }
+
+        try {
+            const res = await fetch(resolveAuthApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'test_ai_vault_key',
+                    id: keyId
+                })
+            });
+            const data = await res.json().catch(() => null);
+
+            if (data && data.success) {
+                if (feedbackEl) {
+                    feedbackEl.className = 'mt-3 p-3 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 block';
+                    feedbackEl.innerHTML = '<i class="fa-solid fa-circle-check text-[#15803d] mr-2"></i>' + (data.message || 'Handshake successful!');
+                }
+            } else {
+                if (feedbackEl) {
+                    feedbackEl.className = 'mt-3 p-3 rounded-xl text-xs font-medium bg-red-50 text-red-800 border border-red-200 block';
+                    feedbackEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-600 mr-2"></i>' + (data?.error || 'Handshake failed.');
                 }
             }
-        } catch (e) {
-            if (spinner) spinner.classList.add('hidden');
-            if (checkbox) checkbox.className = 'w-7 h-7 rounded-lg border-2 border-rose-500 bg-rose-50 flex items-center justify-center transition-all';
-            if (label) {
-                label.textContent = 'Network / API Error';
-                label.className = 'text-xs font-bold text-rose-700';
-            }
-            if (diag) {
-                diag.className = 'rounded-2xl p-4 text-xs font-mono border bg-rose-50/60 border-rose-200 text-rose-950 space-y-2 block';
-                if (diagTitle) diagTitle.textContent = 'Network Error';
-                if (diagBadge) {
-                    diagBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300';
-                    diagBadge.textContent = 'UNREACHABLE';
-                }
-                if (diagDetails) {
-                    diagDetails.innerHTML = `<div>Cannot reach auth API at ${resolveAuthApiUrl()}. Ensure Apache/PHP is running.</div>`;
-                }
-            }
-            if (pageFeedback) {
-                pageFeedback.className = 'p-3.5 rounded-xl text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/70 block';
-                pageFeedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-sm"></i><span><strong>Network Error:</strong> Cannot reach backend auth API.</span></div>`;
+        } catch (err) {
+            if (feedbackEl) {
+                feedbackEl.className = 'mt-3 p-3 rounded-xl text-xs font-medium bg-red-50 text-red-800 border border-red-200 block';
+                feedbackEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-red-600 mr-2"></i>Network connection error.';
             }
         } finally {
-            window._isRecaptchaTesting = false;
+            if (btnEl) btnEl.disabled = false;
+            if (labelSpan) labelSpan.textContent = origLabel;
         }
+    };
+
+    const recaptchaPageState = { saved: null, version: 'v2', drafts: {}, editing: {}, busy: false };
+    const recaptchaNode = id => document.getElementById(id);
+    let recaptchaDefenseTimer;
+    window.scheduleRecaptchaDefenseSave = function (immediate = false) {
+        clearTimeout(recaptchaDefenseTimer);
+        const status = recaptchaNode('recaptcha-defense-save-status');
+        const value = Number(recaptchaNode('recaptcha-page-threshold-input')?.value);
+        if (!Number.isInteger(value) || value < 1 || value > 50) {
+            if (status) status.textContent = 'Enter a threshold from 1 to 50.';
+            return;
+        }
+        if (status) status.textContent = 'Saving...';
+        recaptchaDefenseTimer = setTimeout(async () => {
+            if (recaptchaPageState.busy) { window.scheduleRecaptchaDefenseSave(); return; }
+            if (!recaptchaPageState.saved) { if (status) status.textContent = 'Settings unavailable. Reload to retry.'; return; }
+            const changed = value !== recaptchaPageState.saved.threshold
+                || !!recaptchaNode('recaptcha-page-enabled-toggle')?.checked !== recaptchaPageState.saved.enabled;
+            if (changed) await window.saveRecaptchaPageSettings('defense');
+            else if (status) status.textContent = '';
+        }, immediate ? 0 : 500);
+    };
+    const recaptchaProfile = type => recaptchaPageState.saved?.profiles?.[type] || { site_key: '', has_secret: false };
+    function captureRecaptchaDraft() {
+        const entry = recaptchaPageState.drafts[recaptchaPageState.version];
+        if (!entry) return;
+        entry.site_key = recaptchaNode('recaptcha-page-site-key-input')?.value.trim() || '';
+        entry.secret_key = recaptchaNode('recaptcha-page-secret-key-input')?.value.trim() || '';
+    }
+    function showRecaptchaDraft() {
+        const entry = recaptchaPageState.drafts[recaptchaPageState.version] || { site_key: '', secret_key: '' };
+        const site = recaptchaNode('recaptcha-page-site-key-input');
+        const secret = recaptchaNode('recaptcha-page-secret-key-input');
+        if (site) site.value = entry.site_key;
+        if (secret) secret.value = entry.secret_key;
+        for (const type of ['v2', 'v3']) {
+            const radio = document.querySelector(`input[name="recaptcha-version"][value="${type}"]`);
+            if (radio) radio.checked = recaptchaPageState.version === type;
+        }
+        window.updateRecaptchaSecretSavedState({ has_secret: recaptchaProfile(recaptchaPageState.version).has_secret }, false);
+        window.setRecaptchaKeyVisibility('site', false);
+        window.setRecaptchaKeyVisibility('secret', false);
+    }
+    function recaptchaKeysChanged() {
+        captureRecaptchaDraft();
+        return !!recaptchaPageState.saved && (recaptchaPageState.version !== recaptchaPageState.saved.version
+            || Object.entries(recaptchaPageState.drafts).some(([type, entry]) => entry.site_key !== recaptchaProfile(type).site_key || !!entry.secret_key));
+    }
+    window.updateRecaptchaSaveButtons = function () {
+        const keys = recaptchaNode('btn-save-recaptcha-page-config');
+        const defense = recaptchaNode('btn-save-recaptcha-thresholds');
+        const saved = recaptchaPageState.saved;
+        if (keys) keys.disabled = recaptchaPageState.busy || !recaptchaKeysChanged();
+        for (const id of ['recaptcha-page-threshold-input', 'recaptcha-page-enabled-toggle']) {
+            const input = recaptchaNode(id);
+            if (input) input.disabled = recaptchaPageState.busy || !saved;
+        }
+        if (defense) defense.disabled = recaptchaPageState.busy || !saved
+            || (Number(recaptchaNode('recaptcha-page-threshold-input')?.value) === saved.threshold
+                && !!recaptchaNode('recaptcha-page-enabled-toggle')?.checked === saved.enabled);
+    };
+    window.onRecaptchaVersionChanged = function (version) {
+        captureRecaptchaDraft();
+        recaptchaPageState.version = version === 'v3' ? 'v3' : 'v2';
+        recaptchaPageState.editing = {};
+        for (const kind of ['site', 'secret']) {
+            recaptchaNode(`recaptcha-${kind}-key-editor`)?.classList.toggle('hidden', true);
+            recaptchaNode(`recaptcha-${kind}-key-display`)?.classList.toggle('hidden', false);
+        }
+        showRecaptchaDraft();
+        window.updateRecaptchaSaveButtons();
+    };
+    window.updateRecaptchaSecretSavedState = function (data, browserSaved = false) {
+        const input = recaptchaNode('recaptcha-page-secret-key-input');
+        const hint = recaptchaNode('recaptcha-secret-saved-hint');
+        const saved = data ? !!data.has_secret : browserSaved;
+        const display = recaptchaNode('recaptcha-secret-key-value');
+        const editButton = recaptchaNode('btn-edit-recaptcha-secret');
+        if (display) display.textContent = data?.has_secret ? 'Secret key configured' : 'Not configured';
+        if (editButton) editButton.textContent = data?.has_secret ? 'Replace Key' : 'Add Key';
+        if (input) input.placeholder = saved ? 'Saved secret key (hidden)' : 'Enter Google reCAPTCHA Secret Key';
+        if (hint) hint.textContent = data?.has_secret ? 'Secret key is saved on the server. Leave blank to preserve it.'
+            : data ? (browserSaved ? 'Previously saved in this browser only; save it on the server.' : 'No saved secret key.')
+            : (browserSaved ? 'Server storage is not confirmed. Check the connection.' : 'No saved secret key.');
+        return saved;
+    };
+    function applyRecaptchaConfig(data) {
+        const version = data.version === 'v3' ? 'v3' : 'v2';
+        recaptchaPageState.saved = { ...data, version, threshold: Number(data.threshold) || 3, enabled: data.enabled !== false,
+            profiles: data.profiles || { [version]: { site_key: data.site_key || '', has_secret: !!data.has_secret } } };
+        const set = (id, text) => { const el = recaptchaNode(id); if (el) el.textContent = text; };
+        set('recaptcha-page-connection-status', data.credential_error || (data.site_key && data.has_secret ? 'Configured & Ready' : 'Not Configured'));
+        set('recaptcha-page-display-version', version === 'v3' ? 'v3 (Score-based)' : 'v2 (Checkbox)');
+        set('recaptcha-page-display-site-key', data.site_key ? 'Configured' : 'Not configured');
+        set('recaptcha-page-display-secret-status', data.has_secret ? 'Configured (server)' : 'Not configured');
+        set('recaptcha-page-display-mode', data.enabled ? 'Active (Enabled)' : 'Disabled');
+        set('recaptcha-protection-summary', `${data.enabled ? 'Enabled' : 'Disabled'} · Challenge threshold: ${Number(data.threshold) || 3} attempts`);
+    }
+    async function readRecaptchaPageConfig() {
+        if (window.SigmaRecaptcha?.getConfig) return window.SigmaRecaptcha.getConfig();
+        const res = await fetch(resolveAuthApiUrl('action=recaptcha_config'));
+        const data = await res.json();
+        if (res.ok === false || !data?.success) throw new Error(data?.error || 'Cannot load reCAPTCHA configuration.');
+        return data;
+    }
+    window.loadRecaptchaPageData = async function () {
+        const status = recaptchaNode('recaptcha-page-connection-status');
+        if (status) status.textContent = 'Checking...';
+        window.setRecaptchaKeyEditing('site', false);
+        window.setRecaptchaKeyEditing('secret', false);
+        window.setRecaptchaKeyVisibility('site', false);
+        window.setRecaptchaKeyVisibility('secret', false);
+        try {
+            const data = await readRecaptchaPageConfig();
+            applyRecaptchaConfig(data);
+            recaptchaPageState.version = recaptchaPageState.saved.version;
+            for (const type of ['v2', 'v3']) recaptchaPageState.drafts[type] = { site_key: recaptchaProfile(type).site_key, secret_key: '' };
+            const threshold = recaptchaNode('recaptcha-page-threshold-input');
+            const enabled = recaptchaNode('recaptcha-page-enabled-toggle');
+            if (threshold) threshold.value = recaptchaPageState.saved.threshold;
+            if (enabled) enabled.checked = recaptchaPageState.saved.enabled;
+            showRecaptchaDraft();
+        } catch (error) {
+            recaptchaPageState.saved = null;
+            if (status) status.textContent = 'Connection unavailable';
+            window.updateRecaptchaSecretSavedState(null, false);
+            console.warn('[SIGMA] reCAPTCHA configuration unavailable:', error.message);
+        }
+        window.updateRecaptchaSaveButtons();
+    };
+    window.saveRecaptchaPageSettings = async function (scope = 'keys') {
+        window.SigmaSettingsCounters?.normalizeAll();
+        if (recaptchaPageState.busy || !recaptchaPageState.saved) return;
+        window.updateRecaptchaSaveButtons();
+        const defense = scope === 'defense';
+        const button = recaptchaNode(defense ? 'btn-save-recaptcha-thresholds' : 'btn-save-recaptcha-page-config');
+        if (button?.disabled) return;
+        const payload = { action: 'save_recaptcha_config', scope };
+        if (defense) {
+            payload.threshold = Number(recaptchaNode('recaptcha-page-threshold-input')?.value);
+            payload.enabled = !!recaptchaNode('recaptcha-page-enabled-toggle')?.checked;
+            if (!Number.isInteger(payload.threshold) || payload.threshold < 1 || payload.threshold > 50) {
+                window.showToast?.('Enter a threshold from 1 to 50.', 'error'); return;
+            }
+        } else {
+            captureRecaptchaDraft();
+            const chosen = recaptchaPageState.drafts[recaptchaPageState.version];
+            if (!chosen.site_key || (!chosen.secret_key && !recaptchaProfile(recaptchaPageState.version).has_secret)) {
+                window.showToast?.('Configure both keys for the selected version first.', 'error'); return;
+            }
+            payload.version = recaptchaPageState.version;
+            payload.profiles = {};
+            for (const [type, entry] of Object.entries(recaptchaPageState.drafts)) {
+                if (entry.site_key === recaptchaProfile(type).site_key && !entry.secret_key) continue;
+                payload.profiles[type] = { site_key: entry.site_key };
+                if (entry.secret_key) payload.profiles[type].secret_key = entry.secret_key;
+            }
+        }
+        recaptchaPageState.busy = true;
+        window.updateRecaptchaSaveButtons();
+        try {
+            const res = await fetch(resolveAuthApiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const result = await res.json();
+            if (res.ok === false || !result?.success) throw new Error(result?.error || 'Could not save reCAPTCHA settings.');
+            const data = await readRecaptchaPageConfig();
+            applyRecaptchaConfig(data);
+            const security = JSON.parse(localStorage.getItem('sigma-login-security-config') || '{}');
+            localStorage.setItem('sigma-login-security-config', JSON.stringify({ ...security,
+                loginIdAttempts: Number(data.threshold) || 3, recaptchaEnabled: data.enabled !== false }));
+            if (!defense) {
+                for (const type of ['v2', 'v3']) recaptchaPageState.drafts[type] = { site_key: recaptchaProfile(type).site_key, secret_key: '' };
+                const secretKeyInput = recaptchaNode('recaptcha-page-secret-key-input');
+                if (secretKeyInput) secretKeyInput.value = '';
+                window.setRecaptchaKeyEditing('site', false);
+                window.setRecaptchaKeyEditing('secret', false);
+                showRecaptchaDraft();
+            }
+            if (defense) {
+                const status = recaptchaNode('recaptcha-defense-save-status');
+                if (status) status.textContent = 'Saved';
+            } else window.showToast?.('reCAPTCHA settings saved.');
+        } catch (error) {
+            if (defense) {
+                const status = recaptchaNode('recaptcha-defense-save-status');
+                if (status) status.textContent = 'Could not save. Changes reverted.';
+                const threshold = recaptchaNode('recaptcha-page-threshold-input');
+                const enabled = recaptchaNode('recaptcha-page-enabled-toggle');
+                if (threshold) threshold.value = recaptchaPageState.saved.threshold;
+                if (enabled) enabled.checked = recaptchaPageState.saved.enabled;
+            }
+            window.showToast?.(error.message, 'error');
+        }
+        finally { recaptchaPageState.busy = false; window.updateRecaptchaSaveButtons(); }
+    };
+    window.setRecaptchaKeyEditing = function (kind, editing) {
+        const input = recaptchaNode(`recaptcha-page-${kind}-key-input`);
+        if (!input) return;
+        if (editing) recaptchaPageState.editing[kind] = input.value;
+        else if (Object.prototype.hasOwnProperty.call(recaptchaPageState.editing, kind)) {
+            input.value = recaptchaPageState.editing[kind];
+            delete recaptchaPageState.editing[kind];
+        }
+        recaptchaNode(`recaptcha-${kind}-key-editor`)?.classList.toggle('hidden', !editing);
+        recaptchaNode(`recaptcha-${kind}-key-display`)?.classList.toggle('hidden', editing);
+        window.setRecaptchaKeyVisibility(kind, false);
+        if (editing) input.focus();
+        window.updateRecaptchaSaveButtons();
+        if (editing) window.recordSystemSettingsLayer?.({ kind: 'recaptcha-editor', key: kind });
+        else if (history.state?.sigmaSettings?.key === kind) window.closeSystemSettingsLayer?.('recaptcha-editor');
+    };
+    window.setRecaptchaKeyVisibility = function (kind, visible) {
+        const input = recaptchaNode(`recaptcha-page-${kind}-key-input`);
+        const button = recaptchaNode(`btn-toggle-recaptcha-${kind}`);
+        if (!input || !button) return;
+        const editor = recaptchaNode(`recaptcha-${kind}-key-editor`);
+        if (editor?.classList) visible = visible && !editor.classList.contains('hidden');
+        input.type = visible ? 'text' : 'password';
+        window.syncSettingsKeyEye(input);
+        const display = recaptchaNode(`recaptcha-${kind}-key-value`);
+        if (kind === 'secret') {
+            window.updateRecaptchaSecretSavedState({ has_secret: recaptchaProfile(recaptchaPageState.version).has_secret });
+        } else if (display) {
+            display.textContent = input.value ? '••••••••••••' : 'Not configured';
+        }
+    };
+    window.toggleRecaptchaKeyVisibility = function (kind) {
+        const input = recaptchaNode(`recaptcha-page-${kind}-key-input`);
+        window.setRecaptchaKeyVisibility(kind, input?.type === 'password');
+    };
+    window.toggleRecaptchaSecretVisibility = function () { window.toggleRecaptchaKeyVisibility('secret'); };
+
+    // ─── RECAPTCHA TEST MODAL LOGIC ──────────────────────────────────────────
+    window.openRecaptchaTestModal = function () {
+        const modal = recaptchaNode('recaptchaTestModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        window.resetRecaptchaTestModal();
+    };
+    window.closeRecaptchaTestModal = function () {
+        const modal = recaptchaNode('recaptchaTestModal');
+        const host = recaptchaNode('recaptcha-test-widget');
+        if (host) window.SigmaRecaptcha?.cancel(host);
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+        document.body.style.overflow = '';
+    };
+    window.resetRecaptchaTestModal = function (restart = true) {
+        const host = recaptchaNode('recaptcha-test-widget');
+        if (host) { window.SigmaRecaptcha?.cancel(host); host.replaceChildren(); }
+        const result = recaptchaNode('recaptcha-test-result');
+        if (result) result.replaceChildren();
+        if (restart) window.runRecaptchaTestChallenge();
+    };
+    window.renderRecaptchaTestResult = function (host, result, error) {
+        if (!host) return;
+        host.replaceChildren?.();
+        const details = document.createElement('dl');
+        const entries = [['Result', error || !result?.success ? 'Failed' : 'Passed'],
+            ['Score', result?.score == null ? 'Not provided' : `${Number(result.score).toFixed(2)} / 1.0`],
+            ['Action', result?.action || 'Not provided'], ['Verified domain', result?.hostname || 'Not provided']];
+        if (error) entries.push(['Error', error.message]);
+        for (const [label, value] of entries) {
+            const term = document.createElement('dt'); term.textContent = label;
+            const description = document.createElement('dd'); description.textContent = value;
+            details.append(term, description);
+        }
+        host.appendChild(details);
+    };
+    window.runRecaptchaTestChallenge = function () {
+        const host = recaptchaNode('recaptcha-test-widget');
+        if (!host) return;
+        const complete = (data, error) => {
+            window.renderRecaptchaTestResult(recaptchaNode('recaptcha-test-result'), data, error);
+            const feedback = recaptchaNode('recaptcha-page-test-feedback');
+            if (feedback) {
+                feedback.classList.remove('hidden');
+                feedback.textContent = error ? error.message : 'Google reCAPTCHA verification passed.';
+            }
+        };
+        if (!window.SigmaRecaptcha) { complete(null, new Error('reCAPTCHA client is unavailable. Reload this page.')); return; }
+        window.SigmaRecaptcha.challenge(host, data => complete(data), error => complete(error.result, error));
     };
 
     function getUserDefaultInitialPassword(target, userId) {
@@ -20079,6 +20618,7 @@ window.applyCurrentAdminPermissions = function () {
     const canSettingsIntegrations = isMaster || (canSettingsMain && perms.settingsApi !== false);
 
     toggleElement('nav-settings-security', canSettingsSecurity);
+    toggleElement('nav-settings-recovery', canSettingsSecurity);
     toggleElement('nav-settings-branding', canSettingsBranding);
     toggleElement('nav-settings-integrations', canSettingsIntegrations);
     toggleElement('nav-settings-preference', canSettingsBranding);

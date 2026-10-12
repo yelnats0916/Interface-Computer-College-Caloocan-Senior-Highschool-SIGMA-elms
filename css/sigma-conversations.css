@@ -1,0 +1,32 @@
+#sigmaAiPanel .sigma-conversation-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+#sigmaAiPanel .sigma-conversation-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: #000; cursor: pointer; }
+#sigmaAiPanel .sigma-conversation-icon:hover { background: #f1f5f9; }
+#sigmaAiPanel .sigma-conversation-icon[aria-pressed="true"] { color: #ffd000; }
+#sigmaAiPanel .sigma-conversation-icon:disabled { opacity: .45; cursor: default; }
+#sigmaAiPanel .sigma-conversation-history { flex: 1; min-height: 0; padding: 20px; overflow-y: auto; background: #fff; }
+#sigmaAiPanel .sigma-conversation-history[hidden], #sigmaAiPanel [hidden] { display: none !important; }
+#sigmaAiPanel .sigma-conversation-history h3 { margin: 0 0 20px; font-size: 16px; font-weight: 600; color: #000; }
+#sigmaAiPanel .sigma-conversation-group { margin: 20px 0 8px; color: var(--sigma-black-fade, rgba(0,0,0,.45)); font-size: 12px; }
+#sigmaAiPanel .sigma-conversation-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 8px; border: 0; border-radius: 6px; color: #000; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+#sigmaAiPanel .sigma-conversation-item:hover { background: #f1f5f9; }
+#sigmaAiPanel .sigma-conversation-row { display: flex; align-items: center; gap: 4px; }
+#sigmaAiPanel .sigma-conversation-row .sigma-conversation-item { flex: 1; min-width: 0; }
+#sigmaAiPanel .sigma-conversation-options { position: relative; flex: 0 0 32px; }
+#sigmaAiPanel .sigma-conversation-more { width: 32px; height: 32px; font-size: 16px; }
+#sigmaAiPanel .sigma-conversation-menu { position: absolute; z-index: 2; right: 0; top: 36px; width: 140px; padding: 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+#sigmaAiPanel .sigma-conversation-menu-delete { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 4px; background: transparent; color: #000; font: inherit; font-size: 13px; cursor: pointer; }
+#sigmaAiPanel .sigma-conversation-menu-delete:hover { background: #f1f5f9; }
+#sigmaAiPanel .sigma-conversation-deleted { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; font-size: 12px; color: rgba(0,0,0,.55); }
+#sigmaAiPanel .sigma-conversation-undo { border: 0; background: transparent; color: #15803d; padding: 8px; font: inherit; cursor: pointer; }
+#sigmaAiPanel .sigma-conversation-undo:hover { text-decoration: underline; }
+#sigmaAiPanel .sigma-conversation-more:focus-visible, #sigmaAiPanel .sigma-conversation-menu-delete:focus-visible, #sigmaAiPanel .sigma-conversation-undo:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; }
+#sigmaAiPanel .sigma-conversation-item > span { flex: 1; min-width: 0; }
+#sigmaAiPanel .sigma-conversation-item > i { flex: 0 0 16px; color: var(--sigma-black-fade, rgba(0,0,0,.45)); }
+#sigmaAiPanel .sigma-conversation-title { display: block; font-size: 14px; overflow-wrap: anywhere; }
+#sigmaAiPanel .sigma-conversation-date { display: block; margin-top: 4px; font-size: 12px; color: var(--sigma-black-fade, rgba(0,0,0,.45)); }
+#sigmaAiPanel .sigma-conversation-previous { display: block; margin: 20px auto 0; }
+#sigmaAiPanel .sigma-conversation-empty { padding: 60px 0; }
+#sigmaAiPanel .sigma-conversation-notice { padding: 8px 20px; margin: 0; color: #b91c1c; font-size: 12px; }
+#sigmaAiPanel .sigma-ai-message__bubble { white-space: pre-wrap; }
+
+#sigmaAiPanel .sigma-conversation-history:has(.sigma-conversation-menu:not([hidden])) { padding-bottom: 80px; }

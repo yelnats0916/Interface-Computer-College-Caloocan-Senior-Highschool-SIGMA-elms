@@ -501,9 +501,7 @@
             : (matchedUser ? { ...defaultFallback, ...localProfile, ...matchedUser } : { ...defaultFallback, ...localProfile });
         const id = profileUser.uid || profileUser.id || profileUser.accountId || profileUser.userId || (portal === 'teacher' ? '1111111' : '2222222');
         const role = profileUser.role || profileUser.type || defaultRole;
-        const defaultPerms = portal === 'student'
-            ? { bio: true, achievements: true, subjects: true, sections: true }
-            : { bio: true, achievements: false, subjects: true, sections: true };
+        const defaultPerms = { bio: true, achievements: false, subjects: true, sections: true };
 
         const nameInfo = parseNameComponents(profileUser, defaultRole);
         const rawEmail = (profileUser.email || (localProfile.email && localProfile.email.includes('@') ? localProfile.email : '')).trim();
@@ -831,8 +829,8 @@
                                 <h3 class="text-sm font-semibold text-black tracking-normal font-['Inter'] leading-5">About</h3>
                             </div>
                             <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-3">
-                                <p id="profile-tab-achievements" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('achievements')">Achievements</p>
-                                <p id="profile-tab-subjects" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('subjects')">Subjects</p>
+                                <p id="profile-tab-achievements" class="hidden" style="display:none !important;" onclick="window.switchUserProfileTab('achievements')">Achievements</p>
+                                <p id="profile-tab-subjects" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('subjects')">Subjects</p>
                                 <p id="profile-tab-sections" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('sections')">Sections</p>
                             </div>
                         </div>
@@ -1310,7 +1308,7 @@
         const isTeacherProfile = !isAdminProfile && targetRole.includes('teacher');
         const isStudentProfile = !isAdminProfile && targetRole.includes('student');
 
-        const hasAchievements = isStudentProfile;
+        const hasAchievements = false;
         const hasSubjects = isTeacherProfile || isStudentProfile;
         const hasSections = isTeacherProfile || isStudentProfile;
         const hasAnyRightTabs = hasAchievements || hasSubjects || hasSections;
@@ -1356,7 +1354,7 @@
             subjects: hasSubjects,
             sections: hasSections
         };
-        let firstVisibleTab = isStudentProfile ? 'achievements' : (isTeacherProfile ? 'subjects' : null);
+        let firstVisibleTab = (isTeacherProfile || isStudentProfile) ? 'subjects' : null;
 
         tabs.forEach(t => {
             const tabEl = document.getElementById('profile-tab-' + t);
@@ -1386,7 +1384,7 @@
         const isStudentProfile = !isAdminProfile && targetRole.includes('student');
 
         const perms = {
-            achievements: isStudentProfile,
+            achievements: false,
             subjects: isTeacherProfile || isStudentProfile,
             sections: isTeacherProfile || isStudentProfile
         };
@@ -1421,13 +1419,15 @@
         const role = userData.role || (portal === 'teacher' ? 'Teacher' : portal === 'student' ? 'Student' : 'User');
         const isStudent = portal === 'student' || String(role).toLowerCase() === 'student';
 
-        let effectiveTab = tabId || (isStudent ? 'achievements' : 'subjects');
-        if (effectiveTab === 'achievements' && !isStudent) {
+        let effectiveTab = tabId || 'subjects';
+        if (effectiveTab === 'achievements') {
             effectiveTab = 'subjects';
         }
 
         const panel = document.getElementById('user-profile-tab-panel');
         if (!panel) return;
+
+        
 
         const tabMeta = USER_PROFILE_TAB_CONTENT[effectiveTab] || {
             title: effectiveTab.charAt(0).toUpperCase() + effectiveTab.slice(1),
@@ -2865,14 +2865,14 @@
                 const file = e.target.files && e.target.files[0];
                 if (!file) return;
 
-                const MAX_AVATAR_SIZE = 500 * 1024 * 1024; // 500MB standard limit
+                const MAX_AVATAR_SIZE = 10 * 1024 * 1024; // 10MB standard limit
                 if (file.size > MAX_AVATAR_SIZE) {
                     if (typeof window.showToast === 'function') {
-                        window.showToast('Profile picture exceeds the 500MB limit.', 'error');
+                        window.showToast('Profile picture exceeds the 10MB limit.', 'error');
                     } else if (typeof window.showGlobalToast === 'function') {
-                        window.showGlobalToast('Profile picture exceeds the 500MB limit.', 'error');
+                        window.showGlobalToast('Profile picture exceeds the 10MB limit.', 'error');
                     } else {
-                        alert('Profile picture exceeds the 500MB limit.');
+                        alert('Profile picture exceeds the 10MB limit.');
                     }
                     avatarInput.value = '';
                     return;

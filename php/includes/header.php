@@ -36,6 +36,8 @@ require_once __DIR__ . '/../../config/app.php';
     <link rel="stylesheet" href="../css/topbar.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/profile.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/shared-components.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="../css/avatar-sizes.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="../css/sigma-conversations.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/sigma-analytics.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/announcements.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/announcement-cards.css?v=<?= time() ?>">
@@ -43,6 +45,10 @@ require_once __DIR__ . '/../../config/app.php';
     <!-- TAILWIND CSS: Compiled (no CDN, no production warning) -->
     <link rel="stylesheet" href="../css/tailwind.css?v=<?= time() ?>">
     <link rel="stylesheet" href="../css/sidebar.css?v=<?= time() ?>">
+
+    <!-- SKELETON LOADING ENGINE (SHIMMER & SHELL PRESERVATION) -->
+    <link rel="stylesheet" href="../css/page-skeleton.css?v=<?= time() ?>">
+    <script src="../js/page-skeleton.js?v=<?= time() ?>"></script>
 
     <!-- OPTIONAL HEAD INJECTIONS (Libraries like Chart.js / Sortable.js) -->
     <?php if (isset($extraHead)) echo $extraHead; ?>

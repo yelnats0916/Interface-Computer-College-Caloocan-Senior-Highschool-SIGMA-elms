@@ -1,0 +1,50 @@
+:root {
+    --sigma-standard-avatar-size: 38px;
+    --sigma-standard-avatar-icon-size: 16px;
+}
+@media (max-width: 768px) {
+    :root {
+        --sigma-standard-avatar-size: 34px;
+        --sigma-standard-avatar-icon-size: 14px;
+    }
+}
+
+/* Regular identity avatars only; profile-page and profile-menu hero photos stay large. */
+html body :is(.sigma-user-avatar, .sigma-card-author-avatar-img, .sigma-card-author-avatar,
+    .header-profile-btn, .mobile-sidebar-avatar-wrap, .mobile-subbar-avatar-wrap,
+    .notif-item__avatar, .grading-student-avatar-wrap, .classroom-grades-avatar-wrap,
+    .sigma-composer-author-avatar, .online-member-avatar-wrapper),
+html body :is(#section-topic-content, #admin-grades-modal-tbody, #teacher-grades-modal-tbody,
+    #sigma-post-dialog-modal, #topic-student-picker-btn) :is(.sigma-user-avatar, .grading-student-avatar-wrap, .classroom-grades-avatar-wrap),
+html body .sigma-card-author-meta > div:first-child,
+html body .sigma-card-author-meta > div:first-child .sigma-user-avatar,
+html body :is(.sigma-announcement-card, .announcement-card, #sigma-post-dialog-modal) .sigma-card-author-meta > div:first-child,
+html body :is(.sigma-announcement-card, .announcement-card, #sigma-post-dialog-modal) .sigma-card-author-meta > div:first-child .sigma-user-avatar {
+    width: var(--sigma-standard-avatar-size) !important;
+    height: var(--sigma-standard-avatar-size) !important;
+    min-width: var(--sigma-standard-avatar-size) !important;
+    min-height: var(--sigma-standard-avatar-size) !important;
+    max-width: var(--sigma-standard-avatar-size) !important;
+    max-height: var(--sigma-standard-avatar-size) !important;
+    flex: 0 0 var(--sigma-standard-avatar-size) !important;
+    border-radius: 50% !important;
+    box-sizing: border-box !important;
+}
+html body :is(.sigma-user-avatar, .sigma-card-author-avatar, .header-profile-btn,
+    .mobile-sidebar-avatar-wrap, .mobile-subbar-avatar-wrap, .notif-item__avatar,
+    .sigma-composer-author-avatar) > i,
+html body .sigma-card-author-meta .sigma-user-avatar i {
+    font-size: var(--sigma-standard-avatar-icon-size) !important;
+}
+html body :is(.sigma-user-avatar, .header-profile-btn, .mobile-sidebar-avatar-wrap,
+    .mobile-subbar-avatar-wrap, .notif-item__avatar, .sigma-composer-author-avatar) > img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    border-radius: 50%;
+}
+@media (max-width: 768px) {
+    html body .sigma-card-author-meta {
+        grid-template-columns: var(--sigma-standard-avatar-size) minmax(0, 1fr) !important;
+    }
+}

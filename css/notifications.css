@@ -156,26 +156,6 @@
     color: #eab308 !important; /* Yellow text highlight */
 }
 
-.notif-see-all-btn {
-    font-size: 12px;
-    font-weight: 700;
-    color: #15803d;
-    text-decoration: none !important;
-    cursor: pointer;
-    text-transform: none;
-    letter-spacing: normal;
-    transition: background 0.15s ease, color 0.15s ease;
-    font-family: inherit;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-.notif-see-all-btn:hover {
-    color: #15803d;
-    background: rgba(0, 0, 0, 0.07);
-    text-decoration: none !important;
-}
-
 /* Scroll Area */
 .notif-scroll-area {
     flex: 1;
@@ -306,7 +286,8 @@
 
 .notif-item__context {
     font-size: 11px;
-    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45));
+    color: #000000;
+    font-weight: 400;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -344,7 +325,7 @@
 
 /* ─── 4. Previous Notifications Button ──────────────────────────────────── */
 .notif-prev-btn-wrapper {
-    padding: 12px 16px 18px;
+    padding: 0;
     background-color: #ffffff;
     flex-shrink: 0;
     border-top: 1px solid #f1f5f9;
@@ -352,10 +333,11 @@
 
 .notif-prev-btn {
     width: 100%;
-    padding: 10px 16px;
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    min-height: 52px;
+    padding: 14px 16px;
+    background-color: #ffffff;
+    border: 0;
+    border-radius: 0;
     font-size: 12px;
     font-weight: 700;
     color: #0f172a;
@@ -370,4 +352,24 @@
 .notif-prev-btn:hover {
     background-color: #e2e8f0;
     border-color: #cbd5e1;
+}
+@media (max-width: 768px) {
+    body.mobile-panel-open #noti-dropdown:not(.hidden) {
+        overflow: hidden !important;
+    }
+    #noti-dropdown .notif-tabs-bar { display: none !important; }
+    body.mobile-panel-open #noti-dropdown .notif-scroll-area {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: hidden !important;
+        width: 100%;
+        padding-top: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    body.mobile-panel-open #noti-dropdown .notif-scroll-area.can-scroll {
+        overflow-y: auto !important;
+    }
+    #noti-dropdown-feed,
+    #noti-dropdown-feed .notif-item { width: 100%; }
 }

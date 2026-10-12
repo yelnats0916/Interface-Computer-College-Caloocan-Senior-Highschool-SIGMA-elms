@@ -318,14 +318,14 @@
                 const isActive = (q === window.currentSubjectTopicQuarter);
                 const label = QUARTER_LABELS[q] || q;
                 return `
-                    <button type="button" onclick="window.setSubjectTopicQuarter('${q}')"
+                    <button type="button" aria-label="${label}" aria-pressed="${isActive}" onclick="window.setSubjectTopicQuarter('${q}')"
                         class="px-4 py-2 rounded-lg text-xs font-bold transition-all font-['Inter'] cursor-pointer ${
                             isActive 
                                 ? 'bg-white shadow-sm' 
                                 : ''
                         }" style="${isActive ? 'color:#000' : 'color:rgba(0,0,0,0.50)'}"
                         onmouseenter="${!isActive ? `this.style.backgroundColor='rgba(0,0,0,0.06)'` : ''}" onmouseleave="${!isActive ? `this.style.backgroundColor=''` : ''}">
-                        ${label}
+                        <span class="sigma-quarter-long">${label}</span><span class="sigma-quarter-short">${q.toUpperCase()}</span>
                     </button>
                 `;
             }).join('');
@@ -336,14 +336,14 @@
                 const isActive = (q === window.currentSubjectMaterialQuarter);
                 const label = QUARTER_LABELS[q] || q;
                 return `
-                    <button type="button" onclick="window.setSubjectMaterialQuarter('${q}')"
+                    <button type="button" aria-label="${label}" aria-pressed="${isActive}" onclick="window.setSubjectMaterialQuarter('${q}')"
                         class="px-4 py-2 rounded-lg text-xs font-bold transition-all font-['Inter'] cursor-pointer ${
                             isActive 
                                 ? 'bg-white shadow-sm' 
                                 : ''
                         }" style="${isActive ? 'color:#000' : 'color:rgba(0,0,0,0.50)'}"
                         onmouseenter="${!isActive ? `this.style.backgroundColor='rgba(0,0,0,0.06)'` : ''}" onmouseleave="${!isActive ? `this.style.backgroundColor=''` : ''}">
-                        ${label}
+                        <span class="sigma-quarter-long">${label}</span><span class="sigma-quarter-short">${q.toUpperCase()}</span>
                     </button>
                 `;
             }).join('');
@@ -2441,13 +2441,28 @@
             window.checkSubjectFormValidity();
 
             overlay.classList.remove('hidden');
+            if (typeof window.lockBodyScroll === 'function') {
+                window.lockBodyScroll();
+            } else {
+                document.documentElement.classList.add('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
+                document.body.classList.add('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
+            }
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
             if (typeof window.pushModalHistoryState === 'function') {
                 window.pushModalHistoryState('subject-edit-overlay');
             }
             resetSubjectEditorScrollToTop();
         } else {
             window.stopAllVideos?.();
+            if (typeof window.unlockBodyScroll === 'function') {
+                window.unlockBodyScroll();
+            } else {
+                document.documentElement.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
+                document.body.classList.remove('dialog-open', 'modal-open', 'sigma-modal-open', 'has-modal-open');
+            }
             document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
             if (overlay) overlay.classList.add('hidden');
             const closeHeaderEditMatBtn = document.getElementById('subject-header-edit-mat-btn');
             if (closeHeaderEditMatBtn) {
@@ -5230,6 +5245,19 @@ window.addSubjectTopic = function () {
 
     window.handleTopicEditorUpload = function (input) {
         if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024; // 5MB standard cover template limit
+            if (file.size > MAX_TEMPLATE_SIZE) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Cover template image exceeds the 5MB limit.', 'error');
+                } else if (typeof window.showGlobalToast === 'function') {
+                    window.showGlobalToast('Cover template image exceeds the 5MB limit.', 'error');
+                } else {
+                    alert('Cover template image exceeds the 5MB limit.');
+                }
+                input.value = '';
+                return;
+            }
             const reader = new FileReader();
             reader.onload = function (e) {
                 const uploadedImg = e.target.result;
@@ -8388,7 +8416,7 @@ window.addSubjectTopic = function () {
 
         const limits = typeof window.getSigmaMaterialLimits === 'function'
             ? window.getSigmaMaterialLimits()
-            : { video: { mp4: 500 }, docx: { reg: 10, ext: 25 }, pdf: { reg: 10, ext: 25 }, pptx: { reg: 50, ext: 100 } };
+            : { video: { mp4: 500, ext: 50, max: 550 }, docx: { reg: 20, ext: 25, max: 45 }, pdf: { reg: 25, ext: 25, max: 50 }, pptx: { reg: 50, ext: 25, max: 75 } };
 
         const sizeFormatted = file.size > 1024 * 1024
             ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
@@ -8419,9 +8447,9 @@ window.addSubjectTopic = function () {
                 }
             } else {
                 const ext = (file.name.split('.').pop() || '').toLowerCase();
-                let maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
-                if (ext === 'pdf') maxDocMb = Number(limits.pdf?.max || (Number(limits.pdf?.std || limits.pdf?.reg || 500) + Number(limits.pdf?.ext || 50))) || 550;
-                else if (ext === 'pptx' || ext === 'ppt') maxDocMb = Number(limits.pptx?.max || (Number(limits.pptx?.std || limits.pptx?.reg || 500) + Number(limits.pptx?.ext || 50))) || 550;
+                let maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 20) + Number(limits.docx?.ext || 25))) || 45;
+                if (ext === 'pdf') maxDocMb = Number(limits.pdf?.max || (Number(limits.pdf?.std || limits.pdf?.reg || 25) + Number(limits.pdf?.ext || 25))) || 50;
+                else if (ext === 'pptx' || ext === 'ppt') maxDocMb = Number(limits.pptx?.max || (Number(limits.pptx?.std || limits.pptx?.reg || 50) + Number(limits.pptx?.ext || 25))) || 75;
                 else if (ext === 'docx' || ext === 'doc') maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
                 else if (ext === 'txt') maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
 
@@ -9468,11 +9496,11 @@ window.addSubjectTopic = function () {
         // Get system material limits from settings
         const limits = typeof window.getSigmaMaterialLimits === 'function'
             ? window.getSigmaMaterialLimits()
-            : { video: { max: 550 }, docx: { max: 550 }, pdf: { max: 550 }, pptx: { max: 550 } };
+            : { video: { max: 550 }, docx: { max: 45 }, pdf: { max: 50 }, pptx: { max: 75 } };
         const maxVideoMb = limits.video?.max || (Number(limits.video?.mp4 || limits.video?.std || 500) + Number(limits.video?.ext || 50)) || 550;
-        const maxDocxMb = limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50)) || 550;
-        const maxPdfMb = limits.pdf?.max || (Number(limits.pdf?.std || limits.pdf?.reg || 500) + Number(limits.pdf?.ext || 50)) || 550;
-        const maxPptxMb = limits.pptx?.max || (Number(limits.pptx?.std || limits.pptx?.reg || 500) + Number(limits.pptx?.ext || 50)) || 550;
+        const maxDocxMb = limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 20) + Number(limits.docx?.ext || 25)) || 45;
+        const maxPdfMb = limits.pdf?.max || (Number(limits.pdf?.std || limits.pdf?.reg || 25) + Number(limits.pdf?.ext || 25)) || 50;
+        const maxPptxMb = limits.pptx?.max || (Number(limits.pptx?.std || limits.pptx?.reg || 50) + Number(limits.pptx?.ext || 25)) || 75;
 
         // Specialized Sub-Editor Content
         let typeSpecificHtml = '';

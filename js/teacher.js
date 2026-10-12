@@ -248,6 +248,7 @@ function initTeacherPortal() {
         'nav-grades': 'section-grades',
         'nav-analytics': 'section-analytics',
         'nav-attendance': 'section-attendance',
+        'nav-calendar': 'section-attendance',
         'nav-resources': 'resources-view',
         'nav-topic-detail': 'section-topic-detail',
         'nav-topic-content': 'section-topic-content'
@@ -265,6 +266,7 @@ function initTeacherPortal() {
         'gradebook': 'nav-grades',
         'gradebooks': 'nav-grades',
         'attendance': 'nav-attendance',
+        'calendar': 'nav-attendance',
         'analytics': 'nav-grades',
         'subjects': 'nav-subjects',
         'resources': 'nav-resources',
@@ -2420,6 +2422,7 @@ function initTeacherPortal() {
     function renderTeacherAttendanceCalendarPopup() {
         const popup = document.getElementById('teacher-attendance-calendar-popup');
         if (!popup) return;
+        window.prepareSigmaCalendarPopup(popup);
 
         // Prevent outside click handler from firing when clicking inside the popup
         if (!popup.dataset.clickBound) {
@@ -2432,102 +2435,36 @@ function initTeacherPortal() {
             "January", "February", "March", "April", "May", "June",
             "July", "August", "September", "October", "November", "December"
         ];
-        const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayNow = new Date();
 
         if (attendanceCalendarPopupMode === 'months') {
-            let monthsHtml = '';
-            shortMonths.forEach((m, idx) => {
-                const isSelected = (attendancePickerYear === attendanceViewingYear && idx === attendanceViewingMonth);
-                monthsHtml += `
-                    <button type="button" class="cal-picker-month-btn ${isSelected ? 'active' : ''}" style="color: ${isSelected ? '#ffffff' : '#000000'} !important; font-weight: 600;" onclick="window.selectAttendancePopupMonth(${idx}, event)">
-                        ${m}
-                    </button>
-                `;
-            });
-
-            popup.innerHTML = `
-                <div class="cal-picker-header flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeAttendancePickerYear(-1, event)" title="Previous Year">
-                        <i class="fa-solid fa-chevron-left text-xs text-black"></i>
-                    </button>
-                    <span class="cal-picker-year-label text-[15px] font-bold text-black font-['Inter']">${attendancePickerYear}</span>
-                    <button type="button" class="cal-picker-year-btn w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer" onclick="window.changeAttendancePickerYear(1, event)" title="Next Year">
-                        <i class="fa-solid fa-chevron-right text-xs text-black"></i>
-                    </button>
-                </div>
-                <div class="cal-picker-months-grid grid grid-cols-3 gap-2 mb-3">
-                    ${monthsHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarMonthPanel({
+                year: attendancePickerYear, activeYear: attendanceViewingYear, activeMonth: attendanceViewingMonth,
+                onYearChange: 'changeAttendancePickerYear', onMonthSelect: 'selectAttendancePopupMonth',
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectAttendancePopupThisMonth(event)">
                         This month
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchAttendancePopupMode('days', event)">
                         Days view
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         } else {
             const year = attendancePopupViewingYear;
             const month = attendancePopupViewingMonth;
-            const firstDayIndex = new Date(year, month, 1).getDay();
-            const totalDays = new Date(year, month + 1, 0).getDate();
-
-            let daysHtml = '';
-            for (let i = 0; i < firstDayIndex; i++) {
-                daysHtml += `<div class="calendar-day-cell calendar-day-cell--empty"></div>`;
-            }
-
-            for (let d = 1; d <= totalDays; d++) {
-                const isToday = (todayNow.getFullYear() === year && todayNow.getMonth() === month && todayNow.getDate() === d);
-                const isSelected = (attendanceViewingYear === year && attendanceViewingMonth === month && attendanceSelectedDay === d);
-
-                let cellClasses = 'calendar-day-cell font-semibold transition-all';
-                let styleExtra = '';
-
-                if (isToday) {
-                    // Current date: Solid yellow, bold black text, no hover effect, never selected shared green
-                    cellClasses += ' calendar-day-cell--today font-bold cursor-pointer';
-                    styleExtra = 'background-color: #FFD000 !important; color: #000000 !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else if (isSelected) {
-                    // Selected date: Solid shared green, bold white text
-                    cellClasses += ' calendar-day-cell--selected font-bold cursor-pointer';
-                    styleExtra = 'background-color: #15803d !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: none !important;';
-                } else {
-                    cellClasses += ' text-black cursor-pointer';
-                    styleExtra = 'color: #000000 !important;';
-                }
-
-                daysHtml += `
-                    <button type="button" class="${cellClasses}" style="${styleExtra}" onclick="window.selectAttendancePopupDay(${year}, ${month}, ${d}, event)">
-                        ${d}
-                    </button>
-                `;
-            }
-
-            popup.innerHTML = `
-                <div class="grid grid-cols-7 gap-1 text-center mb-1">
-                    <div class="calendar-weekday-header">Sun</div>
-                    <div class="calendar-weekday-header">Mon</div>
-                    <div class="calendar-weekday-header">Tue</div>
-                    <div class="calendar-weekday-header">Wed</div>
-                    <div class="calendar-weekday-header">Thu</div>
-                    <div class="calendar-weekday-header">Fri</div>
-                    <div class="calendar-weekday-header">Sat</div>
-                </div>
-                <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                    ${daysHtml}
-                </div>
-                <div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+            popup.innerHTML = window.renderSigmaCalendarDayPanel({
+                year, month, activeYear: attendanceViewingYear, activeMonth: attendanceViewingMonth,
+                activeDay: attendanceSelectedDay, onDaySelect: 'selectAttendancePopupDay', today: todayNow,
+                footer: `<div class="cal-picker-footer flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
                     <button type="button" class="cal-picker-footer-today text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.selectAttendancePopupToday(event)">
                         Today
                     </button>
                     <button type="button" class="cal-picker-footer-mode text-xs font-bold text-[#15803d] hover:bg-slate-100 active:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer" onclick="window.switchAttendancePopupMode('months', event)">
                         Month & Year
                     </button>
-                </div>
-            `;
+                </div>`
+            });
         }
     }
 
@@ -3495,7 +3432,7 @@ function initTeacherPortal() {
             <!-- Exit Control (Outside Form Panel on Far Right) - Hidden on Mobile -->
             <button type="button" onclick="window.closeAttendanceExportModal()"
                 class="attendance-export-exit-btn fixed top-6 sm:top-10 right-6 sm:right-10 w-10 sm:w-12 h-10 sm:h-12 rounded-full hover:bg-slate-200 hidden sm:flex items-center justify-center text-black transition-all z-[12001] cursor-pointer"
-                title="Exit">
+                title="Exit" aria-label="Close attendance export">
                 <i class="fa-solid fa-xmark text-lg sm:text-xl text-black"></i>
             </button>
 
@@ -6358,7 +6295,7 @@ function initTeacherPortal() {
             const currentHash = window.location.hash || '';
             if (currentHash !== newHash) {
                 const hasUserInteracted = Boolean(navigator.userActivation && navigator.userActivation.hasBeenActive);
-                if (hasUserInteracted) {
+                if (hasUserInteracted || window._hasEnteredCalendarViaPush) {
                     history.pushState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
                 } else {
                     history.replaceState({ type: 'topic', subjectId: resolvedSubjectId, topicIdx: resolvedTopicIdx, selectedSection: resolvedSection }, '', newHash);
@@ -6516,6 +6453,7 @@ function initTeacherPortal() {
     let sigmaLastNavHash = window.location.hash || '';
 
     window.openTopicContent = function (subjectId, topicIdx, tab = 'videos', subIdx = null, pushHistory = true, stateOverrides = {}) {
+        try { subjectId = decodeURIComponent(String(subjectId || '')); } catch (_) {}
         if (stateOverrides?.viewSubmission || stateOverrides?._studentViewSubmissionMode || stateOverrides?._sharedViewSubmissionMode) {
             window._skipNextGradebookReset = false;
         }
@@ -7216,7 +7154,6 @@ function initTeacherPortal() {
         const input = document.getElementById('teacher-grading-score-input');
         const edit = document.getElementById('teacher-grading-score-edit');
         if (!input || input.disabled || (edit && edit.disabled)) return;
-        if (input.dataset.isQuiz === '1' && input.dataset.hasQuizSubmission !== '1') return;
         if (input.dataset.needsSubmission === '1') return;
         if (input.style.display !== 'none') window.closeTeacherScoreEditor(input);
         else window.openTeacherScoreEditor();
@@ -7227,10 +7164,9 @@ function initTeacherPortal() {
         const display = document.getElementById('teacher-grading-score-display');
         const edit = document.getElementById('teacher-grading-score-edit');
         if (!input || input.disabled || (edit && edit.disabled)) return;
-        if (input.dataset.isQuiz === '1' && input.dataset.hasQuizSubmission !== '1') return;
         if (input.dataset.needsSubmission === '1') return;
         if (display) display.style.display = 'none';
-        input.style.display = '';
+        input.style.display = 'inline-block';
         input.classList.add('is-selected');
         window.setTeacherScoreEditSelected(true);
         if (!input._hasEnterKeyHandler) {
@@ -7890,7 +7826,7 @@ function initTeacherPortal() {
                             }" 
                             style="${isActive ? 'color: #000000 !important; background-color: #ffffff !important;' : 'color: rgba(0,0,0,0.50) !important; background-color: transparent !important;'}"
                             ${!isActive ? `onmouseenter="if(!this.classList.contains('bg-white')) this.style.backgroundColor='rgba(0,0,0,0.06)'" onmouseleave="if(!this.classList.contains('bg-white')) this.style.backgroundColor='transparent'"` : ''}>
-                            ${label}
+                            <span class="sigma-quarter-long">${label}</span><span class="sigma-quarter-short">${String(q).toUpperCase()}</span>
                         </button>
                     `;
                 }).join('')}
@@ -8157,8 +8093,7 @@ function initTeacherPortal() {
                                             <p class="text-sm font-bold text-black tracking-tight font-['Inter']">${escapeHtml(t.title || `Topic ${displayNum}`)}</p>
                                             ${isHidden ? `
                                                 <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black font-['Inter'] shrink-0">
-                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                 </div>
                                             ` : (isFuture ? `
                                                 <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black font-['Inter'] shrink-0">
@@ -9075,6 +9010,10 @@ function initTeacherPortal() {
         const isModalAlreadyOpen = Boolean(document.getElementById('teacher-topic-schedule-overlay'));
         const effectiveEditType = editType || (window[meta.draftStateKey] ? window[meta.draftStateKey]._editType : '');
         const isEditMode = (effectiveEditType === 'schedule' || effectiveEditType === 'grading' || effectiveEditType === 'edit');
+        if (isEditMode && targetId && !isModalAlreadyOpen) {
+            window._unifiedPickerSelection = null;
+            delete window[meta.draftStateKey];
+        }
         const isFreshSetSchedule = !isModalAlreadyOpen && !isEditMode;
 
         const existingDraft = window[meta.draftStateKey] || {};
@@ -10038,6 +9977,16 @@ function initTeacherPortal() {
                     if (saved?.assessmentRubrics?.[effId]) return saved.assessmentRubrics[effId];
                     if (effIdStr && saved?.assessmentRubrics?.[effIdStr]) return saved.assessmentRubrics[effIdStr];
                     if (tgtTitle && saved?.assessmentRubrics?.[tgtTitle]) return saved.assessmentRubrics[tgtTitle];
+                    const release = window.getAssessmentReleaseConfig?.(subjId, section);
+                    const keys = [effId, tgtTitle, foundAss?.id, foundAss?.originalAdminId, foundAss?.materialId, foundAss?.title].filter(Boolean);
+                    for (const key of keys) {
+                        const rubric = release?.assessmentRubrics?.[key] || release?.rubrics?.[key];
+                        if (rubric) return typeof rubric === 'object' ? (rubric.fileName || rubric.name || rubric.title || '') : String(rubric);
+                    }
+                    const items = window.getUnifiedTopicAssessments?.('assessments', subjId, Number(currentTopicState?.topicIdx || 0), [], section) || [];
+                    const matched = items.find(item => itemMatchesTarget(item, effId, tgtTitle));
+                    const attached = extractRubricFromObj(matched) || extractRubricFromObj(matched?.rawItem);
+                    if (attached) return attached;
 
                     return findAdminLockedRubric(subjId, effId, tgtTitle);
                 };
@@ -10094,7 +10043,21 @@ function initTeacherPortal() {
                     return '';
                 };
 
-                linkedRubricName = isScheduleQuiz ? '' : (findAssessmentOrMaterialRubric(subjectId, effectiveId, targetTitle) || '');
+                linkedRubricName = isScheduleQuiz ? '' : (findAssessmentOrMaterialRubric(subjectId, effectiveId, targetTitle)
+                    || extractRubricFromObj(foundAss)
+                    || extractRubricFromObj(foundAss?.rawItem)
+                    || extractRubricFromObj(activeSelectedItem?.rawItem)
+                    || extractRubricFromObj(activeSelectedItem) || '');
+                if (linkedRubricName && !draft._rubricDeleted) {
+                    draft.assessmentRubrics[String(effectiveId)] = linkedRubricName;
+                    const rubricSource = foundAss?.rubric || foundAss?.rawItem?.rubric;
+                    const rubricUrl = foundAss?.rubricUrl || foundAss?.rawItem?.rubricUrl
+                        || (rubricSource && typeof rubricSource === 'object' ? rubricSource.url : '');
+                    if (rubricUrl) {
+                        draft.assessmentRubricUrls ||= {};
+                        draft.assessmentRubricUrls[String(effectiveId)] = rubricUrl;
+                    }
+                }
                 adminLockedRubricName = isScheduleQuiz ? '' : (findAdminLockedRubric(subjectId, effectiveId, targetTitle) || '');
                 if (adminLockedRubricName) {
                     draft._adminLockedRubric = adminLockedRubricName;
@@ -10231,6 +10194,7 @@ function initTeacherPortal() {
                                     )
                                 }
                             </h2>
+                            ${!isStudentsPage && (isEditMode || isSingleSelected) && activeSelectedItem?.title ? `<p class="text-sm font-semibold text-black mt-1 break-words" style="overflow-wrap: anywhere;">${escapeHtml(activeSelectedItem.title)}</p>` : ''}
                             <p class="text-xs font-medium text-black-fade font-['Inter'] mt-0.5">
                                 ${isStudentsPage
                                     ? `Choose which students in this section will receive and access this ${category === 'assessments' ? 'assessment' : (category === 'learning' ? 'material' : 'topic')}.`
@@ -10267,10 +10231,10 @@ function initTeacherPortal() {
                         </div>
                     ` : ''}
 
-                    ${selectableItems.length === 1 ? `
+                    ${selectableItems.length === 1 || (isEditMode && effectiveId) ? `
                         <div class="p-3 sm:p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 font-['Inter'] min-w-0">
-                            <span class="text-xs font-bold text-black shrink-0">${isGradingPage ? 'Assessment' : (selectableItems[0].type || meta.labelSingle || 'Item')}:</span>
-                            <span class="text-xs font-medium text-black truncate min-w-0 flex-1 leading-relaxed">${escapeHtml(selectableItems[0].title || '')}</span>
+                            <span class="text-xs font-bold text-black shrink-0">${isGradingPage || category === 'assessments' ? 'Assessment' : (activeSelectedItem?.type || meta.labelSingle || 'Item')}:</span>
+                            <span class="text-xs font-medium text-black min-w-0 flex-1 leading-relaxed" style="overflow-wrap: anywhere;">${escapeHtml(targetTitle || foundAss?.title || activeSelectedItem?.title || selectableItems[0]?.title || '')}</span>
                         </div>
                     ` : ''}
 
@@ -10412,13 +10376,13 @@ function initTeacherPortal() {
                                         </div>
 
                                         <!-- Release Immediately Toggle -->
-                                        <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                                            <input type="checkbox" id="teacher-schedule-release-now-chk" 
+                                        <div class="flex items-center gap-2.5 select-none py-1">
+                                            <input type="checkbox" id="teacher-schedule-release-now-chk" aria-label="Release immediately"
                                                 ${isReleaseNow ? 'checked' : ''}
                                                 onchange="window.toggleTeacherScheduleReleaseNow?.(this.checked, '${category}')"
                                                 class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                             <span class="text-xs font-semibold text-black">Release immediately</span>
-                                        </label>
+                                        </div>
 
                                         <!-- Release Date & Time Inputs (Faded if Release Immediately) -->
                                         <div id="teacher-schedule-release-datetime-box" class="space-y-2 transition-all duration-200 ${isReleaseNow ? 'opacity-40 pointer-events-none' : ''}">
@@ -10454,13 +10418,14 @@ function initTeacherPortal() {
                                         </div>
 
                                         <!-- No Deadline Toggle -->
-                                        <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
+                                        <div class="flex items-center gap-2.5 select-none py-1">
                                             <input type="checkbox" id="teacher-schedule-no-deadline-chk" 
+                                                aria-label="No due date"
                                                 ${isNoDeadline ? 'checked' : ''}
                                                 onchange="window.toggleTeacherScheduleNoDeadline?.(this.checked, '${category}')"
                                                 class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                             <span class="text-xs font-semibold text-black">No due date</span>
-                                        </label>
+                                        </div>
 
                                         <!-- Due Date & Time Inputs (Faded if No Deadline) -->
                                         <div id="teacher-schedule-due-datetime-box" class="space-y-2 transition-all duration-200 ${isNoDeadline ? 'opacity-40 pointer-events-none' : ''}">
@@ -10477,7 +10442,7 @@ function initTeacherPortal() {
                                             <!-- Due Time Box -->
                                             <div id="teacher-end-time-panel-box" 
                                                 class="relative flex items-center justify-between ${isNoDeadline ? 'bg-black/[0.03] border border-black/10' : 'bg-white border border-slate-200 hover:border-slate-300'} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-full cursor-text">
-                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-end-time-input" value="${initEndTime24 || '23:59'}"
+                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-end-time-input" value="${isNoDeadline ? '' : (initEndTime24 || '')}"
                                                     ${isNoDeadline ? 'tabindex="-1" readonly' : ''}
                                                     oninput="window.validateTeacherScheduleInputs?.('${category}');"
                                                     onchange="window.validateTeacherScheduleInputs?.('${category}');"
@@ -10497,13 +10462,13 @@ function initTeacherPortal() {
                                     </div>
 
                                     <!-- Release Immediately Toggle -->
-                                    <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                                        <input type="checkbox" id="teacher-schedule-release-now-chk" 
+                                    <div class="flex items-center gap-2.5 select-none py-1">
+                                        <input type="checkbox" id="teacher-schedule-release-now-chk" aria-label="Release immediately"
                                             ${isReleaseNow ? 'checked' : ''}
                                             onchange="window.toggleTeacherScheduleReleaseNow?.(this.checked, '${category}')"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                         <span class="text-xs font-semibold text-black">Release immediately</span>
-                                    </label>
+                                    </div>
 
                                     <!-- Release Date & Time Inputs Side-by-Side (Faded if Release Immediately) -->
                                     <div id="teacher-schedule-release-datetime-box" class="grid grid-cols-1 sm:grid-cols-2 gap-3 transition-all duration-200 ${isReleaseNow ? 'opacity-40 pointer-events-none' : ''}">
@@ -11610,7 +11575,13 @@ function initTeacherPortal() {
         const bindScheduleField = (input) => {
             if (!input || input.dataset.pastTypeBound === '1') return;
             input.dataset.pastTypeBound = '1';
-            input.addEventListener('keydown', () => input.removeAttribute('min'));
+            input.addEventListener('focus', () => {
+                if (input.type === 'date' || input.type === 'time') input.removeAttribute('min');
+            });
+            input.addEventListener('blur', () => {
+                window.keepScheduleDateTimeForward?.(true);
+                window.validateTeacherScheduleInputs?.();
+            });
             input.addEventListener('pointerdown', (e) => {
                 window.keepScheduleDateTimeForward?.(true);
                 if (window.innerWidth <= 640 && input.type === 'time' && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
@@ -11642,10 +11613,13 @@ function initTeacherPortal() {
                 if (timeInput) timeInput.removeAttribute('min');
                 return false;
             }
-            if (forceMin || document.activeElement !== dateInput) dateInput.min = todayStr;
-            window.limitScheduleDateYear?.(dateInput);
+            const editingDate = document.activeElement === dateInput;
+            if (editingDate) {
+                if (dateInput.hasAttribute('min')) dateInput.removeAttribute('min');
+            } else if (dateInput.min !== todayStr) dateInput.min = todayStr;
+            if (!editingDate) window.limitScheduleDateYear?.(dateInput);
             const dateVal = String(dateInput.value || '');
-            const rejectedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && dateVal < todayStr;
+            const rejectedDate = !editingDate && /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && dateVal < todayStr;
             if (rejectedDate) {
                 dateInput.dataset.pastRejected = '1';
                 dateInput.dataset.pastJustSet = '1';
@@ -11658,10 +11632,11 @@ function initTeacherPortal() {
             let rejectedTime = false;
             if (timeInput) {
                 const onToday = dateInput.value === todayStr;
-                if (onToday && (forceMin || document.activeElement !== timeInput)) timeInput.min = timeStr;
-                else timeInput.removeAttribute('min');
+                if (onToday && document.activeElement !== timeInput) {
+                    if (timeInput.min !== timeStr) timeInput.min = timeStr;
+                } else if (timeInput.hasAttribute('min')) timeInput.removeAttribute('min');
                 const timeVal = String(timeInput.value || '');
-                rejectedTime = onToday && /^\d{2}:\d{2}$/.test(timeVal) && timeVal < timeStr;
+                rejectedTime = document.activeElement !== timeInput && onToday && /^\d{2}:\d{2}$/.test(timeVal) && timeVal < timeStr;
                 if (rejectedTime) {
                     timeInput.dataset.pastRejected = '1';
                     timeInput.dataset.pastJustSet = '1';
@@ -12335,7 +12310,9 @@ function initTeacherPortal() {
             if (isNoDeadline) {
                 dueDesc = ` with no deadline (can submit anytime)`;
             } else if (endDateVal) {
-                dueDesc = ` and due on ${endDateVal}${endTimeVal ? ' at ' + endTimeVal : ' by 11:59 PM (end of day)'}`;
+                dueDesc = endTimeVal ? ` and due on ${formatDate(`${endDateVal}T${endTimeVal}`)}` : ' — choose a due time (defaults to 11:59 PM when saved)';
+            } else {
+                dueDesc = ' — choose a due date and time';
             }
         }
 
@@ -12971,18 +12948,23 @@ function initTeacherPortal() {
         const endTimeBox = document.getElementById('teacher-end-time-panel-box');
         const beginDateInput = document.getElementById('teacher-exact-date-input');
 
+        for (const input of [endDateInput, endTimeInput]) {
+            if (!input) continue;
+            if (isChecked) {
+                if (input.value) input.dataset.previousDeadlineValue = input.value;
+                input.value = '';
+            } else if (!input.value && input.dataset.previousDeadlineValue) {
+                input.value = input.dataset.previousDeadlineValue;
+            }
+        }
         if (dueBox) {
             if (isChecked) {
                 dueBox.classList.add('opacity-40', 'pointer-events-none');
                 window.closeTeacherScheduleTimePopover?.();
             } else {
                 dueBox.classList.remove('opacity-40', 'pointer-events-none');
-                if (endDateInput && !endDateInput.value) {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    endDateInput.value = beginDateInput?.value || todayStr;
-                }
                 if (endTimeInput && (!endTimeInput.value || endTimeInput.value === '')) {
-                    endTimeInput.value = '--:-- --';
+                    endTimeInput.value = '';
                 }
             }
         }
@@ -13447,7 +13429,7 @@ function initTeacherPortal() {
         window.closeTeacherUnifiedScheduleModal(returnToReleaseModal, category);
     };
 
-    window.saveTeacherUnifiedSchedule = function (category = 'topics') {
+    window.saveTeacherUnifiedSchedule = function (category = 'topics', lateResetConfirmed = false) {
         if (typeof window.cacheActiveAssessmentGradingSettings === 'function') {
             window.cacheActiveAssessmentGradingSettings();
         }
@@ -13470,6 +13452,7 @@ function initTeacherPortal() {
         const section = (typeof resolveTeacherActiveSection === 'function')
             ? resolveTeacherActiveSection(draft?._section || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null) || window.currentTopicState?.selectedSection)
             : (draft?._section || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null) || window.currentTopicState?.selectedSection || '');
+        const targetSection = section;
         const cleanId = String(subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
 
         // Get current saved config
@@ -14555,6 +14538,23 @@ function initTeacherPortal() {
         });
 
 
+        if (category === 'assessments' && !lateResetConfirmed) {
+            const newlyAllowed = Object.entries(config.assessmentLatePermissions || {}).filter(([id, allowed]) => {
+                if (!allowed || saved?.assessmentLatePermissions?.[id] === true) return false;
+                const due = saved?.assessmentEndSchedules?.[id] || config.assessmentEndSchedules?.[id];
+                const deadline = new Date(due).getTime();
+                return Number.isFinite(deadline) && deadline < Date.now();
+            });
+            if (newlyAllowed.length && typeof window.openAskingPanel === 'function') {
+                window.openAskingPanel({
+                    title: 'Allow Late Submissions?', variant: 'grading', type: 'warning',
+                    desc: 'Saving these changes will reopen eligible submissions and reset deadline-generated zero scores and Missing statuses, including in the gradebook. Teacher-entered grades will remain unchanged.',
+                    confirmText: 'Save Changes', cancelText: 'Cancel', showCancel: true,
+                    onConfirm: () => window.saveTeacherUnifiedSchedule(category, true)
+                });
+                return;
+            }
+        }
         if (subjectId) {
             let releaseSaved = true;
             if (typeof window.saveUnifiedReleaseConfig === 'function') {
@@ -16318,8 +16318,7 @@ function initTeacherPortal() {
                                                 <span class="text-xs sm:text-sm font-normal text-black font-['Inter']" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(group.topicTitle)}</span>
                                                 ${topicIsHidden ? `
                                                     <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                        <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                        <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                     </div>
                                                 ` : (topicIsFuture ? `
                                                     <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -16383,8 +16382,7 @@ function initTeacherPortal() {
                                                                             <p class="text-xs sm:text-sm font-normal text-black tracking-tight" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(m.title)}</p>
                                                                             ${isHidden ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                                                 </div>
                                                                             ` : (isFuture ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -16449,8 +16447,7 @@ function initTeacherPortal() {
                                                                             <p class="text-xs sm:text-sm font-normal text-black tracking-tight" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(m.title)}</p>
                                                                             ${isHidden ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                                                 </div>
                                                                             ` : (isFuture ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -17877,7 +17874,7 @@ function initTeacherPortal() {
         const isVideoDetail = (activeTab === 'videos' && videoIdx !== null && videoIdx !== undefined && !Number.isNaN(Number(videoIdx)));
         const isHandoutDetail = (activeTab === 'handouts' && videoIdx !== null && videoIdx !== undefined && !Number.isNaN(Number(videoIdx)));
         const isAssessmentDetail = (activeTab !== 'videos' && activeTab !== 'handouts' && window._tcAssessmentDetailIdx !== null && window._tcAssessmentDetailIdx !== undefined && !Number.isNaN(Number(window._tcAssessmentDetailIdx)));
-        const isDetailView = isVideoDetail || isHandoutDetail || isAssessmentDetail || Boolean(window._studentSubmissionMode || window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
+        const isDetailView = isVideoDetail || isHandoutDetail || isAssessmentDetail;
 
         if (!isDetailView) {
             window._tcAssessmentDetailIdx = null;
@@ -18432,7 +18429,7 @@ function initTeacherPortal() {
                 }))
             }) : '';
             if (isSubmissionPage) {
-                const scoreHtml = (typeof _buildTopicSectionSelectorCard === 'function') ? _buildTopicSectionSelectorCard(Object.assign({}, data, { resolvedHps: assMaxScore }), false) : '';
+                const scoreHtml = (typeof _buildTopicSectionSelectorCard === 'function') ? _buildTopicSectionSelectorCard(Object.assign({}, data, { resolvedHps: assMaxScore, currentAssessment: assessments[numDetailIdx] }), false) : '';
                 rightHtml = `<div class="space-y-6 font-['Inter'] h-full">${scoreHtml}${tasksHtml}</div>`;
                 railModeClass = 'topic-rail-score-follow';
             } else {
@@ -18825,6 +18822,16 @@ function initTeacherPortal() {
         const sec = document.getElementById(id);
         if (sec) sec.classList.remove('hidden');
 
+        // Strictly sync calendar selection state
+        if (id === 'section-attendance') {
+            document.body.classList.add('calendar-page-mode');
+        } else {
+            document.body.classList.remove('calendar-page-mode');
+        }
+        if (typeof window.syncCalendarPageActiveState === 'function') {
+            window.syncCalendarPageActiveState();
+        }
+
         // Dismiss selected/expanded attendance date state when changing main sections
         attendanceSelectedDay = -1;
         expandedAttendanceCol = -1;
@@ -18908,6 +18915,10 @@ function initTeacherPortal() {
 
         if (pushHistory) {
             let pageKey = Object.entries(navIdByPage).find(([k, v]) => v === navId)?.[0] || 'dashboard';
+            if (navId === 'nav-attendance' || navId === 'nav-calendar') {
+                pageKey = 'calendar';
+                window._hasEnteredCalendarViaPush = true;
+            }
             if (navId === 'nav-grades' && subTab) {
                 pageKey = `grades:${subTab}`;
             }
@@ -18963,11 +18974,16 @@ function initTeacherPortal() {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
+            if (typeof window.resetCalendarDropdown === 'function') window.resetCalendarDropdown();
             document.querySelectorAll('.header-panel:not(#user-profile-tab-panel):not(#layout-wrapper), .mobile-pull-up-panel').forEach(m => {
                 m.classList.add('hidden');
                 m.classList.remove('open');
             });
-            document.querySelectorAll('.relative button.active').forEach(b => b.classList.remove('active'));
+            const enteringCalendar = (navId === 'nav-attendance' || navId === 'nav-calendar');
+            document.querySelectorAll('.relative button.active').forEach(b => {
+                if (b.id === 'calendar-toggle' && enteringCalendar) return;
+                b.classList.remove('active');
+            });
 
             // Clear sub-sidebar highlights and submenu states
             window.clearSubNavigationHighlights();
@@ -19079,7 +19095,9 @@ function initTeacherPortal() {
             'nav-assessments': 'Interface Computer College',
             'nav-grades': 'Grades',
             'nav-resources': 'Resources',
-            'nav-settings': 'Settings'
+            'nav-settings': 'Settings',
+            'nav-attendance': 'Calendar',
+            'nav-calendar': 'Calendar'
         };
         const titleText = navContextMap[navId] || 'Interface Computer College';
         if (typeof window.setNavContext === 'function') {
@@ -19104,7 +19122,7 @@ function initTeacherPortal() {
         // --- Full-width layout pages (match admin dashboard placement) ---
         const mainContent = document.getElementById('main-content');
         if (mainContent) {
-            if (navId === 'nav-profile' || navId === 'nav-dashboard' || navId === 'nav-classroom-detail' || navId === 'nav-settings' || navId === 'nav-grades' || navId === 'nav-resources') {
+            if (navId === 'nav-profile' || navId === 'nav-dashboard' || navId === 'nav-classroom-detail' || navId === 'nav-settings' || navId === 'nav-grades' || navId === 'nav-resources' || navId === 'nav-attendance' || navId === 'nav-calendar') {
                 mainContent.classList.remove('pt-3', 'px-4', 'pb-4');
                 mainContent.classList.add('p-0');
             } else {
@@ -19135,6 +19153,45 @@ function initTeacherPortal() {
         if (navId === 'nav-settings') {
             if (typeof window.renderSettingsView === 'function') {
                 window.renderSettingsView('user-settings-view', 'notifications');
+            }
+        }
+
+                // Calendar Page Mode & Back Button (Navbar Context only)
+        const isCalendarPage = (navId === 'nav-attendance' || navId === 'nav-calendar');
+
+        if (isCalendarPage) {
+            document.body.classList.add('calendar-page-mode');
+            document.getElementById('calendar-dropdown')?.classList.add('hidden');
+            if (typeof window.resetCalendarDropdown === 'function') window.resetCalendarDropdown();
+            document.getElementById('mobile-calendar-panel')?.classList.add('hidden');
+            document.getElementById('mobile-calendar-panel')?.classList.remove('open');
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+            if (!window._preserveCalendarDateOnNextOpen) {
+                const now = new Date();
+                selectedCalendarDate = {
+                    year: now.getFullYear(),
+                    month: now.getMonth(),
+                    day: now.getDate()
+                };
+                window.selectedCalendarDate = selectedCalendarDate;
+                const yearSelect = document.getElementById('attendance-year-select');
+                const monthSelect = document.getElementById('attendance-month-select');
+                if (yearSelect) yearSelect.value = String(now.getFullYear());
+                if (monthSelect) monthSelect.value = String(now.getMonth());
+            }
+            setTimeout(() => {
+                if (typeof setupAttendanceCalendar === 'function') {
+                    setupAttendanceCalendar();
+                }
+            }, 40);
+        } else {
+            document.body.classList.remove('calendar-page-mode');
+            window._preserveCalendarDateOnNextOpen = false;
+            if (typeof window.resetCalendarDropdown === 'function') window.resetCalendarDropdown();
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
             }
         }
 
@@ -19274,7 +19331,7 @@ function initTeacherPortal() {
         } else if (hash.startsWith('#topic-content:') || hash.startsWith('#topic_content:')) {
             const parts = hash.split(':');
             if (parts.length >= 4) {
-                const subjectId = String(parts[1] || '').replace(/_/g, '-');
+                const subjectId = decodeURIComponent(String(parts[1] || '')).replace(/_/g, '-');
                 const topicIdx = parseInt(parts[2]);
                 const tab = parts[3];
                 const vIdxStr = parts[4];
@@ -19439,8 +19496,16 @@ function initTeacherPortal() {
             return;
         }
 
-
         const hash = window.location.hash || '';
+
+        // Strictly sync calendar selection state on browser Back / Forward
+        const isCalRoute = (hash === '#calendar' || hash === '#attendance');
+        if (!isCalRoute) {
+            document.body.classList.remove('calendar-page-mode');
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
+        }
 
         // 1. High-priority hash check (matches exact URL in address bar)
         if (hash.startsWith('#classroom:')) {
@@ -19483,7 +19548,7 @@ function initTeacherPortal() {
         } else if (hash.startsWith('#topic-content:') || hash.startsWith('#topic_content:')) {
             const parts = hash.split(':');
             if (parts.length >= 4) {
-                const subjectId = String(parts[1] || '').replace(/_/g, '-');
+                const subjectId = decodeURIComponent(String(parts[1] || '')).replace(/_/g, '-');
                 const topicIdx = parseInt(parts[2]);
                 const tab = parts[3];
                 const vIdxStr = parts[4];
@@ -19623,6 +19688,14 @@ function initTeacherPortal() {
         }
         if (window._isProcessingPopstate || window._isProcessingBack) {
             return;
+        }
+        const hash = window.location.hash || '';
+        const isCalRoute = (hash === '#calendar' || hash === '#attendance');
+        if (!isCalRoute) {
+            document.body.classList.remove('calendar-page-mode');
+            if (typeof window.syncCalendarPageActiveState === 'function') {
+                window.syncCalendarPageActiveState();
+            }
         }
         setupNavigationHistory();
     });
@@ -20447,6 +20520,10 @@ function initTeacherPortal() {
 
         hideAllSections();
         if (sectionDetail) sectionDetail.classList.remove('hidden');
+        document.body.classList.remove('calendar-page-mode');
+        if (typeof window.syncCalendarPageActiveState === 'function') {
+            window.syncCalendarPageActiveState();
+        }
 
         // Dismiss selected/expanded attendance date state when opening/reopening classroom
         attendanceSelectedDay = -1;
@@ -20786,6 +20863,10 @@ function initTeacherPortal() {
 
     window.switchClassDetailTab = function (tabId, pushHistory = true) {
         window.closeTeacherAttendanceCalendarPopup?.();
+        document.body.classList.remove('calendar-page-mode');
+        if (typeof window.syncCalendarPageActiveState === 'function') {
+            window.syncCalendarPageActiveState();
+        }
         scrollToTop();
         const effectiveTab = tabId === 'materials' ? 'topics' : (tabId === 'people' ? 'members' : tabId);
 
@@ -21177,11 +21258,11 @@ function initTeacherPortal() {
                                 <thead>
                                     <tr class="bg-[#15803d] text-white select-none">
                                         <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q1</th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q2</th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q3</th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Q4</th>
-                                        <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-16 sm:w-24 text-[11px] sm:text-xs" style="border-right: none !important;">Final</th>
+                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">1st<br>Quarter</span><span class="teacher-quarter-short">Q1</span></th>
+                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">2nd<br>Quarter</span><span class="teacher-quarter-short">Q2</span></th>
+                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">3rd<br>Quarter</span><span class="teacher-quarter-short">Q3</span></th>
+                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">4th<br>Quarter</span><span class="teacher-quarter-short">Q4</span></th>
+                                        <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-16 sm:w-24 text-[11px] sm:text-xs" style="border-right: none !important;"><span class="teacher-quarter-full">Final<br>Quarter</span><span class="teacher-quarter-short">Final</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="teacher-grades-modal-tbody" class="divide-y divide-slate-100">
@@ -21907,8 +21988,8 @@ function initTeacherPortal() {
 
             const limits = typeof window.getSigmaMaterialLimits === 'function'
                 ? window.getSigmaMaterialLimits()
-                : { video: { max: 550 } };
-            const maxVideoMb = Number(limits.video?.max || (Number(limits.video?.mp4 || limits.video?.std || 500) + Number(limits.video?.ext || 50))) || 550;
+                : { video: { max: 225 } };
+            const maxVideoMb = Number(limits.video?.max || (Number(limits.video?.mp4 || limits.video?.std || 200) + Number(limits.video?.ext || 25))) || 225;
             if (file.size > maxVideoMb * 1024 * 1024) {
                 alert(`The selected video exceeds the system limit of ${maxVideoMb} MB.`);
                 input.value = '';
@@ -22104,6 +22185,7 @@ function initTeacherPortal() {
     };
 
     document.addEventListener('keydown', (event) => {
+        const announcementPadLayer = document.getElementById('announcementPadLayer');
         if (event.key === 'Escape' && announcementPadLayer && !announcementPadLayer.classList.contains('hidden')) {
             closeAnnouncementPad();
         }
@@ -22438,8 +22520,13 @@ function initTeacherPortal() {
         updateCarousel();
     }
 
-    // --- Attendance Calendar (Full-Screen Design) ---
-    let attendanceCurrentDate = new Date(2026, 2, 27); // Default to March 27, 2026
+    // --- Attendance Calendar (Full-Screen Design with Full-Height White Panel) ---
+    let attendanceCurrentDate = new Date();
+    let selectedCalendarDate = {
+        year: attendanceCurrentDate.getFullYear(),
+        month: attendanceCurrentDate.getMonth(),
+        day: attendanceCurrentDate.getDate()
+    };
     let attendanceOpenDateKey = '';
 
     window.closeAttendanceTimePanel = () => {
@@ -22456,12 +22543,236 @@ function initTeacherPortal() {
     window.stepAttendanceSelect = (selectId, direction) => {
         const select = document.getElementById(selectId);
         if (!select) return;
-
         const nextIndex = select.selectedIndex + direction;
         if (nextIndex < 0 || nextIndex >= select.options.length) return;
-
         select.selectedIndex = nextIndex;
         select.dispatchEvent(new Event('change'));
+    };
+
+    let attendancePickerViewingYear = (new Date()).getFullYear();
+    let currentMobileWeekIndex = null;
+
+    window.openAttendancePageMonthPicker = function (event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const yearSelect = document.getElementById('attendance-year-select');
+        const curYear = yearSelect ? parseInt(yearSelect.value) : selectedCalendarDate.year;
+        attendancePickerViewingYear = curYear || (new Date()).getFullYear();
+        renderAttendancePageCustomMonthPicker();
+        const picker = document.getElementById('attendance-page-month-picker');
+        if (picker) {
+            picker.classList.toggle('hidden');
+        }
+    };
+
+    window.closeAttendancePageMonthPicker = function (event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const picker = document.getElementById('attendance-page-month-picker');
+        if (picker) {
+            picker.classList.add('hidden');
+        }
+    };
+
+    window.changeAttendancePagePickerYear = function (delta, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        attendancePickerViewingYear += delta;
+        renderAttendancePageCustomMonthPicker();
+    };
+
+    window.selectAttendancePageCustomMonth = function (monthIdx, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+        if (yearSelect) yearSelect.value = String(attendancePickerViewingYear);
+        if (monthSelect) monthSelect.value = String(monthIdx);
+
+        const now = new Date();
+        const isCurrentMonth = (attendancePickerViewingYear === now.getFullYear() && monthIdx === now.getMonth());
+        selectedCalendarDate = {
+            year: attendancePickerViewingYear,
+            month: monthIdx,
+            day: null
+        };
+        currentMobileWeekIndex = null;
+
+        if (typeof window.setupAttendanceCalendar === 'function') {
+            window.setupAttendanceCalendar();
+        }
+        if (isCurrentMonth) {
+            renderCalendarRightPanel(now.getFullYear(), now.getMonth(), now.getDate());
+        } else {
+            renderCalendarRightPanel(null, null, null);
+        }
+        window.closeAttendancePageMonthPicker();
+    };
+
+    window.resetAttendancePageToThisMonth = function (event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const now = new Date();
+        attendancePickerViewingYear = now.getFullYear();
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+        if (yearSelect) yearSelect.value = String(now.getFullYear());
+        if (monthSelect) monthSelect.value = String(now.getMonth());
+
+        selectedCalendarDate = {
+            year: now.getFullYear(),
+            month: now.getMonth(),
+            day: now.getDate()
+        };
+
+        if (typeof window.setupAttendanceCalendar === 'function') {
+            window.setupAttendanceCalendar();
+        }
+        window.closeAttendancePageMonthPicker();
+    };
+
+    function renderAttendancePageCustomMonthPicker() {
+        const picker = document.getElementById('attendance-page-month-picker');
+        if (!picker) return;
+        window.prepareSigmaCalendarPopup(picker);
+
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+        const activeYear = yearSelect ? parseInt(yearSelect.value) : selectedCalendarDate.year;
+        const activeMonth = monthSelect ? parseInt(monthSelect.value) : selectedCalendarDate.month;
+        picker.innerHTML = window.renderSigmaCalendarMonthPanel({
+            year: attendancePickerViewingYear, activeYear, activeMonth,
+            onYearChange: 'changeAttendancePagePickerYear', onMonthSelect: 'selectAttendancePageCustomMonth'
+        });
+    }
+
+    // Dismiss attendance page month picker on outside click
+    document.addEventListener('click', (e) => {
+        const picker = document.getElementById('attendance-page-month-picker');
+        const btn = document.getElementById('attendance-month-picker-btn');
+        if (picker && !picker.classList.contains('hidden') && !picker.contains(e.target) && !btn?.contains(e.target)) {
+            picker.classList.add('hidden');
+        }
+    });
+
+    // Dismiss on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const picker = document.getElementById('attendance-page-month-picker');
+            if (picker && !picker.classList.contains('hidden')) {
+                picker.classList.add('hidden');
+            }
+        }
+    });
+
+    window.stepAttendanceNav = function (direction = 1) {
+        if (typeof window !== 'undefined' && window.innerWidth <= 1023 && !window.isMobileCalendarExpanded && typeof window.stepAttendanceWeek === 'function') {
+            window.stepAttendanceWeek(direction);
+        } else if (typeof window.stepAttendanceMonth === 'function') {
+            window.stepAttendanceMonth(direction);
+        }
+    };
+
+    window.stepAttendanceMonth = (direction = 1) => {
+        if (typeof window !== 'undefined' && window.innerWidth <= 1023 && !window.isMobileCalendarExpanded && typeof window.stepAttendanceWeek === 'function') {
+            window.stepAttendanceWeek(direction);
+            return;
+        }
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+        let curMonth = monthSelect ? parseInt(monthSelect.value) : (selectedCalendarDate?.month ?? (new Date()).getMonth());
+        let curYear = yearSelect ? parseInt(yearSelect.value) : (selectedCalendarDate?.year || (new Date()).getFullYear());
+
+        curMonth += direction;
+        if (curMonth < 0) {
+            curMonth = 11;
+            curYear -= 1;
+        } else if (curMonth > 11) {
+            curMonth = 0;
+            curYear += 1;
+        }
+
+        if (yearSelect) yearSelect.value = String(curYear);
+        if (monthSelect) monthSelect.value = String(curMonth);
+
+        const now = new Date();
+        const isCurrentMonth = (curYear === now.getFullYear() && curMonth === now.getMonth());
+        selectedCalendarDate = {
+            year: curYear,
+            month: curMonth,
+            day: null
+        };
+        window.selectedCalendarDate = selectedCalendarDate;
+        currentMobileWeekIndex = null;
+
+        if (typeof window.setupAttendanceCalendar === 'function') {
+            window.setupAttendanceCalendar();
+        }
+        if (isCurrentMonth) {
+            renderCalendarRightPanel(now.getFullYear(), now.getMonth(), now.getDate());
+        } else {
+            renderCalendarRightPanel(null, null, null);
+        }
+    };
+
+    window.stepAttendanceToday = () => {
+        const today = new Date();
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+
+        if (yearSelect) yearSelect.value = String(today.getFullYear());
+        if (monthSelect) monthSelect.value = String(today.getMonth());
+
+        selectedCalendarDate = {
+            year: today.getFullYear(),
+            month: today.getMonth(),
+            day: today.getDate()
+        };
+        window.selectedCalendarDate = selectedCalendarDate;
+        currentMobileWeekIndex = null;
+
+        if (typeof window.setupAttendanceCalendar === 'function') {
+            window.setupAttendanceCalendar();
+        }
+        renderCalendarRightPanel(today.getFullYear(), today.getMonth(), today.getDate());
+    };
+
+    window.stepAttendanceDay = (direction = 1) => {
+        const yearSelect = document.getElementById('attendance-year-select');
+        const monthSelect = document.getElementById('attendance-month-select');
+        let curYear = yearSelect ? parseInt(yearSelect.value) : (selectedCalendarDate?.year || new Date().getFullYear());
+        let curMonth = monthSelect ? parseInt(monthSelect.value) : (selectedCalendarDate?.month ?? new Date().getMonth());
+        let curDay = selectedCalendarDate?.day || new Date().getDate();
+
+        const date = new Date(curYear, curMonth, curDay);
+        date.setDate(date.getDate() + direction);
+
+        const newYear = date.getFullYear();
+        const newMonth = date.getMonth();
+        const newDay = date.getDate();
+
+        if (yearSelect) yearSelect.value = String(newYear);
+        if (monthSelect) monthSelect.value = String(newMonth);
+
+        selectedCalendarDate = {
+            year: newYear,
+            month: newMonth,
+            day: newDay
+        };
+
+        if (typeof window.setupAttendanceCalendar === 'function') {
+            window.setupAttendanceCalendar();
+        }
     };
 
     function setupAttendanceCalendar() {
@@ -22470,13 +22781,35 @@ function initTeacherPortal() {
         const todayBtn = document.getElementById('attendance-today-btn');
         const calendarGrid = document.getElementById('attendance-full-calendar-grid');
         const calendarShell = document.getElementById('attendance-calendar-shell');
-        const timePanel = document.getElementById('attendance-time-panel');
+        const monthYearLabel = document.getElementById('attendance-month-year-label');
 
-        if (!yearSelect || !monthSelect || !calendarGrid || !calendarShell) return;
+        if (!calendarGrid || !calendarShell) return;
+
+        if (!window._preserveCalendarDateOnNextOpen) {
+            const now = new Date();
+            selectedCalendarDate = {
+                year: now.getFullYear(),
+                month: now.getMonth(),
+                day: now.getDate()
+            };
+            window.selectedCalendarDate = selectedCalendarDate;
+            if (yearSelect) yearSelect.value = String(now.getFullYear());
+            if (monthSelect) monthSelect.value = String(now.getMonth());
+        } else {
+            window._preserveCalendarDateOnNextOpen = false;
+        }
+
+        if (yearSelect && !yearSelect.value) yearSelect.value = String(selectedCalendarDate?.year || (new Date()).getFullYear());
+        if (monthSelect && !monthSelect.value) monthSelect.value = String(selectedCalendarDate?.month ?? (new Date()).getMonth());
 
         function renderCalendar() {
-            const year = parseInt(yearSelect.value);
-            const month = parseInt(monthSelect.value);
+            const year = yearSelect ? parseInt(yearSelect.value, 10) : (selectedCalendarDate?.year || (new Date()).getFullYear());
+            const month = monthSelect ? parseInt(monthSelect.value, 10) : (selectedCalendarDate?.month ?? (new Date()).getMonth());
+
+            if (monthYearLabel) {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                monthYearLabel.textContent = `${monthNames[month]} ${year}`;
+            }
 
             calendarGrid.innerHTML = '';
 
@@ -22484,16 +22817,53 @@ function initTeacherPortal() {
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            // Calculate total visible cells first to determine last rows
+            // Calculate total visible cells
             const totalCells = firstDayOfMonth + daysInMonth;
             const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
             const totalVisibleCells = totalCells + remainingCells;
+            const totalWeeks = Math.max(1, Math.ceil(totalVisibleCells / 7));
 
-            // Render leading empty slots before the first day of the month
+            // Determine active week index (containing selected date or today)
+            const now = new Date();
+            const isViewingTodayMonth = (now.getFullYear() === year && now.getMonth() === month);
+            const isDateExplicitlySelected = Boolean(
+                selectedCalendarDate &&
+                selectedCalendarDate.year === year &&
+                selectedCalendarDate.month === month &&
+                selectedCalendarDate.day &&
+                !(isViewingTodayMonth && selectedCalendarDate.day === now.getDate())
+            );
+
+            let activeWeekIndex = 0;
+            if (isDateExplicitlySelected) {
+                const activeDayIndex = firstDayOfMonth + selectedCalendarDate.day - 1;
+                activeWeekIndex = Math.max(0, Math.floor(activeDayIndex / 7));
+            } else if (typeof currentMobileWeekIndex === 'number' && currentMobileWeekIndex >= 0 && currentMobileWeekIndex < totalWeeks) {
+                activeWeekIndex = currentMobileWeekIndex;
+            } else if (isViewingTodayMonth) {
+                const activeDayIndex = firstDayOfMonth + now.getDate() - 1;
+                activeWeekIndex = Math.max(0, Math.floor(activeDayIndex / 7));
+            } else {
+                activeWeekIndex = 0;
+            }
+            currentMobileWeekIndex = activeWeekIndex;
+
+            if (calendarShell) {
+                calendarShell.setAttribute('data-active-week', String(activeWeekIndex));
+                if (window.isMobileCalendarExpanded) {
+                    calendarShell.classList.add('calendar-mobile-expanded');
+                } else {
+                    calendarShell.classList.remove('calendar-mobile-expanded');
+                }
+            }
+
+            // Render leading empty slots
             for (let i = 0; i < firstDayOfMonth; i++) {
                 const colIndex = i % 7;
                 const isLastRow = i >= totalVisibleCells - 7;
-                renderEmptyDayCell(colIndex, isLastRow);
+                const weekIndex = Math.floor(i / 7);
+                const isActiveWeek = (weekIndex === activeWeekIndex);
+                renderEmptyDayCell(colIndex, isLastRow, weekIndex, isActiveWeek);
             }
 
             // Render Current Month's days
@@ -22501,8 +22871,12 @@ function initTeacherPortal() {
                 const dayIndex = firstDayOfMonth + i - 1;
                 const colIndex = dayIndex % 7;
                 const isLastRow = dayIndex >= totalVisibleCells - 7;
-                const isToday = i === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
-                renderDayCell(i, true, 'current', isToday, colIndex, isLastRow);
+                const isToday = (i === now.getDate() && month === now.getMonth() && year === now.getFullYear());
+                const isSelected = (!isToday && selectedCalendarDate && selectedCalendarDate.day === i && isDateExplicitlySelected && selectedCalendarDate.month === month && selectedCalendarDate.year === year);
+                const weekIndex = Math.floor(dayIndex / 7);
+                const isActiveWeek = (weekIndex === activeWeekIndex);
+
+                renderDayCell(i, true, 'current', isToday, isSelected, colIndex, isLastRow, year, month, weekIndex, isActiveWeek);
             }
 
             // Fill remaining cells
@@ -22510,84 +22884,542 @@ function initTeacherPortal() {
                 const dayIndex = totalCells + i - 1;
                 const colIndex = dayIndex % 7;
                 const isLastRow = dayIndex >= totalVisibleCells - 7;
-                renderEmptyDayCell(colIndex, isLastRow);
+                const weekIndex = Math.floor(dayIndex / 7);
+                const isActiveWeek = (weekIndex === activeWeekIndex);
+                renderEmptyDayCell(colIndex, isLastRow, weekIndex, isActiveWeek);
             }
 
-            const totalVisibleCellsMath = totalCells + remainingCells;
-            const totalWeeks = Math.max(1, totalVisibleCellsMath / 7);
+            calendarGrid.style.display = 'grid';
+            calendarGrid.style.gridTemplateColumns = 'repeat(7, minmax(0, 1fr))';
+            calendarGrid.style.gridTemplateRows = `repeat(${totalWeeks}, minmax(0, 1fr))`;
+            calendarGrid.style.height = '100%';
+            calendarGrid.style.width = '100%';
+            calendarGrid.style.gap = '0';
+            calendarGrid.style.backgroundColor = 'white';
 
-            requestAnimationFrame(() => {
-                const shellHeight = calendarShell.clientHeight;
-                const headerRow = calendarShell.querySelector('.grid.grid-cols-7.border-b');
-                const headerHeight = headerRow ? headerRow.offsetHeight : 0;
-
-                // Maximize height to absolute bottom
-                const availableGridHeight = Math.max(280, shellHeight - headerHeight);
-                const weekRowHeight = Math.floor(availableGridHeight / totalWeeks);
-
-                calendarGrid.style.gridTemplateRows = `repeat(${totalWeeks}, ${weekRowHeight}px)`;
-                calendarGrid.style.height = `${availableGridHeight}px`; // Force exact fit
-                calendarGrid.style.backgroundColor = 'white';
-                calendarGrid.style.gap = '0'; // No gap, we use borders
-
-                calendarGrid.style.gridTemplateColumns = "";
-                calendarGrid.style.justifyContent = "";
-                if (headerRow) {
-                    headerRow.style.gridTemplateColumns = "";
-                    headerRow.style.justifyContent = "";
-                    headerRow.style.gap = "0";
-                }
-            });
+            updateMobileExpandToggleUI();
         }
 
-        function renderEmptyDayCell(colIndex = 0, isLastRow = false) {
+        function updateMobileExpandToggleUI() {
+            const expandBtn = document.getElementById('calendar-mobile-expand-toggle');
+            const expandLabel = document.getElementById('calendar-mobile-expand-label');
+            const expandIcon = expandBtn ? expandBtn.querySelector('i') : null;
+            const isExpanded = Boolean(window.isMobileCalendarExpanded);
+
+            if (expandBtn) {
+                expandBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            }
+            if (expandLabel) {
+                expandLabel.textContent = isExpanded ? 'Collapse' : 'Full Month';
+            }
+            if (expandIcon) {
+                expandIcon.className = isExpanded ? 'fa-solid fa-chevron-up text-xs' : 'fa-solid fa-chevron-down text-xs';
+            }
+        }
+
+        window.toggleMobileCalendarExpand = function () {
+            window.isMobileCalendarExpanded = !window.isMobileCalendarExpanded;
+            const calendarShell = document.getElementById('attendance-calendar-shell');
+            if (calendarShell) {
+                if (window.isMobileCalendarExpanded) {
+                    calendarShell.classList.add('calendar-mobile-expanded');
+                } else {
+                    calendarShell.classList.remove('calendar-mobile-expanded');
+                }
+            }
+            updateMobileExpandToggleUI();
+        };
+
+        window.stepAttendanceWeek = function (direction = 1) {
+            let curYear = yearSelect ? parseInt(yearSelect.value, 10) : (selectedCalendarDate?.year || (new Date()).getFullYear());
+            let curMonth = monthSelect ? parseInt(monthSelect.value, 10) : (selectedCalendarDate?.month ?? (new Date()).getMonth());
+
+            const firstDayOfMonth = new Date(curYear, curMonth, 1).getDay();
+            const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+            const totalCells = firstDayOfMonth + daysInMonth;
+            const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            const totalWeeks = Math.max(1, Math.ceil((totalCells + remainingCells) / 7));
+
+            let curWeek = (typeof currentMobileWeekIndex === 'number') ? currentMobileWeekIndex : 0;
+            let targetWeek = curWeek + direction;
+
+            // Clear any explicit selection so navigating weeks does not select any date
+            const now = new Date();
+            selectedCalendarDate = {
+                year: now.getFullYear(),
+                month: now.getMonth(),
+                day: now.getDate()
+            };
+            window.selectedCalendarDate = selectedCalendarDate;
+
+            if (targetWeek < 0) {
+                // Step to previous month, last week
+                curMonth -= 1;
+                if (curMonth < 0) {
+                    curMonth = 11;
+                    curYear -= 1;
+                }
+                if (yearSelect) yearSelect.value = String(curYear);
+                if (monthSelect) monthSelect.value = String(curMonth);
+
+                const prevFirstDay = new Date(curYear, curMonth, 1).getDay();
+                const prevDays = new Date(curYear, curMonth + 1, 0).getDate();
+                const prevTotal = prevFirstDay + prevDays;
+                const prevRem = prevTotal % 7 === 0 ? 0 : 7 - (prevTotal % 7);
+                const prevTotalWeeks = Math.max(1, Math.ceil((prevTotal + prevRem) / 7));
+
+                currentMobileWeekIndex = Math.max(0, prevTotalWeeks - 1);
+            } else if (targetWeek >= totalWeeks) {
+                // Step to next month, first week
+                curMonth += 1;
+                if (curMonth > 11) {
+                    curMonth = 0;
+                    curYear += 1;
+                }
+                if (yearSelect) yearSelect.value = String(curYear);
+                if (monthSelect) monthSelect.value = String(curMonth);
+
+                currentMobileWeekIndex = 0;
+            } else {
+                currentMobileWeekIndex = targetWeek;
+            }
+
+            renderCalendar();
+            const isTodayMonth = (now.getFullYear() === curYear && now.getMonth() === curMonth);
+            const todayWeekIdx = isTodayMonth ? Math.floor((new Date(curYear, curMonth, 1).getDay() + now.getDate() - 1) / 7) : -1;
+            if (currentMobileWeekIndex === todayWeekIdx) {
+                renderCalendarRightPanel(now.getFullYear(), now.getMonth(), now.getDate());
+            } else {
+                renderCalendarRightPanel(null, null, null);
+            }
+        };
+
+        function renderEmptyDayCell(colIndex = 0, isLastRow = false, weekIndex = 0, isActiveWeek = false) {
             const cell = document.createElement('div');
-            cell.className = 'min-h-0 h-full p-3 bg-white border-r border-b border-black';
+            const borderR = colIndex === 6 ? '' : 'border-r';
+            const borderB = isLastRow ? '' : 'border-b';
+            cell.className = `min-h-0 h-full p-2.5 bg-slate-50/40 ${borderR} ${borderB} border-slate-200 select-none`;
+            cell.setAttribute('data-week-index', String(weekIndex));
+            if (isActiveWeek) {
+                cell.setAttribute('data-active-week-cell', 'true');
+            }
             calendarGrid.appendChild(cell);
         }
 
-        function renderDayCell(day, isCurrentMonth, type, isToday = false, colIndex = 0, isLastRow = false) {
+        function renderDayCell(day, isCurrentMonth, type, isToday, isSelected, colIndex, isLastRow, year, month, weekIndex = 0, isActiveWeek = false) {
             const cell = document.createElement('div');
-            cell.className = `min-h-0 h-full p-3 cursor-pointer flex flex-col gap-2 group border-r border-b border-black ${isToday ? 'bg-icc' : 'bg-white'}`;
+            const dayOfWeek = (new Date(year, month, day)).getDay();
+            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+            const borderR = colIndex === 6 ? '' : 'border-r';
+            const borderB = isLastRow ? '' : 'border-b';
 
-            const selectedYear = yearSelect.value;
-            const selectedMonth = monthSelect.value;
-            const dateStr = `${monthSelect.options[monthSelect.selectedIndex].text} ${day}, ${selectedYear}`;
-            const dateKey = `${selectedYear}-${selectedMonth}-${day}-${type}`;
+            let stateClass = '';
+            let dateNumColor = isWeekend ? 'text-red-500' : 'text-slate-700';
+
+            if (isToday) {
+                // Today: whole cell colored Shared Yellow (#FFD000)
+                stateClass = 'calendar-grid-cell-today';
+                dateNumColor = 'text-black font-black';
+            } else if (isSelected) {
+                // Selected: whole cell colored Shared Green (#15803d), no green tint
+                stateClass = 'calendar-grid-cell-selected';
+                dateNumColor = 'text-white font-bold';
+            }
+
+            cell.className = `min-h-0 h-full p-2 sm:p-2.5 cursor-pointer flex flex-col group ${borderR} ${borderB} border-slate-200 transition-colors select-none ${stateClass}`;
+            cell.setAttribute('data-week-index', String(weekIndex));
+            if (isActiveWeek) {
+                cell.setAttribute('data-active-week-cell', 'true');
+            }
 
             cell.innerHTML = `
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-black ${isToday ? 'text-white' : 'text-black group-hover:text-icc-yellow'} transition-colors">${day}</span>
+                <div class="flex items-center justify-between">
+                    <span class="calendar-grid-date-num w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold ${dateNumColor}">${day}</span>
                 </div>
             `;
 
             cell.onclick = () => {
-                attendanceOpenDateKey = dateKey;
+                selectCalendarDate(year, month, day);
             };
 
             calendarGrid.appendChild(cell);
         }
 
-        yearSelect.onchange = renderCalendar;
-        monthSelect.onchange = renderCalendar;
+        function selectCalendarDate(year, month, day) {
+            const now = new Date();
+            const isToday = (day === now.getDate() && month === now.getMonth() && year === now.getFullYear());
+            const isAlreadySelected = Boolean(
+                selectedCalendarDate &&
+                selectedCalendarDate.year === year &&
+                selectedCalendarDate.month === month &&
+                selectedCalendarDate.day === day
+            );
 
-        todayBtn.onclick = () => {
-            const today = new Date();
-            yearSelect.value = today.getFullYear();
-            monthSelect.value = today.getMonth();
+            // On mobile, selecting a date collapses the full month view back to the 1-week row
+            if (typeof window !== 'undefined' && window.innerWidth <= 1023 && window.isMobileCalendarExpanded) {
+                window.isMobileCalendarExpanded = false;
+                if (calendarShell) {
+                    calendarShell.classList.remove('calendar-mobile-expanded');
+                }
+                updateMobileExpandToggleUI();
+            }
+
+            if (isAlreadySelected) {
+                // Unselect: clears selection without resetting month/year or jumping to current day on desktop or mobile
+                selectedCalendarDate = {
+                    year,
+                    month,
+                    day: null
+                };
+                window.selectedCalendarDate = selectedCalendarDate;
+
+                renderCalendar();
+                renderCalendarRightPanel(null, null, null);
+
+                window.dispatchEvent(new CustomEvent('sigma:calendar-date-unselect', {
+                    detail: { year, month: month + 1, day }
+                }));
+                return;
+            }
+
+            if (yearSelect) yearSelect.value = String(year);
+            if (monthSelect) monthSelect.value = String(month);
+
+            selectedCalendarDate = { year, month, day };
+            window.selectedCalendarDate = selectedCalendarDate;
+            const activeDayIndex = (new Date(year, month, 1)).getDay() + day - 1;
+            currentMobileWeekIndex = Math.max(0, Math.floor(activeDayIndex / 7));
             renderCalendar();
-        };
+            renderCalendarRightPanel(year, month, day);
+            window.dispatchEvent(new CustomEvent('sigma:calendar-date-select', {
+                detail: { year, month: month + 1, day }
+            }));
+        }
+        window.selectCalendarDate = selectCalendarDate;
 
+        // Horizontal week navigation is powered via chevron buttons without touch drag gestures
+
+        function renderCalendarRightPanel(year, month, day) {
+            const panelDate = document.getElementById('calendar-right-panel-date');
+            const panelDay = document.getElementById('calendar-right-panel-day');
+            const panelBadge = document.getElementById('calendar-right-panel-badge');
+            const panelContent = document.getElementById('calendar-right-panel-content');
+            const panelCount = document.getElementById('calendar-right-panel-items-count');
+
+            if (!panelContent) return;
+
+            if (!day || !year) {
+                if (panelDate) panelDate.textContent = 'No Date Selected';
+                if (panelDay) panelDay.textContent = 'Select a Date';
+                if (panelCount) panelCount.textContent = '0 events';
+                panelContent.innerHTML = `
+                    <div class="calendar-panel-empty-state">
+                        <div class="calendar-empty-icon-wrap">
+                            <i class="fa-regular fa-calendar text-2xl text-black-fade"></i>
+                        </div>
+                        <h4 class="calendar-empty-title">No Date Selected</h4>
+                        <p class="calendar-empty-desc text-black-fade">Click or tap any date to view scheduled classes, deadlines, and events.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const dateObj = new Date(year, month, day);
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const dayOfWeek = dateObj.getDay();
+            const dayName = dayNames[dayOfWeek];
+            const formattedDate = `${monthNames[month]} ${day}, ${year}`;
+
+            const now = new Date();
+            const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const currentDate = new Date(year, month, day);
+            const isToday = (day === now.getDate() && month === now.getMonth() && year === now.getFullYear());
+            const isUpcoming = currentDate > todayDate;
+            const isPast = currentDate < todayDate;
+            const isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
+
+            if (panelDate) panelDate.textContent = formattedDate;
+            if (panelDay) panelDay.textContent = dayName;
+
+            // Events configuration per day: dynamic events and scheduled maintenance only
+            let events = [];
+
+            if (typeof window.getCalendarEventsForDate === 'function') {
+                events = window.getCalendarEventsForDate('teacher', dateObj, year, month, day);
+            } else {
+                // Check if system maintenance mode is currently enabled
+                let hasActiveMaintenance = false;
+                try {
+                    if (typeof window.getMaintenanceConfig === 'function') {
+                        const cfg = window.getMaintenanceConfig();
+                        if (cfg && cfg.enabled) hasActiveMaintenance = true;
+                    } else if (localStorage.getItem('sigma_maintenance_mode')) {
+                        const parsed = JSON.parse(localStorage.getItem('sigma_maintenance_mode'));
+                        if (parsed?.enabled) hasActiveMaintenance = true;
+                    }
+                } catch (_) {}
+
+                // If system is currently under maintenance lockdown, prepend alert card
+                if (hasActiveMaintenance) {
+                    events.unshift({
+                        startHour: '00:00',
+                        period: 'AM',
+                        duration: 'Active',
+                        timeRange: 'Ongoing Maintenance Window',
+                        nodeClass: 'node-amber',
+                        tag: 'SYSTEM • LOCKDOWN',
+                        tagColor: '#b45309',
+                        status: 'Active Maintenance',
+                        statusClass: 'bg-amber-100 text-amber-900 border-amber-300',
+                        isAssessment: false,
+                        role: null, // Not from any role -> non-clickable
+                        title: 'System Access & Enrollment Lockdown',
+                        subtitle: 'Maintenance mode is active. Student and Teacher access is restricted.',
+                        location: 'Portal-Wide',
+                        cardClass: 'card-maintenance'
+                    });
+                }
+
+                // Merge custom teacher-added events for this specific date
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                let customEvents = [];
+                try {
+                    const stored = localStorage.getItem('sigma_calendar_custom_events_' + dateKey);
+                    if (stored) customEvents = JSON.parse(stored);
+                } catch (e) {
+                    console.warn('Failed to parse custom calendar events', e);
+                }
+                if (Array.isArray(customEvents) && customEvents.length > 0) {
+                    events = [...events, ...customEvents];
+                }
+            }
+
+            if (panelCount) {
+                panelCount.textContent = `${events.length} event${events.length === 1 ? '' : 's'}`;
+            }
+
+            // Empty state when there are no events scheduled
+            if (events.length === 0) {
+                panelContent.innerHTML = `
+                    <div class="calendar-panel-empty-state">
+                        <div class="calendar-empty-icon-wrap">
+                            <i class="fa-regular fa-calendar-xmark text-2xl text-black-fade"></i>
+                        </div>
+                        <h4 class="calendar-empty-title">No Events Scheduled</h4>
+                        <p class="calendar-empty-desc text-black-fade">There are no assessment due dates or maintenance scheduled for this date.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build Timeline HTML with Hour Badges
+            let timelineHtml = `
+                <div class="calendar-timeline">
+            `;
+
+            // Format current live time for indicator
+            const curHours = now.getHours();
+            const curMinutes = String(now.getMinutes()).padStart(2, '0');
+            const curPeriod = curHours >= 12 ? 'PM' : 'AM';
+            const cur12Hour = (curHours % 12) || 12;
+            const curTimeStr = `${cur12Hour}:${curMinutes} ${curPeriod}`;
+
+            let nowLineInserted = false;
+
+            // Group events sharing the exact same start time (startHour + period) so their panels stack vertically below each other
+            const timeGroups = [];
+            const timeMap = new Map();
+
+            events.forEach((ev) => {
+                const timeKey = `${ev.startHour || '12:00'}_${ev.period || 'AM'}`;
+                if (!timeMap.has(timeKey)) {
+                    const group = {
+                        startHour: ev.startHour,
+                        period: ev.period,
+                        duration: ev.duration || 'Due',
+                        timeKey: timeKey,
+                        events: []
+                    };
+                    timeMap.set(timeKey, group);
+                    timeGroups.push(group);
+                }
+                const grp = timeMap.get(timeKey);
+                grp.events.push(ev);
+                if (ev.duration && ev.duration !== 'Due' && grp.duration === 'Due') {
+                    grp.duration = ev.duration;
+                }
+            });
+
+            timeGroups.forEach((group) => {
+                // Insert NOW indicator before the first time group that occurs after the current time (if Today)
+                if (isToday && !nowLineInserted) {
+                    const [evH, evM] = (group.startHour || '0:0').split(':').map(Number);
+                    let evHour24 = evH;
+                    if (group.period === 'PM' && evH < 12) evHour24 += 12;
+                    if (group.period === 'AM' && evH === 12) evHour24 = 0;
+
+                    if ((curHours < evHour24) || (curHours === evHour24 && now.getMinutes() < evM)) {
+                        timelineHtml += `
+                            <div class="calendar-timeline-now-line" title="Current Time">
+                                <span class="now-badge"><i class="fa-solid fa-clock text-[9px]"></i> Now - ${curTimeStr}</span>
+                                <div class="now-line"></div>
+                            </div>
+                        `;
+                        nowLineInserted = true;
+                    }
+                }
+
+                const nodeClassToUse = isToday ? 'node-shared-yellow' : (isUpcoming ? 'node-shared-green' : 'node-slate');
+
+                let cardsHtml = '';
+                group.events.forEach((ev) => {
+                    // A card is only clickable if it is from an active academic role (Teacher/Admin assessment)
+                    const hasRole = Boolean(ev.role && ev.role !== 'System');
+                    const isRoleAssessment = Boolean(ev.isAssessment && (ev.role ? hasRole : true));
+
+                    // Compute time remaining to trigger / due time
+                    const [hStr, mStr] = (ev.startHour || '23:59').split(':');
+                    let evH = parseInt(hStr, 10);
+                    const evM = parseInt(mStr, 10) || 0;
+                    if (ev.period === 'PM' && evH < 12) evH += 12;
+                    if (ev.period === 'AM' && evH === 12) evH = 0;
+
+                    let timeLeftStr = '';
+                    if (isToday) {
+                        const nowMins = curHours * 60 + now.getMinutes();
+                        const eventMins = evH * 60 + evM;
+                        const diffMins = eventMins - nowMins;
+
+                        if (diffMins <= 0) {
+                            timeLeftStr = ev.isAssessment ? 'Past due' : 'Completed';
+                        } else {
+                            const hoursLeft = Math.floor(diffMins / 60);
+                            const minsLeft = diffMins % 60;
+                            if (hoursLeft >= 1) {
+                                timeLeftStr = minsLeft > 0 ? `${hoursLeft} hr${hoursLeft > 1 ? 's' : ''} ${minsLeft} min${minsLeft > 1 ? 's' : ''} left` : `${hoursLeft} hr${hoursLeft > 1 ? 's' : ''} left`;
+                            } else {
+                                timeLeftStr = `${minsLeft} min${minsLeft > 1 ? 's' : ''} left`;
+                            }
+                        }
+                    } else if (isUpcoming) {
+                        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const targetDate = new Date(year, month, day);
+                        const diffDays = Math.round((targetDate - todayStart) / (1000 * 60 * 60 * 24));
+                        if (diffDays === 1) {
+                            timeLeftStr = ev.isAssessment ? 'Due tomorrow' : 'Starts tomorrow';
+                        } else {
+                            timeLeftStr = ev.isAssessment ? `Due in ${diffDays} days` : `Starts in ${diffDays} days`;
+                        }
+                    } else {
+                        timeLeftStr = ev.isAssessment ? 'Past due' : 'Completed';
+                    }
+
+                    if (isRoleAssessment) {
+                        // For role-based assessment: only the title as clickable text, subtitle with 2-line clamp, time left in footer, no badge
+                        cardsHtml += `
+                            <div class="calendar-timeline-card card-has-role">
+                                <button type="button" onclick="if(typeof window.switchTab==='function')window.switchTab('nav-assessments');"
+                                    class="calendar-timeline-title-btn text-left font-bold text-slate-900 hover:text-[#FFD000] no-underline cursor-pointer block transition-colors w-full"
+                                    title="Open Assessment">
+                                    ${ev.title}
+                                </button>
+                                ${ev.subtitle ? `<p class="calendar-timeline-subtitle select-text">${ev.subtitle}</p>` : ''}
+                                <div class="calendar-timeline-footer">
+                                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-[#15803d] text-xs"></i> ${timeLeftStr}</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Items not from any role (e.g. Scheduled Maintenance, Server Backup): completely non-clickable, title, subtitle with 2-line clamp, only time left in footer
+                        cardsHtml += `
+                            <div class="calendar-timeline-card card-no-role card-not-clickable cursor-default">
+                                <h4 class="calendar-timeline-title cursor-default select-text">${ev.title}</h4>
+                                ${ev.subtitle ? `<p class="calendar-timeline-subtitle select-text">${ev.subtitle}</p>` : ''}
+                                <div class="calendar-timeline-footer select-text">
+                                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-[#15803d] text-xs"></i> ${timeLeftStr}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                timelineHtml += `
+                    <div class="calendar-timeline-item">
+                        <!-- Hour Badge Column -->
+                        <div class="calendar-timeline-time">
+                            <div class="timeline-hour">${group.startHour}<span class="timeline-period">${group.period}</span></div>
+                            <div class="timeline-duration text-black-fade">${group.duration}</div>
+                        </div>
+
+                        <!-- Center Spine Node -->
+                        <div class="calendar-timeline-node ${nodeClassToUse}"></div>
+
+                        <!-- Right Event Cards Column (Stacked Vertically Below Each Other) -->
+                        <div class="calendar-timeline-cards-col flex flex-col gap-2.5 flex-1 min-w-0">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // If now wasn't inserted yet and it's today, append at the end
+            if (isToday && !nowLineInserted) {
+                timelineHtml += `
+                    <div class="calendar-timeline-now-line" title="Current Time">
+                        <span class="now-badge"><i class="fa-solid fa-clock text-[9px]"></i> Now - ${curTimeStr}</span>
+                        <div class="now-line"></div>
+                    </div>
+                `;
+            }
+
+            timelineHtml += '</div>';
+            panelContent.innerHTML = timelineHtml;
+        }
+        window.renderCalendarRightPanel = renderCalendarRightPanel;
+        window.renderCalendar = renderCalendar;
+
+        if (todayBtn) {
+            todayBtn.onclick = () => {
+                window.stepAttendanceToday();
+            };
+        }
+
+        window.removeEventListener('resize', renderCalendar);
         window.addEventListener('resize', renderCalendar);
 
-        // Initialize to current month/year
-        const todayOnLoad = new Date();
-        yearSelect.value = todayOnLoad.getFullYear();
-        monthSelect.value = todayOnLoad.getMonth();
-
         renderCalendar();
+        renderCalendarRightPanel(selectedCalendarDate.year, selectedCalendarDate.month, selectedCalendarDate.day);
     }
+    window.setupAttendanceCalendar = setupAttendanceCalendar;
 
+    // Safe stubs for Add Event modal handlers (automated schedule)
+    window.openCalendarAddEventModal = function () {};
+    window.closeCalendarAddEventModal = function () {};
+    window.saveCalendarEvent = function () {};
+    window.deleteCalendarEvent = function () {};
+
+    window.handleCalendarBack = function () {
+        document.body.classList.remove('calendar-page-mode');
+        if (typeof window.syncCalendarPageActiveState === 'function') {
+            window.syncCalendarPageActiveState();
+        }
+        if (window.history.length > 1 && window._hasEnteredCalendarViaPush) {
+            window._hasEnteredCalendarViaPush = false;
+            window.history.back();
+            return;
+        }
+        const prev = window._calendarPreviousHash || window._calendarPreviousNavId || '#dashboard';
+        if (prev.startsWith('#classroom:')) {
+            window.location.hash = prev;
+        } else if (prev.startsWith('nav-')) {
+            window.switchTab(prev, true);
+        } else {
+            const pageKey = prev.replace('#', '') || 'dashboard';
+            const navId = (navIdByPage && navIdByPage[pageKey]) || 'nav-dashboard';
+            window.switchTab(navId, true);
+        }
+    };
 
 
     // syncHeaderToggleState and hideHeaderOverlays are provided by js/topbar.js — do NOT redefine here.
@@ -23169,6 +24001,7 @@ function initTeacherPortal() {
         if (!e || !e.key) return;
         const isScoreKey = (
             e.key === 'sigma-assessment-scored-broadcast' ||
+            e.key === 'sigma-manual-grade-closures-v1' ||
             e.key === SCORES_STORAGE_KEY ||
             e.key === STATUSES_STORAGE_KEY ||
             e.key === 'sigma-teacher-gradebook-scores-v2' ||
@@ -24675,97 +25508,8 @@ function initTeacherPortal() {
         }
     };
 
-    window.navigateToAssessmentFromGradebook = function (category, index, customSubject = '', customSection = '') {
-        if (typeof window.keepGradebookForAssessmentOpen === 'function') {
-            window.keepGradebookForAssessmentOpen();
-        }
-        const subSec = window.sigmaGradesState?.selectedSubjectSection;
-        let subjectId = customSubject || subSec?.subject || gradebookState?.selectedSubject || (typeof currentTopicState !== 'undefined' ? currentTopicState.subjectId : '');
-        let section = customSection || subSec?.sectionName || gradebookState?.selectedSection || (typeof currentTopicState !== 'undefined' ? currentTopicState.selectedSection : '');
-        
-        if (!subjectId) {
-            console.error('No subject selected in Gradebook');
-            return;
-        }
-
-        const currentQ = window.sigmaGradesState?.activeQuarter || gradebookState?.currentQuarter || 1;
-
-        // Get the items to find the specific topic and assessment index
-        const getCatFn = (typeof getCategoryDetails === 'function') ? getCategoryDetails : (typeof window.getCategoryDetails === 'function' ? window.getCategoryDetails : null);
-        let items = getCatFn ? (getCatFn(category, currentQ, subjectId, section) || []) : [];
-        let item = items.find(it => Number(it.itemIdx) === Number(index)) || items[index];
-        if (!item && getCatFn) {
-            const wwItems = getCatFn('ww', currentQ, subjectId, section) || [];
-            item = wwItems[index] || wwItems.find(it => it.itemIdx === index || it.id === index);
-        }
-        if (!item && getCatFn) {
-            const ptItems = getCatFn('pt', currentQ, subjectId, section) || [];
-            item = ptItems[index] || ptItems.find(it => it.itemIdx === index || it.id === index);
-        }
-        if (!item && getCatFn) {
-            const qaItems = getCatFn('qa', currentQ, subjectId, section) || [];
-            item = qaItems[index] || qaItems.find(it => it.itemIdx === index || it.id === index);
-        }
-        if (!item) return;
-
-        const topicIdx = item.topicIdx !== undefined ? item.topicIdx : 0;
-        let openIdx = (item.topicItemIdx !== undefined && item.topicItemIdx !== null) ? Number(item.topicItemIdx) : 0;
-
-        let actualSubjectId = item.subjectId || subjectId;
-        if (typeof resolveTeacherActiveSubjectId === 'function') {
-            actualSubjectId = resolveTeacherActiveSubjectId(actualSubjectId);
-        } else if (typeof getAllSubjectsRaw === 'function') {
-            const allSubjects = getAllSubjectsRaw();
-            const foundSub = allSubjects.find(s => s.name === actualSubjectId || s.id === actualSubjectId);
-            if (foundSub) {
-                actualSubjectId = foundSub.id;
-            }
-        }
-        
-        let targetStudent = '';
-        if (typeof gradebookStudents !== 'undefined' && gradebookStudents.length > 0) {
-            targetStudent = gradebookStudents[0].name;
-        }
-
-        if (typeof currentTopicState !== 'undefined') {
-            currentTopicState.selectedSection = section;
-            currentTopicState.subjectId = actualSubjectId;
-            if (targetStudent) {
-                currentTopicState.selectedStudent = targetStudent;
-            }
-        }
-
-        const topicData = (typeof getTopicData === 'function') ? getTopicData(actualSubjectId) : null;
-        const topic = topicData && ((topicData.q1Topics && topicData.q1Topics[topicIdx]) || (topicData.topics && topicData.topics[topicIdx])) || null;
-        if (topic && typeof window.getUnifiedTopicAssessments === 'function') {
-            const rawAssign = Array.isArray(topic.assignments) ? topic.assignments : [];
-            const rawQuiz = Array.isArray(topic.quiz) ? topic.quiz : [];
-            const rawAct = Array.isArray(topic.activity) ? topic.activity : [];
-            const rawPerf = Array.isArray(topic.performance) ? topic.performance : [];
-            let unified = window.getUnifiedTopicAssessments('assessments', actualSubjectId, topicIdx, [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf], section, topic) || [];
-            if (typeof window.deduplicateMaterialsArray === 'function') {
-                unified = window.deduplicateMaterialsArray(unified, { collapseRoles: true });
-            }
-            const itemId = String(item.id || item.materialId || item.origId || item.quizId || item.selectedQuizId || '').trim().toLowerCase();
-            const itemTitle = String(item.title || item.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-            const found = (unified || []).findIndex(ass => {
-                const assId = String(ass.id || ass.materialId || ass.origId || ass.quizId || ass.selectedQuizId || '').trim().toLowerCase();
-                if (itemId && assId && itemId === assId) return true;
-                const assTitle = String(ass.title || ass.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
-                return itemTitle && assTitle && itemTitle === assTitle;
-            });
-            if (found !== -1) openIdx = found;
-        }
-
-        window._activeMaterialTitle = item.title || item.name || '';
-
-        if (typeof window.openTopicContent === 'function') {
-            window.openTopicContent(actualSubjectId, topicIdx, 'assessments', openIdx, true, {
-                selectedSection: section,
-                selectedStudent: targetStudent,
-                viewSubmission: true
-            });
-        }
+    window.navigateToAssessmentFromGradebook = function (...args) {
+        return window.openGradebookAssessment(...args);
     };
 
     function getGradebookStudents() {
@@ -24843,7 +25587,7 @@ function initTeacherPortal() {
                 const eff = window.getEffectiveAssessmentStatusAndScore
                     ? window.getEffectiveAssessmentStatusAndScore(student, itemCat, itemIdx, subjectId, currentQ, item)
                     : { score: gradebookScores[subjectId]?.[currentQ]?.[studentId]?.[itemCat]?.[itemIdx] };
-                if (eff && !eff.isAutoMissing && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
+                if (eff && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
                     if (eff.isManualOverride || hasSub || (eff.status === 'missing' || eff.status === 'absent')) {
                         score = eff.score;
                     }
@@ -25439,18 +26183,15 @@ function initTeacherPortal() {
                 const wwWeight = (gradebookState.weights.ww || 0) / 100;
                 const ptWeight = (gradebookState.weights.pt || 0) / 100;
                 const qaWeight = (gradebookState.weights.qa || 0) / 100;
-                let total = 0;
-                let hasAny = false;
-                if (wwPct !== null && wwPct !== undefined) { total += parseFloat(wwPct) * wwWeight; hasAny = true; }
-                if (ptPct !== null && ptPct !== undefined) { total += parseFloat(ptPct) * ptWeight; hasAny = true; }
-                if (qaPct !== null && qaPct !== undefined) { total += parseFloat(qaPct) * qaWeight; hasAny = true; }
-                if (hasAny) initialGrade = total;
+                initialGrade = calculateWeightedInitialGrade([
+                    { value: wwPct, weight: wwWeight }, { value: ptPct, weight: ptWeight }, { value: qaPct, weight: qaWeight }
+                ]);
             }
             if (initialGrade !== null) quarterlyScores.push(initialGrade);
 
-            const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${Number(wwPct).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-            const ptDisplay = (ptPct !== null && ptPct !== undefined) ? `${Number(ptPct).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-            const qaDisplay = (qaPct !== null && qaPct !== undefined) ? `${Number(qaPct).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+            const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * (gradebookState.weights.ww / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+            const ptDisplay = (ptPct !== null && ptPct !== undefined) ? `${(Number(ptPct) * (gradebookState.weights.pt / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+            const qaDisplay = (qaPct !== null && qaPct !== undefined) ? `${(Number(qaPct) * (gradebookState.weights.qa / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
             return `
                 <tr class="bg-white border-b border-black/[0.08] font-['Inter'] cursor-default select-none">
@@ -25592,16 +26333,17 @@ function initTeacherPortal() {
 
     function calculateWeightedInitialGrade(parts) {
         let total = 0;
-        let hasAnyScore = false;
+        let availableWeight = 0;
 
         parts.forEach(part => {
-            if (part.value !== null && part.value !== undefined && part.value !== '') {
-                total += parseFloat(part.value) * part.weight;
-                hasAnyScore = true;
+            if (part.value !== null && part.value !== undefined && part.value !== '' && part.value !== '-'
+                && Number.isFinite(Number(part.value)) && part.weight > 0) {
+                total += Number(part.value) * part.weight;
+                availableWeight += part.weight;
             }
         });
 
-        return hasAnyScore ? total : null;
+        return availableWeight > 0 ? total : null;
     }
 
     function formatInitialGrade(value) {
@@ -25757,7 +26499,6 @@ function initTeacherPortal() {
 
         const getCatFn = (typeof getCategoryDetails === 'function') ? getCategoryDetails : null;
         const items = getCatFn ? (getCatFn(detailCategory, currentQ, subjectId, sectionName) || getCatFn(detailCategory) || []) : [];
-        const totalHPS = items.reduce((sum, item) => sum + (Number(item?.max) || 0), 0) || 100;
 
         const inputs = tr.querySelectorAll('.score-counter-input');
         const inputMap = new Map();
@@ -25770,6 +26511,7 @@ function initTeacherPortal() {
         });
 
         let rowSum = 0;
+        let scoredHPS = 0;
         let hasAnyScore = false;
 
         items.forEach((item, allIdx) => {
@@ -25801,6 +26543,7 @@ function initTeacherPortal() {
 
             if (val !== null && !isNaN(val)) {
                 rowSum += val;
+                scoredHPS += Number(item?.max) || 0;
                 hasAnyScore = true;
             }
         });
@@ -25810,7 +26553,7 @@ function initTeacherPortal() {
             totalScoreTd.className = "gb-col-compact px-1 py-2.5 text-center border-b border-black/[0.08] text-xs font-bold text-slate-900 tracking-tight align-middle gb-data-cell gb-summary-yellow";
             totalScoreTd.style.backgroundColor = "rgba(254, 240, 138, 0.35)";
 
-            const pct = totalHPS > 0 ? ((rowSum / totalHPS) * 100).toFixed(2) : '0.00';
+            const pct = scoredHPS > 0 ? ((rowSum / scoredHPS) * 100).toFixed(2) : '0.00';
             pctScoreTd.textContent = pct + '%';
             pctScoreTd.className = "gb-col-compact px-1 py-2.5 text-center border-b border-black/[0.08] text-xs font-bold text-slate-900 tracking-tight align-middle gb-data-cell gb-summary-yellow";
             pctScoreTd.style.backgroundColor = "rgba(254, 240, 138, 0.35)";
@@ -25976,6 +26719,7 @@ function initTeacherPortal() {
             const currentQ = gradebookState.currentQuarter;
 
             let rowScoreSum = 0;
+            let scoredHPS = 0;
             let rowHasAnyScore = false;
 
             // Calculate total across all items in component
@@ -25996,14 +26740,15 @@ function initTeacherPortal() {
                 const hasMark = Boolean(eff && (eff.status === 'missing' || eff.status === 'absent' || eff.status === 'incomplete' || eff.status === 'excuse'));
 
                 let savedScore = '-';
-                if (sc !== null && sc !== undefined && !isNaN(Number(sc))) {
+                if (sc !== null && sc !== undefined && String(sc).trim() !== '' && String(sc).trim() !== '-' && Number.isFinite(Number(sc))) {
                     savedScore = sc;
                 } else if (isManual || hasSub || hasMark) {
                     savedScore = (eff.score !== undefined && eff.score !== null && eff.score !== '') ? eff.score : '-';
                 }
 
-                if (savedScore !== '-' && savedScore !== '' && savedScore !== undefined && savedScore !== null && !isNaN(Number(savedScore))) {
+                if (savedScore !== undefined && savedScore !== null && String(savedScore).trim() !== '-' && String(savedScore).trim() !== '' && Number.isFinite(Number(savedScore))) {
                     rowScoreSum += Number(savedScore);
+                    scoredHPS += Number(item?.max) || 0;
                     rowHasAnyScore = true;
                 }
             });
@@ -26037,8 +26782,10 @@ function initTeacherPortal() {
                     }
 
                     let statusClass = '';
-                    const isActionable = Boolean(hasSubmission || isManual || hasMark || (inputScoreVal !== '' && inputScoreVal !== '-'));
-                    const isLocked = !isActionable;
+                    const isActionable = typeof window.findAssessmentSubmittedWork === 'function'
+                        ? Boolean(window.findAssessmentSubmittedWork(student, item, subjectId, item.section || student.section || gradebookState.selectedSection, currentQ))
+                        : hasSubmission;
+                    const isLocked = !isActionable && !eff.isAutoMissing && !window.resolveNoDeadlineAssessment?.(item, subjectId, item.section || student.section || gradebookState.selectedSection, currentQ);
                     const isQuizItem = Boolean(itemCat.includes('quiz') || item.quizId || /quiz/i.test(item.title || item.name || ''));
                     const lockTitle = isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading';
 
@@ -26169,7 +26916,7 @@ function initTeacherPortal() {
             }
 
             const rowTotalScoreDisplay = rowHasAnyScore ? Number(rowScoreSum.toFixed(1)) : null;
-            const rowPercentageScore = rowHasAnyScore && totalHPS > 0 ? ((rowScoreSum / totalHPS) * 100) : null;
+            const rowPercentageScore = rowHasAnyScore && scoredHPS > 0 ? ((rowScoreSum / scoredHPS) * 100) : null;
 
             return `
                 <tr class="bg-white hover:bg-slate-50/80 transition-colors group cursor-pointer border-b border-black/[0.08]" onclick="const isNowSelected = window.highlightGradebookRow(this, ${isOuter}, true); if (typeof window.selectTopicStudent === 'function') { if (isNowSelected) { window.selectTopicStudent('${student.name.replace(/'/g, "\\'")}'); } else { window.selectTopicStudent('All'); } }">
@@ -26919,7 +27666,7 @@ function initTeacherPortal() {
     window.updateLayout?.();
 
     // â”€â”€â”€ SIGMA AI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const WELCOME_MSG = `Hello, <strong>Teacher Maria!</strong> I'm <span class="font-black">SIGMA</span>, your system AI. What do you need today?`;
+    const WELCOME_MSG = window.getSigmaWelcomeMessage();
 
     let isDragging = false;
     let startX = 0;
@@ -27032,6 +27779,7 @@ function initTeacherPortal() {
     };
 
     window.addEventListener('popstate', event => {
+        if (window._sigmaHistoryDirection === 'forward') return;
         if (!window.__hasOpenMobileOverlay?.()) return;
         window.__closeOpenMobileOverlay?.();
         event.stopImmediatePropagation();
@@ -27078,22 +27826,12 @@ function initTeacherPortal() {
 
     document.querySelectorAll('.sigma-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            addAiMessage(chip.textContent.trim(), true);
-            setTimeout(() => addAiMessage('Full faculty AI integration coming soon!', false), 600);
+            window.sendSigmaChatMessage?.(chip.textContent.trim());
         });
     });
 
     function sendAiMessage() {
-        if (sigmaAiWaiting) return;
-        const v = sigmaAiInput?.value.trim();
-        if (!v) return;
-        addAiMessage(v, true);
-        sigmaAiInput.value = '';
-        setSigmaAiWaiting(true);
-        setTimeout(() => {
-            addAiMessage('Faculty wireframe mode &mdash; Gemini AI integration in progress.', false);
-            setSigmaAiWaiting(false);
-        }, 600);
+        return window.sendSigmaChatMessage?.();
     }
 
     if (sigmaAiSendBtn) sigmaAiSendBtn.addEventListener('click', sendAiMessage);
@@ -27927,4 +28665,5 @@ function initTeacherPortal() {
         const isSubSidebarVisible = subSidebar && subSidebar.classList.contains("sub-sidebar-visible");
         renderClassroomSectionsSidebar(currentClassroomSectionName, window.currentClassroomSubject || '', isSubSidebarVisible);
     });
+    document.dispatchEvent(new CustomEvent('sigma:teacher-portal-ready'));
 }

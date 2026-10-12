@@ -593,7 +593,7 @@ window.initializeSharedCurriculumRelease = function () {
                             }" 
                             style="${isActive ? 'color: #000000 !important; background-color: #ffffff !important;' : 'color: rgba(0,0,0,0.50) !important; background-color: transparent !important;'}"
                             ${!isActive ? `onmouseenter="if(!this.classList.contains('bg-white')) this.style.backgroundColor='rgba(0,0,0,0.06)'" onmouseleave="if(!this.classList.contains('bg-white')) this.style.backgroundColor='transparent'"` : ''}>
-                            ${label}
+                            <span class="sigma-quarter-long">${label}</span><span class="sigma-quarter-short">${String(q).toUpperCase()}</span>
                         </button>
                     `;
                 }).join('')}
@@ -860,8 +860,7 @@ window.initializeSharedCurriculumRelease = function () {
                                             <p class="text-sm font-bold text-black tracking-tight font-['Inter']">${escapeHtml(t.title || `Topic ${displayNum}`)}</p>
                                             ${isHidden ? `
                                                 <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black font-['Inter'] shrink-0">
-                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                 </div>
                                             ` : (isFuture ? `
                                                 <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-black font-['Inter'] shrink-0">
@@ -1890,6 +1889,10 @@ window.initializeSharedCurriculumRelease = function () {
         const isModalAlreadyOpen = Boolean(document.getElementById('teacher-topic-schedule-overlay'));
         const effectiveEditType = editType || (window[meta.draftStateKey] ? window[meta.draftStateKey]._editType : '');
         const isEditMode = (effectiveEditType === 'schedule' || effectiveEditType === 'grading' || effectiveEditType === 'edit');
+        if (isEditMode && targetId && !isModalAlreadyOpen) {
+            window._unifiedPickerSelection = null;
+            delete window[meta.draftStateKey];
+        }
         const isFreshSetSchedule = !isModalAlreadyOpen && !isEditMode;
 
         const existingDraft = window[meta.draftStateKey] || {};
@@ -2382,9 +2385,7 @@ window.initializeSharedCurriculumRelease = function () {
         const d = String(today.getDate()).padStart(2, '0');
         const todayDateStr = `${y}-${m}-${d}`;
 
-        if (!initDate || initDate < todayDateStr) {
-            initDate = todayDateStr;
-        }
+        // Keep saved schedules intact, including dates that have already passed.
 
         const parseTo24 = (timeStr, defaultTime = '') => {
             if (!timeStr || timeStr === '--:-- --' || timeStr === 'none') return defaultTime;
@@ -2403,7 +2404,7 @@ window.initializeSharedCurriculumRelease = function () {
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         };
 
-        const initTime24 = (hasActiveSchedule && !isDateOnly && initTime) ? parseTo24(initTime, '08:00') : '08:00';
+        const initTime24 = hasActiveSchedule ? parseTo24(initTime, '00:00') : '';
         const initEndTime24 = (hasActiveEndSchedule && !isEndDateOnly && initEndTime) ? parseTo24(initEndTime, '23:59') : '23:59';
         const displayTimeValue = (hasActiveSchedule && !isDateOnly && initTime) ? initTime : '--:-- --';
         const displayEndTimeValue = (hasActiveEndSchedule && !isEndDateOnly && initEndTime) ? initEndTime : '--:-- --';
@@ -2459,7 +2460,13 @@ window.initializeSharedCurriculumRelease = function () {
             const cleanId = String(effectiveId || '').toLowerCase();
             const activeTab = String(currentTopicState?.activeTab || '').toLowerCase();
 
-            if (foundType === 'quiz' || foundType === 'quizzes' || foundCat === 'quiz' || foundCat === 'quizzes' || cleanTitle.includes('quiz') || cleanId.includes('quiz') || activeTab === 'quizzes' || activeTab === 'quiz' || foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId) {
+            const isExplicitNonQuizType = [foundType, foundCat].some(type =>
+                ['task', 'tasks', 'assignment', 'assignments', 'activity', 'activities', 'performance task', 'performance tasks', 'performance', 'performancetasks', 'performancetask', 'pt'].includes(type));
+            const hasLinkedQuiz = Boolean(foundAss?.selectedQuizId || foundAss?.quizId || foundAss?.rawItem?.selectedQuizId || foundAss?.rawItem?.quizId || activeSelectedItem?.selectedQuizId);
+            const typedAsQuiz = [foundType, foundCat].some(type => type === 'quiz' || type === 'quizzes') || hasLinkedQuiz;
+            if (typedAsQuiz || (!isExplicitNonQuizType && !foundType && !foundCat && (
+                cleanTitle.includes('quiz') || cleanId.includes('quiz') || activeTab === 'quizzes' || activeTab === 'quiz'
+            ))) {
                 isScheduleQuiz = true;
             }
 
@@ -2817,6 +2824,16 @@ window.initializeSharedCurriculumRelease = function () {
                     if (saved?.assessmentRubrics?.[effId]) return saved.assessmentRubrics[effId];
                     if (effIdStr && saved?.assessmentRubrics?.[effIdStr]) return saved.assessmentRubrics[effIdStr];
                     if (tgtTitle && saved?.assessmentRubrics?.[tgtTitle]) return saved.assessmentRubrics[tgtTitle];
+                    const release = window.getAssessmentReleaseConfig?.(subjId, section);
+                    const keys = [effId, tgtTitle, foundAss?.id, foundAss?.originalAdminId, foundAss?.materialId, foundAss?.title].filter(Boolean);
+                    for (const key of keys) {
+                        const rubric = release?.assessmentRubrics?.[key] || release?.rubrics?.[key];
+                        if (rubric) return typeof rubric === 'object' ? (rubric.fileName || rubric.name || rubric.title || '') : String(rubric);
+                    }
+                    const items = window.getUnifiedTopicAssessments?.('assessments', subjId, Number(currentTopicState?.topicIdx || 0), [], section) || [];
+                    const matched = items.find(item => itemMatchesTarget(item, effId, tgtTitle));
+                    const attached = extractRubricFromObj(matched) || extractRubricFromObj(matched?.rawItem);
+                    if (attached) return attached;
 
                     return findAdminLockedRubric(subjId, effId, tgtTitle);
                 };
@@ -2876,7 +2893,21 @@ window.initializeSharedCurriculumRelease = function () {
                     return '';
                 };
 
-                linkedRubricName = isScheduleQuiz ? '' : (findAssessmentOrMaterialRubric(subjectId, effectiveId, targetTitle) || '');
+                linkedRubricName = isScheduleQuiz ? '' : (findAssessmentOrMaterialRubric(subjectId, effectiveId, targetTitle)
+                    || extractRubricFromObj(foundAss)
+                    || extractRubricFromObj(foundAss?.rawItem)
+                    || extractRubricFromObj(activeSelectedItem?.rawItem)
+                    || extractRubricFromObj(activeSelectedItem) || '');
+                if (linkedRubricName && !draft._rubricDeleted) {
+                    draft.assessmentRubrics[String(effectiveId)] = linkedRubricName;
+                    const rubricSource = foundAss?.rubric || foundAss?.rawItem?.rubric;
+                    const rubricUrl = foundAss?.rubricUrl || foundAss?.rawItem?.rubricUrl
+                        || (rubricSource && typeof rubricSource === 'object' ? rubricSource.url : '');
+                    if (rubricUrl) {
+                        draft.assessmentRubricUrls ||= {};
+                        draft.assessmentRubricUrls[String(effectiveId)] = rubricUrl;
+                    }
+                }
                 adminLockedRubricName = isScheduleQuiz ? '' : (findAdminLockedRubric(subjectId, effectiveId, targetTitle) || '');
                 // Store in draft so upload/delete guards can check
                 if (adminLockedRubricName) {
@@ -2892,11 +2923,11 @@ window.initializeSharedCurriculumRelease = function () {
                 assignedStudents: JSON.stringify([...currentAssignedList].map(String).sort()),
                 // Schedule fields
                 isReleaseNow: Boolean(isReleaseNow),
-                dateVal: String(initDate || todayDateStr || '').trim(),
-                timeVal: String((hasActiveSchedule && !isDateOnly && initTime) ? initTime : '').trim(),
+                dateVal: String(initDate || '').trim(),
+                timeVal: String(initTime24 || '').trim(),
                 isNoDeadline: Boolean(isNoDeadline),
                 endDateVal: String(initEndDate || '').trim(),
-                endTimeVal: String((hasActiveEndSchedule && !isEndDateOnly && initEndTime) ? initEndTime : '').trim(),
+                endTimeVal: String(initEndTime24 || '').trim(),
                 // Grading fields
                 maxScore: String(initMaxScore !== undefined && initMaxScore !== null ? initMaxScore : ''),
                 weight: String(initWeight !== undefined && initWeight !== null ? initWeight : ''),
@@ -3014,6 +3045,7 @@ window.initializeSharedCurriculumRelease = function () {
                                     )
                                 }
                             </h2>
+                            ${!isStudentsPage && (isEditMode || isSingleSelected) && activeSelectedItem?.title ? `<p class="text-sm font-semibold text-black mt-1 break-words" style="overflow-wrap: anywhere;">${escapeHtml(activeSelectedItem.title)}</p>` : ''}
                             <p class="text-xs font-medium text-black-fade font-['Inter'] mt-0.5">
                                 ${isStudentsPage
                                     ? `Choose which students in this section will receive and access this ${category === 'assessments' ? 'assessment' : (category === 'learning' ? 'material' : 'topic')}.`
@@ -3050,10 +3082,10 @@ window.initializeSharedCurriculumRelease = function () {
                         </div>
                     ` : ''}
 
-                    ${selectableItems.length === 1 ? `
+                    ${selectableItems.length === 1 || (isEditMode && effectiveId) ? `
                         <div class="p-3 sm:p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 font-['Inter'] min-w-0">
-                            <span class="text-xs font-bold text-black shrink-0">${isGradingPage ? 'Assessment' : (selectableItems[0].type || meta.labelSingle || 'Item')}:</span>
-                            <span class="text-xs font-medium text-black truncate min-w-0 flex-1 leading-relaxed">${escapeHtml(selectableItems[0].title || '')}</span>
+                            <span class="text-xs font-bold text-black shrink-0">${isGradingPage || category === 'assessments' ? 'Assessment' : (activeSelectedItem?.type || meta.labelSingle || 'Item')}:</span>
+                            <span class="text-xs font-medium text-black min-w-0 flex-1 leading-relaxed" style="overflow-wrap: anywhere;">${escapeHtml(targetTitle || foundAss?.title || activeSelectedItem?.title || selectableItems[0]?.title || '')}</span>
                         </div>
                     ` : ''}
 
@@ -3195,13 +3227,13 @@ window.initializeSharedCurriculumRelease = function () {
                                         </div>
 
                                         <!-- Release Immediately Toggle -->
-                                        <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                                            <input type="checkbox" id="teacher-schedule-release-now-chk" 
+                                        <div class="flex items-center gap-2.5 select-none py-1">
+                                            <input type="checkbox" id="teacher-schedule-release-now-chk" aria-label="Release immediately"
                                                 ${isReleaseNow ? 'checked' : ''}
                                                 onchange="window.toggleTeacherScheduleReleaseNow?.(this.checked, '${category}')"
                                                 class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                             <span class="text-xs font-semibold text-black">Release immediately</span>
-                                        </label>
+                                        </div>
 
                                         <!-- Release Date & Time Inputs (Faded if Release Immediately) -->
                                         <div id="teacher-schedule-release-datetime-box" class="space-y-2 transition-all duration-200 ${isReleaseNow ? 'opacity-40 pointer-events-none' : ''}">
@@ -3217,7 +3249,7 @@ window.initializeSharedCurriculumRelease = function () {
                                             <!-- Time Box -->
                                             <div id="teacher-time-panel-box" 
                                                 class="relative flex items-center justify-between ${isReleaseNow ? 'bg-black/[0.03] border border-black/10' : 'bg-white border border-slate-200 hover:border-slate-300'} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-full cursor-text">
-                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-time-input" value="${initTime24 || '08:00'}"
+                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-time-input" value="${initTime24}"
                                                     ${isReleaseNow ? 'tabindex="-1" readonly' : ''}                                                    oninput="window.validateTeacherScheduleInputs?.('${category}');"
                                                     onchange="window.validateTeacherScheduleInputs?.('${category}');"
                                                     style="color-scheme: light;"
@@ -3235,13 +3267,14 @@ window.initializeSharedCurriculumRelease = function () {
                                         </div>
 
                                         <!-- No Deadline Toggle -->
-                                        <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
+                                        <div class="flex items-center gap-2.5 select-none py-1">
                                             <input type="checkbox" id="teacher-schedule-no-deadline-chk" 
+                                                aria-label="No due date"
                                                 ${isNoDeadline ? 'checked' : ''}
                                                 onchange="window.toggleTeacherScheduleNoDeadline?.(this.checked, '${category}')"
                                                 class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                             <span class="text-xs font-semibold text-black">No due date</span>
-                                        </label>
+                                        </div>
 
                                         <!-- Due Date & Time Inputs (Faded if No Deadline) -->
                                         <div id="teacher-schedule-due-datetime-box" class="space-y-2 transition-all duration-200 ${isNoDeadline ? 'opacity-40 pointer-events-none' : ''}">
@@ -3257,7 +3290,7 @@ window.initializeSharedCurriculumRelease = function () {
                                             <!-- Due Time Box -->
                                             <div id="teacher-end-time-panel-box" 
                                                 class="relative flex items-center justify-between ${isNoDeadline ? 'bg-black/[0.03] border border-black/10' : 'bg-white border border-slate-200 hover:border-slate-300'} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-full cursor-text">
-                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-end-time-input" value="${initEndTime24 || '23:59'}"
+                                                <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-end-time-input" value="${isNoDeadline ? '' : (initEndTime24 || '')}"
                                                     ${isNoDeadline ? 'tabindex="-1" readonly' : ''}                                                    oninput="window.validateTeacherScheduleInputs?.('${category}');"
                                                     onchange="window.validateTeacherScheduleInputs?.('${category}');"
                                                     style="color-scheme: light;"
@@ -3276,13 +3309,13 @@ window.initializeSharedCurriculumRelease = function () {
                                     </div>
 
                                     <!-- Release Immediately Toggle -->
-                                    <label class="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                                        <input type="checkbox" id="teacher-schedule-release-now-chk" 
+                                    <div class="flex items-center gap-2.5 select-none py-1">
+                                        <input type="checkbox" id="teacher-schedule-release-now-chk" aria-label="Release immediately"
                                             ${isReleaseNow ? 'checked' : ''}
                                             onchange="window.toggleTeacherScheduleReleaseNow?.(this.checked, '${category}')"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-0 border-slate-300 cursor-pointer accent-[#15803d] shrink-0" />
                                         <span class="text-xs font-semibold text-black">Release immediately</span>
-                                    </label>
+                                    </div>
 
                                     <!-- Release Date & Time Inputs Side-by-Side (Faded if Release Immediately) -->
                                     <div id="teacher-schedule-release-datetime-box" class="grid grid-cols-1 sm:grid-cols-2 gap-3 transition-all duration-200 ${isReleaseNow ? 'opacity-40 pointer-events-none' : ''}">
@@ -3299,7 +3332,7 @@ window.initializeSharedCurriculumRelease = function () {
                                         <!-- Time Box -->
                                         <div id="teacher-time-panel-box" 
                                             class="relative flex items-center justify-between ${isReleaseNow ? 'bg-black/[0.03] border border-black/10' : 'bg-white border border-slate-200 hover:border-slate-300'} focus-within:border-slate-400 rounded-xl h-10 px-3 transition-all shadow-2xs font-['Inter'] w-full cursor-text">
-                                            <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-time-input" value="${initTime24 || '08:00'}"
+                                            <input type="time" onpointerdown="window.keepScheduleDateTimeForward?.(true)" id="teacher-time-input" value="${initTime24}"
                                                 ${isReleaseNow ? 'tabindex="-1" readonly' : ''}
                                                 oninput="window.validateTeacherScheduleInputs?.('${category}');"
                                                 onchange="window.updateScheduleHelperSummary?.('${category}');"
@@ -3804,6 +3837,25 @@ window.initializeSharedCurriculumRelease = function () {
             document.body.appendChild(overlay);
         }
         overlay.classList.add('curriculum-hub-overlay--visible');
+
+        const savedStart = isEditMode ? (startScheduleLookup(saved?.[meta.scheduleKey]) ?? startScheduleLookup(saved?.materialSchedules) ?? startScheduleLookup(saved?.assessmentSchedules)) : '';
+        overlay.dataset.savedReleaseSchedule = String(savedStart || '');
+        overlay.dataset.savedReleaseTimestamp = String(isEditMode ? (startScheduleLookup(saved?.[meta.releaseDateKey]) || '') : '');
+        for (const [dateId, timeId] of [['teacher-exact-date-input','teacher-time-input'],['teacher-exact-end-date-input','teacher-end-time-input']]) {
+            const dateField = document.getElementById(dateId);
+            const timeField = document.getElementById(timeId);
+            const stored = dateId === 'teacher-exact-date-input' ? savedStart : (isEditMode ? endScheduleLookup(saved?.[meta.endScheduleKey]) : '');
+            const parts = String(stored || '').split('T');
+            const scheduled = /^\d{4}-\d{2}-\d{2}$/.test(parts[0]);
+            if (dateField) dateField.dataset.savedValue = scheduled ? parts[0] : '';
+            if (timeField) timeField.dataset.savedValue = scheduled ? parseTo24(parts[1], dateId === 'teacher-exact-date-input' ? '00:00' : '23:59') : '';
+        }
+        if (isReleaseNow) {
+            const dateField = document.getElementById('teacher-exact-date-input');
+            const timeField = document.getElementById('teacher-time-input');
+            if (dateField) dateField.value = '';
+            if (timeField) timeField.value = '';
+        }
 
         // Seamless transition: clean up picker overlays and hide previous release overlays only after schedule overlay is mounted and visible
         document.querySelectorAll('#teacher-topics-materials-picker-overlay, #teacher-topic-picker-overlay, #teacher-learning-picker-overlay, #teacher-assessments-picker-overlay').forEach(el => el.remove());
@@ -4389,7 +4441,13 @@ window.initializeSharedCurriculumRelease = function () {
         const bindScheduleField = (input) => {
             if (!input || input.dataset.pastTypeBound === '1') return;
             input.dataset.pastTypeBound = '1';
-            input.addEventListener('keydown', () => input.removeAttribute('min'));
+            input.addEventListener('focus', () => {
+                if (input.type === 'date' || input.type === 'time') input.removeAttribute('min');
+            });
+            input.addEventListener('blur', () => {
+                window.keepScheduleDateTimeForward?.(true);
+                window.validateTeacherScheduleInputs?.();
+            });
             input.addEventListener('pointerdown', (e) => {
                 window.keepScheduleDateTimeForward?.(true);
                 if (window.innerWidth <= 640 && input.type === 'time' && (e.pointerType === 'touch' || e.pointerType === 'pen')) {
@@ -4421,10 +4479,14 @@ window.initializeSharedCurriculumRelease = function () {
                 if (timeInput) timeInput.removeAttribute('min');
                 return false;
             }
-            if (forceMin || document.activeElement !== dateInput) dateInput.min = todayStr;
-            window.limitScheduleDateYear?.(dateInput);
+            const editingDate = document.activeElement === dateInput;
+            const unchanged = !!dateInput.dataset.savedValue && dateInput.value === dateInput.dataset.savedValue && (!timeInput || timeInput.value === timeInput.dataset.savedValue);
+            if (editingDate) {
+                if (dateInput.hasAttribute('min')) dateInput.removeAttribute('min');
+            } else if (dateInput.min !== todayStr) dateInput.min = todayStr;
+            if (!editingDate) window.limitScheduleDateYear?.(dateInput);
             const dateVal = String(dateInput.value || '');
-            const rejectedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && dateVal < todayStr;
+            const rejectedDate = !unchanged && !editingDate && /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && dateVal < todayStr;
             if (rejectedDate) {
                 dateInput.dataset.pastRejected = '1';
                 dateInput.dataset.pastJustSet = '1';
@@ -4437,10 +4499,11 @@ window.initializeSharedCurriculumRelease = function () {
             let rejectedTime = false;
             if (timeInput) {
                 const onToday = dateInput.value === todayStr;
-                if (onToday && (forceMin || document.activeElement !== timeInput)) timeInput.min = timeStr;
-                else timeInput.removeAttribute('min');
+                if (onToday && document.activeElement !== timeInput) {
+                    if (timeInput.min !== timeStr) timeInput.min = timeStr;
+                } else if (timeInput.hasAttribute('min')) timeInput.removeAttribute('min');
                 const timeVal = String(timeInput.value || '');
-                rejectedTime = onToday && /^\d{2}:\d{2}$/.test(timeVal) && timeVal < timeStr;
+                rejectedTime = !unchanged && document.activeElement !== timeInput && onToday && /^\d{2}:\d{2}$/.test(timeVal) && timeVal < timeStr;
                 if (rejectedTime) {
                     timeInput.dataset.pastRejected = '1';
                     timeInput.dataset.pastJustSet = '1';
@@ -4577,7 +4640,7 @@ window.initializeSharedCurriculumRelease = function () {
             if (!match) return defaultTime;
             let h = parseInt(match[1], 10) || 0;
             let m = match[2] !== undefined && match[2] !== '' ? parseInt(match[2], 10) : 0;
-            let p = match[3] ? match[3].toUpperCase() : 'AM';
+            let p = match[3] ? match[3].toUpperCase() : '';
             if (p === 'PM' && h < 12) h += 12;
             if (p === 'AM' && h === 12) h = 0;
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -4597,7 +4660,14 @@ window.initializeSharedCurriculumRelease = function () {
         let missingRubricForAi = false;
 
         // 1. Validate Release Date & Time only when dateInput is in DOM and Release Immediately is unchecked
-        if (dateInput && !isReleaseNow && dateVal) {
+        const unchangedRelease = !!dateInput?.dataset.savedValue && dateVal === dateInput.dataset.savedValue && timeVal === timeInput?.dataset.savedValue;
+        if (dateInput && !isReleaseNow && !dateVal) {
+            errors.push({ field: 'release', label: 'Release Date', message: 'Choose a release date and time.' });
+            releaseHasError = true;
+        } else if (dateInput && !isReleaseNow && !timeVal) {
+            errors.push({ field: 'release', label: 'Release Time', message: 'Choose a release time.' });
+            releaseHasError = true;
+        } else if (dateInput && !isReleaseNow && dateVal && !unchangedRelease) {
             if (dateVal < todayDateStr) {
                 errors.push({ field: 'release', label: 'Release Date', message: 'Cannot be in the past.' });
                 releaseHasError = true;
@@ -4615,7 +4685,7 @@ window.initializeSharedCurriculumRelease = function () {
         if (endDateInput && !isNoDeadline && !endDateVal) {
             errors.push({ field: 'due', label: 'Due Date', message: 'Choose a due date, or select No due date.' });
             dueHasError = true;
-        } else if (endDateInput && !isNoDeadline && endDateVal) {
+        } else if (endDateInput && !isNoDeadline && endDateVal && !(endDateVal === endDateInput.dataset.savedValue && endTimeVal === endTimeInput?.dataset.savedValue)) {
             if (endDateVal < todayDateStr) {
                 errors.push({ field: 'due', label: 'Due Date', message: 'Cannot be in the past.' });
                 dueHasError = true;
@@ -5095,12 +5165,20 @@ window.initializeSharedCurriculumRelease = function () {
         const endTimeVal = (endTimeInput?.value && endTimeInput?.value !== '--:-- --') ? endTimeInput.value : '';
 
         let releaseDesc = '';
+        const overlay = document.getElementById('teacher-topic-schedule-overlay');
+        const savedSchedule = overlay?.dataset.savedReleaseSchedule || '';
+        const savedStamp = overlay?.dataset.savedReleaseTimestamp || savedSchedule;
+        const stampDate = new Date(savedStamp);
+        const scheduleUnchanged = !isReleaseNow && dateVal === dateInput?.dataset.savedValue && timeVal === timeInput?.dataset.savedValue;
+        const savedImmediate = isReleaseNow && (!savedSchedule || savedSchedule === 'now' || savedSchedule === 'immediate');
+        const released = (savedImmediate || scheduleUnchanged) && !isNaN(stampDate.getTime()) && stampDate.getTime() <= Date.now();
+        const formatDate = value => new Date(value).toLocaleString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
         if (isReleaseNow) {
-            releaseDesc = `will be released and accessible to students immediately`;
+            releaseDesc = `will be released immediately when you save`;
         } else if (dateVal) {
-            releaseDesc = `will unlock automatically on ${dateVal}${timeVal ? ' at ' + timeVal : ''}`;
+            releaseDesc = timeVal ? `Scheduled to release on ${formatDate(`${dateVal}T${timeVal}`)}` : `Choose a release time`;
         } else {
-            releaseDesc = `will be scheduled for release`;
+            releaseDesc = `Choose a release date and time`;
         }
 
         let dueDesc = '';
@@ -5108,7 +5186,9 @@ window.initializeSharedCurriculumRelease = function () {
             if (isNoDeadline) {
                 dueDesc = ` with no deadline (can submit anytime)`;
             } else if (endDateVal) {
-                dueDesc = ` and due on ${endDateVal}${endTimeVal ? ' at ' + endTimeVal : ' by 11:59 PM (end of day)'}`;
+                dueDesc = endTimeVal ? ` and due on ${formatDate(`${endDateVal}T${endTimeVal}`)}` : ' — choose a due time (defaults to 11:59 PM when saved)';
+            } else {
+                dueDesc = ' — choose a due date and time';
             }
         }
 
@@ -5122,7 +5202,9 @@ window.initializeSharedCurriculumRelease = function () {
         const itemsLabel = isUnifiedMulti ? 'items' : meta.labelPlural;
         helperText.textContent = pastLocked
             ? 'Cannot be in the past. Past dates and times are locked.'
-            : `Selected ${itemsLabel} ${releaseDesc}${dueDesc}. Past dates and times are locked.`;
+            : released ? `Released on ${formatDate(savedStamp)}${dueDesc}.`
+            : isReleaseNow ? `Selected ${itemsLabel} ${releaseDesc}${dueDesc}.`
+            : `${releaseDesc}${dueDesc}.`;
     };
 
     window.toggleTeacherScheduleReleaseNow = function (isChecked, category = 'topics') {
@@ -5133,19 +5215,22 @@ window.initializeSharedCurriculumRelease = function () {
         const timeBox = document.getElementById('teacher-time-panel-box');
 
         if (isChecked) {
-            const now = new Date();
-            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             if (dateInput) {
-                dateInput.value = today;
+                dateInput.dataset.scheduledValue = dateInput.value;
+                dateInput.value = '';
                 delete dateInput.dataset.pastRejected;
                 dateInput.classList.remove('!border-red-500');
             }
             if (timeInput) {
-                timeInput.value = hhmm;
+                timeInput.dataset.scheduledValue = timeInput.value;
+                timeInput.value = '';
                 delete timeInput.dataset.pastRejected;
                 timeInput.classList.remove('!border-red-500');
             }
+        }
+        if (!isChecked) {
+            if (dateInput) dateInput.value = dateInput.dataset.scheduledValue || '';
+            if (timeInput) timeInput.value = timeInput.dataset.scheduledValue || '';
         }
         if (releaseBox) {
             if (isChecked) {
@@ -5603,18 +5688,23 @@ window.initializeSharedCurriculumRelease = function () {
         const endTimeBox = document.getElementById('teacher-end-time-panel-box');
         const beginDateInput = document.getElementById('teacher-exact-date-input');
 
+        for (const input of [endDateInput, endTimeInput]) {
+            if (!input) continue;
+            if (isChecked) {
+                if (input.value) input.dataset.previousDeadlineValue = input.value;
+                input.value = '';
+            } else if (!input.value && input.dataset.previousDeadlineValue) {
+                input.value = input.dataset.previousDeadlineValue;
+            }
+        }
         if (dueBox) {
             if (isChecked) {
                 dueBox.classList.add('opacity-40', 'pointer-events-none');
                 window.closeTeacherScheduleTimePopover?.();
             } else {
                 dueBox.classList.remove('opacity-40', 'pointer-events-none');
-                if (endDateInput && !endDateInput.value) {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    endDateInput.value = beginDateInput?.value || todayStr;
-                }
                 if (endTimeInput && (!endTimeInput.value || endTimeInput.value === '')) {
-                    endTimeInput.value = '--:-- --';
+                    endTimeInput.value = '';
                 }
             }
         }
@@ -6090,6 +6180,7 @@ window.initializeSharedCurriculumRelease = function () {
         const section = (typeof resolveTeacherActiveSection === 'function')
             ? resolveTeacherActiveSection(draft?._section || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null) || window.currentTopicState?.selectedSection)
             : (draft?._section || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : null) || window.currentTopicState?.selectedSection || '');
+        const targetSection = section;
         const cleanId = String(subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
 
         // Get current saved config
@@ -6132,13 +6223,7 @@ window.initializeSharedCurriculumRelease = function () {
         if (releaseNowChk || dateInput) {
             const isReleaseNow = releaseNowChk ? releaseNowChk.checked : false;
             if (!isReleaseNow && dateInput && dateInput.value) {
-                let dateVal = dateInput.value.trim();
-                const today = new Date();
-                const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                if (dateVal && dateVal < todayDateStr) {
-                    dateVal = todayDateStr;
-                    if (dateInput) dateInput.value = todayDateStr;
-                }
+                const dateVal = dateInput.value.trim();
                 const time24 = convertTimeTo24HourHelper(timeInput?.value, '00:00');
                 val = `${dateVal}T${time24}`;
             } else {
@@ -6319,7 +6404,10 @@ window.initializeSharedCurriculumRelease = function () {
                 delete config[meta.scheduleKey][idStr];
                 if (config.assessmentSchedules) delete config.assessmentSchedules[idStr];
                 if (config.materialSchedules) delete config.materialSchedules[idStr];
-                config[meta.releaseDateKey][idStr] = new Date().toISOString();
+                const previousSchedule = saved?.[meta.scheduleKey]?.[idStr];
+                const previousStamp = saved?.[meta.releaseDateKey]?.[idStr];
+                const wasImmediate = !previousSchedule || previousSchedule === 'now' || previousSchedule === 'immediate';
+                config[meta.releaseDateKey][idStr] = wasImmediate && previousStamp ? previousStamp : new Date().toISOString();
             }
 
             // Schedule end (Due Date)
@@ -7065,7 +7153,7 @@ window.initializeSharedCurriculumRelease = function () {
                         config[meta.releaseDateKey][aKey] = itemStartVal;
                     } else {
                         delete config[meta.scheduleKey][aKey];
-                        config[meta.releaseDateKey][aKey] = new Date().toISOString();
+                        config[meta.releaseDateKey][aKey] = config[meta.releaseDateKey][idStr];
                     }
                 });
             }
@@ -8945,8 +9033,7 @@ window.initializeSharedCurriculumRelease = function () {
                                                 <span class="text-xs sm:text-sm font-normal text-black font-['Inter']" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(group.topicTitle)}</span>
                                                 ${topicIsHidden ? `
                                                     <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                        <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                        <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                     </div>
                                                 ` : (topicIsFuture ? `
                                                     <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -9010,8 +9097,7 @@ window.initializeSharedCurriculumRelease = function () {
                                                                             <p class="text-xs sm:text-sm font-normal text-black tracking-tight" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(m.title)}</p>
                                                                             ${isHidden ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                                                 </div>
                                                                             ` : (isFuture ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -9076,8 +9162,7 @@ window.initializeSharedCurriculumRelease = function () {
                                                                             <p class="text-xs sm:text-sm font-normal text-black tracking-tight" style="overflow-wrap:anywhere; word-break:break-word; text-overflow:clip; white-space:normal;">${escapeHtml(m.title)}</p>
                                                                             ${isHidden ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
-                                                                                    <i class="fa-solid fa-eye-slash text-xs text-black"></i>
-                                                                                    <span>Hidden</span>
+                                                    <i class="fa-solid fa-eye-slash sigma-hidden-status-icon text-black" title="Hidden" aria-label="Hidden"></i>
                                                                                 </div>
                                                                             ` : (isFuture ? `
                                                                                 <div class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-black shrink-0">
@@ -9750,6 +9835,41 @@ window.initializeSharedCurriculumRelease = function () {
     window.submitTopicsAndMaterialsPicker = function () {
         const working = window._topicsAndMaterialsPickerWorking || new Map();
         if (working.size === 0) return;
+
+        // Draft topic inputs identify unreleased parents in both picker layouts.
+        const requiredTopics = new Map();
+        document.querySelectorAll('#teacher-topics-materials-picker-overlay input[name="picker-unified-item"], #topics-materials-release-workspace input[name="picker-unified-item"]').forEach(input => {
+            const category = input.dataset.category;
+            const id = String(input.dataset.id || input.value);
+            if (!['learning', 'assessments'].includes(category) || !working.has(`${category}::${id}`)) return;
+            const topicInput = input.closest('.topic-picker-card')?.querySelector('input[data-category="topics"]');
+            if (!topicInput) return;
+            const topicId = String(topicInput.dataset.id || topicInput.value);
+            if (!working.has(`topics::${topicId}`)) {
+                requiredTopics.set(topicId, { category: 'topics', id: topicId, title: topicInput.dataset.title || 'Untitled Topic' });
+            }
+        });
+        if (requiredTopics.size > 0) {
+            const keys = Array.from(working.keys()).sort().join('\n');
+            const plural = requiredTopics.size > 1;
+            window.openAskingPanel({
+                title: plural ? 'Include Required Topics?' : 'Include Required Topic?',
+                message: `The selected materials belong to ${plural ? 'unreleased topics' : 'an unreleased topic'}: ${Array.from(requiredTopics.values(), topic => topic.title).join(', ')}. ${plural ? 'These topics must' : 'This topic must'} also be released so students can access the materials. Include ${plural ? 'them' : 'it'} in this schedule? Unselected materials will stay in draft.`,
+                type: 'warning',
+                cancelText: 'Go Back',
+                confirmText: plural ? 'Include Topics' : 'Include Topic',
+                onConfirm: () => {
+                    if (window._topicsAndMaterialsPickerWorking !== working) return;
+                    if (Array.from(working.keys()).sort().join('\n') !== keys) {
+                        window.submitTopicsAndMaterialsPicker();
+                        return;
+                    }
+                    requiredTopics.forEach(topic => working.set(`topics::${topic.id}`, topic));
+                    window.submitTopicsAndMaterialsPicker();
+                }
+            });
+            return;
+        }
 
         const selectedTopics = [];
         const selectedLearning = [];

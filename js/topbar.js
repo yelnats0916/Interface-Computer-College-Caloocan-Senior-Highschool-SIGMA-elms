@@ -142,6 +142,11 @@
         if (typeof window.fetch === 'function') {
             const originalFetch = window.fetch;
             window.fetch = function (...args) {
+                const resource = args[0];
+                const method = String(args[1]?.method || resource?.method || 'GET').toUpperCase();
+                const url = String(resource?.url || resource || '');
+                // Read-only API polling does not represent page navigation.
+                if (method === 'GET' && /\/api\//.test(url)) return originalFetch.apply(this, args);
                 window.showTopNavLoading();
                 return originalFetch.apply(this, args)
                     .then(res => {
@@ -160,7 +165,7 @@
             const originalSend = XMLHttpRequest.prototype.send;
 
             XMLHttpRequest.prototype.open = function (...args) {
-                this.__topNavTracked = true;
+                this.__topNavTracked = !(String(args[0]).toUpperCase() === 'GET' && /\/api\//.test(String(args[1])));
                 return originalOpen.apply(this, args);
             };
 
@@ -308,15 +313,130 @@ window.setPortalHeader = function (title, subtitle) {
 
 window.setNavContext = window.setPortalHeader;
 
+window.isActuallyCalendarPage = function () {
+    const hash = (typeof window.location !== 'undefined' && window.location.hash) ? window.location.hash.toLowerCase() : '';
+
+    // If the URL hash explicitly indicates a non-calendar page/route, it is NEVER the calendar page
+    if (hash.startsWith('#classroom:') ||
+        hash.startsWith('#topic:') ||
+        hash.startsWith('#topic-content:') ||
+        hash.startsWith('#topic_content:') ||
+        hash.startsWith('#grades') ||
+        hash.startsWith('#gradebook') ||
+        hash.startsWith('#analytics') ||
+        hash.startsWith('#settings') ||
+        hash.startsWith('#account-settings') ||
+        hash.startsWith('#announcement') ||
+        hash.startsWith('#resource') ||
+        hash.startsWith('#dashboard') ||
+        hash.startsWith('#classes') ||
+        hash.startsWith('#classrooms') ||
+        hash.startsWith('#courses') ||
+        hash.startsWith('#student') ||
+        hash.startsWith('#users') ||
+        hash.startsWith('#subjects') ||
+        (hash.startsWith('#section-') && !hash.startsWith('#section-attendance'))) {
+        return false;
+    }
+
+    const isCalendarHash = (
+        hash === '#calendar' ||
+        hash === '#attendance' ||
+        hash === '#nav-attendance' ||
+        hash === '#nav_attendance' ||
+        hash === '#nav-calendar' ||
+        hash === '#nav_calendar' ||
+        hash === '#section-attendance'
+    );
+    if (isCalendarHash) {
+        return true;
+    }
+
+    const otherVisibleSection = document.querySelector(
+        '#section-dashboard:not(.hidden), #section-classes:not(.hidden), #section-classroom-detail:not(.hidden), ' +
+        '#section-grades:not(.hidden), #section-analytics:not(.hidden), #section-topic-content:not(.hidden), ' +
+        '#section-settings:not(.hidden), section#classroom-detail-view:not(.hidden), ' +
+        '#section-home:not(.hidden), #dashboard-view:not(.hidden), #users-view:not(.hidden), #school-grades-view:not(.hidden), ' +
+        '#school-profile-view:not(.hidden), #school-year-view:not(.hidden), #school-sections-view:not(.hidden), ' +
+        '#school-subjects-view:not(.hidden), #announcements-view:not(.hidden), #resources-view:not(.hidden), ' +
+        '#settings-security-view:not(.hidden), #settings-branding-view:not(.hidden), #settings-integrations-view:not(.hidden), ' +
+        '#settings-ai-view:not(.hidden), #settings-gdrive-view:not(.hidden), #settings-recaptcha-view:not(.hidden), ' +
+        '#settings-limits-view:not(.hidden), #audit-ai-view:not(.hidden), #audit-activity-view:not(.hidden), ' +
+        '#audit-notifications-view:not(.hidden), #audit-auth-view:not(.hidden), #settings-recovery-view:not(.hidden)'
+    );
+    if (otherVisibleSection) {
+        return false;
+    }
+
+    const calSection = document.getElementById('section-attendance') || document.getElementById('section-calendar');
+    const isSectionVisible = Boolean(calSection && !calSection.classList.contains('hidden'));
+
+    if (isSectionVisible) {
+        return true;
+    }
+
+    if (document.body && document.body.classList.contains('calendar-page-mode')) {
+        return true;
+    }
+
+    return false;
+};
+
+window.syncCalendarPageActiveState = function () {
+    const isCalendar = (typeof window.isActuallyCalendarPage === 'function')
+        ? window.isActuallyCalendarPage()
+        : false;
+
+    const calToggle = document.getElementById('calendar-toggle');
+    const subbarCal = document.getElementById('mobile-subbar-calendar');
+    const appbarCal = document.getElementById('mobile-appbar-calendar');
+    const calDropdown = document.getElementById('calendar-dropdown');
+    const calDropdownOpen = Boolean(calDropdown && !calDropdown.classList.contains('hidden'));
+    const header = document.getElementById('student-header') || document.getElementById('teacher-header') || document.querySelector('header');
+    const isMobileCalActive = document.body.classList.contains('mobile-panel-open') && header?.dataset.activeMobilePanel === 'calendar';
+
+    if (isCalendar) {
+        document.body.classList.add('calendar-page-mode');
+        if (calToggle) calToggle.classList.add('active');
+        if (subbarCal) subbarCal.classList.add('active', 'selected');
+        if (appbarCal) appbarCal.classList.add('active');
+    } else {
+        document.body.classList.remove('calendar-page-mode');
+        if (calToggle && !calDropdownOpen) {
+            calToggle.classList.remove('active');
+        }
+        if (subbarCal && !isMobileCalActive) {
+            subbarCal.classList.remove('active', 'selected');
+        }
+        if (appbarCal && !isMobileCalActive) {
+            appbarCal.classList.remove('active');
+        }
+    }
+};
+
 window.hideHeaderOverlays = function (exceptMenu, exceptBtn) {
     // In mobile panel mode, dismissal is handled strictly via the panel back button
     if (document.body.classList.contains('mobile-panel-open')) return;
 
     document.querySelectorAll('.header-panel, #calendar-dropdown, #noti-dropdown, #profile-dropdown, #profileDropdownMenu, #sigmaAiPanel').forEach(p => {
-        if (p !== exceptMenu) p.classList.add('hidden');
+        if (p !== exceptMenu) {
+            p.classList.add('hidden');
+            if (p.id === 'calendar-dropdown' && typeof window.resetCalendarDropdown === 'function') {
+                window.resetCalendarDropdown();
+            }
+        }
     });
+    const isCalendarMode = (typeof window.isActuallyCalendarPage === 'function')
+        ? window.isActuallyCalendarPage()
+        : false;
+    if (!isCalendarMode) {
+        document.body.classList.remove('calendar-page-mode');
+    }
     document.querySelectorAll('.header-icon-btn, .header-profile-btn, #calendar-toggle, #noti-toggle, #profile-toggle, #profileDropdownBtn, #sigma-toggle').forEach(b => {
-        if (b !== exceptBtn) b.classList.remove('active');
+        if (b !== exceptBtn) {
+            if (b.id === 'calendar-toggle' && isCalendarMode) return;
+            b.classList.remove('active');
+        }
     });
 };
 
@@ -339,6 +459,39 @@ window.closeAiPanel = function () {
     if (sigmaToggle) sigmaToggle.classList.remove('active');
 };
 
+function isTopbarOverlayClickTarget(target) {
+    return Boolean(target?.closest?.(
+        '.header-panel, #calendar-dropdown, #noti-dropdown, #profile-dropdown, #profileDropdownMenu, #sigmaAiPanel, ' +
+        '#analytics-dropdown, #schedule-dropdown, .header-icon-btn, .header-profile-btn, .mobile-subbar-btn, ' +
+        '#calendar-toggle, #noti-toggle, #profile-toggle, #profileDropdownBtn, #sigma-toggle'
+    ));
+}
+
+function hasOpenTopbarOverlay() {
+    const header = document.getElementById('student-header') || document.getElementById('teacher-header') || document.querySelector('header');
+    return Boolean(
+        document.body.classList.contains('mobile-panel-open') ||
+        header?.classList.contains('mobile-panel-open') ||
+        document.querySelector(
+            '.header-panel:not(.hidden), #calendar-dropdown:not(.hidden), #noti-dropdown:not(.hidden), ' +
+            '#profile-dropdown:not(.hidden), #profileDropdownMenu:not(.hidden), #sigmaAiPanel:not(.hidden), ' +
+            '#analytics-dropdown:not(.hidden), #schedule-dropdown:not(.hidden)'
+        )
+    );
+}
+
+function dismissTopbarOverlayFromOutside(event) {
+    if (!hasOpenTopbarOverlay()) return;
+    if (isTopbarOverlayClickTarget(event.target)) return;
+
+    if (document.body.classList.contains('mobile-panel-open')) {
+        if (typeof window.closeMobileTopPanel === 'function') window.closeMobileTopPanel();
+        return;
+    }
+
+    window.hideHeaderOverlays();
+}
+
 function initSharedTopbarInteractions() {
     const calendarToggle = document.getElementById('calendar-toggle');
     const calendarDropdown = document.getElementById('calendar-dropdown');
@@ -351,12 +504,25 @@ function initSharedTopbarInteractions() {
     const sigmaAiCloseBtn = document.getElementById('sigmaAiCloseBtn');
 
     // 1. Calendar Toggle Binding
-    if (calendarToggle && calendarDropdown && !calendarToggle.dataset.topbarBound) {
+    if (calendarToggle && !calendarToggle.dataset.topbarBound) {
         calendarToggle.dataset.topbarBound = 'true';
         calendarToggle.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const isOpen = !calendarDropdown.classList.contains('hidden') && calendarToggle.classList.contains('active');
+            if (!calendarDropdown) return;
+
+            const isCalendarMode = (typeof window.isActuallyCalendarPage === 'function')
+                ? window.isActuallyCalendarPage()
+                : (document.body.classList.contains('calendar-page-mode'));
+
+            // When full calendar page is already open, do not show the mini calendar panel
+            if (isCalendarMode) {
+                calendarDropdown.classList.add('hidden');
+                calendarToggle.classList.add('active');
+                return;
+            }
+
+            const isOpen = !calendarDropdown.classList.contains('hidden');
             if (isOpen) {
                 // Desktop toggle dismissal: clicking active icon closes panel
                 calendarDropdown.classList.add('hidden');
@@ -365,10 +531,15 @@ function initSharedTopbarInteractions() {
                 window.hideHeaderOverlays(calendarDropdown, calendarToggle);
                 calendarDropdown.classList.remove('hidden');
                 calendarToggle.classList.add('active');
+                if (typeof window.renderCalendarGrid === 'function') {
+                    window.renderCalendarGrid();
+                }
                 window.revisitActivePanel('calendar');
             }
         });
-        calendarDropdown.addEventListener('click', (e) => e.stopPropagation());
+        if (calendarDropdown) {
+            calendarDropdown.addEventListener('click', (e) => e.stopPropagation());
+        }
     }
 
     // 2. Notification Toggle Binding
@@ -446,17 +617,16 @@ function initSharedTopbarInteractions() {
     // 5. Global Outside Click and ESC key dismissals
     if (!document.body.dataset.topbarOverlaysBound) {
         document.body.dataset.topbarOverlaysBound = 'true';
-        document.addEventListener('click', (e) => {
-            if (document.body.classList.contains('mobile-panel-open')) return;
-            const isClickInside = e.target.closest('.header-panel, #calendar-dropdown, #noti-dropdown, #profile-dropdown, #profileDropdownMenu, #sigmaAiPanel, .header-icon-btn, .header-profile-btn, #calendar-toggle, #noti-toggle, #profile-toggle, #profileDropdownBtn, #sigma-toggle');
-            if (!isClickInside) {
-                window.hideHeaderOverlays();
-            }
-        });
+        document.addEventListener('pointerdown', dismissTopbarOverlayFromOutside, true);
+        document.addEventListener('click', dismissTopbarOverlayFromOutside, true);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                window.hideHeaderOverlays();
+                if (document.body.classList.contains('mobile-panel-open') && typeof window.closeMobileTopPanel === 'function') {
+                    window.closeMobileTopPanel();
+                } else {
+                    window.hideHeaderOverlays();
+                }
             }
         });
     }
@@ -593,6 +763,10 @@ function initSharedTopbarInteractions() {
     // 7. Mobile Full-Page Panel Controller (Abolishing Pull-Up Bottom Sheets)
     // ═══════════════════════════════════════════════════════════════════════════
     function syncMobileAnalyticsCards() {
+        if (typeof window.renderMobileInsightCards === 'function') {
+            window.renderMobileInsightCards();
+            return;
+        }
         const container = document.getElementById('analytics-dropdown-cards');
         if (!container) return;
         const source = document.getElementById('sigma-panels-container') || document.getElementById('mobile-sigma-cards');
@@ -807,6 +981,13 @@ function initSharedTopbarInteractions() {
         const header = document.getElementById('student-header') || document.getElementById('teacher-header') || document.querySelector('header');
         if (!header) return;
 
+        if (panelName === 'calendar') {
+            const isCalendarMode = (typeof window.isActuallyCalendarPage === 'function')
+                ? window.isActuallyCalendarPage()
+                : (document.body.classList.contains('calendar-page-mode'));
+            if (isCalendarMode) return;
+        }
+
         // If fullscreen account panel is open, close it first
         window.closeMobileAccountPanel();
 
@@ -906,8 +1087,14 @@ function initSharedTopbarInteractions() {
             delete header.dataset.activeMobilePanel;
         }
 
-        // Clear active/selected classes on all subbar buttons
+        const isCalendarMode = (typeof window.isActuallyCalendarPage === 'function')
+            ? window.isActuallyCalendarPage()
+            : false;
+        if (!isCalendarMode) {
+            document.body.classList.remove('calendar-page-mode');
+        }
         document.querySelectorAll('.mobile-subbar-btn').forEach(btn => {
+            if (btn.id === 'mobile-subbar-calendar' && isCalendarMode) return;
             btn.classList.remove('active', 'selected');
         });
 
@@ -960,18 +1147,39 @@ function initSharedTopbarInteractions() {
 
     const isMobileViewport = () => window.innerWidth <= 768;
     const mobilePanelViewport = window.matchMedia('(max-width: 768px)');
-    mobilePanelViewport.addEventListener('change', () => {
+    const dismissResponsivePanels = () => {
         window.closeMobileTopPanel();
         window.closeMobileAccountPanel();
         document.querySelectorAll('.mobile-pull-up-panel, .mobile-sigma-sheet, .mobile-sigma-sheet-backdrop')
             .forEach(panel => panel.classList.remove('open'));
+        const isCalendarActive = (typeof window.isActuallyCalendarPage === 'function')
+            ? window.isActuallyCalendarPage()
+            : false;
+        if (!isCalendarActive) {
+            document.body.classList.remove('calendar-page-mode');
+        }
         document.querySelectorAll('.header-icon-btn, .header-profile-btn, .mobile-subbar-btn')
-            .forEach(button => button.classList.remove('active', 'selected'));
+            .forEach(button => {
+                if ((button.id === 'calendar-toggle' || button.id === 'mobile-subbar-calendar') && isCalendarActive) return;
+                button.classList.remove('active', 'selected');
+            });
         const header = document.getElementById('student-header') || document.getElementById('teacher-header') || document.querySelector('header');
         header?.classList.remove('subbar-hidden');
         document.body.classList.remove('subbar-hidden');
         window.updateMobileAppBarActiveState?.();
-    });
+    };
+    mobilePanelViewport.addEventListener('change', dismissResponsivePanels);
+    // DevTools can restore desktop width while a mobile panel still owns the page.
+    const dismissStaleMobilePanels = () => {
+        if (mobilePanelViewport.matches) return;
+        const mobileState = document.querySelector(
+            '.mobile-panel-open, .mobile-account-fullscreen, .mobile-pull-up-panel.open, .mobile-sigma-sheet.open, .mobile-sigma-sheet-backdrop.open'
+        );
+        if (mobileState) dismissResponsivePanels();
+    };
+    window.addEventListener('resize', dismissStaleMobilePanels, { passive: true });
+    window.addEventListener('pageshow', dismissStaleMobilePanels);
+    dismissStaleMobilePanels();
 
     // Back button in mobile panel header (icon only)
     if (mobilePanelBackBtn && !mobilePanelBackBtn.dataset.topbarBound) {
@@ -1011,6 +1219,18 @@ function initSharedTopbarInteractions() {
         subbarCalendar.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+
+            const isCalendarMode = (typeof window.isActuallyCalendarPage === 'function')
+                ? window.isActuallyCalendarPage()
+                : (document.body.classList.contains('calendar-page-mode'));
+
+            if (isCalendarMode) {
+                if (calendarDropdown) calendarDropdown.classList.add('hidden');
+                if (typeof window.closeMobileTopPanel === 'function') window.closeMobileTopPanel();
+                subbarCalendar.classList.add('active', 'selected');
+                return;
+            }
+
             if (isMobileViewport()) {
                 window.toggleMobilePanel('calendar');
             } else {
@@ -1240,3 +1460,30 @@ if (document.readyState === 'loading') {
     initSharedTopbarInteractions();
 }
 
+// Automatically sync calendar page selection on browser Back/Forward (popstate & hashchange)
+window.addEventListener('popstate', () => {
+    window.syncCalendarPageActiveState?.();
+}, true);
+
+window.addEventListener('hashchange', () => {
+    window.syncCalendarPageActiveState?.();
+}, true);
+
+// Global click delegation for any outside navigation / back button
+document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target) return;
+    const isBackOrNav = target.closest?.(
+        'button[id*="back"], button[class*="back"], a[id*="back"], a[class*="back"], ' +
+        '#classroom-back-btn, #nav-context-back-btn, #topbar-back-btn, .gradebook-back-btn, ' +
+        '#subject-back-btn, .nav-link, #sidebar a, #sidebar button'
+    );
+    if (isBackOrNav && !isBackOrNav.closest?.('#section-attendance')) {
+        setTimeout(() => {
+            window.syncCalendarPageActiveState?.();
+        }, 0);
+        setTimeout(() => {
+            window.syncCalendarPageActiveState?.();
+        }, 40);
+    }
+}, true);

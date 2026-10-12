@@ -1,0 +1,110 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { chromium } = require('playwright');
+const root = path.join(__dirname, '..');
+(async () => {
+    const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.route('http://sigma.test/**', route => route.fulfill({ body: '<html></html>', contentType: 'text/html' }));
+        await page.goto('http://sigma.test/');
+        const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+        const start = html.indexOf('<!-- AUDIT LOGS: AI LOGS VIEW -->');
+        const fragment = html.slice(start, html.indexOf('</main>', start));
+        await page.setContent('<style>*{box-sizing:border-box}body{margin:0}.hidden,[hidden]{display:none!important}.overflow-x-auto{overflow-x:auto}.flex{display:flex}.flex-col{flex-direction:column}</style><input id="searchBar" aria-label="Global search">' + fragment);
+        for (const file of ['admin.css', 'forms.css', 'ai-log-details.css']) await page.addStyleTag({ path: path.join(root, 'css', file) });
+        await page.evaluate(() => {
+            window.switchTab = id => {
+                const selected = { 'nav-audit-ai': 'audit-ai-view', 'nav-audit-activity': 'audit-activity-view', 'nav-audit-auth': 'audit-auth-view', 'nav-audit-notifications': 'audit-notifications-view' }[id];
+                document.querySelectorAll('.dynamic-section').forEach(section => section.classList.toggle('hidden', section.id !== selected));
+            };
+            window.switchTab('nav-audit-ai');
+            const rows = (id, users) => {
+                document.querySelector(`#${id} tbody`).innerHTML = users.map(name => `<tr><td>${name}</td><td>Event</td><td>Device</td><td>Oct 10</td></tr>`).join('');
+            };
+            rows('audit-activity-view', ['Juan Abad Dela Cruz', 'Maria Santos']);
+            rows('audit-auth-view', ['Juan Abad Dela Cruz', 'Maria Santos']);
+            localStorage.setItem('sigma-admin-users', JSON.stringify([{ uid: 'juan', fullName: 'Juan Abad Dela Cruz', role: 'Student' }, { uid: 'maria', fullName: 'Maria Santos', role: 'Student' }]));
+            window.notificationFixtures = Array.from({ length: 36 }, (_, i) => ({ id: String(i), recipient: i === 35 ? 'Juan Abad Dela Cruz' : 'Maria Santos', title: 'Assessment release', status: 'Stored in-app', channel: 'In-app', timestamp: '2026-10-10T06:36:00Z' }));
+            window.SigmaNotifications = { getLogs: () => window.notificationFixtures };
+        });
+        const shared = fs.readFileSync(path.join(root, 'js/shared-components.js'), 'utf8');
+        const empty = shared.indexOf('window.renderSigmaEmptyState = function');
+        await page.addScriptTag({ content: shared.slice(empty, shared.indexOf('\n};', empty) + 3) });
+        await page.addScriptTag({ path: path.join(root, 'js/ai-log-store.js') });
+        await page.evaluate(() => window.SigmaAiLogs.setRecords(Array.from({ length: 23 }, (_, i) => ({ userId: i === 22 ? 'juan' : 'maria', feature: 'sigmabot', prompt: 'Assessment help', response: 'Answer', model: 'Test provider', status: 'Success', timestamp: new Date(Date.UTC(2026, 9, 10, 6, 36 - i)).toISOString() }))));
+        await page.addStyleTag({ path: path.join(root, 'css/log-pagination.css') });
+        for (const file of ['log-pagination.js', 'notification-logs.js', 'audit-log-search.js', 'ai-log-details.js']) await page.addScriptTag({ path: path.join(root, 'js', file) });
+        assert.equal(await page.locator('.audit-log-search').count(), 4);
+        const form = page.locator('#audit-ai-view .audit-log-search');
+        assert.equal(await form.locator('button[type="submit"]').textContent(), '');
+        assert.equal(await form.locator('button[type="submit"] i.fa-magnifying-glass').count(), 1);
+        assert.equal(await form.locator('.ai-log-search-clear').isVisible(), false);
+        assert.equal(await form.locator('input').getAttribute('maxlength'), '100');
+        assert.equal(await page.locator('#audit-ai-view .ai-log-user-button:visible').count(), 20);
+        await form.locator('input').fill('Juan');
+        assert.equal(await page.locator('#audit-ai-view .ai-log-user-button:visible').count(), 20, 'Typing alone does not submit');
+        assert.equal(await form.locator('.ai-log-search-clear').isVisible(), true);
+        await form.locator('button[type="submit"]').click();
+        assert.equal(await page.locator('#audit-ai-view .ai-log-user-button').count(), 1, 'Search includes AI records beyond the initial visible batch');
+        await form.locator('.ai-log-search-clear').click();
+        assert.equal(await form.locator('input').inputValue(), '');
+        assert.equal(await form.locator('.ai-log-search-clear').isVisible(), false);
+        assert.equal(await page.locator('#audit-ai-view .ai-log-user-button').count(), 1, 'Clear X edits the draft, like message search; submit applies it');
+        await form.locator('input').fill('Juan');
+        await form.locator('input').press('Enter');
+        await page.evaluate(() => window.switchTab('nav-audit-activity'));
+        await page.waitForFunction(() => document.querySelector('#audit-activity-view .audit-log-search input').value === 'juan');
+        assert.equal(await page.locator('#audit-activity-view tbody tr:visible').count(), 1);
+        assert((await page.locator('#audit-activity-view tbody tr:visible').textContent()).includes('Juan'));
+        await page.evaluate(() => window.switchTab('nav-audit-auth'));
+        assert.equal(await page.locator('#audit-auth-view tbody tr:visible').count(), 1);
+        await page.evaluate(() => window.switchTab('nav-audit-notifications'));
+        await page.waitForFunction(() => document.querySelectorAll('#notification-log-rows tr').length === 1 && document.querySelector('#notification-log-rows').textContent.includes('Juan'));
+        assert((await page.locator('#notification-log-rows').textContent()).includes('Juan'));
+        await page.locator('#searchBar').fill('Maria');
+        await page.locator('#searchBar').press('Enter');
+        assert((await page.locator('#notification-log-rows').textContent()).includes('Juan'), 'Header search remains separate');
+        const notificationInput = page.locator('#audit-notifications-view .audit-log-search input');
+        await notificationInput.fill('No such recipient');
+        await notificationInput.press('Enter');
+        assert((await page.locator('#notification-log-rows').textContent()).includes('No matching'));
+        await notificationInput.fill('');
+        await notificationInput.press('Enter');
+        assert.equal(await page.locator('#notification-log-rows tr:visible').count(), 20);
+        await page.locator('#audit-notifications-view .sigma-log-pagination').getByRole('button', { name: 'Next page', exact: true }).click();
+        assert.equal(await page.locator('#notification-log-rows tr:visible').count(), 16);
+        await page.evaluate(() => window.switchTab('nav-audit-activity'));
+        await page.waitForFunction(() => document.querySelectorAll('#audit-activity-view tbody tr:not([hidden])').length === 2);
+        const activityInput = page.locator('#audit-activity-view .audit-log-search input');
+        await activityInput.fill('missing');
+        await activityInput.press('Enter');
+        assert.equal(await page.locator('#audit-activity-view [data-audit-search-empty]').count(), 1);
+        await activityInput.fill('');
+        await activityInput.press('Enter');
+        assert.equal(await page.locator('#audit-activity-view tbody tr:visible').count(), 2);
+        for (const width of [1440, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            const inputBox = await activityInput.boundingBox();
+            const buttonBox = await page.locator('#audit-activity-view .audit-log-search button[type="submit"]').boundingBox();
+            assert.equal(buttonBox.width, 48);
+            assert.equal(buttonBox.height, 48);
+            assert.equal(inputBox.height, 48);
+            assert(inputBox.x + inputBox.width <= buttonBox.x);
+            assert(buttonBox.x + buttonBox.width <= width);
+            await page.screenshot({ path: path.join(process.env.TEMP, `audit-sidebar-search-${width}.png`), fullPage: true });
+        }
+        await activityInput.evaluate(input => {
+            input.value = '\u0001' + 'a'.repeat(110) + '\u007f';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        assert.equal(await activityInput.inputValue(), 'a'.repeat(100), 'Pasted/programmatic input strips control characters and limits to 100 characters');
+        assert.deepEqual(await activityInput.evaluate(input => {
+            const css = getComputedStyle(input);
+            return [css.borderRadius, css.color, css.paddingRight];
+        }), ['12px', 'rgb(0, 0, 0)', '44px']);
+        assert(fs.readFileSync(path.join(root, 'php/admin.php'), 'utf8').includes('js/audit-log-search.js'));
+        console.log('PASS: icon-only sidebar search, shared category query, all-data AI/notification filtering, activity/auth filtering, empty/clear states, separate header, desktop/mobile sizing');
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

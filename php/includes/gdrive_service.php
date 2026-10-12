@@ -5,8 +5,8 @@
  */
 
 function getGdriveAccessToken(string $keyFile) {
-    if (!file_exists($keyFile)) return null;
-    $keyData = json_decode(file_get_contents($keyFile), true);
+    require_once __DIR__ . '/service_secrets.php';
+    $keyData = loadServiceSettings()['google_drive']['service_account'] ?? null;
     if (!$keyData || empty($keyData['client_email']) || empty($keyData['private_key'])) return null;
 
     $now = time();
@@ -92,9 +92,9 @@ function findOrCreateGdriveFolder(string $token, string $parentFolderId, string 
 function provisionSchoolYearFolders(int $yearStart, int $yearEnd, string $campusName = 'Caloocan Campus') {
     $rootDir = dirname(__DIR__, 2);
     $keyPath = $rootDir . '/config/google_service_account.json';
-    if (!file_exists($keyPath)) return null;
 
     $services = file_exists($rootDir . '/config/services.php') ? require($rootDir . '/config/services.php') : [];
+    if (empty($services['google_drive']['service_account']['private_key'])) return null;
     $rootFolderId = $services['google_drive']['folder_id'] ?? '1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK';
 
     $token = getGdriveAccessToken($keyPath);

@@ -5,6 +5,50 @@
  * Page-specific behavior stays in admin.js, teacher.js, or student.js.
  */
 
+window.getSigmaWelcomeMessage = function () {
+    let account = {};
+    try { account = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
+    const accountId = String(account.uid || account.id || '');
+    let profile = account;
+    if (accountId) {
+        for (const getter of ['getLoggedInAdminUser', 'getLoggedInStudentUser', 'getEffectiveTeacher']) {
+            if (typeof window[getter] !== 'function') continue;
+            try {
+                const candidate = window[getter]();
+                if (String(candidate?.uid || candidate?.id || '') === accountId) { profile = { ...account, ...candidate }; break; }
+            } catch (_) {}
+        }
+    }
+    const explicit = String(profile.firstName || profile.first_name || account.firstName || account.first_name || '').trim();
+    const fullName = String(profile.fullName || profile.full_name || profile.name || '').trim();
+    const givenName = fullName.includes(',') ? fullName.split(',').slice(1).join(' ').trim() : fullName;
+    const name = explicit || givenName.split(/\s+/)[0] || 'there';
+    const escaped = name.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+    return `Hello, <strong>${escaped}!</strong> I'm <span class="font-black">SIGMA</span>, your system AI. What do you need today?`;
+};
+
+window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
+    const user = role === 'user';
+    const make = (tag, className, content) => {
+        const element = document.createElement(tag);
+        element.className = className;
+        if (content !== undefined) element.textContent = content;
+        return element;
+    };
+    const message = make('div', 'sigma-ai-message sigma-ai-message--' + (user ? 'user' : 'assistant'));
+    message.append(make('div', 'sigma-ai-message__meta', stamp));
+    const row = make('div', 'sigma-ai-message__row');
+    if (!user) {
+        const icon = make('div', 'sigma-ai-message__icon');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.append(make('i', 'fa-solid fa-bolt'));
+        row.append(icon);
+    }
+    row.append(make('p', 'sigma-ai-message__bubble sigma-ai-message__bubble--' + (user ? 'user' : 'assistant'), text));
+    message.append(row);
+    return message;
+};
+
 // --- CANONICAL UNIVERSAL SCROLL-TO-TOP RESET ---
 // Ensures that navigating between pages, tabs, topics, or materials always starts at the top
 (function() {
@@ -932,7 +976,29 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     let _isProcessingBack = false;
     const _modalScrollStack = [];
     let _pendingModalDismiss = false;
-    let _modalToken = 0;
+    let _modalToken = Number(window.history.state?._sigmaModalToken) || 0;
+    let historyIndex = Number(window.history.state?._sigmaHistoryIndex) || 0;
+    const nativePushState = window.history.pushState.bind(window.history);
+    const nativeReplaceState = window.history.replaceState.bind(window.history);
+    const historyUrls = new Map([[window.location.href, historyIndex]]);
+    nativeReplaceState({ ...window.history.state, _sigmaHistoryIndex: historyIndex }, '', window.location.href);
+    window.history.pushState = function (state, title, url) {
+        const nextIndex = historyIndex + 1;
+        nativePushState({ ...state, _sigmaHistoryIndex: nextIndex }, title, url);
+        historyIndex = nextIndex;
+        historyUrls.set(window.location.href, historyIndex);
+    };
+    window.history.replaceState = function (state, title, url) {
+        nativeReplaceState({ ...state, _sigmaHistoryIndex: historyIndex }, title, url);
+        historyUrls.set(window.location.href, historyIndex);
+    };
+    const modalRestorers = new Map();
+    let openingTrigger = null;
+    document.addEventListener('click', event => {
+        const target = event.target.closest?.('button, a, [role="button"], [onclick]');
+        openingTrigger = target;
+        requestAnimationFrame(() => requestAnimationFrame(() => { if (openingTrigger === target) openingTrigger = null; }));
+    }, true);
 
     function modalHistoryEntryIsVisible(state) {
         const name = state?._modalName || '';
@@ -1105,14 +1171,6 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             };
         }
 
-        const pocketUnpinModal = document.getElementById('pocket-card-unpin-modal');
-        if (isElementVisible(pocketUnpinModal)) {
-            return () => {
-                const cancelBtn = pocketUnpinModal.querySelector('#cancel-unpin-btn, [data-cancel-unpin], .cancel-btn');
-                if (cancelBtn) cancelBtn.click();
-                else pocketUnpinModal.remove();
-            };
-        }
 
         const deleteAcc2 = document.getElementById('delete-account-modal-2');
         if (isElementVisible(deleteAcc2)) {
@@ -1684,6 +1742,19 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             };
         }
 
+        const aiBubbles = document.getElementById('ai-conversation-bubbles-panel');
+        if (aiBubbles && isElementVisible(aiBubbles) && typeof window.closeAiConversationBubbles === 'function') {
+            return () => window.closeAiConversationBubbles();
+        }
+        const aiInteractionDetails = document.getElementById('ai-interaction-details-panel');
+        if (aiInteractionDetails && isElementVisible(aiInteractionDetails) && typeof window.closeAiInteractionDetails === 'function') {
+            return () => window.closeAiInteractionDetails();
+        }
+        const aiUserDetails = document.getElementById('ai-user-details-panel');
+        if (aiUserDetails && isElementVisible(aiUserDetails) && typeof window.closeAiUserDetails === 'function') {
+            return () => window.closeAiUserDetails();
+        }
+
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
         if (window.innerWidth < 1024 && sidebar && (sidebar.classList.contains('sidebar-visible') || (sidebarOverlay && isElementVisible(sidebarOverlay)))) {
@@ -1697,7 +1768,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     }
 
     // Push history state whenever any form or overlay opens
-    window.pushModalHistoryState = function (modalName = 'modal') {
+    window.pushModalHistoryState = function (modalName = 'modal', restore) {
         if (_isProcessingBack || _pendingModalDismiss || window._isProcessingPopstate) return;
         if (window.history.state?._sigmaModalOpen && window.history.state._modalName === modalName) return;
         _modalHistoryDepth++;
@@ -1714,9 +1785,24 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             };
         scrollSnapshot._modalName = modalName;
         _modalScrollStack.push(scrollSnapshot);
+        const token = ++_modalToken;
+        const trigger = openingTrigger;
+        const triggerId = trigger?.id;
+        const triggerAction = trigger?.getAttribute('onclick');
+        const triggerLabel = trigger?.getAttribute('aria-label');
+        const triggerText = trigger?.textContent;
+        const triggerClass = trigger?.className;
+        const reopen = typeof restore === 'function' ? restore : () => {
+            const replacement = triggerId ? document.getElementById(triggerId)
+                : Array.from(document.querySelectorAll('button, a, [role="button"], [onclick]')).find(element =>
+                    element.tagName === trigger?.tagName && (triggerAction ? element.getAttribute('onclick') === triggerAction
+                        : element.className === triggerClass && element.getAttribute('aria-label') === triggerLabel && element.textContent === triggerText));
+            (trigger?.isConnected ? trigger : replacement)?.click();
+        };
+        modalRestorers.set(token, { url: window.location.href, reopen });
 
         window.history.pushState(
-            { ...window.history.state, _sigmaModalOpen: true, _sigmaModalToken: ++_modalToken, _modalName: modalName, _depth: _modalHistoryDepth, _scroll: scrollSnapshot },
+            { ...window.history.state, _sigmaModalOpen: true, _sigmaModalToken: token, _modalName: modalName, _depth: _modalHistoryDepth, _scroll: scrollSnapshot },
             document.title,
             window.location.href
         );
@@ -1858,13 +1944,13 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             '#user-password-edit-overlay, #user-permissions-overlay, ' +
             '#profile-edit-overlay, #profile-picture-overlay, #profile-confirm-overlay, ' +
             '#sigma-delete-user-modal, #delete-account-modal-1, #delete-account-modal-2, #deactivate-account-modal, #activate-account-modal, ' +
-            '#classroom-theme-customizer-modal, #pocket-card-unpin-modal, #curriculum-scope-picker-modal, #topic-image-picker-modal, ' +
+            '#classroom-theme-customizer-modal, #curriculum-scope-picker-modal, #topic-image-picker-modal, ' +
             '#vault-unlock-overlay, #vault-password-edit-overlay, ' +
             '#sigma-composer-modal-backdrop, #sigma-composer-discard-modal, #sigma-announcement-delete-modal, ' +
             '#subject-quiz-viewer-modal, #universal-quiz-preview-modal, #document-viewer-modal, ' +
             '#teacher-material-upload-overlay, #teacher-material-editor-view, #leaveRoomModal, ' +
             '#curriculum-hub-overlay, #teacher-release-topics-overlay, #teacher-topic-picker-overlay, #teacher-release-learning-materials-overlay, #teacher-learning-picker-overlay, #teacher-release-assessments-overlay, #teacher-assessments-picker-overlay, #teacher-release-category-overlay, #teacher-topic-schedule-overlay, ' +
-            '#gradebook-weight-picker-panel, #gradebook-card-modal-backdrop, ' +
+            '#gradebook-weight-picker-panel, #gradebook-card-modal-backdrop, #ai-user-details-panel, #ai-interaction-details-panel, #ai-conversation-bubbles-panel, ' +
             '#mobile-sigma-sheet, #mobile-calendar-panel, #mobile-noti-panel, #classroom-mobile-people-panel, #sigmaAiPanel, .mobile-pull-up-panel, ' +
             '.header-panel, #classroom-settings-menu, #sidebar, #sub-sidebar, ' +
             '#ai-generator-modal, #ai-discard-modal, #ai-confirm-generate-modal, #import-questions-modal, ' +
@@ -2153,6 +2239,45 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
 
     // 1. Popstate Listener: Catches Browser Back button, Android/Phone hardware back button, and Back gestures
     window.addEventListener('popstate', function (e) {
+        let destinationIndex = Number(e.state?._sigmaHistoryIndex);
+        if (!Number.isFinite(destinationIndex)) {
+            destinationIndex = historyUrls.get(window.location.href) ?? historyIndex + 1;
+            nativeReplaceState({ ...e.state, _sigmaHistoryIndex: destinationIndex }, '', window.location.href);
+            historyUrls.set(window.location.href, destinationIndex);
+        }
+        const forward = Number.isFinite(destinationIndex) && destinationIndex > historyIndex;
+        window._sigmaHistoryDirection = forward ? 'forward' : 'back';
+        historyIndex = Number.isFinite(destinationIndex) ? destinationIndex : Math.max(0, historyIndex - 1);
+        if (forward) {
+            if (e.state?._sigmaModalOpen) {
+                const destination = modalRestorers.get(e.state._sigmaModalToken);
+                if (destination?.url === window.location.href) {
+                    _isProcessingBack = true;
+                    window._isProcessingPopstate = true;
+                    try {
+                        destination.reopen();
+                        if (modalHistoryEntryIsVisible(e.state)) {
+                            e.stopImmediatePropagation();
+                            _modalHistoryDepth = Number(e.state._depth) || 1;
+                            if (e.state._scroll) _modalScrollStack.push(e.state._scroll);
+                        } else {
+                            const state = { ...e.state };
+                            for (const key of ['_sigmaModalOpen', '_sigmaModalToken', '_modalName', '_depth', '_scroll']) delete state[key];
+                            window.history.replaceState(state, '', window.location.href);
+                        }
+                    } finally {
+                        _isProcessingBack = false;
+                        window._isProcessingPopstate = false;
+                        scanAndRegisterActiveModals();
+                    }
+                } else if (!modalHistoryEntryIsVisible(e.state)) {
+                    const state = { ...e.state };
+                    for (const key of ['_sigmaModalOpen', '_sigmaModalToken', '_modalName', '_depth', '_scroll']) delete state[key];
+                    window.history.replaceState(state, '', window.location.href);
+                }
+            }
+            return;
+        }
         if (_pendingModalDismiss) {
             _pendingModalDismiss = false;
             _modalHistoryDepth = Math.max(0, _modalHistoryDepth - 1);
@@ -3046,6 +3171,7 @@ window.saveStoredQuizLibrary = function (library) {
     }) : [];
 
     window._quizStorageListCache = null;
+    if (Array.isArray(window._quizLibraryServerData)) window._quizLibraryServerData = cleanList;
 
     try {
         const jsonStr = JSON.stringify(cleanList);
@@ -3074,6 +3200,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
         const cleanCode = (str) => String(str || '').replace(/^#/, '').trim().toLowerCase();
         const targetCleanCode = cleanCode(code);
         const targetCleanId = cleanCode(savedQuizId);
+        const materialBuckets = ['materials', 'activities', 'assessments', 'assignments', 'quiz', 'quizzes', 'activity', 'performance', 'lessons', 'items', 'content'];
 
         const isMatch = (mat) => {
             if (!mat) return false;
@@ -3125,7 +3252,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
                         if (Array.isArray(subj.topics)) {
                             subj.topics.forEach(top => {
                                 if (!top) return;
-                                ['materials', 'activities', 'assessments', 'lessons', 'items', 'content'].forEach(arrKey => {
+                                materialBuckets.forEach(arrKey => {
                                     if (Array.isArray(top[arrKey])) {
                                         top[arrKey].forEach(mat => {
                                             if (updateItem(mat)) changed = true;
@@ -3146,7 +3273,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
             if (!k) continue;
-            if (k.startsWith('sigma_custom_topics_') || k.startsWith('sigma_topics_') || k.startsWith('sigma_subject_topics_') || k.startsWith('sigma_materials_')) {
+            if (k.startsWith('sigma_custom_topics_') || k.startsWith('sigma_topics_') || k.startsWith('sigma_subject_topics_') || k.startsWith('sigma_materials_') || k.startsWith('sigma_custom_assessments_') || k.startsWith('sigma_learning_materials_')) {
                 try {
                     const raw = localStorage.getItem(k);
                     if (!raw) continue;
@@ -3156,7 +3283,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
                         parsed.forEach(topOrMat => {
                             if (!topOrMat) return;
                             if (updateItem(topOrMat)) changed = true;
-                            ['materials', 'activities', 'assessments', 'lessons', 'items', 'content'].forEach(arrKey => {
+                            materialBuckets.forEach(arrKey => {
                                 if (Array.isArray(topOrMat[arrKey])) {
                                     topOrMat[arrKey].forEach(mat => {
                                         if (updateItem(mat)) changed = true;
@@ -3178,7 +3305,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
                 if (subj && Array.isArray(subj.topics)) {
                     subj.topics.forEach(top => {
                         if (!top) return;
-                        ['materials', 'activities', 'assessments', 'lessons', 'items', 'content'].forEach(arrKey => {
+                        materialBuckets.forEach(arrKey => {
                             if (Array.isArray(top[arrKey])) {
                                 top[arrKey].forEach(mat => {
                                     updateItem(mat);
@@ -3207,6 +3334,8 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
 
     function refreshAllQuizStorageViews() {
         window._quizStorageListCache = null;
+        const library = window.getStoredQuizLibrary?.() || [];
+        library.forEach(quiz => window.syncQuizUpdatesAcrossAllSubjectsAndMaterials?.(quiz.id || quiz.quizId, quiz));
 
         const pendingQuizId = (typeof localStorage !== 'undefined') ? localStorage.getItem('sigma_pending_selected_quiz_id') : null;
         const activeQuizId = (window.editingMaterialState && (window.editingMaterialState.selectedQuizId || window.editingMaterialState.quizId)) || pendingQuizId;
@@ -3245,10 +3374,17 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
         if (typeof window.renderMaterialAttachedFilePanel === 'function') {
             window.renderMaterialAttachedFilePanel();
         }
+        window.dispatchEvent(new CustomEvent('sigma:subjectUpdated'));
     }
 
     window.addEventListener('storage', function (e) {
         if (e.key === 'sigma_quiz_broadcast' || e.key === 'sigma_quiz_updated' || e.key === 'sigma_materials_broadcast' || e.key === (window.QUIZ_STORAGE_KEY || 'sigma_quiz_storage') || e.key === 'sigma-quiz-storage-library' || e.key === 'sigma_pending_selected_quiz_id' || e.key === 'quizLibrary' || e.key === 'sigma_quizzes') {
+            if (e.key !== 'sigma_materials_broadcast') {
+                try {
+                    const savedLibrary = JSON.parse(localStorage.getItem(window.QUIZ_STORAGE_KEY || 'sigma_quiz_storage') || 'null');
+                    if (Array.isArray(savedLibrary)) window._quizLibraryServerData = savedLibrary;
+                } catch (_) { }
+            }
             refreshAllQuizStorageViews();
         }
     });
@@ -3256,6 +3392,8 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
     window.addEventListener('sigma_quiz_updated', function () {
         refreshAllQuizStorageViews();
     });
+    window.addEventListener('sigma:quiz-library-loaded', refreshAllQuizStorageViews);
+    window.addEventListener('focus', () => window.fetchQuizLibraryFromServer?.());
 })();
 
 const resolveQuizApiUrl = (extra = '') => {
@@ -3282,8 +3420,10 @@ window.fetchQuizLibraryFromServer = async function () {
             return;
         }
         const data = await res.json();
-        if (data.success && Array.isArray(data.quizzes) && data.quizzes.length > 0) {
+        if (data.success && Array.isArray(data.quizzes)) {
+            if (JSON.stringify(window._quizLibraryServerData || []) === JSON.stringify(data.quizzes)) return;
             window._quizLibraryServerData = data.quizzes;
+            window.dispatchEvent(new CustomEvent('sigma:quiz-library-loaded'));
             if (typeof window.renderQuizStoragePickerContent === 'function') {
                 window.renderQuizStoragePickerContent();
             }
@@ -3310,7 +3450,8 @@ window.saveQuizToServer = async function (quizData) {
         if (!res.ok) return null;
         const data = await res.json();
         if (data.success) {
-            window.fetchQuizLibraryFromServer();
+            await window.fetchQuizLibraryFromServer();
+            localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
             return data.id || quizData.id || null;
         }
         return null;
@@ -3870,7 +4011,7 @@ window.resolveTopicStudentRecord = function (student, section) {
     return typeof student === 'object' && student ? student : { id: name, name: name };
 };
 
-window.collectQuizAnswerMap = function (record) {
+window.collectQuizAnswerMap = function (record, includeAttempts = true) {
     const merged = {};
     if (!record || typeof record !== 'object') return merged;
     const take = (src) => {
@@ -3899,7 +4040,7 @@ window.collectQuizAnswerMap = function (record) {
         });
     };
     harvestQuestionResponses(record.questions);
-    if (Array.isArray(record.attempts)) {
+    if (includeAttempts && Array.isArray(record.attempts)) {
         for (let i = record.attempts.length - 1; i >= 0; i--) {
             const attempt = record.attempts[i];
             if (!attempt) continue;
@@ -3918,8 +4059,8 @@ window.indexQuizAnswers = function (answers, questions) {
     const count = Math.max(list.length, Array.isArray(src) ? src.length : 0);
     for (let i = 0; i < (list.length || count); i++) {
         const q = list[i];
-        const candidates = [i, String(i), `q-${i + 1}`];
-        if (q && q.id !== undefined && q.id !== null && String(q.id) !== String(i) && !/^\d+$/.test(String(q.id))) {
+        const candidates = [i, String(i), `qidx:${i}`, `q-${i + 1}`];
+        if (q && q.id !== undefined && q.id !== null && String(q.id) !== String(i)) {
             candidates.push(q.id, String(q.id));
         }
         for (const key of candidates) {
@@ -4071,6 +4212,8 @@ window.findStoredQuizFile = function (ids, titles) {
 window.readStudentQuizFileCopy = function (student, section, subjectId, quizId) {
     const ids = window.quizFileCopyIds(student);
     const quizIds = Array.isArray(quizId) ? quizId : [quizId];
+    let bestCopy = null;
+    let bestCount = -1;
     for (const id of ids) {
         for (const qid of quizIds) {
             const key = window.quizFileCopyKey(id, section, subjectId, qid);
@@ -4086,15 +4229,14 @@ window.readStudentQuizFileCopy = function (student, section, subjectId, quizId) 
                     return left === right || left.includes(right) || right.includes(left);
                 })) continue;
                 if (section && parsed.section && !window.submissionSectionsMatch(parsed.section, section)) continue;
-                return parsed;
+                const count = Object.keys(window.collectQuizAnswerMap(parsed)).length;
+                if (count > bestCount) { bestCopy = parsed; bestCount = count; }
             } catch (e) { }
         }
     }
     const cleanId = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const studentTokens = ids.map(cleanId).filter(Boolean);
     const quizTokens = (Array.isArray(quizId) ? quizId : [quizId]).map(cleanId).filter(token => token.length > 2);
-    let bestCopy = null;
-    let bestCount = 0;
     try {
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -4233,6 +4375,23 @@ window.formatStudentLastFirstMiddle = function formatStudentLastFirstMiddle(stud
     return `${last}, ${first}${middle ? ' ' + middle : ''}`;
 };
 
+window.resolveRosterStudent = function (students, selection) {
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const nameKey = value => normalize(value).replace(/,/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+    const selected = normalize(selection);
+    if (!selected || selected === 'all') return null;
+    const matches = (students || []).filter(student => {
+        if (!student) return false;
+        if (typeof student === 'string') return nameKey(student) === nameKey(selection);
+        const ids = [student.id, student.uid, student.lrn, student.studentNumber].filter(Boolean).map(normalize);
+        if (ids.includes(selected)) return true;
+        const names = [student.name, student.fullName,
+            [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ')].filter(Boolean);
+        return names.some(name => nameKey(name) === nameKey(selection));
+    });
+    return matches.length === 1 ? matches[0] : null;
+};
+
 window.getUnifiedSectionStudents = function (sectionName, subjectName) {
     const stripGrade = (value) => String(value || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
     const normSec = String(sectionName || '').trim().toLowerCase();
@@ -4245,6 +4404,14 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
         || window.currentClassroomSubject
         || '';
     const normSubj = String(effSubj || '').trim().toLowerCase();
+    const normalizeSubject = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+    const subjectAliases = new Set([normalizeSubject(normSubj)]);
+    if (normSubj && typeof window.getUnifiedSubjectAliases === 'function') {
+        window.getUnifiedSubjectAliases(effSubj).forEach(alias => subjectAliases.add(normalizeSubject(alias)));
+    } else if (normSubj && typeof window.getTopicSubject === 'function') {
+        const subject = window.getTopicSubject(effSubj);
+        [subject?.id, subject?.name, subject?.code].filter(Boolean).forEach(alias => subjectAliases.add(normalizeSubject(alias)));
+    }
 
     // 1. Check if admin section has students array
     const adminSections = (typeof window.getStoredJson === 'function') ? window.getStoredJson('sigma-admin-sections', []) : [];
@@ -4262,10 +4429,11 @@ window.getUnifiedSectionStudents = function (sectionName, subjectName) {
 
         if (sectionRecords.length > 0 && normSubj) {
             matched = sectionRecords.find(s => {
-                const sSubj = String(s.subject || s.assignedSubject || (Array.isArray(s.assignedSubjects) && s.assignedSubjects[0]) || '').trim().toLowerCase();
-                const sCode = String(s.code || s.subjectId || s.subjectCode || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
-                const wantCode = normSubj.replace(/^(card-|subj-)/, '').trim();
-                return sSubj === normSubj || (sSubj && normSubj && (sSubj.includes(normSubj) || normSubj.includes(sSubj))) || (sCode && wantCode && sCode === wantCode);
+                const assigned = [s.subject, s.assignedSubject, s.code, s.subjectId, s.subjectCode,
+                    ...(Array.isArray(s.assignedSubjects) ? s.assignedSubjects : [])].filter(Boolean);
+                const values = assigned.flatMap(subject => typeof subject === 'object'
+                    ? [subject.id, subject.name, subject.subject, subject.code].filter(Boolean) : [subject]);
+                return values.length === 0 || values.some(value => subjectAliases.has(normalizeSubject(value)));
             });
             // If this section exists in adminSections, but DOES NOT offer this requested subject, reject fallthrough
             if (!matched) {
@@ -5492,7 +5660,7 @@ window.renderSharedTasksPanelHtml = function (options = {}) {
         return `
                         <div class="flex items-start gap-2.5 py-0.5 rounded-xl select-none">
                             <div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#FFD000]' : 'bg-[#15803d] group-hover:bg-[#FFD000]'} mt-1.5 flex-shrink-0 transition-colors"></div>
-                            <span ${clickAttr} ${item.onClick ? `role="link" tabindex="0" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"` : ''} class="min-w-0 text-[13px] font-bold leading-snug break-words ${item.onClick ? 'cursor-pointer' : ''} ${isActive ? 'text-[#FFD000]' : 'text-black hover:text-[#FFD000]'} transition-colors">${displayTitle}</span>
+                            <span ${clickAttr} ${item.onClick ? `role="link" tabindex="0" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.click(); }"` : ''} class="min-w-0 text-[13px] font-bold leading-snug break-words ${item.onClick ? 'cursor-pointer' : ''} ${isActive ? 'text-[#FFD000]' : 'text-black hover:text-[#FFD000]'} transition-colors">${displayTitle}${item.status ? `<span class="block text-[11px] font-normal text-black-fade mt-1">${window.escapeHtml(item.status)}</span>` : ''}</span>
                         </div>
                     `;
     }).join('')}
@@ -5872,7 +6040,8 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
 
     const assId = ass?.id || ass?.quizId || ass?.materialId || ass?.origId || index;
     const normSectionKey = String(section || '').trim().toLowerCase();
-    const cacheKey = `${assId}_${subjectId}_${topicIdx}_${index}_${normSectionKey}_${targetStudentId}`;
+    const cacheQuarter = Number(String(ass?.quarter || window.currentSelectedTopicQuarter || 1).replace(/\D/g, '')) || 1;
+    const cacheKey = JSON.stringify([assId, subjectId, topicIdx, index, normSectionKey, targetStudentId, targetStudentName, cacheQuarter]);
     if (Date.now() - window._studentAssessmentDetailsCacheTime > 2500) {
         window._studentAssessmentDetailsCache.clear();
         window._studentAssessmentDetailsCacheTime = Date.now();
@@ -5951,7 +6120,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         : null;
     const lookupCat = column?.category || cat;
     const lookupIdx = column ? Number(column.itemIdx) : index;
-    const lookupItem = column?.item || ass;
+    const lookupItem = { ...(column?.item || ass), ...(section ? { section } : {}), quarter: scoreQuarter };
 
     let eff = null;
     if (typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
@@ -5996,6 +6165,13 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         }
     }
     let attendanceMark = null;
+    if (eff?.isAutoMissing && !window.findAssessmentSubmittedWork?.(studentUser, lookupItem || ass, subjectId, section, scoreQuarter, [sub])) {
+        const result = { studentUser, sub: null, numericScore: 0, effectiveScore: 0, isGraded: true,
+            turnedIn: false, statusName: 'Missing', attendanceTone: 'missing', isQuizLocked: false,
+            hasSubmittedQuiz: false, requiresSubmission: false, attempts: [], attemptsCount: 0, cat, tab };
+        window._studentAssessmentDetailsCache?.set(cacheKey, result);
+        return result;
+    }
     if (typeof window.gradebookAttendanceMark === 'function') {
         try {
             attendanceMark = window.gradebookAttendanceMark(studentUser, lookupItem, lookupCat, lookupIdx, subjectId, scoreQuarter);
@@ -6088,6 +6264,18 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
 
     let numericScore = null;
     let isGraded = false;
+    if (typeof window.findAssessmentSubmittedWork === 'function'
+        && !eff?.teacherSaved && !eff?.isManualOverride
+        && !window.resolveNoDeadlineAssessment?.(lookupItem || ass, subjectId, section, scoreQuarter)
+        && !window.findAssessmentSubmittedWork(studentUser, lookupItem || ass, subjectId, section, scoreQuarter, [sub])) {
+        const automatic = window.getEffectiveAssessmentStatusAndScore?.(studentUser, cat, lookupItem?.itemIdx ?? activeIdx, subjectId, scoreQuarter, lookupItem || ass);
+        const autoMissing = automatic?.isAutoMissing === true;
+        const result = { studentUser, sub, numericScore: autoMissing ? 0 : null, effectiveScore: autoMissing ? 0 : null, isGraded: autoMissing,
+            turnedIn: false, statusName: autoMissing ? 'Missing' : 'Not Submitted', attendanceTone: autoMissing ? 'missing' : '', isQuizLocked: !autoMissing,
+            hasSubmittedQuiz: false, requiresSubmission: !autoMissing, attempts: [], attemptsCount: 0, cat, tab };
+        window._studentAssessmentDetailsCache.set(cacheKey, result);
+        return result;
+    }
     let turnedIn = window.studentHasTurnedInWork(sub) || Boolean(ass && (ass.submittedAt || ass.submissionDate || ass.isSubmitted));
     let statusName = '';
 
@@ -6104,7 +6292,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     }
 
     if (normalizedTone === 'missing' || normalizedTone === 'absent') {
-        if (numericScore === 0 || numericScore === '0') {
+        if (numericScore === '' || numericScore === undefined) {
             numericScore = null;
         }
         isGraded = numericScore !== null && numericScore !== '' && numericScore !== '-';
@@ -6116,7 +6304,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         statusName = 'Incomplete';
     } else if (normalizedTone === 'excuse') {
         // Excuse is exempt: score is unassigned/blank unless teacher explicitly entered a score
-        if (numericScore === 0 || numericScore === '0') {
+        if (numericScore === '' || numericScore === undefined) {
             numericScore = null;
         }
         isGraded = numericScore !== null && numericScore !== '' && numericScore !== '-';
@@ -6239,7 +6427,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     if (!turnedIn && !isGraded) numericScore = null;
 
     if (normalizedTone === 'excuse') {
-        if (numericScore === 0 || numericScore === '0') {
+        if (numericScore === '' || numericScore === undefined) {
             numericScore = null;
             isGraded = false;
         } else {
@@ -6247,7 +6435,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         }
         statusName = 'Excuse';
     } else if (normalizedTone === 'missing') {
-        if (numericScore === 0 || numericScore === '0') {
+        if (numericScore === '' || numericScore === undefined) {
             numericScore = null;
             isGraded = false;
         } else {
@@ -6255,7 +6443,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         }
         statusName = 'Missing';
     } else if (normalizedTone === 'absent') {
-        if (numericScore === 0 || numericScore === '0') {
+        if (numericScore === '' || numericScore === undefined) {
             numericScore = null;
             isGraded = false;
         } else {
@@ -6277,6 +6465,18 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         statusName = 'Pending';
     }
 
+    const manualClosure = window.readAssessmentClosure?.(studentUser, lookupItem || ass, subjectId, section);
+    if (window.resolveNoDeadlineAssessment?.(lookupItem || ass, subjectId, section, scoreQuarter)
+        && !window.findAssessmentSubmittedWork?.(studentUser, lookupItem || ass, subjectId, section, scoreQuarter, [sub])) {
+        turnedIn = false;
+        statusName = 'Not Submitted';
+    }
+    if (manualClosure) {
+        numericScore = manualClosure.score;
+        isGraded = true;
+        turnedIn = false;
+        statusName = 'Not Submitted';
+    }
     const result = {
         studentUser,
         sub,
@@ -6285,11 +6485,11 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         isGraded: isQuizPending ? false : isGraded,
         isQuizReviewPending: isQuizPending,
         statusName: isQuizPending ? 'Pending' : statusName,
-        attendanceTone: normalizedTone,
+        attendanceTone: manualClosure ? (manualClosure.status || normalizedTone || 'none') : normalizedTone,
         isQuizLocked: false,
-        hasSubmittedQuiz: true,
+        hasSubmittedQuiz: manualClosure ? false : true,
         attempts: sub?.attempts || [],
-        attemptsCount: sub?.attemptsUsed || (sub?.attempts ? sub.attempts.length : 1),
+        attemptsCount: manualClosure ? 0 : (sub?.attemptsUsed || (sub?.attempts ? sub.attempts.length : 1)),
         cat,
         tab,
         maxScore
@@ -6298,6 +6498,126 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         window._studentAssessmentDetailsCache.set(cacheKey, result);
     }
     return result;
+};
+
+window.showManualGradeValidation = function (scoreMissing, statusMissing, root = null) {
+    const addError = (id, message, anchor) => {
+        let node = document.getElementById(id);
+        if (!node && anchor) {
+            node = document.createElement('p'); node.id = id;
+            node.className = 'text-xs text-red-700 mt-1'; node.setAttribute('role', 'alert');
+            anchor.after(node);
+        }
+        if (node) { node.textContent = message; node.hidden = !message; }
+    };
+    if (root) {
+        let node = root.querySelector('.manual-grade-validation');
+        if (!node) { node = document.createElement('p'); node.className = 'manual-grade-validation text-xs text-red-700 mt-1'; node.setAttribute('role', 'alert'); root.appendChild(node); }
+        node.textContent = [scoreMissing ? 'Enter a score.' : '', statusMissing ? 'Select a status.' : ''].filter(Boolean).join(' ');
+        node.hidden = !node.textContent;
+    } else {
+        addError('manual-grade-score-error', scoreMissing ? 'Enter a score.' : '', document.getElementById('teacher-grading-score-input')?.parentElement?.parentElement);
+        addError('manual-grade-status-error', statusMissing ? 'Select a status.' : '', document.getElementById('teacher-grading-status-trigger-btn')?.parentElement?.parentElement);
+    }
+};
+
+window.resolveNoDeadlineAssessment = function (item, subjectId, section, quarter = 1) {
+    const id = String(item?.id || item?.materialId || '');
+    let resolved = item?.rawItem || item;
+    let found = Boolean(resolved && Object.keys(resolved).some(key => !['id', 'materialId', 'topicIdx', 'topicItemIdx', 'title', 'category'].includes(key)));
+    if (id && window.getCategoryDetails) {
+        for (const category of ['assignment', 'quiz', 'activity', 'perf. task']) {
+            const match = (window.getCategoryDetails(category, quarter, subjectId, section) || []).find(row => String(row.id || row.materialId || row.rawItem?.id || '') === id);
+            if (match) { resolved = { ...match, ...(match.rawItem || {}) }; found = true; break; }
+        }
+    }
+    if (!resolved || !found) return null;
+    if (window.getAssessmentDeadlineMs?.(subjectId, resolved.tab || 'assessments', resolved.topicItemIdx ?? resolved.itemIdx ?? 0, resolved.topicIdx ?? 0, resolved)) return null;
+    const due = resolved.dueDate || resolved.deadline || resolved.due || resolved.endDate || resolved.endSchedule || resolved.targetDueDate || resolved.dateDue;
+    return !due || /^(no due date|no-deadline|none|null|undefined|n\/a|-)$/i.test(String(due).trim()) ? resolved : null;
+};
+
+window.assessmentClosureKey = function (student, item, subject, section) {
+    const account = window.findMatchedUserAccount?.(student?.id || student?.uid, student?.name || student?.fullName || '') || student;
+    const normalize = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+    return JSON.stringify([String(account?.id || account?.uid || account?.lrn || ''), normalize(subject), normalize(section), String(item?.id || item?.materialId || item?.rawItem?.id || '')]);
+};
+window.readAssessmentClosure = function (student, item, subject, section) {
+    if (!student || !item) return null;
+    try {
+        const records = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}');
+        const key = window.assessmentClosureKey(student, item, subject, section);
+        let record = records[key];
+        if (!record) {
+            const identity = JSON.parse(key);
+            const normalize = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+            const aliases = new Set((window.getUnifiedSubjectAliases?.(subject) || [subject]).map(normalize));
+            const studentAliases = new Set([identity[0], student.id, student.uid, student.lrn,
+                ...(window.getStudentFullAliases?.(student) || [])].filter(Boolean).map(value => String(value).replace(/^std-/i, '').toLowerCase()));
+            const itemAliases = new Set([item.id, item.materialId, item.origId, item.rawItem?.id,
+                item.rawItem?.materialId, item.quizId, item.selectedQuizId].filter(Boolean).map(String));
+            for (const [storedKey, candidate] of Object.entries(records)) {
+                const stored = JSON.parse(storedKey);
+                const sameStudent = studentAliases.has(String(stored[0]).replace(/^std-/i, '').toLowerCase());
+                const sameSection = stored[2] === identity[2] || window.submissionSectionsMatch?.(stored[2], section) === true;
+                const sameItem = itemAliases.has(String(stored[3]))
+                    || (candidate.itemIds || []).some(id => itemAliases.has(String(id)));
+                if (sameStudent && sameSection && sameItem && aliases.has(stored[1])) { record = candidate; break; }
+            }
+        }
+        return record && !record.reopenedAt ? record : null;
+    }
+    catch (_) { return null; }
+};
+window.reopenGradedAssessment = function () {
+    const context = window._manualGradeClosureContext;
+    if (!context) return;
+    window.openAskingPanel?.({
+        title: 'Reopen Submission?',
+        variant: 'grading',
+        desc: 'Reopening submissions will clear this student\'s saved score, status, and graded date, including in the gradebook. Continue?',
+        type: 'warning', icon: 'fa-solid fa-rotate-left text-amber-500',
+        confirmText: 'Reopen Submission', cancelText: 'Cancel', showCancel: true,
+        onConfirm: () => {
+    const records = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}');
+    const record = records[context.key];
+    if (!record || record.reopenedAt) return;
+    const [studentId, subjectId, section, itemId] = JSON.parse(context.key);
+    const state = window.currentTopicState || {};
+    const item = window.getCurrentTopicAssessment?.(state.subjectId || subjectId, context.tab, context.activeIdx, state.topicIdx || record.topicIdx || 0) || { id: itemId };
+    const category = item.category || item.type || 'assignment';
+    const quarter = state.quarter || window.sigmaGradesState?.activeQuarter || 1;
+    const details = window.getCategoryDetails?.(category, quarter, state.subjectId || subjectId, state.selectedSection || section) || [];
+    const matched = details.find(row => [row.id, row.materialId, row.rawItem?.id].some(id => id && (record.itemIds || [itemId]).includes(id)));
+    const saved = window.syncSharedScoreAndStatus({
+        ...(record.resetParams || {}),
+        studentId, subjectId: state.subjectId || subjectId, section: state.selectedSection || section,
+        quarter: record.resetParams?.quarter || quarter, item,
+        category: record.resetParams?.category || category,
+        itemIdx: record.resetParams?.itemIdx ?? matched?.itemIdx ?? record.topicItemIdx ?? context.activeIdx,
+        topicIdx: record.topicIdx, topicItemIdx: record.topicItemIdx,
+        score: '', status: 'none', resetManualClosureKey: context.key
+    });
+    if (!saved) return;
+    window._studentAssessmentDetailsCache?.clear();
+    if (typeof window.renderAdminTopicContentWorkstation === 'function') window.renderAdminTopicContentWorkstation();
+    else window.switchTopicTab?.(context.tab, context.activeIdx, true);
+        }
+    });
+};
+window.isStudentAssessmentClosed = function (subjectId, topicIdx, tab, activeIdx) {
+    const student = window.getLoggedInStudentUser?.();
+    const item = window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
+    const section = window.resolveStudentAssessmentSection?.(subjectId, null, '') || student?.section || student?.gradeSection || '';
+    const closed = window.readAssessmentClosure(student, item, subjectId, section);
+    if (closed) window.showToast?.('Submissions are closed by your teacher.', 'warning');
+    return Boolean(closed);
+};
+
+window.getAssessmentScoreBarColor = function (percentage, graded, status = '') {
+    if (!graded) return 'rgba(0, 0, 0, 0.15)';
+    if (percentage < 75) return '#dc2626';
+    return '#15803d';
 };
 
 window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
@@ -6372,6 +6692,12 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
         if (!options.statusLabel && (!details.statusName || details.statusName === '-' || details.statusName === 'Not Graded')) statusLabel = 'Not Submitted';
     }
 
+    if (details.requiresSubmission) {
+        scoreValue = '-';
+        isGraded = false;
+        isPending = false;
+        statusLabel = 'Not Submitted';
+    }
     const activeTone = (effTone && effTone !== 'none')
         ? effTone
         : (details.statusName && ['excuse', 'excused', 'missing', 'absent', 'incomplete'].includes(String(details.statusName).toLowerCase())
@@ -6387,7 +6713,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
     const normActiveTone = (activeTone === 'excused' || activeTone === 'excuse') ? 'excuse' : activeTone;
 
     if (normActiveTone === 'excuse') {
-        if (scoreValue === 0 || scoreValue === '0' || scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
+        if (scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
             scoreValue = '-';
             isGraded = false;
         } else {
@@ -6395,7 +6721,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
         }
         statusLabel = 'Excuse';
     } else if (normActiveTone === 'missing') {
-        if (scoreValue === 0 || scoreValue === '0' || scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
+        if (scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
             scoreValue = '-';
             isGraded = false;
         } else {
@@ -6403,7 +6729,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
         }
         statusLabel = 'Missing';
     } else if (normActiveTone === 'absent') {
-        if (scoreValue === 0 || scoreValue === '0' || scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
+        if (scoreValue === null || scoreValue === undefined || scoreValue === '' || scoreValue === '-' || scoreValue === '—' || scoreValue === '--') {
             scoreValue = '-';
             isGraded = false;
         } else {
@@ -6423,6 +6749,12 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
         if (scoreValue === '-') isGraded = false;
     }
 
+    const closureScore = window.readAssessmentClosure(studentUser, ass, subjectId, studentSec);
+    if (closureScore) {
+        const label = closureScore.status || '';
+        statusLabel = label && label !== 'none' ? label.charAt(0).toUpperCase() + label.slice(1) : 'Not Submitted';
+        scoreValue = closureScore.score; isGraded = true;
+    }
     const currentNormStatus = String(statusLabel || '').toLowerCase();
     // Badge styling matching the status
     let statusBadgeClass = 'text-black bg-slate-100 border border-slate-200/80';
@@ -6442,6 +6774,8 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
 
     const numericScore = isGraded ? (parseFloat(scoreValue) || 0) : 0;
     const scorePct = isGraded ? Math.min(100, Math.max(0, Math.round((numericScore / assMaxScore) * 100))) : 0;
+    const barActive = isGraded;
+    const barColor = window.getAssessmentScoreBarColor(scorePct, isGraded, currentNormStatus);
 
     return `
         <div id="assessment-score-panel" class="topic-progress-card assessment-score-panel-card ${options.className || ''}">
@@ -6470,7 +6804,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
             <!-- Progress bar -->
             <div class="w-full" style="margin-top: 20px !important;">
                 <div class="w-full h-2 rounded-full score-progress-track overflow-hidden bg-slate-100">
-                    <div class="h-full bg-[#15803d] rounded-full score-progress-fill transition-all duration-700" style="--score-pct: ${isGraded ? scorePct : 0}%; width: ${isGraded ? scorePct : 0}%;"></div>
+                    <div class="h-full rounded-full score-progress-fill transition-all duration-700" style="background-color: ${barColor} !important; --score-pct: ${barActive ? scorePct : 0}%; width: ${barActive ? scorePct : 0}%;"></div>
                 </div>
             </div>
         </div>
@@ -7018,7 +7352,7 @@ if (typeof window !== 'undefined') {
     });
     window.addEventListener('sigma:subjectUpdated', triggerDebouncedReleaseRefresh);
     window.addEventListener('storage', function (event) {
-        if (event.key === 'sigma-admin-subjects' || event.key?.startsWith('sigma_custom_assessments_') || event.key?.startsWith('sigma_learning_materials_')) {
+        if (['sigma-admin-subjects', 'sigma_subjects_v2', 'sigma-teacher-subjects', 'sigma_subjects', 'sigma_subjects_data', 'sigma-student-subjects', 'sigma_storage_sync', 'sigma_materials_broadcast'].includes(event.key) || event.key?.startsWith('sigma_custom_assessments_') || event.key?.startsWith('sigma_learning_materials_') || event.key?.startsWith('sigma_custom_topics_') || event.key?.startsWith('sigma_subject_topics_')) {
             triggerDebouncedReleaseRefresh();
         }
     });
@@ -8389,7 +8723,7 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
         extraRightHtml = ''
     } = options;
 
-    const tabsHtml = tabs.map(tab => {
+    const renderedTabs = tabs.map(tab => {
         const activeClass = tab.isActive
             ? "canonical-tab-btn active flex items-center justify-center px-3 sm:px-4 h-full border-b-[3.5px] border-[#15803d] text-xs sm:text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5 select-none box-border"
             : "canonical-tab-btn flex items-center justify-center px-3 sm:px-4 h-full border-b-[3.5px] border-transparent text-xs sm:text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5 select-none box-border";
@@ -8400,14 +8734,18 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
 
         return `
             <button type="button" onclick="${tab.onClick || ''}"
+                data-canonical-tab="${tab.id || ''}" ${tab.isActive ? 'aria-current="page"' : ''}
+                ${tab.iconOnly ? `aria-label="${tab.label}"` : ''}
                 ${tab.title ? `title="${tab.title}"` : ''}
                 style="${tabStyle}"
                 class="${activeClass}">
-                ${tab.icon ? `<i class="${tab.icon} text-xs sm:text-[13px]"></i>` : ''}
-                <span class="text-xs sm:text-sm font-semibold">${tab.label}</span>
+                ${tab.icon ? `<i class="${tab.icon} text-xs sm:text-[13px] ${tab.iconOnly ? '' : 'mr-2'}" style="color:inherit!important" aria-hidden="true"></i>` : ''}
+                ${tab.iconOnly ? '' : `<span class="text-xs sm:text-sm font-semibold">${tab.label}</span>`}
             </button>
         `;
-    }).join('');
+    });
+    const tabsHtml = renderedTabs.filter((html, index) => !tabs[index].alignRight).join('');
+    const rightTabsHtml = renderedTabs.filter((html, index) => tabs[index].alignRight).join('');
 
     const backBtnClass = backText
         ? "canonical-back-btn flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 my-auto text-xs sm:text-sm font-semibold text-black hover:text-black hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-all cursor-pointer select-none whitespace-nowrap shrink-0 font-['Inter']"
@@ -8428,8 +8766,9 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
     `;
 
     return `
-        <div class="canonical-tabs-bar border-b border-slate-200 px-3 sm:px-6 md:px-8 overflow-x-auto overflow-y-hidden no-scrollbar font-['Inter'] bg-white h-[44px] sm:h-[48px] box-border" style="overflow-y: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important;">
-            <div class="flex items-center justify-start gap-1.5 sm:gap-3 min-w-max h-full box-border">
+        <div class="canonical-tabs-bar border-b border-slate-200 px-3 sm:px-6 md:px-8 overflow-x-auto overflow-y-hidden no-scrollbar font-['Inter'] bg-white h-[44px] sm:h-[48px] box-border" style="${rightTabsHtml ? 'display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:stretch;overflow-x:hidden!important;' : ''}overflow-y: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important;">
+            ${rightTabsHtml ? '<div class="canonical-tabs-scroll" style="flex:1;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;">' : ''}
+            <div class="flex items-center justify-start gap-1.5 sm:gap-3 min-w-max h-full box-border" ${rightTabsHtml ? 'style="display:flex;align-items:center;min-width:max-content;height:100%;"' : ''}>
                 ${backHtml}
 
                 <!-- Navigation Tabs with Active Indicator Flush at Bottom Edge -->
@@ -8439,6 +8778,7 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
 
                 ${extraRightHtml ? `<div class="ml-auto flex items-center gap-2 h-full">${extraRightHtml}</div>` : ''}
             </div>
+            ${rightTabsHtml ? `</div><nav class="canonical-tabs-right flex items-stretch h-full" style="flex-shrink:0;display:flex;align-items:stretch;background:white;">${rightTabsHtml}</nav>` : ''}
         </div>
     `;
 };
@@ -8565,6 +8905,23 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             allStudents = studentsBySection[section] || [];
         }
 
+        const rosterStudents = allStudents;
+        const submissionContext = {
+            subjectId: topicState.subjectId || data?.subjectId,
+            topicIdx: typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : (topicState.topicIdx || 0),
+            activeIdx: typeof _tcAssessmentDetailIdx !== 'undefined' && _tcAssessmentDetailIdx !== null ? Number(_tcAssessmentDetailIdx) : (topicState.assessmentIdx || 0),
+            tab: topicState.activeTab || 'assessments',
+            item: data?.currentAssessment
+        };
+        allStudents = rosterStudents.filter(student => window.hasCurrentAssessmentSubmission(student, submissionContext));
+        const selectionScope = JSON.stringify([submissionContext.subjectId, Number(submissionContext.topicIdx), Number(submissionContext.activeIdx), section]);
+        const hasExplicitSelection = window._explicitGradingStudentSelection?.scope === selectionScope
+            && window._explicitGradingStudentSelection.name === topicState.selectedStudent;
+        const isEmptySelection = allStudents.length === 0 && !hasExplicitSelection;
+        if (isEmptySelection) {
+            topicState.selectedStudent = 'All';
+            if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = 'All';
+        }
         let curStudentName = topicState?.selectedStudent || 'All';
         if ((!curStudentName || curStudentName === 'All') && allStudents.length > 0) {
             const firstS = allStudents[0];
@@ -8592,22 +8949,8 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         };
 
         const curLower = String(curStudentName).trim().toLowerCase();
-        const activeStudentObj = allStudents.find(s => {
-            if (!s) return false;
-            const tokens = getStudentNameTokens(s);
-            if (tokens.includes(curLower)) return true;
-            if (curLower.length > 3 && tokens.some(t => t.includes(curLower) || curLower.includes(t))) return true;
-            const sName = typeof s === 'string' ? s : (s.name || s.fullName || '');
-            const sId = typeof s === 'object' ? (s.id || s.uid || s.lrn) : '';
-            if (typeof window.findMatchedUserAccount === 'function') {
-                const matched = window.findMatchedUserAccount(sId, sName);
-                if (matched) {
-                    const mTokens = getStudentNameTokens(matched);
-                    if (mTokens.includes(curLower)) return true;
-                }
-            }
-            return false;
-        }) || (curStudentName && curStudentName !== 'All' ? { id: curStudentName, name: curStudentName } : (allStudents.length > 0 ? allStudents[0] : { id: curStudentName, name: curStudentName }));
+        if (curStudentName === 'All' && !allStudents.length) curStudentName = 'No submissions yet';
+        const activeStudentObj = window.resolveRosterStudent(rosterStudents, curStudentName) || { name: curStudentName };
 
         const studentName = typeof activeStudentObj === 'string' ? activeStudentObj : (activeStudentObj.name || activeStudentObj.fullName || (activeStudentObj.lastName && activeStudentObj.firstName ? `${activeStudentObj.lastName}, ${activeStudentObj.firstName}` : '') || curStudentName);
         const studentId = typeof activeStudentObj === 'object' ? (activeStudentObj.id || activeStudentObj.uid || activeStudentObj.lrn || studentName) : studentName;
@@ -8621,7 +8964,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             const actIdLower = String(studentId).trim().toLowerCase();
             return sName === actNameLower || sId === actIdLower || sLastFirst === actNameLower || (s.id && activeStudentObj.id && String(s.id) === String(activeStudentObj.id));
         });
-        const counterText = allStudents.length > 0 ? `${studentIdx >= 0 ? studentIdx + 1 : 1} of ${allStudents.length}` : '';
+        const counterText = studentIdx >= 0 ? `${studentIdx + 1} of ${allStudents.length}` : (allStudents.length ? 'Not Submitted' : '');
 
         const subjectId = topicState?.subjectId || data?.subjectId || '';
         const topicIdx = (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : ((typeof topicState?.topicIdx !== 'undefined' ? topicState.topicIdx : 0) || 0));
@@ -8631,6 +8974,18 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         let currentItem = null;
         if (typeof window.getCurrentTopicAssessment === 'function') {
             currentItem = window.getCurrentTopicAssessment(subjectId, tab, actIdx, topicIdx);
+        }
+        if (data?.currentAssessment) currentItem = data.currentAssessment;
+        const displayedSubmission = window._latestSubmissionForScorePanel;
+        const sameDisplayedSubmission = displayedSubmission
+            && String(displayedSubmission.subjectId) === String(subjectId)
+            && Number(displayedSubmission.topicIdx) === Number(topicIdx)
+            && Number(displayedSubmission.activeIdx) === Number(actIdx)
+            && String(displayedSubmission.section || '').trim().toLowerCase() === String(section || '').trim().toLowerCase()
+            && typeof window.isSubmissionMatchForStudent === 'function'
+            && window.isSubmissionMatchForStudent({ studentId: displayedSubmission.studentId }, activeStudentObj);
+        if (sameDisplayedSubmission && displayedSubmission.assessment) {
+            if (!data?.currentAssessment) currentItem = displayedSubmission.assessment;
         }
         const assCat = currentItem?.category || currentItem?.type || (tab === 'quiz' ? 'quiz' : 'assignment');
         let maxScoreVal = Number(data?.resolvedHps);
@@ -8645,7 +9000,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         }
 
         // Fetch submission status & score via unified shared helper
-        const details = (typeof window.resolveStudentAssessmentSubmissionDetails === 'function')
+        const details = (!isEmptySelection && typeof window.resolveStudentAssessmentSubmissionDetails === 'function')
             ? window.resolveStudentAssessmentSubmissionDetails(currentItem, subjectId, topicIdx, actIdx, section, activeStudentObj)
             : {};
 
@@ -8725,7 +9080,9 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             scoreDisplayVal = String(effectiveScore);
         }
 
-        const scorePanelLocked = Boolean(isQuizItem ? !hasSubmittedQuiz : !turnedInWork);
+        const scorePanelLocked = isEmptySelection || (!window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1) && (typeof window.findAssessmentSubmittedWork === 'function'
+            ? !window.findAssessmentSubmittedWork(activeStudentObj, currentItem, subjectId, section, currentItem?.quarter || window.currentSelectedTopicQuarter || 1, [subData])
+            : Boolean(isQuizItem ? !hasSubmittedQuiz : !turnedInWork)));
         const studentStatusBadgeText = (normalizedStatus === 'missing') ? 'Missing'
             : (normalizedStatus === 'absent') ? 'Absent'
             : (normalizedStatus === 'incomplete') ? 'Incomplete'
@@ -8742,7 +9099,9 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         const selectedStudentAccount = window.innerWidth <= 767 && typeof window.findMatchedUserAccount === 'function'
             ? window.findMatchedUserAccount(studentId, studentName)
             : null;
-            const avatarHtml = typeof window.renderUserAvatarHtml === 'function'
+            const avatarHtml = isEmptySelection
+                ? '<span class="sigma-user-avatar sigma-user-avatar--xs"><i class="fa-solid fa-user" aria-hidden="true"></i></span>'
+                : typeof window.renderUserAvatarHtml === 'function'
                 ? window.renderUserAvatarHtml(selectedStudentAccount || activeStudentObj, 'xs')
                 : `<span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-[11px] font-bold text-slate-700 leading-none">${window.escapeHtml ? window.escapeHtml(studentName.charAt(0)) : studentName.charAt(0)}</span>`;
 
@@ -8778,19 +9137,16 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                     <!-- Grading Controls Body (Unified layout on Mobile and Desktop) -->
                     <div class="mobile-score-sheet-body flex flex-col gap-3 font-['Inter'] w-full pt-1 sm:pt-0">
                         <!-- Grading Title Header (Chevron-only click for expand/collapse) -->
-                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none cursor-default w-full" onclick="if (this.closest('.topic-score-sticky').classList.contains('is-minimized')) window.toggleMobileGradePanelMinimize(event)" onkeydown="if ((event.key === 'Enter' || event.key === ' ') && this.closest('.topic-score-sticky').classList.contains('is-minimized')) window.toggleMobileGradePanelMinimize(event)" tabindex="${isMobileScreen && window._mobileGradePanelMinimized ? '0' : '-1'}">
+                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none w-full" onclick="if (window.innerWidth <= 768) window.toggleGradingPanelCollapse(event)" onkeydown="if (event.target === this && window.innerWidth <= 768 && (event.key === 'Enter' || event.key === ' ')) window.toggleGradingPanelCollapse(event)" tabindex="${isMobileScreen ? '0' : '-1'}">
                             <span class="topic-progress-title home-dashboard-panel-title flex items-center gap-1.5 sm:gap-2 text-[11.5px] sm:text-xs font-bold text-[#15803d]">
                                 <i class="fa-solid fa-award text-[#15803d] text-[11px] sm:text-xs"></i>
                                 <span>Grade</span>
                             </span>
                             <span class="mobile-grade-header-actions ml-auto inline-flex items-center gap-1 shrink-0">
-                            <button type="button" class="mobile-grade-minimize-btn" title="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" aria-label="${window._mobileGradePanelMinimized ? 'Restore Grade panel' : 'Minimize Grade panel'}" onclick="window.toggleMobileGradePanelMinimize(event)">
-                                <span>${window._mobileGradePanelMinimized ? 'Restore' : 'Minimize'}</span>
-                            </button>
                             <button type="button" onclick="event.stopPropagation(); window.toggleGradingPanelCollapse?.(event)"
                                 class="desktop-grading-toggle-btn ml-auto w-6 h-6 flex items-center justify-center text-[#15803d] hover:text-[#166534] bg-transparent border-0 cursor-pointer shrink-0 transition-colors"
                                 title="${isPanelCollapsed ? 'Expand grading panel' : 'Collapse grading panel'}">
-                                <i id="desktop-grading-panel-chevron" class="fa-solid ${isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
+                                <i id="desktop-grading-panel-chevron" class="fa-solid ${isMobileScreen ? (isPanelCollapsed ? 'fa-chevron-up' : 'fa-chevron-down') : (isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up')} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
                             </button>
                             </span>
                         </div>
@@ -8810,7 +9166,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
 
                             <!-- Prev & Next Navigation + Counter Subtitle -->
                             <div class="grading-nav-row flex items-center justify-between gap-1 text-[10.5px] sm:text-xs select-none px-0.5 pt-0.5 font-['Inter'] w-full">
-                                <button type="button" onclick="window.navigateTopicStudent(-1)"
+                                <button type="button" ${allStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(-1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
                                     class="grading-nav-btn grading-nav-prev-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Previous Student">
@@ -8818,7 +9174,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     <span style="flex: 0 0 auto !important;">Prev</span>
                                 </button>
                                 <span class="grading-nav-counter text-black-fade font-semibold text-[10.5px] sm:text-xs text-center px-1 leading-tight whitespace-nowrap shrink-0" style="flex: 0 0 auto !important;">${counterText}</span>
-                                <button type="button" onclick="window.navigateTopicStudent(1)"
+                                <button type="button" ${allStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
                                     class="grading-nav-btn grading-nav-next-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Next Student">
@@ -8842,6 +9198,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                 <span class="text-[11px] sm:text-xs font-bold text-[#15803d] shrink-0">Status</span>
                                 <div class="relative inline-flex items-center shrink-0" id="teacher-grading-status-dropdown-wrapper">
                                     <button type="button" id="teacher-grading-status-trigger-btn" onclick="window.toggleGradingStatusDropdown?.(event)"
+                                        ${isEmptySelection ? 'disabled aria-disabled="true" title="Select a student first"' : ''}
                                         aria-expanded="false" aria-controls="teacher-grading-status-menu"
                                         class="w-24 sm:w-28 text-center text-[11px] sm:text-xs font-bold text-black py-1 sm:py-1.5 px-2 sm:px-2.5 bg-white hover:bg-slate-100 hover:border-slate-400 active:bg-slate-100 border border-slate-300 rounded-lg sm:rounded-xl outline-none cursor-pointer font-['Inter'] transition-all flex items-center justify-between gap-1 shadow-2xs">
                                         <span id="teacher-grading-status-current-label" class="flex-1 text-center truncate">${(normalizedStatus && normalizedStatus !== 'none') ? (normalizedStatus === 'excused' ? 'Excuse' : (normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1))) : 'None'}</span>
@@ -8871,7 +9228,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                         <div class="flex items-center justify-between gap-2 sm:gap-3 px-0.5 py-0.5 sm:py-1">
                             <label for="teacher-grading-score-input" class="text-[11px] sm:text-xs font-bold text-[#15803d] shrink-0 cursor-pointer">Points</label>
                             <div class="flex items-center gap-2 shrink-0">
-                                <span id="teacher-grading-score-draft" class="score-draft-flag" hidden>Not saved</span>
+                                <span id="teacher-grading-score-draft" class="score-draft-flag" hidden>Unsaved</span>
                                 <button type="button" id="teacher-grading-score-edit"
                                     title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading') : 'Edit score'}"
                                     onclick="window.toggleTeacherScoreEditor?.()"
@@ -8881,7 +9238,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     onmouseleave="if(this.dataset.selected !== '1') this.style.backgroundColor='transparent';"
                                     class="w-6 h-6 sm:w-7 sm:h-7 inline-flex items-center justify-center rounded-md sm:rounded-lg text-black cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                     style="background-color: transparent;">
-                                    <i class="fa-solid ${scorePanelLocked ? 'fa-lock text-slate-400' : 'fa-pencil text-black'} text-[11px] sm:text-xs"></i>
+                                    <i class="fa-solid ${scorePanelLocked ? 'fa-lock text-black-fade' : 'fa-pencil text-black'} text-[11px] sm:text-xs"></i>
                                 </button>
                                 <span id="teacher-grading-score-display" class="min-w-6 sm:min-w-8 text-center text-[11px] sm:text-xs font-bold text-black select-none">${(scoreDisplayVal !== '' && scoreDisplayVal !== null && scoreDisplayVal !== undefined) ? scoreDisplayVal : '—'}</span>
                                 <input type="number" id="teacher-grading-score-input"
@@ -8891,6 +9248,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     data-saved-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
                                     data-draft-status="${normalizedStatus === 'excused' ? 'excuse' : (normalizedStatus || 'none')}"
                                     data-needs-submission="${scorePanelLocked ? '1' : '0'}"
+                                    data-manual-no-submission="${!isEmptySelection && window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1) ? '1' : '0'}"
                                     data-needs-quiz-review="0"
                                     data-is-quiz="${isQuizItem ? '1' : '0'}"
                                     data-has-quiz-submission="${hasSubmittedQuiz ? '1' : '0'}"
@@ -8909,7 +9267,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                         <button type="button" id="teacher-grading-save-btn" class="sigma-btn sigma-btn-primary teacher-save-grade-btn" disabled title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked until student submits their work') : 'Enter a score to save grade'}" data-student-id="${window.escapeHtml ? window.escapeHtml(String(studentId || '')) : String(studentId || '')}" data-student-name="${window.escapeHtml ? window.escapeHtml(String(studentName || '')) : String(studentName || '')}" onclick="window.saveTeacherGradingScore?.()">
                             <span>Save Score</span>
                         </button>
-                        <button type="button" class="sigma-btn sigma-btn-primary teacher-view-gradebook-btn" onclick="const target = document.getElementById('teacher-submission-action-area'); if (target?.dataset.gradebookTarget) window.navigateToGradebookFromSubmission(...JSON.parse(decodeURIComponent(target.dataset.gradebookTarget)));">
+                        <button type="button" class="sigma-btn sigma-btn-primary teacher-view-gradebook-btn" data-gradebook-target="${encodeURIComponent(JSON.stringify([subjectId, section, encodeURIComponent(currentItem?.title || currentItem?.name || ''), encodeURIComponent(assCat || ''), tab, actIdx]))}" onclick="window.navigateToGradebookFromSubmission(...JSON.parse(decodeURIComponent(this.dataset.gradebookTarget)));">
                             <i class="fa-solid fa-table-list" aria-hidden="true"></i>
                             <span>View Gradebook</span>
                         </button>
@@ -8918,7 +9276,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                 </div>
             ${window.renderGradingStudentCoverHtml ? window.renderGradingStudentCoverHtml({
                 prefix,
-                allStudents,
+                allStudents: rosterStudents,
                 studentName,
                 studentId,
                 isListOpen,
@@ -8995,19 +9353,7 @@ window.renderSharedTeacherTopicSelectionRail = function (data, state = window.cu
 };
 
 window.toggleMobileGradePanelMinimize = function (event) {
-    event?.stopPropagation();
-    event?.preventDefault();
-    if (window.innerWidth > 768) return;
-    const card = event?.target?.closest('.topic-score-sticky');
-    if (!card) return;
-    const minimized = card.classList.toggle('is-minimized');
-    window._mobileGradePanelMinimized = minimized;
-    window.closeGradingStatusDropdown?.();
-    const button = card.querySelector('.mobile-grade-minimize-btn');
-    button.title = minimized ? 'Restore Grade panel' : 'Minimize Grade panel';
-    button.setAttribute('aria-label', button.title);
-    button.querySelector('span').textContent = minimized ? 'Restore' : 'Minimize';
-    card.querySelector('.desktop-grading-header').tabIndex = minimized ? 0 : -1;
+    if (window.innerWidth <= 768) window.toggleGradingPanelCollapse(event);
 };
 
 window.toggleGradingPanelCollapse = function (event, forceState) {
@@ -9017,6 +9363,8 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
     }
     const card = document.querySelector('.topic-score-sticky, [id$="-class-panel-card"]');
     if (!card) return;
+    card.classList.remove('is-minimized');
+    window._mobileGradePanelMinimized = false;
 
     const rail = document.getElementById('topic-right-section');
     const collapsibleSection = card.querySelector('.desktop-grading-collapsible-section');
@@ -9038,7 +9386,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         }
         if (collapsibleSection) collapsibleSection.classList.add('hidden');
         if (collapsibleControls) collapsibleControls.classList.add('hidden');
-        if (chevron) chevron.className = 'fa-solid fa-chevron-down text-[10.5px] text-[#15803d] transition-transform duration-200';
+        if (chevron) chevron.className = `fa-solid ${window.innerWidth <= 768 ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10.5px] text-[#15803d] transition-transform duration-200`;
         if (toggleBtn) toggleBtn.title = 'Expand grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = true;
@@ -9053,7 +9401,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         }
         if (collapsibleSection) collapsibleSection.classList.remove('hidden');
         if (collapsibleControls) collapsibleControls.classList.remove('hidden');
-        if (chevron) chevron.className = 'fa-solid fa-chevron-up text-[10.5px] text-[#15803d] transition-transform duration-200';
+        if (chevron) chevron.className = `fa-solid ${window.innerWidth <= 768 ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200`;
         if (toggleBtn) toggleBtn.title = 'Collapse grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = false;
@@ -9064,6 +9412,24 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
 
 window.toggleDesktopGradingCollapse = window.toggleGradingPanelCollapse;
 window.toggleMobileScorePanel = window.toggleGradingPanelCollapse;
+
+(function () {
+    const mobile = window.matchMedia('(max-width: 768px)');
+    mobile.addEventListener('change', event => {
+        const card = document.querySelector('.topic-score-sticky:has(.desktop-grading-header)');
+        if (!card) return;
+        window.closeGradingStatusDropdown?.();
+        if (event.matches) {
+            window._desktopGradingPanelCollapsed = card.classList.contains('is-collapsed');
+            window._mobileGradePanelMinimized = false;
+            card.classList.remove('is-minimized');
+            window.toggleGradingPanelCollapse(null, false);
+        } else {
+            card.classList.remove('is-minimized');
+            window.toggleGradingPanelCollapse(null, window._desktopGradingPanelCollapsed !== true);
+        }
+    });
+})();
 
 // --- PROGRESS COLOR SCALE (0% to 100%) ---
 window.getTaskProgressColor = function (pct) {
@@ -9770,6 +10136,68 @@ window.syncRoomQuarterSwitch = function () {
 };
 
 // --- CANONICAL SHARED TOPIC WORKSTATION TAB BAR ---
+window.closeGradingScale = function () {
+    const scale = document.getElementById('sigma-grading-scale');
+    if (!scale) return;
+    const main = scale.parentElement;
+    const tabs = scale.topicTabs || [];
+    tabs.forEach(({ button, style, active, current }) => {
+        button.setAttribute('style', style);
+        button.classList.toggle('active', active);
+        if (current) button.setAttribute('aria-current', current);
+        else button.removeAttribute('aria-current');
+    });
+    scale.remove();
+    main.querySelectorAll('[data-grading-scale-hidden]').forEach(node => {
+        node.hidden = node.dataset.gradingScaleHidden === 'true';
+        delete node.dataset.gradingScaleHidden;
+    });
+};
+window.openGradingScale = function (button) {
+    const rows = window.SigmaGradeEngine?.getTransmutationRows?.();
+    if (!rows) { window.showToast?.('Grading scale is unavailable.', 'warning'); return; }
+    const existing = document.getElementById('sigma-grading-scale');
+    if (existing) return;
+    const host = button?.closest('.canonical-tabs-bar');
+    if (!host) return;
+    const main = document.getElementById('topic-content-main');
+    if (!main) return;
+    Array.from(main.children).forEach(node => {
+        node.dataset.gradingScaleHidden = String(node.hidden);
+        node.hidden = true;
+    });
+    const dialog = document.createElement('section');
+    dialog.id = 'sigma-grading-scale';
+    dialog.topicTabs = Array.from(host.querySelectorAll('.canonical-tab-btn')).map(tab => ({
+        button: tab, style: tab.getAttribute('style') || '',
+        active: tab.classList.contains('active'), current: tab.getAttribute('aria-current')
+    }));
+    dialog.topicTabs.forEach(({ button: tab }) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.style.setProperty('border-bottom', `3.5px solid ${active ? '#15803d' : 'transparent'}`, 'important');
+        tab.style.setProperty('color', active ? '#15803d' : '#000000', 'important');
+        tab.style.setProperty('border-radius', '0', 'important');
+        if (active) tab.setAttribute('aria-current', 'page');
+        else tab.removeAttribute('aria-current');
+    });
+    dialog.setAttribute('aria-label', 'Grading Scale');
+    dialog.style.cssText = 'width:100%;min-width:0;box-sizing:border-box;padding:0;background:white;color:black;';
+    dialog.innerHTML = `<style>
+        #sigma-grading-scale table{width:100%!important;table-layout:fixed;border-collapse:collapse;font-size:14px}
+        #sigma-grading-scale th,#sigma-grading-scale td{padding:12px!important;text-align:center!important;vertical-align:middle;letter-spacing:0;border-right:none!important;}
+        #sigma-grading-scale th{position:static;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.4;overflow-wrap:break-word}
+        #sigma-grading-scale th:nth-child(2){border-right:1px solid #137638!important}
+        #sigma-grading-scale td:nth-child(2){border-right:1px solid rgba(0,0,0,0.08)!important}
+        #sigma-grading-scale tbody tr:nth-child(odd) td{background-color:#ffffff!important}
+        #sigma-grading-scale tbody tr:nth-child(even) td{background-color:#f8fafc!important}
+        #sigma-grading-scale tbody tr td:hover{background-color:#f1f5f9!important}
+        @media(max-width:767px){body #topic-content-main:has(> #sigma-grading-scale){padding-left:0!important;padding-right:0!important;}#sigma-grading-scale th,#sigma-grading-scale td{padding:10px 6px!important;font-size:12px}#sigma-grading-scale th{font-size:11px;line-height:1.4}}
+        </style>
+        <table class="sigma-table" aria-label="Initial to quarterly grade conversion"><thead><tr><th scope="col">Minimum Initial Grade</th><th scope="col">Maximum Initial Grade</th><th scope="col">Quarterly Grade</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.min.toFixed(2)}</td><td>${row.max.toFixed(2)}</td><td>${row.grade}</td></tr>`).join('')}</tbody></table>`;
+    main.appendChild(dialog);
+};
+
 // Shared by both Teacher and Student topic views to guarantee identical styling,
 // institutional green active states, black icons when inactive, and grey hover highlights.
 window.renderTopicContentTabBarHtml = function (options = {}) {
@@ -9800,8 +10228,18 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
             id: tab,
             label: labels[tab] || tab,
             isActive: isCurrentActive,
-            onClick: `switchTopicTab('${tab}')`
+            onClick: `window.closeGradingScale(); switchTopicTab('${tab}')`
         };
+    });
+    tabs.push({
+        id: 'grading-scale',
+        label: 'Grading Scale',
+        title: 'Grading Scale',
+        icon: 'fa-solid fa-table-list',
+        iconOnly: true,
+        alignRight: true,
+        isActive: false,
+        onClick: 'window.openGradingScale(this)'
     });
 
     return window.renderCanonicalTopHeaderTabBarHtml({
@@ -9988,31 +10426,8 @@ window.setTopicHeaderBreadcrumb = function (subjectRef, topicRef, fallbackTopicT
         resolvedSubjectId = window._tcSubjectId;
     }
 
-    // Determine material context and submission mode
-    const isViewSubmission = customOptions?.isViewSubmission !== undefined
-        ? Boolean(customOptions.isViewSubmission)
-        : Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
-
-    let materialTitle = customOptions?.materialTitle !== undefined
-        ? customOptions.materialTitle
-        : (window._activeMaterialTitle || null);
-
-    let topSubtitle = subjectName;
-    let bottomTitle = topicTitle;
-
-    if (isViewSubmission) {
-        // When in View Submission mode:
-        // Smaller scale (top line): Material Name
-        // Bigger scale (bottom line): "Submissions"
-        topSubtitle = materialTitle || topicTitle;
-        bottomTitle = 'Submissions';
-    } else {
-        // Normal Topic Overview / Material Detail Views:
-        // Smaller scale (top line): Subject Name
-        // Bigger scale (bottom line): Topic Name
-        topSubtitle = subjectName;
-        bottomTitle = topicTitle;
-    }
+    const topSubtitle = subjectName;
+    const bottomTitle = topicTitle;
 
     let scaleClass = '';
     const bottomTextLen = String(bottomTitle || '').trim().length;
@@ -11891,7 +12306,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
     }
 
     return `
-        <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+        <div class="sigma-attached-file-panel sigma-compact-document-row sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
             <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                 <div class="material-panel-icon-group w-16 sm:w-20 flex flex-col items-center gap-1.5 shrink-0 select-none">
                     <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
@@ -12355,6 +12770,271 @@ window.renderSharedHandoutsTabHtml = window.renderSharedLessonsTabHtml;
  * Unified Shared Question Number Pills Renderer
  * Standardizes question pagination pills with yellow active pill (#FFD000) and solid green answered pill (#15803d).
  */
+window.endQuizChoiceDragVisual = function () {
+    const visual = window._quizChoiceDragVisual;
+    if (!visual) return;
+    visual.source.classList.remove('sigma-quiz-choice-dragging');
+    visual.ghost.remove();
+    document.removeEventListener('dragover', visual.move);
+    document.removeEventListener('drag', visual.move);
+    document.removeEventListener('drop', window.endQuizChoiceDragVisual);
+    document.removeEventListener('dragend', window.endQuizChoiceDragVisual);
+    window._quizChoiceDragVisual = null;
+};
+
+// Touch matching reuses the same drag/drop handlers as desktop.
+(function () {
+    let drag = null;
+    const dragEvent = (type, point, transfer) => new DragEvent(type, {
+        bubbles: true, cancelable: true, clientX: point.clientX,
+        clientY: point.clientY, dataTransfer: transfer
+    });
+    const finish = (event, cancelled = false) => {
+        if (!drag) return;
+        const current = drag;
+        drag = null;
+        clearTimeout(current.timer);
+        if (!current.active) return;
+        event.preventDefault();
+        const point = event.changedTouches[0] || current.point;
+        current.target?.classList.remove('border-black', 'bg-slate-100');
+        const target = document.elementFromPoint(point.clientX, point.clientY)?.closest('.sigma-quiz-matching-rows [ondrop]');
+        if (!cancelled && target && current.modal.contains(target)) {
+            target.dispatchEvent(dragEvent('drop', point, current.transfer));
+        }
+        current.source.dispatchEvent(dragEvent('dragend', point, current.transfer));
+        window.endQuizChoiceDragVisual();
+    };
+    document.addEventListener('touchstart', event => {
+        const source = event.target.closest?.('.sigma-quiz-matching-bank [draggable="true"]');
+        if (!source || event.touches.length !== 1) return;
+        const modal = source.closest('.sigma-modal-overlay');
+        if (!modal) return;
+        const point = event.touches[0];
+        drag = { source, modal, point, active: false, transfer: new DataTransfer(), timer: null, target: null };
+        const current = drag;
+        current.timer = setTimeout(() => {
+            if (drag !== current) return;
+            current.active = true;
+            source.dispatchEvent(dragEvent('dragstart', current.point, current.transfer));
+        }, 180);
+    }, { passive: true });
+    document.addEventListener('touchmove', event => {
+        if (!drag) return;
+        const point = event.touches[0];
+        if (!point) return;
+        if (!drag.active) {
+            if (Math.hypot(point.clientX - drag.point.clientX, point.clientY - drag.point.clientY) > 8) {
+                clearTimeout(drag.timer);
+                drag = null;
+            }
+            return;
+        }
+        event.preventDefault();
+        drag.point = point;
+        const target = document.elementFromPoint(point.clientX, point.clientY)?.closest('.sigma-quiz-matching-rows [ondrop]');
+        if (drag.target && drag.target !== target) drag.target.dispatchEvent(dragEvent('dragleave', point, drag.transfer));
+        drag.target = target && drag.modal.contains(target) ? target : null;
+        (drag.target || drag.source).dispatchEvent(dragEvent('dragover', point, drag.transfer));
+    }, { passive: false });
+    document.addEventListener('touchend', event => finish(event), { passive: false });
+    document.addEventListener('touchcancel', event => finish(event, true), { passive: false });
+})();
+
+window.startQuizChoiceDragVisual = function (event, text) {
+    window.endQuizChoiceDragVisual();
+    const source = event.currentTarget;
+    if (!(source instanceof HTMLElement)) return;
+    const rect = source.getBoundingClientRect();
+    const ghost = document.createElement('div');
+    ghost.className = 'sigma-quiz-choice-drag-visual';
+    const icon = document.createElement('i');
+    icon.className = 'fa-solid fa-grip-vertical';
+    const label = document.createElement('span');
+    label.textContent = text;
+    ghost.append(icon, label);
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.minHeight = `${rect.height}px`;
+    document.body.append(ghost);
+    const offsetX = Math.min(rect.width - 8, Math.max(8, event.clientX - rect.left));
+    const offsetY = Math.max(8, event.clientY - rect.top);
+    const move = e => {
+        if (!e.clientX && !e.clientY) return;
+        ghost.style.left = `${e.clientX - offsetX}px`;
+        ghost.style.top = `${e.clientY - offsetY}px`;
+    };
+    move(event);
+    const transparent = document.createElement('canvas');
+    transparent.width = transparent.height = 1;
+    event.dataTransfer.setDragImage(transparent, 0, 0);
+    source.classList.add('sigma-quiz-choice-dragging');
+    window._quizChoiceDragVisual = { source, ghost, move };
+    document.addEventListener('dragover', move);
+    document.addEventListener('drag', move);
+    document.addEventListener('drop', window.endQuizChoiceDragVisual);
+    document.addEventListener('dragend', window.endQuizChoiceDragVisual);
+};
+
+(function () {
+    let _sharedQuizDragScrollAnimId = null;
+    let _sharedQuizCurrentDragY = null;
+
+    window.handleSharedQuizChoiceDragStart = function (e, text) {
+        if (!e || !e.dataTransfer) return;
+        try {
+            e.dataTransfer.setData('text/plain', text);
+            e.dataTransfer.effectAllowed = 'move';
+        } catch (err) { }
+
+        window.startQuizChoiceDragVisual(e, text);
+
+        const getScrollContainers = () => {
+            const activeModal = document.querySelector('#sigma-quiz-form-modal:not(.hidden), #universal-quiz-preview-modal:not(.hidden)');
+            return activeModal && activeModal.scrollHeight > activeModal.clientHeight + 1 ? [activeModal] : [];
+        };
+
+        const autoScrollLoop = () => {
+            if (_sharedQuizCurrentDragY !== null && _sharedQuizCurrentDragY !== undefined) {
+                const scrollContainers = getScrollContainers();
+                const bounds = scrollContainers[0]?.getBoundingClientRect();
+                if (!bounds) {
+                    _sharedQuizDragScrollAnimId = requestAnimationFrame(autoScrollLoop);
+                    return;
+                }
+                const edge = Math.min(90, bounds.height / 4);
+                const topZone = bounds.top + edge;
+                const bottomZone = bounds.bottom - edge;
+
+                if (_sharedQuizCurrentDragY >= 0 && _sharedQuizCurrentDragY < topZone) {
+                    const ratio = Math.min(1, Math.max(0.1, (topZone - _sharedQuizCurrentDragY) / edge));
+                    const speed = Math.max(8, Math.round(ratio * 35));
+                    scrollContainers.forEach(c => {
+                        if (c) {
+                            if (typeof c.scrollBy === 'function') {
+                                try { c.scrollBy(0, -speed); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop -= speed; }
+                            } else if (typeof c.scrollTop === 'number') {
+                                c.scrollTop -= speed;
+                            }
+                        }
+                    });
+                } else if (_sharedQuizCurrentDragY > bottomZone && _sharedQuizCurrentDragY <= window.innerHeight) {
+                    const ratio = Math.min(1, Math.max(0.1, (_sharedQuizCurrentDragY - bottomZone) / edge));
+                    const speed = Math.max(8, Math.round(ratio * 35));
+                    scrollContainers.forEach(c => {
+                        if (c) {
+                            if (typeof c.scrollBy === 'function') {
+                                try { c.scrollBy(0, speed); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop += speed; }
+                            } else if (typeof c.scrollTop === 'number') {
+                                c.scrollTop += speed;
+                            }
+                        }
+                    });
+                }
+            }
+            _sharedQuizDragScrollAnimId = requestAnimationFrame(autoScrollLoop);
+        };
+
+        const handleDragOver = (dragEvent) => {
+            if (dragEvent) {
+                dragEvent.preventDefault();
+                if (dragEvent.clientY !== undefined) {
+                    _sharedQuizCurrentDragY = dragEvent.clientY;
+                }
+            }
+        };
+
+        const handleDrag = (dragEvent) => {
+            if (dragEvent && dragEvent.clientY !== undefined && dragEvent.clientY > 0) {
+                _sharedQuizCurrentDragY = dragEvent.clientY;
+            }
+        };
+
+        const handleWheel = (wheelEvent) => {
+            if (!wheelEvent) return;
+            wheelEvent.preventDefault();
+            const scrollContainers = getScrollContainers();
+            scrollContainers.forEach(c => {
+                if (c) {
+                    if (typeof c.scrollBy === 'function') {
+                        try { c.scrollBy(0, wheelEvent.deltaY); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop += wheelEvent.deltaY; }
+                    } else if (typeof c.scrollTop === 'number') {
+                        c.scrollTop += wheelEvent.deltaY;
+                    }
+                }
+            });
+        };
+
+        _sharedQuizCurrentDragY = e.clientY;
+        if (_sharedQuizDragScrollAnimId) cancelAnimationFrame(_sharedQuizDragScrollAnimId);
+        _sharedQuizDragScrollAnimId = requestAnimationFrame(autoScrollLoop);
+
+        if (window._sharedQuizDragOverHandler) {
+            document.removeEventListener('dragover', window._sharedQuizDragOverHandler);
+        }
+        if (window._sharedQuizDragHandler) {
+            document.removeEventListener('drag', window._sharedQuizDragHandler);
+        }
+        if (window._sharedQuizWheelHandler) {
+            window.removeEventListener('wheel', window._sharedQuizWheelHandler);
+        }
+
+        window._sharedQuizDragOverHandler = handleDragOver;
+        window._sharedQuizDragHandler = handleDrag;
+        window._sharedQuizWheelHandler = handleWheel;
+
+        document.addEventListener('dragover', window._sharedQuizDragOverHandler, { passive: false });
+        document.addEventListener('drag', window._sharedQuizDragHandler, { passive: false });
+        window.addEventListener('wheel', window._sharedQuizWheelHandler, { passive: false });
+    };
+
+    window.handleSharedQuizChoiceDragEnd = function (e) {
+        window.endQuizChoiceDragVisual();
+        _sharedQuizCurrentDragY = null;
+        if (_sharedQuizDragScrollAnimId) {
+            cancelAnimationFrame(_sharedQuizDragScrollAnimId);
+            _sharedQuizDragScrollAnimId = null;
+        }
+        if (window._sharedQuizDragOverHandler) {
+            document.removeEventListener('dragover', window._sharedQuizDragOverHandler);
+            window._sharedQuizDragOverHandler = null;
+        }
+        if (window._sharedQuizDragHandler) {
+            document.removeEventListener('drag', window._sharedQuizDragHandler);
+            window._sharedQuizDragHandler = null;
+        }
+        if (window._sharedQuizWheelHandler) {
+            window.removeEventListener('wheel', window._sharedQuizWheelHandler);
+            window._sharedQuizWheelHandler = null;
+        }
+    };
+
+})();
+
+window.renderSharedQuizPointsHtml = function ({ totalPoints, questionPoints, score = null, pending = false }) {
+    const total = Number(totalPoints) || 0;
+    const points = Number(questionPoints) || 0;
+    const hasScore = score !== null && score !== undefined && Number.isFinite(Number(score));
+    return `<div class="sigma-quiz-points-summary flex items-center gap-3 flex-wrap text-black">
+        <span class="sigma-quiz-total font-bold text-sm">Total Points: ${hasScore ? `${Number(score)}/${total}` : total}</span>
+        <span class="sigma-quiz-question-points inline-flex items-center gap-1.5 font-semibold text-xs sm:text-sm" title="Points for this question"><i class="fa-solid fa-star text-[#FFD000] text-xs" aria-hidden="true"></i><span>${points} ${points === 1 ? 'Point' : 'Points'}</span></span>
+        ${pending ? '<span class="text-xs font-semibold text-amber-700">Pending Review</span>' : ''}
+    </div>`;
+};
+
+window.renderSharedMatchingEarnedHtml = function ({ earned, max, visible = true }) {
+    if (!visible) return '';
+    const format = value => Number((Number(value) || 0).toFixed(2));
+    return `<div class="sigma-matching-earned text-xs font-semibold text-black mt-2 text-left">Earned: ${format(earned)} points</div>`;
+};
+
+window.renderSharedQuizAnswerStatsHtml = function ({ correct, total, earned, max }) {
+    return `<div class="sigma-quiz-answer-stats flex items-center gap-2 flex-wrap text-xs font-semibold text-black">
+        <span>${Number(correct) || 0} out of ${Number(total) || 0} ${Number(total) === 1 ? 'correct answer' : 'correct answers'}</span>
+        <span aria-hidden="true">&middot;</span>
+        <span class="sigma-quiz-earned">Earned: ${Number(earned) || 0}/${Number(max) || 0} points</span>
+    </div>`;
+};
+
 window.renderSharedQuizPillsHtml = function (options = {}) {
     const {
         totalQuestions = 0,
@@ -12476,6 +13156,7 @@ window.formatQuizTimeLimit = function (rawVal) {
  * Direct Quiz Starter / Form Launcher (Directly opens the Quiz Form Workstation)
  */
 window.openQuizStartDialog = function (options = {}) {
+    if (options.role === 'student' && window.isStudentAssessmentClosed(options.subjectId, options.topicIdx, options.tab, options.activeIdx)) return;
     const rawTitle = options.title || 'Quiz Assessment';
     const title = decodeURIComponent(rawTitle).replace(/\.(pdf|docx|pptx|ppt|quiz)$/i, '').replace(/Introduction to Introduction to/gi, 'Introduction to');
     const hasTimer = Boolean(options.hasTimer === true);
@@ -12523,6 +13204,7 @@ window.startQuizItem = function (optionsOrId) {
 };
 
 window.openQuizFormModal = function (options = {}) {
+    if (options.role === 'student' && window.isStudentAssessmentClosed(options.subjectId, options.topicIdx, options.tab, options.activeIdx)) return;
     const rawTitle = options.title || 'Quiz Assessment';
     const title = decodeURIComponent(rawTitle).replace(/\.(pdf|docx|pptx|ppt|quiz)$/i, '').replace(/Introduction to Introduction to/gi, 'Introduction to');
     const hasTimer = Boolean(options.hasTimer === true);
@@ -12850,6 +13532,7 @@ window.openQuizFormModal = function (options = {}) {
         userAnswers = {};
         currentQuestionIndex = 0;
         secondsLeft = totalSeconds;
+        lastRenderedQuestionIndex = -1;
 
         // Clean up global listeners
         window.removeEventListener('popstate', handlePopState);
@@ -12869,6 +13552,39 @@ window.openQuizFormModal = function (options = {}) {
             window.switchTopicTab(options.tab, options.activeIdx);
         } else if (typeof window._renderTopicContentMain === 'function' && options.subjectId) {
             window._renderTopicContentMain(options.subjectId, options.topicIdx ?? 0, options.tab || 'quiz');
+        }
+    }
+
+    let lastRenderedQuestionIndex = -1;
+
+    function resetQuizFormScroll() {
+        const doReset = () => {
+            const scrollArea = document.getElementById('sigma-quiz-form-modal') || modal;
+            if (scrollArea) {
+                try {
+                    scrollArea.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                } catch (_) {
+                    scrollArea.scrollTop = 0;
+                    scrollArea.scrollLeft = 0;
+                }
+                scrollArea.scrollTop = 0;
+                scrollArea.scrollLeft = 0;
+            }
+            const panel = scrollArea ? scrollArea.querySelector('.sigma-modal-panel') : null;
+            if (panel) panel.scrollTop = 0;
+            const shell = scrollArea ? scrollArea.querySelector('.sigma-modal-shell') : null;
+            if (shell) shell.scrollTop = 0;
+            const flexBody = scrollArea ? scrollArea.querySelector('.overflow-y-auto') : null;
+            if (flexBody) flexBody.scrollTop = 0;
+            if (document.documentElement) document.documentElement.scrollTop = 0;
+            if (document.body) document.body.scrollTop = 0;
+            if (typeof window.scrollTo === 'function') {
+                try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch (_) { window.scrollTo(0, 0); }
+            }
+        };
+        doReset();
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(doReset);
         }
     }
 
@@ -13001,6 +13717,7 @@ window.openQuizFormModal = function (options = {}) {
         if (currentPillsPage > 0) {
             currentPillsPage--;
             renderModalContent('taking');
+            resetQuizFormScroll();
         }
     };
 
@@ -13009,6 +13726,7 @@ window.openQuizFormModal = function (options = {}) {
         if (currentPillsPage < maxPage) {
             currentPillsPage++;
             renderModalContent('taking');
+            resetQuizFormScroll();
         }
     };
 
@@ -13052,152 +13770,6 @@ window.openQuizFormModal = function (options = {}) {
             renderModalContent('taking');
         } else {
             userAnswers[qIdx] = ans;
-        }
-    };
-
-    let _sharedQuizDragScrollAnimId = null;
-    let _sharedQuizCurrentDragY = null;
-
-    window.handleSharedQuizChoiceDragStart = function (e, text) {
-        const isTeacherMode = Boolean(isTeacherOrAdmin || isPreview || options.isTeacherView === true);
-        if (isTeacherMode) return;
-        if (!e || !e.dataTransfer) return;
-        try {
-            e.dataTransfer.setData('text/plain', text);
-            e.dataTransfer.effectAllowed = 'move';
-        } catch (err) { }
-
-        // 100% Solid Drag Image Preview
-        try {
-            const dragGhost = document.createElement('div');
-            dragGhost.style.position = 'fixed';
-            dragGhost.style.top = '-9999px';
-            dragGhost.style.left = '-9999px';
-            dragGhost.style.zIndex = '999999';
-            dragGhost.style.opacity = '1';
-            dragGhost.className = 'min-h-[44px] min-w-[76px] px-5 py-2.5 rounded-2xl bg-white border-2 border-black text-xs md:text-sm font-bold text-black shadow-2xl flex items-center justify-center gap-2.5 pointer-events-none select-none';
-            dragGhost.innerHTML = `<i class="fa-solid fa-grip-vertical text-black text-xs shrink-0"></i><span class="break-words min-w-0 text-center">${(window.escapeHtml ? window.escapeHtml(text) : text)}</span>`;
-            document.body.appendChild(dragGhost);
-            e.dataTransfer.setDragImage(dragGhost, 30, 20);
-            setTimeout(() => { if (dragGhost.parentElement) dragGhost.remove(); }, 0);
-        } catch (err) { }
-
-        const getScrollContainers = () => {
-            const list = [];
-            const activeModal = document.getElementById('sigma-quiz-form-modal') || document.getElementById('student-preview-modal') || document.querySelector('.sigma-modal-overlay:not(.hidden)');
-            if (activeModal) {
-                list.push(activeModal);
-                activeModal.querySelectorAll('.overflow-y-auto, .sigma-modal-shell, .sigma-modal-panel').forEach(el => list.push(el));
-            }
-            list.push(document.documentElement, document.body, window);
-            return list;
-        };
-
-        const autoScrollLoop = () => {
-            if (_sharedQuizCurrentDragY !== null && _sharedQuizCurrentDragY !== undefined) {
-                const vh = window.innerHeight || 800;
-                const topZone = 220;
-                const bottomZone = vh - 220;
-                const scrollContainers = getScrollContainers();
-
-                if (_sharedQuizCurrentDragY >= 0 && _sharedQuizCurrentDragY < topZone) {
-                    const ratio = Math.max(0.1, (topZone - _sharedQuizCurrentDragY) / topZone);
-                    const speed = Math.max(8, Math.round(ratio * 35));
-                    scrollContainers.forEach(c => {
-                        if (c) {
-                            if (typeof c.scrollBy === 'function') {
-                                try { c.scrollBy(0, -speed); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop -= speed; }
-                            } else if (typeof c.scrollTop === 'number') {
-                                c.scrollTop -= speed;
-                            }
-                        }
-                    });
-                } else if (_sharedQuizCurrentDragY > bottomZone && _sharedQuizCurrentDragY <= vh) {
-                    const ratio = Math.max(0.1, (_sharedQuizCurrentDragY - bottomZone) / (vh - bottomZone));
-                    const speed = Math.max(8, Math.round(ratio * 35));
-                    scrollContainers.forEach(c => {
-                        if (c) {
-                            if (typeof c.scrollBy === 'function') {
-                                try { c.scrollBy(0, speed); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop += speed; }
-                            } else if (typeof c.scrollTop === 'number') {
-                                c.scrollTop += speed;
-                            }
-                        }
-                    });
-                }
-            }
-            _sharedQuizDragScrollAnimId = requestAnimationFrame(autoScrollLoop);
-        };
-
-        const handleDragOver = (dragEvent) => {
-            if (dragEvent) {
-                dragEvent.preventDefault();
-                if (dragEvent.clientY !== undefined) {
-                    _sharedQuizCurrentDragY = dragEvent.clientY;
-                }
-            }
-        };
-
-        const handleDrag = (dragEvent) => {
-            if (dragEvent && dragEvent.clientY !== undefined && dragEvent.clientY > 0) {
-                _sharedQuizCurrentDragY = dragEvent.clientY;
-            }
-        };
-
-        const handleWheel = (wheelEvent) => {
-            if (!wheelEvent) return;
-            const scrollContainers = getScrollContainers();
-            scrollContainers.forEach(c => {
-                if (c) {
-                    if (typeof c.scrollBy === 'function') {
-                        try { c.scrollBy(0, wheelEvent.deltaY); } catch (e) { if (typeof c.scrollTop === 'number') c.scrollTop += wheelEvent.deltaY; }
-                    } else if (typeof c.scrollTop === 'number') {
-                        c.scrollTop += wheelEvent.deltaY;
-                    }
-                }
-            });
-        };
-
-        _sharedQuizCurrentDragY = e.clientY;
-        if (_sharedQuizDragScrollAnimId) cancelAnimationFrame(_sharedQuizDragScrollAnimId);
-        _sharedQuizDragScrollAnimId = requestAnimationFrame(autoScrollLoop);
-
-        if (window._sharedQuizDragOverHandler) {
-            document.removeEventListener('dragover', window._sharedQuizDragOverHandler);
-        }
-        if (window._sharedQuizDragHandler) {
-            document.removeEventListener('drag', window._sharedQuizDragHandler);
-        }
-        if (window._sharedQuizWheelHandler) {
-            window.removeEventListener('wheel', window._sharedQuizWheelHandler);
-        }
-
-        window._sharedQuizDragOverHandler = handleDragOver;
-        window._sharedQuizDragHandler = handleDrag;
-        window._sharedQuizWheelHandler = handleWheel;
-
-        document.addEventListener('dragover', window._sharedQuizDragOverHandler, { passive: false });
-        document.addEventListener('drag', window._sharedQuizDragHandler, { passive: false });
-        window.addEventListener('wheel', window._sharedQuizWheelHandler, { passive: true });
-    };
-
-    window.handleSharedQuizChoiceDragEnd = function (e) {
-        _sharedQuizCurrentDragY = null;
-        if (_sharedQuizDragScrollAnimId) {
-            cancelAnimationFrame(_sharedQuizDragScrollAnimId);
-            _sharedQuizDragScrollAnimId = null;
-        }
-        if (window._sharedQuizDragOverHandler) {
-            document.removeEventListener('dragover', window._sharedQuizDragOverHandler);
-            window._sharedQuizDragOverHandler = null;
-        }
-        if (window._sharedQuizDragHandler) {
-            document.removeEventListener('drag', window._sharedQuizDragHandler);
-            window._sharedQuizDragHandler = null;
-        }
-        if (window._sharedQuizWheelHandler) {
-            window.removeEventListener('wheel', window._sharedQuizWheelHandler);
-            window._sharedQuizWheelHandler = null;
         }
     };
 
@@ -13245,6 +13817,7 @@ window.openQuizFormModal = function (options = {}) {
             currentQuestionIndex = targetIdx;
             currentPillsPage = Math.floor(targetIdx / 10);
             renderModalContent('taking');
+            resetQuizFormScroll();
         }
     };
 
@@ -14256,7 +14829,7 @@ window.openQuizFormModal = function (options = {}) {
             if (isTeacherView) {
                 const trueIsCorrect = isTrueCorrect;
                 bodyHtml = `
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 max-w-xl">
+                    <div class="sigma-quiz-true-false grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
                         <!-- True Option Card -->
                         <div style="${trueIsCorrect ? 'background-color: #ecfdf5 !important; border-color: #059669 !important;' : ''}"
                             class="relative flex items-center text-left gap-3.5 p-4 rounded-2xl border-2 select-none shadow-2xs overflow-hidden min-w-0 pointer-events-none ${trueIsCorrect ? 'border-emerald-600 bg-emerald-50/80' : 'border-slate-200 bg-white opacity-80'}">
@@ -14295,7 +14868,7 @@ window.openQuizFormModal = function (options = {}) {
                 let falseTextClass = isFalseChecked ? 'text-[#15803d] font-bold' : 'text-black';
 
                 bodyHtml = `
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 max-w-xl">
+                    <div class="sigma-quiz-true-false grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
                         <!-- True Option Card -->
                         <button type="button" onclick="window._selectQuizAnswer(${currentIdx}, 'True')"
                             class="relative flex items-center text-left gap-3.5 p-4 rounded-2xl border-2 transition-all cursor-pointer select-none group shadow-2xs overflow-hidden min-w-0 ${trueCardClass}">
@@ -14385,7 +14958,7 @@ window.openQuizFormModal = function (options = {}) {
                 const ansText = typeof curAns === 'string' ? curAns : '';
                 bodyHtml = `
                     <div class="pt-2 w-full space-y-2">
-                        <label class="text-xs font-bold text-black-fade block">Response</label>
+                        <label class="text-xs font-bold text-black-fade block">Your Response</label>
                         <input type="text" placeholder="Type your answer here..."
                             maxlength="100"
                             value="${escape(ansText)}"
@@ -14468,7 +15041,7 @@ window.openQuizFormModal = function (options = {}) {
                 const ansText = typeof curAns === 'string' ? curAns : '';
                 bodyHtml = `
                     <div class="pt-2 space-y-3 w-full">
-                        <label class="text-xs font-bold text-black-fade block">Response</label>
+                        <label class="text-xs font-bold text-black-fade block">Your Response</label>
                         <textarea rows="6" placeholder="Type your essay or paragraph answer here..."
                             maxlength="8000"
                             oninput="window._selectQuizAnswer(${currentIdx}, this.value, false)"
@@ -14524,9 +15097,9 @@ window.openQuizFormModal = function (options = {}) {
                 const usedTracker = {};
 
                 bodyHtml = `
-                    <div class="space-y-6 pt-2">
+                    <div class="sigma-quiz-matching-layout space-y-6 pt-2">
                         <!-- Choices Bank (Draggable pills) -->
-                        <div class="bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
+                        <div class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
                             <div class="flex items-center justify-between text-xs font-bold text-black">
                                 <div class="flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg bg-emerald-100 text-[#15803d] flex items-center justify-center text-xs shadow-2xs">
@@ -14559,7 +15132,7 @@ window.openQuizFormModal = function (options = {}) {
                         </div>
 
                         <!-- Matching Target Rows -->
-                        <div class="space-y-4">
+                        <div class="sigma-quiz-matching-rows space-y-4">
                             ${pairs.map((pair, pIdx) => {
                     const placed = curSlots[pIdx] || '';
                     let slotClass = placed ? 'border-solid border-slate-900 bg-slate-50 text-black shadow-2xs' : 'border-dashed border-slate-300 bg-slate-50/60 hover:bg-slate-100 hover:border-slate-400 text-black-fade';
@@ -14612,7 +15185,8 @@ window.openQuizFormModal = function (options = {}) {
                 <!-- White Panel (Full Height Column) -->
                 <div class="sigma-modal-panel min-h-screen">
                     <!-- Header (Quiz Title & Untimed Timer Display / Preview Mode Badge) -->
-                    <div class="border-b border-slate-100 sticky top-0 bg-white z-20">
+                    <div class="sigma-quiz-sticky-header">
+                    <div class="border-b border-slate-100 bg-white z-20">
                         <div class="px-8 sm:px-12 pt-8 pb-4 flex items-center justify-between gap-4 flex-wrap">
                             <div class="flex items-center gap-2 min-w-0 flex-1">
                                 <button type="button" id="sigma-quiz-mobile-back-btn"
@@ -14641,7 +15215,7 @@ window.openQuizFormModal = function (options = {}) {
                     <!-- Subheader: Points & Number Pills -->
                     <div class="border-b border-slate-100 bg-white z-10 px-8 sm:px-12 py-3.5 flex items-center justify-between gap-4 flex-wrap">
                         <div class="text-sm font-semibold text-black font-['Inter']">
-                            <span class="inline-flex items-center gap-1.5 font-semibold text-black"><i class="fa-solid fa-star text-[#FFD000] text-xs"></i><span>${pts} ${pts === 1 ? 'Point' : 'Points'}</span></span>
+                            ${window.renderSharedQuizPointsHtml({ totalPoints: totalQuizPoints, questionPoints: pts })}
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
                             ${window.renderSharedQuizPillsHtml({
@@ -14657,9 +15231,10 @@ window.openQuizFormModal = function (options = {}) {
                     </div>
 
                     <!-- Assessment Body (Vertically & Horizontally Centered Question Area) -->
+                    </div>
                     <div class="flex-1 px-8 sm:px-12 py-8 overflow-y-auto flex flex-col justify-center">
                         <div class="w-full max-w-3xl mx-auto space-y-6 my-auto ${isTeacherView ? 'pointer-events-none select-none' : ''}">
-                            <div class="flex items-center gap-3.5">
+                            <div class="sigma-quiz-numbered-prompt flex items-start gap-3.5">
                                 <span class="w-8 h-8 rounded-full bg-[#15803d] text-white flex items-center justify-center text-sm font-black shrink-0 shadow-2xs">
                                     ${currentIdx + 1}
                                 </span>
@@ -14717,6 +15292,10 @@ window.openQuizFormModal = function (options = {}) {
         `;
 
         modal.classList.remove('hidden');
+        if (currentIdx !== lastRenderedQuestionIndex) {
+            lastRenderedQuestionIndex = currentIdx;
+            resetQuizFormScroll();
+        }
 
         // Navigation listeners
         const prevBtn = modal.querySelector('#sigma-quiz-prev-btn');
@@ -14725,6 +15304,7 @@ window.openQuizFormModal = function (options = {}) {
                 currentQuestionIndex--;
                 currentPillsPage = Math.floor(currentQuestionIndex / 10);
                 renderModalContent('taking');
+                resetQuizFormScroll();
             };
         }
 
@@ -14734,6 +15314,7 @@ window.openQuizFormModal = function (options = {}) {
                 currentQuestionIndex++;
                 currentPillsPage = Math.floor(currentQuestionIndex / 10);
                 renderModalContent('taking');
+                resetQuizFormScroll();
             };
         }
 
@@ -14817,6 +15398,7 @@ window.openQuizFormModal = function (options = {}) {
     }
 
     renderModalContent('taking');
+    resetQuizFormScroll();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -14825,25 +15407,6 @@ window.openQuizFormModal = function (options = {}) {
 try {
     const RESET_KEY = 'sigma_reset_v10_clean_fake_materials_20260918_06';
     if (!localStorage.getItem(RESET_KEY)) {
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-            const k = localStorage.key(i);
-            if (k && (
-                k.startsWith('sigma_submission_') ||
-                k.startsWith('sigma_quiz_result_') ||
-                k.startsWith('sigma_attempts_') ||
-                k.startsWith('sigma_quiz_') ||
-                k === 'sigma_quiz_active_session' ||
-                k === 'sigma-teacher-gradebook-scores-v2' ||
-                k === 'sigma-teacher-gradebook-statuses-v2' ||
-                k === 'sigma_gradebook_scores' ||
-                k === 'sigma_gradebook_statuses' ||
-                k === 'gradebookScores'
-            )) {
-                localStorage.removeItem(k);
-            }
-        }
-        localStorage.removeItem('sigma_student_assessment_submissions');
-        localStorage.removeItem('sigma_gradebook_scores');
 
         const isFakeMat = (item) => {
             if (!item) return true;
@@ -14898,7 +15461,7 @@ try {
             }
         }
 
-        // Also clean any embedded submission state in stored topics/subjects
+        // Remove sample materials without changing genuine embedded submissions.
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
             if (k && (k.startsWith('sigma_topics_') || k.startsWith('sigma_subject_topics_') || k === 'sigma_teacher_subjects' || k === 'sigma_subjects_data')) {
@@ -14908,23 +15471,7 @@ try {
                         const parsed = JSON.parse(raw);
                         const cleanAssList = (list) => {
                             if (Array.isArray(list)) {
-                                return list.filter(item => !isFakeMat(item)).map(item => {
-                                    if (item && typeof item === 'object') {
-                                        delete item.score;
-                                        delete item.aiScore;
-                                        delete item.status;
-                                        delete item.submittedAt;
-                                        delete item.gradedAt;
-                                        delete item.attemptsUsed;
-                                        delete item.history;
-                                        delete item.attempts;
-                                        delete item.userAnswers;
-                                        delete item.answers;
-                                        delete item.fileName;
-                                        delete item.fileUrl;
-                                    }
-                                    return item;
-                                });
+                                return list.filter(item => !isFakeMat(item));
                             }
                             return list;
                         };
@@ -15392,10 +15939,50 @@ window.clearAllStudentSubmissions = function () {
     }
 };
 
+window.isQuizResubmissionRestricted = function (subjectId, topicIdx, tab, activeIdx, item) {
+    const ass = item || window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
+    if (ass?.quizId || ass?.selectedQuizId || tab === 'quiz') return true;
+    const title = String(ass?.title || ass?.name || '').toLowerCase();
+    const kind = String(ass?.type || ass?.category || ass?.kind || '').toLowerCase();
+    return !title.startsWith('task') && (kind.includes('quiz') || title.startsWith('quiz'));
+};
+
+window.getAssessmentExtraAttemptKeys = function (subjectId, topicIdx, tab, activeIdx, student) {
+    const identities = new Set(window.getStudentFullAliases ? window.getStudentFullAliases(student) : []);
+    if (student && typeof student === 'object') {
+        [student.id, student.uid, student.lrn, student.name, student.fullName].filter(Boolean).forEach(value => identities.add(String(value)));
+    } else if (student) identities.add(String(student));
+    const subjects = window.getUnifiedSubjectAliases ? window.getUnifiedSubjectAliases(subjectId) : [subjectId];
+    const keys = new Set();
+    for (const identity of identities) {
+        for (const subject of subjects) {
+            const clean = String(subject).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+            for (const suffix of [`${subject}_${topicIdx}_${tab}_${activeIdx}`, `${clean}_${topicIdx}_${tab}_${activeIdx}`, `${clean}_${topicIdx}_assessments_${activeIdx}`]) {
+                keys.add(`sigma_extra_attempts_${identity}_${suffix}`);
+            }
+        }
+    }
+    return Array.from(keys);
+};
+window.getAssessmentExtraAttempts = function (subjectId, topicIdx, tab, activeIdx, student, submission) {
+    if (window.isQuizResubmissionRestricted(subjectId, topicIdx, tab, activeIdx)) {
+        for (const key of window.getAssessmentExtraAttemptKeys(subjectId, topicIdx, tab, activeIdx, student)) {
+            if (localStorage.getItem(key) !== null && localStorage.getItem(key) !== '0') localStorage.setItem(key, '0');
+        }
+        return 0;
+    }
+    let stored = null;
+    for (const key of window.getAssessmentExtraAttemptKeys(subjectId, topicIdx, tab, activeIdx, student)) {
+        const value = localStorage.getItem(key);
+        if (value !== null && Number.isFinite(Number(value))) stored = Math.max(stored ?? 0, Number(value));
+    }
+    return Math.max(0, stored ?? Number(submission?.extraAttempts || 0));
+};
+
 window.getAssessmentMaxAttempts = function (subjectId, tab, activeIdx, topicIdx, item, optionalStudent) {
     try {
         const assessConfig = (typeof window.getAssessmentReleaseConfig === 'function')
-            ? window.getAssessmentReleaseConfig(subjectId)
+            ? window.getAssessmentReleaseConfig(subjectId, item?.section || window.currentTopicState?.selectedSection)
             : null;
         let ass = item || null;
         if (!ass && typeof window.getCurrentTopicAssessment === 'function') {
@@ -15460,7 +16047,8 @@ window.getAssessmentMaxAttempts = function (subjectId, tab, activeIdx, topicIdx,
                 0
             );
         }
-        return baseAtt + extraAttempts;
+        return window.isQuizResubmissionRestricted(subjectId, topIdx, tabStr, actIdx, ass) ? 1
+            : baseAtt + window.getAssessmentExtraAttempts(subjectId, topIdx, tabStr, actIdx, studentUser);
     } catch (e) {
         return 1;
     }
@@ -15483,6 +16071,7 @@ window.triggerStudentAssessmentSubmit = function (subjectId, tab, activeIdx, top
 };
 
 window.handleStudentAssessmentFileUpload = function (event, subjectId, tab, activeIdx, topicIdx) {
+    if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const file = event.target && event.target.files && event.target.files[0];
     if (!file) return;
 
@@ -15501,7 +16090,7 @@ window.isAssessmentLateSubmissionAllowed = function (subjectId, tab, activeIdx, 
     window._assessmentDeadlineMs = null;
     try {
         const assessConfig = (typeof window.getAssessmentReleaseConfig === 'function')
-            ? window.getAssessmentReleaseConfig(subjectId)
+            ? window.getAssessmentReleaseConfig(subjectId, item?.section || window.currentTopicState?.selectedSection)
             : null;
         let ass = item || null;
         if (!ass && typeof window.getCurrentTopicAssessment === 'function') {
@@ -16315,10 +16904,17 @@ window.refreshAllScorePanelsAndTables = function (meta, fromStorage = false) {
                 const activeEl = document.activeElement;
                 const isUserTypingInTopic = activeEl && topicContentSection.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
                 if (!isUserTypingInTopic) {
-                    if (typeof window._renderTopicContentMain === 'function') {
-                        try { window._renderTopicContentMain(); } catch (_) { }
-                    } else if (typeof window.renderTopicContentMain === 'function') {
-                        try { window.renderTopicContentMain(); } catch (_) { }
+                    const previousScrollSuppression = window._suppressSubmissionScrollToTop;
+                    window._suppressSubmissionScrollToTop = true;
+                    try {
+                        if (typeof window._renderTopicContentMain === 'function') {
+                            window._renderTopicContentMain();
+                        } else if (typeof window.renderTopicContentMain === 'function') {
+                            window.renderTopicContentMain();
+                        }
+                    } catch (_) {
+                    } finally {
+                        window._suppressSubmissionScrollToTop = previousScrollSuppression;
                     }
                     try { window.scrollTo({ left: prevScrollX, top: prevScrollY, behavior: 'instant' }); } catch (_) { }
                 }
@@ -16425,6 +17021,7 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
         if (!e || !e.key) return;
         const isScoreOrGradeKey = (
             e.key === 'sigma-assessment-scored-broadcast' ||
+            e.key === 'sigma-manual-grade-closures-v1' ||
             e.key === 'sigma-gradebook-subject-weights' ||
             e.key === 'sigma-teacher-gradebook-weights' ||
             e.key === 'sigma-teacher-gradebook-scores-v2' ||
@@ -16444,6 +17041,7 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
             window._latestSubmissionForScorePanel = null;
             window.invalidateTeacherGradebookCache?.();
             window.invalidateSharedAssessmentSubmissionsStorage?.();
+            window._studentAssessmentDetailsCache?.clear();
             let meta = null;
             if (e.key === 'sigma-assessment-scored-broadcast') {
                 try { meta = JSON.parse(e.newValue || '{}')?.meta; } catch (_) {}
@@ -16453,12 +17051,6 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
     });
     window.addEventListener('sigma-gradebook-weights-changed', function () {
         window.refreshAllScorePanelsAndTables({ source: 'weights_changed' }, true);
-    });
-    window.addEventListener('focus', function () {
-        if (!window.location.pathname.includes('student')) return;
-        window._sharedAssessmentSubmissionsMemoryCache = {};
-        window._latestSubmissionForScorePanel = null;
-        window.refreshAllScorePanelsAndTables({ source: 'student_tab_focus' }, true);
     });
 }
 
@@ -16517,9 +17109,12 @@ window.getUnifiedSubjectAliases = function (subjectId) {
     }
 
     const getRawFn = (typeof window.getAllSubjectsRaw === 'function') ? window.getAllSubjectsRaw : (typeof getAllSubjectsRaw === 'function' ? getAllSubjectsRaw : null);
-    if (getRawFn) {
+    {
         try {
-            const all = getRawFn();
+            const all = getRawFn ? getRawFn()
+                : (typeof window.getStoredJson === 'function'
+                    ? window.getStoredJson('sigma-admin-subjects', [])
+                    : JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]'));
             if (Array.isArray(all)) {
                 const found = all.find(s => {
                     if (!s) return false;
@@ -16527,7 +17122,10 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                     const sname = String(s.name || s.subject || '').toLowerCase();
                     const q = sStr.toLowerCase();
                     const qc = clean.toLowerCase();
-                    return sid === q || sid === qc || sname === q || sname === qc || (qc.length > 3 && (sname.includes(qc) || sid.includes(qc)));
+                    const knownAliases = Array.from(aliases, alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase());
+                    return sid === q || sid === qc || sname === q || sname === qc
+                        || (sname && knownAliases.includes(sname))
+                        || (qc.length > 3 && (sname.includes(qc) || sid.includes(qc)));
                 });
                 if (found) {
                     if (found.id) aliases.add(found.id);
@@ -16537,6 +17135,23 @@ window.getUnifiedSubjectAliases = function (subjectId) {
             }
         } catch (e) { }
     }
+
+    // Student classroom routes use section IDs; teacher routes use subject names/IDs.
+    try {
+        const sections = typeof window.getStoredJson === 'function'
+            ? window.getStoredJson('sigma-admin-sections', [])
+            : JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+        const normalize = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+        for (const section of Array.isArray(sections) ? sections : []) {
+            const subject = section.subjectId || section.subject || section.subjectName;
+            if (!subject || typeof subject !== 'string') continue;
+            if (normalize(section.id) === normalize(sStr)
+                || Array.from(aliases).some(alias => normalize(alias) === normalize(subject))) {
+                if (section.id) aliases.add(section.id);
+                aliases.add(subject);
+            }
+        }
+    } catch (_) {}
 
     if (typeof currentTopicState !== 'undefined' && currentTopicState && currentTopicState.subjectId) {
         aliases.add(currentTopicState.subjectId);
@@ -16736,6 +17351,7 @@ window.paintTeacherScorePanel = function (score, opts) {
 };
 
 window.persistReviewTotalToScorePanel = function (score, maxScore) {
+    if (window._quizReviewReadOnly) return;
     const sub = window._activeReviewSubData;
     const ctx = window._activeReviewContext || {};
     if (!sub) return;
@@ -16908,9 +17524,9 @@ window.openTeacherScoreEditor = function () {
     const display = document.getElementById('teacher-grading-score-display');
     const edit = document.getElementById('teacher-grading-score-edit');
     if (!input || input.disabled || (edit && edit.disabled)) return;
-    if (input.dataset.isQuiz === '1' && input.dataset.hasQuizSubmission !== '1') return;
+    if (input.dataset.needsSubmission === '1') return;
     if (display) display.style.display = 'none';
-    input.style.display = '';
+    input.style.display = 'inline-block';
     input.classList.add('is-selected');
     window.setTeacherScoreEditSelected?.(true);
     input.focus();
@@ -16921,7 +17537,7 @@ window.toggleTeacherScoreEditor = function () {
     const input = document.getElementById('teacher-grading-score-input');
     const edit = document.getElementById('teacher-grading-score-edit');
     if (!input || input.disabled || (edit && edit.disabled)) return;
-    if (input.dataset.isQuiz === '1' && input.dataset.hasQuizSubmission !== '1') return;
+    if (input.dataset.needsSubmission === '1') return;
     if (input.style.display !== 'none') window.closeTeacherScoreEditor(input);
     else window.openTeacherScoreEditor();
 };
@@ -16937,14 +17553,14 @@ window.applyGradingStatusToScoreCounter = function (isNone) {
     const saved = String(input.dataset.savedScore || '').trim();
     const raw = String(input.value || '').trim();
     const hasTyped = raw !== '' && raw !== '-' && !Number.isNaN(Number(raw));
-    const lock = isUnsubmittedQuiz || (Boolean(isNone) && needsSubmission && saved === '' && !hasTyped);
+    const lock = input.dataset.manualNoSubmission !== '1' && (isUnsubmittedQuiz || (Boolean(isNone) && needsSubmission && saved === '' && !hasTyped));
     const statusSelect = document.getElementById('teacher-grading-status-select');
     input.disabled = lock;
     if (edit) {
         edit.disabled = lock;
         if (lock) {
             edit.title = isUnsubmittedQuiz ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading';
-            edit.innerHTML = '<i class="fa-solid fa-lock text-slate-400 text-xs"></i>';
+            edit.innerHTML = '<i class="fa-solid fa-lock text-black-fade text-xs"></i>';
             if (typeof window.closeTeacherScoreEditor === 'function') window.closeTeacherScoreEditor(input);
         } else {
             edit.removeAttribute('title');
@@ -17202,6 +17818,9 @@ window.saveOfficialQuizGradebook = function (subData, meta) {
 };
 
 window.syncSharedScoreAndStatus = function (params) {
+    const selectedAttempt = window._selectedSubmissionAttempt;
+    if (params?.source === 'score_panel' && selectedAttempt?.isQuiz && selectedAttempt.page > 1
+        && String(params.subjectId) === String(selectedAttempt.subjectId)) return null;
     if (!params || typeof params !== 'object') return null;
 
     // Start from persisted data so shared scoring and portal-local state agree.
@@ -17347,6 +17966,43 @@ window.syncSharedScoreAndStatus = function (params) {
     const item = params.item || null;
     const itemId = String(item?.id || item?.materialId || item?.origId || item?.quizId || params.itemId || '').trim();
     const taskTitle = String(item?.title || item?.name || params.taskTitle || '').trim();
+    const submittedWork = typeof window.findAssessmentSubmittedWork === 'function'
+        ? window.findAssessmentSubmittedWork(matchedRoster || { id: sId, name: sName }, item || { id: itemId, title: taskTitle }, subjectId, section, quarter)
+        : null;
+    if (rawScore !== '' && rawScore !== null && rawScore !== undefined && rawScore !== '-'
+        && typeof window.findAssessmentSubmittedWork === 'function'
+        && !submittedWork && !window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter)) {
+        window.showToast?.('The student must submit this assessment before a score can be saved.', 'warning');
+        return null;
+    }
+    const closeWithoutSubmission = rawScore !== '' && rawScore !== null && rawScore !== undefined && rawScore !== '-'
+        && !submittedWork && window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter);
+    if (!submittedWork && !params.resetManualClosureKey && window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter)) {
+        const scoreMissing = rawScore === '' || rawScore === null || rawScore === undefined || rawScore === '-';
+        const statusMissing = !['missing', 'absent', 'incomplete', 'excuse', 'excused'].includes(String(rawStatus || '').toLowerCase());
+        window.showManualGradeValidation?.(scoreMissing, statusMissing, params.validationRoot);
+        if (scoreMissing || statusMissing) return null;
+    }
+    const closureKey = closeWithoutSubmission ? window.assessmentClosureKey({ id: sId, name: sName }, closeWithoutSubmission, subjectId, section) : '';
+    if (closeWithoutSubmission && !window.readAssessmentClosure({ id: sId, name: sName }, closeWithoutSubmission, subjectId, section)
+        && params.manualCloseConfirmed !== true) {
+        window.openAskingPanel?.({
+            title: 'Save Grade & Close Submissions?',
+            variant: 'grading',
+            desc: 'This student has not submitted work. Saving this grade will close submissions for this student until you reopen them.',
+            type: 'warning', icon: 'fa-solid fa-lock text-amber-500',
+            confirmText: 'Save & Close Submissions', cancelText: 'Cancel', showCancel: true,
+            onConfirm: () => {
+                const saved = window.syncSharedScoreAndStatus({ ...params, manualCloseConfirmed: true });
+                if (!saved) return;
+                if (source === 'score_panel') {
+                    window.closeTeacherScoreEditor?.();
+                    window.syncGradeScoreDraft?.();
+                }
+            }
+        });
+        return null;
+    }
 
     const catKeysSet = new Set();
     const normCat = (item?._category || item?.category || item?.type || (item?.quizId ? 'quiz' : '') || category || '').toLowerCase();
@@ -17455,9 +18111,6 @@ window.syncSharedScoreAndStatus = function (params) {
     let finalScore = null;
     if (rawScore === '' || rawScore === null || rawScore === undefined || rawScore === '-') {
         finalScore = '';
-    } else if (tone === 'excuse' && (rawScore === 0 || rawScore === '0')) {
-        // An excused student is exempt from the task: score is unassigned/blank, NEVER 0!
-        finalScore = '';
     } else {
         finalScore = Number(rawScore);
         if (isNaN(finalScore) || finalScore < 0) finalScore = 0;
@@ -17564,12 +18217,37 @@ window.syncSharedScoreAndStatus = function (params) {
     {
         const scJson = JSON.stringify(gradebookScores);
         const stJson = JSON.stringify(gradebookStatuses);
-        localStorage.setItem('sigma-teacher-gradebook-scores-v2', scJson);
-        localStorage.setItem('sigma-teacher-gradebook-statuses-v2', stJson);
-        localStorage.setItem('sigma_gradebook_scores', scJson);
-        localStorage.setItem('gradebookScores', scJson);
-        localStorage.setItem('sigma_gradebook_statuses', stJson);
-        localStorage.setItem('gradebookStatuses', stJson);
+        const writes = [
+            ['sigma-teacher-gradebook-scores-v2', scJson], ['sigma-teacher-gradebook-statuses-v2', stJson],
+            ['sigma_gradebook_scores', scJson], ['gradebookScores', scJson],
+            ['sigma_gradebook_statuses', stJson], ['gradebookStatuses', stJson]
+        ];
+        if (closeWithoutSubmission) {
+            const closures = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}');
+            closures[closureKey] = { closedAt: new Date().toISOString(), score: finalScore, status: tone,
+                itemIds: [itemId, item?.id, item?.materialId, item?.origId, closeWithoutSubmission.id, closeWithoutSubmission.materialId].filter(Boolean),
+                topicIdx, topicItemIdx, resetParams: { subjectId, section, quarter, category, itemIdx } };
+            writes.push(['sigma-manual-grade-closures-v1', JSON.stringify(closures)]);
+        }
+        if (params.resetManualClosureKey) {
+            const closures = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}');
+            const record = closures[params.resetManualClosureKey];
+            if (!record || record.reopenedAt) return null;
+            record.previousGrade = { score: record.score, status: record.status, gradedAt: record.closedAt };
+            record.score = null;
+            record.status = 'none';
+            record.reopenedAt = new Date().toISOString();
+            writes.push(['sigma-manual-grade-closures-v1', JSON.stringify(closures)]);
+        }
+        const previous = writes.map(([key]) => [key, localStorage.getItem(key)]);
+        try { for (const [key, value] of writes) localStorage.setItem(key, value); }
+        catch (error) {
+            for (const [key, value] of previous) {
+                try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch (_) {}
+            }
+            window.invalidateTeacherGradebookCache?.();
+            throw error;
+        }
     }
     window.loadGradebookData?.();
     window.invalidateTeacherGradebookCache?.();
@@ -17588,9 +18266,22 @@ window.syncSharedScoreAndStatus = function (params) {
     }
 
     // 10. Update Student Submissions Storage (sigma_student_assessment_submissions & sigma_sub_...)
+    const preserveSubmittedWork = target => {
+        if (!submittedWork) return;
+        for (const field of ['files', 'attachments', 'fileName', 'fileUrl', 'file', 'dataUrl', 'url', 'submittedAt',
+            'submissionDate', 'completedAt', 'answers', 'userAnswers', 'questions', 'attempts', 'history', 'attemptsUsed']) {
+            const value = submittedWork[field];
+            const current = target[field];
+            if (value !== undefined && (current === undefined || current === null || current === ''
+                || (Array.isArray(current) && current.length === 0))) {
+                target[field] = typeof value === 'object' && value !== null ? JSON.parse(JSON.stringify(value)) : value;
+            }
+        }
+    };
     try {
+        if (!params.resetManualClosureKey && (submittedWork || !window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter))) {
         const allSubs = (typeof window.getSharedAssessmentSubmissionsStorage === 'function')
-            ? window.getSharedAssessmentSubmissionsStorage()
+            ? window.getSharedAssessmentSubmissionsStorage(true)
             : JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
 
         const effectiveStatus = (tone !== 'none')
@@ -17612,6 +18303,7 @@ window.syncSharedScoreAndStatus = function (params) {
             targetKeys.forEach(tKey => {
                 if (!allSubs[sk][tKey]) allSubs[sk][tKey] = {};
                 const target = allSubs[sk][tKey];
+                preserveSubmittedWork(target);
                 target.score = finalScore === '' ? '' : finalScore;
                 target.grade = finalScore === '' ? '' : finalScore;
                 target.earnedPoints = finalScore === '' ? '' : finalScore;
@@ -17696,10 +18388,12 @@ window.syncSharedScoreAndStatus = function (params) {
         });
         localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
         window.invalidateSharedAssessmentSubmissionsStorage?.();
+        }
     } catch (e) {}
 
     // Also update individual sigma_sub_ keys
     try {
+        if (!params.resetManualClosureKey && (submittedWork || !window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter))) {
         const cleanSubj = String(subjectId || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
         sKeysToSave.forEach(sk => {
             const cleanSid = String(sk).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -17719,6 +18413,7 @@ window.syncSharedScoreAndStatus = function (params) {
                 } catch (_) {}
                 if (existingSub.section && existingSub.section !== section) return;
                 if (existingSub.quarter && Number(String(existingSub.quarter).replace(/\D/g, '')) !== quarter) return;
+                preserveSubmittedWork(existingSub);
                 existingSub.section = section;
                 existingSub.subjectId = subjectId;
                 existingSub.quarter = quarter;
@@ -17809,6 +18504,7 @@ window.syncSharedScoreAndStatus = function (params) {
             } catch (_) {}
         }
 
+        }
     } catch (e) {}
 
     // 11. Live DOM Sync: Score Panel
@@ -17878,7 +18574,9 @@ window.syncSharedScoreAndStatus = function (params) {
     const panelMatches = studentMatches && itemMatches;
 
     if (panelMatches) {
-        const isQuizLocked = Boolean(scoreInput && scoreInput.dataset.isQuiz === '1' && scoreInput.dataset.hasQuizSubmission !== '1');
+        const isQuizLocked = Boolean(scoreInput && scoreInput.dataset.isQuiz === '1' && scoreInput.dataset.hasQuizSubmission !== '1'
+            && scoreInput.dataset.manualNoSubmission !== '1'
+            && !window.resolveNoDeadlineAssessment(item || { id: itemId }, subjectId, section, quarter));
         const displayVal = isQuizLocked ? '' : ((finalScore !== '' && finalScore !== null && finalScore !== undefined) ? String(finalScore) : '');
         if (scoreInput) {
             scoreInput.value = displayVal;
@@ -17930,7 +18628,7 @@ window.syncSharedScoreAndStatus = function (params) {
             saveBtn.disabled = true;
             saveBtn.title = isQuizLocked ? 'Locked: Quiz is locked until student submits quiz' : (displayVal !== '' ? 'Grade saved' : 'Enter a score to save grade');
         }
-        const badge = document.querySelector('.topic-score-sticky div.flex.items-center.justify-between span.inline-flex, #teacher-class-panel-card div.flex.items-center.justify-between span.inline-flex, [id$="-class-panel-card"] div.flex.items-center.justify-between span.inline-flex, [id$="-class-panel-card"] .topic-progress-title + span');
+        const badge = document.querySelector('.topic-score-sticky .grading-status-badge');
         if (badge) {
             let badgeText = (displayVal !== '' && displayVal !== '-' && displayVal !== '—') ? 'Graded' : 'Not Graded';
             let badgeClass = 'text-black bg-slate-100 border border-slate-200/80';
@@ -17959,12 +18657,15 @@ window.syncSharedScoreAndStatus = function (params) {
         const scoreProgressFill = document.querySelector('.topic-progress-card .score-progress-fill');
         if (scoreProgressFill) {
             const hasNumericScore = displayVal !== '' && Number.isFinite(Number(displayVal));
-            const percentage = hasNumericScore && maxScore > 0
+            const progressStatus = document.querySelector('#assessment-score-panel .select-none.font-bold')?.textContent.trim() || '';
+            const barActive = hasNumericScore && progressStatus.toLowerCase() !== 'pending';
+            const percentage = barActive && maxScore > 0
                 ? Math.min(100, Math.max(0, Number(displayVal) / maxScore * 100)) : 0;
             scoreProgressFill.style.setProperty('--score-pct', `${percentage}%`);
             scoreProgressFill.style.width = `${percentage}%`;
             scoreProgressFill.classList.remove('bg-red-500');
-            scoreProgressFill.classList.add('bg-[#15803d]');
+            scoreProgressFill.classList.remove('bg-[#15803d]');
+            scoreProgressFill.style.setProperty('background-color', window.getAssessmentScoreBarColor(percentage, barActive, progressStatus), 'important');
         }
         if (progressScoreEl) {
             const hasNum = displayVal !== '' && displayVal !== null && displayVal !== undefined && displayVal !== '-' && displayVal !== '—';
@@ -18197,7 +18898,7 @@ window.saveTeacherGradingScore = function () {
     if (typeof window.getCurrentTopicAssessment === 'function') {
         currentItem = window.getCurrentTopicAssessment(subjectId, tab, actIdx, topicIdx);
     }
-    const assCat = currentItem?.category || currentItem?.type || (tab === 'quiz' ? 'quiz' : 'assignment');
+    let assCat = currentItem?.category || currentItem?.type || (tab === 'quiz' ? 'quiz' : 'assignment');
 
     let allStudents = [];
     if (typeof window.getUnifiedSectionStudents === 'function') {
@@ -18213,6 +18914,24 @@ window.saveTeacherGradingScore = function () {
 
     const studentId = String(saveBtn?.dataset?.studentId || studentObj.id || studentObj.uid || studentObj.lrn || student).trim();
     const studentName = String(saveBtn?.dataset?.studentName || studentObj.name || studentObj.fullName || student).trim();
+    const displayedSubmission = window._latestSubmissionForScorePanel;
+    const sameDisplayedSubmission = displayedSubmission
+        && String(displayedSubmission.subjectId) === String(subjectId)
+        && Number(displayedSubmission.topicIdx) === topicIdx
+        && Number(displayedSubmission.activeIdx) === actIdx
+        && String(displayedSubmission.section || '').trim().toLowerCase() === String(section).trim().toLowerCase()
+        && String(displayedSubmission.studentId) === studentId;
+    if (sameDisplayedSubmission && displayedSubmission.assessment) {
+        currentItem = displayedSubmission.assessment;
+        assCat = currentItem.category || currentItem.type || assCat;
+    }
+    if (numScore !== null && typeof window.findAssessmentSubmittedWork === 'function'
+        && !window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1)
+        && !window.findAssessmentSubmittedWork({ ...studentObj, id: studentId }, currentItem, subjectId, section, currentItem?.quarter || window.currentSelectedTopicQuarter || 1,
+            sameDisplayedSubmission ? [displayedSubmission.subData] : [])) {
+        window.showToast?.('The student must submit this assessment before a score can be saved.', 'warning');
+        return;
+    }
 
     const quarter = Number(String(currentItem?.quarter || topicState.quarter || window.currentSelectedTopicQuarter || window.sigmaGradesState?.activeQuarter || 1).replace(/\D/g, '')) || 1;
     const resolvedColumn = (typeof window.resolveGradebookScoreColumn === 'function')
@@ -18255,7 +18974,7 @@ window.saveTeacherGradingScore = function () {
 
     // Call unified shared grading sync
     try {
-    window.syncSharedScoreAndStatus({
+    const savedGrade = window.syncSharedScoreAndStatus({
         source: 'score_panel',
         studentId: studentId,
         studentName: studentName,
@@ -18273,6 +18992,7 @@ window.saveTeacherGradingScore = function () {
         status: attendance,
         maxScore: maxAllowed || 100
     });
+    if (!savedGrade) return;
     } catch (error) {
         console.error('Failed to save grade:', error);
         window.showToast?.('Grade could not be saved. Browser storage may be full; keep this score open and try again.', 'error');
@@ -18331,6 +19051,26 @@ window.updateTeacherGradebookScore = function (subjectId, studentId, studentName
     }
 };
 
+window.hasCurrentAssessmentSubmission = function (student, context = {}) {
+    const state = window.currentTopicState || (typeof currentTopicState !== 'undefined' ? currentTopicState : {}) || {};
+    const subjectId = context.subjectId ?? state.subjectId;
+    const topicIdx = context.topicIdx ?? state.topicIdx ?? 0;
+    const activeIdx = context.activeIdx ?? window._tcAssessmentDetailIdx ?? state.assessmentIdx ?? 0;
+    const tab = context.tab ?? state.activeTab ?? 'assessments';
+    const displayed = window._latestSubmissionForScorePanel;
+    const section = state.selectedSection || window.activeClassroomSection || '';
+    const sameDisplayed = displayed && String(displayed.subjectId) === String(subjectId)
+        && Number(displayed.topicIdx) === Number(topicIdx) && Number(displayed.activeIdx) === Number(activeIdx)
+        && String(displayed.section || '').trim().toLowerCase() === String(section).trim().toLowerCase();
+    const item = context.item || window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx)
+        || (sameDisplayed ? displayed.assessment : null);
+    if (!item) return false;
+    const name = typeof student === 'string' ? student : (student.name || student.fullName || '');
+    const id = typeof student === 'object' ? (student.id || student.uid || student.lrn) : '';
+    const target = window.findMatchedUserAccount?.(id, name) || student;
+    return window.studentHasTurnedInWork?.(window.getStudentAssessmentSubmission?.(subjectId, tab, activeIdx, topicIdx, item, target)) === true;
+};
+
 window.navigateTopicStudent = function (direction) {
     const topicState = (typeof window.currentTopicState !== 'undefined' && window.currentTopicState)
         ? window.currentTopicState
@@ -18347,6 +19087,9 @@ window.navigateTopicStudent = function (direction) {
         students = window.getUnifiedSectionStudents(section) || [];
     } else if (typeof studentsBySection !== 'undefined') {
         students = studentsBySection[section] || [];
+    }
+    if (window._sharedViewSubmissionMode || window._studentViewSubmissionMode || window.location?.hash?.includes(':submission')) {
+        students = students.filter(student => window.hasCurrentAssessmentSubmission(student));
     }
     if (!students || students.length === 0) return;
 
@@ -18375,22 +19118,8 @@ window.navigateTopicStudent = function (direction) {
     // Find current student index with robust matching
     let currIdx = -1;
     if (currentSelected && currentSelected !== 'All') {
-        currIdx = students.findIndex(s => {
-            if (!s) return false;
-            const tokens = getStudentNameTokens(s);
-            if (tokens.includes(curLower)) return true;
-            if (curLower.length > 3 && tokens.some(t => t.includes(curLower) || curLower.includes(t))) return true;
-            const sName = typeof s === 'string' ? s : (s.name || s.fullName || '');
-            const sId = typeof s === 'object' ? (s.id || s.uid || s.lrn) : '';
-            if (typeof window.findMatchedUserAccount === 'function') {
-                const matched = window.findMatchedUserAccount(sId, sName);
-                if (matched) {
-                    const mTokens = getStudentNameTokens(matched);
-                    if (mTokens.includes(curLower)) return true;
-                }
-            }
-            return false;
-        });
+        const matched = window.resolveRosterStudent(students, currentSelected);
+        currIdx = matched ? students.indexOf(matched) : -1;
     }
 
     let nextIdx = 0;
@@ -18418,6 +19147,11 @@ window.navigateTopicStudent = function (direction) {
 };
 
 window.selectTopicStudent = function (name) {
+    const selectionState = window.currentTopicState || (typeof currentTopicState !== 'undefined' ? currentTopicState : {}) || {};
+    window._explicitGradingStudentSelection = {
+        scope: JSON.stringify([selectionState.subjectId, Number(selectionState.topicIdx || 0), Number(window._tcAssessmentDetailIdx ?? selectionState.assessmentIdx ?? 0), selectionState.selectedSection || window.activeClassroomSection || '']),
+        name
+    };
     window._gradingStudentListOpen = false;
     document.querySelectorAll('.topic-student-cover, [id$="-grading-student-list-tray"]').forEach(tray => {
         tray.classList.remove('is-open');
@@ -18504,7 +19238,9 @@ window.selectTopicStudent = function (name) {
         const curStd = window.currentTopicState?.selectedStudent || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedStudent : 'All');
         window.AssessmentsPage.renderAssessmentsPage(curSubj, 'teacher', curSec, curStd);
     } else if (topicContentVisible) {
-        if (typeof _renderTopicContentMain === 'function') {
+        if (typeof window.renderAdminTopicContentWorkstation === 'function') {
+            window.renderAdminTopicContentWorkstation();
+        } else if (typeof _renderTopicContentMain === 'function') {
             _renderTopicContentMain();
         } else if (typeof window._renderTopicContentMain === 'function') {
             window._renderTopicContentMain();
@@ -18541,9 +19277,9 @@ window.renderGradingStudentCoverHtml = function (options = {}) {
     } = options;
     const escapeHtml = options.escapeHtml || window.escapeHtml || function (value) { return String(value || ''); };
 
-    const rows = allStudents.length === 0
+    const renderRows = students => students.length === 0
         ? '<div class="topic-student-cover__empty">No students found</div>'
-        : allStudents.map(s => {
+        : students.map(s => {
             const sName = typeof s === 'string' ? s : (s.name || s.fullName || `${s.lastName || ''}, ${s.firstName || ''}`.trim());
             const sId = typeof s === 'object' ? (s.id || s.uid || s.lrn) : '';
             const isStudentActive = Boolean(
@@ -18567,6 +19303,11 @@ window.renderGradingStudentCoverHtml = function (options = {}) {
                 </button>
             `;
         }).join('');
+    const submitted = allStudents.filter(student => window.hasCurrentAssessmentSubmission(student));
+    const notSubmitted = allStudents.filter(student => !submitted.includes(student));
+    const heading = label => `<h3 class="topic-student-cover__group-title" style="padding:12px 16px 8px;font-size:12px;font-weight:600;color:#15803d;">${label}</h3>`;
+    const rows = allStudents.length ? heading(`Submitted (${submitted.length})`) + (submitted.length ? renderRows(submitted) : '<div class="topic-student-cover__empty">No submissions yet</div>')
+        + heading(`Not Submitted (${notSubmitted.length})`) + (notSubmitted.length ? renderRows(notSubmitted) : '') : renderRows([]);
 
     return `
         <div id="${prefix}-grading-student-list-tray" class="topic-student-cover${isListOpen ? ' is-open' : ''}">
@@ -18694,6 +19435,7 @@ window.toggleGradingStatusDropdown = function (event) {
     const menu = document.getElementById('teacher-grading-status-menu');
     if (!menu) return;
     const trigger = document.getElementById('teacher-grading-status-trigger-btn');
+    if (!trigger || trigger.disabled) return;
     const wrapper = document.getElementById('teacher-grading-status-dropdown-wrapper');
     const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
     const willOpen = menu.classList.contains('hidden');
@@ -18793,6 +19535,13 @@ window.handleGradingStatusChange = function (newStatus) {
     if (labelEl) {
         labelEl.textContent = (newStatus && newStatus !== 'none') ? (newStatus === 'excused' ? 'Excuse' : (newStatus.charAt(0).toUpperCase() + newStatus.slice(1))) : 'None';
     }
+    const draftInput = document.getElementById('teacher-grading-score-input');
+    if (draftInput?.dataset.manualNoSubmission === '1') {
+        draftInput.dataset.draftStatus = String(newStatus || 'none').toLowerCase();
+        window.showManualGradeValidation(false, false);
+        window.syncGradeScoreDraft?.();
+        return;
+    }
 
     const saveBtn = document.getElementById('teacher-grading-save-btn');
     const section = (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '') || (typeof currentClassroomSectionName !== 'undefined' ? currentClassroomSectionName : '') || '';
@@ -18855,9 +19604,6 @@ window.handleGradingStatusChange = function (newStatus) {
         currScore = String(scoreInput.dataset.savedScore).trim();
     }
     // If setting to Excuse, Missing, or Absent, do not keep or force automatic 0 score
-    if ((normStatus === 'excuse' || normStatus === 'missing' || normStatus === 'absent') && (currScore === '0' || currScore === 0)) {
-        currScore = '';
-    }
 
     const quarter = (typeof gradebookState !== 'undefined' && gradebookState?.currentQuarter) ? gradebookState.currentQuarter : 1;
     const resolvedColumn = (typeof window.resolveGradebookScoreColumn === 'function')
@@ -19068,6 +19814,7 @@ window.submissionMatchesAssessment = function (sub, item) {
 
     // 1. Direct ID matches match immediately
     if (ident.materialId && subMat && ident.materialId === subMat) return true;
+    if (ident.materialId && subMat && ident.materialId !== subMat && ident.quizId !== subMat && ident.materialId !== subQuiz) return false;
     if (ident.quizId && subQuiz && ident.quizId === subQuiz) return true;
     if (ident.materialId && subQuiz && ident.materialId === subQuiz) return true;
     if (ident.quizId && subMat && ident.quizId === subMat) return true;
@@ -19164,6 +19911,11 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         }
     }
     const foundItem = item || items[actualItemIdx] || items[itemIdx] || {};
+    let manualGradeRecord = null;
+    try { manualGradeRecord = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}')[window.assessmentClosureKey(student, foundItem, subj, section)]; } catch (_) {}
+    if (manualGradeRecord && !window.findAssessmentSubmittedWork?.(student, foundItem, subj, section, q)) {
+        return { score: manualGradeRecord.score, status: manualGradeRecord.status || '', isAutoMissing: false, isPastDue: false, requiresSubmission: false };
+    }
 
     const resolvedHps = (typeof window.resolveAssessmentHPS === 'function')
         ? window.resolveAssessmentHPS(foundItem, subj, section, cat, actualItemIdx)
@@ -19618,18 +20370,6 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         let keptStatus = (attendance === 'missing' || attendance === 'absent' || attendance === 'incomplete' || attendance === 'excuse' || attendance === 'excused')
             ? (attendance === 'excused' ? 'excuse' : attendance)
             : '';
-        // If attendance is excuse, missing, or absent without an explicit non-zero score, score must NEVER be 0
-        if ((keptStatus === 'excuse' || keptStatus === 'missing' || keptStatus === 'absent') && (savedScore === 0 || savedScore === '0')) {
-            return {
-                status: keptStatus,
-                score: '',
-                isAutoMissing: false,
-                isPastDue: false,
-                dueDate: null,
-                isManualOverride: false,
-                teacherSaved: true
-            };
-        }
         const scoreOut = clampScore(savedScore);
         return {
             status: keptStatus,
@@ -19653,7 +20393,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
             const scoreToUse = hasManualSavedScore ? clampScore(savedScore) : '';
             return { status: 'incomplete', score: scoreToUse, isAutoMissing: false, isPastDue: false, isManualOverride: true };
         } else if (normSaved === 'excuse' || normSaved === 'excused') {
-            const hasGenuineScore = hasManualSavedScore && savedScore !== 0 && savedScore !== '0';
+            const hasGenuineScore = hasManualSavedScore;
             const scoreToUse = hasGenuineScore ? clampScore(savedScore) : '';
             return { status: 'excuse', score: scoreToUse, isAutoMissing: false, isPastDue: false, isManualOverride: hasGenuineScore };
         }
@@ -19790,7 +20530,8 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         (subData.score !== undefined && subData.score !== null && subData.score !== '')
     ));
 
-    if (isPastDue && !hasSubmitted) {
+    if (isPastDue && !hasSubmitted && !hasManualSavedScore
+        && window.isAssessmentLateSubmissionAllowed?.(subj, tab, aIdx, tIdx, foundItem) === false) {
         return {
             status: 'missing',
             score: 0,
@@ -20545,9 +21286,15 @@ window.openGradebookScoreEditor = function (cell) {
     const topicItemIdx = Number(cell.dataset.topicItemIdx || cell.dataset.itemIdx || 0);
     const hasScore = Boolean(cell.dataset.score !== undefined && cell.dataset.score !== null && cell.dataset.score !== '' && cell.dataset.score !== '-');
     const hasAttendance = Boolean(cell.dataset.attendance && cell.dataset.attendance !== 'none');
+    if (typeof window.findAssessmentSubmittedWork === 'function'
+        && !window.resolveNoDeadlineAssessment({ id: itemId }, subjectId, cell.dataset.section || '', cell.dataset.quarter || 1)
+        && !window.findAssessmentSubmittedWork({ id: studentId, name: studentName }, { id: itemId, title: taskTitle, category, topicIdx, topicItemIdx }, subjectId, cell.dataset.section || '', cell.dataset.quarter || 1)) {
+        window.showGradebookUnsubmittedIndicator?.(cell, studentName, taskTitle);
+        return;
+    }
     const isExplicitLocked = cell.dataset.locked === '1' || cell.dataset.unsubmitted === '1';
 
-    if (isExplicitLocked || (!hasScore && !hasAttendance)) {
+    if (!window.resolveNoDeadlineAssessment({ id: itemId }, subjectId, cell.dataset.section || '', cell.dataset.quarter || 1) && (isExplicitLocked || (!hasScore && !hasAttendance))) {
         const itemObj = { id: itemId, title: taskTitle, topicIdx: topicIdx, topicItemIdx: topicItemIdx, category: category };
         const hasSub = (typeof window.studentHasAssessmentSubmission === 'function')
             ? window.studentHasAssessmentSubmission({ id: studentId, name: studentName }, itemObj, subjectId, category)
@@ -20667,6 +21414,17 @@ window.applyOpenGradebookStatus = function (btn) {
     const current = String((input && input.dataset.applyAttendance) || cell.dataset.attendance || '').trim().toLowerCase();
     const isCurrentlyActive = btn.classList.contains('active-status') || btn.classList.contains('is-active') || current === type || (current === 'excuse' && type === 'excused') || (current === 'excused' && type === 'excuse');
     const next = isCurrentlyActive ? 'none' : type;
+    if (input && window.resolveNoDeadlineAssessment({ id: cell.dataset.itemId }, cell.dataset.subject, cell.dataset.section, cell.dataset.quarter || 1)
+        && !window.findAssessmentSubmittedWork?.({ id: cell.dataset.studentId, name: cell.dataset.studentName }, { id: cell.dataset.itemId }, cell.dataset.subject, cell.dataset.section, cell.dataset.quarter || 1)) {
+        input.dataset.applyAttendance = next;
+        input.dataset.committed = '';
+        cell.querySelectorAll('.gb-open-status-btn, .status-circle-btn, .status-btn').forEach(item => {
+            item.classList.toggle('active-status', item.dataset.type === next);
+            item.classList.toggle('is-active', item.dataset.type === next);
+        });
+        window.showManualGradeValidation(String(input.value).trim() === '', next === 'none', cell);
+        return;
+    }
 
     // Clear committed flag so editor stays alive
     if (input) input.dataset.committed = '';
@@ -20688,7 +21446,8 @@ window.applyOpenGradebookStatus = function (btn) {
     if (input) input.dataset.applyAttendance = next;
 
     let scoreToSync = input ? input.value : (cell.dataset.score || '');
-    if ((next === 'excuse' || next === 'missing' || next === 'absent') && (scoreToSync === '0' || scoreToSync === 0 || scoreToSync === '-' || scoreToSync === '—' || scoreToSync === '--')) {
+    const manualNoDeadline = window.resolveNoDeadlineAssessment({ id: cell.dataset.itemId }, cell.dataset.subject, cell.dataset.section, cell.dataset.quarter || 1);
+    if (scoreToSync === '-' || scoreToSync === '—' || scoreToSync === '--') {
         scoreToSync = '';
         if (input) input.value = '';
         cell.dataset.score = '';
@@ -20748,8 +21507,8 @@ window.applyOpenGradebookStatus = function (btn) {
 
     // Shared sync across all storage locations and live DOM (Score panel, Gradebook table, Analytics)
     if (typeof window.syncSharedScoreAndStatus === 'function') {
-        window.syncSharedScoreAndStatus({
-            source: 'gradebook_table',
+        const savedGrade = window.syncSharedScoreAndStatus({
+            source: 'gradebook_table', validationRoot: cell,
             studentId: studentId,
             studentName: studentName,
             subjectId: subjectId,
@@ -20813,6 +21572,9 @@ window.applyOpenGradebookStatus = function (btn) {
 
 window.studentHasAssessmentSubmission = function (student, item, subjectId, category) {
     if (!student || !item) return false;
+    if (typeof window.findAssessmentSubmittedWork === 'function') {
+        return Boolean(window.findAssessmentSubmittedWork(student, item, item.subjectId || subjectId, item.section || student.section || window.currentTopicState?.selectedSection || '', item.quarter || window.sigmaGradesState?.activeQuarter || window.currentSelectedTopicQuarter || 1));
+    }
     if (typeof window.getStudentAssessmentSubmission !== 'function') return false;
     const topicIdx = (item.topicIdx !== undefined && item.topicIdx !== null) ? Number(item.topicIdx) : 0;
     const slotIdx = (item.topicItemIdx !== undefined && item.topicItemIdx !== null)
@@ -20920,6 +21682,8 @@ window.persistGradebookScorePanelRecord = function (input) {
     const student = { id: studentId, name: studentName, fullName: studentName };
     const itemId = String(source.id || source.materialId || source.origId || source.quizId || source.selectedQuizId || input.dataset.itemId || '').trim();
     const title = String(source.title || source.name || item.title || input.dataset.taskTitle || '').trim();
+    if (!cleared && typeof window.findAssessmentSubmittedWork === 'function'
+        && !window.findAssessmentSubmittedWork(student, { ...item, id: itemId, title }, subjectId, section, quarter)) return;
 
     const stampSub = (sub) => {
         const row = (sub && typeof sub === 'object') ? sub : {};
@@ -21057,6 +21821,17 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
     if (!input || input.disabled || input.dataset.committed === '1') return;
     const cell = input.closest('td');
     if (!cell) return;
+    if (String(input.value || '').trim() !== '' && typeof window.findAssessmentSubmittedWork === 'function') {
+        const data = { ...cell.dataset, ...input.dataset };
+        if (!window.resolveNoDeadlineAssessment({ id: data.itemId }, data.subject || '', data.section || '', data.quarter || 1) && !window.findAssessmentSubmittedWork({ id: data.studentId, name: data.studentName },
+            { id: data.itemId, title: data.taskTitle, category: data.category, topicIdx: Number(data.topicIdx || 0), topicItemIdx: Number(data.topicItemIdx || data.itemIdx || 0) },
+            data.subject || '', data.section || '', data.quarter || 1)) {
+            input.value = '';
+            input.disabled = true;
+            window.showGradebookUnsubmittedIndicator?.(cell, data.studentName, data.taskTitle);
+            return;
+        }
+    }
 
     if (!forceCommit && input.dataset.forceCommit !== '1') {
         if (cell.matches(':hover')) return;
@@ -21079,8 +21854,8 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
     }
     if (typeof window.syncSharedScoreAndStatus === 'function') {
         const itemMax = Number(input.max || cell?.dataset?.max) || 100;
-        window.syncSharedScoreAndStatus({
-            source: 'gradebook_table',
+        const savedGrade = window.syncSharedScoreAndStatus({
+            source: 'gradebook_table', validationRoot: cell,
             studentId: studentId,
             studentName: studentName,
             category: category,
@@ -21103,6 +21878,7 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
                 topicItemIdx: topicItemIdx
             }
         });
+        if (!savedGrade) { input.dataset.committed = ''; return; }
     }
     if (typeof window.syncSharedScoreAndStatus !== 'function' && typeof window.updateStudentScore === 'function' && !Number.isNaN(itemIdx)) {
         window._gradebookApplyAttendance = applyAttendance;
@@ -21354,6 +22130,83 @@ window.syncOpenGradebookStatusToScorePanel = function (inputOrCell, applyAttenda
     }
 };
 
+window.getGradebookStudentItemScore = function (student, category, itemIdx, item, subjectId, quarter) {
+    const section = item?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || student?.section || student?.gradeSection || '';
+    const scopedSubject = item?.subjectId || subjectId;
+    const scopedItem = { ...item, section, quarter };
+    const effective = window.getEffectiveAssessmentStatusAndScore?.(student, category, itemIdx, scopedSubject, quarter, scopedItem);
+    const value = effective?.score;
+    if (value !== '' && value !== '-' && value !== null && value !== undefined && Number.isFinite(Number(value))) return Number(value);
+    const submission = window.getStudentAssessmentSubmission?.(scopedSubject, 'assessments', item?.topicItemIdx ?? itemIdx,
+        item?.topicIdx ?? 0, scopedItem, student);
+    const savedValue = submission?.score;
+    return (submission?.teacherSaved || submission?.teacherEditedScore) && savedValue !== '' && savedValue !== '-'
+        && savedValue !== null && savedValue !== undefined && Number.isFinite(Number(savedValue)) ? Number(savedValue) : null;
+};
+
+window.findAssessmentSubmittedWork = function (student, item, subjectId, section, quarter, knownRecords = []) {
+    if (!student || !item || typeof window.submissionMatchesAssessment !== 'function') return null;
+    const source = item.rawItem || item;
+    const target = { ...source, ...item };
+    const aliases = typeof window.getStudentFullAliases === 'function' ? window.getStudentFullAliases(student)
+        : [student.id, student.uid, student.lrn, student.name, student.fullName].filter(Boolean).map(String);
+    const subjects = typeof window.getUnifiedSubjectAliases === 'function' ? window.getUnifiedSubjectAliases(subjectId) : [subjectId];
+    const normalize = value => String(value || '').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
+    const records = knownRecords.map(row => ({ row, scoped: false }));
+    try {
+        const all = typeof window.getSharedAssessmentSubmissionsStorage === 'function' ? window.getSharedAssessmentSubmissionsStorage()
+            : JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
+        for (const alias of aliases) {
+            for (const row of Object.values(all[alias] || {})) records.push({ row, scoped: true });
+        }
+        const appendStoredRecord = (key, value) => {
+            if (!key?.startsWith('sigma_sub_') && !key?.startsWith('sigma_submission_')) return;
+            try {
+                const row = typeof value === 'string' ? JSON.parse(value) : value;
+                const scoped = aliases.some(alias => key.includes(`_${alias}_`) || key.endsWith(`_std_${alias}`));
+                // Legacy keys lack a student suffix; require explicit ownership before using them.
+                if (!scoped && !(row && (row.studentId || row.student_id || row.studentUid || row.studentNumber
+                    || row.studentLRN || row.userId || row.studentName || row.student_name || row.userName || row.student)
+                    && typeof window.isSubmissionMatchForStudent === 'function'
+                    && window.isSubmissionMatchForStudent(row, student))) return;
+                records.push({ row, scoped });
+            } catch (_) {}
+        };
+        const stores = [localStorage];
+        if (typeof sessionStorage !== 'undefined') stores.push(sessionStorage);
+        for (const storage of stores) {
+            for (let i = 0; i < storage.length; i++) {
+                const key = storage.key(i);
+                appendStoredRecord(key, storage.getItem(key));
+            }
+        }
+        for (const [key, row] of Object.entries(window._sharedAssessmentSubmissionsMemoryCache || {})) {
+            appendStoredRecord(key, row);
+        }
+    } catch (_) {}
+    let found = null;
+    for (const { row, scoped } of records) {
+        if (!row || typeof row !== 'object' || !window.submissionMatchesAssessment(row, target)) continue;
+        if (['draft', 'not submitted', 'not started'].includes(String(row.status || '').toLowerCase()) && !row.submittedAt && !row.completedAt) continue;
+        if (!scoped && typeof window.isSubmissionMatchForStudent === 'function' && !window.isSubmissionMatchForStudent(row, student)) continue;
+        if (row.studentId && typeof window.isSubmissionMatchForStudent === 'function' && !window.isSubmissionMatchForStudent(row, student)) continue;
+        if (row.subjectId && !subjects.some(alias => normalize(alias) === normalize(row.subjectId))) continue;
+        if (row.section && section && (typeof window.submissionSectionsMatch === 'function'
+            ? !window.submissionSectionsMatch(row.section, section) : normalize(row.section) !== normalize(section))) continue;
+        if (row.quarter && (Number(String(row.quarter).replace(/\D/g, '')) || 1) !== (Number(String(quarter || 1).replace(/\D/g, '')) || 1)) continue;
+        const submitted = typeof window.studentHasTurnedInWork === 'function' && window.studentHasTurnedInWork(row);
+        if (!submitted) continue;
+        const hasPayload = value => Boolean(value && (value.fileName || value.file || value.fileUrl || value.dataUrl
+            || value.files?.length || value.attachments?.length || value.answers && Object.keys(value.answers).length
+            || value.userAnswers && Object.keys(value.userAnswers).length));
+        if (!hasPayload(row)
+            && ![].concat(Array.isArray(row.attempts) ? row.attempts : [], Array.isArray(row.history) ? row.history : []).some(hasPayload)) continue;
+        if (!found || (hasPayload(row) && !hasPayload(found))
+            || Date.parse(row.submittedAt || row.completedAt || '') > Date.parse(found.submittedAt || found.completedAt || '')) found = row;
+    }
+    return found;
+};
+
 window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, activeIdxOrTab, topicIdxOrActiveIdx, item, optionalTargetStudent) {
     let tab = 'assignments';
     let topicIdx = typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0;
@@ -21425,7 +22278,12 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
         const subjectAliases = typeof window.getUnifiedSubjectAliases === 'function' ? window.getUnifiedSubjectAliases(subjectId) : [subjectId, cleanSubj];
         const matchesScope = sub => {
             if (!sub || typeof sub !== 'object') return false;
-            if (sub.section && targetSection && String(sub.section).trim().toLowerCase() !== String(targetSection).trim().toLowerCase()) return false;
+            if (sub.section && targetSection) {
+                const sameSection = typeof window.submissionSectionsMatch === 'function'
+                    ? window.submissionSectionsMatch(sub.section, targetSection)
+                    : String(sub.section).trim().toLowerCase() === String(targetSection).trim().toLowerCase();
+                if (!sameSection) return false;
+            }
             if (sub.subjectId && !subjectAliases.some(alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase() === String(sub.subjectId).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase())) return false;
             if (sub.quarter && Number(sub.quarter) !== targetQuarter) return false;
             return !targetStudent || typeof window.isSubmissionMatchForStudent !== 'function' || window.isSubmissionMatchForStudent(sub, targetStudent);
@@ -21445,6 +22303,28 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             if (matItem && typeof matItem === 'object' && typeof window.submissionMatchesAssessment === 'function'
                 && !window.submissionMatchesAssessment(sub, matItem)) {
                 return null;
+            }
+            if (typeof window.findAssessmentSubmittedWork === 'function' && targetStudent && matItem) {
+                const work = window.findAssessmentSubmittedWork(targetStudent, matItem, subjectId, targetSection, targetQuarter, [sub]);
+                if (work && work !== sub) {
+                    const savedHistory = Array.isArray(sub.history) ? sub.history : (Array.isArray(sub.attempts) ? sub.attempts : []);
+                    const workHistory = Array.isArray(work.history) ? work.history : (Array.isArray(work.attempts) ? work.attempts : []);
+                    sub = { ...work, ...sub };
+                    // Grade-only copies must not hide the original upload or completed quiz answers.
+                    for (const field of ['files', 'attachments', 'fileName', 'fileUrl', 'dataUrl', 'url', 'submittedAt', 'submissionDate', 'completedAt', 'answers', 'userAnswers', 'questions', 'attempts', 'history', 'attemptsUsed', 'comments']) {
+                        if (work[field] !== undefined) sub[field] = work[field];
+                    }
+                    if (savedHistory.length > workHistory.length) {
+                        sub.history = savedHistory;
+                        sub.attempts = savedHistory;
+                        sub.attemptsUsed = savedHistory.length;
+                        const latest = savedHistory[savedHistory.length - 1];
+                        for (const field of ['files', 'fileName', 'submittedAt']) {
+                            if (latest[field] !== undefined) sub[field] = latest[field];
+                        }
+                    }
+                }
+                if (Array.isArray(sub.attachments) && sub.attachments.length && !sub.files?.length) sub.files = sub.attachments;
             }
             if (typeof window.calculateQuizSubmissionEarnedScore === 'function') {
                 const ident = (typeof window.getAssessmentMatchIdentity === 'function' && matItem)
@@ -21512,6 +22392,10 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                 bestSub = sub;
                 return;
             }
+            const nextAttempts = sub.history?.length || sub.attempts?.length || 0;
+            const bestAttempts = bestSub.history?.length || bestSub.attempts?.length || 0;
+            if (nextAttempts > bestAttempts) { bestSub = sub; return; }
+            if (bestAttempts > nextAttempts) return;
             const nextTeacherSaved = Boolean(sub.teacherSaved || sub.teacherEditedScore);
             const bestTeacherSaved = Boolean(bestSub.teacherSaved || bestSub.teacherEditedScore);
             if (bestTeacherSaved && !nextTeacherSaved) {
@@ -21980,6 +22864,10 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             } catch (e) { }
         }
 
+        if (targetStudent && matItem && typeof window.findAssessmentSubmittedWork === 'function') {
+            const work = window.findAssessmentSubmittedWork(targetStudent, matItem, subjectId, targetSection, targetQuarter);
+            if (work) considerSubmission(work);
+        }
         return finalizeSubmission(bestSub);
     } catch (e) {
         return null;
@@ -22001,11 +22889,16 @@ window.previewStudentSubmittedFile = function (fileName, fileUrl) {
 window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fileName, maxAttempts, comment, topicIdx, item) {
     try {
         const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
+        if (!item || typeof item === 'string') {
+            const assessment = window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topIdx);
+            if (assessment && (!item || String(assessment.id || assessment.materialId || '') === String(item))) item = assessment;
+        }
         const loggedStudent = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
         const key = window.getStudentSubmissionStorageKey(subjectId, topIdx, tab, activeIdx, item, loggedStudent);
         const prev = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topIdx, item, loggedStudent);
         const max = maxAttempts || window.getAssessmentMaxAttempts(subjectId, tab, activeIdx, topIdx, item);
-        const prevAttempts = prev && prev.attemptsUsed ? Number(prev.attemptsUsed) : (prev && (prev.status === 'Submitted' || prev.submittedAt) ? 1 : 0);
+        const prevAttempts = Math.max(Number(prev?.attemptsUsed || 0), prev?.history?.length || prev?.attempts?.length || 0,
+            prev && (prev.status === 'Submitted' || prev.submittedAt) ? 1 : 0);
 
         if (prevAttempts >= max) {
             const msg = `You have reached the maximum allowed attempts (${prevAttempts}/${max}) for this assessment. Submissions are closed.`;
@@ -22394,8 +23287,9 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
                 `sigma_extra_attempts_student_mat_${currentAssessmentId}`
             );
         }
+        extraKeysToClear.push(...window.getAssessmentExtraAttemptKeys(subjectId, topIdx, tab, activeIdx, loggedStudent));
         extraKeysToClear.forEach(k => {
-            try { localStorage.removeItem(k); } catch (e) { }
+            try { localStorage.setItem(k, '0'); } catch (e) { }
             try { sessionStorage.removeItem(k); } catch (e) { }
         });
 
@@ -22442,21 +23336,25 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
 
         const actionAreaEl = document.getElementById('student-submission-action-area');
         if (actionAreaEl) {
-            const hasRemaining = attemptsUsed < max;
+            const hasRemaining = !window.isQuizResubmissionRestricted(subjectId, topIdx, tab, activeIdx) && attemptsUsed < max;
             actionAreaEl.innerHTML = `
                 <input type="file" id="student-assessment-file-input" class="hidden" multiple onchange="window.handleStudentAssessmentFileUpload(event, '${subjectId}', '${tab}', ${activeIdx}, ${topIdx})">
-                <div class="flex items-center justify-between w-full">
-                    ${hasRemaining ? `
-                        <button type="button" onclick="window.enterStudentSubmissionMode('${subjectId}', ${topIdx}, '${tab}', ${activeIdx}, ${max})"
-                            class="text-xs font-bold text-[#15803d] hover:text-[#166534] hover:underline cursor-pointer bg-transparent border-0 p-0 shrink-0">
-                            Resubmit
-                        </button>
-                    ` : `
-                        <span class="text-[11px] font-semibold text-black-fade bg-slate-100 px-2.5 py-1 rounded-lg shrink-0 select-none" title="Maximum attempts reached (${attemptsUsed}/${max})">
-                            Submissions Closed
-                        </span>
-                    `}
+                <div class="flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
+                    <div>
+                        ${hasRemaining ? `
+                            <button type="button" onclick="window.enterStudentSubmissionMode('${subjectId}', ${topIdx}, '${tab}', ${activeIdx}, ${max})"
+                                class="sigma-resubmit-action-btn sigma-resubmit-action-btn--allow shrink-0">
+                                Resubmit
+                            </button>
+                        ` : `
+                            ${window.renderAssessmentClosedBadgeHtml(`Maximum attempts reached (${attemptsUsed}/${max})`)}
+                        `}
+                    </div>
                     <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
                         <button type="button" onclick="window.enterStudentViewSubmissionMode('${subjectId}', ${topIdx}, '${tab}', ${activeIdx})"
                             class="sigma-btn sigma-btn-primary text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer font-['Inter'] flex items-center gap-1.5 shadow-2xs hover:bg-[#166534] active:scale-[0.98] transition-all">
                             <i class="fa-solid fa-file-lines text-xs text-white"></i>
@@ -22502,6 +23400,7 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         } catch (error) {
             console.warn('Submission saved, but teacher notification could not be sent:', error);
         }
+        window.SigmaSubmissionAi?.queueAfterSubmission(subjectId, topIdx, tab, activeIdx);
         return subData;
     } catch (e) {
         console.error('Error submitting student assessment:', e);
@@ -22515,7 +23414,9 @@ window.switchStudentSubmissionAttemptPage = function (page, subjectId, tab, acti
     const key = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
     window._activeSubmissionAttemptPage = window._activeSubmissionAttemptPage || {};
     window._activeSubmissionAttemptPage[key] = Math.max(1, Number(page || 1));
-    if (typeof window.switchTopicTab === 'function') {
+    if (typeof window.renderAdminTopicContentWorkstation === 'function') {
+        window.renderAdminTopicContentWorkstation();
+    } else if (typeof window.switchTopicTab === 'function') {
         window.switchTopicTab(tab, activeIdx, true);
     } else if (typeof _renderTopicContentMain === 'function') {
         _renderTopicContentMain(subjectId, topIdx, tab);
@@ -22582,6 +23483,31 @@ window.hideSubmissionCommentComposer = function (subjectId, tab, activeIdx) {
     if (btnWrapper) btnWrapper.classList.remove('hidden');
 };
 
+window.getPrivateSubmissionCommentKey = function (subjectId, tab, activeIdx, topicIdx, item) {
+    const input = document.getElementById(`submission-comment-input-${subjectId}-${tab}-${activeIdx}`);
+    const encoded = input?.parentElement?.querySelector('[data-submission-comment-key]')?.dataset.submissionCommentKey
+        || document.querySelector('.shared-private-comments [data-submission-comment-key]')?.dataset.submissionCommentKey;
+    return encoded ? decodeURIComponent(encoded) : window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, item);
+};
+window.getPrivateCommentActor = function () {
+    let user = {};
+    try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
+    const actorRole = String(user.role || user.type || (window.location.pathname.includes('admin') ? 'admin' : window.location.pathname.includes('teacher') ? 'teacher' : 'student')).toLowerCase();
+    const fallback = actorRole === 'teacher' ? window.getLoggedInTeacherUser?.() : actorRole === 'student' ? window.getLoggedInStudentUser?.() : null;
+    return { id: user.id || user.uid || fallback?.id || fallback?.uid || '', name: user.fullName || user.name || fallback?.fullName || fallback?.name || '', role: actorRole };
+};
+
+window.getPrivateCommentRoleBadge = function (authorId, authorName, savedRole) {
+    const account = window.findMatchedUserAccount?.(authorId, authorId ? '' : authorName);
+    const resolvedRole = String(account?.role || account?.type || savedRole || '').trim().toLowerCase();
+    return ['admin', 'administrator'].includes(resolvedRole) ? 'Admin' : resolvedRole === 'teacher' ? 'Teacher' : resolvedRole === 'student' ? 'Student' : '';
+};
+
+window.isOwnPrivateComment = function (authorId, authorName, actor = window.getPrivateCommentActor()) {
+    if (authorId && actor.id) return String(authorId) === String(actor.id);
+    return Boolean(authorName && actor.name && String(authorName).trim().toLowerCase() === String(actor.name).trim().toLowerCase());
+};
+
 window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, item) {
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const inputEl = document.getElementById(`submission-comment-input-${subjectId}-${tab}-${activeIdx}`) ||
@@ -22594,7 +23520,7 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
     const replyKey = `${subjectId}_${tab}_${activeIdx}`;
     const replyTarget = window._activeSubmissionReplyTarget?.[replyKey];
 
-    const key = window.getStudentSubmissionStorageKey(subjectId, topIdx, tab, activeIdx, item);
+    const key = window.getPrivateSubmissionCommentKey(subjectId, tab, activeIdx, topIdx, item);
     let subData = {};
     try {
         const raw = localStorage.getItem(key);
@@ -22608,13 +23534,14 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
         currentAuthUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
     } catch (e) { }
 
-    const isTeacher = Boolean(loggedTeacher) || (window.location.pathname.includes('teacher') || (typeof role !== 'undefined' && role === 'teacher'));
-    const currentUserName = (isTeacher ? (loggedTeacher?.name || loggedTeacher?.fullName) : (loggedStudent?.name || loggedStudent?.fullName))
+    const isAdmin = window.location.pathname.includes('admin') || String(currentAuthUser?.role || currentAuthUser?.type).toLowerCase() === 'admin';
+    const isTeacher = !isAdmin && (window.location.pathname.includes('teacher') || String(currentAuthUser?.role || currentAuthUser?.type).toLowerCase() === 'teacher');
+    const currentUserName = (isAdmin ? (currentAuthUser?.fullName || currentAuthUser?.name) : isTeacher ? (loggedTeacher?.name || loggedTeacher?.fullName) : (loggedStudent?.name || loggedStudent?.fullName))
         || currentAuthUser?.fullName || currentAuthUser?.name || (isTeacher ? 'Teacher' : 'Juan Dela Cruz');
-    const currentUserRole = isTeacher ? 'Teacher' : 'Student';
-    const currentUserAvatar = (isTeacher ? (loggedTeacher?.avatar || loggedTeacher?.profilePicture) : (loggedStudent?.avatar || loggedStudent?.profilePicture))
+    const currentUserRole = isAdmin ? 'Admin' : isTeacher ? 'Teacher' : 'Student';
+    const currentUserAvatar = (isAdmin ? currentAuthUser?.avatar : isTeacher ? (loggedTeacher?.avatar || loggedTeacher?.profilePicture) : (loggedStudent?.avatar || loggedStudent?.profilePicture))
         || currentAuthUser?.avatar || '';
-    const currentUserId = (isTeacher ? (loggedTeacher?.id || loggedTeacher?.uid) : (loggedStudent?.id || loggedStudent?.uid))
+    const currentUserId = (isAdmin ? (currentAuthUser?.id || currentAuthUser?.uid) : isTeacher ? (loggedTeacher?.id || loggedTeacher?.uid) : (loggedStudent?.id || loggedStudent?.uid))
         || currentAuthUser?.id || '';
 
     const attemptPageKey = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
@@ -22633,7 +23560,7 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
             authorAvatar: currentUserAvatar,
             role: currentUserRole,
             text: text,
-            replyToAuthor: isReplyAction ? (replyTarget?.authorName || null) : null,
+            replyToAuthor: isReplyAction && String(replyTarget?.authorName || '').trim().toLowerCase() !== String(currentUserName).trim().toLowerCase() ? (replyTarget?.authorName || null) : null,
             isReply: isReplyAction,
             date: new Date().toISOString()
         };
@@ -22656,7 +23583,7 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
         subData.commentAuthorId = currentUserId;
         subData.commentCreatedAt = new Date().toISOString();
         if (!subData.submittedAt) {
-            subData.submittedAt = subData.commentCreatedAt;
+            // Comments alone do not count as submitted coursework.
         }
 
         if (Array.isArray(subData.history) && subData.history.length > 0) {
@@ -22676,16 +23603,71 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
         delete window._activeSubmissionReplyTarget[replyKey];
     }
 
+    // The visible thread may come from attempts rather than the legacy history array.
+    if (Array.isArray(subData.attempts) && subData.attempts.length) {
+        const attempt = subData.attempts[Math.max(0, subData.attempts.length - curPage)];
+        if (attempt) {
+            if (isReplyAction || subData.replies.length) {
+                const latest = subData.replies[subData.replies.length - 1];
+                if (latest) {
+                    if (!Array.isArray(attempt.replies)) attempt.replies = [];
+                    if (!attempt.replies.some(reply => reply.id === latest.id)) attempt.replies.push(latest);
+                }
+            } else {
+                for (const field of ['comment', 'commentAuthor', 'commentAuthorRole', 'commentAuthorAvatar', 'commentAuthorId', 'commentCreatedAt']) {
+                    attempt[field] = subData[field];
+                }
+            }
+        }
+    }
     localStorage.setItem(key, JSON.stringify(subData));
     inputEl.value = '';
 
+    try {
+        const state = window.currentTopicState || {};
+        const accounts = JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
+        const selected = subData.studentId || state.selectedStudent;
+        const student = accounts.find(u => String(u.role).toLowerCase() === 'student' && [u.id, u.uid, u.name, u.fullName].some(v => v && String(v) === String(selected)));
+        const section = subData.section || state.selectedSection || '';
+        const teacherName = window.getUnifiedClassroomTeacher?.(section, subjectId);
+        const teacher = accounts.find(u => String(u.role).toLowerCase() === 'teacher' && [u.name, u.fullName].includes(teacherName));
+        const recipient = isTeacher || isAdmin ? student : teacher;
+        const recipientId = recipient?.id || recipient?.uid;
+        if (recipientId && String(recipientId) !== String(currentUserId)) {
+            window.SigmaNotifications?.sendToRole(String(recipient.role).toLowerCase(), {
+                id: `private-comment:${key}:${Date.now()}:${recipientId}`, type: 'comment-posted',
+                title: 'New Private Comment', body: 'A private assessment comment was posted.',
+                senderId: currentUserId, senderName: currentUserName, avatarImg: currentUserAvatar,
+                recipientId: String(recipientId), timestamp: new Date().toISOString(), read: false,
+                assignmentScope: { subjectId, section },
+                target: { subjectId, topicIdx: topIdx, tab, itemIdx: activeIdx, selectedSection: section, selectedStudent: selected }
+            });
+        }
+    } catch (_) {}
+
     window._suppressSubmissionScrollToTop = true;
+    const commentScroll = { x: window.scrollX, y: window.scrollY };
+    const scrollContainers = ['main-content', 'admin-main'].map(id => {
+        const element = document.getElementById(id);
+        return element ? { id, top: element.scrollTop, left: element.scrollLeft } : null;
+    }).filter(Boolean);
     if (typeof window.switchTopicTab === 'function') {
         window.switchTopicTab(tab, activeIdx, true);
     } else if (typeof _renderTopicContentMain === 'function') {
         _renderTopicContentMain(subjectId, topIdx, tab);
     }
-    setTimeout(() => { window._suppressSubmissionScrollToTop = false; }, 350);
+    const restoreCommentScroll = () => {
+        window.scrollTo({ top: commentScroll.y, left: commentScroll.x, behavior: 'instant' });
+        scrollContainers.forEach(saved => {
+            const element = document.getElementById(saved.id);
+            if (element) { element.scrollTop = saved.top; element.scrollLeft = saved.left; }
+        });
+    };
+    restoreCommentScroll();
+    requestAnimationFrame(() => {
+        restoreCommentScroll();
+        window._suppressSubmissionScrollToTop = false;
+    });
     if (typeof window.showToast === 'function') {
         window.showToast(replyTarget ? 'Reply posted' : 'Comment posted', 'success');
     }
@@ -22697,7 +23679,7 @@ window.handleSubmissionCommentReply = window.submitSubmissionComment;
 window.deleteStudentSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, item) {
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const doDelete = function () {
-        const key = window.getStudentSubmissionStorageKey(subjectId, topIdx, tab, activeIdx, item);
+        const key = window.getPrivateSubmissionCommentKey(subjectId, tab, activeIdx, topIdx, item);
         let subData = {};
         try {
             const raw = localStorage.getItem(key);
@@ -22711,13 +23693,15 @@ window.deleteStudentSubmissionComment = function (subjectId, tab, activeIdx, top
             currentAuthUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
         } catch (e) { }
 
-        const isTeacher = Boolean(loggedTeacher) || (window.location.pathname.includes('teacher') || (typeof role !== 'undefined' && role === 'teacher'));
-        const currentUserId = (isTeacher ? (loggedTeacher?.id || loggedTeacher?.uid) : (loggedStudent?.id || loggedStudent?.uid)) || currentAuthUser?.id || '';
-        const currentUserName = (isTeacher ? (loggedTeacher?.name || loggedTeacher?.fullName) : (loggedStudent?.name || loggedStudent?.fullName)) || currentAuthUser?.fullName || (isTeacher ? 'Teacher' : 'Student');
-        const currentUserRole = isTeacher ? 'Teacher' : 'Student';
+        const actor = window.getPrivateCommentActor();
+        const isTeacher = actor.role === 'teacher' || actor.role === 'admin';
+        const currentUserId = actor.id;
+        const currentUserName = actor.name;
+        const currentUserRole = actor.role === 'admin' ? 'Admin' : isTeacher ? 'Teacher' : 'Student';
 
         const isOwnComment = (subData.commentAuthorId && String(subData.commentAuthorId) === String(currentUserId)) ||
             (subData.commentAuthor && String(subData.commentAuthor).trim().toLowerCase() === String(currentUserName).trim().toLowerCase());
+        if ((!isTeacher && !isOwnComment) || (actor.role === 'teacher' && String(subData.commentAuthorRole).toLowerCase() === 'admin')) return;
 
         const attemptPageKey = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
         const curPage = Number(window._activeSubmissionAttemptPage?.[attemptPageKey] || 1);
@@ -22763,6 +23747,15 @@ window.deleteStudentSubmissionComment = function (subjectId, tab, activeIdx, top
             }
         }
 
+        if (Array.isArray(subData.attempts)) {
+            const attempt = subData.attempts[Math.max(0, subData.attempts.length - curPage)];
+            if (attempt) {
+                for (const field of ['comment', 'commentAuthor', 'commentAuthorRole', 'commentAuthorAvatar', 'commentAuthorId', 'commentCreatedAt', 'commentIsDeleted', 'commentDeletedByRole', 'commentDeletedByName', 'commentDeletedAt']) {
+                    if (subData[field] !== undefined) attempt[field] = subData[field];
+                    else delete attempt[field];
+                }
+            }
+        }
         localStorage.setItem(key, JSON.stringify(subData));
 
         window._suppressSubmissionScrollToTop = true;
@@ -22795,7 +23788,7 @@ window.deleteStudentSubmissionComment = function (subjectId, tab, activeIdx, top
 window.deleteSubmissionReply = function (subjectId, tab, activeIdx, replyIdx, topicIdx, item) {
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const doDelete = function () {
-        const key = window.getStudentSubmissionStorageKey(subjectId, topIdx, tab, activeIdx, item);
+        const key = window.getPrivateSubmissionCommentKey(subjectId, tab, activeIdx, topIdx, item);
         let subData = {};
         try {
             const raw = localStorage.getItem(key);
@@ -22809,14 +23802,16 @@ window.deleteSubmissionReply = function (subjectId, tab, activeIdx, replyIdx, to
             currentAuthUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
         } catch (e) { }
 
-        const isTeacher = Boolean(loggedTeacher) || (window.location.pathname.includes('teacher') || (typeof role !== 'undefined' && role === 'teacher'));
-        const currentUserId = (isTeacher ? (loggedTeacher?.id || loggedTeacher?.uid) : (loggedStudent?.id || loggedStudent?.uid)) || currentAuthUser?.id || '';
-        const currentUserName = (isTeacher ? (loggedTeacher?.name || loggedTeacher?.fullName) : (loggedStudent?.name || loggedStudent?.fullName)) || currentAuthUser?.fullName || (isTeacher ? 'Teacher' : 'Student');
-        const currentUserRole = isTeacher ? 'Teacher' : 'Student';
+        const actor = window.getPrivateCommentActor();
+        const isTeacher = actor.role === 'teacher' || actor.role === 'admin';
+        const currentUserId = actor.id;
+        const currentUserName = actor.name;
+        const currentUserRole = actor.role === 'admin' ? 'Admin' : isTeacher ? 'Teacher' : 'Student';
 
         const targetReply = Array.isArray(subData.replies) ? subData.replies[replyIdx] : null;
         const isOwnReply = targetReply && ((targetReply.authorId && String(targetReply.authorId) === String(currentUserId)) ||
             (targetReply.author && String(targetReply.author).trim().toLowerCase() === String(currentUserName).trim().toLowerCase()));
+        if (!targetReply || (!isTeacher && !isOwnReply) || (actor.role === 'teacher' && String(targetReply.role || targetReply.authorRole).toLowerCase() === 'admin')) return;
 
         const attemptPageKey = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
         const curPage = Number(window._activeSubmissionAttemptPage?.[attemptPageKey] || 1);
@@ -22847,14 +23842,25 @@ window.deleteSubmissionReply = function (subjectId, tab, activeIdx, replyIdx, to
                 subData.history[histIdx].replies.splice(replyIdx, 1);
             }
         }
+        if (Array.isArray(subData.attempts)) {
+            const attempt = subData.attempts[Math.max(0, subData.attempts.length - curPage)];
+            if (attempt) attempt.replies = JSON.parse(JSON.stringify(subData.replies || []));
+        }
 
         localStorage.setItem(key, JSON.stringify(subData));
 
+        const savedScroll = { x: window.scrollX, y: window.scrollY };
+        window._suppressSubmissionScrollToTop = true;
         if (typeof window.switchTopicTab === 'function') {
             window.switchTopicTab(tab, activeIdx, true);
         } else if (typeof _renderTopicContentMain === 'function') {
             _renderTopicContentMain(subjectId, topIdx, tab);
         }
+        window.scrollTo({ left: savedScroll.x, top: savedScroll.y, behavior: 'instant' });
+        requestAnimationFrame(() => {
+            window.scrollTo({ left: savedScroll.x, top: savedScroll.y, behavior: 'instant' });
+            window._suppressSubmissionScrollToTop = false;
+        });
         if (typeof window.showToast === 'function') {
             window.showToast(isTeacher && !isOwnReply ? 'Comment removed' : 'Reply deleted', 'info');
         }
@@ -22941,6 +23947,44 @@ window.enterStudentViewSubmissionMode = function (subjectId, topicIdx, tab, acti
 };
 
 window.enterTeacherViewSubmissionMode = window.enterStudentViewSubmissionMode;
+
+window.backToAssessmentMaterialsList = function (tab) {
+    window._studentViewSubmissionMode = false;
+    window._sharedViewSubmissionMode = false;
+    window._studentSubmissionMode = false;
+    window._activeMaterialTitle = null;
+    window._tcAssessmentDetailIdx = null;
+    window._scAssessmentDetailIdx = null;
+    const hash = window.location.hash.replace(/:submission(?=:|$)/g, '');
+    const state = { ...(window.history.state || {}), viewSubmission: false };
+    window.history.replaceState(state, '', window.location.pathname + window.location.search + hash);
+    window.switchTopicTab?.(tab, null, false);
+};
+
+window.switchAssessmentDetailView = function (view, subjectId, topicIdx, tab, activeIdx) {
+    if (view === 'work') {
+        window.enterStudentViewSubmissionMode(subjectId, topicIdx, tab, activeIdx);
+    } else {
+        window.openMaterialTask(activeIdx);
+    }
+};
+
+window.renderAssessmentClosedBadgeHtml = function (title = '') {
+    const safeTitle = window.escapeHtml ? window.escapeHtml(title) : '';
+    return `<span class="assessment-closed-badge"${title ? ` title="${safeTitle}"` : ''}><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Submissions Closed</span></span>`;
+};
+
+window.renderAssessmentDetailTabsHtml = function ({ role, workActive, subjectId, topicIdx, tab, activeIdx, submitted = false, isQuiz = false, uploadActive = false }) {
+    const args = [subjectId, topicIdx, tab, activeIdx].map(value => JSON.stringify(value)).join(',');
+    const escape = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    if (role === 'student' && (uploadActive || !submitted)) return '';
+    return `<div class="assessment-detail-tabs" role="tablist" aria-label="Assessment views">
+        ${[['materials', 'Materials'], ['work', role === 'student' ? (isQuiz ? 'My Attempt' : 'My Submission') : 'Submissions']].map(([view, label]) => {
+            const selected = (view === 'work') === workActive;
+            return `<button type="button" role="tab" aria-selected="${selected}" aria-controls="assessment-detail-tab-content" onclick="${escape(`window.switchAssessmentDetailView('${view}',${args})`)}"><span class="assessment-detail-tab-label">${label}</span></button>`;
+        }).join('')}
+    </div>`;
+};
 
 window.navigateToGradebookFromSubmission = function (subjectId = '', section = '', encodedTitle = '', encodedCategory = '', tab = '', activeIdx = 0) {
     window._studentViewSubmissionMode = false;
@@ -23218,6 +24262,7 @@ window.exitTeacherViewSubmissionMode = window.exitStudentViewSubmissionMode;
 window.exitStudentAssessmentSubmissionMode = window.exitStudentViewSubmissionMode;
 
 window.enterStudentSubmissionMode = function (subjectId, topicIdx, tab, activeIdx, maxAttempts) {
+    if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const max = maxAttempts || window.getAssessmentMaxAttempts(subjectId, tab, activeIdx, topIdx);
     const subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topIdx);
@@ -23305,6 +24350,7 @@ window.getStudentAssessmentAttempts = function (subjectId, topicIdx, tab, active
 };
 
 window.handleStudentQuizRetake = function (subjectId, topicIdx, tab, activeIdx, maxAttempts, title) {
+    return; // Submitted quizzes cannot be retaken after answers have been revealed.
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const cleanSubj = String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
     const matKey = `${subjectId}_${topIdx}_${tab}_${activeIdx}`;
@@ -23400,6 +24446,7 @@ window.handleStudentQuizRetake = function (subjectId, topicIdx, tab, activeIdx, 
 };
 
 window.handleTeacherAllowResubmit = function (subjectId, topicIdx, tab, activeIdx, studentId, title) {
+    if (window.isQuizResubmissionRestricted(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const cleanSubj = String(subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
     const tabStr = String(tab || 'assessments').toLowerCase();
@@ -23461,6 +24508,7 @@ window.handleTeacherAllowResubmit = function (subjectId, topicIdx, tab, activeId
                 `sigma_extra_attempts_${subData.studentName}_${subjectId}_${topIdx}_assessments_${actIdx}`
             );
         }
+        keysToSet.push(...window.getAssessmentExtraAttemptKeys(subjectId, topIdx, tabStr, actIdx, { id: subData?.studentId || studentUser, name: subData?.studentName || studentUser }));
         keysToSet.forEach(k => localStorage.setItem(k, String(newExtra)));
 
         if (typeof window.showToast === 'function') {
@@ -23558,7 +24606,8 @@ window.handleTeacherRevokeResubmit = function (subjectId, topicIdx, tab, activeI
                 `sigma_extra_attempts_${subData.studentName}_${subjectId}_${topIdx}_assessments_${actIdx}`
             );
         }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
+        keysToRemove.push(...window.getAssessmentExtraAttemptKeys(subjectId, topIdx, tabStr, actIdx, { id: subData?.studentId || studentUser, name: subData?.studentName || studentUser }));
+        keysToRemove.forEach(k => localStorage.setItem(k, '0'));
 
         if (typeof window.showToast === 'function') {
             window.showToast(`Extra attempt revoked.`, 'info');
@@ -23601,6 +24650,7 @@ window.renderTeacherResubmitActionButton = function ({
     displayTitle,
     hasUnusedGrantedExtraAttempt
 }) {
+    if (window.isQuizResubmissionRestricted(subjectId, topicIdx, tab, activeIdx)) return '';
     if (hasUnusedGrantedExtraAttempt) {
         return `
             <button type="button" 
@@ -23972,6 +25022,8 @@ window.resetQuizOnly = window.resetQuiz = window.resetAllQuizSubmissions = funct
 };
 
 window.cancelStudentSubmissionMode = function (subjectId, topicIdx, tab, activeIdx) {
+    if (window._studentPendingAnswerFiles?.length
+        && !window.confirm('Discard the selected files and return to Materials?')) return;
     if (window._studentDeadlineWatch) {
         clearTimeout(window._studentDeadlineWatch);
         window._studentDeadlineWatch = null;
@@ -24054,7 +25106,10 @@ window.renderStudentAnswerFilesList = function (subjectId, tab, activeIdx, topic
         <div class="space-y-2.5 w-full font-['Inter']">
             <div class="flex items-center justify-between text-xs text-black-fade pb-1">
                 <span>Attached (${files.length} file${files.length > 1 ? 's' : ''})</span>
-                <span>Total: ${totalSizeStr} / 500 MB</span>
+                <span class="font-semibold text-black">Total: ${totalSizeStr} / ${(() => {
+                    const cl = typeof window.getSigmaMaterialLimits === 'function' ? window.getSigmaMaterialLimits() : null;
+                    return (cl?.batchQuota || cl?.submissionBatchQuota || 150);
+                })()} MB</span>
             </div>
             ${files.map((file, fIdx) => {
         const { ext, iconClass, badgeClass } = getIconAndBadge(file.name);
@@ -24146,24 +25201,47 @@ window.handleStudentAnswerFileSelected = function (event, subjectId, tab, active
 
     // Allowed website/LMS coursework document and archive types
     const allowedExtensions = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'csv', 'txt', 'png', 'jpg', 'jpeg', 'zip'];
-    const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB limit
+    const currentLimits = typeof window.getSigmaMaterialLimits === 'function' ? window.getSigmaMaterialLimits() : null;
+    const defaultDocMaxMb = currentLimits?.docx?.max || 45;
+    const batchQuotaMb = currentLimits?.batchQuota || currentLimits?.submissionBatchQuota || 150;
+    const maxBatchBytes = batchQuotaMb * 1024 * 1024;
 
     if (!Array.isArray(window._studentPendingAnswerFiles)) {
         window._studentPendingAnswerFiles = [];
     }
 
+    let currentTotalBytes = window._studentPendingAnswerFiles.reduce((acc, f) => acc + (f.size || 0), 0);
     let addedCount = 0;
     let rejectedExtCount = 0;
     let rejectedSizeCount = 0;
+    let rejectedBatchCount = 0;
 
     for (const file of rawFiles) {
+        if (window._studentPendingAnswerFiles.some(f => f.name === file.name && f.size === file.size)) continue;
         const ext = (file.name.split('.').pop() || '').toLowerCase();
         if (!allowedExtensions.includes(ext)) {
             rejectedExtCount++;
             continue;
         }
-        if (file.size > MAX_FILE_SIZE) {
+
+        let specificMaxMb = defaultDocMaxMb;
+        if (ext === 'pdf') {
+            specificMaxMb = currentLimits?.pdf?.max || 50;
+        } else if (ext === 'pptx' || ext === 'ppt') {
+            specificMaxMb = currentLimits?.pptx?.max || 75;
+        } else if (ext === 'docx' || ext === 'doc') {
+            specificMaxMb = currentLimits?.docx?.max || 45;
+        }
+
+        const maxSizeBytes = specificMaxMb * 1024 * 1024;
+        if (file.size > maxSizeBytes) {
             rejectedSizeCount++;
+            continue;
+        }
+
+        // Check cumulative batch quota limit
+        if (currentTotalBytes + file.size > maxBatchBytes) {
+            rejectedBatchCount++;
             continue;
         }
 
@@ -24180,6 +25258,7 @@ window.handleStudentAnswerFileSelected = function (event, subjectId, tab, active
                 } catch (_) { }
             }
             window._studentPendingAnswerFiles.push(file);
+            currentTotalBytes += file.size;
             addedCount++;
         }
     }
@@ -24194,7 +25273,16 @@ window.handleStudentAnswerFileSelected = function (event, subjectId, tab, active
     }
 
     if (rejectedSizeCount > 0) {
-        const msg = `${rejectedSizeCount} file(s) skipped: File size exceeds 500MB maximum limit.`;
+        const msg = `${rejectedSizeCount} file(s) skipped: File size exceeds the per-file document ceiling.`;
+        if (typeof window.showToast === 'function') {
+            window.showToast(msg, 'error');
+        } else if (typeof window.showGlobalToast === 'function') {
+            window.showGlobalToast(msg, 'error');
+        }
+    }
+
+    if (rejectedBatchCount > 0) {
+        const msg = `${rejectedBatchCount} file(s) skipped: Adding file(s) would exceed the total ${batchQuotaMb} MB submission quota.`;
         if (typeof window.showToast === 'function') {
             window.showToast(msg, 'error');
         } else if (typeof window.showGlobalToast === 'function') {
@@ -24204,6 +25292,16 @@ window.handleStudentAnswerFileSelected = function (event, subjectId, tab, active
 
     if (event.target) event.target.value = '';
 
+    const uploadError = document.getElementById('student-upload-limit-error');
+    if (uploadError) {
+        const messages = [];
+        if (rejectedExtCount) messages.push(`${rejectedExtCount} unsupported file(s) were not added.`);
+        if (rejectedSizeCount) messages.push(`${rejectedSizeCount} file(s) exceed their per-file size limit and were not added.`);
+        if (rejectedBatchCount) messages.push(`${rejectedBatchCount} file(s) were not added because the combined upload exceeds ${batchQuotaMb} MB. Remove files or choose smaller files.`);
+        uploadError.textContent = messages.join(' ');
+        uploadError.hidden = messages.length === 0;
+    }
+
     window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
 };
 
@@ -24212,23 +25310,6 @@ window.removeStudentAnswerFile = function (index, subjectId, tab, activeIdx, top
         window._studentPendingAnswerFiles.splice(index, 1);
     }
     window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
-};
-
-window.toggleStudentAnswerCommentSection = function (show) {
-    const box = document.getElementById('student-answer-comment-box') || document.getElementById('student-answer-comment-section');
-    const toggleBtn = document.getElementById('student-add-comment-toggle-btn');
-    const commentInput = document.getElementById('student-answer-comment-input');
-    if (show) {
-        if (box) box.classList.remove('hidden');
-        if (toggleBtn) toggleBtn.classList.add('hidden');
-        if (commentInput) {
-            commentInput.focus();
-        }
-    } else {
-        if (box) box.classList.add('hidden');
-        if (toggleBtn) toggleBtn.classList.remove('hidden');
-        if (commentInput) commentInput.value = '';
-    }
 };
 
 window.clearStudentAnswerSelectedFile = function (e, subjectId, tab, activeIdx, topicIdx) {
@@ -24245,6 +25326,7 @@ window.clearStudentAnswerSelectedFile = function (e, subjectId, tab, activeIdx, 
 };
 
 window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxAttempts, materialId) {
+    if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const files = (Array.isArray(window._studentPendingAnswerFiles) && window._studentPendingAnswerFiles.length > 0)
         ? window._studentPendingAnswerFiles
@@ -24292,9 +25374,7 @@ window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxA
         url: f.dataUrl || f.url || (f instanceof File || f instanceof Blob ? URL.createObjectURL(f) : '')
     }));
 
-    const commentInput = document.getElementById('student-answer-comment-input');
-    const comment = commentInput ? commentInput.value.trim() : '';
-    const submitted = window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, comment, topIdx, materialId || null);
+    const submitted = window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, '', topIdx, materialId || null);
     if (!submitted) return;
     window._studentSubmissionMode = false;
     window._studentPendingAnswerFiles = [];
@@ -25079,15 +26159,65 @@ window.buildTeacherDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
     `;
 };
 
+window.relocateAssessmentPrivateComments = function (root, comments) {
+    const detail = root.querySelector('.assessment-material-detail-view');
+    const rail = root.querySelector('#topic-right-section');
+    const mobileContainer = root.querySelector('#topic-content-main') || detail;
+    if (!detail || !comments) return;
+    const media = window.matchMedia('(min-width: 768px)');
+    if (window._privateCommentsLayoutCleanup) window._privateCommentsLayoutCleanup();
+    const place = () => {
+        if (!detail.isConnected) return;
+        comments.classList.add('assessment-private-comments-panel');
+        if (media.matches && rail) {
+            rail.appendChild(comments);
+        } else {
+            if (mobileContainer.lastElementChild !== comments) mobileContainer.appendChild(comments);
+        }
+    };
+    place();
+    const schedulePlace = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 0));
+    schedulePlace(place);
+    const observer = new MutationObserver(place);
+    observer.observe(mobileContainer, { childList: true });
+    media.addEventListener('change', place);
+    window._privateCommentsLayoutCleanup = () => {
+        observer.disconnect();
+        media.removeEventListener('change', place);
+    };
+};
+
 window.relocateAssessmentPrimaryAction = function (root = document) {
+    root.querySelectorAll('button[onclick*="enterStudentViewSubmissionMode"], button[onclick*="enterTeacherViewSubmissionMode"]').forEach(button => {
+        if (button.textContent.trim() === 'View Submissions') button.remove();
+    });
+    // Both assessment tabs use the original shared comment renderer.
     const slot = root?.querySelector?.('.assessment-primary-action-slot');
     if (!slot) return;
+    const comments = root.querySelector('.shared-private-comments');
+    if (comments) {
+        comments.before(slot);
+        window.relocateAssessmentPrivateComments(root, comments);
+    }
 
     const studentArea = root.querySelector('#student-submission-action-area');
     const teacherArea = root.querySelector('#teacher-submission-action-area');
     const adminArea = root.querySelector('#admin-submission-action-area');
     const actionArea = studentArea || teacherArea || adminArea;
     if (!actionArea) return;
+
+    // Never remove Submissions Closed, Allow Resubmit, or badges from the submission details card.
+    // In work / submission view, actions stay in the submission details card footer.
+    const detail = root.querySelector('.assessment-material-detail-view[data-assessment-view]');
+    const isWorkView = detail && detail.dataset.assessmentView === 'work';
+
+    if (isWorkView) {
+        if (studentArea) studentArea.hidden = false;
+        if (teacherArea) teacherArea.hidden = false;
+        if (adminArea) adminArea.hidden = false;
+        slot.hidden = !slot.textContent.trim();
+        return;
+    }
 
     const primaryAction = studentArea
         ? actionArea.querySelector(
@@ -25096,10 +26226,41 @@ window.relocateAssessmentPrimaryAction = function (root = document) {
         )
         : actionArea.querySelector('button[onclick*="enterTeacherViewSubmissionMode"]');
 
-    if (!primaryAction) return;
+    if (!primaryAction) {
+        slot.hidden = !slot.textContent.trim();
+        return;
+    }
     primaryAction.classList.remove('flex-1');
     primaryAction.classList.add('assessment-relocated-primary-action');
     slot.appendChild(primaryAction);
+    slot.hidden = false;
+
+    if (actionArea && !actionArea.textContent.trim()) {
+        actionArea.hidden = true;
+    }
+};
+
+window.renderSigmaAiFeedbackPanelHtml = function ({ context, graded, restricted, submitted = false }) {
+    if (restricted) return '';
+    const escape = window.escapeHtml;
+    const items = context && graded ? window.SigmaSubmissionAi?.readFeedback(context, context.attemptPage) || [] : [];
+    const status = context ? window.SigmaSubmissionAi?.state(context) : null;
+    const icons = { check: 'fa-circle-check', award: 'fa-award', target: 'fa-bullseye', book: 'fa-book-open', lightbulb: 'fa-lightbulb', search: 'fa-magnifying-glass', list: 'fa-list-check', pen: 'fa-pen', info: 'fa-circle-info', triangle: 'fa-triangle-exclamation', trend: 'fa-arrow-trend-up', steps: 'fa-shoe-prints' };
+    const labels = { strength: 'What You Did Well', improvement: 'What Needs Improvement', next_step: 'What To Do Next' };
+    const empty = !submitted ? 'No submission yet. SIGMA AI Feedback will be available after work is submitted and graded.'
+        : !context ? 'Select an assigned student to view their feedback.' : !graded ? 'Feedback will be available after grading.'
+        : status?.status === 'failed' ? 'SIGMA AI Feedback is unavailable. ' + status.message
+        : status?.status === 'pending' ? 'Generating SIGMA AI Feedback...' : 'No feedback generated yet.';
+    return `<div id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel w-full p-5 sm:p-7 md:p-8 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-4 font-['Inter']">
+            <h3 class="text-sm font-bold text-[#15803d]" style="color: #15803d !important;">SIGMA AI Feedback</h3>
+            ${items.length ? items.map(item => `<div class="flex items-start gap-2"><i class="fa-solid ${icons[item.icon] || 'fa-circle-info'} text-[#15803d] shrink-0 mt-1" aria-hidden="true"></i><div class="min-w-0"><p class="text-xs text-black-fade">${labels[item.category] || 'Feedback'}</p><p class="text-xs sm:text-sm leading-relaxed break-words"><strong>${escape(item.term)}</strong>: ${escape(item.description)}</p></div></div>`).join('')
+                : `<div class="sigma-ai-feedback-empty flex flex-col items-center justify-center text-center gap-3 py-5 sm:py-8">
+                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100/70 shrink-0" aria-hidden="true">
+                        <i class="fa-solid ${status?.status === 'pending' ? 'fa-spinner fa-spin' : status?.status === 'failed' ? 'fa-circle-exclamation' : 'fa-comment-dots'} text-base" style="color: rgba(0, 0, 0, 0.45);"></i>
+                    </span>
+                    <p id="sigma-ai-feedback-status" role="status" class="text-xs sm:text-sm leading-relaxed max-w-md m-0" style="color: rgba(0, 0, 0, 0.45);">${escape(empty)}</p>
+                </div>`}
+    </div>`;
 };
 
 window.renderSharedAssessmentsTabHtml = function (options = {}) {
@@ -25394,6 +26555,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const isStudentSubmissionMode = role === 'student' && Boolean(window._studentSubmissionMode);
         let isViewSubmissionMode = Boolean(window._studentViewSubmissionMode || window._sharedViewSubmissionMode);
+        const showStudentSubmissionDetails = role === 'student' || isViewSubmissionMode;
 
         if (isViewSubmissionMode && typeof window.scrollSubmissionViewToTop === 'function') {
             window.scrollSubmissionViewToTop();
@@ -25787,7 +26949,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         const rubricHtml = hasRubric ? `
-            <div class="border-t border-black/10 pt-6">
+            <div class="assessment-rubric-section border-t border-black/10 pt-6">
                 <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">Grading Rubric</h3>
                 ${window.renderSharedAttachedFilePanelHtml({
             title: rubricTitle,
@@ -25979,7 +27141,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const cfgMaxAttempts = findInConfig(assessConfig?.assessmentMaxAttempts)
             ?? findInConfig(assessConfig?.maxAttempts)
             ?? assessConfig?.defaultMaxAttempts;
-        const baseMaxAttempts = Number(
+        const baseMaxAttempts = isAnyQuiz ? 1 : Number(
             cfgMaxAttempts !== undefined && cfgMaxAttempts !== ''
                 ? cfgMaxAttempts
                 : (ass.attempts || ass.maxAttempts || 1)
@@ -26020,6 +27182,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             : ((typeof currentTopicState !== 'undefined' && currentTopicState) ? currentTopicState : {});
         const curSelectedStudent = options.selectedStudent || topicState?.selectedStudent || '';
         const effectiveCat = ass?.category || ass?.type || (isAnyQuiz ? 'quiz' : (tab || 'assignment'));
+        const submissionAssessment = { ...ass, section: targetSection || ass.section || topicState?.selectedSection || '' };
         if (role === 'teacher' || role === 'admin') {
             const curStudent = curSelectedStudent;
             const curSec = topicState?.selectedSection || targetSection || '';
@@ -26030,39 +27193,15 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 students = studentsBySection[curSec] || [];
             }
             if (curStudent && curStudent !== 'All') {
-                const curLower = String(curStudent).trim().toLowerCase();
-                studentObj = students.find(s => {
-                    if (!s) return false;
-                    if (typeof s === 'string') {
-                        const sn = s.trim().toLowerCase();
-                        return sn === curLower || (curLower.length > 3 && (sn.includes(curLower) || curLower.includes(sn)));
-                    }
-                    const sName = (s.name || '').trim().toLowerCase();
-                    const sFull = (s.fullName || '').trim().toLowerCase();
-                    const sId = String(s.id || s.uid || s.lrn || '').trim().toLowerCase();
-                    const lastFirst = (s.lastName && s.firstName) ? `${s.lastName}, ${s.firstName}`.trim().toLowerCase() : '';
-                    const firstLast = (s.lastName && s.firstName) ? `${s.firstName} ${s.lastName}`.trim().toLowerCase() : '';
-                    if (sName === curLower || sFull === curLower || sId === curLower || lastFirst === curLower || firstLast === curLower) return true;
-                    if (curLower.length > 3 && (sName.includes(curLower) || curLower.includes(sName) || lastFirst.includes(curLower) || curLower.includes(lastFirst) || firstLast.includes(curLower) || curLower.includes(firstLast))) return true;
-                    if (typeof window.findMatchedUserAccount === 'function') {
-                        const matched = window.findMatchedUserAccount(s.id || s.uid || s.lrn, s.name || s.fullName);
-                        if (matched) {
-                            const mName = (matched.name || '').trim().toLowerCase();
-                            const mFull = (matched.fullName || '').trim().toLowerCase();
-                            const mId = String(matched.id || matched.uid || matched.username || '').trim().toLowerCase();
-                            if (mName === curLower || mFull === curLower || mId === curLower) return true;
-                        }
-                    }
-                    return false;
-                }) || { id: curStudent, name: curStudent };
+                studentObj = window.resolveRosterStudent(students, curStudent);
             } else if (isViewSubmissionMode && students.length > 0) {
                 studentObj = students[0];
             }
 
             if (studentObj && typeof window.getStudentAssessmentSubmission === 'function') {
-                subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, ass, studentObj)
-                    || window.getStudentAssessmentSubmission(subjectId, 'assessments', activeIdx, topicIdx, ass, studentObj)
-                    || (effectiveCat !== tab && effectiveCat !== 'assignments' ? window.getStudentAssessmentSubmission(subjectId, effectiveCat, activeIdx, topicIdx, ass, studentObj) : null);
+                subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, submissionAssessment, studentObj)
+                    || window.getStudentAssessmentSubmission(subjectId, 'assessments', activeIdx, topicIdx, submissionAssessment, studentObj)
+                    || (effectiveCat !== tab && effectiveCat !== 'assignments' ? window.getStudentAssessmentSubmission(subjectId, effectiveCat, activeIdx, topicIdx, submissionAssessment, studentObj) : null);
             }
             window._latestSubmissionForScorePanel = {
                 subjectId: String(subjectId || ''),
@@ -26076,9 +27215,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         } else {
             const loggedStudent = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
             if (typeof window.getStudentAssessmentSubmission === 'function') {
-                subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, ass, loggedStudent)
-                    || window.getStudentAssessmentSubmission(subjectId, 'assessments', activeIdx, topicIdx, ass, loggedStudent)
-                    || (effectiveCat !== tab && effectiveCat !== 'assignments' ? window.getStudentAssessmentSubmission(subjectId, effectiveCat, activeIdx, topicIdx, ass, loggedStudent) : null);
+                subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, submissionAssessment, loggedStudent)
+                    || window.getStudentAssessmentSubmission(subjectId, 'assessments', activeIdx, topicIdx, submissionAssessment, loggedStudent)
+                    || (effectiveCat !== tab && effectiveCat !== 'assignments' ? window.getStudentAssessmentSubmission(subjectId, effectiveCat, activeIdx, topicIdx, submissionAssessment, loggedStudent) : null);
             }
             window._latestSubmissionForScorePanel = {
                 subjectId: String(subjectId || ''),
@@ -26091,13 +27230,17 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             };
         }
 
-        if (!subData && typeof window.resolveStudentAssessmentSubmissionDetails === 'function') {
-            const resolved = window.resolveStudentAssessmentSubmissionDetails(ass, subjectId, topicIdx, activeIdx, targetSection);
+        const submissionStudent = role === 'student'
+            ? window.getLoggedInStudentUser?.() : studentObj;
+        const submissionStudentId = submissionStudent
+            ? String(submissionStudent.id || submissionStudent.uid || submissionStudent.lrn || submissionStudent.studentNumber || '').trim() : '';
+        if (!subData && submissionStudentId && typeof window.resolveStudentAssessmentSubmissionDetails === 'function') {
+            const resolved = window.resolveStudentAssessmentSubmissionDetails(ass, subjectId, topicIdx, activeIdx, targetSection, submissionStudent);
             if (resolved && resolved.sub) {
                 subData = resolved.sub;
             }
         }
-        if (!subData) {
+        if (!subData && (submissionStudentId || (role !== 'student' && (!curSelectedStudent || curSelectedStudent === 'All')))) {
             const cleanSubj = String(subjectId || 'default').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
             const rawSubj = String(subjectId || 'default').trim().toLowerCase();
             const currentStudentObj = (role === 'student')
@@ -26168,18 +27311,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             subData = null;
         }
 
-        // Do not leave an unsubmitted quiz on a stale submission URL. Restore its material page.
-        if (role === 'student' && isViewSubmissionMode && isAnyQuiz && hasAttachedDigitalQuiz && !hasQuizAttempt) {
-            isViewSubmissionMode = false;
-            window._studentViewSubmissionMode = false;
-            window._sharedViewSubmissionMode = false;
-            const materialHash = `#topic-content:${subjectId}:${topicIdx}:${tab}:${activeIdx}`;
-            if (window.location?.hash !== materialHash) {
-                history.replaceState({ page: materialHash.slice(1), subjectId, topicIdx, tab, videoIdx: activeIdx, viewSubmission: false }, '', materialHash);
-            }
-        }
+        // Submissions stays available before a quiz attempt; review content still requires submission.
 
         if (subData && window._latestSubmissionForScorePanel) {
+            window._latestSubmissionForScorePanel.assessment = { ...ass, section: targetSection || window._latestSubmissionForScorePanel.section };
             window._latestSubmissionForScorePanel.subData = subData;
             if (!window._latestSubmissionForScorePanel.studentId && (subData.studentId || subData.studentObj?.id)) {
                 window._latestSubmissionForScorePanel.studentId = subData.studentId || subData.studentObj?.id;
@@ -26203,40 +27338,20 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             : ((typeof currentTopicState !== 'undefined' && currentTopicState) ? currentTopicState : {});
         const curStudent = options.selectedStudent || topicStateForGb?.selectedStudent || '';
         const curSecForGb = topicStateForGb?.selectedSection || targetSection || '';
-        let matchedTeacherStudentObj = null;
-        if (role === 'teacher' && curStudent && curStudent !== 'All') {
-            let students = (typeof window.getUnifiedSectionStudents === 'function') ? (window.getUnifiedSectionStudents(curSecForGb) || []) : [];
-            const curLower = String(curStudent).trim().toLowerCase();
-            matchedTeacherStudentObj = students.find(s => {
-                if (!s) return false;
-                if (typeof s === 'string') {
-                    const sn = s.trim().toLowerCase();
-                    return sn === curLower || (curLower.length > 3 && (sn.includes(curLower) || curLower.includes(sn)));
-                }
-                const sName = (s.name || '').trim().toLowerCase();
-                const sFull = (s.fullName || '').trim().toLowerCase();
-                const sId = String(s.id || s.uid || s.lrn || '').trim().toLowerCase();
-                const lastFirst = (s.lastName && s.firstName) ? `${s.lastName}, ${s.firstName}`.trim().toLowerCase() : '';
-                const firstLast = (s.lastName && s.firstName) ? `${s.firstName} ${s.lastName}`.trim().toLowerCase() : '';
-                if (sName === curLower || sFull === curLower || sId === curLower || lastFirst === curLower || firstLast === curLower) return true;
-                if (curLower.length > 3 && (sName.includes(curLower) || curLower.includes(sName) || lastFirst.includes(curLower) || curLower.includes(lastFirst) || firstLast.includes(curLower) || curLower.includes(firstLast))) return true;
-                if (typeof window.findMatchedUserAccount === 'function') {
-                    const matched = window.findMatchedUserAccount(s.id || s.uid || s.lrn, s.name || s.fullName);
-                    if (matched) {
-                        const mName = (matched.name || '').trim().toLowerCase();
-                        const mFull = (matched.fullName || '').trim().toLowerCase();
-                        const mId = String(matched.id || matched.uid || matched.username || '').trim().toLowerCase();
-                        if (mName === curLower || mFull === curLower || mId === curLower) return true;
-                    }
-                }
-                return false;
-            });
-        }
-        const studentUser = (role === 'student') ? ((typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null) : (matchedTeacherStudentObj || { id: curStudent, name: curStudent });
+        const matchedTeacherStudentObj = studentObj;
+        const studentUser = (role === 'student') ? ((typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null) : matchedTeacherStudentObj;
+        const closureSection = role === 'student'
+            ? (window.resolveStudentAssessmentSection?.(subjectId, null, targetSection) || studentUser?.section || studentUser?.gradeSection || targetSection)
+            : curSecForGb;
+        const manualClosure = window.readAssessmentClosure(studentUser, ass, subjectId, closureSection);
+        if (role !== 'student' && studentUser) window._manualGradeClosureContext = {
+            key: window.assessmentClosureKey(studentUser, ass, subjectId, curSecForGb), tab, activeIdx
+        };
+        const assessmentQuarter = Number(String(window.currentSelectedTopicQuarter || topicStateForGb?.quarter || window.sigmaGradesState?.activeQuarter || (typeof gradebookState !== 'undefined' ? gradebookState.currentQuarter : 1) || 1).replace(/\D/g, '')) || 1;
         const assCat = ass?.category || ass?.type || (String(ass?.title || '').toLowerCase().includes('quiz') ? 'quiz' : (tab || 'assignment'));
         let itmIdx = activeIdx;
         if (typeof getCategoryDetails === 'function') {
-            const catItems = getCategoryDetails(assCat) || [];
+            const catItems = getCategoryDetails(assCat, assessmentQuarter, subjectId, curSecForGb) || [];
             const cleanTitle = String(ass?.title || ass?.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '');
             const assId = String(ass?.id || ass?.origId || ass?.quizId || '').trim().toLowerCase();
             const fIdx = catItems.findIndex(it => {
@@ -26255,7 +27370,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             }
         }
         if (typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
-            effectiveGrading = window.getEffectiveAssessmentStatusAndScore(studentUser, assCat, itmIdx, subjectId, (typeof gradebookState !== 'undefined' && gradebookState.currentQuarter) ? gradebookState.currentQuarter : 1, ass);
+            effectiveGrading = window.getEffectiveAssessmentStatusAndScore(studentUser, assCat, itmIdx, subjectId, assessmentQuarter, submissionAssessment);
             if (effectiveGrading && effectiveGrading.score !== '' && effectiveGrading.score !== null && effectiveGrading.score !== undefined && effectiveGrading.score !== '-' && !isNaN(Number(effectiveGrading.score))) {
                 gbScore = Number(effectiveGrading.score);
             }
@@ -26264,7 +27379,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const subScoreVal = (subData?.score !== undefined && subData?.score !== null && subData?.score !== '' && !isNaN(Number(subData.score)))
             ? Number(subData.score)
             : ((subData?.aiScore !== undefined && subData?.aiScore !== null && subData?.aiScore !== '' && !isNaN(Number(subData.aiScore))) ? Number(subData.aiScore) : (gbScore !== null ? gbScore : null));
-        let isSubmitted = Boolean(subData && (subData.status === 'Submitted' || subData.status === 'Pending' || subData.status === 'Graded' || subData.submittedAt || subData.fileName || subData.completedAt));
+        let isSubmitted = Boolean(subData && (typeof window.studentHasTurnedInWork === 'function'
+            ? window.studentHasTurnedInWork(subData)
+            : (subData.submittedAt || subData.completedAt || subData.fileName || subData.files?.length || subData.attachments?.length
+                || subData.status === 'Submitted' || subData.status === 'Pending')));
+        if (window.resolveNoDeadlineAssessment(ass, subjectId, curSecForGb, assessmentQuarter)
+            && !window.findAssessmentSubmittedWork(studentUser, ass, subjectId, curSecForGb, assessmentQuarter, [subData])) isSubmitted = false;
         let isGraded = false;
         let isPending = false;
         const cfgAi = findInConfig(assessConfig?.assessmentAiAssisted)
@@ -26299,7 +27419,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const cleanSubj = String(subjectId || 'default').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
         const matKey = `${subjectId}_${topicIdx}_${tab}_${activeIdx}`;
-        const isRetakeActive = Boolean(
+        const isRetakeActive = !isAnyQuiz && Boolean(
             window._retakeQuizActive && (
                 window._retakeQuizActive[matKey] ||
                 window._retakeQuizActive[`${cleanSubj}_${topicIdx}_${tab}_${activeIdx}`] ||
@@ -26336,6 +27456,16 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 localStorage.getItem(`sigma_extra_attempts_student_${subjectId}_${topicIdx}_assessments_${activeIdx}`) ||
                 0
             );
+        }
+
+        studentExtraAttempts = window.getAssessmentExtraAttempts(subjectId, topicIdx, tab, activeIdx,
+            studentUserForAttempts || { id: effectiveStudentId, name: activeStudentForAttempts || subData?.studentName }, subData);
+        if (isAnyQuiz) {
+            studentExtraAttempts = 0;
+            const student = studentUserForAttempts || { id: effectiveStudentId, name: activeStudentForAttempts || subData?.studentName };
+            for (const key of window.getAssessmentExtraAttemptKeys(subjectId, topicIdx, tab, activeIdx, student)) {
+                if (localStorage.getItem(key) !== null && localStorage.getItem(key) !== '0') localStorage.setItem(key, '0');
+            }
         }
 
         // Build attempts list early and sanitize for accurate attempt count
@@ -26453,6 +27583,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         isGraded = Boolean(
+            (isSubmitted && subData && (subData.teacherSaved === true || subData.teacherEditedScore === true)
+                && subData.score !== '' && subData.score !== null && subData.score !== undefined
+                && Number.isFinite(Number(subData.score)) && (!isAnyQuiz || genuineAttemptsCount > 0)) ||
             (effectiveGrading && !isAnyQuiz && (
                 (effectiveGrading.score !== '' && effectiveGrading.score !== null && effectiveGrading.score !== undefined && effectiveGrading.score !== '-' && !isNaN(Number(effectiveGrading.score))) ||
                 effectiveGrading.status === 'missing' ||
@@ -26468,6 +27601,19 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             (gbScore !== null && !subData?.isPending && subData?.status !== 'Pending' && (!isAnyQuiz || genuineAttemptsCount > 0)) ||
             (role !== 'teacher' && ((ass?.score !== undefined && ass?.score !== null && ass?.score !== '') || (ass?.status === 'Graded')) && (!isAnyQuiz || genuineAttemptsCount > 0))
         );
+        let resolvedGradeDetails = null;
+        // Use the same saved-grade resolver as the score panel, including gradebook-only saves.
+        if (isSubmitted && studentUser && (!isAnyQuiz || genuineAttemptsCount > 0)
+            && typeof window.resolveStudentAssessmentSubmissionDetails === 'function') {
+            const details = window.resolveStudentAssessmentSubmissionDetails(
+                submissionAssessment, subjectId, topicIdx, activeIdx, submissionAssessment.section, studentUser);
+            resolvedGradeDetails = details;
+            if (details?.isGraded && details.numericScore !== null && details.numericScore !== undefined
+                && Number.isFinite(Number(details.numericScore))) {
+                isGraded = true;
+                gbScore = Number(details.numericScore);
+            }
+        }
         isPending = !isGraded && Boolean(
             subData && (subData.isPending || subData.status === 'Pending' || (subData.submittedAt && subScoreVal === null && gbScore === null)) && (!isAnyQuiz || genuineAttemptsCount > 0)
         );
@@ -26480,8 +27626,23 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         );
 
         const assMaxAttempts = baseMaxAttempts + (hasUnusedGrantedExtraAttempt ? studentExtraAttempts : 0);
+        if (manualClosure) { isGraded = true; gbScore = Number(manualClosure.score); isSubmitted = false; isPending = false; }
+        if (effectiveGrading?.isAutoMissing) { isGraded = true; gbScore = 0; isSubmitted = false; isPending = false; }
         const isAttemptsExhausted = effectiveAttemptsUsed >= assMaxAttempts;
         const isLateBlocked = isPastDue && !assLatePermission;
+        clearTimeout(window._assessmentGradeDeadlineWatch);
+        const gradeDeadline = rawDue ? new Date(rawDue).getTime() : NaN;
+        if (Number.isFinite(gradeDeadline) && gradeDeadline >= Date.now() && !assLatePermission) {
+            const watchedState = window.currentTopicState;
+            window._assessmentGradeDeadlineWatch = setTimeout(() => {
+                if (window.currentTopicState !== watchedState) return;
+                window._studentAssessmentDetailsCache?.clear();
+                if (typeof window.renderAdminTopicContentWorkstation === 'function') window.renderAdminTopicContentWorkstation();
+                else if (typeof window._renderTopicContentMain === 'function') window._renderTopicContentMain();
+                else if (typeof _renderTopicContentMain === 'function') _renderTopicContentMain();
+                window.refreshAllScorePanelsAndTables?.();
+            }, Math.min(gradeDeadline - Date.now() + 100, 2147483647));
+        }
         const isLateSubmit = !isRetakeActive && isSubmitted && assLatePermission && (subData?.isLate || isPastDue);
 
         let submittedDateFormatted = 'Submitted';
@@ -26500,7 +27661,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         let gradedDateFormatted = '';
-        const rawGradedDate = (isSubmitted && isGraded) ? (subData?.gradedAt || subData?.gradedOn || rawSubDate) : null;
+        const rawGradedDate = isGraded ? (manualClosure?.closedAt || resolvedGradeDetails?.sub?.gradedAt || resolvedGradeDetails?.sub?.gradedOn || subData?.gradedAt || subData?.gradedOn || effectiveGrading?.gradedAt || effectiveGrading?.gradedOn || (effectiveGrading?.isAutoMissing ? effectiveGrading.dueDate : null)) : null;
         if (rawGradedDate) {
             try {
                 const gd = new Date(rawGradedDate);
@@ -26522,6 +27683,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     ? Number(gbScore)
                     : null)));
 
+        const aiSubmissionKey = window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, submissionAssessment, studentUser);
+        const aiAttemptPage = Number(window._activeSubmissionAttemptPage?.[`${subjectId}_${topicIdx}_${tab}_${activeIdx}`] || 1);
+        const savedAiEvaluation = window.SigmaSubmissionAi?.readEvaluation(aiSubmissionKey, aiAttemptPage);
+        if (savedAiEvaluation?.aiEvaluation && subData) subData = { ...subData, ...savedAiEvaluation };
+
         const readOwnAiScore = (value) => {
             if (value === undefined || value === null || value === '' || Number.isNaN(Number(value))) return null;
             return Number(value);
@@ -26536,14 +27702,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const aiCalculatedScore = aiOwnScore !== null ? aiOwnScore : null;
         const aiScoreLabel = aiCalculatedScore !== null ? String(aiCalculatedScore) : '-';
         const aiScorePercentage = (aiCalculatedScore !== null && assMaxScore > 0) ? Math.round((aiCalculatedScore / assMaxScore) * 100) : null;
-        const aiReviewAckKey = [aiMatKey, targetSection || section || '', effectiveStudentId].map(value => String(value || '').trim().toLowerCase()).join('::');
-        let aiReviewAcknowledged = false;
-        try {
-            const ackMap = JSON.parse(localStorage.getItem('sigma_ai_review_acknowledged') || '{}');
-            aiReviewAcknowledged = Boolean(ackMap[aiReviewAckKey]);
-        } catch (e) {
-            aiReviewAcknowledged = false;
-        }
 
         // Character limits for Assessment Criteria / Categories & Commentary
         // Category Title: FIXED/IMMUTABLE standard dimension (max 40 chars)
@@ -26634,7 +27792,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             }
         }
 
-        const criteriaCountText = activeCriteriaList.length === 4
+        if (Array.isArray(subData?.aiEvaluatedCriteria) && subData.aiEvaluatedCriteria.length) {
+            activeCriteriaList = subData.aiEvaluatedCriteria;
+        } else {
+            activeCriteriaList = activeCriteriaList.map(criterion => ({ ...criterion, description: 'Awaiting evaluation of the selected submission.' }));
+        }
+        const criteriaCountText = !subData?.aiEvaluation ? `${activeCriteriaList.length} Criteria Selected` : activeCriteriaList.length === 4
             ? '4 of 4 Criteria Evaluated'
             : `${activeCriteriaList.length} ${activeCriteriaList.length === 1 ? 'Criterion' : 'Criteria'} Evaluated`;
 
@@ -26649,17 +27812,50 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const reversedAttempts = [...attemptsHistory].reverse();
         const totalAttemptsCount = reversedAttempts.length;
         const attemptPageKey = `${subjectId}_${topicIdx}_${tab}_${activeIdx}`;
+        const attemptOwner = String(studentUser?.id || studentUser?.uid || curSelectedStudent || '');
+        const attemptRevision = JSON.stringify([attemptOwner, totalAttemptsCount, reversedAttempts[0]?.submittedAt || reversedAttempts[0]?.completedAt || '']);
+        window._submissionAttemptRevisions = window._submissionAttemptRevisions || {};
+        if (window._submissionAttemptRevisions[attemptPageKey] !== attemptRevision) {
+            window._activeSubmissionAttemptPage = window._activeSubmissionAttemptPage || {};
+            window._activeSubmissionAttemptPage[attemptPageKey] = 1;
+            window._submissionAttemptRevisions[attemptPageKey] = attemptRevision;
+        }
         let currentAttemptPage = Number(window._activeSubmissionAttemptPage?.[attemptPageKey] || 1);
+        if (isAnyQuiz) currentAttemptPage = 1;
         if (isNaN(currentAttemptPage) || currentAttemptPage < 1) currentAttemptPage = 1;
         if (currentAttemptPage > totalAttemptsCount && totalAttemptsCount > 0) currentAttemptPage = totalAttemptsCount;
 
         const activeAttempt = (reversedAttempts.length > 0) ? (reversedAttempts[currentAttemptPage - 1] || reversedAttempts[0]) : (subData || {});
+        window._selectedSubmissionAttempt = { subjectId, topicIdx, tab, activeIdx, studentId: attemptOwner, page: currentAttemptPage, isQuiz: isAnyQuiz, attempt: activeAttempt };
+        if (isAnyQuiz && currentAttemptPage > 1) setTimeout(() => {
+            if (window._selectedSubmissionAttempt?.attempt !== activeAttempt) return;
+            const historicalScore = activeAttempt.teacherScore ?? activeAttempt.score ?? '';
+            const display = document.getElementById('teacher-grading-score-display');
+            if (display) display.textContent = historicalScore === '' || historicalScore === null ? '—' : String(historicalScore);
+            const historicalTone = String(activeAttempt.attendance || activeAttempt.gradingStatus || '').toLowerCase();
+            const historicalLabel = ['missing', 'absent', 'incomplete', 'excuse'].includes(historicalTone)
+                ? historicalTone.charAt(0).toUpperCase() + historicalTone.slice(1) : 'None';
+            const statusLabel = document.getElementById('teacher-grading-status-current-label');
+            if (statusLabel) statusLabel.textContent = historicalLabel;
+            ['teacher-grading-score-input', 'teacher-grading-score-edit', 'teacher-grading-save-btn', 'teacher-grading-status-trigger-btn'].forEach(id => {
+                const control = document.getElementById(id);
+                if (control) { control.disabled = true; control.title = 'Previous quiz attempt - Read only'; }
+            });
+        }, 0);
+
+        window._submittedQuizReviewContext = isAnyQuiz && hasAttachedDigitalQuiz && subData ? {
+            subjectId, tab, activeIdx, topicIdx, section: targetSection,
+            student: studentUser, assessment: ass, submission: subData
+        } : null;
 
         const totalAttemptPages = totalAttemptsCount;
-        const startChunk = Math.floor((currentAttemptPage - 1) / 5) * 5 + 1;
-        const endChunk = Math.min(startChunk + 4, totalAttemptPages);
 
         let activeAttemptFiles = [];
+        // The latest record owns the complete upload batch; legacy history may only store its primary file.
+        if (currentAttemptPage === 1 && Array.isArray(subData?.files) && subData.files.length > 0
+            && (!activeAttempt.submittedAt || !subData.submittedAt || activeAttempt.submittedAt === subData.submittedAt)) {
+            activeAttempt.files = subData.files;
+        }
         // A digital quiz is always opened through its attached quiz file. A document
         // from another material must never replace that quiz in the submission view.
         const hasRealSubmittedAttemptFiles = !hasAttachedDigitalQuiz && ((Array.isArray(activeAttempt.files) && activeAttempt.files.length > 0 && activeAttempt.files.some(f => f && f.type !== 'quiz' && f.url !== 'quiz'))
@@ -26733,44 +27929,64 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             }
         }
 
-        const activeAttemptComment = activeAttempt.comment !== undefined ? activeAttempt.comment : (subData?.comment || '');
-        const activeAttemptReplies = Array.isArray(activeAttempt.replies) ? activeAttempt.replies : (Array.isArray(subData?.replies) ? subData.replies : []);
-
-        const attemptPaginationHtml = totalAttemptPages > 1 ? `
-            <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 border border-black/10 rounded-2xl p-3 sm:px-4 font-['Inter']">
-                <div class="flex items-center gap-2 font-['Inter']">
-                    <span class="text-xs font-bold text-black font-['Inter']">Attempt ${activeAttempt.attemptNumber || (totalAttemptPages - currentAttemptPage + 1)} of ${totalAttemptPages}</span>
-                    ${activeAttempt.isLate ? `<span class="text-xs font-normal text-amber-600 font-['Inter']">(Late)</span>` : ''}
-                </div>
-                <div class="flex items-center gap-1.5 font-['Inter']">
-                    <button type="button" 
-                        onclick="window.switchStudentSubmissionAttemptPage(${currentAttemptPage - 1}, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})"
-                        ${currentAttemptPage <= 1 ? 'disabled class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-slate-300 border border-slate-200 bg-white opacity-30 cursor-not-allowed shrink-0"' : 'class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-black border border-slate-200 bg-white hover:bg-slate-100 transition-colors cursor-pointer shrink-0"'}
-                        title="Previous Attempt">
-                        <i class="fa-solid fa-chevron-left text-xs"></i>
-                    </button>
-                    ${(function () {
-                let btns = '';
-                for (let p = startChunk; p <= endChunk; p++) {
-                    const isActive = p === currentAttemptPage;
-                    btns += `
-                                <button type="button" 
-                                    onclick="window.switchStudentSubmissionAttemptPage(${p}, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})"
-                                    class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center ${isActive ? 'bg-[#15803d] text-white border border-[#15803d] font-bold shadow-xs' : 'bg-white text-black border border-slate-200 hover:bg-slate-100 font-semibold'}"
-                                    title="Attempt ${p}">
-                                    ${p}
-                                </button>
-                            `;
+        // Gradebook records can win submission resolution; read the private thread independently.
+        try {
+            const privateThreadKey = window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, submissionAssessment, studentObj || window.getLoggedInStudentUser?.());
+            const privateThread = JSON.parse(localStorage.getItem(privateThreadKey) || 'null');
+            if (privateThread) {
+                const records = Array.isArray(privateThread.history) && privateThread.history.length
+                    ? privateThread.history : (Array.isArray(privateThread.attempts) ? privateThread.attempts : []);
+                const threadAttempt = records[Math.max(0, records.length - currentAttemptPage)];
+                const thread = currentAttemptPage === 1 ? privateThread : threadAttempt;
+                if (thread) {
+                    for (const field of ['comment', 'commentAuthor', 'commentAuthorRole', 'commentAuthorAvatar', 'commentAuthorId', 'commentCreatedAt', 'commentIsDeleted', 'commentDeletedByRole', 'commentDeletedByName', 'commentDeletedAt']) {
+                        if (thread[field] !== undefined) activeAttempt[field] = thread[field];
+                    }
+                    if (Array.isArray(thread.replies)) activeAttempt.replies = thread.replies;
                 }
-                return btns;
-            })()}
-                    <button type="button" 
-                        onclick="window.switchStudentSubmissionAttemptPage(${currentAttemptPage + 1}, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})"
-                        ${currentAttemptPage >= totalAttemptPages ? 'disabled class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-slate-300 border border-slate-200 bg-white opacity-30 cursor-not-allowed shrink-0"' : 'class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-black border border-slate-200 bg-white hover:bg-slate-100 transition-colors cursor-pointer shrink-0"'}
-                        title="Next Attempt">
-                        <i class="fa-solid fa-chevron-right text-xs"></i>
-                    </button>
-                </div>
+            }
+        } catch (_) {}
+        const activeAttemptComment = String(activeAttempt.comment || '').trim()
+            ? activeAttempt.comment : (currentAttemptPage === 1 ? (subData?.comment || '') : '');
+        const activeAttemptReplies = Array.isArray(activeAttempt.replies) && activeAttempt.replies.length
+            ? activeAttempt.replies : (currentAttemptPage === 1 && Array.isArray(subData?.replies) ? subData.replies : []);
+
+        const canShowSubmissionAi = !isAnyQuiz && (role === 'student' || (isViewSubmissionMode && isSubmitted && studentUser && curSelectedStudent && curSelectedStudent !== 'All'));
+        window._sigmaSubmissionAiContext = canShowSubmissionAi && ['teacher', 'student', 'admin'].includes(role) && !isUnassignedToStudent && subData && studentUser && window.SigmaSubmissionAi ? {
+            role, key: aiSubmissionKey, submission: subData, identity: window.SigmaSubmissionAi.identity(activeAttempt),
+            studentId: String(studentUser.id || studentUser.uid || studentUser.studentId || studentUser.lrn || ''),
+            enabled: hasAiAssistant, hasEvaluation: Boolean(subData.aiEvaluation),
+            subjectId, topicIdx, tab, activeIdx, title: displayTitle,
+            instructions: String(ass.instructions || ass.description || ''), maxScore: assMaxScore,
+            files: activeAttemptFiles.filter(file => file.type !== 'quiz' && file.url !== 'quiz'),
+            answers: activeAttempt.answers || activeAttempt.userAnswers || {},
+            questions: ass.questions || ass.quizQuestions || [],
+            rubric: { name: rubricTitle, url: rubricUrl, text: ass.rubricText || '' },
+            criteria: (isCriteriaAiAuto ? allDepedDimensions : activeCriteriaList).map(criterion => ({ id: criterion.id, title: criterion.title })),
+            autoSelect: isCriteriaAiAuto
+        } : null;
+        if (role !== 'admin') window.SigmaSubmissionAi?.scheduleAutomatic(window._sigmaSubmissionAiContext);
+        const feedbackBase = window._sigmaSubmissionAiContext;
+        window._sigmaSubmissionFeedbackContext = feedbackBase ? {
+            ...feedbackBase, mode: 'feedback', enabled: true, subjectId, section: targetSection || section || '', assessmentId: assIdStr,
+            attemptPage: currentAttemptPage,
+            submitted: isSubmitted,
+            graded: currentAttemptPage === 1 ? isGraded : Boolean(activeAttempt.teacherSaved || activeAttempt.gradedAt || activeAttempt.isGraded),
+            teacherScore: currentAttemptPage === 1 ? teacherOwnedScore : (activeAttempt.score !== null && activeAttempt.score !== undefined ? Number(activeAttempt.score) : null),
+            teacherFeedback: String(activeAttempt.teacherFeedback || activeAttempt.gradingFeedback || (currentAttemptPage === 1 ? (subData.teacherFeedback || subData.gradingFeedback) : '') || '')
+        } : null;
+        if (window._sigmaSubmissionFeedbackContext) {
+            const feedbackContext = window._sigmaSubmissionFeedbackContext;
+            feedbackContext.hasEvaluation = Boolean(window.SigmaSubmissionAi.readFeedback(feedbackContext, currentAttemptPage).length);
+            if (role !== 'admin') window.SigmaSubmissionAi.scheduleAutomatic(feedbackContext);
+        }
+
+        const attemptPaginationHtml = !isAnyQuiz && totalAttemptPages > 1 ? `
+            <div class="submission-attempt-selector-row">
+                <label for="submission-attempt-select">Attempt</label>
+                <select id="submission-attempt-select" class="submission-attempt-select" onchange="window.switchStudentSubmissionAttemptPage(this.value, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
+                    ${reversedAttempts.map((attempt, index) => `<option value="${index + 1}" ${index + 1 === currentAttemptPage ? 'selected' : ''}>Attempt ${attempt.attemptNumber || totalAttemptPages - index}${index === 0 ? ' - Latest' : ''}</option>`).join('')}
+                </select>
             </div>
         ` : '';
 
@@ -26785,14 +28001,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }) : '');
 
         return `
-            <div class="assessment-material-detail-view font-['Inter'] animate-in fade-in duration-300 pb-12 pt-0 px-0 space-y-6">
+            <div class="assessment-material-detail-view font-['Inter'] animate-in fade-in duration-300 pb-12 pt-0 px-0 space-y-6" data-assessment-view="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'work' : 'materials'}">
                 <!-- 1. Center Assessment Panel (Title, Description, Attached Quiz/Resource, Rubric) -->
                 <div class="assessment-material-main-card bg-white border border-black/15 rounded-3xl p-6 sm:p-8 shadow-sm">
                     <div class="flex items-start gap-3 sm:gap-4">
                         <div class="space-y-6 flex-1 min-w-0">
                             <!-- Material Title & Meta Badges -->
                             <div class="flex items-start gap-2.5 sm:gap-3">
-                                <button type="button" onclick="${isViewSubmissionMode ? `if (typeof window.exitStudentViewSubmissionMode === 'function') { window.exitStudentViewSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}); } else if (typeof window.openMaterialTask === 'function') { window.openMaterialTask(${activeIdx}); } else if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', ${activeIdx}); } else { window.history.back(); }` : (isStudentSubmissionMode ? `window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})` : `if (typeof window.switchTopicTab === 'function') { window.switchTopicTab('${tab}', null); } else { window.history.back(); }`)}" title="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}" aria-label="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Back to Material' : 'Back to Topic'}"
+                                <button type="button" onclick="${isStudentSubmissionMode ? `window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})` : `window.backToAssessmentMaterialsList('${tab}')`}" title="${isStudentSubmissionMode ? 'Cancel Submission' : 'Back to Assessments'}" aria-label="${isStudentSubmissionMode ? 'Cancel Submission' : 'Back to Assessments'}"
                                     class="material-detail-back-btn flex w-7 h-7 sm:w-8 sm:h-8 -ml-1 mt-0.5 shrink-0 rounded-lg items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer">
                                     <i class="fa-solid fa-arrow-left text-sm text-black"></i>
                                     <i class="fa-solid fa-chevron-left text-sm text-black"></i>
@@ -26801,7 +28017,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     <h2 class="text-xl sm:text-2xl font-bold text-black font-['Inter'] leading-snug break-words min-w-0">
                                         ${window.escapeHtml ? window.escapeHtml(displayTitle) : displayTitle}
                                     </h2>
-                                    <div class="flex items-center gap-2 text-xs flex-wrap">
+                                    <div class="assessment-title-status-badges flex items-center gap-2 text-xs flex-wrap">
                                         <span class="material-detail-type-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${detailBadgeClass} border font-bold text-[10px] capitalize leading-tight">
                                             <i class="${detailIconClass} text-[9px]"></i> ${typeLabel}
                                         </span>
@@ -26845,11 +28061,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 </div>
                             ` : ''}
 
+                        ${manualClosure && role === 'student' ? `<div class="assessment-closed-notice" role="status"><i class="fa-solid fa-lock assessment-closed-notice-icon" aria-hidden="true"></i><div class="assessment-closed-notice-content"><h4>Submissions Closed</h4><p>You have not submitted work for this assessment. Your teacher has recorded a grade, and submissions are now closed.</p></div></div>` : ''}
+                        ${window.renderAssessmentDetailTabsHtml({ role, workActive: Boolean(isViewSubmissionMode || isStudentSubmissionMode), subjectId, topicIdx, tab, activeIdx, submitted: isSubmitted, isQuiz: isAnyQuiz, uploadActive: isStudentSubmissionMode })}
+                            <div id="assessment-detail-tab-content" role="tabpanel" aria-label="${(isViewSubmissionMode || isStudentSubmissionMode) ? 'Submissions' : 'Materials'}">
                             ${!isStudentSubmissionMode ? `
                                 ${!isViewSubmissionMode ? `
                                     <!-- Attached Resource / Quiz Section -->
-                                    ${((!isQuizSubmitted || isRetakeActive) && Boolean(attachedFileHtml)) ? `
-                                        <div class="border-t border-black/10 pt-6" id="attached-quiz-resource-section">
+                                    ${Boolean(attachedFileHtml) ? `
+                                        <div class="pt-6" id="attached-quiz-resource-section">
                                             <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-2 sm:mb-2.5">${attachedSectionTitle}</h3>
                                             ${attachedFileHtml}
                                         </div>
@@ -26859,8 +28078,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     ${rubricHtml}
                                 ` : `
                                      <!-- Submitted Answer File Panel & Comment (Always shown in View Submission mode) -->
-                                     <div class="border-t border-black/10 pt-6 space-y-6" id="student-submitted-answer-section">
+                                     <div class="pt-6 space-y-6" id="student-submitted-answer-section">
                                          ${isSubmitted ? attemptPaginationHtml : ''}
+                                         ${(role === 'student' && isAnyQuiz && hasAttachedDigitalQuiz && (!hasQuizAttempt || isRetakeActive)) ? attachedFileHtml : ''}
 
                                          <!-- 1. Top Section: Submitted Answer & Files (Full Width) -->
                                          <div class="space-y-3 font-['Inter']">
@@ -26882,9 +28102,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                           `
                 ) : ''}
                                                   </div>
-                                                  ${(isSubmitted && activeAttemptDateFormatted) ? `
-                                                      <span class="text-xs text-black-fade font-normal font-['Inter']">${activeAttemptDateFormatted}</span>
-                                                  ` : ''}
                                               </div>
                                               ${isSubmitted ? (
                     activeAttemptFiles.length > 0 ? `
@@ -26974,7 +28191,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                       <div class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-2.5">
                                                           <div class="w-12 h-12 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-black-fade shadow-2xs">
                                                               <i class="fa-regular fa-file-lines text-xl text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
-                                                          </div>
+                                                       </div>
                                                           <div class="space-y-0.5">
                                                               <p class="text-sm font-semibold text-slate-800 font-['Inter']">No files attached</p>
                                                               <p class="text-xs text-black-fade font-['Inter']">No files were attached with this submission.</p>
@@ -26982,30 +28199,85 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                       </div>
                                                   `)
                 ) : `
-                                                  <div class="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-2.5">
+                                                  <div class="assessment-submission-empty w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-2.5">
                                                       <div class="w-12 h-12 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-black-fade shadow-2xs">
                                                           <i class="fa-regular fa-file-lines text-xl text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
                                                       </div>
                                                       <div class="space-y-0.5">
                                                           <p class="text-sm font-semibold text-slate-800 font-['Inter']">No submission</p>
-                                                          <p class="text-xs text-black-fade font-['Inter']">This student has not submitted any files or coursework for this assessment.</p>
+                                                          <p class="text-xs text-black-fade font-['Inter']">${manualClosure ? (role === 'student' ? 'You have not submitted work for this assessment. Your teacher has recorded a grade, and submissions are now closed.' : 'This student has not submitted work for this assessment. A grade has been recorded, and submissions are now closed.') : 'This student has not submitted any files or coursework for this assessment.'}</p>
                                                       </div>
                                                   </div>
                                               `}
                                          </div>
 
+                                     </div>
+                                 `}
+                            ` : `
+                                <!-- Student Answer Submission Section (Full-Width Upload & Add Comment Button) -->
+                                <div class="border-t border-black/10 pt-6 space-y-4 font-['Inter']" id="student-submit-form-section">
+                                    <!-- Full-Width File Upload Section -->
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-0">Student Submission</h3>
+                                                <span class="text-xs text-black-fade font-normal font-['Inter']">(Max: ${(() => {
+                                                    const curLimits = typeof window.getSigmaMaterialLimits === 'function' ? window.getSigmaMaterialLimits() : null;
+                                                    return `${curLimits?.batchQuota || 150} MB`;
+                                                })()})</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <input type="file" id="student-answer-file-input" class="hidden" multiple
+                                            accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.zip"
+                                            onchange="window.handleStudentAnswerFileSelected(event, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
+
+                                        <!-- Dropzone Upload Panel (Shared Add Material Style) -->
+                                        <div id="student-answer-drop-prompt"
+                                            onclick="document.getElementById('student-answer-file-input')?.click()"
+                                            ondragover="event.preventDefault();"
+                                            ondragleave="event.preventDefault();"
+                                            ondrop="event.preventDefault(); if(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) { window.handleStudentAnswerFileSelected({target: {files: event.dataTransfer.files}}, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}); }"
+                                            class="sigma-dashed-dropzone rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all group font-['Inter'] w-full min-h-[170px]">
+                                            <div class="sigma-dropzone-icon-box w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-2.5 shadow-xs text-black-fade">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                            </div>
+                                            <p class="text-sm font-bold text-black font-['Inter']">Click to upload <span class="font-normal text-slate-500">or drag and drop</span></p>
+                                            <p class="text-[11px] text-black-fade mt-1 font-['Inter']">PDF, Word, Excel, PowerPoint, Text, Image, or ZIP (Multiple allowed)</p>
+                                        </div>
+
+                                        <!-- Selected Files Container -->
+                                        <div id="student-answer-files-container" class="hidden w-full flex flex-col justify-start"></div>
+                                        <p id="student-upload-limit-error" role="alert" hidden class="text-xs text-red-700 leading-relaxed"></p>
+                                    </div>
+
+                                    <!-- Bottom Action Bar: Cancel & Submit on Right -->
+                                    <div class="student-submit-actions flex items-center justify-end gap-3 pt-2 font-['Inter']">
+                                        <button type="button" onclick="window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})"
+                                            class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer font-['Inter']">
+                                            Cancel
+                                        </button>
+                                        <button type="button" id="student-submit-answer-btn" disabled onclick="window.submitStudentAnswer('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${String(ass?.id || ass?.materialId || '').replace(/'/g, '')}')"
+                                            class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] shadow-sm opacity-50 cursor-not-allowed pointer-events-none">
+                                            ${isSubmitted ? 'Resubmit Answer' : 'Submit Answer'}
+                                        </button>
+                                    </div>
+                                </div>
+                            `}
+                        `}
+                        ${`
                                 <!-- 2. Bottom Section: Comments (Announcement Post Style Thread) -->
-                               <div class="space-y-3 font-['Inter'] pt-1">
-                                   <div class="flex items-center gap-2">
-                                       <i class="fa-regular fa-comments text-slate-700 text-sm"></i>
-                                       <h3 class="text-sm sm:text-base font-bold text-slate-900 font-['Inter'] m-0">Comments</h3>
+                               <div class="shared-private-comments space-y-3 font-['Inter']">
+                                   <div class="shared-private-comments-heading flex items-center gap-2">
+                                       <i class="fa-regular fa-comments text-slate-700 text-sm" aria-hidden="true"></i>
+                                       <h3 class="text-sm sm:text-base font-bold text-slate-900 font-['Inter'] m-0">Private Comments</h3>
                                        ${((activeAttemptComment ? 1 : 0) + activeAttemptReplies.length) > 0 ? `
                                            <span class="text-[11px] font-bold text-black-fade bg-slate-100 border border-black/10 px-2 py-0.5 rounded-full shadow-2xs">${(activeAttemptComment ? 1 : 0) + activeAttemptReplies.length}</span>
                                        ` : ''}
                                    </div>
 
                                    <!-- Comments List Container -->
-                                   <div class="mt-2 space-y-3" id="submission-comments-list-container">
+                                   <div class="mt-2 space-y-3" id="submission-comments-list-container" role="region" aria-label="Private comment history" tabindex="0">
                                        ${(function () {
                     const loggedStudent = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
                     let currentAuthUser = null;
@@ -27014,7 +28286,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     } catch (e) { }
 
                     let commentAuthorName = activeAttempt.commentAuthor || subData?.commentAuthor || subData?.studentName;
-                    const isTeacherPrimary = (activeAttempt.commentAuthorRole || subData?.commentAuthorRole) === 'Teacher';
                     if (!commentAuthorName || commentAuthorName === 'Student') {
                         if (role === 'student') {
                             commentAuthorName = loggedStudent?.name || loggedStudent?.fullName || currentAuthUser?.fullName || currentAuthUser?.name || 'Juan Dela Cruz';
@@ -27028,6 +28299,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     }
 
                     const commentAuthorId = activeAttempt.commentAuthorId || subData?.commentAuthorId || subData?.studentId || (role === 'student' ? (loggedStudent?.id || loggedStudent?.uid || currentAuthUser?.id || '2222222') : (ass?.studentId || '2222222'));
+                    const primaryRoleBadge = window.getPrivateCommentRoleBadge(commentAuthorId, commentAuthorName, activeAttempt.commentAuthorRole || subData?.commentAuthorRole);
                     const commentAuthorAvatar = activeAttempt.commentAuthorAvatar || subData?.commentAuthorAvatar || subData?.studentAvatar || (role === 'student' ? (loggedStudent?.avatar || loggedStudent?.profilePicture || currentAuthUser?.avatar || '') : (ass?.studentAvatar || ''));
 
                     const commentAuthorUser = {
@@ -27067,19 +28339,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         return `<div class="sigma-user-avatar sigma-user-avatar--${size}"><i class="fa-solid fa-user text-[#94a3b8] text-xs"></i></div>`;
                     };
 
-                    const loggedTeacher = (typeof window.getLoggedInTeacherUser === 'function') ? window.getLoggedInTeacherUser() : null;
-                    const isTeacherUser = Boolean(loggedTeacher) || (window.location.pathname.includes('teacher') || (typeof role !== 'undefined' && role === 'teacher'));
-                    const currentActiveUserName = (isTeacherUser ? (loggedTeacher?.name || loggedTeacher?.fullName) : (loggedStudent?.name || loggedStudent?.fullName))
-                        || currentAuthUser?.fullName || currentAuthUser?.name || (isTeacherUser ? 'Teacher' : 'Juan Dela Cruz');
-                    const currentActiveUserId = (isTeacherUser ? (loggedTeacher?.id || loggedTeacher?.uid) : (loggedStudent?.id || loggedStudent?.uid))
-                        || currentAuthUser?.id || '';
+                    const privateActor = window.getPrivateCommentActor();
+                    const isTeacherUser = ['teacher', 'admin', 'administrator'].includes(privateActor.role);
 
                     const commentDateStr = formatTimeAgo(activeAttempt.commentCreatedAt || activeAttempt.submittedAt || subData?.commentCreatedAt || subData?.submittedAt);
                     const isDeletedPrimary = Boolean(activeAttempt.commentIsDeleted || subData?.commentIsDeleted);
                     const cleanPrimary = String(activeAttemptComment || '').trim();
                     const repliesList = activeAttemptReplies;
-                    const isOwnPrimary = (commentAuthorId && String(commentAuthorId) === String(currentActiveUserId)) ||
-                        (commentAuthorName && String(commentAuthorName).trim().toLowerCase() === String(currentActiveUserName).trim().toLowerCase());
+                    const isOwnPrimary = window.isOwnPrivateComment(commentAuthorId, commentAuthorName, privateActor);
                     const canDeletePrimary = isTeacherUser || isOwnPrimary;
 
                     let html = '';
@@ -27100,9 +28367,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 : `Comment by ${window.escapeHtml ? window.escapeHtml(commentAuthorName) : commentAuthorName} was removed by a Teacher`;
 
                             html += `
-                                                   <div class="flex items-center gap-2.5 py-1.5 opacity-70 italic text-slate-500 text-xs mb-3" id="submission-primary-comment-${subjectId}-${tab}-${activeIdx}">
+                                                   <div class="sigma-private-comment-row ${isOwnPrimary ? 'sigma-private-comment-row--own' : ''} flex items-center gap-2.5 py-1.5 opacity-70 italic text-slate-500 text-xs mb-3" id="submission-primary-comment-${subjectId}-${tab}-${activeIdx}">
                                                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-xs border border-slate-200 shrink-0">
                                                            <i class="fa-solid fa-ban text-[11px]"></i>
+
                                                        </div>
                                                        <div class="flex-1 bg-slate-50 border border-slate-200/70 rounded-xl px-3 py-1.5 flex items-center justify-between">
                                                            <span class="text-[12px] font-medium text-slate-600">
@@ -27113,31 +28381,21 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                    </div>`;
                         } else if (cleanPrimary) {
                             html += `
-                                                   <div class="flex items-start gap-2.5 mb-3 group" id="submission-primary-comment-${subjectId}-${tab}-${activeIdx}">
+                                                   <div class="sigma-private-comment-row ${isOwnPrimary ? 'sigma-private-comment-row--own' : ''} flex items-start gap-2.5 mb-3 group" id="submission-primary-comment-${subjectId}-${tab}-${activeIdx}">
                                                        <div class="flex-shrink-0">
                                                            ${renderAvatar(commentAuthorUser, 'sm')}
                                                        </div>
-                                                       <div class="flex flex-col max-w-[85%]">
-                                                           <div class="bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2 shadow-2xs">
+                                                       <div class="sigma-private-comment-content">
+                                                           <div class="sigma-private-comment-message">
                                                                <div class="flex items-center gap-2 mb-0.5">
                                                                    <span class="text-xs font-bold text-slate-900">${window.escapeHtml ? window.escapeHtml(commentAuthorName) : commentAuthorName}</span>
-                                                                   ${isTeacherPrimary ? `
-                                                                       <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">Teacher</span>
+                                                                   ${primaryRoleBadge ? `
+                                                                       <span class="sigma-private-comment-role">${primaryRoleBadge}</span>
                                                                    ` : ''}
-                                                                   ${commentDateStr ? `
-                                                                       <span class="text-[10px] text-black-fade font-normal">${commentDateStr}</span>
-                                                                   ` : ''}
+                                                                   ${canDeletePrimary ? `<button type="button" class="sigma-comment-delete-btn" onclick="window.deleteStudentSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Delete comment" aria-label="Delete comment"><i class="fa-regular fa-trash-can"></i></button>` : ''}
                                                                </div>
+                                                               ${commentDateStr ? `<div class="sigma-private-comment-time">${commentDateStr}</div>` : ''}
                                                                <p class="text-xs text-slate-800 font-normal leading-relaxed break-words m-0 whitespace-pre-wrap">${window.escapeHtml ? window.escapeHtml(cleanPrimary) : cleanPrimary}</p>
-                                                           </div>
-                                                           <div class="flex items-center gap-3 pt-1 px-1">
-                                                               <button type="button" class="text-black-fade hover:text-black hover:bg-slate-100 px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-colors text-[11.5px] leading-normal bg-transparent border-0 select-none" onclick="window.startSubmissionReply('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${(window.escapeHtml ? window.escapeHtml(commentAuthorName) : commentAuthorName).replace(/'/g, "\\'")}')" title="Reply to ${window.escapeHtml ? window.escapeHtml(commentAuthorName) : commentAuthorName}">
-                                                                   Reply
-                                                               </button>
-                                                               ${canDeletePrimary ? `
-                                                               <button type="button" class="sigma-comment-delete-btn w-6 h-6 rounded-full flex items-center justify-center text-black-fade hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer bg-transparent border-0 text-xs" onclick="window.deleteStudentSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Delete comment">
-                                                                   <i class="fa-regular fa-trash-can text-[11.5px]"></i>
-                                                               </button>` : ''}
                                                            </div>
                                                        </div>
                                                    </div>`;
@@ -27147,8 +28405,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     if (repliesList.length > 0) {
                         html += repliesList.map((rep, rIdx) => {
                             const repAuthor = rep.author || (rep.role === 'Teacher' ? 'Teacher' : 'Student');
-                            const isTeacherRep = (rep.role === 'Teacher') || (rep.authorRole === 'Teacher') ||
-                                (repAuthor.toLowerCase().includes('maria santos') || repAuthor.toLowerCase().includes('ramos') || repAuthor.toLowerCase().includes('teacher'));
+                            const replyRoleBadge = window.getPrivateCommentRoleBadge(rep.authorId, repAuthor, rep.role || rep.authorRole);
                             const repDateStr = formatTimeAgo(rep.date);
                             const cleanRepText = String(rep.text || '').trim();
                             const repUserObj = {
@@ -27160,11 +28417,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             };
                             const replyTargetName = rep.replyToAuthor || '';
                             const isIndentedReply = Boolean(rep.isReply || replyTargetName);
-                            const containerClasses = isIndentedReply
-                                ? 'flex items-start gap-2.5 ml-8 pl-2 border-l-2 border-slate-100 mb-3 group'
-                                : 'flex items-start gap-2.5 mb-3 group';
-                            const isOwnRep = (rep.authorId && String(rep.authorId) === String(currentActiveUserId)) ||
-                                (repAuthor && String(repAuthor).trim().toLowerCase() === String(currentActiveUserName).trim().toLowerCase());
+                            const isOwnRep = window.isOwnPrivateComment(rep.authorId, repAuthor, privateActor);
+                            const containerClasses = `sigma-private-comment-row ${isOwnRep ? 'sigma-private-comment-row--own' : ''} flex items-start gap-2.5 mb-3 group`;
                             const canDeleteRep = isTeacherUser || isOwnRep;
 
                             if (rep.isDeleted) {
@@ -27192,27 +28446,17 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                        <div class="flex-shrink-0">
                                                            ${renderAvatar(repUserObj, 'sm')}
                                                        </div>
-                                                       <div class="flex flex-col max-w-[85%]">
-                                                           <div class="bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2 shadow-2xs">
+                                                       <div class="sigma-private-comment-content">
+                                                           <div class="sigma-private-comment-message">
                                                                <div class="flex items-center gap-2 mb-0.5">
                                                                    <span class="text-xs font-bold text-slate-900">${window.escapeHtml ? window.escapeHtml(repAuthor) : repAuthor}</span>
-                                                                   ${isTeacherRep ? `
-                                                                       <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">Teacher</span>
+                                                                   ${replyRoleBadge ? `
+                                                                       <span class="sigma-private-comment-role">${replyRoleBadge}</span>
                                                                    ` : ''}
-                                                                   ${repDateStr ? `
-                                                                       <span class="text-[10px] text-black-fade font-normal">${repDateStr}</span>
-                                                                   ` : ''}
+                                                                   ${canDeleteRep ? `<button type="button" class="sigma-comment-delete-btn" onclick="window.deleteSubmissionReply('${subjectId}', '${tab}', ${activeIdx}, ${rIdx}, ${topicIdx})" title="Delete reply" aria-label="Delete reply"><i class="fa-regular fa-trash-can"></i></button>` : ''}
                                                                </div>
+                                                               ${repDateStr ? `<div class="sigma-private-comment-time">${repDateStr}</div>` : ''}
                                                                <p class="text-xs text-slate-800 font-normal leading-relaxed break-words m-0 whitespace-pre-wrap">${replyTargetName ? `<span class="text-[#15803d] font-bold">@${window.escapeHtml ? window.escapeHtml(replyTargetName) : replyTargetName}</span> ` : ''}${window.escapeHtml ? window.escapeHtml(cleanRepText) : cleanRepText}</p>
-                                                           </div>
-                                                           <div class="flex items-center gap-3 pt-1 px-1">
-                                                               <button type="button" class="text-black-fade hover:text-black hover:bg-slate-100 px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-colors text-[11.5px] leading-normal bg-transparent border-0 select-none" onclick="window.startSubmissionReply('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${(window.escapeHtml ? window.escapeHtml(repAuthor) : repAuthor).replace(/'/g, "\\'")}')" title="Reply to ${window.escapeHtml ? window.escapeHtml(repAuthor) : repAuthor}">
-                                                                   Reply
-                                                               </button>
-                                                               ${canDeleteRep ? `
-                                                               <button type="button" class="sigma-comment-delete-btn w-6 h-6 rounded-full flex items-center justify-center text-black-fade hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer bg-transparent border-0 text-xs" onclick="window.deleteStudentSubmissionReply('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, ${rIdx})" title="Delete reply">
-                                                                   <i class="fa-regular fa-trash-can text-[11.5px]"></i>
-                                                               </button>` : ''}
                                                            </div>
                                                        </div>
                                                    </div>`;
@@ -27271,13 +28515,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                    <i class="fa-solid fa-xmark text-xs"></i>
                                                </button>
                                            </div>
-                                           <div class="flex items-center gap-2.5 pt-2 border-t border-slate-100 w-full">
-                                               <div class="flex-shrink-0">
-                                                   ${userAvatarHtml}
-                                               </div>
+                                           <div class="sigma-comment-composer-row flex items-center gap-2.5 pt-2 w-full">
+                                               <div class="sigma-comment-composer-avatar flex-shrink-0">${userAvatarHtml}</div>
                                                <div class="sigma-comment-input-pill flex-1 w-full min-w-0 bg-slate-50 border border-slate-200 rounded-[22px] px-3.5 sm:px-4 py-1.5 flex items-center gap-2.5 transition-all focus-within:border-[#FFD000] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#FFD000]/20 min-h-[44px] box-border">
-                                                   <textarea id="submission-comment-input-${subjectId}-${tab}-${activeIdx}" rows="1" class="sigma-comment-textarea flex-1 w-full bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none resize-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 font-['Inter'] leading-relaxed m-0 p-0" style="border: none !important; outline: none !important; box-shadow: none !important; resize: none !important; background: transparent !important; min-height: 28px !important; border-radius: 0 !important; width: 100% !important;" placeholder="${window.escapeHtml ? window.escapeHtml(placeholderText) : placeholderText}" maxlength="1000" oninput="this.style.height='28px'; if(this.scrollHeight > 28) this.style.height=Math.min(this.scrollHeight, 120)+'px';" onkeydown="if((event.key==='Enter'||event.keyCode===13||event.which===13)&&!event.shiftKey&&!event.isComposing){event.preventDefault();event.stopPropagation();window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx});}"></textarea>
-                                                   <button type="button" class="w-8 h-8 rounded-full flex items-center justify-center text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer shrink-0" onclick="window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Post comment">
+                                                   <textarea id="submission-comment-input-${subjectId}-${tab}-${activeIdx}" rows="1" class="sigma-comment-textarea flex-1 w-full bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none resize-none text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 font-['Inter'] leading-relaxed m-0 p-0" style="border: none !important; outline: none !important; box-shadow: none !important; resize: none !important; background: transparent !important; min-height: 28px !important; border-radius: 0 !important; width: 100% !important;" placeholder="${window.escapeHtml ? window.escapeHtml(placeholderText) : placeholderText}" maxlength="1000" oninput="this.style.height='28px'; if(this.scrollHeight > 28) this.style.height=Math.min(this.scrollHeight, 120)+'px';"></textarea>
+                                                   <button type="button" class="sigma-comment-send-btn" data-submission-comment-key="${encodeURIComponent(window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, submissionAssessment, studentObj || window.getLoggedInStudentUser?.()))}" onclick="window.submitSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Post comment" aria-label="Post comment">
                                                        <i class="fa-solid fa-paper-plane text-xs"></i>
                                                    </button>
                                                </div>
@@ -27285,87 +28527,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                        </div>`;
                 })()}
                                </div>
-                                     </div>
-                                 `}
-                            ` : `
-                                <!-- Student Answer Submission Section (Full-Width Upload & Add Comment Button) -->
-                                <div class="border-t border-black/10 pt-6 space-y-4 font-['Inter']" id="student-submit-form-section">
-                                    <!-- Full-Width File Upload Section -->
-                                    <div class="space-y-3">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-2">
-                                                <h3 class="material-detail-section-title text-sm sm:text-base font-bold text-black font-['Inter'] mb-0">Answer / Attachment</h3>
-                                                <span class="text-xs text-black-fade font-normal font-['Inter']">(Max file size: 500 MB)</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <input type="file" id="student-answer-file-input" class="hidden" multiple
-                                            accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.zip"
-                                            onchange="window.handleStudentAnswerFileSelected(event, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
-
-                                        <!-- Dropzone Upload Panel (Shared Add Material Style) -->
-                                        <div id="student-answer-drop-prompt"
-                                            onclick="document.getElementById('student-answer-file-input')?.click()"
-                                            ondragover="event.preventDefault();"
-                                            ondragleave="event.preventDefault();"
-                                            ondrop="event.preventDefault(); if(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) { window.handleStudentAnswerFileSelected({target: {files: event.dataTransfer.files}}, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}); }"
-                                            class="sigma-dashed-dropzone rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all group font-['Inter'] w-full min-h-[170px]">
-                                            <div class="sigma-dropzone-icon-box w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-2.5 shadow-xs text-black-fade">
-                                                <i class="fa-solid fa-cloud-arrow-up"></i>
-                                            </div>
-                                            <p class="text-sm font-bold text-black font-['Inter']">Click to upload <span class="font-normal text-slate-500">or drag and drop</span></p>
-                                            <p class="text-[11px] text-black-fade mt-1 font-['Inter']">PDF, Word, Excel, PowerPoint, Text, Image, or ZIP (Multiple allowed)</p>
-                                        </div>
-
-                                        <!-- Selected Files Container -->
-                                        <div id="student-answer-files-container" class="hidden w-full flex flex-col justify-start"></div>
-                                    </div>
-
-                                    <!-- Comments Section -->
-                                    <div class="space-y-2.5 pt-2">
-                                        <div class="flex items-center gap-2">
-                                            <h3 class="text-base font-bold text-black font-['Inter']">Comments</h3>
-                                            <span class="text-xs text-black-fade font-normal font-['Inter']">(Optional)</span>
-                                        </div>
-
-                                        <!-- Add Comment Button (Below Title: No + sign icon, grey hover only, no green text) -->
-                                        <div id="student-add-comment-btn-wrapper">
-                                            <button type="button" id="student-add-comment-toggle-btn" onclick="window.toggleStudentAnswerCommentSection(true)"
-                                                class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-black bg-slate-50 hover:bg-slate-100 active:bg-slate-200 px-4 py-2.5 rounded-2xl transition-colors cursor-pointer select-none border border-slate-200/80 shadow-2xs font-['Inter']">
-                                                <i class="fa-regular fa-comment text-xs text-slate-600"></i>
-                                                <span>Add Comment</span>
-                                            </button>
-                                        </div>
-
-                                        <!-- Expandable Comment Section -->
-                                        <div id="student-answer-comment-box" class="hidden space-y-2">
-                                            <textarea id="student-answer-comment-input" rows="3"
-                                                placeholder="Add a comment or note for your teacher regarding this submission..."
-                                                class="w-full p-3.5 text-xs font-medium text-slate-800 bg-white border border-slate-200/80 rounded-2xl focus:outline-none focus:border-[#15803d] focus:ring-1 focus:ring-[#15803d] transition-all resize-none font-['Inter'] placeholder:text-slate-400 leading-relaxed shadow-2xs"></textarea>
-                                            <div class="flex items-center justify-end">
-                                                <button type="button" onclick="window.toggleStudentAnswerCommentSection(false)"
-                                                    class="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer select-none py-1 px-3 rounded-xl hover:bg-slate-100 font-['Inter']">
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Bottom Action Bar: Cancel & Submit on Right -->
-                                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-black/10 font-['Inter']">
-                                        <button type="button" onclick="window.cancelStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})"
-                                            class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer font-['Inter']">
-                                            Cancel
-                                        </button>
-                                        <button type="button" id="student-submit-answer-btn" disabled onclick="window.submitStudentAnswer('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${String(ass?.id || ass?.materialId || '').replace(/'/g, '')}')"
-                                            class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] shadow-sm opacity-50 cursor-not-allowed pointer-events-none">
-                                            ${isSubmitted ? 'Resubmit Answer' : 'Submit Answer'}
-                                        </button>
-                                    </div>
-                                </div>
-                            `}
                         `}
                         <div class="assessment-primary-action-slot" aria-label="Primary assessment action"></div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -27419,19 +28583,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                             <span class="font-normal text-black font-['Inter']">${gradingModeTitle}</span>
                                         </div>
                                     ` : ''}
-                                    ${((role !== 'student' && hasAiAssistant) || (role === 'student' && !isAnyQuiz && isGraded)) ? `
-                                        <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
-                                            <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
-                                                <i class="fa-solid fa-bolt text-sm text-amber-500 w-4 text-center shrink-0"></i>
-                                                <span>SIGMA AI Assistance</span>
-                                            </span>
-                                            <button type="button" id="toggle-ai-assistance-card-btn" onclick="window.toggleAiAssistancePanel?.('${aiMatKey}')"
-                                                class="text-[10px] sm:text-[10.5px] font-bold ${isAiPanelExplicitlyHidden ? 'text-black bg-[#FFD000] hover:bg-[#e6bc00]' : 'text-white bg-[#15803d] hover:bg-[#166534]'} px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight">
-                                                <i class="${isAiPanelExplicitlyHidden ? 'fa-solid fa-sparkles text-[9px] sm:text-[9.5px] text-black' : 'fa-solid fa-eye-slash text-[9px] sm:text-[9.5px] text-white'}" id="toggle-ai-card-btn-icon"></i>
-                                                <span id="toggle-ai-card-btn-text">${isAiPanelExplicitlyHidden ? 'View SIGMA AI Panel' : 'Hide SIGMA AI Panel'}</span>
-                                            </button>
-                                        </div>
-                                    ` : ''}
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-calendar text-sm text-[#15803d] w-4 text-center shrink-0"></i>
@@ -27446,6 +28597,19 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </span>
                                         <span class="font-normal text-black font-['Inter']">${assDueDate}</span>
                                     </div>
+                                    ${(canShowSubmissionAi && ((role !== 'student' && hasAiAssistant) || (role === 'student' && isGraded))) ? `
+                                        <div class="flex items-center justify-between text-xs font-medium py-1 border-t border-black/10">
+                                            <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
+                                                <i class="fa-solid fa-bolt text-sm text-amber-500 w-4 text-center shrink-0"></i>
+                                                <span>SIGMA AI Assistance</span>
+                                            </span>
+                                            <button type="button" id="toggle-ai-assistance-card-btn" onclick="window.toggleAiAssistancePanel?.('${aiMatKey}')"
+                                                class="text-[10px] sm:text-[10.5px] font-bold text-white bg-[#15803d] hover:bg-[#166534] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight">
+                                                <i class="fa-solid ${isAiPanelExplicitlyHidden ? 'fa-eye' : 'fa-eye-slash'} text-[9px] sm:text-[9.5px] text-white" id="toggle-ai-card-btn-icon" aria-hidden="true"></i>
+                                                <span id="toggle-ai-card-btn-text">${isAiPanelExplicitlyHidden ? 'View SIGMA AI Panel' : 'Hide SIGMA AI Panel'}</span>
+                                            </button>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -27464,8 +28628,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                             <i class="fa-solid fa-bullseye text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Max Attempts</span>
                                         </span>
-                                        <span class="font-normal text-black font-['Inter']">${baseMaxAttempts}${hasUnusedGrantedExtraAttempt ? ` (+${studentExtraAttempts})` : ''}</span>
+                                        <span class="font-normal text-black font-['Inter']">${baseMaxAttempts}${showStudentSubmissionDetails && hasUnusedGrantedExtraAttempt ? ` (+${studentExtraAttempts})` : ''}</span>
                                     </div>
+                                    ${showStudentSubmissionDetails ? `
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-clock-rotate-left text-sm text-[#15803d] w-4 text-center shrink-0"></i>
@@ -27473,6 +28638,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </span>
                                         <span id="student-submission-attempts-count" class="font-normal text-black font-['Inter']">${effectiveAttemptsUsed}</span>
                                     </div>
+                                    ` : ''}
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-hourglass-half text-sm text-[#15803d] w-4 text-center shrink-0"></i>
@@ -27480,6 +28646,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </span>
                                         <span class="font-normal font-['Inter'] ${lateColor}">${lateLabel}</span>
                                     </div>
+                                    ${showStudentSubmissionDetails ? `
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10" id="submission-details-submitted-row">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid ${isSubmitted ? 'fa-circle-check text-[#15803d]' : (isPastDue ? 'fa-circle-xmark text-red-500' : 'fa-file-arrow-up text-black-fade')} text-sm w-4 text-center shrink-0"></i>
@@ -27503,12 +28670,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                     </div>
                                     <div class="flex items-center justify-between text-xs font-medium py-1" id="submission-details-graded-row">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
-                                            <i class="fa-solid fa-circle-check text-sm ${(isGraded && (studentRawScore !== null || rawGradedDate)) ? 'text-[#15803d]' : (isPastDue && !isSubmitted && !assLatePermission ? 'text-red-500' : 'text-black-fade')} w-4 text-center shrink-0"></i>
+                                            <i class="fa-solid fa-circle-check text-sm ${isGraded ? 'text-[#15803d]' : (isPastDue && !isSubmitted && !assLatePermission ? 'text-red-500' : 'text-black-fade')} w-4 text-center shrink-0"></i>
                                             <span>Graded</span>
                                         </span>
                                         <div class="text-right">
-                                            ${(isGraded && (studentRawScore !== null || rawGradedDate)) ? `
-                                                <span class="font-normal text-black font-['Inter']" id="submission-details-graded-time">${gradedDateFormatted || (isSubmitted ? submittedDateFormatted : 'Graded')}</span>
+                                            ${isGraded ? `
+                                                <span class="font-normal text-black font-['Inter']" id="submission-details-graded-time">${gradedDateFormatted || 'Graded'}</span>
                                             ` : (isPastDue && !isSubmitted && !assLatePermission ? `
                                                 <span class="font-normal text-red-600 font-['Inter']" id="submission-details-graded-time">Missing (0 pts)</span>
                                             ` : `
@@ -27516,27 +28683,36 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                             `)}
                                         </div>
                                     </div>
+                                    ` : ''}
                                 </div>
                             </div>
 
-                            ${role === 'student' ? `
+                            ${!manualClosure && role !== 'student' && isViewSubmissionMode && !isSubmitted && (isAttemptsExhausted || isLateBlocked) ? `<div class="assessment-closed-badge-row">${window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : 'The deadline has passed. Late submissions are not permitted.')}</div>` : ''}
+                            ${!showStudentSubmissionDetails ? '' : manualClosure ? `<div class="assessment-closed-badge-row">${window.renderAssessmentClosedBadgeHtml()}${role !== 'student' ? '<button type="button" class="text-xs text-green-700 font-semibold" onclick="window.reopenGradedAssessment()">Reopen Submission</button>' : ''}</div>` : role === 'student' ? `
                                 <!-- Submission Action Area -->
-                                ${!isViewSubmissionMode ? `
+                                ${(!isViewSubmissionMode || !isSubmitted || isRetakeActive) ? `
                                     <div id="student-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter']">
                                         <input type="file" id="student-assessment-file-input" class="hidden" onchange="window.handleStudentAssessmentFileUpload(event, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
                                         ${(isSubmitted && !isRetakeActive) ? `
-                                            <div class="flex items-center justify-between w-full">
-                                                ${(!isAttemptsExhausted && !isLateBlocked) ? `
+                                            <div class="flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
+                                                <div>
+                                                    ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
                                                     <button type="button" onclick="${(isAnyQuiz && hasAttachedDigitalQuiz) ? `window.handleStudentQuizRetake('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${encodeURIComponent(displayTitle)}')` : `window.enterStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts})`}"
-                                                        class="text-xs font-bold text-[#15803d] hover:text-[#166534] hover:underline cursor-pointer bg-transparent border-0 p-0 shrink-0">
+                                                        class="sigma-resubmit-action-btn sigma-resubmit-action-btn--allow shrink-0">
                                                         Resubmit
                                                     </button>
                                                 ` : (isAttemptsExhausted || isLateBlocked) ? `
-                                                    <span class="text-[11px] font-semibold text-black-fade bg-slate-100 px-2.5 py-1 rounded-lg shrink-0 select-none" title="${isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`}">
-                                                        Submissions Closed
-                                                    </span>
+                                                    ${window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`)}
                                                 ` : '<div></div>'}
+                                                
+                                                </div>
                                                 <div class="flex items-center gap-2">
+                                                    ${isPending ? `
+                                                        <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
+                                                    ` : ''}
                                                     <button type="button" onclick="window.enterStudentViewSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})"
                                                         class="sigma-btn sigma-btn-primary text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer font-['Inter'] flex items-center gap-1.5 shadow-2xs hover:bg-[#166534] active:scale-[0.98] transition-all">
                                                         <i class="fa-solid fa-file-lines text-xs text-white"></i>
@@ -27545,7 +28721,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                 </div>
                                             </div>
                                         ` : `
-                                            ${(!isAttemptsExhausted && !isLateBlocked) ? `
+                                            ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
                                                 ${(isAnyQuiz && hasAttachedDigitalQuiz) ? `
                                                     ${allowFileUpload ? `
                                                         <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full">
@@ -27573,45 +28749,34 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                     </button>
                                                 `}
                                             ` : `
-                                                <button type="button" disabled title="${isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`}"
-                                                    class="sigma-btn bg-slate-100 text-black-fade border border-slate-200 w-full py-2.5 px-4 rounded-xl text-xs font-bold font-['Inter'] flex items-center justify-center cursor-not-allowed shadow-none">
-                                                    Submissions Closed
-                                                </button>
+                                                ${window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`)}
                                             `}
                                         `}
                                     </div>
                                 ` : `
-                                    <div id="student-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between w-full">
-                                        ${(!isAttemptsExhausted && !isLateBlocked) ? `
+                                    <div id="student-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
+                                        <div>
+                                            ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
                                             <button type="button" onclick="${(isAnyQuiz && hasAttachedDigitalQuiz) ? `window.handleStudentQuizRetake('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts}, '${encodeURIComponent(displayTitle)}')` : `window.enterStudentSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx}, ${assMaxAttempts})`}"
-                                                class="text-xs font-bold text-[#15803d] hover:text-[#166534] hover:underline cursor-pointer bg-transparent border-0 p-0 shrink-0 font-['Inter']">
+                                                class="sigma-resubmit-action-btn sigma-resubmit-action-btn--allow shrink-0">
                                                 Resubmit
                                             </button>
                                         ` : `
-                                            <span class="text-[11px] font-semibold text-black-fade bg-slate-100 px-2.5 py-1 rounded-lg shrink-0 select-none" title="${isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`}">
-                                                Submissions Closed
-                                            </span>
+                                            ${window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : `Due date passed (${assDueDate}). Late submissions are not permitted.`)}
                                         `}
-                                        <div class="flex items-center gap-2">
-                                            ${isPending ? `
-                                                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl font-['Inter']">
-                                                    <i class="fa-solid fa-clock-rotate-left text-amber-600 text-xs"></i>
-                                                    <span>Submitted — Awaiting Review</span>
-                                                </span>
-                                            ` : ''}
                                         </div>
+                                        ${isPending ? `
+                                            <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
+                                        ` : ''}
                                     </div>
                                 `}
                             ` : role === 'admin' ? `
                                  <!-- Admin Inspection Action Area -->
                                  ${!isViewSubmissionMode ? `
-                                     <div id="admin-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-3 w-full flex-wrap">
-                                         <div class="flex items-center gap-2">
-                                             <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 font-['Inter']">
-                                                 <i class="fa-solid fa-shield-halved text-xs text-slate-500"></i>
-                                                 <span>Admin Review Mode</span>
-                                             </span>
-                                         </div>
+                                     <div id="admin-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
                                          <div class="flex items-center gap-2">
                                              <button type="button" onclick="window.enterTeacherViewSubmissionMode('${subjectId}', ${topicIdx}, '${tab}', ${activeIdx})"
                                                  class="sigma-btn sigma-btn-primary text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer font-['Inter'] flex items-center gap-1.5 shadow-2xs hover:bg-[#166534] active:scale-[0.98] transition-all">
@@ -27620,19 +28785,20 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                              </button>
                                          </div>
                                      </div>
-                                 ` : `
-                                     <div id="admin-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-3 w-full flex-wrap">
-                                         <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 font-['Inter']">
-                                             <i class="fa-solid fa-shield-halved text-xs text-slate-500"></i>
-                                             <span>Admin Review Mode</span>
-                                         </span>
-                                         <button type="button" onclick="window.navigateToGradebookFromSubmission('${subjectId}', '${section}', '${encodeURIComponent(displayTitle)}', '${encodeURIComponent(compLabel)}', '${tab}', ${activeIdx})"
-                                             class="sigma-btn sigma-btn-primary text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer font-['Inter'] flex items-center gap-1.5 shadow-2xs hover:bg-[#166534] active:scale-[0.98] transition-all">
-                                             <i class="fa-solid fa-table-list text-xs text-white"></i>
-                                             <span>Gradebook</span>
-                                         </button>
+                                 ` : isSubmitted ? `
+                                     <div id="admin-submission-action-area" class="pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap">
+                                         ${(isAttemptsExhausted || isLateBlocked) ? window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : 'The deadline has passed. Late submissions are not permitted.') : ''}
+                                         <div class="flex items-center">
+                                             ${!isAnyQuiz && window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({ subjectId, topicIdx, tab, activeIdx, effectiveStudentId, displayTitle, hasUnusedGrantedExtraAttempt }) : ''}
+                                         </div>
+                                         ${isPending ? `
+                                             <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
+                                         ` : ''}
                                      </div>
-                                 `}
+                                 ` : ''}
                             ` : `
                                  <!-- Teacher View Submission Action Area -->
                                  ${!isViewSubmissionMode ? `
@@ -27644,9 +28810,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                          </button>
                                      </div>
                                  ` : `
-                                     <div id="teacher-submission-action-area" data-gradebook-target="${encodeURIComponent(JSON.stringify([subjectId, section, encodeURIComponent(displayTitle), encodeURIComponent(compLabel), tab, activeIdx]))}" class="${isSubmitted ? "pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-start gap-3 w-full flex-wrap" : 'hidden'}">
+                                     <div id="teacher-submission-action-area" data-gradebook-target="${encodeURIComponent(JSON.stringify([subjectId, section, encodeURIComponent(displayTitle), encodeURIComponent(compLabel), tab, activeIdx]))}" class="${isSubmitted ? "pt-4 border-t border-black/10 mt-3 font-['Inter'] flex items-center justify-between gap-2 sm:gap-3 w-full flex-wrap" : 'hidden'}">
                                          ${isSubmitted ? `
-                                             ${window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({
+                                             ${(isAttemptsExhausted || isLateBlocked) ? window.renderAssessmentClosedBadgeHtml(isAttemptsExhausted ? `Maximum attempts reached (${effectiveAttemptsUsed}/${assMaxAttempts}). Submissions are closed.` : 'The deadline has passed. Late submissions are not permitted.') : ''}
+                                             <div class="flex items-center">
+                                                 ${!isAnyQuiz && window.renderTeacherResubmitActionButton ? window.renderTeacherResubmitActionButton({
                                                  subjectId,
                                                  topicIdx,
                                                  tab,
@@ -27655,6 +28823,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                  displayTitle,
                                                  hasUnusedGrantedExtraAttempt
                                              }) : ''}
+                                             </div>
+                                             ${isPending ? `
+                                                 <span class="inline-flex items-center gap-1 sm:gap-1.5 h-[24px] sm:h-[26px] px-2 sm:px-2.5 rounded-lg text-[10.5px] sm:text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 shrink-0 select-none font-['Inter'] leading-none">
+                                                        <i class="fa-solid fa-clock-rotate-left text-amber-600 text-[9.5px] sm:text-[10px]"></i>
+                                                        <span>Submitted — Awaiting Review</span>
+                                                    </span>
+                                             ` : ''}
                                          ` : ''}
                                      </div>
                                  `}
@@ -27663,13 +28838,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     </div>
 
                     <!-- 3. SIGMA AI Assistance Panel (Teacher only) -->
-                    ${(role !== 'student' && hasAiAssistant) ? `
+                    ${(canShowSubmissionAi && role !== 'student' && hasAiAssistant) ? `
                         <div id="teacher-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}sigma-ai-assistance-panel bg-white border border-black/15 rounded-none w-full max-w-full p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
                             <!-- Panel Header & Final Grade Recommendation (Top Right) -->
                             <div class="ai-panel-header-grid border-b border-black/10 pb-3 sm:pb-4">
                                 <div class="ai-header-title-area flex items-center gap-2 sm:gap-2.5 min-w-0" style="grid-area: title;">
                                     <span class="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-[11px] sm:text-xs text-white"></i></span>
-                                    <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Assistance</h3>
+                                    <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Grading Assistance</h3>
                                 </div>
                                 ${isViewSubmissionMode ? `
                                 <div class="ai-header-score-area flex items-center justify-end shrink-0" style="grid-area: badge;">
@@ -27678,32 +28853,29 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         <span class="text-[11px] sm:text-xs font-bold text-[#15803d]">${aiScoreLabel} / ${assMaxScore}</span>
                                     </div>
                                 </div>
-                                <div class="ai-header-btn-area flex items-center justify-start sm:justify-end shrink-0" style="grid-area: btn;">
+                                <div class="ai-header-btn-area flex flex-wrap items-center justify-start sm:justify-end gap-2 shrink-0" style="grid-area: btn;">
                                     <button type="button" id="ai-review-action-btn"
+                                        ${aiCalculatedScore === null ? 'disabled' : ''}
                                         data-ai-score="${aiCalculatedScore !== null ? aiCalculatedScore : ''}"
                                         data-ai-max="${assMaxScore}"
-                                        data-ack-key="${encodeURIComponent(aiReviewAckKey)}"
-                                        data-acknowledged="${aiReviewAcknowledged ? '1' : '0'}"
-                                        onclick="window.handleAiReviewAction(this)"
+                                        onclick="window.transferAiScoreToGradebook(this.dataset.aiScore, this.dataset.aiMax)"
                                         class="sigma-btn sigma-btn-primary font-['Inter'] inline-flex items-center gap-1.5 text-[10.5px] sm:text-xs font-bold py-1 px-2.5 sm:py-1.5 sm:px-3 rounded-lg sm:rounded-xl shadow-2xs cursor-pointer hover:bg-[#166534] active:scale-[0.98] transition-all">
-                                        <i class="fa-solid ${aiReviewAcknowledged ? 'fa-arrow-right-to-bracket' : 'fa-circle-check'} text-[10px] sm:text-xs"></i>
-                                        <span>${aiReviewAcknowledged ? 'Transfer Score' : 'Finished Reviewed'}</span>
+                                        <i class="fa-solid fa-arrow-right-to-bracket text-[10px] sm:text-xs"></i>
+                                        <span>Transfer Score</span>
                                     </button>
                                 </div>
                                 ` : ''}
-                                <p class="ai-header-desc-area text-[11px] sm:text-xs font-normal text-black-fade leading-relaxed max-w-2xl m-0 pt-0.5" style="grid-area: desc;">
-                                    Automated qualitative criterion assessment and score recommendations aligned with the attached grading rubric.
-                                </p>
                             </div>
 
                             <!-- 1. Assessment Criteria Section (Dynamic 1-4 Explanatory Cards) -->
+                            <p id="submission-ai-error" role="status" class="text-xs text-red-700" ${window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message ? '' : 'hidden'}>${window.escapeHtml(window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message || '')}</p>
                             <div class="space-y-3.5 sm:space-y-4">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                                     <div class="space-y-0.5">
                                         <h4 class="text-sm sm:text-base font-bold text-black font-['Inter'] tracking-tight">Assessment Criteria</h4>
                                         <p class="text-[11px] sm:text-xs text-black-fade font-normal leading-normal">Qualitative evaluation of the student's submission across relevant standards</p>
                                     </div>
-                                    <span class="self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] sm:text-xs font-semibold text-slate-700 font-['Inter'] shrink-0">${criteriaCountText}</span>
+                                    <span class="sigma-ai-criteria-count self-start sm:self-auto inline-flex items-center px-2.5 py-1 rounded-lg bg-black/[0.04] border border-black/10 text-[11px] sm:text-xs font-semibold text-slate-700 font-['Inter'] shrink-0">${criteriaCountText}</span>
                                 </div>
                                 <div class="grid ${gridColsClass} gap-3 sm:gap-4">
                                     ${activeCriteriaList.length > 0 ? activeCriteriaList.map((crit, idx) => {
@@ -27732,118 +28904,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 </div>
                             </div>
 
-                            <!-- 2. AI Rubric Commentary & Grade Feedback (Dynamic Icon + Term + Description Construct) -->
-                            <div class="p-4 sm:p-6 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-3 font-['Inter']">
-                                <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#15803d] font-['Inter']">
-                                    <i class="fa-solid fa-sparkles text-sm"></i>
-                                    <span>AI Rubric Evaluation & Commentary</span>
-                                </div>
-                                <div class="space-y-2 text-[11px] sm:text-xs text-slate-800 leading-relaxed font-['Inter']">
-                                    ${(function () {
-                        const commentaryList = (Array.isArray(ass.aiCommentary) && ass.aiCommentary.length > 0)
-                            ? ass.aiCommentary
-                            : ((Array.isArray(subData?.aiCommentary) && subData.aiCommentary.length > 0)
-                                ? subData.aiCommentary
-                                : ((Array.isArray(ass.commentary) && ass.commentary.length > 0) ? ass.commentary : []));
-
-                        if (commentaryList.length === 0) {
-                            return `
-                                                <div class="flex flex-col items-center justify-center py-4 text-center font-['Inter']">
-                                                    <div class="w-8 h-8 rounded-full bg-emerald-100/80 text-[#15803d] flex items-center justify-center mb-1.5 shadow-2xs">
-                                                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
-                                                    </div>
-                                                    <p class="text-xs font-bold text-black">No Commentary Generated Yet</p>
-                                                    <p class="text-[11px] text-slate-600 max-w-sm mt-0.5">AI qualitative rubric feedback and detailed insights will appear here once the student's submission is evaluated.</p>
-                                                </div>
-                                            `;
-                        }
-                        return commentaryList.map(cItem => {
-                            const rawTerm = cItem.term || cItem.label || cItem.title || 'Insight';
-                            const cTerm = truncateCategoryText(rawTerm, COMMENTARY_TERM_MAX_CHARS);
-                            const cDesc = truncateCategoryText(cItem.description || cItem.desc || cItem.text || '', CRITERIA_DESC_MAX_CHARS);
-                            const cIcon = cItem.icon || (cItem.type === 'recommendation' ? 'fa-solid fa-lightbulb' : 'fa-solid fa-circle-check');
-                            const cColor = cItem.color || (cItem.type === 'recommendation' || cIcon.includes('lightbulb') ? 'text-amber-600' : 'text-[#15803d]');
-                            return `
-                                            <div class="flex items-start gap-2 sm:gap-2.5">
-                                                <span class="${cColor} font-bold shrink-0 mt-0.5"><i class="${cIcon} text-xs"></i></span>
-                                                <p class="flex-1 min-w-0"><span class="font-bold text-slate-900" title="${window.escapeHtml ? window.escapeHtml(rawTerm) : rawTerm}">${window.escapeHtml ? window.escapeHtml(cTerm) : cTerm}:</span> ${window.escapeHtml ? window.escapeHtml(cDesc) : cDesc}</p>
-                                            </div>
-                                            `;
-                        }).join('');
-                    })()}
-                                </div>
-                            </div>
 
                         </div>
                     ` : ''}
 
-                    <!-- 3b. SIGMA AI Commentary Panel (Student only - shown ONLY after teacher grades submission) -->
-                    ${(role === 'student' && !isAnyQuiz && isGraded) ? `
-                        <div id="student-ai-assistance-panel" class="${isAiPanelExplicitlyHidden ? 'hidden ' : ''}sigma-ai-assistance-panel bg-white border border-black/15 rounded-none w-full max-w-full p-5 sm:p-7 md:p-8 shadow-sm font-['Inter'] space-y-5 sm:space-y-6 transition-all">
-                            <!-- Panel Header -->
-                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-black/10 pb-5 sm:pb-6">
-                                <div class="space-y-1.5 flex-1 min-w-0">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-xs text-white"></i></span>
-                                        <h3 class="text-base sm:text-lg font-bold text-black font-['Inter'] tracking-tight">SIGMA AI Assistance</h3>
-                                    </div>
-                                    <p class="text-xs font-normal text-black-fade leading-relaxed max-w-xl">
-                                        Automated qualitative rubric feedback and evaluation commentary for your graded submission.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <!-- AI Rubric Commentary & Feedback (Comments Only) -->
-                            <div class="p-4 sm:p-6 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-3 font-['Inter']">
-                                <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#15803d] font-['Inter']">
-                                    <i class="fa-solid fa-sparkles text-sm"></i>
-                                    <span>AI Rubric Evaluation & Commentary</span>
-                                </div>
-                                <div class="space-y-2 text-[11px] sm:text-xs text-slate-800 leading-relaxed font-['Inter']">
-                                    ${(function () {
-                        let commentaryList = (Array.isArray(ass.aiCommentary) && ass.aiCommentary.length > 0)
-                            ? ass.aiCommentary
-                            : ((Array.isArray(subData?.aiCommentary) && subData.aiCommentary.length > 0)
-                                ? subData.aiCommentary
-                                : ((Array.isArray(ass.commentary) && ass.commentary.length > 0) ? ass.commentary : []));
-
-                        if (commentaryList.length === 0 && isGraded) {
-                            commentaryList = [
-                                { term: 'Theoretical Rigor', description: 'Demonstrates clear conceptual alignment with the required coursework standards and problem parameters.', type: 'strength', icon: 'fa-solid fa-circle-check', color: 'text-[#15803d]' },
-                                { term: 'Methodology & Structure', description: 'Shows structured procedural steps, logical derivation, and organized presentation throughout the submission.', type: 'strength', icon: 'fa-solid fa-circle-check', color: 'text-[#15803d]' },
-                                { term: 'Insight & Next Steps', description: 'Continue refining analytical depth and contextual justification in subsequent performance tasks.', type: 'recommendation', icon: 'fa-solid fa-lightbulb', color: 'text-amber-600' }
-                            ];
-                        }
-
-                        if (commentaryList.length === 0) {
-                            return `
-                                                <div class="flex flex-col items-center justify-center py-4 text-center font-['Inter']">
-                                                    <div class="w-8 h-8 rounded-full bg-emerald-100/80 text-[#15803d] flex items-center justify-center mb-1.5 shadow-2xs">
-                                                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
-                                                    </div>
-                                                    <p class="text-xs font-bold text-black">No Commentary Generated Yet</p>
-                                                    <p class="text-[11px] text-slate-600 max-w-sm mt-0.5">AI qualitative rubric feedback and detailed insights will appear here once the student's submission is evaluated.</p>
-                                                </div>
-                                            `;
-                        }
-                        return commentaryList.map(cItem => {
-                            const rawTerm = cItem.term || cItem.label || cItem.title || 'Insight';
-                            const cTerm = truncateCategoryText(rawTerm, COMMENTARY_TERM_MAX_CHARS);
-                            const cDesc = truncateCategoryText(cItem.description || cItem.desc || cItem.text || '', CRITERIA_DESC_MAX_CHARS);
-                            const cIcon = cItem.icon || (cItem.type === 'recommendation' ? 'fa-solid fa-lightbulb' : 'fa-solid fa-circle-check');
-                            const cColor = cItem.color || (cItem.type === 'recommendation' || cIcon.includes('lightbulb') ? 'text-amber-600' : 'text-[#15803d]');
-                            return `
-                                            <div class="flex items-start gap-2 sm:gap-2.5">
-                                                <span class="${cColor} font-bold shrink-0 mt-0.5"><i class="${cIcon} text-xs"></i></span>
-                                                <p class="flex-1 min-w-0"><span class="font-bold text-slate-900" title="${window.escapeHtml ? window.escapeHtml(rawTerm) : rawTerm}">${window.escapeHtml ? window.escapeHtml(cTerm) : cTerm}:</span> ${window.escapeHtml ? window.escapeHtml(cDesc) : cDesc}</p>
-                                            </div>
-                                            `;
-                        }).join('');
-                    })()}
-                                </div>
-                            </div>
-                        </div>
-                    ` : ''}
+                    ${canShowSubmissionAi ? window.renderSigmaAiFeedbackPanelHtml({ context: window._sigmaSubmissionFeedbackContext, graded: isGraded, restricted: isUnassignedToStudent, submitted: isSubmitted }) : ''}
                 ` : ''}
             </div>
         `;
@@ -27975,29 +29040,49 @@ window.getSigmaMaterialLimits = function () {
         const saved = localStorage.getItem('sigma-material-limits');
         if (saved) {
             const parsed = JSON.parse(saved);
-            const clampStd = (v, def = 500) => {
+            const clampVideoStd = (v, def = 200) => {
                 const n = Number(v);
                 if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(700, Math.max(250, n));
+                return Math.min(500, Math.max(100, n));
             };
-            const clampExt = (v, def = 50) => {
+            const clampVideoExt = (v, def = 25) => {
                 const n = Number(v);
                 if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(100, Math.max(25, n));
+                return Math.min(100, Math.max(10, n));
+            };
+            const clampDocStd = (v, def = 20) => {
+                const n = Number(v);
+                if (Number.isNaN(n) || n <= 0) return def;
+                return Math.min(100, Math.max(10, n));
+            };
+            const clampDocExt = (v, def = 5) => {
+                const n = Number(v);
+                if (Number.isNaN(n) || n <= 0) return def;
+                return Math.min(50, Math.max(5, n));
+            };
+            const clampBatchQuota = (v, def = 150) => {
+                const n = Number(v);
+                if (Number.isNaN(n) || n <= 0) return def;
+                return Math.min(500, Math.max(50, n));
             };
 
-            const videoEmbed = Math.min(2, Math.max(1, Number(parsed.video?.embed) || 1));
-            const videoMp4 = clampStd(parsed.video?.mp4 || parsed.video?.std, 500);
-            const videoExt = clampExt(parsed.video?.ext, 50);
+            let rawEmbed = Number(parsed.video?.embed);
+            if (rawEmbed === 1) rawEmbed = 60;
+            else if (rawEmbed === 2) rawEmbed = 90;
+            const videoEmbed = Math.min(90, Math.max(15, rawEmbed || 30));
+            const videoMp4 = clampVideoStd(parsed.video?.mp4 || parsed.video?.std, 200);
+            const videoExt = clampVideoExt(parsed.video?.ext, 25);
 
-            const docxStd = clampStd(parsed.docx?.std || parsed.docx?.reg, 500);
-            const docxExt = clampExt(parsed.docx?.ext, 50);
+            const docxStd = clampDocStd(parsed.docx?.std || parsed.docx?.reg, 20);
+            const docxExt = clampDocExt(parsed.docx?.ext, 5);
 
-            const pdfStd = clampStd(parsed.pdf?.std || parsed.pdf?.reg, 500);
-            const pdfExt = clampExt(parsed.pdf?.ext, 50);
+            const pdfStd = clampDocStd(parsed.pdf?.std || parsed.pdf?.reg, 25);
+            const pdfExt = clampDocExt(parsed.pdf?.ext, 5);
 
-            const pptxStd = clampStd(parsed.pptx?.std || parsed.pptx?.reg, 500);
-            const pptxExt = clampExt(parsed.pptx?.ext, 50);
+            const pptxStd = clampDocStd(parsed.pptx?.std || parsed.pptx?.reg, 50);
+            const pptxExt = clampDocExt(parsed.pptx?.ext, 5);
+
+            const batchQuota = clampBatchQuota(parsed.batchQuota || parsed.submissionBatchQuota, 150);
 
             return {
                 video: {
@@ -28024,17 +29109,21 @@ window.getSigmaMaterialLimits = function () {
                     reg: pptxStd,
                     ext: pptxExt,
                     max: pptxStd + pptxExt
-                }
+                },
+                batchQuota: batchQuota,
+                submissionBatchQuota: batchQuota
             };
         }
     } catch (e) {
         console.warn('Error reading sigma-material-limits', e);
     }
     return {
-        video: { embed: 1, mp4: 500, std: 500, ext: 50, max: 550 },
-        docx: { std: 500, reg: 500, ext: 50, max: 550 },
-        pdf: { std: 500, reg: 500, ext: 50, max: 550 },
-        pptx: { std: 500, reg: 500, ext: 50, max: 550 }
+        video: { embed: 30, mp4: 200, std: 200, ext: 25, max: 225 },
+        docx: { std: 20, reg: 20, ext: 5, max: 25 },
+        pdf: { std: 25, reg: 25, ext: 5, max: 30 },
+        pptx: { std: 50, reg: 50, ext: 5, max: 55 },
+        batchQuota: 150,
+        submissionBatchQuota: 150
     };
 };
 
@@ -28805,7 +29894,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             <div class="sigma-modal-shell select-none">
                 <div class="sigma-modal-panel select-none" style="user-select: none; -webkit-user-select: none;">
                     <!-- Sticky Header & Subheader Container -->
-                    <div class="sticky top-0 bg-white z-20 select-none shadow-2xs">
+                    <div class="sigma-quiz-sticky-header select-none shadow-2xs">
                         <!-- Main Title Header -->
                         <div class="border-b border-slate-100 px-8 sm:px-10 pt-8 pb-4 flex items-center justify-between gap-4 flex-wrap">
                             <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -28854,6 +29943,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                             <i class="fa-solid fa-arrow-left text-xs"></i>
                             <span>Previous</span>
                         </button>
+                        <div id="uqp-footer-counter" class="text-sm font-semibold text-black-fade text-center select-none" aria-live="polite">Question 1 of 1</div>
                         <button type="button" id="uqp-next-btn" onclick="window.navQuizPreview(1)"
                             class="sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer">
                             <span>Next</span>
@@ -28865,6 +29955,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         `;
         document.body.appendChild(modal);
         return modal;
+    }
+
+    function resetQuizPreviewScroll() {
+        const scrollArea = document.getElementById('universal-quiz-preview-modal');
+        if (scrollArea) scrollArea.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
 
     function isUniversalChoiceCorrect(q, cIdx, choiceVal, letter) {
@@ -29352,6 +30447,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const essayMode = String(curSub?.essayGradingMode || window._quizEssayGradingMode || _activeQuiz?.essayGradingMode || 'manual').toLowerCase().trim();
         const gMode = String(curSub?.gradingMode || window._quizGradingMode || _activeQuiz?.gradingMode || 'auto').toLowerCase().trim();
 
+        const isStudentViewer = window.location.pathname.includes('student.html') || String(window.currentUser?.role || '').toLowerCase() === 'student';
+        const reviewedAttempt = window._activeReviewAttempt || curSub;
+        const isFinalized = reviewedAttempt && (String(reviewedAttempt.status || '').toLowerCase() === 'graded' || reviewedAttempt.teacherSaved === true || reviewedAttempt.gradedAt || reviewedAttempt.gradedOn);
+        if (_isStudentQuizReview && isStudentViewer && isFinalized) return false;
+
         if (essayMode === 'auto' || gMode === 'auto-all') {
             return false;
         }
@@ -29397,43 +30497,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             (typeof window.currentUser !== 'undefined' && (window.currentUser?.role === 'teacher' || window.currentUser?.role === 'admin' || window.currentUser?.role === 'instructor'));
         if (!isTeacherUser) return false;
 
-        if (window._isReviewDirty) return true;
-
-        const initScores = window._initialTeacherEssayScores || {};
-        const curScores = window._teacherEssayScores || {};
-        const curKeys = Object.keys(curScores);
-        for (const k of curKeys) {
-            if (curScores[k] !== undefined && curScores[k] !== null && curScores[k] !== '' && curScores[k] !== initScores[k]) {
-                return true;
-            }
-        }
-
-        const initGraded = window._initialTeacherEssayGraded || {};
-        const curGraded = window._teacherEssayGraded || {};
-        const curGradedKeys = Object.keys(curGraded);
-        for (const k of curGradedKeys) {
-            if (curGraded[k] && !initGraded[k]) return true;
-        }
-
-        const activeInput = document.querySelector('input[id^="uqp-essay-score-"]');
-        if (activeInput) {
-            const match = activeInput.id.match(/^uqp-essay-score-(\d+)$/);
-            if (match) {
-                const curIdx = parseInt(match[1], 10);
-                const qItem = _previewQuestions && _previewQuestions[curIdx];
-                const initVal = initScores[curIdx] ?? initScores[String(curIdx)] ?? (qItem?.id ? initScores[qItem.id] : undefined);
-                if (activeInput.value !== '' && Number(activeInput.value) !== Number(initVal || 0)) {
-                    return true;
-                }
-            }
-        }
-
-        if (_isPendingReview) {
-            const hasPending = typeof hasAnyPendingReviewQuestions === 'function' && hasAnyPendingReviewQuestions();
-            if (!hasPending) return true;
-        }
-
-        return false;
+        // Score edit and acceptance handlers set this flag; rendered auto scores are not edits.
+        return window._isReviewDirty === true;
     }
 
     function updateTeacherGradingButtonState() {
@@ -29447,6 +30512,11 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             (typeof window.currentUser !== 'undefined' && (window.currentUser?.role === 'teacher' || window.currentUser?.role === 'admin' || window.currentUser?.role === 'instructor'));
 
         if (isTeacherUser && _isStudentQuizReview) {
+            if (window._quizReviewReadOnly) {
+                teacherArea.innerHTML = '';
+                teacherArea.classList.add('hidden');
+                return;
+            }
             const hasPending = typeof hasAnyPendingReviewQuestions === 'function' && hasAnyPendingReviewQuestions();
             const isDirty = typeof isTeacherReviewDirty === 'function' && isTeacherReviewDirty();
             const isLocked = hasPending || !isDirty;
@@ -29558,6 +30628,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const q = _previewQuestions[idx];
         const qNum = idx + 1;
         const totalQ = _previewQuestions.length;
+        const footerCounter = document.getElementById('uqp-footer-counter');
+        if (footerCounter) footerCounter.textContent = `Question ${qNum} of ${totalQ}`;
         const qType = q.type || (Array.isArray(q.pairs) && q.pairs.length > 0 ? 'Matching Type' : 'Multiple Choice');
         let pts = (q.points !== undefined && !isNaN(parseInt(q.points))) ? parseInt(q.points) : 10;
         if (qType === 'Enumeration') {
@@ -29595,6 +30667,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         );
 
         const renderTeacherScoringPanelHtml = (qIdx, maxPts) => {
+            if (window._quizReviewReadOnly) return '<span class="text-xs text-black-fade">Previous attempt - Read only</span>';
             if (!isTeacherUser || !_isReviewMode || _isTeacherPreviewMode) return '';
             if (isAutoScoring) return '';
 
@@ -29608,6 +30681,16 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             const curVal = hasStoredScore ? Number(curValRaw) : '';
             const acceptLocked = !hasStoredScore;
 
+            if (isGradedByTeacher && !window._editingReviewScores?.has(qIdx)) {
+                return `<div class="mt-3 flex items-center gap-2 text-sm font-semibold text-black">
+                    <span>Earned: ${curVal} ${curVal === 1 ? 'point' : 'points'}</span>
+                    <button type="button" onclick="window.editTeacherQuestionScore(${qIdx})" title="Edit score" aria-label="Edit score for question ${qIdx + 1}"
+                        class="uqp-edit-score-btn w-9 h-9 flex items-center justify-center text-black cursor-pointer">
+                        <i class="fa-solid fa-pen" style="color: #000 !important; font-size: 18px !important;" aria-hidden="true"></i>
+                    </button>
+                </div>`;
+            }
+
             return `
                 <div class="mt-4 p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs font-['Inter']">
                     <div class="flex items-center gap-2.5 min-w-0">
@@ -29615,7 +30698,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                             <i class="fa-solid ${isGradedByTeacher ? 'fa-circle-check' : 'fa-star'}"></i>
                         </div>
                         <div class="min-w-0">
-                            <span class="text-xs font-bold text-black block">${isGradedByTeacher ? 'Score accepted' : 'Assign Score'} (Question ${qIdx + 1})</span>
+                            <span class="text-xs font-bold text-black block">${isGradedByTeacher ? 'Edit Score' : 'Assign Score'} (Question ${qIdx + 1})</span>
                             <span class="text-[11px] text-black-fade font-medium">${hasStoredScore ? '' : 'No score yet · '}Out of ${maxPts} ${maxPts === 1 ? 'point' : 'points'}</span>
                         </div>
                     </div>
@@ -29630,7 +30713,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         <button type="button" id="uqp-essay-accept-${qIdx}" onclick="window.acceptTeacherEssayPoints(${qIdx}, ${maxPts})"
                             ${acceptLocked ? 'disabled aria-disabled="true"' : 'aria-disabled="false"'}
                             class="sigma-btn sigma-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center shadow-2xs transition-all ${acceptLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-[#166534] active:scale-[0.98]'}">
-                            <span>Accept</span>
+                            <span>Save Score</span>
                         </button>
                     </div>
                 </div>
@@ -29676,117 +30759,22 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
         if (counterEl) {
             if (_isTeacherPreviewMode) {
-                counterEl.innerHTML = `
-                    <div class="flex items-center gap-2.5 flex-wrap font-['Inter']">
-                        <span class="inline-flex items-center gap-1.5 font-bold text-black text-xs sm:text-sm">
-                            <i class="fa-solid fa-star text-[#FFD000] text-xs"></i><span>${pts} Points</span>
-                        </span>
-                    </div>
-                `;
+                counterEl.innerHTML = window.renderSharedQuizPointsHtml({ totalPoints: totalPts, questionPoints: pts });
             } else if (_isReviewMode) {
-                const subScoreVal = totalEarnedScore;
-                window.paintTeacherScorePanel?.(totalEarnedScore, { graded: !window._isPendingReview, pending: !!window._isPendingReview });
-                window.persistReviewTotalToScorePanel?.(totalEarnedScore, totalPts);
-                if (window._activeReviewSubData && !window._isPendingReview) {
-                    const keepOfficialScore = window._activeReviewSubData.teacherEditedScore === true
-                        && window._activeReviewSubData.score !== undefined
-                        && window._activeReviewSubData.score !== null
-                        && window._activeReviewSubData.score !== ''
-                        && !isNaN(Number(window._activeReviewSubData.score));
-                    if (!keepOfficialScore) {
-                        window._activeReviewSubData.score = totalEarnedScore;
-                    }
-                    window._activeReviewSubData.autoScore = totalEarnedScore;
-                    window._activeReviewSubData.maxScore = totalPts;
-                    window._activeReviewSubData.gradePercent = totalPts > 0 ? Math.round((totalEarnedScore / totalPts) * 100) : (window._activeReviewSubData.gradePercent || 0);
-                    window._activeReviewSubData.isPending = false;
-                    window._activeReviewSubData.status = 'Graded';
-                    window._activeReviewSubData.teacherSaved = true;
-                    if (!window._activeReviewSubData.submittedAt) window._activeReviewSubData.submittedAt = new Date().toISOString();
-                    window.paintTeacherScorePanel?.(totalEarnedScore, { graded: true });
-                    window.persistReviewTotalToScorePanel?.(totalEarnedScore, totalPts);
-                    if (window._activeReviewContext) {
-                        const ctx = window._activeReviewContext;
-                        const cleanSubj = String(ctx.subjectId || 'default').replace(/^(card-|subj-)/, '').trim().toLowerCase();
-                        const candidateKeys = [
-                            `sigma_sub_${cleanSubj}_top_${ctx.topicIdx}_${ctx.tab}_${ctx.activeIdx}`,
-                            `sigma_sub_${cleanSubj}_top_${ctx.topicIdx}_assessments_${ctx.activeIdx}`,
-                            `sigma_sub_${cleanSubj}_${ctx.tab}_${ctx.activeIdx}`,
-                            `sigma_sub_${ctx.subjectId}_top_${ctx.topicIdx}_${ctx.tab}_${ctx.activeIdx}`,
-                            `sigma_sub_${ctx.subjectId}_top_${ctx.topicIdx}_assessments_${ctx.activeIdx}`,
-                            `sigma_sub_${ctx.subjectId}_${ctx.tab}_${ctx.activeIdx}`
-                        ];
-                        candidateKeys.forEach(k => {
-                            try {
-                                const existing = localStorage.getItem(k);
-                                if (existing) {
-                                    const parsed = JSON.parse(existing);
-                                    if (typeof window.isSubmissionMatchForStudent === 'function' && window.isSubmissionMatchForStudent(parsed, window._activeReviewSubData)) {
-                                        localStorage.setItem(k, JSON.stringify(window._activeReviewSubData));
-                                    }
-                                }
-                            } catch (e) { }
-                        });
-
-                        try {
-                            const studentId = window._activeReviewSubData.studentId || (typeof window.getLoggedInStudentUser === 'function' ? window.getLoggedInStudentUser()?.id : null) || 'std_001';
-                            const allSubs = JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
-                            if (allSubs[studentId]) {
-                                for (const ak of Object.keys(allSubs[studentId])) {
-                                    const entry = allSubs[studentId][ak];
-                                    if (entry && (entry.id === window._activeReviewSubData.id || entry.quizId === window._activeReviewSubData.quizId || entry.title === window._activeReviewSubData.title || entry.assessmentTitle === window._activeReviewSubData.assessmentTitle)) {
-                                        allSubs[studentId][ak] = {
-                                            ...entry,
-                                            ...window._activeReviewSubData,
-                                            score: totalEarnedScore,
-                                            autoScore: totalEarnedScore,
-                                            maxScore: totalPts,
-                                            teacherSaved: true,
-                                            isPending: false,
-                                            status: 'Graded'
-                                        };
-                                    }
-                                }
-                                localStorage.setItem('sigma_student_assessment_submissions', JSON.stringify(allSubs));
-                            }
-                        } catch (e) { }
-                    }
-                }
+                const savedScore = window._activeReviewAttempt?.score ?? window._activeReviewSubData?.score;
+                const hasSavedScore = savedScore !== undefined && savedScore !== null && savedScore !== '' && Number.isFinite(Number(savedScore));
+                const subScoreVal = !window._isReviewDirty && hasSavedScore ? Number(savedScore) : totalEarnedScore;
 
                 const isPendingQ = isQuestionPendingReview(idx);
-                let earnedPtsHtml = '';
-                if (isPendingQ) {
-                    earnedPtsHtml = `
-                        <span class="inline-flex items-center gap-1.5 font-bold text-amber-700 text-xs sm:text-sm bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-300 shadow-2xs">
-                            <i class="fa-solid fa-hourglass-half text-amber-600 text-xs"></i><span>Pending Review</span>
-                        </span>
-                    `;
-                } else {
-                    const curEarnedPoints = calculateQuestionEarnedPoints(q, _userAnswers[idx], idx, window._activeReviewSubData);
-                    const earnedPtsText = `${curEarnedPoints} ${curEarnedPoints <= 1 ? 'Point' : 'Points'}`;
-                    earnedPtsHtml = `
-                        <span class="inline-flex items-center gap-1.5 font-bold text-black text-xs sm:text-sm">
-                            <i class="fa-solid fa-star text-[#FFD000] text-xs"></i><span>${earnedPtsText}</span>
-                        </span>
-                    `;
-                }
 
                 const curStats = getUniversalQuestionItemCounts(idx);
                 const showStatsLine = (!curStats.isEssay && (curStats.isAnswered || _isReviewMode || _isTeacherPreviewMode));
 
                 counterEl.innerHTML = `
                     <div class="space-y-1 font-['Inter']">
-                        <div class="flex items-center gap-2.5 flex-wrap">
-                            ${earnedPtsHtml}
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs">
-                                <i class="fa-solid fa-circle-check text-emerald-600 text-[11px]"></i>
-                                <span>${subScoreVal}/${totalPts} Points</span>
-                            </span>
-                        </div>
+                        ${window.renderSharedQuizPointsHtml({ totalPoints: totalPts, questionPoints: pts, score: subScoreVal, pending: isPendingQ })}
                         ${showStatsLine ? `
-                            <p class="text-xs font-semibold text-black m-0">
-                                ${curStats.correct} out of ${curStats.total} ${curStats.total === 1 ? 'correct answer' : 'correct answers'}
-                            </p>
+                            ${window.renderSharedQuizAnswerStatsHtml({ correct: curStats.correct, total: curStats.total, earned: calculateQuestionEarnedPoints(q, _userAnswers[idx], idx, window._activeReviewSubData), max: pts })}
                         ` : ''}
                     </div>
                 `;
@@ -30104,7 +31092,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             const isInteractive = !_isReviewMode && !_isTeacherPreviewMode;
 
             bodyHtml = `
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 max-w-xl">
+                <div class="sigma-quiz-true-false grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 w-full">
                     <button type="button" ${isInteractive ? `onclick="window.setUniversalPreviewAnswer(${idx}, 'True')"` : ''}
                         style="${trueCardStyle}"
                         class="relative flex items-center text-left gap-3.5 p-4 rounded-2xl border-2 transition-all ${!isInteractive ? 'cursor-default pointer-events-none' : 'cursor-pointer'} select-none group shadow-2xs overflow-hidden min-w-0 ${trueCardClass}">
@@ -30412,9 +31400,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 const rowVal = _isTeacherPreviewMode ? (expectedItems[iIdx] || '') : curVal;
 
                 return `
-                            <div class="flex items-center gap-3 w-full">
+                            <div class="sigma-quiz-enum-result flex flex-col gap-2 w-full">
                                 <div style="${rowContainerStyle} outline: none !important;" class="flex-1 flex items-center gap-3.5 rounded-2xl px-4 py-3 transition-colors duration-150 shadow-2xs overflow-hidden ${rowContainerClass}">
-                                    <span style="${badgeStyle}" class="w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center shrink-0 shadow-2xs ${badgeClass}">
+                                    <span style="${badgeStyle}" class="sigma-quiz-enum-marker w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center shrink-0 shadow-2xs ${badgeClass}">
                                         ${iIdx + 1}
                                     </span>
                                     <input type="text" id="uqp-enum-answer-${idx}-${iIdx}" name="uqp-enum-answer-${idx}-${iIdx}" aria-labelledby="uqp-enum-label-${idx}" placeholder="Item ${iIdx + 1} answer..."
@@ -30425,6 +31413,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                         class="flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
                                     ${statusIcon}
                                 </div>
+                                ${window.renderSharedMatchingEarnedHtml({ earned: hasSlotScore ? earnedSlotPts : (isSlotCorrect ? enumItemDisplayPts : 0), max: enumItemDisplayPts, visible: !_isTeacherPreviewMode && (_isReviewMode || hasVal) })}
                                 ${_isReviewMode ? `
                                     ${isTeacherScoring ? `
                                         <div class="flex items-center gap-1.5 shrink-0 font-['Inter']">
@@ -30436,15 +31425,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                                 class="w-14 px-2 py-2 text-center text-xs font-bold text-black bg-white border-2 border-slate-200 focus:border-[#15803d] rounded-xl shadow-2xs outline-none focus:outline-none focus:ring-0 transition-colors duration-150" />
                                             <span class="text-xs text-black-fade font-semibold whitespace-nowrap">/ ${enumItemDisplayPts} ${enumItemDisplayPts === 1 ? 'pt' : 'pts'}</span>
                                         </div>
-                                    ` : `
-                                        ${earnedSlotPts > 0 ? `
-                                            <div class="flex items-center gap-2 shrink-0 font-['Inter']">
-                                                <span class="inline-flex items-center gap-1.5 font-bold text-black text-xs sm:text-sm">
-                                                    <i class="fa-solid fa-star text-[#FFD000] text-xs shrink-0"></i><span class="whitespace-nowrap">${earnedSlotPts} ${earnedSlotPts <= 1 ? 'Point' : 'Points'}</span>
-                                                </span>
-                                            </div>
-                                        ` : ''}
-                                    `}
+                                    ` : ''}
                                 ` : ''}
                             </div>
                         `;
@@ -30478,9 +31459,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
             if (_isTeacherPreviewMode) {
                 bodyHtml = `
-                    <div class="space-y-6 pt-2 w-full font-['Inter']">
+                    <div class="sigma-quiz-matching-layout space-y-6 pt-2 w-full font-['Inter']">
                         <!-- Choices Bank (Static Display in Teacher Preview) -->
-                        <div class="bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4 select-none">
+                        <div class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4 select-none">
                             <div class="flex items-center justify-between text-xs font-bold text-black">
                                 <div class="flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg bg-emerald-100 text-[#15803d] flex items-center justify-center text-xs shadow-2xs">
@@ -30500,7 +31481,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         </div>
 
                         <!-- Correct Matching Pairs (Locked, Pre-filled in Green) -->
-                        <div class="space-y-4">
+                        <div class="sigma-quiz-matching-rows space-y-4">
                             ${pairs.map((pair, pIdx) => {
                     const targetVal = pair.target || '';
                     return `
@@ -30549,9 +31530,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 const isInteractive = !_isReviewMode;
 
                 bodyHtml = `
-                    <div class="space-y-6 pt-2 w-full font-['Inter']">
+                    <div class="sigma-quiz-matching-layout space-y-6 pt-2 w-full font-['Inter']">
                         <!-- Choices Bank -->
-                        <div class="bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
+                        <div class="sigma-quiz-matching-bank bg-slate-50/80 border-2 border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xs space-y-4">
                             <div class="flex items-center justify-between text-xs font-bold text-black">
                                 <div class="flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg bg-emerald-100 text-[#15803d] flex items-center justify-center text-xs shadow-2xs">
@@ -30583,7 +31564,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         </div>
 
                         <!-- Matching Target Rows -->
-                        <div class="space-y-4">
+                        <div class="sigma-quiz-matching-rows space-y-4">
                             ${pairs.map((pair, pIdx) => {
                     const placed = curSlots[pIdx] || '';
                     const expectedTarget = String(pair.target || '').trim().toLowerCase();
@@ -30675,17 +31656,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                                     class="min-h-[52px] rounded-2xl border-2 ${slotBorderBgClass} px-6 py-3.5 flex items-center justify-between text-xs transition-all ${isInteractive ? 'cursor-pointer' : 'cursor-default'} select-none group/slot overflow-hidden min-w-0">
                                                     ${slotInnerHtml}
                                                 </div>
+                                                ${window.renderSharedMatchingEarnedHtml({ earned: earnedPairPts, max: matchingPairDisplayPts, visible: _isReviewMode || hasPlaced })}
                                             </div>
                                         </div>
-                                        ${_isReviewMode ? `
-                                            ${earnedPairPts > 0 ? `
-                                                <div class="flex items-center gap-2 shrink-0 font-['Inter']">
-                                                    <span class="inline-flex items-center gap-1.5 font-bold text-black text-xs sm:text-sm">
-                                                        <i class="fa-solid fa-star text-[#FFD000] text-xs shrink-0"></i><span class="whitespace-nowrap">${earnedPairPts} ${earnedPairPts <= 1 ? 'Point' : 'Points'}</span>
-                                                    </span>
-                                                </div>
-                                            ` : ''}
-                                        ` : ''}
                                     </div>
                                 `;
                 }).join('')}
@@ -30769,14 +31742,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     <div class="pt-2 space-y-3 w-full font-['Inter']">
                         <div class="flex items-center justify-between gap-2">
                             <label class="text-xs font-bold text-black-fade block">Student Submitted Response</label>
-                            ${(isGraded || isAutoMode) ? `
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${curPts > 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'} shadow-2xs">
-                                    <i class="fa-solid ${curPts > 0 ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-rose-600'} text-xs"></i>
-                                    <span>Graded • ${curPts}/${pts} Points</span>
-                                </span>
-                            ` : ''}
                         </div>
                         <div style="${essayCardStyle}" class="w-full ${essayCardClass} rounded-2xl p-5 text-sm md:text-base font-medium text-left min-h-[140px] whitespace-pre-wrap leading-relaxed transition-all break-words">${escapeStr((essayResponse || 'No essay response was submitted by the student.').trim())}</div>
+                        ${isGraded && !(isTeacherUser && !isAutoScoring && !isAutoMode) ? window.renderSharedMatchingEarnedHtml({ earned: curPts, max: pts }) : ''}
                         ${(!isAutoScoring && !isAutoMode && (isTeacherUser || isPendingQ)) ? renderTeacherScoringPanelHtml(idx, pts) : ''}
                         ${rubricHtml}
                     </div>
@@ -30809,7 +31777,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         bodyEl.innerHTML = `
             <div class="space-y-6">
                 <!-- Numbered Prompt & Description -->
-                <div class="flex items-start gap-3.5">
+                <div class="sigma-quiz-numbered-prompt flex items-start gap-3.5">
                     <span class="w-8 h-8 rounded-full bg-[#15803d] text-white flex items-center justify-center text-sm font-black shrink-0 shadow-2xs mt-0.5">${qNum}</span>
                     <div class="flex-1 min-w-0">
                         <h3 class="text-lg sm:text-xl font-bold text-black leading-snug font-['Inter'] break-words">${escapeStr(prompt)}</h3>
@@ -30926,6 +31894,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
 
+        resetQuizPreviewScroll();
+
         // Update badge to "Preview Mode"
         const badgeEl = modal.querySelector('#uqp-mode-badge') || modal.querySelector('.sigma-modal-shell .rounded-full');
         if (badgeEl) {
@@ -30946,7 +31916,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     window.openStudentQuizReviewPlayer = function (subjectId, tab, activeIdx, topicIdx, rawTitle, attemptPage) {
         const title = typeof rawTitle === 'string' ? decodeURIComponent(rawTitle) : (rawTitle || '');
         let currentStudent = null;
-        if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedStudent && window.currentTopicState.selectedStudent !== 'All') {
+        const isStudentViewer = window.location.pathname.includes('student') || String(window.currentUser?.role || '').toLowerCase() === 'student';
+        if (!isStudentViewer && typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedStudent && window.currentTopicState.selectedStudent !== 'All') {
             currentStudent = window.currentTopicState.selectedStudent;
         } else if (typeof window.getLoggedInStudentUser === 'function') {
             currentStudent = window.getLoggedInStudentUser();
@@ -30960,13 +31931,21 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             currentStudent = window.resolveTopicStudentRecord(currentStudent, selectedSection);
         }
 
+        const renderedContext = window._submittedQuizReviewContext;
+        const contextMatchesRoute = renderedContext && renderedContext.subjectId === subjectId && renderedContext.tab === tab
+            && Number(renderedContext.activeIdx) === Number(activeIdx) && Number(renderedContext.topicIdx) === Number(topicIdx);
+        const contextStudent = renderedContext?.student;
+        const contextMatchesStudent = contextStudent && typeof window.isSubmissionMatchForStudent === 'function'
+            && window.isSubmissionMatchForStudent({ studentId: contextStudent.id || contextStudent.studentId, studentUid: contextStudent.uid, studentName: contextStudent.name || contextStudent.fullName }, currentStudent);
+        const submissionContext = contextMatchesRoute && contextMatchesStudent ? renderedContext : null;
+
         // 1. Find submission data across all possible storage keys
-        let subData = null;
+        let subData = submissionContext?.submission || null;
         let matchedQuiz = null;
         let reversedAttempts = [];
 
         try {
-            if (typeof window.getStudentAssessmentSubmission === 'function') {
+            if (!subData && typeof window.getStudentAssessmentSubmission === 'function') {
                 subData = window.getStudentAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, null, currentStudent);
             }
         } catch (e) { }
@@ -30988,8 +31967,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             } catch (e) { }
         }
 
-        let activeAssessment = null;
-        if (typeof window.getStudentActiveAssessmentDetails === 'function') {
+        let activeAssessment = submissionContext?.assessment || null;
+        if (!activeAssessment && typeof window.getStudentActiveAssessmentDetails === 'function') {
             try {
                 activeAssessment = window.getStudentActiveAssessmentDetails(subjectId, topicIdx, tab, activeIdx);
             } catch (e) { }
@@ -31017,9 +31996,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             window.loggedTeacher ||
             (typeof window.location !== 'undefined' && window.location.pathname.includes('teacher'))
         );
-        const viewerSection = viewerIsTeacher
+        const viewerSection = submissionContext?.section || (viewerIsTeacher
             ? ((typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedSection) || currentStudent?.section || currentStudent?.sectionName || '')
-            : (currentStudent?.section || currentStudent?.sectionName || (typeof window.resolveStudentReleaseSection === 'function' ? window.resolveStudentReleaseSection('') : '') || (typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedSection) || '');
+            : (currentStudent?.section || currentStudent?.sectionName || (typeof window.resolveStudentReleaseSection === 'function' ? window.resolveStudentReleaseSection('') : '') || (typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedSection) || ''));
         let quizCopy = (typeof window.readStudentQuizFileCopy === 'function')
             ? window.readStudentQuizFileCopy(currentStudent, viewerSection, subjectId, [
                 activeAssessment?.quizId,
@@ -31034,6 +32013,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             : null;
         const subMatchesStudent = !subData || !currentStudent || (typeof window.isSubmissionMatchForStudent !== 'function') || window.isSubmissionMatchForStudent(subData, currentStudent);
         const subMatchesSection = !subData || !subData.section || !viewerSection || window.submissionSectionsMatch(subData.section, viewerSection);
+        const officialSubmission = subMatchesStudent && subMatchesSection ? subData : null;
         const subAnswerCount = (typeof window.collectQuizAnswerMap === 'function') ? Object.keys(window.collectQuizAnswerMap(subData)).length : 0;
         const copyAnswerCount = (typeof window.collectQuizAnswerMap === 'function') ? Object.keys(window.collectQuizAnswerMap(quizCopy)).length : 0;
         if (!subMatchesStudent || !subMatchesSection) {
@@ -31051,7 +32031,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         }
 
         const pageNum = Number(attemptPage || 1);
-        const activeAttempt = (reversedAttempts.length > 0) ? (reversedAttempts[pageNum - 1] || reversedAttempts[0]) : (subData || {});
+        let activeAttempt = (reversedAttempts.length > 0) ? (reversedAttempts[pageNum - 1] || reversedAttempts[0]) : (subData || {});
 
         // 2. Find the quiz this student actually submitted. Placeholder Option A–D questions are never shown.
         let qs = [];
@@ -31123,12 +32103,23 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         }
 
         // 3. User answers from this student's own quiz copy
-        const answerSources = [quizCopy, subData, activeAttempt];
+        activeAttempt = (reversedAttempts.length > 0) ? (reversedAttempts[pageNum - 1] || reversedAttempts[0]) : (subData || {});
+        const matchingAttempt = source => {
+            if (!source) return null;
+            if (Array.isArray(source.attempts) && source.attempts.length) {
+                return source.attempts.find(attempt =>
+                    (activeAttempt.attemptNumber !== undefined && String(attempt?.attemptNumber) === String(activeAttempt.attemptNumber))
+                    || (activeAttempt.submittedAt && attempt?.submittedAt === activeAttempt.submittedAt)) || null;
+            }
+            if (activeAttempt.attemptNumber !== undefined && source.attemptNumber !== undefined && String(source.attemptNumber) !== String(activeAttempt.attemptNumber)) return null;
+            return pageNum === 1 ? source : null;
+        };
+        const answerSources = [activeAttempt, matchingAttempt(subData), matchingAttempt(quizCopy)];
         let rawAnswerMap = {};
         if (typeof window.collectQuizAnswerMap === 'function') {
             answerSources.forEach((source) => {
-                const map = window.collectQuizAnswerMap(source);
-                if (Object.keys(map).length > Object.keys(rawAnswerMap).length) rawAnswerMap = map;
+                const map = window.collectQuizAnswerMap(source, false);
+                for (const key of Object.keys(map)) if (rawAnswerMap[key] === undefined) rawAnswerMap[key] = map[key];
             });
         } else {
             rawAnswerMap = activeAttempt.userAnswers || activeAttempt.answers || subData?.userAnswers || subData?.answers || {};
@@ -31145,7 +32136,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 if (titleToken.length > 8 && rowTitle && rowTitle !== titleToken && !rowTitle.includes(titleToken) && !titleToken.includes(rowTitle)) return;
                 const storedSection = typeof window.submissionSectionKey === 'function' ? window.submissionSectionKey(row.section) : '';
                 if (viewSection && storedSection && storedSection !== 'section' && storedSection !== viewSection) return;
-                const map = window.collectQuizAnswerMap(row);
+                const map = window.collectQuizAnswerMap(matchingAttempt(row), false);
                 if (Object.keys(map).length > Object.keys(rawAnswerMap).length) {
                     rawAnswerMap = map;
                     subData = Object.assign({}, subData || {}, row, { answers: map, userAnswers: map });
@@ -31287,10 +32278,29 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         _isPendingReview = isPending;
         _showCorrectAnswers = showCorrect;
         window._activeReviewSubData = subData;
+        const officialAttempts = Array.isArray(officialSubmission?.attempts) ? [...officialSubmission.attempts].reverse() : [];
+        const officialAttempt = pageNum === 1 && officialSubmission?.score !== undefined && officialSubmission?.score !== null && officialSubmission?.score !== ''
+            ? officialSubmission
+            : officialAttempts[pageNum - 1];
+        window._activeReviewAttempt = officialAttempt?.score !== undefined && officialAttempt?.score !== null && officialAttempt?.score !== ''
+            ? {
+                ...activeAttempt,
+                score: officialAttempt.score,
+                status: officialAttempt.status ?? activeAttempt.status,
+                teacherSaved: officialAttempt.teacherSaved ?? activeAttempt.teacherSaved,
+                gradedAt: officialAttempt.gradedAt ?? activeAttempt.gradedAt,
+                gradedOn: officialAttempt.gradedOn ?? activeAttempt.gradedOn
+            }
+            : activeAttempt;
         window._activeReviewAttemptNumber = activeAttempt.attemptNumber || (reversedAttempts.length - pageNum + 1);
+        window._quizReviewReadOnly = pageNum > 1 && reversedAttempts.length > 1;
         window._activeReviewContext = { subjectId, tab, activeIdx, topicIdx, title, totalQuizPoints };
-        const storedReviewScores = { ...(activeAttempt.essayScores || subData?.essayScores || {}) };
+        const storedReviewScores = {
+            ...(activeAttempt.essayScores || subData?.essayScores || {}),
+            ...(officialAttempt?.essayScores || {})
+        };
         window._teacherEssayScores = {};
+        window._editingReviewScores = new Set();
         window._teacherEssayGraded = {};
         Object.keys(storedReviewScores).forEach(k => {
             if (String(k).indexOf('qidx:') !== 0) return;
@@ -31300,7 +32310,10 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             window._teacherEssayGraded[k] = true;
         });
         window._teacherEnumItemScores = {};
-        const storedEnumScores = { ...(activeAttempt?.enumItemScores || subData?.enumItemScores || {}) };
+        const storedEnumScores = {
+            ...(activeAttempt?.enumItemScores || subData?.enumItemScores || {}),
+            ...(officialAttempt?.enumItemScores || {})
+        };
         Object.keys(storedEnumScores).forEach(k => {
             const value = storedEnumScores[k];
             if (value === undefined || value === null || String(value).trim() === '') return;
@@ -31338,6 +32351,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
+        resetQuizPreviewScroll();
     };
 
     function dropForeignReviewScoreKeys(qIdx) {
@@ -31357,6 +32371,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     }
 
     function storeReviewQuestionScore(qIdx, score, accepted) {
+        if (window._quizReviewReadOnly) return;
         if (!window._teacherEssayScores) window._teacherEssayScores = {};
         if (!window._teacherEssayGraded) window._teacherEssayGraded = {};
         dropForeignReviewScoreKeys(qIdx);
@@ -31378,6 +32393,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     }
 
     window.changeTeacherEssayScore = function (idx, delta, maxPts) {
+        if (window._quizReviewReadOnly) return;
         window._isReviewDirty = true;
         const inputEl = document.getElementById(`uqp-essay-score-${idx}`);
         const curRaw = (inputEl && inputEl.value !== '') ? inputEl.value : window.readAcceptedQuestionScore(window._teacherEssayScores, idx);
@@ -31396,6 +32412,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     };
 
     window.setTeacherEnumSlotScore = function (qIdx, itemIdx, val, maxSlotPts, totalMaxPts) {
+        if (window._quizReviewReadOnly) return;
         window._isReviewDirty = true;
         if (!window._teacherEnumItemScores) window._teacherEnumItemScores = {};
         const parsed = (val === '' || val === null || val === undefined) ? '' : Math.min(Number(maxSlotPts), Math.max(0, parseInt(val, 10) || 0));
@@ -31443,6 +32460,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     };
 
     window.acceptTeacherEnumPoints = function (idx, maxPts) {
+        if (window._quizReviewReadOnly) return;
         const q = (_previewQuestions && _previewQuestions[idx]) || {};
         const qKey = q.id || `q-${idx + 1}`;
         const rawExpected = Array.isArray(q.items) ? q.items : [];
@@ -31486,6 +32504,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     };
 
     window.setTeacherEssayScoreDirect = function (idx, val, maxPts) {
+        if (window._quizReviewReadOnly) return;
         window._isReviewDirty = true;
         if (val === '' || val === null || val === undefined) {
             storeReviewQuestionScore(idx, '', false);
@@ -31512,21 +32531,32 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         btn.classList.toggle('cursor-pointer', !locked);
     };
 
+    window.editTeacherQuestionScore = function (idx) {
+        if (window._quizReviewReadOnly) return;
+        if (!window._editingReviewScores) window._editingReviewScores = new Set();
+        window._editingReviewScores.add(idx);
+        renderCurrentQuestion();
+        document.getElementById(`uqp-essay-score-${idx}`)?.focus();
+    };
+
     window.acceptTeacherEssayPoints = function (idx, maxPts) {
+        if (window._quizReviewReadOnly) return;
         const inputEl = document.getElementById(`uqp-essay-score-${idx}`);
         const raw = inputEl ? String(inputEl.value ?? '').trim() : '';
         if (raw === '' || Number.isNaN(Number(raw))) return;
         const score = Math.min(maxPts, Math.max(0, parseInt(raw, 10) || 0));
         storeReviewQuestionScore(idx, score, true);
+        window._editingReviewScores?.delete(idx);
         window._isReviewDirty = true;
         if (typeof window.showToast === 'function') {
-            window.showToast(`Question ${idx + 1} score accepted (${score}/${maxPts} pts).`, 'success');
+            window.showToast(`Question ${idx + 1} score saved (${score}/${maxPts} pts).`, 'success');
         }
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
     };
 
     window.finalizeTeacherReviewDone = function () {
+        if (window._quizReviewReadOnly) return;
         if (typeof hasAnyPendingReviewQuestions === 'function' && hasAnyPendingReviewQuestions()) {
             if (typeof window.showToast === 'function') {
                 window.showToast('Please score and accept all pending questions before completing review.', 'warning');
@@ -31989,12 +33019,14 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 _currentQuestionIdx--;
                 _currentPillsPage = Math.floor(_currentQuestionIdx / 10);
                 renderCurrentQuestion();
+                resetQuizPreviewScroll();
             }
         } else {
             if (_currentQuestionIdx < _previewQuestions.length - 1) {
                 _currentQuestionIdx++;
                 _currentPillsPage = Math.floor(_currentQuestionIdx / 10);
                 renderCurrentQuestion();
+                resetQuizPreviewScroll();
             } else {
                 if (_isStudentQuizReview) {
                     // In student review/view mode: only exit via close button, no done review
@@ -32012,6 +33044,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             _currentQuestionIdx = idx;
             _currentPillsPage = Math.floor(_currentQuestionIdx / 10);
             renderCurrentQuestion();
+            resetQuizPreviewScroll();
         }
     };
 
@@ -32083,30 +33116,18 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     };
 
     window.handleUniversalMatchingDragStart = function (e, text) {
-        if (!e || !e.dataTransfer) return;
-        e.dataTransfer.setData('text/plain', text);
-        e.dataTransfer.effectAllowed = 'move';
-
-        const dragGhost = document.createElement('div');
-        dragGhost.style.position = 'fixed';
-        dragGhost.style.top = '-9999px';
-        dragGhost.style.left = '-9999px';
-        dragGhost.style.zIndex = '999999';
-        dragGhost.style.opacity = '1';
-        dragGhost.className = 'px-4 py-2.5 rounded-xl bg-white border-2 border-black text-xs md:text-sm font-bold text-black shadow-2xl flex items-center gap-2 pointer-events-none font-[\'Inter\']';
-        dragGhost.innerHTML = `<i class="fa-solid fa-grip-vertical text-black text-xs"></i><span>${window.escapeHtml ? window.escapeHtml(text) : text}</span>`;
-        document.body.appendChild(dragGhost);
-        e.dataTransfer.setDragImage(dragGhost, 30, 20);
-        setTimeout(() => { if (dragGhost.parentElement) dragGhost.remove(); }, 0);
+        window.handleSharedQuizChoiceDragStart(e, text);
     };
 
     window.handleUniversalMatchingDragEnd = function (e) {
+        window.handleSharedQuizChoiceDragEnd(e);
         if (e && e.dataTransfer) {
             try { e.dataTransfer.clearData(); } catch (err) { }
         }
     };
 
     window.dropUniversalMatchingSlot = function (e, qIdx, pIdx) {
+        window.handleSharedQuizChoiceDragEnd(e);
         if (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -32714,26 +33735,6 @@ window.saveSubjectGradebookWeights = function (subjectName, weights) {
     return safeWeights;
 };
 
-window.handleAiReviewAction = function (btn) {
-    if (!btn) return;
-    const acknowledged = btn.dataset.acknowledged === '1';
-    if (!acknowledged) {
-        const key = decodeURIComponent(btn.dataset.ackKey || '');
-        try {
-            const map = JSON.parse(localStorage.getItem('sigma_ai_review_acknowledged') || '{}');
-            if (key) map[key] = true;
-            localStorage.setItem('sigma_ai_review_acknowledged', JSON.stringify(map));
-        } catch (e) {}
-        btn.dataset.acknowledged = '1';
-        const label = btn.querySelector('span');
-        const icon = btn.querySelector('i');
-        if (label) label.textContent = 'Transfer Score';
-        if (icon) icon.className = 'fa-solid fa-arrow-right-to-bracket text-xs';
-        return;
-    }
-    window.transferAiScoreToGradebook?.(btn.dataset.aiScore, btn.dataset.aiMax);
-};
-
 window.transferAiScoreToGradebook = function (score, maxScore) {
     const raw = String(score ?? '').trim();
     const numScore = Number(raw);
@@ -32805,11 +33806,11 @@ window.toggleAiAssistancePanel = function (explicitKey) {
         // Teacher wants to HIDE it
         panel.classList.add('hidden');
         if (cardBtn) {
-            cardBtn.className = "text-[10px] sm:text-[10.5px] font-bold text-black bg-[#FFD000] hover:bg-[#e6bc00] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight";
+            cardBtn.className = "text-[10px] sm:text-[10.5px] font-bold text-white bg-[#15803d] hover:bg-[#166534] px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 font-['Inter'] shadow-2xs active:scale-[0.98] leading-tight";
         }
         if (cardBtnText) cardBtnText.textContent = 'View SIGMA AI Panel';
         if (cardBtnIcon) {
-            cardBtnIcon.className = "fa-solid fa-sparkles text-[9px] sm:text-[9.5px] text-black";
+            cardBtnIcon.className = "fa-solid fa-eye text-[9px] sm:text-[9.5px] text-white";
         }
         if (headerBtnText) headerBtnText.textContent = 'Show';
         if (headerBtnIcon) {
@@ -34601,6 +35602,48 @@ window.getCategoryDetails = function (category, specifiedQ = null, specifiedSubj
     return result;
 };
 
+window.openGradebookAssessment = function (category, index, customSubject = '', customSection = '') {
+    const state = window.sigmaGradesState || {};
+    const legacy = typeof gradebookState !== 'undefined' ? gradebookState : {};
+    const subjectId = customSubject || state.selectedSubjectSection?.subject || legacy.selectedSubject || state.selectedSubject || '';
+    const section = customSection || state.selectedSubjectSection?.sectionName || legacy.selectedSection || state.selectedSection || '';
+    const quarter = state.activeQuarter || legacy.currentQuarter || 1;
+    if (!subjectId || typeof window.getCategoryDetails !== 'function' || typeof window.openTopicContent !== 'function') return;
+    const items = window.getCategoryDetails(category, quarter, subjectId, section) || [];
+    const item = items.find(row => Number(row.itemIdx) === Number(index));
+    if (!item) return;
+    const actualSubject = item.subjectId || subjectId;
+    const topicIdx = item.topicIdx ?? 0;
+    const getData = window.getTopicData || (typeof getTopicData === 'function' ? getTopicData : null);
+    const topic = getData?.(actualSubject)?.q1Topics?.[topicIdx];
+    const defaults = topic ? [...(topic.assignments || []), ...(topic.quiz || topic.quizzes || []), ...(topic.activity || []), ...(topic.performance || [])] : [];
+    let assessments = typeof window.getUnifiedTopicAssessments === 'function'
+        ? window.getUnifiedTopicAssessments('assessments', actualSubject, topicIdx, defaults, section) : defaults;
+    if (typeof window.deduplicateMaterialsArray === 'function') assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });
+    // Gradebook category indexes differ from the combined assessment list's indexes.
+    const identity = row => String(row?.id || row?.materialId || row?.rawItem?.id || '').trim();
+    const id = identity(item);
+    let targetIdx = id ? assessments.findIndex(row => identity(row) === id) : -1;
+    if (targetIdx < 0 && !id) {
+        const matches = assessments.map((row, idx) => ({ row, idx })).filter(({ row }) => row === item.rawItem || row === item);
+        if (matches.length === 1) targetIdx = matches[0].idx;
+    }
+    if (targetIdx < 0) return;
+    if (typeof window.keepGradebookForAssessmentOpen === 'function') window.keepGradebookForAssessmentOpen();
+    const selectedStudent = state.selectedStudent || legacy.selectedStudent || window.currentTopicState?.selectedStudent || 'All';
+    window._explicitGradingStudentSelection = {
+        scope: JSON.stringify([actualSubject, Number(topicIdx), Number(targetIdx), section]),
+        name: selectedStudent
+    };
+    return window.openTopicContent(actualSubject, topicIdx, 'assessments', targetIdx, true, {
+        selectedSection: section,
+        selectedStudent,
+        viewSubmission: true,
+        _studentViewSubmissionMode: true,
+        _sharedViewSubmissionMode: true
+    });
+};
+
 window.withGradebookReadCache = function (render) {
     if (window._gradebookReadCacheActive) return render();
     const originals = new Map();
@@ -34615,7 +35658,7 @@ window.withGradebookReadCache = function (render) {
     };
     window._gradebookReadCacheActive = true;
     try {
-        for (const name of ['getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore']) {
+        for (const name of ['findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore']) {
             const original = window[name];
             if (typeof original !== 'function') continue;
             originals.set(name, original);
@@ -34662,7 +35705,7 @@ window.calculateGradebookCategoryPercentage = function (studentOrId, category, e
         }
         if ((score === null || score === undefined || score === '' || score === '-' || isNaN(Number(score))) && typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
             const eff = window.getEffectiveAssessmentStatusAndScore(student, itemCat, itemIdx, subjectId, currentQ, item);
-            if (eff && !eff.isAutoMissing && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
+            if (eff && eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
                 if (eff.isManualOverride || eff.status === 'missing' || eff.status === 'absent' || window.studentHasAssessmentSubmission?.(student, item, subjectId, itemCat)) {
                     score = eff.score;
                 }
@@ -34717,60 +35760,13 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
     });
 })();
 
-(function bindNativePickerIconToggle() {
-    const pickerSelector = 'input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"]';
-
-    function isPickerInput(node) {
-        return !!(node && node.matches && node.matches(pickerSelector));
-    }
-
-    function closePicker(input) {
-        if (!input) return;
-        input.classList.remove('sigma-picker-open');
-        input.blur();
-    }
-
-    document.addEventListener('mousedown', function (event) {
-        const input = event.target;
-        if (!isPickerInput(input) || input.disabled || input.readOnly) return;
-        const rect = input.getBoundingClientRect();
-        const onIcon = event.clientX >= rect.right - 36;
-        if (!onIcon) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (input.classList.contains('sigma-picker-open')) {
-            closePicker(input);
-            return;
-        }
-
-        document.querySelectorAll('input.sigma-picker-open').forEach(function (openInput) {
-            if (openInput !== input) openInput.classList.remove('sigma-picker-open');
-        });
-        input.classList.add('sigma-picker-open');
-        input.focus({ preventScroll: true });
-        if (typeof input.showPicker === 'function') {
-            try { input.showPicker(); } catch (err) {}
-        }
-    }, true);
-
-    document.addEventListener('mousedown', function (event) {
-        if (isPickerInput(event.target)) return;
-        document.querySelectorAll('input.sigma-picker-open').forEach(function (openInput) {
-            openInput.classList.remove('sigma-picker-open');
-        });
-    });
-
-    document.addEventListener('change', function (event) {
-        if (!isPickerInput(event.target)) return;
-        event.target.classList.remove('sigma-picker-open');
-    });
-
-    document.addEventListener('keydown', function (event) {
-        if (event.key !== 'Escape') return;
-        document.querySelectorAll('input.sigma-picker-open').forEach(closePicker);
-    });
+(function loadSharedDateTimeInputs() {
+    if (document.querySelector('script[data-sigma-date-time-inputs]')) return;
+    const script = document.createElement('script');
+    script.dataset.sigmaDateTimeInputs = 'true';
+    script.src = new URL('date-time-inputs.js?v=20261011releaseState371', document.currentScript.src).href;
+    script.async = false;
+    document.head.append(script);
 })();
 
 /* One-time reset: Camille Torres Mendoza, Einstein, Quiz 1 (QZ-9301) only. */
@@ -35701,17 +36697,62 @@ window.showTeacherReleaseToast = function (message, type = 'released') {
     container.appendChild(toast);
 };
 
+(function protectQuizClipboard() {
+    const scope = '#student-preview-modal, #universal-quiz-preview-modal, #sigma-quiz-form-modal';
+    const isQuizTarget = event => event.target instanceof Element && event.target.closest(scope);
+    const block = event => {
+        if (!isQuizTarget(event)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    };
+    ['copy', 'cut', 'paste'].forEach(type => document.addEventListener(type, block, true));
+    document.addEventListener('beforeinput', event => {
+        if (['insertFromPaste', 'insertFromPasteAsQuotation', 'insertFromDrop', 'deleteByCut'].includes(event.inputType)) block(event);
+    }, true);
+    document.addEventListener('drop', event => {
+        if (event.target instanceof Element && event.target.closest('input, textarea, [contenteditable="true"]')) block(event);
+    }, true);
+})();
+
 (function syncMobileModalViewport() {
+    let focusFrame = 0;
+    const revealFocusedField = () => {
+        cancelAnimationFrame(focusFrame);
+        focusFrame = requestAnimationFrame(() => {
+            if (window.innerWidth > 768) return;
+            const field = document.activeElement;
+            if (!(field instanceof HTMLElement) || !field.matches('input, textarea, [contenteditable="true"]')) return;
+            const modal = field.closest('.sigma-modal-overlay, .sigma-post-dialog-overlay, .sigma-composer-overlay');
+            if (!modal) return;
+            const viewport = window.visualViewport;
+            const top = viewport?.offsetTop || 0;
+            const bottom = top + (viewport?.height || window.innerHeight);
+            const header = modal.querySelector('.sigma-quiz-sticky-header');
+            const footer = modal.querySelector('.sigma-modal-footer, .sigma-post-dialog-footer, .sigma-composer-footer');
+            const upper = Math.max(top, header?.getBoundingClientRect().bottom || top) + 12;
+            const lower = Math.min(bottom, footer?.getBoundingClientRect().top || bottom) - 12;
+            const rect = field.getBoundingClientRect();
+            const delta = rect.height > lower - upper || rect.top < upper
+                ? rect.top - upper : Math.max(0, rect.bottom - lower);
+            if (Math.abs(delta) < 1) return;
+            let scroller = field.parentElement;
+            while (scroller && scroller !== modal && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY)
+                && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+            (scroller || modal).scrollBy({ top: delta, behavior: 'instant' });
+        });
+    };
     const update = () => {
         const viewport = window.visualViewport;
         const root = document.documentElement;
         root.style.setProperty('--sigma-visible-viewport-height', `${viewport?.height || window.innerHeight}px`);
         root.style.setProperty('--sigma-visible-viewport-top', `${viewport?.offsetTop || 0}px`);
+        revealFocusedField();
     };
     update();
     window.addEventListener('resize', update, { passive: true });
     window.visualViewport?.addEventListener('resize', update, { passive: true });
     window.visualViewport?.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('focusin', revealFocusedField);
 })();
 
 (function syncMaterialMobileDockClearance() {

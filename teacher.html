@@ -11,19 +11,19 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/teacher.css?v=20261006accountTableDividers7">
-    <link rel="stylesheet" href="css/topbar.css?v=20261003badgefont1">
-    <link rel="stylesheet" href="css/forms.css?v=20261006accountTableDividers7">
+    <link rel="stylesheet" href="css/teacher.css?v=20261011sharedCalendar342">
+    <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
+    <link rel="stylesheet" href="css/forms.css?v=20261011footerCounter430">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/shared-components.css?v=20261006accountTableDividers7">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261006accountTableDividers7">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261006defaultBackground1">
+<link rel="stylesheet" href="css/shared-components.css?v=20261013detailsOrder725">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261010chevronHover232">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261010featureStatus291">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
-    <link rel="stylesheet" href="css/sidebar.css?v=20261003viewportreset1">
+    <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
-    <link rel="stylesheet" href="css/sigma-analytics.css?v=20261006desktopTable21">
-    <link rel="stylesheet" href="css/mobile.css?v=20261006accountTableDividers7">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261011mobileActionRows334">
+    <link rel="stylesheet" href="css/mobile.css?v=20261012descriptionBlack500">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
@@ -53,13 +53,14 @@
             display: none !important;
         }
     </style>
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261003opaqueshimmer1">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261012skeletonShimmerImage5">
     <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
+    <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
-    <script src="js/page-skeleton.js?v=20261003panelskeleton1"></script>
+    <script src="js/page-skeleton.js?v=20261012skeletonShimmerImage5"></script>
 
     <header id="teacher-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
@@ -187,7 +188,7 @@
         <!-- Mobile Sub-Bar: SIGMA Analytics, Schedule & Tasks, SIGMA AI, Calendar, Notifications -->
         <div id="mobile-header-subbar" class="mobile-header-subbar">
             <!-- 1. SIGMA Analytics (Abstract line chart icon) -->
-            <button type="button" id="mobile-subbar-analytics" class="mobile-subbar-btn" aria-label="SIGMA Analytics" title="SIGMA Analytics">
+            <button type="button" id="mobile-subbar-analytics" class="mobile-subbar-btn" aria-label="SIGMA AI Insights" title="SIGMA AI Insights">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
                     <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -233,6 +234,9 @@
                     </button>
                     <h3 class="calendar-header__title mobile-panel-title">Calendar</h3>
                 </div>
+        <a href="#" class="view-calendar-anchor calendar-header__action-btn text-black hover:bg-slate-100" title="Open full calendar" aria-label="Open full calendar">
+            <i class="fa-solid fa-arrow-up-right-from-square text-black"></i>
+        </a>
             </div>
 
             <!-- Month Navigation & Calendar Grid -->
@@ -263,16 +267,14 @@
                     <!-- Populated by js/calendar.js -->
                 </div>
 
-                <!-- View Calendar Link -->
-                <div class="mt-6 mb-2 flex justify-center">
-                    <a href="#" class="view-calendar-anchor" aria-label="View Calendar">
-                        View Calendar →
-                    </a>
-                </div>
             </div>
 
-            <!-- Bottom Division Line -->
-            <div class="border-t border-gray-100 w-full mt-auto"></div>
+            <!-- Quick Agenda / Events Preview Section -->
+            <div id="calendar-dropdown-agenda" class="calendar-dropdown-agenda p-0 border-t border-slate-100 bg-white flex-1 w-full">
+                <div id="calendar-dropdown-agenda-list" class="calendar-dropdown-agenda-list p-0 m-0 w-full">
+                    <!-- Dynamically populated by js/calendar.js -->
+                </div>
+            </div>
         </div>
 
         <!-- Notifications Dropdown -->
@@ -295,7 +297,6 @@
                     <button type="button" id="noti-tab-all" class="notif-tab-btn active">All</button>
                     <button type="button" id="noti-tab-unread" class="notif-tab-btn">Unread</button>
                 </div>
-                <a href="#" class="notif-see-all-btn" onclick="event.preventDefault()">See all</a>
             </div>
 
             <!-- Scrollable Notifications Area -->
@@ -413,10 +414,10 @@
                     <button type="button" class="mobile-panel-header-back-btn" onclick="window.closeMobileTopPanel()" aria-label="Back">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
-                    <h3 class="notif-header__title mobile-panel-title">SIGMA Analytics</h3>
+                    <h3 class="notif-header__title mobile-panel-title">SIGMA AI Insights</h3>
                     <button type="button" class="sigma-analyze-button" title="Analyze Now" aria-label="Analyze Now"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
                 </div>
-                <button type="button" class="sigma-panel-see-all">See all</button>
+                <button type="button" class="sigma-insight-search-toggle" title="Search insights" aria-label="Search insights"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
             </div>
             <div id="analytics-dropdown-cards" class="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
                 <!-- Hydrated dynamically -->
@@ -912,89 +913,108 @@
                 <!-- Shared resources page rendered by js/resources-view.js -->
                 <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view></section>
 
-                <!-- ATTENDANCE SECTION -->
-                <section id="section-attendance"
-                    class="dynamic-section hidden flex-1 flex flex-col overflow-hidden pt-6 px-4 pb-4">
-                    <div class="mb-2 flex flex-col md:flex-row items-center justify-start gap-3 flex-shrink-0">
+                <!-- CALENDAR / ATTENDANCE SECTION -->
+                <section id="section-attendance" class="dynamic-section hidden">
+    <!-- Left Section: Main Calendar Grid with Controls Toolbar -->
+    <div id="attendance-left-column">
+        <!-- Calendar Controls Toolbar -->
+        <div class="calendar-controls-toolbar">
+            <div class="flex items-center gap-2.5">
+                <button type="button" id="attendance-today-btn" onclick="if(typeof window.stepAttendanceToday==='function')window.stepAttendanceToday();"
+                    class="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-full text-xs font-bold shadow-sm transition-colors cursor-pointer select-none">
+                    Today
+                </button>
+                
+                <div class="calendar-page-month-nav relative flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2 py-0.5 shadow-sm cursor-default select-none">
+                    <button type="button" id="nav-cal-prev-btn" onclick="if(typeof window.stepAttendanceNav==='function')window.stepAttendanceNav(-1);else if(typeof window.stepAttendanceMonth==='function')window.stepAttendanceMonth(-1);" title="Previous" aria-label="Previous"
+                        class="w-7 h-7 rounded-full flex items-center justify-center text-slate-700 hover:text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 bg-transparent">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
 
-                        <div class="flex items-center gap-3">
-                            <div class="relative group">
-                                <select id="attendance-year-select" aria-label="Select attendance year"
-                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[100px]">
-                                    <option value="2019">2019</option>
-                                    <option value="2020">2020</option>
-                                    <option value="2021">2021</option>
-                                    <option value="2022">2022</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2025">2025</option>
-                                    <option value="2026" selected>2026</option>
-                                    <option value="2027">2027</option>
-                                </select>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', -1)"
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-year-select', 1)"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
-                            </div>
+                    <span id="attendance-month-year-label" class="px-2 py-1 text-sm font-bold text-slate-900 select-none font-['Inter'] cursor-default">October 2026</span>
 
-                            <div class="relative group">
-                                <select id="attendance-month-select" aria-label="Select attendance month"
-                                    class="px-9 py-2 bg-white border border-gray-300 rounded-full text-xs font-bold text-gray-800 focus:outline-none focus:border-icc appearance-none cursor-pointer shadow-sm min-w-[140px]">
-                                    <option value="0">January</option>
-                                    <option value="1">February</option>
-                                    <option value="2" selected>March</option>
-                                    <option value="3">April</option>
-                                    <option value="4">May</option>
-                                    <option value="5">June</option>
-                                    <option value="6">July</option>
-                                    <option value="7">August</option>
-                                    <option value="8">September</option>
-                                    <option value="9">October</option>
-                                    <option value="10">November</option>
-                                    <option value="11">December</option>
-                                </select>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', -1)"
-                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&lt;</button>
-                                <button type="button" onclick="stepAttendanceSelect('attendance-month-select', 1)"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-base font-black text-gray-500 hover:text-icc-yellow transition-colors z-10 leading-none bg-transparent border-none shadow-none outline-none focus:outline-none focus:ring-0 active:bg-transparent">&gt;</button>
-                            </div>
+                    <button type="button" id="attendance-month-picker-btn" onclick="if(typeof window.openAttendancePageMonthPicker==='function')window.openAttendancePageMonthPicker(event);"
+                        class="w-7 h-7 rounded-full flex items-center justify-center text-[#15803d] hover:text-[#166534] hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 bg-transparent"
+                        title="Select Month & Year" aria-label="Select Month & Year">
+                        <i class="fa-regular fa-calendar text-sm"></i>
+                    </button>
 
-                            <button id="attendance-today-btn"
-                                class="px-5 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-xs font-bold shadow-sm hover:bg-gray-100 transition-colors focus:outline-none focus:ring-0">Today</button>
-                        </div>
+                    <button type="button" id="nav-cal-next-btn" onclick="if(typeof window.stepAttendanceNav==='function')window.stepAttendanceNav(1);else if(typeof window.stepAttendanceMonth==='function')window.stepAttendanceMonth(1);" title="Next" aria-label="Next"
+                        class="w-7 h-7 rounded-full flex items-center justify-center text-slate-700 hover:text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 bg-transparent">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+
+                    <!-- Custom Month & Year Picker Popover -->
+                    <div id="attendance-page-month-picker" class="hidden">
                     </div>
+                </div>
 
-                    <div id="attendance-calendar-shell"
-                        class="flex-1 bg-white rounded-xl border border-black shadow-sm flex flex-col overflow-hidden relative w-full max-w-6xl ml-0 mb-0">
-                        <div class="grid grid-cols-7 border-b border-black bg-white flex-shrink-0">
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
-                                Sun</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Mon</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Tue</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Wed</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Thu</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc border-r border-black">
-                                Fri</div>
-                            <div
-                                class="py-3 text-[10px] font-black text-black uppercase tracking-widest text-center bg-icc-yellow border-r border-black">
-                                Sat</div>
-                        </div>
+                <!-- Hidden Selects for Backward-Compatibility -->
+                <select id="attendance-month-select" class="hidden" aria-hidden="true">
+                    <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                    <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                    <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                    <option value="9" selected>October</option><option value="10">November</option><option value="11">December</option>
+                </select>
+                <select id="attendance-year-select" class="hidden" aria-hidden="true">
+                    <option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option>
+                    <option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option>
+                    <option value="2026" selected>2026</option><option value="2027">2027</option><option value="2028">2028</option>
+                </select>
+            </div>
+        </div>
 
-                        <div id="attendance-full-calendar-grid" class="flex-1 grid grid-cols-7 overflow-hidden">
-                        </div>
+        <!-- Calendar Grid Shell -->
+        <div id="attendance-calendar-shell">
+            <div class="attendance-weekdays-header">
+                <div class="weekday-cell">Sun</div>
+                <div class="weekday-cell">Mon</div>
+                <div class="weekday-cell">Tue</div>
+                <div class="weekday-cell">Wed</div>
+                <div class="weekday-cell">Thu</div>
+                <div class="weekday-cell">Fri</div>
+                <div class="weekday-cell">Sat</div>
+            </div>
 
-                    </div>
-                </section>
+            <div id="attendance-full-calendar-grid">
+            </div>
+
+            <!-- Mobile Collapsible Week Strip Bar -->
+            <div id="calendar-mobile-collapse-bar" class="calendar-mobile-collapse-bar">
+                <button type="button" id="calendar-mobile-prev-week-btn" class="calendar-mobile-nav-chevron-btn" onclick="if(typeof window.stepAttendanceWeek==='function')window.stepAttendanceWeek(-1);" title="Previous Week" aria-label="Previous Week">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" id="calendar-mobile-expand-toggle" class="calendar-mobile-expand-btn" onclick="if(typeof window.toggleMobileCalendarExpand==='function')window.toggleMobileCalendarExpand();" aria-label="Toggle full month view" aria-expanded="false">
+                    <span class="expand-btn-text"><i class="fa-solid fa-chevron-down"></i> <span id="calendar-mobile-expand-label">Full Month</span></span>
+                </button>
+                <button type="button" id="calendar-mobile-next-week-btn" class="calendar-mobile-nav-chevron-btn" onclick="if(typeof window.stepAttendanceWeek==='function')window.stepAttendanceWeek(1);" title="Next Week" aria-label="Next Week">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Section: White Panel Full Height Stretch -->
+    <aside id="calendar-right-panel">
+        <!-- Panel Header: Selected Date Display -->
+        <div class="calendar-panel-header">
+            <div class="calendar-panel-header-center">
+                <h3 id="calendar-right-panel-date">March 27, 2026</h3>
+                <p id="calendar-right-panel-day">Friday</p>
+            </div>
+        </div>
+
+        <!-- Panel Scrollable Body: Schedule, Classes & Tasks -->
+        <div id="calendar-right-panel-content" class="custom-scrollbar">
+            <!-- Injected dynamically by shared calendar engine -->
+        </div>
+
+        <!-- Panel Footer: Quick Actions -->
+        <div class="calendar-panel-footer">
+            <span id="calendar-right-panel-items-count">0 events</span>
+        </div>
+    </aside>
+</section>
         </main>
     </div>
 
@@ -1006,7 +1026,7 @@
     <div id="mobile-sigma-sheet" class="mobile-sigma-sheet">
         <div class="mobile-sigma-sheet__grab"></div>
         <div class="mobile-sigma-sheet__head">
-            <span class="mobile-sigma-sheet__title">SIGMA Analytics</span>
+            <span class="mobile-sigma-sheet__title">SIGMA AI Insights</span>
             <button type="button" id="mobile-sigma-sheet-close" class="mobile-sigma-sheet__close" aria-label="Close">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1291,32 +1311,48 @@
         </div>
     </div>
 
+
+
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
-    <script src="js/shared-components.js?v=20261006scoreSync20"></script>
-    <script src="js/topbar.js?v=20261005loadingfix1"></script>
+<script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
+<script src="js/shared-components.js?v=20261013taskHistory728"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
+    <script src="js/topbar.js?v=20261012silentPolling638"></script>
+    <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
     <script src="js/sidebar.js?v=20261003viewportreset1"></script>
-    <script src="js/notifications.js?v=20261004separateprefs1"></script>
+<script src="js/notifications.js?v=20261012notificationReset568"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
-    <script src="js/analytics-unread.js?v=20261003analyticsbadge1"></script>
-    <script src="js/calendar.js?v=20260929dateselect1"></script>
-    <script src="js/dialog.js?v=20261005quizStartDesktop1"></script>
+    <script src="js/analytics-unread.js?v=20261012insightsTitle531"></script>
+    <script src="js/calendar.js?v=20261011calendarDismiss346"></script>
+    <script src="js/dialog.js?v=20261012gradingDialog695"></script>
     <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
     <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/classroom-room.js?v=20261006fullWidthPAL4"></script>
+    <script src="js/classroom-room.js?v=20261011floatingCalendar345"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/announcements.js?v=20261005defaultAnnouncements1"></script>
-    <script src="js/quiz-creator.js?v=20260929dropdownfix1"></script>
-    <script src="js/sigma-analytics.js?v=20261006scoreSync20"></script>
+    <script src="js/announcements.js?v=20261012studentCommentBadge564"></script>
+    <script src="js/quiz-creator.js?v=20261011sharedQuestionUpload344"></script>
+    <script src="js/sigma-analytics.js?v=20261012deadline714"></script>
+    <script src="js/student-analytics.js?v=20261012aiChosenLinks530"></script>
+<script src="js/student-insight-view.js?v=20261010linkedInsights263"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261006fourQuarters4"></script>
+    <script src="js/subject-editor.js?v=20261011editorQuarters339"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/teacher.js?v=20261006fullWidthPAL7"></script>
-    <script src="js/curriculum-release.js?v=20261004assignedStudentsFlow1" data-initialize-after-dom="true"></script>
+    <script src="js/teacher.js?v=20261012deadline714"></script>
+    <script src="js/teacher-analytics.js?v=20261012aiChosenLinks530"></script>
+    <script src="js/ai-database-store.js?v=20261012accountSync639"></script>
+    <script src="js/analytics-ai-client.js?v=20261010liveAnalytics299"></script>
+    <script src="js/curriculum-release.js?v=20261012assessmentType631" data-initialize-after-dom="true"></script>
+    <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
+    <link rel="stylesheet" href="css/sigma-conversations.css?v=20261010restorePanel239">
+    <script src="js/sigma-conversations.js?v=20261010sharedChat255"></script>
+    <script src="js/ai-log-store.js?v=20261011database303"></script>
 </body>
 </html>

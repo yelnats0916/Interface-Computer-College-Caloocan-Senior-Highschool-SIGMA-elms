@@ -10,9 +10,10 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -116,6 +117,7 @@ try {
         }
 
         $action = trim($input['action'] ?? 'save');
+        protectServiceAdministratorAccounts($input);
 
         // ACTION: Deactivate User
         if ($action === 'deactivate') {
@@ -296,7 +298,7 @@ try {
                 `strand` = VALUES(`strand`),
                 " . ($avatar !== null ? "`avatar` = VALUES(`avatar`)," : "") . "
                 `permissions` = VALUES(`permissions`),
-                `is_deleted` = 0
+                `is_deleted` = `is_deleted`
         ";
 
         $stmt = $pdo->prepare($upsertSql);

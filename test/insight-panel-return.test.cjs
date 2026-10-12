@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname, '../js/student-insight-view.js'), 'utf8');
+assert.match(source, /returnPanel = button\.closest\('#analytics-dropdown'\)/);
+assert.match(source, /returnPanel\.classList\.remove\('hidden'\)/);
+assert.match(source, /feed\.scrollTop = returnPanelScroll/);
+assert.match(source, /header\.dataset\.activeMobilePanel = 'analytics'/);
+assert.match(source, /if \(event\.target\.closest\('a'\)\) \{ returnPanel = null; close\(\); \}/);
+assert.match(source, /event\.stopPropagation\(\)/);
+assert.equal(source.includes('openMobileTopPanel('), false, 'Returning must not re-render the filtered panel');
+console.log('Insight back restores its analytics panel without re-rendering; content links retain navigation');

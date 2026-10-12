@@ -207,7 +207,7 @@
                     No Analytics Insights Yet
                 </h5>
                 <p class="text-[11px] font-medium text-black-fade leading-relaxed max-w-[220px]">
-                    SIGMA AI tracks your performance, quizzes, and coursework. SIGMA Analytics will automatically appear here once grades and assessments are recorded.
+                    SIGMA AI tracks your performance, quizzes, and coursework. SIGMA AI Insights will automatically appear here once grades and assessments are recorded.
                 </p>
             </div>
         `;
@@ -723,6 +723,9 @@
         if (location.pathname.toLowerCase().includes('student')) {
             return window.SigmaStudentAnalytics?.getCards() || [];
         }
+        if (location.pathname.toLowerCase().includes('teacher')) {
+            return window.SigmaTeacherAnalytics?.getCards() || [];
+        }
         try {
             const raw = localStorage.getItem('sigma_user_pocket_cards');
             if (raw) {
@@ -831,7 +834,7 @@
             localStorage.removeItem('sigma_user_pocket_cards');
             initAllPocketCardRails();
             if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.showToast === 'function') {
-                window.SigmaAnnouncements.showToast('Cleared SIGMA Analytics to empty state.', 'info');
+                window.SigmaAnnouncements.showToast('Cleared SIGMA AI Insights to empty state.', 'info');
             }
         }
     };
@@ -844,16 +847,18 @@
 
     function renderSigmaGradeMonitoringCardHtml(data) {
         if (!data) return '';
+        const compactInsight = data.datePlacement === 'footer';
         return `
-            <div data-id="${data.id}" class="sigma-card pocket-card sigma-card--student pocket-card--student">
+            <div data-id="${data.id}" class="sigma-card pocket-card sigma-card--student pocket-card--student${compactInsight ? ' sigma-card--insight' : ''}">
                 <!-- Card Header: Category Icon + Concern Title (Title Case) + Date + Pin Button -->
-                <div class="bg-[#15803d] px-4 py-2 flex items-center justify-between flex-shrink-0 h-[38px] leading-none">
+                <div class="bg-[#15803d] px-4 py-2 flex items-center justify-between flex-shrink-0 h-[38px] leading-none${compactInsight ? ' sigma-insight-header' : ''}"${compactInsight ? ` onclick="if (!event.target.closest('.sigma-card-pin-btn, .pocket-card-pin-btn')) window.openStudentInsight?.(this.querySelector('.sigma-insight-open'));"` : ''}>
+                    ${compactInsight ? `<h4 class="sigma-insight-title"><button type="button" class="sigma-insight-open" aria-haspopup="dialog" onclick="event.stopPropagation(); window.openStudentInsight?.(this)"><i class="fa-solid ${data.categoryIcon} ${data.headerIconColor || 'text-[#FFD000]'}" aria-hidden="true"></i><span>${data.concernTitle}</span></button></h4>` : `
                     <div class="flex items-center gap-2 min-w-0">
                         <i class="fa-solid ${data.categoryIcon} ${data.headerIconColor || 'text-[#FFD000]'} text-[12.5px] flex-shrink-0"></i>
-                        <h4 class="text-[13px] font-bold text-white tracking-normal truncate leading-none">${data.concernTitle}</h4>
-                    </div>
-                    <div class="flex items-center gap-2 flex-shrink-0 leading-none">
-                        <span class="text-[10px] text-white/85 font-medium tracking-tight leading-none">${data.date}</span>
+                        <h4 class="text-[13px] font-bold text-white tracking-normal truncate leading-none">${compactInsight ? `<button type="button" class="sigma-insight-open" aria-haspopup="dialog" onclick="window.openStudentInsight?.(this)">${data.concernTitle}</button>` : data.concernTitle}</h4>
+                    </div>`}
+                    <div class="flex items-center gap-2 flex-shrink-0 leading-none${compactInsight ? ' sigma-insight-actions' : ''}">
+                        ${data.datePlacement !== 'footer' ? `<span class="text-[10px] text-white/85 font-medium tracking-tight leading-none">${data.date || ''}</span>` : ''}
                         <button type="button" class="sigma-card-pin-btn pocket-card-pin-btn" title="Pin to top">
                             <i class="fa-solid fa-thumbtack text-[9px]"></i>
                         </button>
@@ -863,27 +868,52 @@
                 <!-- Card Body: Aligned Subject Row + Hairline Divider + Clamped Body -->
                 <div class="sigma-card-body pocket-card-body">
                     <!-- Subject Title Row with Centered Icon Badge and Aligned Text -->
-                    <div class="flex items-center gap-2.5 pb-2 mb-1.5 border-b border-slate-100 w-full flex-shrink-0">
-                        <div class="w-8 h-8 rounded-lg ${data.subjectBadgeBg || 'bg-slate-50'} ${data.subjectIconColor || 'text-slate-700'} flex items-center justify-center flex-shrink-0 border ${data.subjectBadgeBorder || 'border-slate-100'}">
+                    ${!compactInsight ? `
+                    <div class="${compactInsight ? 'sigma-insight-subject' : 'flex items-center gap-2.5 pb-2 mb-1.5 border-b border-slate-100 w-full flex-shrink-0'}">
+                        <div class="${compactInsight ? 'sigma-insight-subject-icon' : `w-8 h-8 rounded-lg ${data.subjectBadgeBg || 'bg-slate-50'} ${data.subjectIconColor || 'text-slate-700'} flex items-center justify-center flex-shrink-0 border ${data.subjectBadgeBorder || 'border-slate-100'}`}">
                             <i class="fa-solid ${data.subjectIcon} text-xs"></i>
                         </div>
                         <div class="flex-1 min-w-0 flex flex-col justify-center text-left">
                             <h5 class="text-[11.5px] font-bold text-slate-900 leading-tight truncate">${data.subject}</h5>
-                            <p class="text-[9.5px] font-semibold text-[#15803d] leading-tight truncate mt-0.5">${data.concernHighlight}</p>
+                            ${data.concernHighlight ? `<p class="text-[9.5px] font-semibold text-[#15803d] leading-tight truncate mt-0.5">${data.concernHighlight}</p>` : ''}
                         </div>
                     </div>
 
-                    <!-- Concern Body Text: Left aligned, balanced weight, clamped to 3 lines -->
+                    ` : ''}
+                    <!-- Preserve the complete insight separately from its space-fitted preview. -->
+                    ${compactInsight ? '<div class="sigma-insight-preview">' : ''}
                     <p class="sigma-card-concern-text pocket-card-concern-text">
-                        ${data.concernText}
+                        ${compactInsight ? (data.previewText || data.concernText.replace(/<br\s*\/?>/gi, ' ')) : data.concernText}
                     </p>
+                    ${compactInsight ? '</div>' : ''}
+                    ${compactInsight ? `<template class="sigma-insight-full-content">${data.concernText}</template>` : ''}
                 </div>
 
+                ${data.datePlacement === 'footer' && data.date ? `<div class="sigma-card-date">${data.date}</div>` : ''}
                 <!-- Bottom Accent Line -->
                 <div class="mt-auto h-[2px] w-full bg-[#15803d] flex-shrink-0"></div>
             </div>
         `;
     }
+
+    window.renderSigmaReadOnlyInsightCard = function (data) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderSigmaGradeMonitoringCardHtml(data);
+        const card = wrapper.firstElementChild;
+        card.classList.add('sigma-card--report');
+        card.querySelectorAll('[onclick]').forEach(node => node.removeAttribute('onclick'));
+        card.querySelectorAll('.sigma-card-pin-btn').forEach(node => node.remove());
+        card.querySelectorAll('.sigma-insight-open').forEach(button => {
+            const title = document.createElement('span');
+            title.className = 'sigma-insight-open';
+            while (button.firstChild) title.append(button.firstChild);
+            button.replaceWith(title);
+        });
+        const preview = card.querySelector('.sigma-insight-preview');
+        const full = card.querySelector('.sigma-insight-full-content');
+        if (preview && full) { preview.replaceChildren(full.content.cloneNode(true)); full.remove(); }
+        return card;
+    };
 
     function createSigmaCardElement(data) {
         const wrapper = document.createElement('div');
@@ -920,7 +950,8 @@
     function initPocketCardsContainer(container, adminActiveItems = null) {
         if (!container) return;
 
-        const containerId = container.id || 'sigma-analytics-rail';
+        const isMobileAnalytics = container.id === 'analytics-dropdown-cards';
+        const containerId = isMobileAnalytics ? 'sigma-panels-container' : (container.id || 'sigma-analytics-rail');
         const isAdmin = containerId === 'dashboard-metrics-container';
 
         // 1. Destroy Sortable if present
@@ -934,11 +965,11 @@
         // 2. Ensure header exists above container
         let headerEl = container.previousElementSibling;
         if (headerEl?.classList.contains('sigma-analysis-status')) headerEl = headerEl.previousElementSibling;
-        if (!headerEl || (!headerEl.classList.contains('sigma-rail-header') && !headerEl.classList.contains('pocket-rail-header'))) {
+        if (!isMobileAnalytics && (!headerEl || (!headerEl.classList.contains('sigma-rail-header') && !headerEl.classList.contains('pocket-rail-header')))) {
             headerEl = document.createElement('div');
             headerEl.className = 'sigma-rail-header pocket-rail-header';
 
-            const title = isAdmin ? 'System Metrics' : 'SIGMA Analytics';
+            const title = isAdmin ? 'System Metrics' : 'SIGMA AI Insights';
 
             if (isAdmin) {
                 headerEl.innerHTML = `
@@ -951,28 +982,83 @@
                 headerEl.innerHTML = `
                     <span class="sigma-rail-header__title pocket-rail-header__title">${title}</span>
                     <button type="button" class="sigma-analyze-button" title="Analyze Now" aria-label="Analyze Now"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
-                    <button type="button" class="sigma-rail-header__see-all pocket-rail-header__see-all" title="View all SIGMA Analytics">See all</button>
+                    <button type="button" class="sigma-insight-search-toggle" title="Search insights" aria-label="Search insights"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
                 `;
             }
 
             container.parentNode.insertBefore(headerEl, container);
 
-            const seeAllBtn = headerEl.querySelector('.sigma-rail-header__see-all, .pocket-rail-header__see-all');
-            if (seeAllBtn) {
-                seeAllBtn.addEventListener('click', () => {
-                    const moreBtn = container.querySelector('.sigma-rail-more-btn, .pocket-rail-more-btn');
-                    if (moreBtn && !isExpanded) {
-                        moreBtn.click();
-                    }
-                });
-            }
+        }
+
+        if (!isAdmin && !headerEl.querySelector('.sigma-insight-search')) {
+            const search = document.createElement('form');
+            search.className = 'sigma-insight-search';
+            search.setAttribute('role', 'search');
+            search.innerHTML = '<input type="search" name="insight-search" placeholder="Search insights" aria-label="Search insights"><button type="button" class="sigma-insight-search-clear" title="Clear search" aria-label="Clear insight search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><button type="submit" class="sigma-insight-search-submit" title="Search insights" aria-label="Submit insight search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
+            headerEl.appendChild(search);
+            const input = search.querySelector('input');
+            const clearButton = search.querySelector('.sigma-insight-search-clear');
+            const clearSearch = () => {
+                input.value = '';
+                clearButton.hidden = true;
+                container.dataset.insightSearchQuery = '';
+                initPocketCardsContainer(container);
+                input.focus();
+            };
+            clearButton.addEventListener('click', clearSearch);
+            input.addEventListener('input', () => {
+                clearButton.hidden = !input.value;
+                if (!input.value) clearSearch();
+            });
+            const closeSearch = (restoreFocus = false) => {
+                headerEl.classList.remove('sigma-insight-searching');
+                if (restoreFocus) headerEl.querySelector('.sigma-insight-search-toggle')?.focus();
+            };
+            headerEl.querySelector('.sigma-insight-search-toggle')?.addEventListener('click', () => {
+                headerEl.classList.add('sigma-insight-searching');
+                input.focus();
+            });
+            search.addEventListener('submit', event => {
+                event.preventDefault();
+                container.dataset.insightSearchQuery = input.value.trim().toLocaleLowerCase();
+                initPocketCardsContainer(container);
+            });
+            search.addEventListener('focusout', () => {
+                setTimeout(() => { if (!search.contains(document.activeElement)) closeSearch(); }, 0);
+            });
+            document.addEventListener('pointerdown', event => {
+                if (headerEl.classList.contains('sigma-insight-searching') && !search.contains(event.target)) closeSearch();
+            });
+            input.addEventListener('keydown', event => { if (event.key === 'Escape') closeSearch(true); });
         }
 
         // 3. Render initial cards for Student / Teacher if container is empty or needs refresh
-        const userCards = !isAdmin ? getDynamicUserPocketCards() : [];
+        const query = container.dataset.insightSearchQuery || '';
+        const pinnedOrder = !isAdmin ? getPinnedCardIds(containerId) : [];
+        const userCards = !isAdmin ? getDynamicUserPocketCards().filter(card => {
+            if (!query) return true;
+            const text = document.createElement('div');
+            text.innerHTML = [card.concernTitle, card.subject, card.subtitle, card.concernText, card.previewText].filter(Boolean).join(' ');
+            return text.textContent.toLocaleLowerCase().includes(query);
+        }).sort((a, b) => {
+            const rank = card => { const index = pinnedOrder.indexOf(card.id); return index < 0 ? pinnedOrder.length : index; };
+            return rank(a) - rank(b);
+        }) : [];
         if (!isAdmin) {
             if (!userCards || userCards.length === 0) {
-                container.innerHTML = renderPocketCardZeroStateHtml();
+                const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
+                const status = window.SigmaAiDatabase?.getStatus?.(kind);
+                if (status === 'loading') {
+                    if (document.documentElement.classList.contains('sigma-initial-loading')) {
+                        container.innerHTML = '<div class="sigma-batch-placeholder sigma-batch-placeholder--post" role="status" aria-label="Loading analytics" aria-busy="true"></div>';
+                    } else {
+                        container.innerHTML = renderPocketCardZeroStateHtml();
+                    }
+                } else if (status === 'error') {
+                    container.innerHTML = '<p class="sigma-insight-search-empty" role="status">Unable to load analytics. Refresh to try again.</p>';
+                } else {
+                    container.innerHTML = query ? '<p class="sigma-insight-search-empty" role="status">No matching insights</p>' : renderPocketCardZeroStateHtml();
+                }
             } else {
                 container.innerHTML = userCards.slice(0, 4).map(renderSigmaGradeMonitoringCardHtml).join('');
             }
@@ -991,7 +1077,7 @@
                 moreBtn.type = 'button';
                 moreBtn.className = 'sigma-rail-more-btn pocket-rail-more-btn';
                 moreBtn.innerHTML = `
-                    <span class="more-label">More</span>
+                    <span class="more-label">Show More</span>
                     <i class="fa-solid fa-chevron-down"></i>
                 `;
                 container.appendChild(moreBtn);
@@ -1018,7 +1104,7 @@
                         wireInteractiveSwitchers();
                     } else {
                         // Dynamically render extra Student/Teacher SIGMA cards (cards 5-8)
-                        const extraCards = getDynamicUserPocketCards().slice(4);
+                        const extraCards = userCards.slice(4);
                         extraCards.forEach(cardData => {
                             if (!container.querySelector(`[data-id="${cardData.id}"]`)) {
                                 const newCard = createSigmaCardElement(cardData);
@@ -1033,7 +1119,7 @@
                     // Remove dynamic extra cards
                     container.querySelectorAll('.dynamic-extra-card').forEach(el => el.remove());
                     const moreLabel = moreBtn.querySelector('.more-label');
-                    if (moreLabel) moreLabel.textContent = 'More';
+                    if (moreLabel) moreLabel.textContent = 'Show More';
                     moreBtn.classList.remove('is-expanded');
                     container.scrollTop = 0;
                 }
@@ -1050,57 +1136,6 @@
         // ═════════════════════════════════════════════════════════════════════
         // UNPIN CONFIRMATION MODAL
         // ═════════════════════════════════════════════════════════════════════
-        function showUnpinConfirmationModal(cardTitle, onConfirm) {
-            let modal = document.getElementById('sigma-card-unpin-modal') || document.getElementById('pocket-card-unpin-modal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'sigma-card-unpin-modal';
-                modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[99999]';
-                modal.innerHTML = `
-                    <div class="bg-white rounded-2xl p-5 max-w-xs w-full text-center shadow-2xl border border-slate-100 relative z-[100000]">
-                        <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
-                            <i class="fa-solid fa-thumbtack text-sm"></i>
-                        </div>
-                        <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider mb-1">Unpin this Card?</h4>
-                        <p id="unpin-modal-desc" class="text-[11px] text-slate-500 leading-relaxed mb-4 font-normal">
-                            Are you sure you want to unpin this card and return it to its standard position?
-                        </p>
-                        <div class="flex items-center gap-2">
-                            <button type="button" id="btn-cancel-unpin" class="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
-                                Cancel
-                            </button>
-                            <button type="button" id="btn-confirm-unpin" class="flex-1 py-2 bg-[#15803d] text-white rounded-xl text-[11px] font-bold hover:bg-[#166534] transition-colors shadow-xs cursor-pointer">
-                                Yes, Unpin
-                            </button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) modal.classList.add('hidden');
-                });
-            }
-
-            const descEl = modal.querySelector('#unpin-modal-desc');
-            if (descEl && cardTitle) {
-                descEl.textContent = `Are you sure you want to unpin "${cardTitle}" and return it to its standard position?`;
-            }
-
-            const cancelBtn = modal.querySelector('#btn-cancel-unpin');
-            const confirmBtn = modal.querySelector('#btn-confirm-unpin');
-
-            modal.classList.remove('hidden');
-
-            cancelBtn.onclick = () => {
-                modal.classList.add('hidden');
-            };
-
-            confirmBtn.onclick = () => {
-                modal.classList.add('hidden');
-                if (typeof onConfirm === 'function') onConfirm();
-            };
-        }
 
         function refreshPinButtons() {
             if (isAdmin) {
@@ -1151,16 +1186,14 @@
                     pinBtn.title = 'Pin to top (Max 2)';
                 }
 
-                // Bind click with confirmation on unpin
+                pinBtn.setAttribute('aria-label', pinBtn.title);
+                // Pinning is reversible, so both actions are immediate.
                 pinBtn.onclick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
 
                     if (isPinned) {
-                        const subjectTitle = card.querySelector('h5, h4')?.textContent?.trim() || 'this card';
-                        showUnpinConfirmationModal(subjectTitle, () => {
-                            executeUnpin(cardId);
-                        });
+                        executeUnpin(cardId);
                     } else if (!isMaxPinned) {
                         executePin(cardId);
                     }
@@ -1236,14 +1269,16 @@
         sortPinnedCards();
         refreshPinButtons();
 
-        window.addEventListener('sigma:refresh-pocket-cards', () => {
+        if (container._sigmaRefreshPins) {
+            window.removeEventListener('sigma:refresh-pocket-cards', container._sigmaRefreshPins);
+            window.removeEventListener('sigma:refresh-analytics-cards', container._sigmaRefreshPins);
+        }
+        container._sigmaRefreshPins = () => {
             sortPinnedCards();
             refreshPinButtons();
-        });
-        window.addEventListener('sigma:refresh-analytics-cards', () => {
-            sortPinnedCards();
-            refreshPinButtons();
-        });
+        };
+        window.addEventListener('sigma:refresh-pocket-cards', container._sigmaRefreshPins);
+        window.addEventListener('sigma:refresh-analytics-cards', container._sigmaRefreshPins);
     }
 
     function initAllPocketCardRails() {
@@ -1317,6 +1352,13 @@
     };
 
     const SigmaGradeEngine = {
+        getTransmutationRows() {
+            return DEPED_TRANSMUTATION_TABLE.map((tier, index) => ({
+                min: tier.min,
+                max: index === 0 ? 100 : Number((DEPED_TRANSMUTATION_TABLE[index - 1].min - 0.01).toFixed(2)),
+                grade: tier.grade
+            }));
+        },
         transmute(rawScore) {
             const num = Math.min(100, Math.max(0, Number(rawScore) || 0));
             for (const tier of DEPED_TRANSMUTATION_TABLE) {
@@ -2535,13 +2577,13 @@
                 ${quarters.map(q => {
                     const isActive = window.sigmaGradesState.activeQuarter === q;
                     return `
-                        <button type="button" onclick="window.switchAdminQuarter(${q})"
+                        <button type="button" onclick="window.switchAdminQuarter(${q})" aria-label="${quarterNames[q]}" aria-pressed="${isActive}"
                             class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                 isActive
                                 ? 'bg-white text-black shadow-xs border border-black/5'
                                 : 'text-black-fade hover:text-black hover:bg-slate-200/50'
                             }">
-                            ${quarterNames[q] || `Quarter ${q}`}
+                            <span class="sigma-quarter-long">${quarterNames[q] || `Quarter ${q}`}</span><span class="sigma-quarter-short">Q${q}</span>
                         </button>
                     `;
                 }).join('')}
@@ -3204,128 +3246,7 @@
     }
 
     function getAdminGradebookStudentItemScore(student, category, itemIdx, item, subjectId, quarter) {
-        const section = window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || '';
-        if (item && section) item = { ...item, section };
-        const itemCat = String(item?._category || item?.category || item?.type || (item?.quizId ? 'quiz' : '') || category || '').trim().toLowerCase();
-        const normCat = (itemCat === 'pt' || itemCat === 'perf. task') ? 'perf. task' : itemCat;
-        const hasActualSubmission = (typeof window.studentHasAssessmentSubmission === 'function' && item)
-            ? window.studentHasAssessmentSubmission(student, item, subjectId, normCat)
-            : false;
-
-        const isQuizItem = Boolean(
-            normCat.includes('quiz') || item?._category === 'quiz' || item?.category === 'quiz' || item?.type === 'quiz' || item?.quizId || /quiz/i.test(item?.title || item?.name || '')
-        );
-
-        if (typeof window.getEffectiveAssessmentStatusAndScore === 'function') {
-            try {
-                const eff = window.getEffectiveAssessmentStatusAndScore(student, normCat, itemIdx, subjectId, quarter, item);
-                if (eff && !eff.isAutoMissing) {
-                    if (eff.status === 'missing' || eff.status === 'absent') {
-                        if (eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
-                            return Number(eff.score);
-                        }
-                        return null;
-                    }
-                    if (eff.isManualOverride || eff.teacherSaved) {
-                        if (eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
-                            return Number(eff.score);
-                        }
-                    }
-                    if (eff.isFromSubmission && hasActualSubmission) {
-                        if (eff.score !== undefined && eff.score !== null && eff.score !== '' && eff.score !== '-' && !isNaN(Number(eff.score))) {
-                            return Number(eff.score);
-                        }
-                    }
-                }
-            } catch (e) {}
-        }
-        if (isQuizItem && !hasActualSubmission) {
-            return null;
-        }
-        try {
-            const storageKeys = ['sigma-teacher-gradebook-scores-v2', 'sigma_gradebook_scores', 'gradebookScores', 'sigma-gradebook-scores'];
-            let scoresObj = typeof window._getTeacherGradebookCached === 'function'
-                ? window._getTeacherGradebookCached().scores : null;
-            for (const k of scoresObj ? [] : storageKeys) {
-                const raw = localStorage.getItem(k);
-                if (raw) {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && typeof parsed === 'object') {
-                            scoresObj = parsed;
-                            break;
-                        }
-                    } catch (e) {}
-                }
-            }
-            if (scoresObj) {
-                const subKeys = (typeof window.getUnifiedSubjectAliases === 'function')
-                    ? window.getUnifiedSubjectAliases(subjectId)
-                    : [subjectId, String(subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase()].filter(Boolean);
-                const qKeys = [quarter, `Q${quarter}`, `q${quarter}`, String(quarter)];
-                const sectionName = (window.sigmaGradesState && (window.sigmaGradesState.selectedSection || window.sigmaGradesState.selectedSubjectSection?.sectionName))
-                    || (typeof gradebookState !== 'undefined' ? gradebookState.selectedSection : '')
-                    || '';
-                const cleanSec = String(sectionName).replace(/^grade\s*\d+\s*-\s*/i, '').trim().toLowerCase();
-                const secKeys = Array.from(new Set([
-                    sectionName ? ('sec:' + String(sectionName).trim().toLowerCase()) : '',
-                    cleanSec ? ('sec:' + cleanSec) : ''
-                ].filter(Boolean)));
-                const sKeys = (typeof window.getStudentFullAliases === 'function')
-                    ? window.getStudentFullAliases(student)
-                    : [student.id, student.name, student.fullName, String(student.id || '').replace(/^std-/, ''), `std-${student.id}`, student.lrn].filter(Boolean);
-                const catKeys = [];
-                if (normCat.includes('assign') || normCat === 'task' || normCat === 'tasks') {
-                    ['assignment', 'assignments', 'task', 'tasks', 'Assignment', 'Assignments'].forEach(k => { if (!catKeys.includes(k)) catKeys.push(k); });
-                } else if (normCat.includes('quiz')) {
-                    ['quiz', 'quizzes', 'Quiz', 'Quizzes'].forEach(k => { if (!catKeys.includes(k)) catKeys.push(k); });
-                } else if (normCat.includes('activ')) {
-                    ['activity', 'activities', 'Activity', 'Activities'].forEach(k => { if (!catKeys.includes(k)) catKeys.push(k); });
-                } else if (normCat.includes('perf') || normCat === 'pt') {
-                    ['perf. task', 'performance', 'pt', 'performanceTasks', 'Performance Task', 'Performance'].forEach(k => { if (!catKeys.includes(k)) catKeys.push(k); });
-                } else if (normCat.includes('qa') || normCat.includes('exam')) {
-                    ['qa', 'exam', 'QA', 'Exam'].forEach(k => { if (!catKeys.includes(k)) catKeys.push(k); });
-                } else {
-                    catKeys.push(category);
-                    catKeys.push(normCat);
-                }
-
-                let zeroFallback = null;
-                for (const sb of subKeys) {
-                    for (const qk of qKeys) {
-                        for (const sk of sKeys) {
-                            for (const ck of catKeys) {
-                                const quarterScores = scoresObj[sb]?.[qk];
-                                const hasSections = Object.keys(quarterScores || {}).some(key => key.startsWith('sec:'));
-                                const directScores = hasSections ? undefined : quarterScores?.[sk];
-                                let val = directScores?.[ck]?.[itemIdx] ?? directScores?.[ck]?.[String(itemIdx)];
-                                for (const secK of secKeys) {
-                                    const secScores = scoresObj[sb]?.[qk]?.[secK]?.[sk];
-                                    const sVal = secScores?.[ck]?.[itemIdx] ?? secScores?.[ck]?.[String(itemIdx)];
-                                    if (sVal !== undefined && sVal !== null && sVal !== '' && sVal !== '-' && !isNaN(Number(sVal))) {
-                                        val = sVal;
-                                        break;
-                                    }
-                                }
-                                if (val === undefined || val === null || val === '' || val === '-' || isNaN(Number(val))) continue;
-                                if (Number(val) !== 0) return Number(val);
-                                if (zeroFallback === null) zeroFallback = 0;
-                            }
-                        }
-                    }
-                }
-                if (zeroFallback !== null) return zeroFallback;
-            }
-        } catch (e) {}
-
-        if (hasActualSubmission && typeof window.readScorePanelPoints === 'function') {
-            const panelScore = window.readScorePanelPoints(student, item, subjectId);
-            if (panelScore !== null && panelScore !== undefined && !isNaN(Number(panelScore))) {
-                return Number(panelScore);
-            }
-        }
-
-        return null;
+        return window.getGradebookStudentItemScore(student, category, itemIdx, item, subjectId, quarter);
     }
     window.getAdminGradebookStudentItemScore = getAdminGradebookStudentItemScore;
     window.getAdminGradebookAssessmentItems = getAdminGradebookAssessmentItems;
@@ -3343,7 +3264,6 @@
             ? 'perf. task'
             : ((currentView === 'ww' || currentView === 'ww-sub' || currentView === 'written works') ? 'ww' : currentView);
         const items = getAdminGradebookAssessmentItems(detailCategory, quarter, subjectId, section) || [];
-        const totalHPS = items.reduce((sum, item) => sum + (Number(item.max || item.points) || 0), 0) || 100;
         const idEl = tr.querySelector('.gradebook-student-id');
         const nameEl = tr.querySelector('.gradebook-student-name') || tr.querySelector('td:first-child p');
         const student = {
@@ -3351,6 +3271,7 @@
             name: nameEl ? nameEl.textContent.trim() : (override?.studentName || '')
         };
         let rowSum = 0;
+        let scoredHPS = 0;
         let hasAny = false;
         items.forEach((item, allIdx) => {
             const itemCat = item._category || item.category || detailCategory;
@@ -3362,8 +3283,9 @@
             } else {
                 score = getAdminGradebookStudentItemScore(student, itemCat, itemIdx, item, subjectId, quarter);
             }
-            if (score !== null && score !== undefined && !isNaN(Number(score))) {
+            if (score !== null && score !== undefined && String(score).trim() !== '' && String(score).trim() !== '-' && Number.isFinite(Number(score))) {
                 rowSum += Number(score);
+                scoredHPS += Number(item.max || item.points) || 0;
                 hasAny = true;
             }
         });
@@ -3377,7 +3299,7 @@
             return true;
         }
         totalCell.textContent = String(Number(rowSum.toFixed(1)));
-        const pct = totalHPS > 0 ? ((rowSum / totalHPS) * 100).toFixed(2) : '0.00';
+        const pct = scoredHPS > 0 ? ((rowSum / scoredHPS) * 100).toFixed(2) : '0.00';
         pctCell.textContent = pct + '%';
         return true;
     };
@@ -3389,8 +3311,72 @@
         window.sigmaGradesState.mobileGradesExpanded = expanded;
         button.setAttribute('aria-expanded', String(expanded));
         button.title = expanded ? 'Hide Initial Grade and Quarterly Grade' : 'Show Initial Grade and Quarterly Grade';
+        button.setAttribute('aria-label', button.title);
         button.querySelector('i').className = `fa-solid fa-chevron-${expanded ? 'left' : 'right'}`;
         table.parentElement.scrollLeft = 0;
+    };
+
+    window.navigateMobileGradebookAssessment = function (direction) {
+        const table = document.getElementById('admin-gradebook-spreadsheet');
+        if (!table?.classList.contains('gb-detail-table')) return;
+        const count = Number(table.dataset.assessmentCount) || 0;
+        const index = Number(table.dataset.mobileAssessmentIndex) || 0;
+        const next = Math.max(0, Math.min(count - 1, index + direction));
+        if (!count || next === index) return;
+        window.sigmaGradesState.assessmentPage = Math.floor(next / 4);
+        window.sigmaGradesState.mobileAssessmentSlot = next % 4;
+        window.renderAdminGradebookWorkspace();
+    };
+
+    window.updateGradebookAssessmentNavigation = function () {
+        const mobile = window.matchMedia('(max-width: 768px)').matches;
+        document.querySelectorAll('.gb-detail-table .gb-responsive-assessment-nav').forEach(button => {
+            button.disabled = button.dataset[mobile ? 'mobileDisabled' : 'desktopDisabled'] === 'true';
+        });
+    };
+    window.navigateResponsiveGradebookAssessment = function (direction) {
+        if (window.matchMedia('(max-width: 768px)').matches) window.navigateMobileGradebookAssessment(direction);
+        else window.navigateGradebookAssessmentPage(direction);
+    };
+    window.matchMedia('(max-width: 768px)').addEventListener('change', window.updateGradebookAssessmentNavigation);
+
+    window.toggleMobileAssessmentSummary = function (button) {
+        const table = button.closest('.gb-detail-table');
+        if (!table) return;
+        const expanded = table.classList.toggle('gb-detail-summary');
+        window.sigmaGradesState.mobileAssessmentSummary = expanded;
+        button.setAttribute('aria-expanded', String(expanded));
+        button.querySelector('span').textContent = expanded ? 'Assessments' : 'Summary';
+        const chevron = button.querySelector('i');
+        chevron.classList.toggle('fa-chevron-left', expanded);
+        chevron.classList.toggle('fa-chevron-right', !expanded);
+        button.title = expanded ? 'Show assessments' : 'Show Total and Score %';
+        table.parentElement.scrollLeft = 0;
+    };
+
+    window.setMobileAssessmentView = function (button, summary) {
+        const container = button.closest('.gb-detail-workspace');
+        const table = container?.querySelector('.gb-detail-table');
+        if (!table) return;
+        table.classList.toggle('gb-detail-summary', summary);
+        window.sigmaGradesState.mobileAssessmentSummary = summary;
+        container.querySelectorAll('[data-mobile-assessment-view]').forEach(control => {
+            control.setAttribute('aria-pressed', String((control.dataset.mobileAssessmentView === 'summary') === summary));
+        });
+        container.scrollLeft = 0;
+    };
+
+    const mobileGradeStatusLegend = () => '<div class="gb-mobile-status-key gb-status-key" aria-label="Score status key"><span><i class="gb-key-swatch gb-key-missing"></i>Missing</span><span><i class="gb-key-swatch gb-key-absent"></i>Absent</span><span><i class="gb-key-swatch gb-key-incomplete"></i>Incomplete</span><span><i class="gb-key-swatch gb-key-excuse"></i>Excuse</span></div>';
+
+    window.toggleMobileGradebookSummary = function (button) {
+        const container = button.closest('.gb-summary-workspace');
+        const table = container?.querySelector('#admin-gradebook-spreadsheet');
+        if (!table) return;
+        const overview = table.classList.contains('gb-overview-table');
+        const selected = table.classList.toggle(overview ? 'gb-totals-expanded' : 'gb-detail-summary');
+        window.sigmaGradesState[overview ? 'mobileGradesExpanded' : 'mobileAssessmentSummary'] = selected;
+        button.setAttribute('aria-pressed', String(selected));
+        container.scrollLeft = 0;
     };
 
     window.setSigmaGradebookView = function (view) {
@@ -3400,6 +3386,8 @@
         }
         window.sigmaGradesState.currentView = normalizedView;
         window.sigmaGradesState.assessmentPage = 0;
+        window.sigmaGradesState.mobileAssessmentSlot = 0;
+        window.sigmaGradesState.mobileAssessmentSummary = false;
         if (typeof gradebookState !== 'undefined' && gradebookState) {
             gradebookState.currentView = normalizedView;
             gradebookState.assessmentPage = 0;
@@ -3606,17 +3594,18 @@
                     }
                 } catch (e) {}
 
-                const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${Number(wwVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-                const ptDisplay = (ptVal !== null && ptVal !== undefined) ? `${Number(ptVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-                const qaDisplay = (qaVal !== null && qaVal !== undefined) ? `${Number(qaVal).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * wwWeight).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const ptDisplay = (ptVal !== null && ptVal !== undefined) ? `${(Number(ptVal) * ptWeight).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                const qaDisplay = (qaVal !== null && qaVal !== undefined) ? `${(Number(qaVal) * qaWeight).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
                 let initialGrade = null;
                 if (wwVal !== null || ptVal !== null || qaVal !== null) {
                     let tot = 0;
-                    if (wwVal !== null) tot += Number(wwVal) * wwWeight;
-                    if (ptVal !== null) tot += Number(ptVal) * ptWeight;
-                    if (qaVal !== null) tot += Number(qaVal) * qaWeight;
-                    initialGrade = tot;
+                    let availableWeight = 0;
+                    if (wwVal !== null && wwVal !== undefined) { tot += Number(wwVal) * wwWeight; availableWeight += wwWeight; }
+                    if (ptVal !== null && ptVal !== undefined) { tot += Number(ptVal) * ptWeight; availableWeight += ptWeight; }
+                    if (qaVal !== null && qaVal !== undefined) { tot += Number(qaVal) * qaWeight; availableWeight += qaWeight; }
+                    initialGrade = availableWeight > 0 ? tot : null;
                 }
 
                 const initialDisplay = initialGrade !== null ? `${Number(initialGrade).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
@@ -3647,7 +3636,8 @@
             }).join('');
 
             workspaceContainer.innerHTML = `
-                <div class="flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-10">
+                <div class="gb-summary-workspace flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-10">
+                    <div class="gb-mobile-view-switch">${mobileGradeStatusLegend()}<button type="button" aria-label="Grade summary" aria-pressed="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-plus"></i><i class="fa-solid fa-chevron-down"></i></span></button></div>
                     <table id="admin-gradebook-spreadsheet" class="gb-overview-table ${window.sigmaGradesState.mobileGradesExpanded ? 'gb-totals-expanded' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                         <colgroup>
                             <col style="width: 25%; min-width: 240px;">
@@ -3669,7 +3659,6 @@
                                             title="Sort students roster">
                                             <i class="fa-solid ${sortIconClass} text-xs pointer-events-none"></i>
                                         </button>
-                                        <button type="button" class="gb-mobile-totals-toggle" title="Show Initial Grade and Quarterly Grade" aria-expanded="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradeTotals(this)"><span>Grades</span><i class="fa-solid fa-chevron-${window.sigmaGradesState.mobileGradesExpanded ? 'left' : 'right'}" aria-hidden="true"></i></button>
                                     </div>
                                 </th>
                                 <th class="gb-mobile-total bg-[#15803d] text-white text-center"><span>Initial<br>Grade</span></th>
@@ -3678,8 +3667,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('ww')" aria-label="View Written Works breakdown" title="View Written Works breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Written Works"><span class="gb-component-full">Written Works</span><span class="gb-component-short">WW%</span></span>
-                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Written Works Weighted Score"><span class="gb-component-full">Written Works (WS)</span><span class="gb-component-short">WW WS</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.ww}%</span>
                                     </div>
@@ -3688,8 +3676,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('pt')" aria-label="View Performance Task breakdown" title="View Performance Task breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Performance Task"><span class="gb-component-full">Performance Task</span><span class="gb-component-short">PT%</span></span>
-                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Performance Task Weighted Score"><span class="gb-component-full">Performance Task (WS)</span><span class="gb-component-short">PT WS</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.pt}%</span>
                                     </div>
@@ -3698,8 +3685,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('qa')" aria-label="View Quarterly Assessment breakdown" title="View Quarterly Assessment breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Quarterly Assessment"><span class="gb-component-full">Quarterly Assessment</span><span class="gb-component-short">QA%</span></span>
-                                            <span class="gb-component-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right text-[11px] pointer-events-none"></i></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Quarterly Assessment Weighted Score"><span class="gb-component-full">Quarterly Assessment (WS)</span><span class="gb-component-short">QA WS</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.qa}%</span>
                                     </div>
@@ -3764,9 +3750,13 @@
 
         const startIndex = currentPage * PAGE_SIZE;
         const visibleItems = items.slice(startIndex, startIndex + PAGE_SIZE);
+        const mobileSlot = Math.max(0, Math.min(Number(window.sigmaGradesState.mobileAssessmentSlot) || 0, Math.max(0, visibleItems.length - 1)));
+        const mobileIndex = startIndex + mobileSlot;
+        const mobileSummary = Boolean(window.sigmaGradesState.mobileAssessmentSummary);
 
         const rowsHtml = students.map((s) => {
             let rowScoreSum = 0;
+            let scoredHPS = 0;
             let rowHasAny = false;
             const itemScores = new Map();
 
@@ -3776,8 +3766,9 @@
                 const itIdx = (it.itemIdx !== undefined) ? it.itemIdx : allIdx;
                 const sc = getAdminGradebookStudentItemScore(s, itCat, itIdx, it, subSec.subject, currentQ);
                 itemScores.set(it, sc);
-                if (sc !== null && sc !== undefined && !isNaN(Number(sc))) {
+                if (sc !== null && sc !== undefined && String(sc).trim() !== '' && String(sc).trim() !== '-' && Number.isFinite(Number(sc))) {
                     rowScoreSum += Number(sc);
+                    scoredHPS += Number(it.max || it.points) || 0;
                     rowHasAny = true;
                 }
             });
@@ -3812,12 +3803,14 @@
                     const topicItemAttr = (it.topicItemIdx !== undefined && it.topicItemIdx !== null) ? it.topicItemIdx : itIdx;
                     const taskTitle = String(it.title || itemSource.title || itemSource.name || `${categoryTitle} #${startIndex + slotIdx + 1}`).replace(/"/g, '&quot;');
                     const hasRecordedScore = (rawScore !== null && clampedScore !== '');
-                    const isSubmitted = hasRecordedScore || hasSubmission || Boolean(mark);
+                    const isSubmitted = typeof window.findAssessmentSubmittedWork === 'function'
+                        ? Boolean(window.findAssessmentSubmittedWork(s, it, it.subjectId || subSec.subject, subSec.sectionName, currentQ))
+                        : hasSubmission;
                     const isQuizItem = Boolean(itCat.includes('quiz') || it.quizId || itemSource.quizId || /quiz/i.test(taskTitle));
                     const lockTitle = isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading';
-                    if (!isSubmitted) {
+                    if (!isSubmitted && !hasRecordedScore && !window.resolveNoDeadlineAssessment?.(it, it.subjectId || subSec.subject, subSec.sectionName, currentQ)) {
                         itemCellsHtml += `
-                        <td class="gradebook-task-cell px-1 py-3 text-center border-b border-black/[0.08] text-xs md:text-sm font-normal align-middle gb-data-cell text-black/40 cursor-not-allowed select-none transition-colors"
+                        <td class="gradebook-task-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} px-1 py-3 text-center border-b border-black/[0.08] text-xs md:text-sm font-normal align-middle gb-data-cell text-black/40 cursor-not-allowed select-none transition-colors"
                             data-locked="1"
                             data-unsubmitted="1"
                             data-student-id="${studentId}"
@@ -3840,7 +3833,7 @@
                     `;
                     } else {
                         itemCellsHtml += `
-                        <td class="gradebook-task-cell px-1 py-3 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold align-middle gb-data-cell cursor-text ${mark ? `gb-cell-${mark.tone} gradebook-status-${mark.tone}` : ''}"
+                        <td class="gradebook-task-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} px-1 py-3 text-center border-b border-black/[0.08] text-xs md:text-sm font-bold align-middle gb-data-cell cursor-text ${mark ? `gb-cell-${mark.tone} gradebook-status-${mark.tone}` : ''}"
                             data-locked="0"
                             data-unsubmitted="0"
                             data-score="${clampedScore}"
@@ -3868,13 +3861,13 @@
                     `;
                     }
                 } else {
-                    itemCellsHtml += `<td class="gradebook-task-cell gb-empty-cell border-b border-black/[0.08]"></td>`;
+                    itemCellsHtml += `<td class="gradebook-task-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} gb-empty-cell border-b border-black/[0.08]"></td>`;
                 }
             }
 
             const totalDisplay = rowHasAny ? rowScoreSum : null;
-            const pctDisplay = (totalDisplay !== null && totalHPS > 0)
-                ? Math.max(0, Math.min(100, (totalDisplay / totalHPS) * 100)).toFixed(2)
+            const pctDisplay = (totalDisplay !== null && scoredHPS > 0)
+                ? Math.max(0, Math.min(100, (totalDisplay / scoredHPS) * 100)).toFixed(2)
                 : null;
 
             return `
@@ -3924,9 +3917,9 @@
                        </span>`;
 
                 taskHeadersHtml += `
-                    <th class="gradebook-task-header-cell ${isFake ? '' : 'gb-component-header'} bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
+                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} ${isFake ? '' : 'gb-component-header'} bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
                         ${isFake ? '' : `<button type="button" class="gb-component-cell-button" aria-label="${escapeHtml('Open assessment: ' + rawTitle)}" title="${escapeHtml(topicFullTooltip)}" onclick="window.navigateToAssessmentFromGradebook('${itCat}', ${itIdx}, '${escapeHtml(subSec?.subject || '')}', '${escapeHtml(subSec?.sectionName || '')}')"></button>`}
-                        <div class="flex flex-col items-center justify-between w-full h-[58px] py-1 select-none font-['Inter']">
+                        <div class="gb-assessment-header-content flex flex-col items-center justify-between w-full h-[58px] py-1 select-none font-['Inter']">
                             <div class="flex items-center gap-1.5 leading-none">
                                 <span class="text-[10px] font-semibold text-white tracking-tight leading-none">${formattedDate}</span>
                                 ${topicTag ? `<span class="text-[9px] font-bold text-[#FFD000] bg-black/20 px-1.5 py-0.5 rounded tracking-tight leading-none">${topicTag}</span>` : ''}
@@ -3938,7 +3931,7 @@
                 `;
             } else {
                 taskHeadersHtml += `
-                    <th class="gradebook-task-header-cell bg-[#15803d]/80 cursor-default select-none gb-empty-cell rounded-none align-middle border-b border-[#166534]">
+                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} bg-[#15803d]/80 cursor-default select-none gb-empty-cell rounded-none align-middle border-b border-[#166534]">
                         <div class="flex flex-col items-center justify-center w-full h-[54px]"></div>
                     </th>
                 `;
@@ -3946,11 +3939,15 @@
         }
 
         workspaceContainer.innerHTML = `
-            <div class="flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-4 md:px-6 xl:px-8">
-                <table id="admin-gradebook-spreadsheet" class="w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
+            <div class="gb-summary-workspace gb-detail-workspace flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-4 md:px-6 xl:px-8">
+                <div class="gb-mobile-view-switch">
+                    ${mobileGradeStatusLegend()}
+                    <button type="button" data-mobile-assessment-view="summary" aria-label="Assessment summary" aria-pressed="${mobileSummary}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-plus"></i><i class="fa-solid fa-chevron-down"></i></span></button>
+                </div>
+                <table id="admin-gradebook-spreadsheet" data-assessment-count="${items.length}" data-mobile-assessment-index="${mobileIndex}" class="gb-detail-table ${mobileSummary ? 'gb-detail-summary' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                     <thead class="sticky top-0 z-30 bg-[#15803d] shadow-xs rounded-none border-b border-[#166534]">
                         <tr class="border-b border-[#166534] bg-[#15803d] rounded-none h-[52px]">
-                            <th class="w-[280px] min-w-[280px] max-w-[280px] px-3.5 py-3 bg-[#15803d] sticky left-0 z-40 select-none rounded-none align-middle border-b border-[#166534]">
+                            <th class="gb-detail-student-header w-[280px] min-w-[280px] max-w-[280px] px-3.5 py-3 bg-[#15803d] sticky left-0 z-40 select-none rounded-none align-middle border-b border-[#166534]">
                                 <div class="flex items-center justify-start gap-2.5 leading-none">
                                     <button type="button" onclick="window.setSigmaGradebookView('${backTarget}')" 
                                         class="gradebook-back-btn" 
@@ -3964,13 +3961,13 @@
                                 </div>
                             </th>
                             <th class="gb-thin-nav-col bg-[#15803d] cursor-default select-none align-middle border-b border-[#166534]">
-                                <button type="button" onclick="window.navigateGradebookAssessmentPage(-1)" class="gb-thin-nav-btn ${currentPage === 0 ? 'opacity-20 cursor-not-allowed pointer-events-none' : ''}" title="Previous Assessments">
+                                <button type="button" onclick="window.navigateResponsiveGradebookAssessment(-1)" class="gb-thin-nav-btn gb-responsive-assessment-nav" data-desktop-disabled="${currentPage === 0}" data-mobile-disabled="${mobileIndex === 0 || items.length === 0}" title="Previous Assessments" aria-label="Previous assessment">
                                     <i class="fa-solid fa-chevron-left text-[9px]"></i>
                                 </button>
                             </th>
                             ${taskHeadersHtml}
                             <th class="gb-col-divider gb-thin-nav-col bg-[#15803d] cursor-default select-none align-middle border-b border-[#166534]">
-                                <button type="button" onclick="window.navigateGradebookAssessmentPage(1)" class="gb-thin-nav-btn ${currentPage >= totalPages - 1 ? 'opacity-20 cursor-not-allowed pointer-events-none' : ''}" title="Next Assessments">
+                                <button type="button" onclick="window.navigateResponsiveGradebookAssessment(1)" class="gb-thin-nav-btn gb-responsive-assessment-nav" data-desktop-disabled="${currentPage >= totalPages - 1}" data-mobile-disabled="${mobileIndex >= items.length - 1}" title="Next Assessments" aria-label="Next assessment">
                                     <i class="fa-solid fa-chevron-right text-[9px]"></i>
                                 </button>
                             </th>
@@ -3994,6 +3991,7 @@
                 </table>
             </div>
         `;
+        window.updateGradebookAssessmentNavigation();
     };
 
     window.toggleAdminGradebookStudentSort = function(buttonEl, event) {
@@ -4231,6 +4229,11 @@
             if (detailRequest.assessmentPage !== undefined && detailRequest.assessmentPage !== null) {
                 state.assessmentPage = Number(detailRequest.assessmentPage) || 0;
             }
+            if (detailRequest.mobileAssessmentSlot !== undefined) {
+                state.mobileAssessmentSlot = Number(detailRequest.mobileAssessmentSlot) || 0;
+                state.mobileAssessmentSummary = false;
+            }
+            if (detailRequest.quarter) state.activeQuarter = Number(detailRequest.quarter);
             if (typeof gradebookState !== 'undefined' && gradebookState) {
                 gradebookState.currentView = state.currentView;
                 gradebookState.assessmentPage = state.assessmentPage || 0;
@@ -4446,6 +4449,13 @@
         }
     };
 
+    const renderGradesView = window.renderSigmaGradesView;
+    window.renderSigmaGradesView = function (...args) {
+        const run = () => renderGradesView.apply(this, args);
+        return typeof window.withGradebookReadCache === 'function'
+            ? window.withGradebookReadCache(run) : run();
+    };
+
     window.renderTeacherGradesView = function (targetContainerId = 'section-grades', options = {}) {
         return window.renderSigmaGradesView(targetContainerId, { ...options, isTeacherPage: true, role: 'teacher' });
     };
@@ -4458,6 +4468,7 @@
     window.renderAdminMetrics = renderAdminPocketCards;
     window.initAllPocketCardRails = initAllPocketCardRails;
     window.initAllSigmaAnalyticsRails = initAllPocketCardRails;
+    window.renderMobileInsightCards = () => initPocketCardsContainer(document.getElementById('analytics-dropdown-cards'));
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initAllPocketCardRails);

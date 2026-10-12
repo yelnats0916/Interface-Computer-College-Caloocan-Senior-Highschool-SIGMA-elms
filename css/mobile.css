@@ -17,6 +17,41 @@
  * 9. Mobile Login & Authentication Page Enhancements (index.html)
  */
 
+/* Content-sized mobile table pages; keep browser clearance outside the paper. */
+@media (max-width: 768px) {
+    :is(body, #layout-wrapper, #main-content, #admin-main, #content-sections):has(:is(
+        #section-grades:not(.hidden) #admin-grades-gradebook-view:not(.hidden),
+        #school-grades-view:not(.hidden) #admin-grades-gradebook-view:not(.hidden),
+        #section-classroom-detail:not(.hidden) #detail-section-attendance:not(.hidden),
+        #classroom-detail-view.dynamic-section:not(.hidden) #detail-section-attendance:not(.hidden)
+    )) {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        flex: 0 0 auto !important;
+        overflow-y: visible !important;
+        background: var(--admin-bg, #f8fafc) !important;
+    }
+
+    :is(#section-grades, #school-grades-view):has(#admin-grades-gradebook-view:not(.hidden)),
+    :is(#section-grades, #school-grades-view):has(#admin-grades-gradebook-view:not(.hidden)) > div,
+    #section-classroom-detail:has(#detail-section-attendance:not(.hidden)),
+    #section-classroom-detail:has(#detail-section-attendance:not(.hidden)) .classroom-room-container,
+    #section-classroom-detail:has(#detail-section-attendance:not(.hidden)) .classroom-detail-shell,
+    #classroom-detail-view.dynamic-section:has(#detail-section-attendance:not(.hidden)) {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        flex: 0 0 auto !important;
+    }
+
+    :is(#section-grades, #school-grades-view):not(.hidden):has(#admin-grades-gradebook-view:not(.hidden)),
+    #section-classroom-detail:not(.hidden):has(#detail-section-attendance:not(.hidden)),
+    #classroom-detail-view.dynamic-section:not(.hidden):has(#detail-section-attendance:not(.hidden)) {
+        margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+
 /* ==========================================================================
    1. GLOBAL RESPONSIVE CORE & LAYOUT WRAPPER (< 1024px)
    ========================================================================== */
@@ -46,6 +81,7 @@
     #content-sections,
     #section-home,
     #section-dashboard,
+    #section-attendance,
     #section-classroom-detail,
     #section-topic-content,
     #section-topic-detail,
@@ -60,6 +96,17 @@
         padding-top: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    body.calendar-page-mode,
+    body.calendar-page-mode #layout-wrapper,
+    body.calendar-page-mode #main-content,
+    body.calendar-page-mode #content-sections,
+    #section-attendance:not(.hidden) {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
         box-sizing: border-box !important;
     }
 
@@ -1257,7 +1304,7 @@
         opacity: 0.15 !important;
         right: -60px !important;
         bottom: -60px !important;
-        width: 220px !important;
+        width: 240px !important;
         height: 220px !important;
         pointer-events: none !important;
     }
@@ -2790,12 +2837,12 @@
         flex-shrink: 0 !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #topic-detail-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #topic-content-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
-    #assessments-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit) {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-detail-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #topic-content-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit),
+    #assessments-class-panel-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):not(.teacher-save-grade-btn):not(#teacher-grading-score-edit) {
         width: 100% !important;
         height: auto !important;
         min-height: 32px !important;
@@ -2818,16 +2865,16 @@
         text-overflow: ellipsis !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover,
-    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.teacher-view-gradebook-btn):hover {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):hover,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):hover,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):not(.teacher-view-gradebook-btn):hover {
         background: #f1f5f9 !important;
         border-color: transparent !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active,
-    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):active {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):active,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):active,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn):active {
         background: #e2e8f0 !important;
     }
 
@@ -2847,9 +2894,9 @@
         flex: 1 1 auto !important;
     }
 
-    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
-    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i,
-    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn) i {
+    .room-embedded-topics .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn) i,
+    .teacher-topic-progress-rail .topic-progress-card button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn) i,
+    [id$="-class-panel-card"] button:not(.sigma-btn):not(.grading-nav-btn):not(.desktop-grading-toggle-btn):not(.mobile-grade-minimize-btn):not(.mobile-grade-maximize-btn) i {
         font-size: 11.5px !important;
         color: #15803d !important;
         width: 14px !important;
@@ -3835,7 +3882,7 @@
     /* Attendance Calendar Popup: Scaled down on Mobile */
     .student-attendance-calendar-popup,
     .teacher-attendance-calendar-popup {
-        width: 240px !important;
+        width: 220px !important;
         max-width: calc(100vw - 28px) !important;
         padding: 10px 10px 8px 10px !important;
         border-radius: 16px !important;
@@ -4034,7 +4081,7 @@
         min-width: 20px !important;
         height: 20px !important;
         border-radius: 9999px !important;
-        background: rgba(255, 255, 255, 0.25) !important;
+        background: transparent !important;
         color: #ffffff !important;
         cursor: pointer !important;
         flex-shrink: 0 !important;
@@ -4570,7 +4617,7 @@
     .announcement-card .sigma-card-post-body {
         font-size: 13.5px !important;
         line-height: 1.55 !important;
-        color: #334155 !important;
+        color: #000000 !important;
         margin: 0 0 8px 0 !important;
     }
 
@@ -5062,7 +5109,7 @@
     .sigma-announcement-card p {
         font-size: clamp(12.5px, 3.2vw, 13.5px) !important;
         line-height: 1.55 !important;
-        color: #334155 !important;
+        color: #000000 !important;
         margin-top: 0 !important;
         margin-bottom: 0.5rem !important;
         word-break: break-word !important;
@@ -8253,7 +8300,7 @@
         white-space: normal !important;
         text-overflow: clip !important;
         overflow: visible !important;
-        display: -webkit-box !important;
+        display: none !important;
         -webkit-line-clamp: 3 !important;
         line-clamp: 3 !important;
         -webkit-box-orient: vertical !important;
@@ -8282,28 +8329,28 @@
         height: 26px !important;
     }
 
-    /* Small Scale Dropzone */
-    #import-dropzone {
+    /* Shared question upload surface for Generate and Import. */
+    .sigma-question-upload {
         padding: 12px 8px !important;
-        border-radius: 12px !important;
-        gap: 4px !important;
+        border-radius: 8px !important;
+        min-height: 104px;
+        gap: 6px !important;
     }
-    #import-dropzone .sigma-dropzone-icon-box {
+    .sigma-question-upload .sigma-question-upload-icon {
         width: 32px !important;
         height: 32px !important;
-        border-radius: 9px !important;
+        border-radius: 8px !important;
     }
-    #import-dropzone .sigma-dropzone-icon-box i {
-        font-size: 14px !important;
-    }
-    #import-dropzone p.text-sm,
-    #import-dropzone p[class*="text-xs sm:text-sm"] {
-        font-size: 11.5px !important;
-    }
-    #import-dropzone p.text-xs,
-    #import-dropzone p[class*="text-[10px]"] {
-        font-size: 9.5px !important;
-    }
+    .sigma-question-upload-icon i { font-size: 14px !important; }
+    .sigma-question-upload-title { font-size: 11.5px !important; line-height: 16px !important; }
+    .sigma-question-upload-meta { font-size: 9.5px !important; line-height: 14px !important; }
+    .sigma-question-file { padding: 8px 10px !important; }
+    .sigma-question-file > div:first-child > div:first-child { width: 36px !important; }
+    .sigma-question-file [id$="-file-icon-wrap"] { width: 28px !important; height: 28px !important; }
+    .sigma-question-file [id$="-file-icon"] { font-size: 12px !important; }
+    .sigma-question-file [id$="-file-badge"] { font-size: 8px !important; }
+    .sigma-question-file .sigma-file-panel-title { font-size: 12px !important; line-height: 16px !important; }
+    .sigma-question-file .sigma-file-panel-meta { font-size: 9.5px !important; line-height: 14px !important; }
 
     /* Small Scale Paste Textarea (Stretch above footer buttons) */
     #import-paste-section {
@@ -8507,32 +8554,6 @@
         gap: 8px !important;
     }
 
-    /* Small Scale AI Gen Dropzone */
-    #ai-gen-dropzone {
-        padding: 10px 8px !important;
-        border-radius: 12px !important;
-        gap: 4px !important;
-    }
-    #ai-gen-dropzone .sigma-dropzone-icon-box {
-        width: 30px !important;
-        height: 30px !important;
-        border-radius: 8px !important;
-    }
-    #ai-gen-dropzone .sigma-dropzone-icon-box i {
-        font-size: 13px !important;
-    }
-    #ai-gen-dropzone p[class*="text-xs sm:text-sm"] {
-        font-size: 11px !important;
-    }
-    #ai-gen-dropzone p[class*="text-[9.5px]"] {
-        font-size: 9px !important;
-    }
-
-    /* Small Scale AI Gen File Card */
-    #ai-gen-uploaded-file-card {
-        padding: 8px 10px !important;
-        border-radius: 12px !important;
-    }
 
     /* Small Scale Borrow Panel */
     #ai-borrow-trigger-btn {
@@ -10388,7 +10409,26 @@
     color: rgba(0, 0, 0, 0.45) !important;
 }
 
-/* Add/Edit Topics & Materials: keep mobile material icons identical to desktop. */
+/* Shared editor material shapes retain their desktop appearance. */
+/* Every custom calendar popup uses the same compact mobile surface. */
+@media (max-width: 768px) {
+    :is(#calendar-custom-month-picker, #attendance-page-month-picker, #teacher-attendance-calendar-popup, #student-attendance-calendar-popup, #sigma-field-picker.sigma-field-picker--calendar) {
+        width: 220px !important;
+        max-width: calc(100vw - 28px) !important;
+        padding: 10px 10px 8px !important;
+        border-radius: 16px !important;
+        top: calc(100% + 6px) !important;
+        box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.16), 0 3px 8px -2px rgba(0, 0, 0, 0.08) !important;
+    }
+    :is(#calendar-custom-month-picker, #attendance-page-month-picker, #teacher-attendance-calendar-popup, #student-attendance-calendar-popup, #sigma-field-picker.sigma-field-picker--calendar) .cal-picker-month-btn {
+        font-size: 11px !important;
+        padding: 6px 4px !important;
+    }
+    :is(#calendar-custom-month-picker, #attendance-page-month-picker, #teacher-attendance-calendar-popup, #student-attendance-calendar-popup, #sigma-field-picker.sigma-field-picker--calendar) .cal-picker-year-label {
+        font-size: 14px !important;
+    }
+}
+
 [id^="topic-dropdown-"] .material-panel-icon-group,
 [id^="topic-dropdown-"] .mat-icon-col {
     width: 60px !important;
@@ -10407,6 +10447,49 @@
 [id^="topic-dropdown-"] .material-panel-icon-group > div > i,
 [id^="topic-dropdown-"] .mat-icon-box i {
     font-size: 22px !important;
+    font-weight: 900 !important;
+}
+
+[id^="topic-dropdown-"] .mat-icon-box i::before { font-weight: 900 !important; }
+[id^="topic-dropdown-"] .mat-type-badge.text-red-600 { color: #dc2626 !important; }
+[id^="topic-dropdown-"] .mat-type-badge.text-blue-600 { color: #2563eb !important; }
+[id^="topic-dropdown-"] .mat-type-badge.text-amber-700 { color: #b45309 !important; }
+[id^="topic-dropdown-"] .mat-type-badge.text-emerald-700 { color: #047857 !important; }
+
+@media (max-width: 768px) {
+    [id^="topic-dropdown-"] .material-panel-icon-group,
+    body [id^="topic-dropdown-"] .sigma-black-fade-panel.sigma-black-fade-panel .material-panel-icon-group.mat-icon-col { width: 48px !important; min-width: 48px !important; gap: 4px !important; }
+    [id^="topic-dropdown-"] .material-panel-icon-group > div,
+    body [id^="topic-dropdown-"] .sigma-black-fade-panel.sigma-black-fade-panel .material-panel-icon-group.mat-icon-col > .mat-icon-box { width: 36px !important; height: 36px !important; min-width: 36px !important; border-radius: 8px !important; }
+    [id^="topic-dropdown-"] .material-panel-icon-group > div > i,
+    body [id^="topic-dropdown-"] .sigma-black-fade-panel.sigma-black-fade-panel .material-panel-icon-group.mat-icon-col > .mat-icon-box i { font-size: 18px !important; }
+}
+
+/* Shared mobile text actions; icon tools and pagination retain their own sizing. */
+@media (max-width: 768px) {
+    body button.sigma-btn:not(.btn-icon-only):not(.sigma-pagination-btn),
+    body a.sigma-btn:not(.btn-icon-only),
+    body .sigma-modal-footer button.sigma-modal-btn {
+        height: 36px !important;
+        min-height: 36px !important;
+        max-width: 100%;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 16px !important;
+        gap: 6px !important;
+        box-sizing: border-box !important;
+    }
+    body button.sigma-btn:not(.btn-icon-only) span,
+    body a.sigma-btn:not(.btn-icon-only) span {
+        font-size: inherit !important;
+        line-height: inherit !important;
+    }
+    body button.sigma-btn:not(.btn-icon-only) i,
+    body a.sigma-btn:not(.btn-icon-only) i {
+        font-size: 12px !important;
+    }
 }
 
 [id^="topic-dropdown-"] .material-panel-icon-group > span,
@@ -10417,4 +10500,8 @@
     padding: 2px 6px !important;
     border-radius: 4px !important;
     white-space: nowrap !important;
+}
+@media (max-width: 768px) {
+    [id^="topic-dropdown-"] .material-panel-icon-group > span,
+    body [id^="topic-dropdown-"] .sigma-black-fade-panel .material-panel-icon-group.mat-icon-col > .mat-type-badge { font-size: 10px !important; line-height: 14px !important; padding: 1px 4px !important; border-radius: 4px !important; }
 }
