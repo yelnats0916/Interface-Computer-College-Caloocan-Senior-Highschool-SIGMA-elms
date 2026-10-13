@@ -3452,7 +3452,7 @@ function initTeacherPortal() {
                     <!-- Form Body -->
                     <div class="sigma-modal-body">
                         <div class="max-w-3xl space-y-6">
-                            <p class="text-base text-black font-semibold leading-relaxed font-['Inter']">Choose which attendance records you would like to export to Microsoft Excel (.xlsx):</p>
+                            <p class="text-base text-black font-semibold leading-relaxed font-['Inter']">Choose which attendance records you would like to export (.xlsx):</p>
                             
                             <div class="space-y-4">
                                 <!-- Option 1: Current Month (Full Month) -->
@@ -3751,6 +3751,7 @@ function initTeacherPortal() {
                     }
                 }
 
+                window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel);
                 return { ws, sheetData };
             }
 
@@ -6705,6 +6706,9 @@ function initTeacherPortal() {
     function buildTopicContentPage(subjectId, topicIdx) {
         const page = document.getElementById('section-topic-content');
         if (!page) return;
+        if ((!page.children.length || !page.innerHTML.trim() || page.querySelector('.sigma-content-skeleton')) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
+            window.SigmaPageLoading.showContentSkeleton(page, 'topic-content');
+        }
 
         page.innerHTML = `
             <div class="teacher-topic-page-shell pt-0 px-0 pb-0 min-h-screen overflow-visible">
@@ -7374,11 +7378,18 @@ function initTeacherPortal() {
     };
 
     window.openTeacherAddTopicForm = function () {
+        const routeParts = String(window.location.hash || '').replace(/^#/, '').split(':');
+        const isTopicRoute = ['topic-content', 'topic', 'topic-detail'].includes(routeParts[0]);
+        const decodeRouteValue = value => { try { return decodeURIComponent(value || ''); } catch (_) { return value || ''; } };
+        const routeSubject = isTopicRoute ? decodeRouteValue(routeParts[1]) : '';
+        const routeSection = routeParts[0] === 'topic-content' && routeParts[5] && routeParts[5] !== 'submission'
+            ? decodeRouteValue(routeParts[5]) : '';
         window.closeManageCurriculumHub?.();
         const returnToMain = function () {
             window.closeManageCurriculumHub?.();
         };
-        const activeSec = (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
+        const activeSec = (isTopicRoute && (routeSection || currentTopicState?.selectedSection || window.currentTopicState?.selectedSection))
+            || (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName)
             || window.currentClassroomSectionName
             || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedSection : '')
             || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.selectedSection : '')
@@ -7386,7 +7397,9 @@ function initTeacherPortal() {
             || (typeof resolveTeacherActiveSection === 'function' ? resolveTeacherActiveSection() : '')
             || localStorage.getItem('sigma-active-classroom-section')
             || '';
-        const activeSubj = window.currentClassroomSubject
+        const activeSubj = routeSubject
+            || (isTopicRoute && (currentTopicState?.subjectId || window.currentTopicState?.subjectId))
+            || window.currentClassroomSubject
             || (typeof currentTopicState !== 'undefined' ? currentTopicState?.subjectId : '')
             || (typeof window.currentTopicState !== 'undefined' ? window.currentTopicState?.subjectId : '')
             || (typeof currentClassroomKey !== 'undefined' && currentClassroomKey ? currentClassroomKey.split('::')[1] : '')
@@ -10863,8 +10876,10 @@ function initTeacherPortal() {
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
-                                                        <i class="fa-solid fa-upload text-xs"></i> Upload Rubric
+                                                    <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
+                                                        <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                                                        <span class="sigma-rubric-upload-title">Upload Rubric</span>
+                                                        <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -12874,8 +12889,10 @@ function initTeacherPortal() {
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-upload text-xs"></i> Upload Rubric
+                        <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
+                            <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                            <span class="sigma-rubric-upload-title">Upload Rubric</span>
+                            <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
                         </button>
                     </div>
                 </div>
@@ -16426,7 +16443,7 @@ function initTeacherPortal() {
                                         <div>
                                             ${group.assessments.length > 0 ? `
                                                 <div class="divide-y divide-black/10">
-                                                    ${group.assessments.map(m => {
+                                                    ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(group.assessments) : group.assessments).map(m => {
                                                         const isHidden = releaseConfig.hiddenMaterialIds.map(String).includes(String(m.id));
                                                         const { icon, bg } = getAssessmentIconClass(m.type);
                                                         const dateText = formatDateText(releaseConfig.materialReleaseDates[m.id]);
@@ -16932,7 +16949,7 @@ function initTeacherPortal() {
                                                 `).join('')}
 
                                                 <!-- Assessment Materials -->
-                                                ${grp.assessments.map(m => `
+                                                ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(grp.assessments) : grp.assessments).map(m => `
                                                     <label class="picker-item-row picker-item-assessments p-3 hover:bg-black/[0.02] flex items-center justify-between gap-3.5 cursor-pointer transition-colors" data-picker-category="assessments">
                                                         <div class="flex items-center gap-3 min-w-0 flex-1">
                                                             <div class="w-7 h-7 rounded-lg ${m.type === 'Quiz' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'} border flex items-center justify-center shrink-0">
@@ -17795,6 +17812,9 @@ function initTeacherPortal() {
     };
 
     function _renderTopicContentMain() {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => _renderTopicContentMain());
+        }
         const page = document.getElementById('section-topic-content');
         if (!page) return;
 
@@ -18801,11 +18821,6 @@ function initTeacherPortal() {
 
         if (navId === 'nav-grades') {
             sectionFeatureInit.gradebook = true;
-            if (typeof window.renderTeacherGradesView === 'function') {
-                window.renderTeacherGradesView('section-grades');
-            } else if (typeof window.renderSigmaGradesView === 'function') {
-                window.renderSigmaGradesView('section-grades', { isTeacherPage: true, role: 'teacher' });
-            }
             return;
         }
     }
@@ -18815,12 +18830,19 @@ function initTeacherPortal() {
     }
 
     function showSection(id) {
+        hideAllSections();
         const earlyStyle = document.getElementById('early-dashboard-style');
         if (earlyStyle) earlyStyle.remove();
         document.documentElement.classList.remove('sigma-hash-navigating');
         document.getElementById('sigma-early-hash-style')?.remove();
         const sec = document.getElementById(id);
-        if (sec) sec.classList.remove('hidden');
+        if (sec) {
+            sec.classList.remove('hidden');
+            if ((!sec.children.length || !sec.innerHTML.trim()) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
+                const layout = window.SigmaPageLoading.resolveLayoutFromSectionId(id);
+                window.SigmaPageLoading.showContentSkeleton(sec, layout);
+            }
+        }
 
         // Strictly sync calendar selection state
         if (id === 'section-attendance') {
@@ -25997,6 +26019,9 @@ function initTeacherPortal() {
         } else if (subjectKey) {
             result = getAssessmentsForSubject(subjectKey, category, qKey, sectionKey);
         }
+        const offline = window.getOfflineAssessments?.(subjectKey, sectionKey, qKey, normCat === 'pt' ? 'perf. task' : normCat) || [];
+        result = [...result, ...offline.map(item => ({ ...item, itemIdx: -1, rawItem: item }))];
+        result.sort((a, b) => (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0));
         _categoryDetailsCache[cacheKey] = result;
         return result;
     }

@@ -2,6 +2,7 @@
     'use strict';
     const states = new Map(), pending = new Map();
     const failures = new Set();
+    const offline = new Set();
     let logs = [], logReady = false, importing = null;
     let retryNotBefore = 0;
     const actor = () => {
@@ -13,6 +14,7 @@
     async function request(name, input, get = false) {
         const response = await fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
             method: get ? 'GET' : 'POST', credentials: 'include',
+            ...(get && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': actor() },
             ...(get ? {} : { body: JSON.stringify(input) })
         });
@@ -20,6 +22,7 @@
         if (!response.ok || !result.success) {
             const error = new Error(result.error || 'Database request failed.');
             error.code = result.code;
+            error.status = response.status;
             throw error;
         }
         return result;
@@ -43,14 +46,39 @@
         failures.delete(storageKey);
         const load = (async () => {
             let result = await request('ai_records', { action: 'state', kind, userId: id }, true);
+            const queuedKey = storageKey + ':pending-sync';
+            let queued;
+            try { queued = JSON.parse(localStorage.getItem(queuedKey) || 'null'); } catch {}
+            if (queued && queued.actor === actor() && queued.revision === result.revision) {
+                result = await request('ai_records', { action: 'save_state', kind, userId: id, state: queued.state, revision: queued.revision });
+                localStorage.removeItem(queuedKey);
+            } else if (queued) {
+                localStorage.removeItem(queuedKey);
+                window.dispatchEvent(new CustomEvent('sigma:ai-database-error', { detail: 'Newer database insights were kept. The pending offline copy was not uploaded.' }));
+            }
             if (!result.exists) {
                 let legacy;
                 try { legacy = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
                 if (legacy) result = await request('ai_records', { action: 'save_state', kind, userId: id, state: { ...legacy, cards: legacy.cards || [] }, revision: 0 });
             }
             remember(kind, id, result);
+            offline.delete(storageKey);
             return result.state;
         })().catch(error => {
+            // Only the current owner can use an offline cache; authorization failures never fall back.
+            const unavailable = error.code === 'account_not_synced' || error instanceof TypeError || error.status >= 500;
+            if (unavailable && id === actor()) {
+                let cached;
+                try { cached = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
+                const state = cached && Array.isArray(cached.cards) ? cached : { cards: [] };
+                states.set(storageKey, { state, revision: states.get(storageKey)?.revision ?? null });
+                offline.add(storageKey);
+                const feedback = document.getElementById('ai-routing-feedback');
+                if (feedback) feedback.textContent = state.cards.length ? 'Offline: showing cached insights for this account.' : 'No saved insights for this account. Connect and sync it before generating insights.';
+                return state;
+            }
+            states.delete(storageKey);
+            offline.delete(storageKey);
             failures.add(storageKey);
             throw error;
         }).finally(() => {
@@ -63,7 +91,20 @@
     async function saveState(kind, id, state) {
         const storageKey = key(kind, id);
         if (!states.has(storageKey)) await ensureState(kind, id);
-        const result = await request('ai_records', { action: 'save_state', kind, userId: id, state, revision: states.get(storageKey).revision });
+        let result;
+        try {
+            if (offline.has(storageKey)) throw new TypeError('Database is offline.');
+            result = await request('ai_records', { action: 'save_state', kind, userId: id, state, revision: states.get(storageKey).revision });
+        } catch (error) {
+            if (id !== actor() || !(error instanceof TypeError || error.status >= 500)) throw error;
+            const revision = states.get(storageKey)?.revision;
+            if (revision === null || revision === undefined) throw new Error('Connect to the database before saving new insights.');
+            localStorage.setItem(storageKey + ':pending-sync', JSON.stringify({ actor: actor(), revision, state }));
+            localStorage.setItem(storageKey, JSON.stringify(state));
+            states.set(storageKey, { state, revision });
+            offline.add(storageKey);
+            return state;
+        }
         remember(kind, id, result);
         return result.state;
     }
@@ -105,6 +146,7 @@
     window.SigmaAiDatabase = {
         loadInsightReport: () => request('ai_records', { action: 'report' }, true),
         ensureState, saveState, reloadLogs, initialize,
+        isOffline: (kind, id = actor()) => offline.has(key(kind, id)),
         getStatus(kind, id = actor()) {
             const storageKey = key(kind, id);
             if (states.has(storageKey)) return 'ready';
@@ -129,13 +171,17 @@
         },
         request
     };
+    window.retrySigmaInsights = async function () {
+        const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
+        const load = ensureState(kind, actor(), true);
+        window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+        try { await load; } catch (error) { console.warn('Insight retry:', error.message); }
+    };
     function initializePage() {
-        if (window.SigmaPageLoading?.waitForInitial) {
-            window.SigmaPageLoading.waitForInitial(initialize).catch(console.error);
-        } else {
-            initialize();
-        }
+        // AI records have their own loading state and must not block the dashboard.
+        initialize().catch(console.error);
     }
+    window.addEventListener('online', () => { retryNotBefore = 0; initialize(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializePage); else initializePage();
     window.addEventListener('sigma:ai-database-error', event => {
         window.SigmaAnnouncements?.showToast({ title: 'AI Records Unavailable', message: event.detail, type: 'error' });

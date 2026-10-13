@@ -3130,7 +3130,7 @@
                     </div>
                     <div class="sigma-modal-body">
                         <div class="max-w-3xl space-y-6">
-                            <p class="text-base text-black font-semibold leading-relaxed font-['Inter']">Choose which attendance records you would like to export to Microsoft Excel (.xlsx):</p>
+                            <p class="text-base text-black font-semibold leading-relaxed font-['Inter']">Choose which attendance records you would like to export (.xlsx):</p>
                             <div class="space-y-4">
                                 <label class="export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80" id="export-option-month-label">
                                     <input type="radio" name="attendance-export-scope" value="month" checked class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
@@ -3349,6 +3349,7 @@
                 }
             }
 
+            window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel);
             return { ws, sheetData };
         }
 

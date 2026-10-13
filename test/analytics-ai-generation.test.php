@@ -16,6 +16,13 @@ $result = generateAnalyticsAi($services, $input, function($url, $headers, $body)
 });
 verifyAnalytics(count($result['cards']) === 1 && $result['model'] === 'gemini-test', 'Return generated card and actual model');
 verifyAnalytics(strpos(json_encode($result), 'test-only-secret') === false, 'Never return credentials');
+$result = generateAnalyticsAi($services, $input, function() use ($card) {
+    return ['candidates' => [['content' => ['parts' => [
+        ['thought' => true, 'text' => 'Internal reasoning is not the JSON response.'],
+        ['text' => json_encode(['cards' => [$card]])]
+    ]]]]];
+});
+verifyAnalytics($result['provider'] === 'gemini' && $result['status'] === 'Success', 'Thinking parts must not force Groq fallback');
 $bad = $card; $bad['evidenceIds'] = ['invented'];
 try { validateAnalyticsAiCards([$bad], $snapshot, 3); throw new LogicException('Unknown evidence accepted'); } catch (RuntimeException $expected) {}
 $bad = $card; $bad['analyses'][0]['text'] = 'Open [external](https://example.com/)';

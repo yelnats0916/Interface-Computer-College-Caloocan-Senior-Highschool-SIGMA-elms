@@ -64,7 +64,7 @@ function generateAnalyticsAi(array $services, array $input, callable $request): 
                 $body = ['model' => $key['model'], 'messages' => [['role' => 'system', 'content' => $prompt], ['role' => 'user', 'content' => $source]], 'response_format' => ['type' => 'json_object'], 'max_completion_tokens' => 2048];
             }
             $response = $request($url, $headers, $body);
-            $text = $key['provider'] === 'gemini' ? implode('', array_column($response['candidates'][0]['content']['parts'] ?? [], 'text')) : ($response['choices'][0]['message']['content'] ?? '');
+            $text = aiProviderResponseText($response, $key['provider']);
             $decoded = json_decode($text, true);
             if (!is_array($decoded['cards'] ?? null)) throw new RuntimeException('AI returned invalid insight JSON.');
             return ['cards' => validateAnalyticsAiCards($decoded['cards'], $snapshot, $limit), 'model' => $key['model'], 'provider' => $key['provider'], 'keyId' => $key['id'], 'keyLabel' => $key['label'] ?? 'API Key', 'status' => $index ? 'Fallback Used' : 'Success'];

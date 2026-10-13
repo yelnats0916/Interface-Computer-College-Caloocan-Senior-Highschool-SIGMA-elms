@@ -9708,9 +9708,9 @@ window.addSubjectTopic = function () {
                                 <h5 class="text-xs sm:text-sm font-bold text-black">Attach Scoring Rubric</h5>
                                 <p class="text-[11px] sm:text-xs text-black-fade mt-0.5">${rubricSubtitle}</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" ${state.hasRubric ? 'checked' : ''} onchange="window.toggleMaterialRubric(this.checked)" class="sr-only peer">
-                                <div class="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#15803d]"></div>
+                            <label class="sigma-toggle-switch material-rubric-toggle cursor-pointer shrink-0">
+                                <input type="checkbox" ${state.hasRubric ? 'checked' : ''} onchange="window.toggleMaterialRubric(this.checked)" aria-label="Attach Scoring Rubric">
+                                <span class="sigma-toggle-slider"></span>
                             </label>
                         </div>
 

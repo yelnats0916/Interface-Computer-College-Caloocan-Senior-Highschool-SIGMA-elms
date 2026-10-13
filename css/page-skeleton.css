@@ -151,7 +151,7 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
     pointer-events: none !important;
 }
 
-html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#logo-container, .admin-topbar__logo-btn) {
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .admin-topbar__logo-btn {
     background-color: var(--sigma-skeleton-base) !important;
     border-radius: 8px !important;
     border-color: transparent !important;
@@ -159,7 +159,7 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
     overflow: hidden !important;
 }
 
-html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#logo-container, .admin-topbar__logo-btn)::after {
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) .admin-topbar__logo-btn::after {
     content: '' !important;
     display: block !important;
     position: absolute !important;
@@ -172,6 +172,15 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
     background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
     animation: sigma-sweep-band 1.2s linear infinite !important;
     will-change: transform !important;
+}
+
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) #logo-container {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) #logo-container::after {
+    display: none !important;
 }
 
 html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header) :is(#sidebarToggleBtn, #mobileSearchToggleBtn, #mobileSidebarToggleBtn, #nav-logo-btn, .header-icon-btn, .header-profile-btn, .admin-topbar__desktop-icons button, .header-avatar, .sigma-user-avatar) {
@@ -197,7 +206,7 @@ html.sigma-initial-loading body :is(header, #student-header, #admin-header, #tea
     left: -38% !important;
     width: 38% !important;
     pointer-events: none !important;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
     animation: sigma-sweep-band 1.2s linear infinite !important;
     will-change: transform !important;
 }
@@ -965,9 +974,197 @@ html.sigma-initial-loading body :is(#noti-badge,#mobile-noti-badge,.mobile-subba
     .sigma-skeleton-top { gap: 10px; }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   BRAND SKELETON: BURGER BUTTON, LOGO & NAV HEADER SHIMMERING & SWEEPING
+   ══════════════════════════════════════════════════════════════════════ */
+/* Burger Button: Crisp rounded square with exact margin footprint to avoid layout shift */
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #sidebarToggleBtn {
+    width: 38px !important;
+    height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+    margin: 9px 22px !important;
+    border-radius: 8px !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    position: relative !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #sidebarToggleBtn i,
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #sidebarToggleBtn::before {
+    display: none !important;
+}
+
+/* Logo Button: Circular 38px skeleton inside transparent container */
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #nav-logo-btn {
+    display: inline-flex !important;
+    width: 38px !important;
+    height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+    border-radius: 50% !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    position: relative !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    margin: auto !important;
+    flex-shrink: 0 !important;
+}
+
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #nav-logo-btn img {
+    display: none !important;
+}
+
+/* Nav Header (Brand Title): Horizontal rounded pill */
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) :is(#nav-context-text, .admin-topbar__brand-label, #header-brand-title) {
+    display: block !important;
+    width: min(100%, 240px) !important;
+    height: 18px !important;
+    max-height: 18px !important;
+    border-radius: 6px !important;
+    background-color: var(--sigma-skeleton-base) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    position: relative !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* Unified Sweeping Shimmer Highlight across all three brand elements */
+html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) :is(#sidebarToggleBtn, #nav-logo-btn, #nav-context-text, .admin-topbar__brand-label, #header-brand-title)::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 31 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+@media (max-width: 767px) {
+    html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #sidebarToggleBtn {
+        width: clamp(34px, 9vw, 38px) !important;
+        height: clamp(34px, 9vw, 38px) !important;
+        max-width: clamp(34px, 9vw, 38px) !important;
+        max-height: clamp(34px, 9vw, 38px) !important;
+        margin: 0 clamp(4px, 1.5vw, 8px) !important;
+        border-radius: 8px !important;
+    }
+    html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) #nav-logo-btn {
+        width: clamp(28px, 7.5vw, 38px) !important;
+        height: clamp(28px, 7.5vw, 38px) !important;
+        max-width: clamp(28px, 7.5vw, 38px) !important;
+        max-height: clamp(28px, 7.5vw, 38px) !important;
+    }
+    html.sigma-initial-loading body :is(#student-header, #teacher-header, #admin-header) :is(#nav-context-text, .admin-topbar__brand-label, #header-brand-title) {
+        width: min(100%, 140px) !important;
+        height: 16px !important;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   11. CONTENT PAGE SKELETONS (UNIFIED SHARED ACROSS ALL PORTALS)
+   ══════════════════════════════════════════════════════════════════════ */
+.sigma-content-skeleton {
+    width: 100%;
+    min-height: calc(100vh - 120px);
+    box-sizing: border-box;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+}
+
+/* Content skeleton panels match Home page skeleton panels (Image 5 / media_1791854380009_415f9a6b.png) */
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner),
+.sigma-skeleton-card {
+    position: relative !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    background: var(--sigma-skeleton-base, #e2e8f0) !important;
+    background-color: var(--sigma-skeleton-base, #e2e8f0) !important;
+    border-color: transparent !important;
+    border-radius: 20px !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+
+.sigma-content-skeleton :is(.welcome-panel, .classroom-room-hero-banner) {
+    border-radius: 24px !important;
+}
+
+.sigma-content-skeleton :is(.sigma-table, table) {
+    border-radius: 16px !important;
+}
+
+.sigma-content-skeleton :is(.sigma-feed-tab-btn, [data-announcement-tab], .sigma-filter-pill) {
+    background: var(--sigma-skeleton-base, #e2e8f0) !important;
+    background-color: var(--sigma-skeleton-base, #e2e8f0) !important;
+    border-radius: 9999px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner) > * {
+    visibility: hidden !important;
+}
+
+.sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .home-dashboard-card, .home-dashboard-group, .home-overview-card, .pocket-card, .sigma-announcements-empty-state, .sigma-empty-state, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner)::after,
+.sigma-content-skeleton :is(.sigma-feed-tab-btn, [data-announcement-tab], .sigma-filter-pill)::after,
+.sigma-skeleton-card::after,
+.sigma-content-skeleton .sigma-skeleton-block::after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    z-index: 10 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -38% !important;
+    width: 38% !important;
+    pointer-events: none !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.08) 80%, transparent 100%) !important;
+    animation: sigma-sweep-band 1.2s linear infinite !important;
+    will-change: transform !important;
+}
+
+.sigma-content-skeleton .sigma-skeleton-block {
+    background-color: var(--sigma-skeleton-base, #e2e8f0) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Ensure sections holding active skeletons are never hidden */
+.dynamic-section[data-sigma-skeleton-active="true"],
+section[data-sigma-skeleton-active="true"] {
+    display: block !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sigma-skeleton-block::after { animation: none !important; }
     html.sigma-initial-loading body :is(#main-content, #admin-main, header, #sidebar) *::after { animation: none !important; }
     .sigma-rendering-loading::after, [data-sigma-rendering="true"]::after { animation: none !important; }
+    .sigma-content-skeleton .sigma-skeleton-block::after { animation: none !important; }
+    .sigma-content-skeleton :is(.sigma-skeleton-card, .sigma-skeleton-panel, .sigma-card, .topic-card, .assessment-material-main-card, .home-feed-card, .gwa-card, .sigma-table, .welcome-panel, .classroom-room-hero-banner)::after { animation: none !important; }
 }
+
 

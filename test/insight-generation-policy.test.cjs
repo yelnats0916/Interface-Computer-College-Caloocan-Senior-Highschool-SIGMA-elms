@@ -3,6 +3,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const rules = require('../js/student-analytics.js');
 const now = Date.parse('2026-10-08T08:00:00Z');
+assert.equal(rules.nextDailyRun(Date.parse('2026-10-08T15:59:00Z')), Date.parse('2026-10-08T16:00:00Z'),
+    'Daily check starts at midnight Asia/Manila');
+assert.equal(rules.nextDailyRun(Date.parse('2026-10-08T16:00:00Z')), Date.parse('2026-10-09T16:00:00Z'),
+    'Midnight must schedule the next day, not repeat immediately');
 const input = { studentId: 'student-one', areas: [{ id: 'submissions', records: [{ id: 'task', score: 80 }] }] };
 const card = score => ({ id: 'insight-one', area: 'submissions', evidenceIds: ['task'], analyses: [{ text: `Score ${score}` }] });
 const commit = (snapshot, state, cards, time = now) => rules.acceptGeneration(cards, snapshot, state, rules.generationPolicy(snapshot, state, time), time);
@@ -19,6 +23,10 @@ for (const score of [81, 82]) {
 }
 const pending = { ...input, areas: [{ id: 'submissions', records: [{ id: 'task', score: 83 }] }] };
 assert.equal(state.generatedCount, 3);
+assert.equal(state.cards.length, 3, 'Changed evidence appends cards instead of replacing the same area');
+assert.equal(state.cards[0].analyses[0].text, 'Score 82', 'Newest accepted card comes first even with equal timestamps');
+assert.equal(new Set(state.cards.map(item => item.id)).size, 3, 'Each insight has its own persistent identity');
+assert.equal(commit({ ...input, areas: [] }, state, []).cards.length, 3, 'Historical cards survive source record removal');
 assert.equal(rules.generationPolicy(pending, state, now).shouldGenerate, false);
 assert.equal(rules.generationPolicy(pending, state, now + 86400000).shouldGenerate, true);
 assert.equal(rules.generationPolicy(pending, state, Date.parse('2026-10-08T16:00:00Z')).day, '2026-10-09');
@@ -47,7 +55,7 @@ async function runtime(role) {
     const storage = new Map();
     class TestDate extends Date { static now() { return clock; } }
     const window = { location: { pathname: `/${role}.html`, href: `http://localhost/${role}.html` },
-        SigmaInsightRules: rules, dispatchEvent() {},
+        dispatchEvent() {},
         getLoggedInStudentUser: () => ({ id: owner }), getLoggedInTeacherUser: () => ({ id: owner }),
         getTeacherSectionCards: () => [{ subject: 'Programming', sectionName: 'Rizal' }],
         getUnifiedSectionStudents: () => [{ id: 'a' }],
@@ -56,6 +64,7 @@ async function runtime(role) {
     const context = { window, Date: TestDate, URL, CustomEvent: class {}, setTimeout() {}, clearTimeout() {},
         localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
         document: { readyState: 'loading', addEventListener() {}, querySelectorAll: () => [] } };
+    if (role === 'teacher') vm.runInNewContext(fs.readFileSync(require.resolve('../js/student-analytics.js'), 'utf8'), context);
     vm.runInNewContext(fs.readFileSync(require.resolve(`../js/${role}-analytics.js`), 'utf8'), context);
     const api = role === 'student' ? window.SigmaStudentAnalytics : window.SigmaTeacherAnalytics;
     if (role === 'student') api.registerArea('submissions', () => ({ studentId: owner, scopes: [{ subjectId: 'p', sectionId: 'r' }],
@@ -69,8 +78,17 @@ async function runtime(role) {
             analyses: [{ category: 'descriptive', actionLabel: 'Try', text: `Review your ${score} result.` }] }] };
     });
     await api.analyze();
+    assert.equal(api.getCards().length, 1, `${role}: saved insight must render through the browser helpers`);
     await api.analyze();
     assert.equal(calls, 1, `${role}: repeated refresh must not call provider`);
+    const stateKey = `sigma-${role}-analytics-v1:${owner}`;
+    const legacyState = JSON.parse(storage.get(stateKey));
+    legacyState.usedProvider = false;
+    storage.set(stateKey, JSON.stringify(legacyState));
+    await api.analyze();
+    assert.equal(calls, 1, `${role}: provider activation must not regenerate unchanged evidence`);
+    legacyState.usedProvider = true;
+    storage.set(stateKey, JSON.stringify(legacyState));
     clock += 86400000;
     await api.analyze();
     assert.equal(calls, 1, `${role}: day rollover does not generate`);

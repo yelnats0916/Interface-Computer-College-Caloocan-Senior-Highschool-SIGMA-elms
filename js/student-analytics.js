@@ -79,7 +79,7 @@
 
     function nextDailyRun(now) {
         const shifted = new Date(now + 8 * 3600000);
-        let next = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(), 19) - 8 * 3600000;
+        let next = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - 8 * 3600000;
         if (next <= now) next += 86400000;
         return next;
     }
@@ -146,7 +146,11 @@
             const old = (previous.cards || []).find(item => item.id === card.id);
             if (old && evidenceFingerprint(old.analyses) === evidenceFingerprint(card.analyses)) continue;
             signatures.add(signature);
-            accepted.push(card);
+            const baseId = `${card.id.slice(0, 90)}-${now}`;
+            let id = baseId;
+            let suffix = 1;
+            while ((previous.cards || []).some(item => item.id === id) || accepted.some(item => item.id === id)) id = `${baseId}-${suffix++}`;
+            accepted.push({ ...card, id, createdAt: new Date(now).toISOString() });
         }
         const processedAreas = { ...previous.processedAreas };
         for (const area of policy.changedAreas) {
@@ -154,12 +158,17 @@
             if (!returned || accepted.some(card => card.area === area.id) || accepted.length < policy.remaining) processedAreas[area.id] = evidenceFingerprint(area);
         }
         const fullyProcessed = input.areas.every(area => processedAreas[area.id] === evidenceFingerprint(area));
-        const merged = new Map((previous.cards || []).filter(card => input.areas.some(area => area.id === card.area && card.evidenceIds.every(id => area.records.some(record => record.id === id)))).map(card => [card.id, card]));
-        accepted.forEach(card => merged.set(card.id, card));
-        return { ...previous, cards: [...merged.values()], processedAreas,
+        // Historical insights remain available even when their source records change.
+        const merged = new Map([...accepted, ...(previous.cards || [])].map(card => [card.id, card]));
+        return { ...previous, cards: newestInsightsFirst([...merged.values()]), processedAreas,
             fingerprint: fullyProcessed ? policy.fingerprint : previous.fingerprint,
             generationDay: policy.day, generatedCount: policy.count + accepted.length,
             insightSignatures: [...signatures], lastAnalyzed: accepted.length ? now : previous.lastAnalyzed, newCards: accepted };
+    }
+
+    function newestInsightsFirst(cards) {
+        const timestamp = card => Date.parse(card.createdAt || '') || 0;
+        return [...cards].sort((a, b) => timestamp(b) - timestamp(a));
     }
 
     function validateCards(result, snapshot) {
@@ -238,7 +247,7 @@
         module.exports = { validateCards, nextDailyRun, renderBody, summarizeScores, normalizeInsightTitle, TITLE_RULES, INSIGHT_ICONS, normalizeInsightIcon, ACTION_LABELS, normalizeActionLabel, stripActionLabels, renderAnalysis, renderInsightSections, ACTION_RULES, DAILY_INSIGHT_LIMIT, evidenceFingerprint, generationPolicy, acceptGeneration, withGenerationLock, guardedProviderCall };
         return;
     }
-    root.SigmaInsightRules = { validateCards, renderBody, normalizeInsightTitle, TITLE_RULES, INSIGHT_ICONS, normalizeInsightIcon, renderInsightSections, ACTION_RULES, DAILY_INSIGHT_LIMIT, evidenceFingerprint, generationPolicy, acceptGeneration, withGenerationLock, guardedProviderCall };
+    root.SigmaInsightRules = { nextDailyRun, validateCards, renderBody, normalizeInsightTitle, TITLE_RULES, INSIGHT_ICONS, normalizeInsightIcon, normalizeActionLabel, renderInsightSections, ACTION_RULES, DAILY_INSIGHT_LIMIT, evidenceFingerprint, generationPolicy, acceptGeneration, withGenerationLock, guardedProviderCall };
     if (String(root.location?.pathname || '').toLowerCase().includes('teacher')) return;
     function studentId() {
         const user = root.getLoggedInStudentUser?.();
@@ -297,9 +306,12 @@
         try {
             if (!areas.size) throw new Error('Student analytics data is not connected yet.');
             await root.SigmaAiDatabase?.ensureState('student', id, true);
+            if (root.SigmaAiDatabase?.isOffline('student', id)) throw new Error(root.SigmaAiDatabase.getState('student', id).cards?.length
+                ? 'Showing cached insights. Connect and sync this account before generating new insights.'
+                : 'No saved insights for this account. Connect and sync it before generating insights.');
             const input = await snapshot(id);
             const stored = state(id);
-            const previous = provider && stored.usedProvider !== true ? {} : stored;
+            const previous = stored;
             const policy = generationPolicy(input, previous, Date.now());
             if (!policy.shouldGenerate) {
                 const unchanged = { ...previous, cards: previous.cards || [], nextAnalysis: nextDailyRun(Date.now()) };
@@ -334,7 +346,7 @@
             if (studentId() !== id) throw new Error('The signed-in student changed.');
             const now = Date.now();
             const latest = state(id);
-            const updated = acceptGeneration(cards, input, provider && latest.usedProvider !== true ? {} : latest, policy, now);
+            const updated = acceptGeneration(cards, input, latest, policy, now);
             const { newCards, ...saved } = updated;
             const persisted = { ...saved, usedProvider: Boolean(provider), schemaVersion: ANALYTICS_SCHEMA_VERSION, nextAnalysis: nextDailyRun(now) };
             if (root.SigmaAiDatabase) await root.SigmaAiDatabase.saveState('student', id, persisted);
@@ -366,7 +378,7 @@
         clearTimeout(timer);
         if (!studentId() || !areas.size) return;
         const now = Date.now();
-        const next = state().nextAnalysis || nextDailyRun(now);
+        const next = nextDailyRun(now);
         timer = setTimeout(() => analyze({ automatic: true }), Math.max(1000, Math.max(next, retryAfter) - now));
     }
     root.SigmaStudentAnalytics = {
@@ -397,10 +409,10 @@
                         concernText: renderBody(summary.text, root.location.href) }] : [];
                 } catch { return []; }
             }
-            return (provider && saved.usedProvider !== true ? [] : saved.cards || []).filter(card => card.analyses?.length === 1 && normalizeActionLabel(card.analyses[0].actionLabel)).map(card => ({
+            return newestInsightsFirst(provider && saved.usedProvider !== true ? [] : saved.cards || []).filter(card => card.analyses?.length === 1 && normalizeActionLabel(card.analyses[0].actionLabel)).map(card => ({
                 id: escapeText(card.id), area: card.area, categories: card.categories,
                 categoryIcon: INSIGHT_ICONS[normalizeInsightIcon(card.icon)].className, concernTitle: escapeText(normalizeInsightTitle(card.title)),
-                date, datePlacement: 'footer',
+                date: card.createdAt ? new Date(card.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : date, datePlacement: 'footer',
                 subject: 'Your Submissions', subjectIcon: 'fa-file-lines',
                 concernHighlight: '',
                 previewText: renderInsightSections(card.analyses, root.location.href),
@@ -409,7 +421,7 @@
         }
     };
     document.addEventListener('click', event => {
-        if (event.target.closest('.sigma-analyze-button')) analyze();
+        if (event.target.closest('.sigma-analyze-button:not(.sigma-insight-mark-all)')) analyze();
     });
     function init() {
         document.querySelectorAll('.sigma-rail-header, #analytics-dropdown .mobile-panel-header').forEach(header => {

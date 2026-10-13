@@ -4,6 +4,15 @@ function aiRoutingFeatures(): array {
     return ['sigmabot', 'analytics', 'quiz', 'submission_evaluation', 'submission_feedback', 'grade_insights'];
 }
 
+function aiProviderResponseText(array $response, string $provider): string {
+    if ($provider !== 'gemini') return (string) ($response['choices'][0]['message']['content'] ?? '');
+    $text = '';
+    foreach ($response['candidates'][0]['content']['parts'] ?? [] as $part) {
+        if (empty($part['thought']) && is_string($part['text'] ?? null)) $text .= $part['text'];
+    }
+    return $text;
+}
+
 function aiRoutingDefaultProvider(string $feature): string {
     return in_array($feature, ['sigmabot', 'quiz'], true) ? 'groq' : 'gemini';
 }

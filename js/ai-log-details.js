@@ -156,10 +156,11 @@
         [['AI Feature', record.label], ['Model', record.model], ['Status', record.status], ['Timestamp', dateCell(record).textContent]].forEach(([label, value]) => {
             const item = node('div');
             item.append(node('dt', label), node('dd', value));
+            if (label === 'Status') item.lastElementChild.className = 'ai-log-status ai-log-status--' + String(value).toLowerCase().replaceAll(' ', '-');
             metadata.append(item);
         });
         interaction.append(heading, identity, metadata);
-        if (record.feature !== 'analytics') {
+        if (!['analytics', 'submission_feedback'].includes(record.feature)) {
             const deleteLog = node('button', undefined, 'sigma-btn sigma-btn-white sigma-btn-sm');
             deleteLog.type = 'button'; deleteLog.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
             const notice = node('p'); notice.setAttribute('role', 'status');
@@ -169,7 +170,9 @@
                 try { await window.SigmaAiLogs.deleteLog(record.id); closeInteraction(); }
                 catch (error) { notice.textContent = error.message; deleteLog.disabled = false; }
             };
-            interaction.append(deleteLog, notice);
+            const actions = node('div', undefined, 'ai-log-detail-actions');
+            actions.append(deleteLog, notice);
+            interaction.append(actions);
         }
         const transcript = node('div', undefined, record.feature === 'sigmabot' ? 'ai-log-transcript' : 'ai-log-request-response');
         transcript.setAttribute('aria-label', record.feature === 'sigmabot' ? 'Read-only conversation' : 'Recorded request and response');
@@ -200,6 +203,16 @@
             paintMessageTable(record, user, exchange, transcript, messages);
         }
         else if (record.feature === 'analytics') paintInsightTable(record);
+        else if (record.feature === 'submission_feedback') {
+            const { frame, body } = createLogDetailTable(['Request', 'Response', 'Timestamp', 'Action'], 'Submission feedback request and response', 'ai-log-feedback-table');
+            const row = node('tr');
+            const response = node('td', undefined, 'ai-log-message-content');
+            appendInsightText(response, record.response || 'Not recorded');
+            const { action, notice } = createLogRecordActions(record, 'Feedback actions');
+            row.append(node('td', record.prompt || 'Not recorded'), response, dateCell(record), action);
+            body.append(row);
+            interaction.append(notice, frame);
+        }
         else interaction.append(transcript);
         interaction.scrollIntoView({ block: 'start' });
         heading.focus({ preventScroll: true });
@@ -254,13 +267,41 @@
             } else appendBold(container, match[1]);
         }
     }
-    function paintInsightTable(record) {
+    function createLogDetailTable(columns, label, className = '') {
         const frame = node('div', undefined, 'sigma-table-container sigma-table-container--unframed ai-log-message-frame');
-        const table = node('table', undefined, 'sigma-table sigma-audit-table ai-log-message-table ai-log-insight-table');
-        table.setAttribute('aria-label', 'Analytics insight message');
-        const head = node('thead'), header = node('tr'), body = node('tbody'), row = node('tr');
-        ['Source', 'Insight Message', 'Timestamp', 'Action'].forEach(label => header.append(node('th', label)));
-        head.append(header);
+        const table = node('table', undefined, 'sigma-table sigma-audit-table ai-log-message-table ' + className);
+        table.setAttribute('aria-label', label);
+        const head = node('thead'), header = node('tr'), body = node('tbody');
+        columns.forEach(column => header.append(node('th', column)));
+        head.append(header); table.append(head, body); frame.append(table);
+        return { frame, table, body };
+    }
+    function createLogRecordActions(record, label) {
+        const action = node('td');
+        const actions = node('div', undefined, 'ai-log-insight-actions');
+        const toggle = node('button', undefined, 'ai-log-message-more');
+        toggle.type = 'button'; toggle.title = label;
+        toggle.setAttribute('aria-label', label); toggle.setAttribute('aria-expanded', 'false');
+        toggle.append(node('i', undefined, 'fa-solid fa-ellipsis'));
+        const menu = node('div', undefined, 'ai-log-message-menu'); menu.hidden = true;
+        const notice = node('div', undefined, 'ai-log-message-notice'); notice.setAttribute('role', 'status');
+        toggle.addEventListener('click', () => {
+            const show = menu.hidden; closeMessageMenus(); menu.hidden = !show; toggle.setAttribute('aria-expanded', String(show));
+        });
+        const deleteLog = node('button'); deleteLog.type = 'button';
+        deleteLog.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
+        deleteLog.addEventListener('click', async () => {
+            if (!window.confirm('Delete this AI log from the active list? Its user content will not be changed. The log can be restored from Record Recovery.')) return;
+            deleteLog.disabled = true;
+            try { await window.SigmaAiLogs.deleteLog(record.id); closeInteraction(); }
+            catch (error) { deleteLog.disabled = false; notice.textContent = error.message; }
+        });
+        menu.append(deleteLog); actions.append(toggle, menu); action.append(actions);
+        return { action, menu, notice };
+    }
+    function paintInsightTable(record) {
+        const { frame, body } = createLogDetailTable(['Source', 'Insight Message', 'Timestamp', 'Action'], 'Analytics insight message', 'ai-log-insight-table');
+        const row = node('tr');
         const source = node('td');
         if (record.evidenceSources?.length) {
             const list = node('ul', undefined, 'ai-log-insight-sources');
@@ -273,19 +314,11 @@
         } else source.textContent = 'Not recorded';
         const content = node('td', undefined, 'ai-log-message-content');
         appendInsightText(content, record.response || 'Not recorded');
-        const action = node('td');
-        const toggle = node('button', undefined, 'ai-log-message-more');
-        toggle.type = 'button'; toggle.title = 'Insight actions'; toggle.setAttribute('aria-label', 'Insight actions'); toggle.setAttribute('aria-expanded', 'false');
-        toggle.append(node('i', undefined, 'fa-solid fa-ellipsis'));
-        const menu = node('div', undefined, 'ai-log-message-menu'); menu.hidden = true;
+        const { action, menu, notice } = createLogRecordActions(record, 'Insight actions');
         const remove = node('button'); remove.type = 'button';
         remove.append(node('i', undefined, 'fa-solid fa-eye-slash'), node('span', 'Remove Card'));
         remove.disabled = !record.source || record.cardRemoved;
         if (remove.disabled) remove.title = 'This log is not linked to a user insight card';
-        const notice = node('div', undefined, 'ai-log-message-notice'); notice.setAttribute('role', 'status');
-        toggle.addEventListener('click', () => {
-            const show = menu.hidden; closeMessageMenus(); menu.hidden = !show; toggle.setAttribute('aria-expanded', String(show));
-        });
         if (record.cardRemoved) notice.textContent = 'Card removed by ' + (record.cardRemovedBy || 'an administrator') + (record.cardRemovedAt ? ' on ' + formatTimestamp(record.cardRemovedAt + 'Z') : '') + '. AI log retained.';
         remove.addEventListener('click', async () => {
             if (!window.confirm('Remove this card from the user dashboard? Its saved text and AI log will be retained.')) return;
@@ -295,26 +328,12 @@
                 closeMessageMenus(); notice.textContent = 'Card removed. The AI log is retained.';
             } catch (error) { remove.disabled = false; notice.textContent = error.message; }
         });
-        const deleteLog = node('button'); deleteLog.type = 'button';
-        deleteLog.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
-        deleteLog.addEventListener('click', async () => {
-            if (!window.confirm('Delete this AI log from the active list? The user card will not be changed. The log can be restored from Record Recovery.')) return;
-            deleteLog.disabled = true;
-            try { await window.SigmaAiLogs.deleteLog(record.id); closeInteraction(); }
-            catch (error) { deleteLog.disabled = false; notice.textContent = error.message; }
-        });
-        const actions = node('div', undefined, 'ai-log-insight-actions');
-        menu.append(remove, deleteLog); actions.append(toggle, menu); action.append(actions);
-        row.append(source, content, dateCell(record), action); body.append(row); table.append(head, body); frame.append(table);
+        menu.prepend(remove);
+        row.append(source, content, dateCell(record), action); body.append(row);
         interaction.append(notice, frame);
     }
     function paintMessageTable(record, user, messages, transcript, conversation) {
-        const frame = node('div', undefined, 'sigma-table-container sigma-table-container--unframed ai-log-message-frame');
-        const list = node('table', undefined, 'sigma-table sigma-audit-table ai-log-message-table');
-        list.setAttribute('aria-label', 'Conversation messages');
-        const head = node('thead'), header = node('tr'), body = node('tbody');
-        ['Sender', 'Message', 'Timestamp', 'Action'].forEach(label => header.append(node('th', label)));
-        head.append(header); list.append(head, body); frame.append(list);
+        const { frame, table: list, body } = createLogDetailTable(['Sender', 'Message', 'Timestamp', 'Action'], 'Conversation messages');
         const bubblePanel = node('section', undefined, 'ai-log-bubble-panel');
         bubblePanel.id = 'ai-conversation-bubbles-panel';
         bubblePanel.hidden = true;

@@ -4664,6 +4664,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateNavState(navId);
 
+        document.documentElement.classList.remove('sigma-hash-navigating');
+        document.getElementById('sigma-early-hash-style')?.remove();
+        document.getElementById('early-dashboard-style')?.remove();
+
         const gradesSection = document.getElementById('school-grades-view');
         const gradesWasVisible = Boolean(gradesSection && !gradesSection.classList.contains('hidden'));
         const enteringGrades = sectionId === 'school-grades-view';
@@ -4678,8 +4682,9 @@ document.addEventListener('DOMContentLoaded', () => {
             : { targetTab: 'gradebook' };
         if (enteringGrades) window._adminGradesEntryTab = null;
 
-        sections.forEach((section) => {
+        document.querySelectorAll('.dynamic-section').forEach((section) => {
             section.classList.add('hidden');
+            section.style.display = 'none';
         });
 
         // Clear new user toast if navigating away from user accounts
@@ -4705,6 +4710,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             targetSection.classList.remove('hidden');
+            targetSection.style.display = 'block';
+            if ((!targetSection.children.length || !targetSection.innerHTML.trim()) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
+                const layout = window.SigmaPageLoading.resolveLayoutFromSectionId(sectionId);
+                window.SigmaPageLoading.showContentSkeleton(targetSection, layout);
+            }
         }
 
         if (sectionId === 'section-attendance' || navId === 'nav-attendance' || navId === 'attendance' || navId === 'calendar' || navId === 'nav-calendar') {
@@ -7390,16 +7400,21 @@ const resolveUsersApiUrl = () => {
 const syncUserToDB = async (payload, action = 'save') => {
     try {
         const url = resolveUsersApiUrl();
-        const bodyObj = (action === 'save')
-            ? { action: 'save', user: payload }
+        const bodyObj = (action === 'save' || action === 'create_missing')
+            ? { action, user: payload }
             : { action: action, ...payload };
-        await fetch(url, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyObj)
         });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'User database save failed.');
+        return true;
     } catch (e) {
         console.warn('User DB sync offline or unavailable, cached in localStorage.');
+        window.showToast?.('Account saved locally only. Database sync failed; retry saving when connected.', 'error');
+        return false;
     }
 };
 window.syncUserToDB = syncUserToDB;
@@ -7410,8 +7425,17 @@ const fetchUsersFromDB = async () => {
         const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+        if (data && data.success && Array.isArray(data.records)) {
             let currentLocal = getStoredJson(USER_STORAGE_KEY, []);
+            const databaseIds = new Set(data.records.map(user => String(user.id || user.uid || '')));
+            // Import local-only teaching accounts without replacing any existing database account.
+            for (const user of currentLocal) {
+                const id = String(user.id || user.uid || '');
+                const role = String(user.role || user.type || '').toLowerCase();
+                if (id && !databaseIds.has(id) && ['student', 'teacher'].includes(role) && user.password && !user.isDeleted && !user.is_deleted) {
+                    await syncUserToDB(user, 'create_missing');
+                }
+            }
             const map = new Map();
             // Start with DB records (authoritative)
             data.records.forEach(u => {
@@ -12935,6 +12959,9 @@ window.handleCurriculumHubBack = function (currentView) {
 window.openTopicContent = function (subjectId, topicIdx = 0, tab = 'videos', subIdx = null, pushHistory = true, stateOverrides = {}) {
     const page = document.getElementById('section-topic-content');
     if (!page) return;
+    if ((!page.children.length || !page.innerHTML.trim() || page.querySelector('.sigma-content-skeleton')) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
+        window.SigmaPageLoading.showContentSkeleton(page, 'topic-content');
+    }
 
     const isSubMode = (stateOverrides && Object.prototype.hasOwnProperty.call(stateOverrides, 'viewSubmission'))
         ? Boolean(stateOverrides.viewSubmission)

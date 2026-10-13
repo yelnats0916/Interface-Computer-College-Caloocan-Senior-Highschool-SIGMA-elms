@@ -1847,10 +1847,6 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         popover.setAttribute('role', 'menu');
 
         let itemsHtml = `
-            <div class="px-2.5 py-2 border-b border-black/[0.08] mb-1">
-                <p class="text-xs font-bold text-black tracking-tight leading-none font-['Inter']" style="color: #000000 !important;">Sort Students</p>
-                <p class="text-[10.5px] font-medium leading-none mt-1 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">Choose roster arrangement</p>
-            </div>
             <div class="space-y-0.5">
         `;
 
@@ -6087,6 +6083,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
                 try {
                     const parsed = JSON.parse(raw);
                     if (parsed && typeof parsed === 'object') {
+                        if (typeof window.submissionMatchesAssessment === 'function' && !window.submissionMatchesAssessment(parsed, ass)) continue;
                         if (!studentUser || typeof window.isSubmissionMatchForStudent !== 'function' || window.isSubmissionMatchForStudent(parsed, studentUser)) {
                             sub = parsed;
                             break;
@@ -6137,7 +6134,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
             const wantTitleClean = wantTitle.replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
             const wantIds = [ass?.id, ass?.quizId, ass?.selectedQuizId, ass?.materialId].map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
             const isAssQuiz = Boolean(ass?.quizId || ass?.selectedQuizId || /quiz/i.test(wantTitle) || String(ass?.category || ass?.type || '').toLowerCase().includes('quiz'));
-            const checkCats = isAssQuiz ? ['quiz', 'ww'] : (cat.includes('perf') ? ['perf. task'] : ['assignment', 'activity', 'ww']);
+            const checkCats = isAssQuiz ? ['quiz', 'assignment', 'activity', 'ww'] : (cat.includes('perf') ? ['perf. task'] : ['assignment', 'activity', 'ww']);
             checkCats.some(c => {
                 const items = window.getCategoryDetails(c, scoreQuarter, subjectId, section) || [];
                 const matched = items.find(it => {
@@ -6265,6 +6262,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     let numericScore = null;
     let isGraded = false;
     if (typeof window.findAssessmentSubmittedWork === 'function'
+        && !normalizedTone
         && !eff?.teacherSaved && !eff?.isManualOverride
         && !window.resolveNoDeadlineAssessment?.(lookupItem || ass, subjectId, section, scoreQuarter)
         && !window.findAssessmentSubmittedWork(studentUser, lookupItem || ass, subjectId, section, scoreQuarter, [sub])) {
@@ -6296,11 +6294,9 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
             numericScore = null;
         }
         isGraded = numericScore !== null && numericScore !== '' && numericScore !== '-';
-        turnedIn = true;
         statusName = normalizedTone === 'missing' ? 'Missing' : 'Absent';
     } else if (normalizedTone === 'incomplete') {
         isGraded = numericScore !== null;
-        turnedIn = true;
         statusName = 'Incomplete';
     } else if (normalizedTone === 'excuse') {
         // Excuse is exempt: score is unassigned/blank unless teacher explicitly entered a score
@@ -6308,7 +6304,6 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
             numericScore = null;
         }
         isGraded = numericScore !== null && numericScore !== '' && numericScore !== '-';
-        turnedIn = true;
         statusName = 'Excuse';
     } else if (validEffScore) {
         numericScore = Number(eff.score);
@@ -6405,7 +6400,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     );
 
     const isQuizPending = Boolean(
-        isQuizAss && sub && turnedIn && !sub.teacherSaved && sub.status !== 'Graded' && (
+        !normalizedTone && isQuizAss && sub && turnedIn && !sub.teacherSaved && sub.status !== 'Graded' && (
             sub.isPending === true ||
             sub.status === 'Pending' ||
             sub.status === 'Review' ||
@@ -6469,7 +6464,7 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
     if (window.resolveNoDeadlineAssessment?.(lookupItem || ass, subjectId, section, scoreQuarter)
         && !window.findAssessmentSubmittedWork?.(studentUser, lookupItem || ass, subjectId, section, scoreQuarter, [sub])) {
         turnedIn = false;
-        statusName = 'Not Submitted';
+        if (!normalizedTone) statusName = 'Not Submitted';
     }
     if (manualClosure) {
         numericScore = manualClosure.score;
@@ -6670,7 +6665,7 @@ window.renderSharedAssessmentScorePanelHtml = function (options = {}) {
         }
     }
 
-    if (details.isQuizReviewPending) {
+    if (details.isQuizReviewPending && !hasActiveAttendance) {
         scoreValue = (details.numericScore !== null && details.numericScore !== undefined && details.numericScore !== '') ? details.numericScore : '-';
         isGraded = false;
         isPending = true;
@@ -11307,6 +11302,15 @@ window.deduplicateMaterialsArray = function (materials, options = {}) {
     return result;
 };
 
+window.orderAssessmentsOldestFirst = function (items) {
+    const createdTime = item => {
+        const source = item.rawItem || item;
+        const value = source.createdAt || source.created_at || source.createdDate || source.timestamp || source.date || source.releaseDate || '';
+        if (typeof value === 'number') return value < 1e12 ? value * 1000 : value;
+        return Date.parse(value) || 0;
+    };
+    return [...items].sort((a, b) => createdTime(a) - createdTime(b));
+};
 window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultAssessments = [], sectionName = '', topicHint = null) {
     const isFakeAssessment = window.isFakeAssessment;
     const rawList = Array.isArray(defaultAssessments) && defaultAssessments.length ? defaultAssessments.filter(it => !isFakeAssessment(it)) : [];
@@ -11863,6 +11867,7 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
         });
     } catch (e) { }
 
+    // Shared positions are persisted score/submission identities, not display order.
     return finalList;
 };
 
@@ -15635,6 +15640,8 @@ window.isSubmissionMatchForStudent = function (sub, targetStudent) {
                 const nS = sId.replace(/^(std[-_]?|student[-_]?)/i, '');
                 const nT = tId.replace(/^(std[-_]?|student[-_]?)/i, '');
                 if (nS && nT && nS === nT) return true;
+                // These two IDs are already treated as one legacy account by the shared roster lookup.
+                if (['222222', '2222222'].includes(nS) && ['222222', '2222222'].includes(nT)) return true;
             }
         }
         return false;
@@ -17119,7 +17126,7 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                 const found = all.find(s => {
                     if (!s) return false;
                     const sid = String(s.id || '').toLowerCase();
-                    const sname = String(s.name || s.subject || '').toLowerCase();
+                    const sname = String(s.name || s.title || s.subject || '').toLowerCase();
                     const q = sStr.toLowerCase();
                     const qc = clean.toLowerCase();
                     const knownAliases = Array.from(aliases, alias => String(alias).replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase());
@@ -17130,6 +17137,7 @@ window.getUnifiedSubjectAliases = function (subjectId) {
                 if (found) {
                     if (found.id) aliases.add(found.id);
                     if (found.name) aliases.add(found.name);
+                    if (found.title) aliases.add(found.title);
                     if (found.subject) aliases.add(found.subject);
                 }
             }
@@ -17704,7 +17712,7 @@ window.resolveGradebookScoreColumn = function (subjectId, section, quarter, item
         });
         if (found && found.itemIdx !== undefined && found.itemIdx !== null) {
             return {
-                category: found._category || found.category || cat,
+                category: cat,
                 itemIdx: Number(found.itemIdx),
                 item: found
             };
@@ -18006,13 +18014,16 @@ window.syncSharedScoreAndStatus = function (params) {
 
     const catKeysSet = new Set();
     const normCat = (item?._category || item?.category || item?.type || (item?.quizId ? 'quiz' : '') || category || '').toLowerCase();
-    const isQuizTarget = Boolean(normCat.includes('quiz') || item?.quizId || (itemId && String(itemId).startsWith('qz-')) || /quiz/i.test(taskTitle));
+    const isQuizTarget = Boolean(normCat.includes('quiz') || item?.quizId || item?.selectedQuizId
+        || (itemId && String(itemId).startsWith('qz-'))
+        || ((!normCat || normCat === 'assessments' || normCat === 'ww')
+            && !/^task\s*\d*\b/i.test(taskTitle) && /quiz/i.test(taskTitle)));
     const isQuizItem = isQuizTarget;
     const tabKey = isQuizItem ? 'quiz' : (category === 'activity' ? 'activity' : 'assessments');
     if (isQuizTarget) {
         catKeysSet.add('quiz'); catKeysSet.add('quizzes'); catKeysSet.add('Quiz'); catKeysSet.add('Quizzes');
     }
-    if (normCat.includes('assign') || normCat === 'task' || normCat === 'tasks' || category === 'assignment') {
+    if (!isQuizTarget && (normCat.includes('assign') || normCat === 'task' || normCat === 'tasks' || category === 'assignment')) {
         catKeysSet.add('assignment'); catKeysSet.add('assignments'); catKeysSet.add('Assignment'); catKeysSet.add('Assignments');
         catKeysSet.add('task'); catKeysSet.add('tasks');
     }
@@ -18028,8 +18039,10 @@ window.syncSharedScoreAndStatus = function (params) {
     if (normCat === 'ww' || normCat === 'written works' || category === 'ww' || category === 'written works') {
         catKeysSet.add('ww'); catKeysSet.add('written works');
     }
-    catKeysSet.add(normCat);
-    catKeysSet.add(category);
+    if (!isQuizTarget) {
+        catKeysSet.add(normCat);
+        catKeysSet.add(category);
+    }
     const catKeys = Array.from(catKeysSet).filter(Boolean);
 
     // 6. Normalize status / attendance and score
@@ -18093,7 +18106,8 @@ window.syncSharedScoreAndStatus = function (params) {
                         const matchId = itemId && [row.id, row.materialId, row.quizId, row.origId].some(id => id && String(id).toLowerCase() === itemId.toLowerCase());
                         const matchTopic = (Number(row.topicIdx) === topicIdx && Number(row.topicItemIdx ?? row.activeIdx) === topicItemIdx);
                         const matchTitle = taskTitle && row.title && String(row.title).toLowerCase() === taskTitle.toLowerCase();
-                        if (matchId || matchTopic || matchTitle) {
+                        const rowHasId = [row.id, row.materialId, row.quizId, row.origId].some(Boolean);
+                        if (itemId && rowHasId ? matchId : matchTitle) {
                             const at = String(row.attendance || row.status || '').trim().toLowerCase();
                             if (at === 'incomplete' || at === 'excuse' || at === 'excused' || at === 'missing' || at === 'absent') {
                                 existingTone = at === 'excused' ? 'excuse' : at;
@@ -19017,6 +19031,11 @@ window.saveTeacherGradingScore = function () {
     if (typeof window.showToast === 'function') {
         window.showToast(numScore === null ? `Status saved for ${studentName}` : `Grade saved (${numScore} pts) for ${studentName}`, 'success');
     }
+    window.invalidateTeacherGradebookCache?.();
+    window.invalidateSharedAssessmentSubmissionsStorage?.();
+    if (typeof window.switchTopicTab === 'function') {
+        window.switchTopicTab(tab, actIdx, true);
+    }
 };
 
 if (typeof document !== 'undefined') {
@@ -19875,6 +19894,10 @@ window.getAssessmentGradeStorageKeys = function (subjectId, item, cat, columnIdx
 };
 
 window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, subjectId = null, currentQ = null, item = null) {
+    if (item?.offline) {
+        const score = window.readOfflineAssessmentScore?.(student, item);
+        return { score: score ?? '', status: '', isAutoMissing: false, isPastDue: false, isManualOverride: true, teacherSaved: score !== null && score !== undefined };
+    }
     if (window._inEffectiveAssessmentStatusLookup) {
         return { status: '', score: '', isAutoMissing: false, isPastDue: false };
     }
@@ -19914,7 +19937,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
     let manualGradeRecord = null;
     try { manualGradeRecord = JSON.parse(localStorage.getItem('sigma-manual-grade-closures-v1') || '{}')[window.assessmentClosureKey(student, foundItem, subj, section)]; } catch (_) {}
     if (manualGradeRecord && !window.findAssessmentSubmittedWork?.(student, foundItem, subj, section, q)) {
-        return { score: manualGradeRecord.score, status: manualGradeRecord.status || '', isAutoMissing: false, isPastDue: false, requiresSubmission: false };
+        return { score: manualGradeRecord.score, status: manualGradeRecord.status || '', isAutoMissing: false, isPastDue: false, requiresSubmission: false, isManualOverride: true, teacherSaved: true };
     }
 
     const resolvedHps = (typeof window.resolveAssessmentHPS === 'function')
@@ -20009,7 +20032,10 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
     const sKeys = Array.from(new Set(aliasKeys.filter(Boolean)));
 
     const resolvedCat = String(foundItem?._category || foundItem?.category || foundItem?.type || (foundItem?.quizId ? 'quiz' : '') || cat || '').trim().toLowerCase();
-    const isQuizLookup = Boolean(resolvedCat.includes('quiz') || Boolean(foundItem?.quizId) || /quiz/i.test(foundItem?.title || item?.title || ''));
+    const isQuizLookup = Boolean(resolvedCat.includes('quiz') || foundItem?.quizId || foundItem?.selectedQuizId
+        || ((!resolvedCat || resolvedCat === 'assessments' || resolvedCat === 'ww')
+            && !/^task\s*\d*\b/i.test(foundItem?.title || item?.title || '')
+            && /quiz/i.test(foundItem?.title || item?.title || '')));
     const catKeysSet = new Set();
     if (isQuizLookup) {
         catKeysSet.add('quiz'); catKeysSet.add('quizzes'); catKeysSet.add('Quiz'); catKeysSet.add('Quizzes');
@@ -20029,6 +20055,7 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
     const catKeys = Array.from(catKeysSet).filter(Boolean);
 
     // Each column in the gradebook corresponds strictly to actualItemIdx, or its resolved index in WW/PT/QA
+    let scoreColumnIndex = actualItemIdx;
     const idxKeys = [actualItemIdx];
     if (itemIdx !== undefined && itemIdx !== null && !idxKeys.includes(Number(itemIdx))) {
         idxKeys.push(Number(itemIdx));
@@ -20070,18 +20097,30 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         try {
             const resolvedCol = window.resolveGradebookScoreColumn(subj, section, q, foundItem, foundItem.topicIdx ?? 0, actualItemIdx);
             if (resolvedCol) {
-                if (resolvedCol.category && !catKeys.includes(resolvedCol.category)) catKeys.push(resolvedCol.category);
+                // Category-local indices are not interchangeable with another category's slots.
+                if (resolvedCol.category) {
+                    const columnCat = String(resolvedCol.category).toLowerCase();
+                    const family = columnCat.includes('quiz') ? ['quiz', 'quizzes', 'Quiz', 'Quizzes']
+                        : /assign|^tasks?$/.test(columnCat) ? ['assignment', 'assignments', 'Assignment', 'Assignments', 'task', 'tasks']
+                        : columnCat.includes('perf') || columnCat === 'pt' ? ['perf. task', 'performance', 'pt', 'performanceTasks', 'Performance Task', 'Performance']
+                        : columnCat.includes('activ') ? ['activity', 'activities', 'Activity', 'Activities']
+                        : [resolvedCol.category];
+                    catKeys.splice(0, catKeys.length, ...family);
+                }
                 if (resolvedCol.itemIdx !== undefined && resolvedCol.itemIdx !== null && !idxKeys.includes(Number(resolvedCol.itemIdx))) {
                     idxKeys.push(Number(resolvedCol.itemIdx));
                 }
                 // Topic-local and display indices can belong to a different assessment.
                 if (Number.isFinite(Number(resolvedCol.itemIdx))) {
+                    scoreColumnIndex = Number(resolvedCol.itemIdx);
                     idxKeys.splice(0, idxKeys.length, Number(resolvedCol.itemIdx));
                 }
             }
         } catch (_) {}
     }
 
+    // Never borrow a topic-local or alternate display slot from another assessment.
+    idxKeys.splice(0, idxKeys.length, scoreColumnIndex);
     const sectionBuckets = (quarterMap) => {
         if (!quarterMap || typeof quarterMap !== 'object') return [];
         const secBuckets = [];
@@ -20341,7 +20380,11 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
                     const topicMatch = (Number(rec.topicIdx) === Number(foundItem?.topicIdx ?? 0) && (Number(rec.topicItemIdx ?? rec.activeIdx) === Number(actualItemIdx) || Number(rec.topicItemIdx ?? rec.activeIdx) === Number(itemIdx)));
                     const isQuizMatch = (resolvedCat.includes('quiz') || Boolean(foundItem?.quizId)) === Boolean(recCat.includes('quiz') || rec.quizId || /quiz/i.test(recTitle));
                     
-                    if ((idMatch || titleMatch || topicMatch) && isQuizMatch) {
+                    const identityMatch = targetIds.length && recIds.length ? idMatch : titleMatch;
+                    if (identityMatch && isQuizMatch
+                        && (!rec.subjectId || subKeys.includes(rec.subjectId))
+                        && (!rec.section || String(rec.section).trim().toLowerCase() === String(section).trim().toLowerCase())
+                        && (!rec.quarter || Number(rec.quarter) === Number(q))) {
                         const att = String(rec.attendance || rec.status || '').trim().toLowerCase();
                         if (att === 'incomplete' || att === 'missing' || att === 'absent' || att === 'excuse' || att === 'excused') {
                             savedStatus = att === 'excused' ? 'excuse' : att;
@@ -20676,6 +20719,11 @@ window.getStudentFullAliases = function (student) {
 };
 
 window.gradebookAttendanceMark = function (student, item, category, itemIdx, subjectId, quarter) {
+    if (item?.offline) {
+        const tone = window.readOfflineAssessmentStatus?.(student, item);
+        const labels = { missing: ['M', 'Missing'], absent: ['A', 'Absent'], incomplete: ['I', 'Incomplete'], excuse: ['E', 'Excuse'] };
+        return labels[tone] ? { code: labels[tone][0], name: labels[tone][1], tone } : null;
+    }
     if (window._inGradebookAttendanceMarkLookup) return null;
     window._inGradebookAttendanceMarkLookup = true;
     try {
@@ -20708,7 +20756,9 @@ window.gradebookAttendanceMark = function (student, item, category, itemIdx, sub
         const isQuizItem = Boolean(
             category === 'quiz' || source.quizId || source.category === 'quiz' || source.type === 'quiz' ||
             item.quizId || item.category === 'quiz' || item.type === 'quiz' ||
-            /quiz/i.test(source.title || source.name || item.title || item.name || '')
+            (!/assign|task|activ|perf/i.test(String(source.category || source.type || category || ''))
+                && !/^task\s*\d*\b/i.test(source.title || source.name || item.title || item.name || '')
+                && /quiz/i.test(source.title || source.name || item.title || item.name || ''))
         );
         const topicIdx = (item && item.topicIdx !== undefined && item.topicIdx !== null) ? Number(item.topicIdx) : 0;
         const slot = (item && item.topicItemIdx !== undefined && item.topicItemIdx !== null) ? Number(item.topicItemIdx) : Number(itemIdx || 0);
@@ -20732,7 +20782,9 @@ window.gradebookAttendanceMark = function (student, item, category, itemIdx, sub
                     const rowRawTitle = String(row.title || '').trim().toLowerCase();
                     const rowCleanTitle = rowRawTitle.replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^(quiz|task|assignment|activity|perf\.?\s*task)\s*\d*[:\s-]+/i, '').trim();
                     const rowId = String(row.itemId || key || '').trim().toLowerCase();
-                    const rowIsQuiz = Boolean(row.isQuiz || row.quizId || row.category === 'quiz' || /quiz/i.test(rowRawTitle) || rowId.startsWith('qz_') || rowId.startsWith('quiz_'));
+                    const rowIsQuiz = Boolean(row.isQuiz || row.quizId || row.category === 'quiz'
+                        || (!/assign|task|activ|perf/i.test(String(row.category || '')) && !/^task\s*\d*\b/i.test(rowRawTitle) && /quiz/i.test(rowRawTitle))
+                        || rowId.startsWith('qz_') || rowId.startsWith('quiz_'));
 
                     if (isQuizItem !== rowIsQuiz) continue; // Strict quiz vs non-quiz boundary
                     if (rowId && itemIds.length && !itemIds.includes(rowId)) continue; // Disagreeing IDs cannot match
@@ -20815,7 +20867,9 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
     const source = (item && item.rawItem) || item || {};
     const itemId = String(source.id || source.materialId || source.origId || source.quizId || source.selectedQuizId || (item && (item.id || item.origId || item.quizId)) || '').trim();
     const title = String(source.title || source.name || (item && (item.title || item.name)) || '').trim();
-    const isQuizSource = Boolean(source.quizId || source.category === 'quiz' || source.type === 'quiz' || (item && (item.quizId || item.category === 'quiz' || item.type === 'quiz')) || /quiz/i.test(title));
+    const isQuizSource = Boolean(source.quizId || source.category === 'quiz' || source.type === 'quiz' || (item && (item.quizId || item.category === 'quiz' || item.type === 'quiz'))
+        || (!/assign|task|activ|perf/i.test(String(source.category || source.type || ''))
+            && !/^task\s*\d*\b/i.test(title) && /quiz/i.test(title)));
     const subjectId = context.subjectId || item?.subjectId || window.sigmaGradesState?.selectedSubjectSection?.subject || window.sigmaGradesState?.selectedSubject || window.currentTopicState?.subjectId || '';
     const section = context.section || student?.section || item?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || window.sigmaGradesState?.selectedSection || window.currentTopicState?.selectedSection || '';
     const quarter = context.quarter || item?.quarter || window.sigmaGradesState?.activeQuarter || window.currentTopicState?.quarter || 1;
@@ -20838,12 +20892,14 @@ window.saveGradebookAttendance = function (student, status, item, topicIdx, slot
         const rowIsQuiz = Boolean(row.isQuiz || row.quizId || row.category === 'quiz' || /quiz/i.test(rowTitle) || rowId.startsWith('qz_') || rowId.startsWith('quiz_'));
         if (isQuizSource !== rowIsQuiz) return false;
 
-        const idHit = Boolean(rowId && (targetItemIds.includes(rowId) || String(rowKeyName).toLowerCase() === rowId || (itemId && rowId === itemId.toLowerCase())));
+        const idHit = Boolean(rowId && targetItemIds.includes(rowId));
+        if (row.itemId && targetItemIds.length) return idHit;
         const titleHit = Boolean(titleClean && rowClean && (titleClean === rowClean || titleClean.includes(rowClean) || rowClean.includes(titleClean)));
         const slotHit = Number(row.topicIdx) === Number(topicIdx) && (Number(row.slot) === Number(slot) || Number(row.topicItemIdx) === Number(slot));
         const syntheticHit = String(rowKeyName).toLowerCase().includes(`${isQuizSource ? 'quiz' : 'task'}_${Number(topicIdx) || 0}_${Number(slot) || 0}`);
 
-        return Boolean(idHit || (titleHit && slotHit) || (titleHit && !rowId) || (slotHit && !rowClean) || syntheticHit);
+        return Boolean(idHit || (title && rowTitle && title.toLowerCase() === rowTitle && slotHit)
+            || (!title && !rowTitle && !itemId && !row.itemId && slotHit));
     };
 
     const allStoreStudentKeys = new Set(ids);
@@ -21269,6 +21325,7 @@ window.hideGradebookUnsubmittedIndicator = function () {
 };
 
 window.openGradebookScoreEditor = function (cell) {
+    if (cell && window.editOfflineAssessmentScore?.(cell)) return;
     if (window._gbIgnoreNextCellOpen) {
         window._gbIgnoreNextCellOpen = false;
         return;
@@ -21314,9 +21371,10 @@ window.openGradebookScoreEditor = function (cell) {
     window.hideGradebookFloatingBadge();
 
     const activeStatus = String(cell.dataset.attendance || '').trim().toLowerCase();
+    cell._gradebookOriginalHtml = cell.innerHTML;
     const statusBtn = (type, letter, label) => `<button type="button" class="gb-open-status-btn gb-open-status-${letter.toLowerCase()}${activeStatus === type ? ' is-active active-status' : ''}" data-type="${type}" title="${label}">${letter}</button>`;
     cell.innerHTML = `<div class="gb-open-score-editor">
-        <input type="number" inputmode="numeric" step="1" autocomplete="off"
+        <input type="number" inputmode="numeric" step="1" autocomplete="off" placeholder=" "
         class="score-counter-input gb-open-score-counter"
         min="0" max="${Number.isFinite(maxPts) ? maxPts : 0}" value="${esc(current)}"
         data-student-id="${esc(cell.dataset.studentId)}"
@@ -21817,10 +21875,24 @@ window.persistGradebookScorePanelRecord = function (input) {
 };
 
 window.commitGradebookScoreInput = function (input, event = null, forceCommit = false) {
+    if (input?._saveManualScore) { input._saveManualScore(); return; }
     if (window._gbApplyingStatus && !forceCommit) return;
     if (!input || input.disabled || input.dataset.committed === '1') return;
     const cell = input.closest('td');
     if (!cell) return;
+    const rawScore = String(input.value ?? '').trim();
+    const originalScore = String(cell.dataset.score || '').trim();
+    const currentStatus = String(input.dataset.applyAttendance ?? cell.dataset.attendance ?? '').toLowerCase();
+    const originalStatus = String(cell.dataset.attendance || '').toLowerCase();
+    const normalizeStatus = value => value === 'none' ? '' : value;
+    if (rawScore === originalScore && normalizeStatus(currentStatus) === normalizeStatus(originalStatus)
+        && cell._gradebookOriginalHtml !== undefined) {
+        input.dataset.committed = '1';
+        cell.innerHTML = cell._gradebookOriginalHtml;
+        delete cell._gradebookOriginalHtml;
+        window.hideGradebookFloatingBadge?.();
+        return;
+    }
     if (String(input.value || '').trim() !== '' && typeof window.findAssessmentSubmittedWork === 'function') {
         const data = { ...cell.dataset, ...input.dataset };
         if (!window.resolveNoDeadlineAssessment({ id: data.itemId }, data.subject || '', data.section || '', data.quarter || 1) && !window.findAssessmentSubmittedWork({ id: data.studentId, name: data.studentName },
@@ -22131,6 +22203,7 @@ window.syncOpenGradebookStatusToScorePanel = function (inputOrCell, applyAttenda
 };
 
 window.getGradebookStudentItemScore = function (student, category, itemIdx, item, subjectId, quarter) {
+    if (item?.offline) return window.readOfflineAssessmentScore?.(student, item) ?? null;
     const section = item?.section || window.sigmaGradesState?.selectedSubjectSection?.sectionName || student?.section || student?.gradeSection || '';
     const scopedSubject = item?.subjectId || subjectId;
     const scopedItem = { ...item, section, quarter };
@@ -22311,7 +22384,11 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                     const workHistory = Array.isArray(work.history) ? work.history : (Array.isArray(work.attempts) ? work.attempts : []);
                     sub = { ...work, ...sub };
                     // Grade-only copies must not hide the original upload or completed quiz answers.
+                    const savedIsNewer = savedHistory.length > workHistory.length
+                        || Number(sub.attemptsUsed || 0) > Number(work.attemptsUsed || 0)
+                        || Date.parse(sub.submittedAt || '') > Date.parse(work.submittedAt || '');
                     for (const field of ['files', 'attachments', 'fileName', 'fileUrl', 'dataUrl', 'url', 'submittedAt', 'submissionDate', 'completedAt', 'answers', 'userAnswers', 'questions', 'attempts', 'history', 'attemptsUsed', 'comments']) {
+                        if (savedIsNewer) continue;
                         if (work[field] !== undefined) sub[field] = work[field];
                     }
                     if (savedHistory.length > workHistory.length) {
@@ -22369,7 +22446,9 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             return sub;
         };
 
-        // The shared grading writer's section-specific records are authoritative.
+        let bestSub = null;
+        const attemptSources = [];
+        // Keep section-specific grades as candidates, not an early return that hides resubmissions.
         if (targetSection && targetIdStr) {
             const cleanSection = String(targetSection).trim().toLowerCase().replace(/^grade\s*\d+\s*[--]?\s*/i, '').replace(/^g\d+\s*[--]?\s*/i, '').trim();
             const aliases = typeof window.getStudentFullAliases === 'function' ? window.getStudentFullAliases(targetStudent) : [targetIdStr, targetIdStr.replace(/^std-/, ''), `std-${targetIdStr}`];
@@ -22380,22 +22459,27 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                     const candidate = all[alias]?.[key];
                     if (!candidate?.teacherSaved) continue;
                     const resolved = finalizeSubmission(candidate);
-                    if (resolved) return resolved;
+                    if (resolved) { bestSub = resolved; attemptSources.push(resolved); }
                 }
             }
         }
 
-        let bestSub = null;
         const considerSubmission = (sub) => {
             if (!matchesScope(sub)) return;
+            if (matItem && !window.submissionMatchesAssessment(sub, matItem)) return;
+            attemptSources.push(sub);
             if (!bestSub) {
                 bestSub = sub;
                 return;
             }
-            const nextAttempts = sub.history?.length || sub.attempts?.length || 0;
-            const bestAttempts = bestSub.history?.length || bestSub.attempts?.length || 0;
+            const nextAttempts = Math.max(sub.history?.length || sub.attempts?.length || 0, Number(sub.attemptsUsed || 0));
+            const bestAttempts = Math.max(bestSub.history?.length || bestSub.attempts?.length || 0, Number(bestSub.attemptsUsed || 0));
             if (nextAttempts > bestAttempts) { bestSub = sub; return; }
             if (bestAttempts > nextAttempts) return;
+            const nextDate = Date.parse(sub.submittedAt || sub.completedAt || '') || 0;
+            const bestDate = Date.parse(bestSub.submittedAt || bestSub.completedAt || '') || 0;
+            if (nextDate > bestDate) { bestSub = sub; return; }
+            if (bestDate > nextDate) return;
             const nextTeacherSaved = Boolean(sub.teacherSaved || sub.teacherEditedScore);
             const bestTeacherSaved = Boolean(bestSub.teacherSaved || bestSub.teacherEditedScore);
             if (bestTeacherSaved && !nextTeacherSaved) {
@@ -22545,18 +22629,18 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                             const savedRaw = savedGradeKey ? localStorage.getItem(savedGradeKey) : null;
                             const savedGrade = savedRaw ? JSON.parse(savedRaw) : null;
                             if (savedGrade && savedGrade.teacherSaved === true && savedGrade.score !== undefined && savedGrade.score !== null && savedGrade.score !== '' && savedGrade.score !== '-' && !isNaN(Number(savedGrade.score))) {
-                                return finalizeSubmission(savedGrade);
+                                considerSubmission(savedGrade);
                             }
                         } catch (e) { }
                     }
 
-                    if (bestSub && bestSub.teacherSaved === true) return finalizeSubmission(bestSub);
                 }
             } catch (e) { }
         }
 
         const candidateKeys = [];
         const subjVariants = Array.from(new Set([
+            ...subjectAliases,
             cleanSubj,
             rawSubj,
             `card-${cleanSubj}`,
@@ -22868,7 +22952,36 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
             const work = window.findAssessmentSubmittedWork(targetStudent, matItem, subjectId, targetSection, targetQuarter);
             if (work) considerSubmission(work);
         }
-        return finalizeSubmission(bestSub);
+        const resolvedSubmission = finalizeSubmission(bestSub);
+        const isFileTask = matItem && !window.getAssessmentMatchIdentity(matItem).hasAttachedQuiz
+            && tabStr !== 'quiz';
+        if (resolvedSubmission && isFileTask) {
+            // Legacy subject-name and subject-ID copies can each contain a different upload.
+            const recovered = new Map();
+            for (const source of [...attemptSources, resolvedSubmission]) {
+                const history = source.history?.length ? source.history : (source.attempts?.length ? source.attempts : [source]);
+                for (const attempt of history) {
+                    if (!attempt || !(attempt.fileName || attempt.files?.length)) continue;
+                    if ((attempt.materialId || attempt.assessmentTitle || attempt.title)
+                        && !window.submissionMatchesAssessment(attempt, matItem)) continue;
+                    const uploadedAt = attempt.submittedAt || source.submittedAt;
+                    if (!uploadedAt) continue;
+                    const files = attempt.files?.length ? attempt.files : [{ name: attempt.fileName, url: attempt.fileUrl || '' }];
+                    const signature = JSON.stringify([Date.parse(uploadedAt) || uploadedAt, files.map(file => file.name || file.fileName).sort()]);
+                    const existing = recovered.get(signature);
+                    recovered.set(signature, existing ? { ...attempt, ...existing } : { ...attempt, files, submittedAt: uploadedAt });
+                }
+            }
+            if (recovered.size > 1) {
+                const history = [...recovered.values()].sort((a, b) => (Date.parse(a.submittedAt) || 0) - (Date.parse(b.submittedAt) || 0))
+                    .map((attempt, index) => ({ ...attempt, attemptNumber: index + 1 }));
+                const latest = history[history.length - 1];
+                return { ...resolvedSubmission, ...latest, history, attempts: history,
+                    attemptsUsed: Math.max(history.length, Number(resolvedSubmission.attemptsUsed || 0)),
+                    extraAttempts: resolvedSubmission.extraAttempts, allowResubmitGranted: resolvedSubmission.allowResubmitGranted };
+            }
+        }
+        return resolvedSubmission;
     } catch (e) {
         return null;
     }
@@ -23076,6 +23189,10 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
                 submittedAt: prev.submittedAt || new Date().toISOString(),
                 score: prev.score,
                 aiScore: prev.aiScore,
+                teacherSaved: prev.teacherSaved,
+                teacherEditedScore: prev.teacherEditedScore,
+                gradedAt: prev.gradedAt,
+                teacherFeedback: prev.teacherFeedback,
                 isLate: Boolean(prev.isLate),
                 comment: (prev.comment || '').trim(),
                 replies: Array.isArray(prev.replies) ? prev.replies : []
@@ -23094,6 +23211,8 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         });
 
         const currentAttemptRecord = {
+            materialId: item?.id || item?.materialId || '',
+            assessmentTitle: item?.title || item?.name || '',
             attemptNumber: attemptsUsed,
             status: 'Submitted',
             fileName: primaryFileName,
@@ -24036,6 +24155,16 @@ window.navigateToGradebookFromSubmission = function (subjectId = '', section = '
 
     // 3. Find the assessment item index and page within the 2nd table
     const currentQ = (window.sigmaGradesState?.activeQuarter) || (typeof gradebookState !== 'undefined' ? gradebookState?.currentQuarter : 1) || 1;
+    if (taskTitle && typeof window.getCategoryDetails === 'function') {
+        const normalizeTitle = value => String(value || '').trim().toLowerCase();
+        for (const [category, view] of [['perf. task', 'pt'], ['qa', 'qa'], ['ww', 'ww']]) {
+            const candidates = window.getCategoryDetails(category, currentQ, finalSubject, finalSection) || [];
+            if (candidates.some(item => normalizeTitle(item.title || item.name || item.rawItem?.title) === normalizeTitle(taskTitle))) {
+                targetView = view;
+                break;
+            }
+        }
+    }
     let items = [];
     if (typeof window.getCategoryDetails === 'function') {
         try {
@@ -24057,7 +24186,7 @@ window.navigateToGradebookFromSubmission = function (subjectId = '', section = '
         const targetTitleClean = cleanTitle(taskTitle);
         targetItemIndex = items.findIndex(it => {
             const itTitleClean = cleanTitle(it.title || it.name || it.rawItem?.title || '');
-            return itTitleClean === targetTitleClean || itTitleClean.includes(targetTitleClean) || targetTitleClean.includes(itTitleClean);
+            return itTitleClean === targetTitleClean;
         });
         if (targetItemIndex >= 0) {
             targetPage = Math.floor(targetItemIndex / 4);
@@ -24075,6 +24204,10 @@ window.navigateToGradebookFromSubmission = function (subjectId = '', section = '
     };
     window.sigmaGradesState.currentView = targetView;
     window.sigmaGradesState.assessmentPage = targetPage;
+    window.sigmaGradesState.mobileAssessmentSlot = targetItemIndex >= 0 ? targetItemIndex % 4 : 0;
+    const selectedStudent = window.currentTopicState?.selectedStudent
+        || (typeof currentTopicState !== 'undefined' ? currentTopicState?.selectedStudent : '') || 'All';
+    window.sigmaGradesState.selectedStudent = selectedStudent;
     window.sigmaGradesState.highlightedTaskTitle = taskTitle;
     window._pendingGradebookDetail = {
         view: targetView,
@@ -24092,6 +24225,7 @@ window.navigateToGradebookFromSubmission = function (subjectId = '', section = '
         };
         gradebookState.currentView = targetView;
         gradebookState.assessmentPage = targetPage;
+        gradebookState.selectedStudent = selectedStudent;
         gradebookState.highlightedTaskTitle = taskTitle;
     }
 
@@ -27102,7 +27236,16 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         let compLabel = 'Written Work';
         let defaultWeight = 25;
 
-        if (isAssignment || isQuizItem) {
+        const configuredComponent = String(findInConfig(assessConfig?.assessmentActivityComponents)
+            ?? findInConfig(assessConfig?.assessmentComponents)
+            ?? ass.component ?? ass.gradebookComponent ?? ass.rawItem?.component ?? '').toLowerCase();
+        if (!isQuizItem && (configuredComponent === 'pt' || configuredComponent.includes('perf'))) {
+            compLabel = 'Performance Task';
+            defaultWeight = 50;
+        } else if (!isQuizItem && (configuredComponent === 'qa' || configuredComponent.includes('quarter') || configuredComponent.includes('exam'))) {
+            compLabel = 'Quarterly Assessment';
+            defaultWeight = 25;
+        } else if (isAssignment || isQuizItem) {
             // Assignments & Quizzes are strictly Written Work (25%)
             compLabel = 'Written Work';
             defaultWeight = 25;
@@ -27282,6 +27425,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     }
                 }
                 if (parsed && typeof parsed === 'object') {
+                    if (!window.submissionMatchesAssessment(parsed, submissionAssessment)) continue;
                     if (currentStudentObj && typeof window.isSubmissionMatchForStudent === 'function' && !window.isSubmissionMatchForStudent(parsed, currentStudentObj)) {
                         continue;
                     }
@@ -27385,6 +27529,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                 || subData.status === 'Submitted' || subData.status === 'Pending')));
         if (window.resolveNoDeadlineAssessment(ass, subjectId, curSecForGb, assessmentQuarter)
             && !window.findAssessmentSubmittedWork(studentUser, ass, subjectId, curSecForGb, assessmentQuarter, [subData])) isSubmitted = false;
+        const hasSelectedSubmissionStudent = role === 'student' || Boolean(curStudent && curStudent !== 'All');
+        const showSubmissionHistoryDetails = hasSelectedSubmissionStudent && (isViewSubmissionMode || isSubmitted);
         let isGraded = false;
         let isPending = false;
         const cfgAi = findInConfig(assessConfig?.assessmentAiAssisted)
@@ -27546,6 +27692,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             }
         }
 
+        if (!hasAttachedDigitalQuiz) {
+            attemptsHistory = attemptsHistory.filter(attempt => {
+                if (!attempt || !(attempt.fileName || attempt.files?.length || attempt.attachments?.length || attempt.textAnswer)) return false;
+                const identity = attempt.materialId || attempt.id || attempt.assessmentTitle || attempt.title;
+                return !identity || window.submissionMatchesAssessment(attempt, submissionAssessment);
+            });
+        }
+
         // Renumber sequentially
         attemptsHistory.forEach((att, idx) => {
             if (att) att.attemptNumber = idx + 1;
@@ -27553,9 +27707,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         let genuineAttemptsCount = (attemptsHistory.length > 0)
             ? attemptsHistory.length
-            : (isSubmitted ? 1 : 0);
+            : (hasAttachedDigitalQuiz && isSubmitted ? 1 : 0);
 
-        if (subData && (subData.status === 'Submitted' || subData.submittedAt || subData.fileName) && genuineAttemptsCount === 0) {
+        if (hasAttachedDigitalQuiz && subData && (subData.status === 'Submitted' || subData.submittedAt || subData.fileName) && genuineAttemptsCount === 0) {
             genuineAttemptsCount = Number(subData.attemptsUsed || 1);
         }
 
@@ -27575,6 +27729,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         }
 
         const effectiveAttemptsUsed = genuineAttemptsCount;
+        const displayedExtraAttempts = isAnyQuiz ? 0
+            : (subData?.allowResubmitGranted ? studentExtraAttempts : 0);
 
         // If digital quiz has 0 genuine attempts and has not been submitted, it must NOT be scored or marked graded
         if (isAnyQuiz && hasAttachedDigitalQuiz && genuineAttemptsCount === 0 && !subData?.submittedAt && !subData?.fileName) {
@@ -27983,8 +28139,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const attemptPaginationHtml = !isAnyQuiz && totalAttemptPages > 1 ? `
             <div class="submission-attempt-selector-row">
-                <label for="submission-attempt-select">Attempt</label>
-                <select id="submission-attempt-select" class="submission-attempt-select" onchange="window.switchStudentSubmissionAttemptPage(this.value, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
+                <select id="submission-attempt-select" aria-label="Submission attempt" class="submission-attempt-select" onchange="window.switchStudentSubmissionAttemptPage(this.value, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
                     ${reversedAttempts.map((attempt, index) => `<option value="${index + 1}" ${index + 1 === currentAttemptPage ? 'selected' : ''}>Attempt ${attempt.attemptNumber || totalAttemptPages - index}${index === 0 ? ' - Latest' : ''}</option>`).join('')}
                 </select>
             </div>
@@ -28079,29 +28234,18 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 ` : `
                                      <!-- Submitted Answer File Panel & Comment (Always shown in View Submission mode) -->
                                      <div class="pt-6 space-y-6" id="student-submitted-answer-section">
-                                         ${isSubmitted ? attemptPaginationHtml : ''}
                                          ${(role === 'student' && isAnyQuiz && hasAttachedDigitalQuiz && (!hasQuizAttempt || isRetakeActive)) ? attachedFileHtml : ''}
 
                                          <!-- 1. Top Section: Submitted Answer & Files (Full Width) -->
                                          <div class="space-y-3 font-['Inter']">
-                                             <div class="flex items-center justify-between gap-2 pb-0.5">
+                                             <div class="submission-work-toolbar">
                                                  <div class="flex items-center gap-2 flex-wrap">
                                                       <h3 class="text-sm sm:text-base font-bold text-slate-900 font-['Inter'] flex items-center gap-2 m-0">
                                                           <i class="fa-solid fa-file-lines text-[#15803d] text-sm"></i>
                                                           <span>${(isAnyQuiz && hasAttachedDigitalQuiz) ? 'Submitted Answer' : 'Submitted Work'}</span>
                                                       </h3>
-                                                      ${(isSubmitted && totalAttemptPages > 1) ? (
-                    currentAttemptPage === 1 ? `
-                                                              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-green-50 border border-green-200 text-[#15803d] font-['Inter']">
-                                                                  Latest
-                                                              </span>
-                                                          ` : `
-                                                              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 border border-amber-200 text-amber-700 font-['Inter']">
-                                                                  Previous
-                                                              </span>
-                                                          `
-                ) : ''}
                                                   </div>
+                                                  ${isSubmitted ? attemptPaginationHtml : ''}
                                               </div>
                                               ${isSubmitted ? (
                     activeAttemptFiles.length > 0 ? `
@@ -28628,9 +28772,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                             <i class="fa-solid fa-bullseye text-sm text-[#15803d] w-4 text-center shrink-0"></i>
                                             <span>Max Attempts</span>
                                         </span>
-                                        <span class="font-normal text-black font-['Inter']">${baseMaxAttempts}${showStudentSubmissionDetails && hasUnusedGrantedExtraAttempt ? ` (+${studentExtraAttempts})` : ''}</span>
+                                        <span class="font-normal text-black font-['Inter']">${baseMaxAttempts}${showStudentSubmissionDetails && displayedExtraAttempts > 0 ? ` (+${displayedExtraAttempts})` : ''}</span>
                                     </div>
-                                    ${showStudentSubmissionDetails ? `
+                                    ${showSubmissionHistoryDetails ? `
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid fa-clock-rotate-left text-sm text-[#15803d] w-4 text-center shrink-0"></i>
@@ -28646,7 +28790,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </span>
                                         <span class="font-normal font-['Inter'] ${lateColor}">${lateLabel}</span>
                                     </div>
-                                    ${showStudentSubmissionDetails ? `
+                                    ${showSubmissionHistoryDetails ? `
                                     <div class="flex items-center justify-between text-xs font-medium py-1 border-b border-black/10" id="submission-details-submitted-row">
                                         <span class="text-black font-normal flex items-center gap-2 font-['Inter']">
                                             <i class="fa-solid ${isSubmitted ? 'fa-circle-check text-[#15803d]' : (isPastDue ? 'fa-circle-xmark text-red-500' : 'fa-file-arrow-up text-black-fade')} text-sm w-4 text-center shrink-0"></i>
@@ -28918,7 +29062,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
     return `
         <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
             <div class="space-y-4 font-['Inter']" id="assessment-list">
-                ${assessments.map((ass, i) => {
+                ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(assessments) : assessments).map((ass) => {
+                    const i = assessments.indexOf(ass);
                     const rawKind = String(ass?.category || ass?.type || ass?.kind || tab || '').toLowerCase();
                     const rawTitle = String(ass?.title || ass?.name || '').toLowerCase();
                     const isTaskItem = rawTitle.startsWith('task') || rawKind === 'task' || rawKind === 'tasks' || rawKind === 'assignment' || rawKind === 'activity' || rawKind === 'performance task' || rawKind === 'perf. task' || ass?.category === 'Task';
@@ -35598,6 +35743,9 @@ window.getCategoryDetails = function (category, specifiedQ = null, specifiedSubj
     } else if (subjectKey) {
         result = window.getAssessmentsForSubject(subjectKey, category, qKey, sectionKey);
     }
+    const offline = window.getOfflineAssessments?.(subjectKey, sectionKey, qKey, normCat === 'pt' ? 'perf. task' : normCat) || [];
+    result = [...result, ...offline.map(item => ({ ...item, itemIdx: -1, rawItem: item }))];
+    result.sort((a, b) => (Date.parse(a.createdAt || a.date || '') || 0) - (Date.parse(b.createdAt || b.date || '') || 0));
     _sharedCategoryDetailsCache[cacheKey] = result;
     return result;
 };
@@ -35658,12 +35806,18 @@ window.withGradebookReadCache = function (render) {
     };
     window._gradebookReadCacheActive = true;
     try {
-        for (const name of ['findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore']) {
+        for (const name of ['findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', '_getTeacherGradebookCached', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore', 'getGradebookStudentItemScore', 'calculateGradebookCategoryPercentage', 'resolveGradebookScoreColumn', 'readScorePanelPoints', 'readStudentVisibleGradebookScore']) {
             const original = window[name];
             if (typeof original !== 'function') continue;
             originals.set(name, original);
             const cache = new Map();
             window[name] = function (...args) {
+                if ((name === '_getTeacherGradebookCached' || name === 'getSharedAssessmentSubmissionsStorage') && args[0] === true) {
+                    cache.clear();
+                    const refreshed = original.apply(this, args);
+                    for (const normalArgs of [[], [false]]) cache.set(JSON.stringify(normalArgs.map(keyPart)), refreshed);
+                    return refreshed;
+                }
                 // Recursive status probes must not cache the recursion guard's empty result.
                 if (window._inEffectiveAssessmentStatusLookup && name === 'getEffectiveAssessmentStatusAndScore') {
                     return original.apply(this, args);

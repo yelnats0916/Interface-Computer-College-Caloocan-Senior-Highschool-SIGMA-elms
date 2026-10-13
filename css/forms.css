@@ -1383,6 +1383,12 @@ body:has(.sigma-modal-overlay:not(.hidden)) {
     height: 100vh !important;
 }
 
+#attendance-export-modal .export-scope-option,
+#attendance-export-modal .export-scope-option * {
+    transition: none !important;
+    animation: none !important;
+}
+
 .sigma-modal-overlay {
     position: fixed;
     inset: 0;

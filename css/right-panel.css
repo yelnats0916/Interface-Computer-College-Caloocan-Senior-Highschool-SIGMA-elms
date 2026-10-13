@@ -927,6 +927,22 @@ i.home-dashboard-time-icon--upcoming {
     margin-bottom: 0.35rem !important;
 }
 
+/* Shared dashboard text contrast, including the mobile panel copies. */
+body .home-dashboard-card .home-dashboard-card__title,
+body .home-dashboard-card .home-dashboard-assessment-btn,
+body .home-dashboard-card .home-dashboard-subject-link:not(.home-dashboard-subject-link--meta),
+body .home-dashboard-card--class .home-dashboard-card__meta,
+body .home-dashboard-card--class .home-dashboard-card__time {
+    color: #000000 !important;
+}
+
+body .home-dashboard-card .home-dashboard-assessment-btn:hover,
+body .home-dashboard-card .home-dashboard-assessment-btn:focus-visible,
+body .home-dashboard-card .home-dashboard-subject-link:hover,
+body .home-dashboard-card .home-dashboard-subject-link:focus-visible {
+    color: #FFD000 !important;
+}
+
 .home-dashboard-empty-text {
     font-size: 13.5px !important;
     font-weight: 500 !important;

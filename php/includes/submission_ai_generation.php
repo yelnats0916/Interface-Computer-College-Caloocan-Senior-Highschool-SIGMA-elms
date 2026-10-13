@@ -66,7 +66,7 @@ function generateSubmissionAi(array $services, array $input, callable $request):
                 $body = ['model' => $key['model'], 'messages' => [['role' => 'system', 'content' => $prompt], ['role' => 'user', 'content' => $evidence]], 'response_format' => ['type' => 'json_object'], 'max_completion_tokens' => 4096];
             }
             $response = $request($url, $headers, $body);
-            $raw = $key['provider'] === 'gemini' ? implode('', array_column($response['candidates'][0]['content']['parts'] ?? [], 'text')) : ($response['choices'][0]['message']['content'] ?? '');
+            $raw = aiProviderResponseText($response, $key['provider']);
             $decoded = json_decode($raw, true);
             if (!is_array($decoded)) throw new RuntimeException('AI returned invalid evaluation JSON.');
             if (isset($decoded['error'])) throw new RuntimeException('The AI could not evaluate this submission. Check its content and rubric.');

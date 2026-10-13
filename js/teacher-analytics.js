@@ -96,10 +96,10 @@
     }
     function present(cards, analyzedAt) {
         const date = analyzedAt ? new Date(analyzedAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-        return cards.map(card => {
+        return [...cards].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)).map(card => {
             const body = rules.renderInsightSections(card.analyses, root.location.href);
             return { id: card.id, concernTitle: card.title.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])),
-                categoryIcon: rules.INSIGHT_ICONS[card.icon].className, date, datePlacement: 'footer', previewText: body, concernText: body };
+                categoryIcon: rules.INSIGHT_ICONS[rules.normalizeInsightIcon(card.icon)].className, date: card.createdAt ? new Date(card.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : date, datePlacement: 'footer', previewText: body, concernText: body };
         });
     }
     function refresh() {
@@ -109,21 +109,29 @@
         root.syncMobileAnalyticsCards?.();
     }
     root.addEventListener?.('sigma:refresh-analytics-cards', refresh);
+    let dailyTimer;
+    function scheduleDaily() {
+        clearTimeout(dailyTimer);
+        if (!teacherId() || !rules?.nextDailyRun) return;
+        dailyTimer = setTimeout(async () => {
+            try { await root.SigmaTeacherAnalytics.analyze(); }
+            finally { scheduleDaily(); }
+        }, Math.max(1000, rules.nextDailyRun(Date.now()) - Date.now()));
+    }
     root.SigmaTeacherAnalytics = {
         refresh() {
             cache = undefined;
             cachedAt = 0;
             refresh();
         },
-        setProvider(adapter) { if (typeof adapter !== 'function') throw new Error('Invalid analytics provider.'); provider = adapter; },
+        setProvider(adapter) { if (typeof adapter !== 'function') throw new Error('Invalid analytics provider.'); provider = adapter; scheduleDaily(); },
         getCards() {
             if (!rules || !teacherId()) return [];
             const input = snapshot();
-            if (!input.areas.length) return [];
             const state = readState(input.teacherId);
             if (!provider) return present(restrictTeacherLinks(rules.validateCards(fallback(input), input), input, root.location.href), state.lastAnalyzed);
             if (!state.usedProvider) return [];
-            try { return present(restrictTeacherLinks(rules.validateCards({ cards: state.cards || [] }, input), input, root.location.href), state.lastAnalyzed); } catch { return []; }
+            try { return present(restrictTeacherLinks((state.cards || []).filter(card => typeof card.title === 'string' && card.analyses?.length === 1 && rules.normalizeActionLabel(card.analyses[0].actionLabel)), input, root.location.href), state.lastAnalyzed); } catch { return []; }
         },
         async analyze() {
             if (running || !rules) return;
@@ -136,8 +144,11 @@
                     const input = snapshot(true);
                     if (!input.teacherId) throw new Error('Sign in as a teacher to analyze your classes.');
                     await root.SigmaAiDatabase?.ensureState('teacher', input.teacherId, true);
+                    if (root.SigmaAiDatabase?.isOffline('teacher', input.teacherId)) throw new Error(root.SigmaAiDatabase.getState('teacher', input.teacherId).cards?.length
+                        ? 'Showing cached insights. Connect and sync this account before generating new insights.'
+                        : 'No saved insights for this account. Connect and sync it before generating insights.');
                     const stored = readState(input.teacherId);
-                    const previous = provider && stored.usedProvider !== true ? {} : stored;
+                    const previous = stored;
                     const policy = rules.generationPolicy(input, previous, Date.now());
                     if (!policy.shouldGenerate) return;
                     let generatedWith = {};
@@ -157,7 +168,7 @@
                     const cards = provider ? await rules.guardedProviderCall(localStorage, storageKey(input.teacherId), policy.fingerprint, generate, { now: () => Date.now() }) : await generate();
                     if (teacherId() !== input.teacherId) throw new Error('The signed-in teacher changed.');
                     const latest = readState(input.teacherId);
-                    const { newCards, ...saved } = rules.acceptGeneration(cards, input, provider && latest.usedProvider !== true ? {} : latest, policy, Date.now());
+                    const { newCards, ...saved } = rules.acceptGeneration(cards, input, latest, policy, Date.now());
                     const persisted = { ...saved, usedProvider: Boolean(provider) };
                     if (root.SigmaAiDatabase) await root.SigmaAiDatabase.saveState('teacher', input.teacherId, persisted);
                     else localStorage.setItem(storageKey(input.teacherId), JSON.stringify(persisted));
@@ -171,7 +182,7 @@
             });
         }
     };
-    document.addEventListener('click', event => { if (event.target.closest('.sigma-analyze-button')) root.SigmaTeacherAnalytics.analyze(); });
-    document.addEventListener('sigma:teacher-portal-ready', () => root.SigmaTeacherAnalytics.refresh());
+    document.addEventListener('click', event => { if (event.target.closest('.sigma-analyze-button:not(.sigma-insight-mark-all)')) root.SigmaTeacherAnalytics.analyze(); });
+    document.addEventListener('sigma:teacher-portal-ready', () => { root.SigmaTeacherAnalytics.refresh(); scheduleDaily(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh); else refresh();
 })(typeof window !== 'undefined' ? window : globalThis);

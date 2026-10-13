@@ -255,6 +255,16 @@ try {
             jsonResponse(['success' => false, 'error' => 'User ID is required'], 400);
         }
 
+        if ($action === 'create_missing') {
+            $existing = $pdo->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+            $existing->execute([$id]);
+            if ($existing->fetchColumn()) jsonResponse(['success' => true, 'skipped' => true]);
+            $importRole = strtolower((string)($userObj['role'] ?? $userObj['type'] ?? ''));
+            if (!in_array($importRole, ['student', 'teacher'], true) || empty($userObj['password'])) {
+                jsonResponse(['success' => false, 'error' => 'Only existing student/teacher accounts with credentials can be imported'], 400);
+            }
+        }
+
         $firstName = trim($userObj['firstName'] ?? $userObj['first_name'] ?? '');
         $middleName = trim($userObj['middleName'] ?? $userObj['middle_name'] ?? '');
         $lastName = trim($userObj['lastName'] ?? $userObj['last_name'] ?? '');
@@ -302,6 +312,11 @@ try {
         ";
 
         $stmt = $pdo->prepare($upsertSql);
+        if ($action === 'create_missing') {
+            $upsertSql = preg_replace('/ON DUPLICATE KEY UPDATE.*$/s', '', $upsertSql);
+            $upsertSql = preg_replace('/INSERT INTO/', 'INSERT IGNORE INTO', $upsertSql, 1);
+            $stmt = $pdo->prepare($upsertSql);
+        }
         $stmt->execute([
             ':id' => $id,
             ':first_name' => $firstName ?: 'User',

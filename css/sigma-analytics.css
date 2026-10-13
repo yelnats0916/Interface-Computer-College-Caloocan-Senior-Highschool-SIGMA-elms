@@ -447,7 +447,8 @@ body #analytics-dropdown .sigma-analyze-button {
     align-items: center;
     justify-content: center;
     border: none;
-    border-radius: 4px;
+    border-radius: 50%;
+    padding: 0;
     background: transparent;
     color: #15803d;
     font-size: 14px;
@@ -475,8 +476,11 @@ body .sigma-insight-search-submit {
     place-items: center;
 }
 body .sigma-insight-search-toggle { margin-left: auto; }
+body .sigma-insight-mark-all { margin-left: auto; }
+body .sigma-insight-mark-all + .sigma-insight-search-toggle { margin-left: 0; }
 body .sigma-insight-search-clear {
     width: 32px;
+    height: 32px;
     flex-basis: 32px;
 }
 body .sigma-insight-search-clear i { font-size: 12px !important; }
@@ -563,7 +567,7 @@ body .sigma-insight-search input::-webkit-search-cancel-button { display: none; 
     transition: background-color 150ms ease;
 }
 .sigma-insight-title { flex: 1 1 0; min-width: 0; }
-.sigma-insight-actions { align-self: center; margin-right: 8px; }
+.sigma-insight-actions { align-self: flex-start; margin: 8px 8px 0 0; }
 .sigma-card--insight .sigma-insight-header h4 {
     margin: 0;
     min-width: 0;
@@ -614,7 +618,7 @@ body .sigma-insight-search input::-webkit-search-cancel-button { display: none; 
 }
 .sigma-insight-open > span { min-width: 0; overflow-wrap: anywhere; }
 .sigma-card--insight .sigma-insight-open { color: #ffffff !important; font-weight: 700; }
-.sigma-insight-open > i { flex: 0 0 auto; font-size: 12px; }
+.sigma-insight-open > i { flex: 0 0 auto; font-size: 12px; align-self: flex-start; margin-top: 4px; }
 .sigma-insight-header:hover:not(:has(.sigma-card-pin-btn:hover)),
 .sigma-insight-header:has(.sigma-insight-open:focus-visible) { background-color: #166534 !important; }
 .sigma-insight-open:hover { background: transparent; }
@@ -766,6 +770,12 @@ body .sigma-insight-search input::-webkit-search-cancel-button { display: none; 
 .sigma-insight-position-wrap progress::-webkit-progress-value { background: #FFD000; }
 .sigma-insight-position-wrap progress::-moz-progress-bar { background: #FFD000; }
 .sigma-insight-detail-footer:has(.sigma-insight-navigation:not([hidden])) { flex-basis: auto; }
+body .sigma-card--insight .sigma-card-concern-text,
+body .sigma-insight-detail-text,
+body .sigma-insight-detail-text p {
+    color: #000 !important;
+}
+
 .sigma-insight-detail-body {
     flex: 0 1 auto;
     min-height: 0;
@@ -853,7 +863,69 @@ body.mobile-panel-open .sigma-insight-detail-close,
     }
 }
 
+/* Keep every header control on the first title line as the header grows. */
+    body #analytics-dropdown-cards .sigma-card--insight > .sigma-insight-header:first-child,
+    body .sigma-card.sigma-card--insight > .sigma-insight-header:first-child {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: flex-start !important;
+        padding: 10px 16px !important;
+    }
+    body #analytics-dropdown-cards .sigma-card--insight .sigma-insight-header h4,
+    body .sigma-card--insight .sigma-insight-header h4 { line-height: 24px !important; }
+    body .sigma-card--insight .sigma-insight-open {
+        display: grid !important;
+        grid-template-columns: 16px minmax(0, 1fr);
+        align-items: start !important;
+        height: auto !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+        line-height: 24px !important;
+    }
+    body .sigma-card--insight .sigma-insight-open > span {
+        line-height: 24px !important;
+    }
+    body .sigma-card--insight .sigma-insight-open > i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        margin: 0 !important;
+        line-height: 24px !important;
+    }
+    .sigma-insight-new-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 18px;
+        padding: 0 6px;
+        border: 1px solid rgba(255, 255, 255, .4);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, .2);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 16px;
+        white-space: nowrap;
+    }
+    body .sigma-card--insight .sigma-insight-actions {
+        display: flex;
+        align-items: center;
+        height: 24px;
+        margin: 0 !important;
+        flex-shrink: 0;
+    }
+    body .sigma-card--insight .sigma-insight-actions .sigma-card-pin-btn {
+        width: 24px !important;
+        height: 24px !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
 /* Admin System Metric Cards */
+
 [data-id^="metric-"].sigma-card,
 [data-id^="metric-"].pocket-card {
     padding: 1rem !important;
@@ -1394,7 +1466,7 @@ body.mobile-panel-open .sigma-insight-detail-close,
     .sigma-grades-page .gb-summary-icon { position: relative; display: inline-block; width: 12px; height: 12px; flex: 0 0 12px; }
     .sigma-grades-page .gb-summary-icon i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity .18s ease, transform .18s ease; }
     .sigma-grades-page .gb-summary-icon .fa-chevron-down { opacity: 0; transform: rotate(-90deg) scale(.7); }
-    .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-plus { opacity: 0; transform: rotate(90deg) scale(.7); }
+    .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-table { opacity: 0; transform: rotate(90deg) scale(.7); }
     .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-chevron-down { opacity: 1; transform: rotate(0) scale(1); }
     .sigma-grades-page .gb-mobile-view-switch button:focus-visible { outline: 2px solid #15803d !important; outline-offset: 2px; }
 }
@@ -2179,3 +2251,40 @@ body.mobile-panel-open .sigma-insight-detail-close,
     position: absolute !important;
     z-index: 200 !important;
 }
+.gb-add-assessment-cell { position: relative; background-color: #15803d !important; }
+.gb-add-assessment-desktop { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: #fff !important; font-size: 24px; cursor: pointer; }
+.gb-add-assessment-desktop i { color: #fff !important; pointer-events: none; }
+.gb-add-assessment-desktop:hover, .gb-add-assessment-desktop:focus-visible { background-color: #166534 !important; }
+@media (max-width: 768px) { .gb-add-assessment-desktop { display: block; } }
+#offline-assessment-modal label { display: block; margin-top: 16px; font-size: 14px; font-weight: 600; color: #000; line-height: 1.5; }
+#offline-assessment-modal [data-context] { color: #000; font-size: 13px; font-weight: 500; line-height: 1.5; }
+#offline-assessment-modal .sigma-modal-title { margin: 0; font-size: 20px; font-weight: 700; }
+#offline-assessment-modal .sigma-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; }
+#offline-assessment-modal [data-close] { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+#offline-assessment-modal [data-close]:hover { background: rgba(0,0,0,.05); }
+#offline-assessment-modal input { display: block; box-sizing: border-box; width: 100%; height: 44px; margin-top: 8px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 16px; font-family: inherit; font-size: 14px; font-weight: 400; color: #000; background: white; }
+#offline-assessment-modal input::placeholder { color: rgba(0,0,0,.45) !important; opacity: 1; font-weight: 400; }
+#offline-assessment-modal .sigma-modal-body { padding: 24px; }
+#offline-assessment-modal .sigma-modal-footer { padding: 16px 24px; }
+#offline-assessment-modal button[type=submit] { min-height: 44px; padding: 10px 20px; border: 0; border-radius: 16px; background: #15803d; color: white; font-weight: 600; }
+#offline-assessment-modal.sigma-modal-overlay { justify-content: center; padding: 16px; box-sizing: border-box; background: rgba(0,0,0,.4); }
+#offline-assessment-modal .sigma-modal-shell { width: 100% !important; max-width: 460px !important; min-height: 0 !important; height: auto !important; margin: auto !important; }
+#offline-assessment-modal .sigma-modal-panel { min-height: 0 !important; height: auto !important; max-height: calc(100dvh - 32px) !important; border: 1px solid #e2e8f0 !important; border-radius: 24px !important; overflow: hidden !important; }
+#offline-assessment-modal .sigma-modal-body { flex: 0 1 auto !important; min-height: 0 !important; overflow-y: auto !important; }
+#offline-assessment-modal .sigma-modal-footer { position: static !important; margin-top: 0 !important; flex-shrink: 0; justify-content: flex-end !important; }
+#offline-assessment-modal .sigma-modal-footer button[type=submit] { margin-left: auto !important; width: auto !important; }
+#admin-gradebook-spreadsheet input.gb-open-score-counter:placeholder-shown,
+#gradebook-spreadsheet input.gb-open-score-counter:placeholder-shown,
+#gradebook-outer-spreadsheet input.gb-open-score-counter:placeholder-shown {
+    font-weight: 400 !important;
+    caret-color: #000 !important;
+}
+.gb-assessment-picker-item { display: block; width: 100%; min-height: 44px; padding: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: black; text-align: left; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.gb-assessment-picker-item:hover, .gb-assessment-picker-item[aria-current=true] { background: #f0fdf4; border-color: #15803d; }
+#offline-assessment-modal.gb-assessment-picker-modal .sigma-modal-title { font-size: 18px !important; line-height: 1.4; }
+#offline-assessment-modal.gb-assessment-picker-modal [data-close],
+#offline-assessment-modal.gb-assessment-picker-modal [data-close] i { color: #000 !important; font-size: 16px; }
+#offline-assessment-modal.gb-assessment-picker-modal .gb-assessment-picker-item { font-size: 13px !important; font-weight: 600 !important; line-height: 1.5; padding: 10px 12px; }
+.sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell { position: relative !important; }
+.sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell button.gb-add-assessment-desktop { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; }
+.sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell button.gb-add-assessment-desktop i { font-size: 24px !important; line-height: 1 !important; color: #fff !important; }

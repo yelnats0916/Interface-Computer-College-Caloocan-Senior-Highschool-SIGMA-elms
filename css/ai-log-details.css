@@ -171,6 +171,9 @@
 .ai-log-message h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
 .ai-log-message p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; }
 .ai-log-request-response { display: flex; flex-direction: column; gap: 28px; }
+.ai-log-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.ai-log-detail-actions p:empty { display: none; }
+.ai-log-feedback-table td:first-child { white-space: pre-wrap; overflow-wrap: anywhere; }
 .ai-log-bubble-panel[hidden] { display: none !important; }
 .ai-log-interaction-metadata[hidden] { display: none !important; }
 .ai-log-bubble-panel { display: grid; grid-template-columns: minmax(260px, 30%) minmax(0, 1fr); gap: 28px; align-items: start; }

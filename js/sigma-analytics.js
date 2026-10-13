@@ -994,7 +994,7 @@
             const search = document.createElement('form');
             search.className = 'sigma-insight-search';
             search.setAttribute('role', 'search');
-            search.innerHTML = '<input type="search" name="insight-search" placeholder="Search insights" aria-label="Search insights"><button type="button" class="sigma-insight-search-clear" title="Clear search" aria-label="Clear insight search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><button type="submit" class="sigma-insight-search-submit" title="Search insights" aria-label="Submit insight search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
+            search.innerHTML = '<input type="search" name="insight-search" maxlength="100" autocomplete="off" placeholder="Search insights" aria-label="Search insights"><button type="button" class="sigma-insight-search-clear" title="Clear search" aria-label="Clear insight search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><button type="submit" class="sigma-insight-search-submit" title="Search insights" aria-label="Submit insight search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
             headerEl.appendChild(search);
             const input = search.querySelector('input');
             const clearButton = search.querySelector('.sigma-insight-search-clear');
@@ -1007,6 +1007,7 @@
             };
             clearButton.addEventListener('click', clearSearch);
             input.addEventListener('input', () => {
+                input.value = input.value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 100);
                 clearButton.hidden = !input.value;
                 if (!input.value) clearSearch();
             });
@@ -1020,7 +1021,9 @@
             });
             search.addEventListener('submit', event => {
                 event.preventDefault();
-                container.dataset.insightSearchQuery = input.value.trim().toLocaleLowerCase();
+                input.value = input.value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 100).trim().replace(/\s+/g, ' ');
+                clearButton.hidden = !input.value;
+                container.dataset.insightSearchQuery = input.value.toLocaleLowerCase();
                 initPocketCardsContainer(container);
             });
             search.addEventListener('focusout', () => {
@@ -1048,18 +1051,16 @@
             if (!userCards || userCards.length === 0) {
                 const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
                 const status = window.SigmaAiDatabase?.getStatus?.(kind);
+                container.setAttribute('aria-busy', status === 'loading' ? 'true' : 'false');
                 if (status === 'loading') {
-                    if (document.documentElement.classList.contains('sigma-initial-loading')) {
-                        container.innerHTML = '<div class="sigma-batch-placeholder sigma-batch-placeholder--post" role="status" aria-label="Loading analytics" aria-busy="true"></div>';
-                    } else {
-                        container.innerHTML = renderPocketCardZeroStateHtml();
-                    }
+                    container.innerHTML = '<div class="sigma-batch-placeholder sigma-batch-placeholder--post" role="status" aria-label="Loading insights" aria-busy="true"></div>';
                 } else if (status === 'error') {
-                    container.innerHTML = '<p class="sigma-insight-search-empty" role="status">Unable to load analytics. Refresh to try again.</p>';
+                    container.innerHTML = '<p class="sigma-insight-search-empty" role="status">Unable to load insights.</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="window.retrySigmaInsights()">Retry</button>';
                 } else {
                     container.innerHTML = query ? '<p class="sigma-insight-search-empty" role="status">No matching insights</p>' : renderPocketCardZeroStateHtml();
                 }
             } else {
+                container.setAttribute('aria-busy', 'false');
                 container.innerHTML = userCards.slice(0, 4).map(renderSigmaGradeMonitoringCardHtml).join('');
             }
         }
@@ -2663,7 +2664,12 @@
         // 3. Quarters Tabs UI
         window.renderAdminQuartersTabs();
 
-        document.getElementById('grades-publish-preview-btn')?.classList.toggle('hidden', subSec?.role !== 'Adviser');
+        const advisoryButton = document.getElementById('grades-advisory-class-btn');
+        if (advisoryButton) {
+            advisoryButton.disabled = subSec?.role !== 'Adviser';
+            advisoryButton.title = advisoryButton.disabled ? 'Available to section advisers only' : 'Advisory Class';
+            advisoryButton.querySelector('i')?.setAttribute('class', advisoryButton.disabled ? 'fa-solid fa-lock' : 'fa-solid fa-users');
+        }
 
         // 4. Action Buttons UI - only on the Gradebooks tab.
         const actBtns = document.getElementById('admin-gradebook-action-buttons');
@@ -3321,8 +3327,8 @@
         if (!table?.classList.contains('gb-detail-table')) return;
         const count = Number(table.dataset.assessmentCount) || 0;
         const index = Number(table.dataset.mobileAssessmentIndex) || 0;
-        const next = Math.max(0, Math.min(count - 1, index + direction));
-        if (!count || next === index) return;
+        const next = Math.max(0, Math.min(count, index + direction));
+        if (next === index) return;
         window.sigmaGradesState.assessmentPage = Math.floor(next / 4);
         window.sigmaGradesState.mobileAssessmentSlot = next % 4;
         window.renderAdminGradebookWorkspace();
@@ -3532,6 +3538,7 @@
         // VIEW 1: OVERVIEW TABLE (1st Table Page)
         // ══════════════════════════════════════════════════════════════════════
         if (currentView === 'overview') {
+            const exportRows = [];
             const rowsHtml = students.map((s) => {
                 let wwVal = null;
                 let ptVal = null;
@@ -3610,6 +3617,8 @@
 
                 const initialDisplay = initialGrade !== null ? `${Number(initialGrade).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
                 const finalDisplay = initialGrade !== null ? `${SigmaGradeEngine.transmute(initialGrade)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+                exportRows.push({ student: s, percentages: [wwVal, ptVal, qaVal], initial: initialGrade,
+                    quarterly: initialGrade === null ? null : SigmaGradeEngine.transmute(initialGrade) });
 
                 return `
                     <tr class="bg-white border-b border-black/[0.08] font-['Inter'] cursor-default select-none">
@@ -3637,7 +3646,7 @@
 
             workspaceContainer.innerHTML = `
                 <div class="gb-summary-workspace flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-10">
-                    <div class="gb-mobile-view-switch">${mobileGradeStatusLegend()}<button type="button" aria-label="Grade summary" aria-pressed="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-plus"></i><i class="fa-solid fa-chevron-down"></i></span></button></div>
+                    <div class="gb-mobile-view-switch">${mobileGradeStatusLegend()}<button type="button" aria-label="Grade summary" aria-pressed="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-table"></i><i class="fa-solid fa-chevron-down"></i></span></button></div>
                     <table id="admin-gradebook-spreadsheet" class="gb-overview-table ${window.sigmaGradesState.mobileGradesExpanded ? 'gb-totals-expanded' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                         <colgroup>
                             <col style="width: 25%; min-width: 240px;">
@@ -3667,7 +3676,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('ww')" aria-label="View Written Works breakdown" title="View Written Works breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Written Works Weighted Score"><span class="gb-component-full">Written Works (WS)</span><span class="gb-component-short">WW WS</span></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Written Works"><span class="gb-component-full">Written Works</span><span class="gb-component-short">WW</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.ww}%</span>
                                     </div>
@@ -3676,7 +3685,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('pt')" aria-label="View Performance Task breakdown" title="View Performance Task breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Performance Task Weighted Score"><span class="gb-component-full">Performance Task (WS)</span><span class="gb-component-short">PT WS</span></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Performance Task"><span class="gb-component-full">Performance Task</span><span class="gb-component-short">PT</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.pt}%</span>
                                     </div>
@@ -3685,7 +3694,7 @@
                                     <button type="button" class="gb-component-cell-button" onclick="window.setSigmaGradebookView('qa')" aria-label="View Quarterly Assessment breakdown" title="View Quarterly Assessment breakdown"></button>
                                     <div class="flex flex-col items-center justify-center leading-tight">
                                         <div class="inline-flex items-center justify-center gap-1.5 leading-none">
-                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Quarterly Assessment Weighted Score"><span class="gb-component-full">Quarterly Assessment (WS)</span><span class="gb-component-short">QA WS</span></span>
+                                            <span class="gb-component-label text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] select-none" title="Quarterly Assessment"><span class="gb-component-full">Quarterly Assessment</span><span class="gb-component-short">QA</span></span>
                                         </div>
                                         <span class="text-[11px] font-medium text-white/80 mt-0.5 select-none font-['Inter']">${weights.qa}%</span>
                                     </div>
@@ -3708,6 +3717,8 @@
                     </table>
                 </div>
             `;
+            window._gradebookExportSnapshot = { subject: subSec.subject, section: subSec.sectionName,
+                quarter: currentQ, weights, teacher, rows: exportRows };
             return;
         }
 
@@ -3742,7 +3753,7 @@
         }
 
         const PAGE_SIZE = 4;
-        const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+        const totalPages = Math.max(1, Math.ceil((items.length + 1) / PAGE_SIZE));
         let currentPage = window.sigmaGradesState.assessmentPage || 0;
         if (currentPage >= totalPages) currentPage = totalPages - 1;
         if (currentPage < 0) currentPage = 0;
@@ -3750,7 +3761,7 @@
 
         const startIndex = currentPage * PAGE_SIZE;
         const visibleItems = items.slice(startIndex, startIndex + PAGE_SIZE);
-        const mobileSlot = Math.max(0, Math.min(Number(window.sigmaGradesState.mobileAssessmentSlot) || 0, Math.max(0, visibleItems.length - 1)));
+        const mobileSlot = Math.max(0, Math.min(Number(window.sigmaGradesState.mobileAssessmentSlot) || 0, Math.min(3, items.length - startIndex)));
         const mobileIndex = startIndex + mobileSlot;
         const mobileSummary = Boolean(window.sigmaGradesState.mobileAssessmentSummary);
 
@@ -3808,7 +3819,7 @@
                         : hasSubmission;
                     const isQuizItem = Boolean(itCat.includes('quiz') || it.quizId || itemSource.quizId || /quiz/i.test(taskTitle));
                     const lockTitle = isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading';
-                    if (!isSubmitted && !hasRecordedScore && !window.resolveNoDeadlineAssessment?.(it, it.subjectId || subSec.subject, subSec.sectionName, currentQ)) {
+                    if (!it.offline && !isSubmitted && !hasRecordedScore && !window.resolveNoDeadlineAssessment?.(it, it.subjectId || subSec.subject, subSec.sectionName, currentQ)) {
                         itemCellsHtml += `
                         <td class="gradebook-task-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} px-1 py-3 text-center border-b border-black/[0.08] text-xs md:text-sm font-normal align-middle gb-data-cell text-black/40 cursor-not-allowed select-none transition-colors"
                             data-locked="1"
@@ -3893,7 +3904,7 @@
                 const topicNum = (it.topicIdx !== undefined && it.topicIdx !== null && !isNaN(it.topicIdx))
                     ? (Number(it.topicIdx) + 1)
                     : (it.topicNumber || null);
-                const topicTag = topicNum ? `Topic ${topicNum}` : '';
+                const topicTag = it.offline ? 'Manual' : (topicNum ? `Topic ${topicNum}` : '');
 
                 let formattedDate = (typeof window.formatDateTitleCase === 'function') ? window.formatDateTitleCase(it.date) : (it.date || 'Date');
                 if (formattedDate.includes('•')) formattedDate = formattedDate.split('•')[0].trim();
@@ -3902,11 +3913,13 @@
                 const topicFullTooltip = it.topicTitle ? `${topicTag ? topicTag + ': ' : ''}${it.topicTitle} — ${rawTitle}` : (topicTag ? `${topicTag} — ${rawTitle}` : rawTitle);
                 const titleLen = rawTitle.length;
                 const titleSizeClass = titleLen > 24 ? 'text-[10.5px]' : (titleLen > 14 ? 'text-[11.5px]' : 'text-[12.5px]');
-                const itCat = it._category || it.category || category;
+                const itCat = detailCategory === 'ww' ? (it._category || it.category || detailCategory) : detailCategory;
                 const itIdx = (it.itemIdx !== undefined) ? it.itemIdx : (startIndex + slotIdx);
                 const isFake = Boolean(it.isFake || it.isMock);
 
-                const titleHtml = isFake
+                const titleHtml = it.offline
+                    ? `<span class="font-bold text-white text-center block w-full leading-tight select-none cursor-default ${titleSizeClass}">${escapeHtml(rawTitle)}</span>`
+                    : isFake
                     ? `<span class="font-bold text-white text-center block w-full leading-tight gradebook-task-title select-none cursor-default ${titleSizeClass}" 
                              title="${escapeHtml(topicFullTooltip)}">
                            ${escapeHtml(rawTitle)}
@@ -3917,8 +3930,8 @@
                        </span>`;
 
                 taskHeadersHtml += `
-                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} ${isFake ? '' : 'gb-component-header'} bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
-                        ${isFake ? '' : `<button type="button" class="gb-component-cell-button" aria-label="${escapeHtml('Open assessment: ' + rawTitle)}" title="${escapeHtml(topicFullTooltip)}" onclick="window.navigateToAssessmentFromGradebook('${itCat}', ${itIdx}, '${escapeHtml(subSec?.subject || '')}', '${escapeHtml(subSec?.sectionName || '')}')"></button>`}
+                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} ${isFake || it.offline ? '' : 'gb-component-header'} bg-[#15803d] cursor-default select-none rounded-none align-middle border-b border-[#166534]">
+                        ${isFake || it.offline ? '' : `<button type="button" class="gb-component-cell-button" aria-label="${escapeHtml('Open assessment: ' + rawTitle)}" title="${escapeHtml(topicFullTooltip)}" onclick="window.navigateToAssessmentFromGradebook('${itCat}', ${itIdx}, '${escapeHtml(subSec?.subject || '')}', '${escapeHtml(subSec?.sectionName || '')}')"></button>`}
                         <div class="gb-assessment-header-content flex flex-col items-center justify-between w-full h-[58px] py-1 select-none font-['Inter']">
                             <div class="flex items-center gap-1.5 leading-none">
                                 <span class="text-[10px] font-semibold text-white tracking-tight leading-none">${formattedDate}</span>
@@ -3931,8 +3944,8 @@
                 `;
             } else {
                 taskHeadersHtml += `
-                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} bg-[#15803d]/80 cursor-default select-none gb-empty-cell rounded-none align-middle border-b border-[#166534]">
-                        <div class="flex flex-col items-center justify-center w-full h-[54px]"></div>
+                    <th class="gradebook-task-header-cell ${slotIdx === mobileSlot ? 'gb-mobile-current-assessment' : ''} ${startIndex + slotIdx === items.length ? 'gb-add-assessment-cell' : ''} bg-[#15803d]/80 cursor-default select-none gb-empty-cell rounded-none align-middle border-b border-[#166534]">
+                        <div class="flex flex-col items-center justify-center w-full h-[54px]">${startIndex + slotIdx === items.length ? '<button type="button" class="gb-add-assessment-desktop" title="Add Assessment" aria-label="Add Assessment" onclick="window.openOfflineAssessmentForm()"><i class="fa-solid fa-plus"></i></button>' : ''}</div>
                     </th>
                 `;
             }
@@ -3942,7 +3955,8 @@
             <div class="gb-summary-workspace gb-detail-workspace flex-1 w-full h-full min-h-0 overflow-y-auto overflow-x-auto bg-white border-none rounded-none shadow-none font-['Inter'] px-4 md:px-6 xl:px-8">
                 <div class="gb-mobile-view-switch">
                     ${mobileGradeStatusLegend()}
-                    <button type="button" data-mobile-assessment-view="summary" aria-label="Assessment summary" aria-pressed="${mobileSummary}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-plus"></i><i class="fa-solid fa-chevron-down"></i></span></button>
+                    <button type="button" title="Choose Assessment" aria-label="Choose Assessment" onclick="window.openGradebookAssessmentPicker()"><i class="fa-solid fa-list"></i></button>
+                    <button type="button" data-mobile-assessment-view="summary" aria-label="Assessment summary" aria-pressed="${mobileSummary}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-table"></i><i class="fa-solid fa-chevron-down"></i></span></button>
                 </div>
                 <table id="admin-gradebook-spreadsheet" data-assessment-count="${items.length}" data-mobile-assessment-index="${mobileIndex}" class="gb-detail-table ${mobileSummary ? 'gb-detail-summary' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                     <thead class="sticky top-0 z-30 bg-[#15803d] shadow-xs rounded-none border-b border-[#166534]">
@@ -3967,7 +3981,7 @@
                             </th>
                             ${taskHeadersHtml}
                             <th class="gb-col-divider gb-thin-nav-col bg-[#15803d] cursor-default select-none align-middle border-b border-[#166534]">
-                                <button type="button" onclick="window.navigateResponsiveGradebookAssessment(1)" class="gb-thin-nav-btn gb-responsive-assessment-nav" data-desktop-disabled="${currentPage >= totalPages - 1}" data-mobile-disabled="${mobileIndex >= items.length - 1}" title="Next Assessments" aria-label="Next assessment">
+                                <button type="button" onclick="window.navigateResponsiveGradebookAssessment(1)" class="gb-thin-nav-btn gb-responsive-assessment-nav" data-desktop-disabled="${currentPage >= totalPages - 1}" data-mobile-disabled="${mobileIndex >= items.length}" title="Next Assessments" aria-label="Next assessment">
                                     <i class="fa-solid fa-chevron-right text-[9px]"></i>
                                 </button>
                             </th>
@@ -4333,16 +4347,15 @@
                                 aria-expanded="false" aria-controls="grades-submit-export-menu"
                                 onclick="window.toggleGradesSubmitExportMenu()">
                                 <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-                                <span>Submit & Export</span>
+                                <span>Submit & Share</span>
                                 <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                             </button>
-                            <div id="grades-submit-export-menu" class="grades-submit-export-menu hidden" aria-label="Submit and export options">
-                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Submit to Adviser</span></button>
-                                <button id="grades-publish-preview-btn" class="hidden" type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>Publish to Students</span></button>
-                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-eye" aria-hidden="true"></i><span>Preview Grades</span></button>
+                            <div id="grades-submit-export-menu" class="grades-submit-export-menu hidden" aria-label="Submit and share options">
+                                <button id="grades-advisory-class-btn" disabled title="Available to section advisers only" type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Advisory Class</span></button>
                                 <div class="grades-submit-export-divider"></div>
-                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Download Excel</span></button>
-                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>Download PDF</span></button>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Share Gradebook</span></button>
+                                <div class="grades-submit-export-divider"></div>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openGradebookExportForm()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Export Excel</span></button>
                             </div>
                         </div>
                     </div>

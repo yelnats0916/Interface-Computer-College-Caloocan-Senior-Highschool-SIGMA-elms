@@ -220,6 +220,17 @@ const root = path.join(__dirname, '..');
             assert.equal(await page.locator('.ai-log-history-table tbody tr').count(), 1);
             assert.deepEqual(await page.locator('.ai-log-category-tabs button').allTextContents(), ['All Logs', 'Submission Feedback']);
             assert.match(await page.locator('.ai-log-history-table tbody').textContent(), /Submission Feedback/);
+            await page.locator('.ai-log-history-table .ai-log-interaction-button').click();
+            assert.deepEqual(await page.locator('.ai-log-feedback-table th').allTextContents(), ['Request', 'Response', 'Timestamp', 'Action']);
+            assert.equal(await page.locator('.ai-log-feedback-table td').nth(0).textContent(), 'Recorded submission_feedback request');
+            assert.equal(await page.locator('.ai-log-feedback-table td').nth(1).textContent(), 'Recorded response');
+            assert.equal(await page.locator('.ai-log-detail-actions').count(), 0);
+            await page.getByRole('button', { name: 'Feedback actions' }).click();
+            assert.equal(await page.getByRole('button', { name: 'Delete Log', exact: true }).isVisible(), true);
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('.ai-log-feedback-table .ai-log-message-menu').isVisible(), false);
+            await page.evaluate(() => window.navigateSigmaBack());
+            await page.waitForFunction(() => document.getElementById('ai-interaction-details-panel').hidden);
             await page.locator('.ai-log-search-clear').hover();
             assert.equal(await page.locator('.ai-log-search-clear i').evaluate(el => getComputedStyle(el).fontSize), '12px');
             const clearStyle = await page.locator('.ai-log-search-clear').evaluate(el => {

@@ -24,10 +24,23 @@ function saveAiLog(PDO $db, array $log): void {
 function aiAnalyticsState(PDO $db, string $user, string $kind): array {
     $q = $db->prepare('SELECT payload, revision FROM ai_analytics_state WHERE user_id=? AND kind=?'); $q->execute([$user,$kind]); $row=$q->fetch();
     $state = $row ? json_decode($row['payload'], true) : ['cards'=>[]];
-    $ids = $state['cardRefs'] ?? []; unset($state['cardRefs']); $state['cards']=[];
-    foreach ($ids as $id) {
-        $q=$db->prepare('SELECT payload FROM ai_insight_cards WHERE id=? AND user_id=? AND kind=? AND is_deleted=0'); $q->execute([$id,$user,$kind]);
-        if ($payload=$q->fetchColumn()) $state['cards'][]=json_decode($payload,true);
+    unset($state['cardRefs']); $state['cards']=[];
+    // State references once pointed only at the latest version; retain account history.
+    $q=$db->prepare('SELECT id,payload FROM ai_insight_cards WHERE user_id=? AND kind=? AND is_deleted=0 ORDER BY created_at DESC,id DESC');
+    $q->execute([$user,$kind]);
+    $rows=$q->fetchAll(); $counts=[];
+    foreach($rows as $record){
+        $card=json_decode($record['payload'],true);
+        if(is_array($card)&&is_string($card['id']??null))$counts[$card['id']]=($counts[$card['id']]??0)+1;
+    }
+    foreach($rows as $record){
+        $card=json_decode($record['payload'],true);
+        if(!is_array($card)||!is_string($card['id']??null))continue;
+        if(($counts[$card['id']]??0)>1){
+            $card['_historyOriginalId']=$card['id'];
+            $card['id']=substr($card['id'],0,90).'-'.substr($record['id'],0,32);
+        }
+        $state['cards'][]=$card;
     }
     return ['state'=>$state, 'revision'=>(int)($row['revision'] ?? 0), 'exists'=>(bool)$row];
 }
@@ -40,6 +53,10 @@ function saveAiAnalyticsState(PDO $db, string $user, string $kind, array $state,
         if ((int)$q->fetchColumn()!==$revision) throw new RuntimeException('Analytics changed in another session. Reload before analyzing again.');
         $refs=[];
         foreach($state['cards'] as $card) {
+            if(is_string($card['_historyOriginalId']??null)){
+                $card['id']=$card['_historyOriginalId'];
+                unset($card['_historyOriginalId']);
+            }
             if(!is_array($card) || !is_string($card['id']??null) || strlen($card['id'])>128 || !is_array($card['analyses']??null)) throw new InvalidArgumentException('Invalid insight card.');
             $id=aiCardId($user,$kind,$card); $refs[]=$id;
             if(aiWasPurged($db,'ai_insight_cards',$id))continue;

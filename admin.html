@@ -17,12 +17,12 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/admin.css?v=20261011stepBadges316">
     <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
-    <link rel="stylesheet" href="css/forms.css?v=20261011footerCounter430">
-    <link rel="stylesheet" href="css/ai-log-details.css?v=20261012titleOnly571">
+    <link rel="stylesheet" href="css/forms.css?v=20261013attendanceInstant783">
+    <link rel="stylesheet" href="css/ai-log-details.css?v=20261013feedbackActions747">
     <link rel="stylesheet" href="css/record-lifecycle.css?v=20261011recoveryDropdown323">
     <link rel="stylesheet" href="css/log-pagination.css?v=20261011circlePaging317">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261013detailsOrder725">
+<link rel="stylesheet" href="css/shared-components.css?v=20261013rubricFade815">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261010chevronHover232">
     <link rel="stylesheet" href="css/settings-view.css?v=20261010defaultKeyModel296">
     <link rel="stylesheet" href="css/service-vault-security.css?v=20261011secureServices300">
@@ -30,8 +30,8 @@
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
-    <link rel="stylesheet" href="css/right-panel.css?v=20260928studentgradespanel1">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261011mobileActionRows334">
+    <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261013centerAdd860">
     <link rel="stylesheet" href="css/mobile.css?v=20261012descriptionBlack500">
 
     <!-- CHARTS -->
@@ -215,13 +215,35 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261012skeletonShimmerImage5">
+    <script>
+        (function() {
+            try {
+                var hash = (window.location.hash || '').replace(/^#/, '').trim();
+                if (!hash || hash === 'dashboard' || hash === 'home' || hash === 'nav-dashboard') {
+                    var s = document.createElement('style');
+                    s.id = 'early-dashboard-style';
+                    s.textContent = '#dashboard-view { display: block !important; }';
+                    document.head.appendChild(s);
+                } else {
+                    document.documentElement.classList.add('sigma-hash-navigating');
+                    var targetSel = (hash.indexOf('topic-content') === 0 || hash.indexOf('topic_content') === 0) ? '#section-topic-content' : (hash.indexOf('topic-detail') === 0 || hash.indexOf('topic_detail') === 0 || hash.indexOf('topic:') === 0) ? '#section-topic-detail' : (hash.indexOf('classroom') === 0) ? '#classroom-detail-view' : (hash.indexOf('curriculum') === 0) ? '#section-curriculum-page' : (hash.indexOf('grade') === 0 || hash.indexOf('analytics') === 0) ? '#school-grades-view, #reports-performance-view' : (hash.indexOf('attendance') === 0 || hash.indexOf('calendar') === 0) ? '#section-attendance, #reports-attendance-view' : (hash.indexOf('materials') === 0 || hash.indexOf('resources') === 0) ? '#resources-view' : (hash.indexOf('users') === 0) ? '#users-view' : '#section-topic-content';
+                    var rule = targetSel.split(',').map(function(sel) { return '.sigma-hash-navigating ' + sel.trim(); }).join(', ');
+                    var s = document.createElement('style');
+                    s.id = 'sigma-early-hash-style';
+                    s.textContent = '.sigma-hash-navigating #dashboard-view { display: none !important; }\n' + rule + ' { display: block !important; }';
+                    document.head.appendChild(s);
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261013headerSweep756">
     <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
-    <script src="js/page-skeleton.js?v=20261012skeletonShimmerImage5"></script>
+    <script src="js/page-skeleton.js?v=20261013homeSkeleton776"></script>
     <!-- Blocked Access for Mobile/Tablet -->
     <div id="mobile-blocked-screen" role="region" aria-label="Desktop access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
         <div class="flex flex-col items-center w-full max-w-xs text-center">
@@ -700,22 +722,71 @@
             <!-- DASHBOARD CONTENT -->
             <main id="admin-main" class="flex-1 bg-admin-bg relative">
                 <!-- Shared profile page rendered by js/profile-view.js -->
-                <section id="user-profile-view" class="dynamic-section hidden" data-shared-profile-view></section>
+                <section id="user-profile-view" class="dynamic-section hidden" data-shared-profile-view>
+                    <div class="sigma-content-skeleton sigma-skeleton-generic p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="generic">
+                        <div class="sigma-card sigma-skeleton-card min-h-[100px] rounded-[20px] p-6"></div>
+                        <div class="sigma-card sigma-skeleton-card min-h-[460px] rounded-[20px] p-6"></div>
+                    </div>
+                </section>
 
                 <!-- Shared settings page rendered by js/settings-view.js -->
-                <section id="user-settings-view" class="dynamic-section hidden" data-shared-settings-view></section>
+                <section id="user-settings-view" class="dynamic-section hidden" data-shared-settings-view>
+                    <div class="sigma-content-skeleton sigma-skeleton-generic p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="generic">
+                        <div class="sigma-card sigma-skeleton-card min-h-[100px] rounded-[20px] p-6"></div>
+                        <div class="sigma-card sigma-skeleton-card min-h-[460px] rounded-[20px] p-6"></div>
+                    </div>
+                </section>
 
                 <!-- Curriculum & Topics Views (Admin Account) -->
                 <section id="section-curriculum-page" class="dynamic-section hidden">
                     <div class="mx-auto max-w-[1024px] w-full">
                         <div id="curriculum-page-shell"
-                            class="bg-white border-x border-slate-200 min-h-screen standard-panel-shadow"></div>
+                            class="bg-white border-x border-slate-200 min-h-screen standard-panel-shadow">
+                            <div class="sigma-content-skeleton sigma-skeleton-curriculum p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1200px] mx-auto font-['Inter']" data-sigma-skeleton="curriculum">
+                                <div class="sigma-card sigma-skeleton-card min-h-[90px] rounded-[20px] p-6"></div>
+                                <div class="space-y-4">
+                                    <div class="topic-card sigma-skeleton-card sigma-card min-h-[160px] rounded-[20px] p-5"></div>
+                                    <div class="topic-card sigma-skeleton-card sigma-card min-h-[160px] rounded-[20px] p-5"></div>
+                                    <div class="topic-card sigma-skeleton-card sigma-card min-h-[160px] rounded-[20px] p-5"></div>
+                                    <div class="topic-card sigma-skeleton-card sigma-card min-h-[160px] rounded-[20px] p-5"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
-                <section id="section-topic-detail" class="dynamic-section hidden"></section>
+                <section id="section-topic-detail" class="dynamic-section hidden">
+                    <div class="sigma-content-skeleton sigma-skeleton-topic-detail p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="topic-detail">
+                        <div class="classroom-room-hero-banner sigma-skeleton-card min-h-[140px] rounded-[24px] p-6"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="topic-card sigma-skeleton-card sigma-card min-h-[220px] rounded-[20px] p-5"></div>
+                        </div>
+                    </div>
+                </section>
 
-                <section id="section-topic-content" class="dynamic-section hidden"></section>
+                <section id="section-topic-content" class="dynamic-section hidden">
+                    <div class="sigma-content-skeleton sigma-skeleton-topic-content p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="topic-content">
+                        <div class="flex items-center gap-3 border-b border-slate-200 pb-3">
+                            <div class="sigma-feed-tab-btn sigma-skeleton-block h-9 w-32 rounded-full"></div>
+                            <div class="sigma-feed-tab-btn sigma-skeleton-block h-9 w-36 rounded-full"></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-8 space-y-6">
+                                <div class="assessment-material-main-card sigma-skeleton-card sigma-card p-6 rounded-[20px] min-h-[460px] space-y-6"></div>
+                                <div class="sigma-skeleton-card sigma-card p-6 rounded-[20px] min-h-[200px] space-y-4"></div>
+                            </div>
+                            <div class="lg:col-span-4 space-y-6">
+                                <div class="home-dashboard-card sigma-skeleton-card sigma-card p-5 rounded-[20px] min-h-[280px] space-y-4"></div>
+                                <div class="home-dashboard-card sigma-skeleton-card sigma-card p-5 rounded-[20px] min-h-[240px] space-y-4"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Classroom Room View (Admin Account) -->
                 <section id="classroom-detail-view" class="dynamic-section hidden">
@@ -3829,6 +3900,15 @@
                 
                 <!-- ═══ SCHOOL GRADEBOOKS VIEW ═══ -->
                 <section id="school-grades-view" class="dynamic-section hidden">
+                    <div class="sigma-content-skeleton sigma-skeleton-grades p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="grades">
+                        <div class="sigma-card sigma-skeleton-card min-h-[72px] rounded-[20px] p-4"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <div class="gwa-card sigma-skeleton-card sigma-card min-h-[140px] rounded-[20px] p-5"></div>
+                            <div class="gwa-card sigma-skeleton-card sigma-card min-h-[140px] rounded-[20px] p-5"></div>
+                            <div class="gwa-card sigma-skeleton-card sigma-card min-h-[140px] rounded-[20px] p-5"></div>
+                        </div>
+                        <div class="sigma-table sigma-skeleton-card sigma-card min-h-[440px] rounded-[20px] p-5"></div>
+                    </div>
                 </section>
 
                 <!-- REPORTS PERFORMANCE VIEW -->
@@ -4062,7 +4142,19 @@
                     </div>
                 </section>
                 <!-- Shared resources page rendered by js/resources-view.js -->
-                <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view></section>
+                <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view>
+                    <div class="sigma-content-skeleton sigma-skeleton-materials p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="materials">
+                        <div class="sigma-card sigma-skeleton-card min-h-[64px] rounded-[20px] p-4"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                            <div class="sigma-card sigma-skeleton-card min-h-[220px] rounded-[20px] p-5"></div>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- SHARED CALENDAR PAGE COMPONENT -->
                 <section id="section-attendance" class="dynamic-section hidden">
@@ -6371,7 +6463,8 @@
 
     <!-- SCRIPTS -->
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261013taskHistory728"></script>
+<script src="js/shared-components.js?v=20261013counterCaret856"></script>
+<script src="js/offline-assessments.js?v=20261013pickerTypography859"></script>
 <script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
     <script src="js/topbar.js?v=20261012silentPolling638"></script>
     <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
@@ -6392,24 +6485,26 @@
     <script src="js/settings-view.js?v=20261009counterLimits127"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/sigma-analytics.js?v=20261012deadline714"></script>
+    <link rel="stylesheet" href="css/excel-export.css?v=20261013exportOptions820">
+    <script src="js/excel-export.js?v=20261013summaryNoLegend866"></script>
+    <script src="js/sigma-analytics.js?v=20261013mobilePicker858"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261011editorQuarters339"></script>
+    <script src="js/subject-editor.js?v=20261013rubricClick803"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/classroom-room.js?v=20261011floatingCalendar345"></script>
+    <script src="js/classroom-room.js?v=20261013attendanceHeading861"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/curriculum-release.js?v=20261012assessmentType631"></script>
+    <script src="js/curriculum-release.js?v=20261013assessmentOrder816"></script>
     <script src="js/recaptcha-client.js?v=20261009securityConnection129"></script>
     <script src="js/system-settings-history.js?v=20261010settingsBack157"></script>
     <script src="js/ai-routing-settings.js?v=20261011autoSave302"></script>
-    <script src="js/admin.js?v=20261012outsideActions709"></script>
-    <script src="js/ai-database-store.js?v=20261012accountSync639"></script>
+    <script src="js/admin.js?v=20261013navigation774"></script>
+    <script src="js/ai-database-store.js?v=20261013panelLoading809"></script>
     <script src="js/admin-insight-report.js?v=20261011insightReport347"></script>
     <script src="js/record-lifecycle.js?v=20261011recoveryDropdown323"></script>
     <script src="js/ai-log-store.js?v=20261011database303"></script>
     <script src="js/ai-log-preview.js?v=20261010realAiLogs298"></script>
-    <script src="js/ai-log-details.js?v=20261012adminOnlyLinks573"></script>
+    <script src="js/ai-log-details.js?v=20261013sharedLogTable748"></script>
     <script src="js/institution-branding.js?v=20261010brandingReturn182"></script>
     <script src="js/slideshow-settings.js?v=20261010slideAddCard192"></script>
     <script src="js/welcome-banner-settings.js?v=20261010bannerLibrary194"></script>

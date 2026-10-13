@@ -5846,10 +5846,10 @@ html body .shared-private-comments #submission-comments-list-container:focus-vis
         border-radius: 6px;
         transition: background-color 0.15s ease;
     }
-    #teacher-rubric-status-content button:hover {
+    #teacher-rubric-status-content button:not(.sigma-rubric-upload):hover {
         background-color: #f1f5f9 !important;
     }
-    #teacher-rubric-status-content button[onclick*="teacher-rubric-file-input"]:hover {
+    #teacher-rubric-status-content button[onclick*="teacher-rubric-file-input"]:not(.sigma-rubric-upload):hover {
         color: #047857 !important;
     }
     #teacher-rubric-status-content button[onclick*="removeTeacherUploadedRubric"]:hover {
@@ -6197,13 +6197,37 @@ html body .assessment-submission-details-card :is(#student-submission-action-are
     margin-top: 12px !important;
     padding-top: 0 !important;
 }
+#section-grades.dynamic-section.hidden,
+#section-topic-content.dynamic-section.hidden {
+    display: none !important;
+}
+
+.submission-work-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-bottom: 12px;
+}
+.submission-work-toolbar > div:first-child {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+.submission-work-toolbar h3 { margin: 0 !important; }
 .submission-attempt-selector-row {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
-    margin-bottom: 16px;
+    margin: 0;
+    font-size: 14px;
+    flex-shrink: 0;
 }
+.submission-attempt-selector-row label { margin: 0; white-space: nowrap; }
 .submission-attempt-select {
     max-width: 100%;
     min-width: 0;
@@ -6216,8 +6240,15 @@ html body .assessment-submission-details-card :is(#student-submission-action-are
     font-size: 14px;
 }
 @media (max-width: 767px) {
-    .submission-attempt-selector-row { gap: 8px; margin-bottom: 12px; font-size: 12px; }
-    .submission-attempt-select { height: 32px; padding: 4px 24px 4px 8px; font-size: 12px; }
+    .submission-attempt-selector-row { gap: 8px; font-size: 12px; }
+    .submission-work-toolbar { gap: 10px; }
+    .submission-work-toolbar .submission-attempt-selector-row { margin-left: auto; }
+    .submission-work-toolbar .submission-attempt-select {
+        width: 164px;
+        height: 32px !important;
+        padding: 4px 24px 4px 8px !important;
+        font-size: 12px !important;
+    }
 }
 @media (max-width: 767px) {
     .assessment-material-details-grid > .assessment-mobile-score-panel-slot { order: 0; }
@@ -6318,3 +6349,135 @@ html body .topic-student-cover .topic-student-cover__row > .sigma-user-avatar im
     }
 }
 
+#add-material-dropdown > div {
+    color: #000000 !important;
+    text-transform: none !important;
+    font-size: 12px !important;
+    letter-spacing: 0 !important;
+}
+#add-material-dropdown button span:first-child {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+}
+#add-material-dropdown button span:last-child {
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+}
+.sigma-toggle-switch.material-rubric-toggle {
+    pointer-events: auto !important;
+}
+.material-rubric-toggle input:focus-visible + .sigma-toggle-slider {
+    outline: 2px solid #15803d;
+    outline-offset: 3px;
+}
+@media (min-width: 769px) {
+    #subject-edit-overlay #add-material-dropdown {
+        width: 280px !important;
+        max-width: calc(100vw - 20px) !important;
+        border-radius: 12px !important;
+        padding: 5px !important;
+    }
+    #subject-edit-overlay #add-material-dropdown button {
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        gap: 10px !important;
+    }
+    #subject-edit-overlay #add-material-dropdown button > div:first-child {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        border-radius: 6px !important;
+    }
+    #subject-edit-overlay #add-material-dropdown button > div:first-child i { font-size: 14px !important; }
+    #subject-edit-overlay #add-material-dropdown button span:first-child {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+    }
+    #subject-edit-overlay #add-material-dropdown button span:last-child {
+        font-size: 11px !important;
+        line-height: 1.15 !important;
+    }
+}
+.sigma-rubric-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 104px;
+    padding: 20px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sigma-rubric-upload i { font-size: 20px !important; }
+div:has(> .sigma-rubric-upload) { width: 100%; }
+.flex:has(> div > .sigma-rubric-upload) { flex-wrap: wrap; }
+@media (max-width: 768px) {
+    .sigma-dashed-dropzone.sigma-rubric-upload {
+        background-color: rgba(255, 208, 0, 0.06) !important;
+        border-color: #FFD000 !important;
+    }
+}
+.flex:has(> div > .sigma-rubric-upload) {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+}
+.flex:has(> div > .sigma-rubric-upload) > div:first-child {
+    background: transparent;
+    padding-bottom: 2px;
+}
+.flex:has(> div > .sigma-rubric-upload) > div:first-child > i { display: none; }
+.flex:has(> div > .sigma-rubric-upload) > div:first-child :is(div, p) { color: #111111 !important; }
+.sigma-rubric-upload { min-height: 140px; gap: 6px; }
+.sigma-rubric-upload-icon {
+    width: 44px; height: 44px; border: 1px solid #dce4ed; border-radius: 12px;
+    background: #ffffff; color: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+}
+.sigma-rubric-upload-meta { font-size: 12px; line-height: 1.4; font-weight: 400; color: rgba(0, 0, 0, 0.45); }
+.sigma-rubric-upload:hover .sigma-rubric-upload-icon { background: #fff3c4; border-color: #FFD000; color: #92400e; }
+.sigma-rubric-upload:hover :is(.sigma-rubric-upload-title, .sigma-rubric-upload-meta) { color: #e87500; }
+@media (max-width: 768px) {
+    .sigma-rubric-upload .sigma-rubric-upload-icon { background: #fff3c4; border-color: #FFD000; color: #92400e; }
+    .sigma-rubric-upload :is(.sigma-rubric-upload-title, .sigma-rubric-upload-meta) { color: #e87500; }
+}
+html body button.sigma-dashed-dropzone.sigma-rubric-upload {
+    border-radius: 16px !important;
+    background-color: rgba(0, 0, 0, 0.02) !important;
+}
+html body button.sigma-dashed-dropzone.sigma-rubric-upload:hover,
+html body button.sigma-dashed-dropzone.sigma-rubric-upload:focus-visible {
+    background-color: #fffcef !important;
+    border-color: #FFD000 !important;
+}
+@media (max-width: 768px) {
+    html body button.sigma-dashed-dropzone.sigma-rubric-upload {
+        background-color: #fffcef !important;
+        border-color: #FFD000 !important;
+    }
+}
+.flex:has(> div > .sigma-rubric-upload) > div:first-child {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: none !important;
+}
+.flex:has(> div > .sigma-rubric-upload) > div:first-child > div {
+    width: 100%;
+    min-width: 0;
+}
+@media (min-width: 769px) {
+    html body .sigma-rubric-upload:not(:hover):not(:focus-visible) :is(.sigma-rubric-upload-icon, .sigma-rubric-upload-icon i, .sigma-rubric-upload-meta) {
+        color: rgba(0, 0, 0, 0.45) !important;
+    }
+    html body .sigma-rubric-upload:not(:hover):not(:focus-visible) .sigma-rubric-upload-title {
+        color: #000000 !important;
+    }
+}

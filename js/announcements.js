@@ -3614,7 +3614,7 @@
 
                 <div class="sigma-card-header-right">
                     <span class="sigma-card-timestamp-text" data-timestamp="${post.createdAt || ''}">${timeAgo}</span>
-                    <div class="sigma-card-options-wrapper">
+                    ${currentRole !== 'student' ? `<div class="sigma-card-options-wrapper">
                         <button type="button" class="sigma-card-options-btn" data-post-id="${post.id}" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.toggleOptions('${post.id}', event) : (window.toggleAnnouncementOptions && window.toggleAnnouncementOptions('${post.id}', event))" title="Post options">
                             <i class="fa-solid fa-ellipsis pointer-events-none"></i>
                         </button>
@@ -3637,7 +3637,7 @@
                                 <span>Report Post</span>
                             </button>`}
                         </div>
-                    </div>
+                    </div>` : ''}
                 </div>
             </div>
 

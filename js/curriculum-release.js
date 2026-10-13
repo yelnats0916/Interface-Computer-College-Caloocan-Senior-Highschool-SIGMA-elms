@@ -3710,8 +3710,10 @@ window.initializeSharedCurriculumRelease = function () {
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
-                                                        <i class="fa-solid fa-upload text-xs"></i> Upload Rubric
+                                                    <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
+                                                        <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                                                        <span class="sigma-rubric-upload-title">Upload Rubric</span>
+                                                        <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -5626,8 +5628,10 @@ window.initializeSharedCurriculumRelease = function () {
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-[#15803d] hover:bg-[#166534] rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-upload text-xs"></i> Upload Rubric
+                        <button type="button" onclick="document.getElementById('teacher-rubric-file-input')?.click()" class="sigma-dashed-dropzone sigma-rubric-upload">
+                            <span class="sigma-rubric-upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                            <span class="sigma-rubric-upload-title">Upload Rubric</span>
+                            <span class="sigma-rubric-upload-meta">Supports PDF, DOCX, DOC, TXT, XLSX, CSV</span>
                         </button>
                     </div>
                 </div>
@@ -9141,7 +9145,7 @@ window.initializeSharedCurriculumRelease = function () {
                                         <div>
                                             ${group.assessments.length > 0 ? `
                                                 <div class="divide-y divide-black/10">
-                                                    ${group.assessments.map(m => {
+                                                    ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(group.assessments) : group.assessments).map(m => {
                                                         const isHidden = releaseConfig.hiddenMaterialIds.map(String).includes(String(m.id));
                                                         const { icon, bg } = getAssessmentIconClass(m.type);
                                                         const dateText = formatDateText(releaseConfig.materialReleaseDates[m.id]);
@@ -9652,7 +9656,7 @@ window.initializeSharedCurriculumRelease = function () {
                                                 `).join('')}
 
                                                 <!-- Assessment Materials -->
-                                                ${grp.assessments.map(m => `
+                                                ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(grp.assessments) : grp.assessments).map(m => `
                                                     <label class="picker-item-row picker-item-assessments p-3 hover:bg-black/[0.02] flex items-center justify-between gap-3.5 cursor-pointer transition-colors" data-picker-category="assessments">
                                                         <div class="flex items-center gap-3 min-w-0 flex-1">
                                                             <div class="w-7 h-7 rounded-lg ${m.type === 'Quiz' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'} border flex items-center justify-center shrink-0">

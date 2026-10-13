@@ -474,6 +474,10 @@ function initStudentPortal() {
         el.classList.remove('hidden');
 
         el.style.display = '';
+        if ((!el.children.length || !el.innerHTML.trim()) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
+            const layout = window.SigmaPageLoading.resolveLayoutFromSectionId(id);
+            window.SigmaPageLoading.showContentSkeleton(el, layout);
+        }
 
         if (id !== 'section-topic-content') {
             window._studentSubmissionMode = false;
@@ -5286,6 +5290,9 @@ if (overlay) overlay.classList.add('hidden');
     }
 
     function _renderTopicContentMain(subjectId, topicIdx, tab) {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => _renderTopicContentMain(subjectId, topicIdx, tab));
+        }
         window._renderTopicContentMain = _renderTopicContentMain;
         window.renderTopicContentMain = _renderTopicContentMain;
         const page = document.getElementById('section-topic-content');
@@ -5731,7 +5738,8 @@ if (overlay) overlay.classList.add('hidden');
             );
 
             const studentUser = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
-            const taskRows = assessments.map((a, i) => {
+            const taskRows = (window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(assessments) : assessments).map((a) => {
+                const i = assessments.indexOf(a);
                 const assessment = { ...a, topicIdx, itemIdx: i, section: a.section || studentSec };
                 const submission = window.getStudentAssessmentSubmission?.(subjectId, 'assessments', i, topicIdx, assessment, studentUser);
                 const details = window.resolveStudentAssessmentSubmissionDetails?.(assessment, subjectId, topicIdx, i, studentSec, studentUser);
@@ -7104,8 +7112,9 @@ if (overlay) overlay.classList.add('hidden');
             }
             window.noteStudentHistoryScreen?.();
         }
-        const content = document.getElementById('class-detail-content') || document.getElementById('classroom-detail-content');
-        if (!content && !document.getElementById('section-classroom-detail')) return;
+        let content = document.getElementById('class-detail-content') || document.getElementById('classroom-detail-content')
+            || document.getElementById('section-classroom-detail');
+        if (!content) return;
         const classmates = classroomPeopleBySection[data.section] || classroomPeopleBySection['Grade 11 - STEM A'] || classroomPeopleBySection['ICT-11A'] || [];
         const announcements = getSharedAnnouncements(data.sharedKey || classroomId, classroomAnnouncementById[classroomId] || []);
         const showPeoplePanel = activeStudentRoomTab === 'room';
@@ -7253,25 +7262,20 @@ if (overlay) overlay.classList.add('hidden');
             `;
         }
 
-        const bannerWrapper = document.getElementById('student-classroom-banner-wrapper');
-        const tabsWrapper = document.getElementById('student-classroom-tabs-wrapper');
-        const classDetailContent = document.getElementById('class-detail-content');
-
-        if (bannerWrapper && tabsWrapper && classDetailContent) {
-            bannerWrapper.innerHTML = bannerHtml;
-            tabsWrapper.outerHTML = tabBarHtml;
-            classDetailContent.innerHTML = tabContentHtml;
-        } else if (content) {
-            content.innerHTML = `
-                <div class="w-full flex flex-col">
-                    ${bannerHtml}
-                    ${tabBarHtml}
-
-                    <div id="class-detail-content" class="classroom-detail-content">
-                        ${tabContentHtml}
+        if (content) {
+            const mount = document.getElementById('section-classroom-detail') || content;
+            mount.innerHTML = `
+                <div class="classroom-room-container">
+                    <div id="classroom-detail-view" class="classroom-detail-shell">
+                        <div id="student-classroom-banner-wrapper" class="relative mb-0 w-full">${bannerHtml}</div>
+                        ${tabBarHtml}
+                        <div id="class-detail-content" class="classroom-detail-content">
+                            ${tabContentHtml}
+                        </div>
                     </div>
                 </div>
             `;
+            content = mount.querySelector('#class-detail-content') || mount;
         }
 
         if (activeStudentRoomTab === 'topics') {

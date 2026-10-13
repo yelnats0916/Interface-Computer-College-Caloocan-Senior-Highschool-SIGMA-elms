@@ -136,6 +136,7 @@
         const content = card?.querySelector('.sigma-insight-full-content');
         if (!content) return;
         activeCard = card;
+        window.markInsightRead?.(card.dataset.id);
         dialog.querySelector('h2').textContent = button.querySelector('span')?.textContent.trim() || button.textContent.trim();
         const iconSlot = dialog.querySelector('.sigma-insight-detail-icon');
         if (iconSlot) {

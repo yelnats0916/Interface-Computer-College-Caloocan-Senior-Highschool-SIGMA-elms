@@ -32,6 +32,26 @@ const { chromium } = require('playwright');
   for (const width of [375, 1200]) {
    await page.setViewportSize({ width, height: 900 });
    assert.equal(await page.locator('#submission-attempt-select').evaluate(e => getComputedStyle(e).fontSize), width === 375 ? '12px' : '14px');
+   const boxes = await page.locator('.submission-work-toolbar').evaluate(e => {
+    const title = e.children[0].getBoundingClientRect();
+    const selector = e.querySelector('.submission-attempt-selector-row').getBoundingClientRect();
+    return { title: { top: title.top, bottom: title.bottom, right: title.right }, selector: { top: selector.top, bottom: selector.bottom, left: selector.left } };
+   });
+   assert.ok(boxes.selector.left >= boxes.title.right || boxes.selector.top >= boxes.title.bottom, 'Title and selector must not overlap');
+   await page.locator('.submission-work-toolbar').screenshot({ path: require('node:path').join(require('node:os').tmpdir(), `sigma-attempt-toolbar-${width}.png`) });
+  }
+  for (const role of ['student', 'teacher', 'admin']) {
+   const html = await page.evaluate(role => {
+    const student = { id: 's1', name: 'Student', section: 'Rizal' };
+    const item = { id: 'task2', title: 'Task 2', category: 'assignment', maxScore: 100 };
+    window.getLoggedInStudentUser = () => student;
+    window.getStudentAssessmentReleaseStatus = () => ({ isLocked: false, isHidden: false, isUnreleased: false });
+    window.getStudentAssessmentSubmission = () => ({ id: 'task2', studentId: 's1', status: 'Pending', attemptsUsed: 1, history: [{ comment: 'Teacher comment', status: 'Pending', attemptNumber: 1 }] });
+    window.findAssessmentSubmittedWork = () => null;
+    return window.renderSharedAssessmentsTabHtml({ assessments: [item], activeIdx: 0, subjectId: 'prog', topicIdx: 0, section: 'Rizal', tab: 'assessments', role });
+   }, role);
+   assert.match(html, /id="student-submission-attempts-count"[^>]*>0</, `${role}: comments must not consume an attempt`);
+   assert.doesNotMatch(html, /id="submission-attempt-select"/);
   }
   console.log('PASS: latest attempt defaults, historical selection, and mobile dropdown scaling.');
  } finally { await browser.close(); }

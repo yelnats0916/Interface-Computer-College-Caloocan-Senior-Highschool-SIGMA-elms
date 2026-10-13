@@ -1,0 +1,20 @@
+.shared-export-exit { position: fixed; top: 24px; right: 24px; z-index: 12001; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; color: #000; background: transparent; width: 40px; height: 40px; cursor: pointer; }
+.shared-export-exit:hover { background-color: #e2e8f0; }
+.shared-export-exit i { font-size: 18px; color: #000; }
+.shared-export-options { display: grid; gap: 16px; border: 0; padding: 0; margin: 0; max-width: 768px; }
+.shared-export-option { display: flex; align-items: flex-start; gap: 16px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; color: #000; font-weight: 700; cursor: pointer; transition: none; }
+.shared-export-option:hover { background-color: #f8fafc; }
+.shared-export-option:has(input:checked) { border: 2px solid #15803d; padding: 23px; background: #f6fdf9; }
+.shared-export-option:has(input:checked):hover { background: #f2fcf6; }
+.shared-export-option input { width: 20px; height: 20px; margin-top: 4px; accent-color: #15803d; flex-shrink: 0; }
+.shared-export-error { color: #b91c1c; }
+.shared-export-copy { display: grid; gap: 6px; min-width: 0; }
+.shared-export-intro { margin: 0 0 24px; color: #000; font-size: 16px; font-weight: 500; line-height: 1.5; }
+.shared-export-title { font-size: 16px; line-height: 1.5; }
+.shared-export-subtitle { font-size: 14px; font-weight: 400; color: rgba(0, 0, 0, 0.45); line-height: 1.5; }
+.shared-export-options legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#gradebook-export-modal { z-index: 12000; }
+#gradebook-export-modal .sigma-modal-footer { justify-content: flex-end !important; }
+#gradebook-export-modal .sigma-modal-footer [data-download] { margin-left: auto; }
+@media (min-width: 640px) { .shared-export-exit { top: 40px; right: 40px; width: 48px; height: 48px; } .shared-export-exit i { font-size: 20px; } }
+@media (max-width: 639px) { .shared-export-option { padding: 20px; } .shared-export-option:has(input:checked) { padding: 19px; } }
