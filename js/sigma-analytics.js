@@ -1648,7 +1648,7 @@
     const initialIsTeacher = isCurrentPageTeacherPortal();
     const navigationType = window.performance?.getEntriesByType?.('navigation')?.[0]?.type;
     const gradesHash = /^#(?:grades(?::.*)?|school-grades(?::.*)?|nav-(?:school-)?grades|analytics|gradebooks?)$/;
-    if (navigationType === 'reload' && gradesHash.test(window.location.hash)) {
+    if (navigationType === 'reload' && gradesHash.test(window.location.hash) && !window.location.hash.endsWith(':share-record')) {
         // A full refresh starts at Gradebooks while retaining the saved grading context.
         window.history.replaceState(window.history.state, '', initialIsTeacher ? '#grades:gradebook' : '#school-grades:gradebook');
         const storageKey = getGradesStorageKey(initialIsTeacher);
@@ -4346,14 +4346,13 @@
                             <button id="grades-submit-export-btn" type="button" class="grades-submit-export-btn"
                                 aria-expanded="false" aria-controls="grades-submit-export-menu"
                                 onclick="window.toggleGradesSubmitExportMenu()">
-                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                                 <span>Submit & Share</span>
                                 <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
                             </button>
                             <div id="grades-submit-export-menu" class="grades-submit-export-menu hidden" aria-label="Submit and share options">
                                 <button id="grades-advisory-class-btn" disabled title="Available to section advisers only" type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Advisory Class</span></button>
                                 <div class="grades-submit-export-divider"></div>
-                                <button type="button" onclick="window.closeGradesSubmitExportMenu()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Share Gradebook</span></button>
+                                <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openSharedGradeRecord()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>Share Grades</span></button>
                                 <div class="grades-submit-export-divider"></div>
                                 <button type="button" onclick="window.closeGradesSubmitExportMenu(); window.openGradebookExportForm()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Export Excel</span></button>
                             </div>
@@ -4457,6 +4456,7 @@
         window.updateAdminSharedNavbarUI();
         if (state.activeTab === 'gradebook') {
             window.renderAdminGradebookWorkspace();
+            window.restoreSharedGradeRecordRoute?.();
         } else {
             window.renderAdminAnalyticsWorkspace();
         }

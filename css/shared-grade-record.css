@@ -1,0 +1,154 @@
+.shared-grade-record{background:#fff;color:#000;padding:24px 32px;overflow:auto;flex:1;min-height:0;font-family:Inter,sans-serif;letter-spacing:0}
+.record-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px}.record-actions>div{display:flex;gap:10px}
+.record-heading{padding-bottom:24px;border-bottom:1px solid #e5e7eb}.record-heading h1{font-size:22px;font-weight:700;margin:0 0 16px}.record-heading h2{font-size:16px;font-weight:600;margin:0 0 6px}.record-heading p,.record-comments>p,.record-footnote,.record-comments small{font-size:12px;color:rgba(0,0,0,.45)}
+.record-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:32px;padding-top:24px}.record-comments{border:1px solid #e5e7eb;border-radius:8px;padding:20px;align-self:start}.record-comments h2{font-size:15px;font-weight:600;margin:0 0 6px}.record-comment-empty{padding:32px 0;color:rgba(0,0,0,.45);font-size:13px}.record-comments label{font-size:13px;font-weight:600;display:block;margin-bottom:8px}.record-comments textarea{width:100%;box-sizing:border-box;min-height:110px;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical}.record-comments textarea:focus{outline:2px solid #15803d;outline-offset:2px}.record-comments small{display:block;margin-top:10px}.record-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:13px;margin-bottom:18px}.record-draft-label,.record-saved-label{padding:5px 9px;border-radius:4px;font-weight:600}.record-draft-label{background:#fff0bd;color:#825500}.record-saved-label{background:#e8f5ec;color:#166534}.record-main{min-width:0}.record-table-scroll{overflow-x:auto}.record-main table{width:100%;border-collapse:collapse;min-width:560px;font-size:13px}.record-main th{background:#15803d;color:#fff;font-weight:600;padding:16px 12px;white-space:nowrap}.record-main td{padding:18px 12px;border-bottom:1px solid #e5e7eb;text-align:center}.record-main th:nth-child(2),.record-main td:nth-child(2){text-align:left;min-width:180px}.record-main th small{display:block;font-size:10px;margin-top:3px;color:#ffe585}.record-draft-cell{background:#fff8db}.record-blank{color:rgba(0,0,0,.45)}.record-footnote{margin-top:16px}.record-error{color:#b91c1c;font-size:13px;margin-top:12px}
+.record-actions{width:100%;margin-top:28px;margin-bottom:0}
+.record-table-scroll + .record-status{margin-top:18px;margin-bottom:0}
+.record-status .record-draft-label{background:transparent;padding:0;border-radius:0;color:#825500;font-weight:600}
+.record-main table{table-layout:fixed}
+.record-main thead th{padding:16px 12px;text-align:center!important;border-bottom:1px solid #137638;font-size:14px}
+.shared-grade-record .record-main table thead th{border-left:0!important;border-right:0!important;box-shadow:none!important}
+.shared-grade-record .record-main table thead th:not(:last-child){border-right:1px solid #137638!important}
+.record-main thead th:first-child{width:6%}
+.record-main thead th:nth-child(2){width:34%;white-space:normal}
+.record-main thead th:nth-child(3){width:18%}
+.record-main thead th:last-child{width:20%;white-space:normal}
+.record-main tbody tr:nth-child(odd){background:#fff}
+.record-main tbody tr:nth-child(even){background:#f8fafb}
+.record-main tbody td{height:64px;box-sizing:border-box;padding:16px 12px;border-bottom:1px solid rgba(0,0,0,.08);font-size:13px;overflow-wrap:anywhere}
+.shared-grade-record .record-main table tbody td{border-left:0!important;box-shadow:none!important}
+.shared-grade-record .record-main table tbody td:not(:last-child){border-right:1px solid rgba(0,0,0,.08)!important}
+.shared-grade-record .record-main table tbody td:nth-child(2){border-right:0!important}
+.shared-grade-record .record-main table tbody td:nth-child(4){border-right:0!important}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table{cursor:default}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table thead th:hover{background:#15803d!important;color:#fff!important;cursor:default;outline:none}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr:nth-child(odd),
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr:nth-child(odd):hover{background:#fff!important}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr:nth-child(even),
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr:nth-child(even):hover{background:#f8fafb!important}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td,
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td:hover{background:transparent!important;cursor:default;outline:none;transition:none}
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td.record-draft-cell,
+#admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td.record-draft-cell:hover{background:#fff8db!important}
+.record-main tbody td.record-draft-cell{background:#fff8db}
+#record-nav-title{display:none}
+.shared-grade-record .shared-private-comments-heading h2{font-size:12px!important;font-weight:700!important;line-height:15px!important;color:#15803d!important}
+.record-sidebar{grid-column:2;grid-row:1;display:flex;flex-direction:column;gap:24px;min-width:0}
+.record-sidebar .record-comments{width:100%;box-sizing:border-box}
+.shared-grade-record .record-sidebar > .record-comments{margin-top:0!important;margin-bottom:0!important}
+.shared-grade-record .record-sidebar > .record-comments[hidden]{display:none!important}
+.shared-grade-record .record-notes .record-comments-heading h2{font-size:12px!important;font-weight:700!important;line-height:15px!important;color:#15803d!important}
+.shared-grade-record .record-comments-heading .record-notes-pin{color:#15803d!important;display:inline-flex;align-items:center;justify-content:center;width:20px;height:24px;flex:0 0 20px;font-size:18px;line-height:1;transform:none}
+.record-comment-row{display:flex;align-items:flex-end;gap:10px;margin-top:24px}
+.record-comment-row[hidden],.record-add-comment[hidden]{display:none!important}
+.record-comment-row .sigma-comment-composer-avatar{flex-shrink:0}
+.record-comment-pill{display:flex;align-items:center;gap:8px;flex:1;min-width:0;border:1px solid #dce5ef;border-radius:22px;padding:8px 12px;background:#f8fafc}
+.record-comment-pill .sigma-comment-textarea{border:0!important;background:transparent!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;min-height:28px;width:100%;font-size:13px;font-weight:400;line-height:28px;resize:none}
+.record-comment-pill .sigma-comment-send-btn{border:0;background:transparent;color:#047857;width:32px;min-width:32px;height:32px;flex:0 0 32px;border-radius:50%;padding:0}
+.record-comment-pill .sigma-comment-send-btn:hover{background:#f1f5f9;transform:scale(1.1)}
+@media(min-width:768px){
+    .shared-grade-record .record-comment-pill .sigma-comment-send-btn{width:32px!important;height:32px!important;min-width:32px!important;flex:0 0 32px!important;font-size:12px!important}
+    .shared-grade-record .record-comment-pill .sigma-comment-send-btn i{font-size:12px!important;line-height:1!important}
+}
+.record-comment-pill:focus-within{border-color:#FFD000;background:#fff}
+.record-comment-pill{min-height:44px;box-sizing:border-box;padding:4px 10px 4px 12px}
+.record-comment-row{align-items:center!important;gap:8px}
+.record-comment-row .sigma-comment-composer-avatar{margin-top:0}
+.record-posted-comment{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:12px}
+.record-posted-comment .sigma-private-comment-content{min-width:0;flex:1}
+.record-posted-comment strong{font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.record-posted-comment p{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 0;line-height:20px}
+.shared-grade-record .record-posted-comment .sigma-comment-delete-btn{opacity:0;visibility:hidden;pointer-events:none}
+.shared-grade-record .record-posted-comment:hover .sigma-comment-delete-btn,
+.shared-grade-record .record-posted-comment:focus-within .sigma-comment-delete-btn{opacity:1!important;visibility:visible!important;pointer-events:auto!important}
+@media(hover:none){.shared-grade-record .record-posted-comment .sigma-comment-delete-btn{opacity:1!important;visibility:visible!important;pointer-events:auto!important}}
+.record-comment-pill .sigma-comment-send-btn:disabled{opacity:.45;cursor:not-allowed}
+.record-note-error{font-size:12px;color:#b91c1c}
+.record-student-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.record-student-avatar{display:inline-flex;flex-shrink:0}
+.record-student-mobile-id{display:none}
+@media(max-width:760px){
+    .shared-grade-record .record-main table th:first-child,.shared-grade-record .record-main table td:first-child,
+    .shared-grade-record .record-main table th:nth-child(3),.shared-grade-record .record-main table td:nth-child(3){display:none}
+    .shared-grade-record .record-main table th:nth-child(2){width:46%}
+    .shared-grade-record .record-main table th:last-child{width:26%}
+    .record-student-details{display:flex;flex-direction:column;gap:3px}
+    .record-student-mobile-id{display:block;font-size:9px;line-height:13px;color:rgba(0,0,0,.45);font-weight:400}
+    .shared-grade-record .record-main table tbody td:nth-child(2){border-right:1px solid rgba(0,0,0,.08)!important}
+}
+.record-student-identity>span:last-child{min-width:0;overflow-wrap:anywhere}
+@media(max-width:760px){.record-student-avatar{display:none}.record-student-identity{display:block}}
+.record-note-counter{font-size:11px;line-height:16px;color:rgba(0,0,0,.45);text-align:right;margin-top:6px}
+.record-note-counter[hidden]{display:none!important}
+.record-note-footer{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;width:100%;margin-top:12px}
+.record-notes #record-note[hidden],.record-note-footer button[hidden]{display:none!important}
+.shared-grade-record .record-notes .record-saved-note{font-size:14px!important;font-weight:400!important;color:#000!important;line-height:1.5!important}
+.record-saved-note{margin:0 0 16px;font-size:14px;line-height:1.5;color:#000;white-space:pre-wrap;overflow-wrap:anywhere}
+.record-saved-note[hidden]{display:none}
+.record-note-footer .record-note-enter{margin:0!important;flex:0 0 auto}
+.record-note-footer[hidden],.record-note-tools button[hidden]{display:none!important}
+.record-note-tools{display:flex;gap:4px;margin-left:auto}
+.record-note-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:transparent;color:rgba(0,0,0,.45);font-size:12px;cursor:pointer}
+.record-note-tools .record-note-icon i{font-size:12px;color:inherit}
+.record-note-icon:hover,.record-note-icon:focus-visible{background:#f1f5f9;color:rgba(0,0,0,.45)}
+.record-comment-count{font-size:11px;font-weight:700;color:rgba(0,0,0,.45);background:#f1f5f9;border:1px solid rgba(0,0,0,.1);border-radius:50%}
+@media(max-width:760px){.record-sidebar{grid-column:1;grid-row:2}}
+body:has(.shared-grade-record) #nav-context-text,body:has(.shared-grade-record) #header-brand-title{display:none!important}
+body:has(.shared-grade-record) #record-nav-title{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+#record-nav-title span{font-size:12px;font-weight:500;color:rgba(0,0,0,.45)}
+#record-nav-title strong{font-size:14px;font-weight:600;color:#000}
+.shared-grade-record .record-add-comment{background:#f7f7f7;border-color:rgba(0,0,0,.12);color:rgba(0,0,0,.45);font-weight:500}
+.shared-grade-record .record-add-comment i{color:inherit}
+.shared-grade-record .record-add-comment:hover{background:#eeeeee;color:rgba(0,0,0,.45)}
+.record-context-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 24px;line-height:1.5}
+.record-context-row h2,.record-context-row>span{margin:0;font-size:15px;font-weight:600;color:#000;line-height:1.5}
+.record-context-row>span{padding-left:24px;border-left:1px solid #dce5df}
+.record-context-row{column-gap:24px}
+.record-heading{padding-left:14px;border-left:3px solid #15803d}
+@media(max-width:760px){.record-context-row{gap:8px 14px}.record-context-row>span{padding-left:14px}}
+.record-heading .record-adviser{margin-top:10px;font-size:13px;color:#000}
+body:has(.shared-grade-record) #admin-grades-shared-navbar{display:none!important}
+@media(max-width:760px){
+    .shared-grade-record .record-main table{width:100%;min-width:0;table-layout:fixed;font-size:10px}
+    .shared-grade-record .record-table-scroll{width:calc(100% + 32px);max-width:none;margin-left:-16px;margin-right:-16px}
+    .shared-grade-record .record-main thead th{font-size:10px;padding:10px 3px;line-height:14px;white-space:normal;overflow-wrap:normal;word-break:normal}
+    .shared-grade-record .record-main thead th:first-child,
+    .shared-grade-record .record-main thead th:nth-child(4),
+    .shared-grade-record .record-main thead th:nth-child(5){white-space:nowrap}
+    .shared-grade-record .record-main tbody td{font-size:10px;padding:10px 4px;height:48px;line-height:14px;min-width:0;overflow-wrap:anywhere}
+    .shared-grade-record .record-main th:nth-child(2),.shared-grade-record .record-main td:nth-child(2){min-width:0}
+    .shared-grade-record .record-main thead th:first-child{width:7%}
+    .shared-grade-record .record-main thead th:nth-child(2){width:30%}
+    .shared-grade-record .record-main thead th:nth-child(3){width:21%}
+    .shared-grade-record .record-main thead th:last-child{width:22%}
+    .shared-grade-record .record-status{font-size:11px;gap:6px 10px;line-height:16px}
+    .shared-grade-record .record-notes{padding:16px;border-radius:20px}
+    .shared-grade-record .record-notes .record-comments-heading{margin-bottom:14px;gap:8px}
+    .shared-grade-record .record-notes #record-note{min-height:84px;height:84px;padding:10px 12px;font-size:12px;line-height:18px;border-radius:12px}
+    .shared-grade-record .record-notes #record-note::placeholder{font-size:12px!important}
+    .shared-grade-record .record-notes .record-saved-note{font-size:12px!important;line-height:18px!important}
+    .shared-grade-record .record-notes .record-note-footer{margin-top:10px}
+    .shared-grade-record .record-notes .record-note-counter{font-size:10px;margin-top:4px}
+    .shared-grade-record .record-actions .sigma-btn,
+    .shared-grade-record .record-note-footer .sigma-btn{height:38px!important;min-height:38px!important;padding:0 16px!important;font-size:12px!important;line-height:18px!important;border-radius:10px!important}
+}
+@media(max-width:760px){
+    .shared-grade-record .record-context-row{flex-direction:column;align-items:flex-start;gap:4px}
+    .shared-grade-record .record-context-row h2,.shared-grade-record .record-context-row>span{font-size:13px;line-height:18px;max-width:100%;overflow-wrap:anywhere}
+    .shared-grade-record .record-context-row>span{padding-left:0;border-left:0}
+    .shared-grade-record .record-context-row h2{overflow-wrap:anywhere}
+    .shared-grade-record .record-heading{padding-left:12px;padding-bottom:12px;min-width:0}
+    .shared-grade-record .record-heading .record-adviser{font-size:12px;line-height:18px;margin-top:8px;margin-bottom:0;overflow-wrap:anywhere}
+}
+.record-adviser strong{font-weight:600}
+body:has(.shared-grade-record) #main-content,
+body:has(#school-grades-view:not(.hidden) .shared-grade-record) #admin-main,
+body:has(#school-grades-view:not(.hidden) .shared-grade-record) #layout-wrapper,
+body:has(#school-grades-view:not(.hidden) .shared-grade-record) #school-grades-view,
+body:has(.shared-grade-record) #content-sections,
+body:has(.shared-grade-record) #section-grades,
+body:has(.shared-grade-record) #section-school-grades{background:#fff!important}
+.sigma-grades-page:has(.shared-grade-record){min-height:100%!important;border-bottom:0!important}
+#admin-gradebook-workspace-content:has(.shared-grade-record){background:#fff!important}
+.record-layout{grid-template-columns:minmax(0,1fr) 300px}.record-main{grid-column:1;grid-row:1}.record-comments{grid-column:2;grid-row:1;padding:24px;border-radius:24px;border-color:#dce5ef}.record-comments-heading{display:flex;align-items:center;gap:10px;margin-bottom:24px}.record-comments-heading h2{margin:0;font-size:16px;font-weight:700;color:#182234}.record-comments-heading i{font-size:18px;color:#475569}.record-add-comment{display:inline-flex;align-items:center;gap:10px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;border-radius:16px;padding:12px 16px;font-size:12px;font-weight:600;cursor:pointer}.record-add-comment:hover{background:#f1f5f9;color:#000}.record-add-comment i{font-size:12px}#record-comment-composer{margin-top:20px}#record-comment-composer[hidden]{display:none}
+@media(max-width:760px){.shared-grade-record{padding:20px 16px}.record-actions{width:100%}.record-layout{grid-template-columns:minmax(0,1fr);gap:24px}.record-main{grid-column:1;grid-row:1}.record-comments{grid-column:1;grid-row:2}.record-actions button{padding:0 16px}.record-heading h1{font-size:20px}}

@@ -1264,6 +1264,17 @@ body.mobile-panel-open .sigma-insight-detail-close,
     background: #166534;
 }
 
+@media (min-width: 769px) {
+    .sigma-grades-page .grades-submit-export-btn {
+        height: 46px;
+        min-height: 46px;
+        padding: 0 24px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+    }
+}
+
 .sigma-grades-page .grades-submit-export-menu {
     position: absolute;
     top: calc(100% + 6px);
@@ -1309,6 +1320,25 @@ body.mobile-panel-open .sigma-insight-detail-close,
     width: 16px;
     color: #15803d;
     text-align: center;
+}
+
+@media (min-width: 769px) {
+    .sigma-grades-page .grades-submit-export-menu {
+        min-width: 0;
+        width: 100%;
+        padding: 8px;
+    }
+    .sigma-grades-page .grades-submit-export-menu button:not(.hidden) {
+        min-height: 46px;
+        padding: 10px 8px;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 20px;
+    }
+    .sigma-grades-page .grades-submit-export-menu i {
+        font-size: 14px;
+        width: 18px;
+    }
 }
 
 .sigma-grades-page .grades-submit-export-divider {
@@ -1782,6 +1812,13 @@ body.mobile-panel-open .sigma-insight-detail-close,
 
     .sigma-grades-page .grades-submit-export-menu {
         padding: 3px;
+    }
+    .sigma-grades-page .grades-submit-export-menu button span {
+        white-space: nowrap;
+        letter-spacing: 0;
+    }
+    .sigma-grades-page .grades-submit-export-menu button i {
+        flex-shrink: 0;
     }
 
     .sigma-grades-page .grades-submit-export-menu button:not(.hidden) {

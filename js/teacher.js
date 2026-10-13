@@ -19101,7 +19101,11 @@ function initTeacherPortal() {
                 window.renderSigmaGradesView('section-grades', { isTeacherPage: true, role: 'teacher', ...gradesOpts });
             }
             if (typeof window.switchAdminGradesTab === 'function') {
-                window.switchAdminGradesTab(targetSubTab);
+                if (window.location.hash.endsWith(':share-record')) {
+                    window.restoreSharedGradeRecordRoute?.();
+                } else {
+                    window.switchAdminGradesTab(targetSubTab);
+                }
             }
             if (typeof window.syncTeacherGradesNavState === 'function') {
                 window.syncTeacherGradesNavState(targetSubTab);

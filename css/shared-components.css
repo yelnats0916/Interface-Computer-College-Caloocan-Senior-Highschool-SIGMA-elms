@@ -5516,7 +5516,40 @@ html body .shared-private-comments-heading {
     gap: 8px;
     min-height: 24px;
 }
+html body .shared-private-comments button[id^="submission-add-comment-toggle-btn-"],
+html body .shared-private-comments .record-add-comment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 25px !important;
+    min-height: 25px !important;
+    width: auto !important;
+    padding: 0 9px !important;
+    gap: 5px !important;
+    border-radius: 9999px !important;
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+    white-space: nowrap;
+    box-sizing: border-box;
+    background: #f7f7f7 !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-weight: 500 !important;
+}
+html body .shared-private-comments button[id^="submission-add-comment-toggle-btn-"] i,
+html body .shared-private-comments .record-add-comment i {
+    font-size: 11px !important;
+    width: 12px;
+    line-height: 1;
+    color: inherit !important;
+}
+html body .shared-private-comments button[id^="submission-add-comment-toggle-btn-"]:hover,
+html body .shared-private-comments .record-add-comment:hover {
+    background: #eeeeee !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+}
 html body .shared-private-comments-heading > i {
+    color: #15803d !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5526,9 +5559,12 @@ html body .shared-private-comments-heading > i {
     line-height: 1;
 }
 html body .shared-private-comments-heading > h3 {
+    color: #15803d !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
     margin: 0 !important;
     padding: 0 !important;
-    line-height: 24px !important;
+    line-height: 15px !important;
     letter-spacing: 0 !important;
 }
 html body .shared-private-comments-heading > span {
@@ -5906,7 +5942,7 @@ html body .assessment-private-comments-panel .sigma-private-comment-row {
 }
 html body .assessment-private-comments-panel .sigma-private-comment-message > div:first-child {
     display: grid;
-    grid-template-columns: minmax(0, max-content) max-content max-content;
+    grid-template-columns: minmax(0, 1fr) auto;
     justify-content: start;
     align-items: center;
     gap: 6px;
@@ -5945,7 +5981,31 @@ html body .assessment-private-comments-panel .sigma-comment-delete-btn i {
     color: rgba(0, 0, 0, 0.45) !important;
 }
 html body .assessment-private-comments-panel .sigma-private-comment-time {
+    margin-top: 2px;
     margin-bottom: 4px;
+}
+html body .shared-private-comments .sigma-private-comment-content {
+    min-width: 0;
+}
+html body .shared-private-comments .sigma-private-comment-message > div:first-child > span:first-child {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 18px !important;
+    letter-spacing: 0;
+}
+html body .shared-private-comments .sigma-private-comment-message > p {
+    margin: 0 !important;
+    line-height: 20px !important;
+    overflow-wrap: anywhere;
+}
+html body .shared-private-comments .sigma-private-comment-time {
+    line-height: 16px !important;
+    font-size: 11px !important;
+}
+html body .shared-private-comments-heading > h3 {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 html body .assessment-private-comments-panel .sigma-comment-composer-row {
     align-items: center !important;

@@ -8912,14 +8912,14 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         const selectionScope = JSON.stringify([submissionContext.subjectId, Number(submissionContext.topicIdx), Number(submissionContext.activeIdx), section]);
         const hasExplicitSelection = window._explicitGradingStudentSelection?.scope === selectionScope
             && window._explicitGradingStudentSelection.name === topicState.selectedStudent;
-        const isEmptySelection = allStudents.length === 0 && !hasExplicitSelection;
+        const isEmptySelection = rosterStudents.length === 0;
         if (isEmptySelection) {
             topicState.selectedStudent = 'All';
             if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = 'All';
         }
         let curStudentName = topicState?.selectedStudent || 'All';
-        if ((!curStudentName || curStudentName === 'All') && allStudents.length > 0) {
-            const firstS = allStudents[0];
+        if ((!curStudentName || curStudentName === 'All') && rosterStudents.length > 0) {
+            const firstS = allStudents[0] || rosterStudents[0];
             curStudentName = typeof firstS === 'string' ? firstS : (firstS.name || firstS.fullName || 'Student');
             if (typeof currentTopicState !== 'undefined' && currentTopicState) currentTopicState.selectedStudent = curStudentName;
             if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState) window.currentTopicState.selectedStudent = curStudentName;
@@ -8944,7 +8944,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         };
 
         const curLower = String(curStudentName).trim().toLowerCase();
-        if (curStudentName === 'All' && !allStudents.length) curStudentName = 'No submissions yet';
+        if (curStudentName === 'All' && !rosterStudents.length) curStudentName = 'No students';
         const activeStudentObj = window.resolveRosterStudent(rosterStudents, curStudentName) || { name: curStudentName };
 
         const studentName = typeof activeStudentObj === 'string' ? activeStudentObj : (activeStudentObj.name || activeStudentObj.fullName || (activeStudentObj.lastName && activeStudentObj.firstName ? `${activeStudentObj.lastName}, ${activeStudentObj.firstName}` : '') || curStudentName);
@@ -8959,7 +8959,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
             const actIdLower = String(studentId).trim().toLowerCase();
             return sName === actNameLower || sId === actIdLower || sLastFirst === actNameLower || (s.id && activeStudentObj.id && String(s.id) === String(activeStudentObj.id));
         });
-        const counterText = studentIdx >= 0 ? `${studentIdx + 1} of ${allStudents.length}` : (allStudents.length ? 'Not Submitted' : '');
+        const counterText = studentIdx >= 0 ? `${studentIdx + 1} of ${allStudents.length}` : (rosterStudents.length ? 'Not Submitted' : '');
 
         const subjectId = topicState?.subjectId || data?.subjectId || '';
         const topicIdx = (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : ((typeof topicState?.topicIdx !== 'undefined' ? topicState.topicIdx : 0) || 0));
@@ -9161,7 +9161,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
 
                             <!-- Prev & Next Navigation + Counter Subtitle -->
                             <div class="grading-nav-row flex items-center justify-between gap-1 text-[10.5px] sm:text-xs select-none px-0.5 pt-0.5 font-['Inter'] w-full">
-                                <button type="button" ${allStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(-1)"
+                                <button type="button" ${rosterStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(-1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
                                     class="grading-nav-btn grading-nav-prev-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Previous Student">
@@ -9169,7 +9169,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     <span style="flex: 0 0 auto !important;">Prev</span>
                                 </button>
                                 <span class="grading-nav-counter text-black-fade font-semibold text-[10.5px] sm:text-xs text-center px-1 leading-tight whitespace-nowrap shrink-0" style="flex: 0 0 auto !important;">${counterText}</span>
-                                <button type="button" ${allStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(1)"
+                                <button type="button" ${rosterStudents.length ? '' : 'disabled'} onclick="window.navigateTopicStudent(1)"
                                     style="width: auto !important; min-width: 0 !important; max-width: none !important; flex: 0 0 auto !important; display: inline-flex !important;"
                                     class="grading-nav-btn grading-nav-next-btn px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg flex items-center gap-1 sm:gap-1.5 text-black hover:bg-slate-100 active:bg-slate-200/70 transition-colors cursor-pointer text-[10.5px] sm:text-xs font-semibold shrink-0 whitespace-nowrap"
                                     title="Next Student">
@@ -19107,9 +19107,6 @@ window.navigateTopicStudent = function (direction) {
     } else if (typeof studentsBySection !== 'undefined') {
         students = studentsBySection[section] || [];
     }
-    if (window._sharedViewSubmissionMode || window._studentViewSubmissionMode || window.location?.hash?.includes(':submission')) {
-        students = students.filter(student => window.hasCurrentAssessmentSubmission(student));
-    }
     if (!students || students.length === 0) return;
 
     const currentSelected = topicState.selectedStudent || 'All';
@@ -23608,6 +23605,20 @@ window.getPrivateSubmissionCommentKey = function (subjectId, tab, activeIdx, top
         || document.querySelector('.shared-private-comments [data-submission-comment-key]')?.dataset.submissionCommentKey;
     return encoded ? decodeURIComponent(encoded) : window.getStudentSubmissionStorageKey(subjectId, topicIdx, tab, activeIdx, item);
 };
+window.formatPrivateCommentTime = function (iso) {
+    if (!iso) return '';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return String(iso);
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 10) return '1sec';
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }) + ', ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' });
+};
+
 window.getPrivateCommentActor = function () {
     let user = {};
     try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
@@ -28409,7 +28420,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 </div>
                             `}
                         `}
-                        ${`
+                        ${role === 'student' || (isViewSubmissionMode && hasSelectedSubmissionStudent) ? `
                                 <!-- 2. Bottom Section: Comments (Announcement Post Style Thread) -->
                                <div class="shared-private-comments space-y-3 font-['Inter']">
                                    <div class="shared-private-comments-heading flex items-center gap-2">
@@ -28455,21 +28466,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         profilePicture: commentAuthorAvatar
                     };
 
-                    const formatTimeAgo = function (iso) {
-                        if (!iso) return '';
-                        try {
-                            const d = new Date(iso);
-                            if (isNaN(d.getTime())) return String(iso);
-                            const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
-                            if (diffSec < 10) return '1sec';
-                            if (diffSec < 60) return `${diffSec}s`;
-                            const diffMin = Math.floor(diffSec / 60);
-                            if (diffMin < 60) return `${diffMin}m`;
-                            const diffHour = Math.floor(diffMin / 60);
-                            if (diffHour < 24) return `${diffHour}h`;
-                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                        } catch (e) { return ''; }
-                    };
+                    const formatTimeAgo = window.formatPrivateCommentTime;
 
                     const renderAvatar = function (userObj, size = 'sm') {
                         if (typeof window.renderUserAvatarHtml === 'function') {
@@ -28534,7 +28531,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                                <div class="flex items-center gap-2 mb-0.5">
                                                                    <span class="text-xs font-bold text-slate-900">${window.escapeHtml ? window.escapeHtml(commentAuthorName) : commentAuthorName}</span>
                                                                    ${primaryRoleBadge ? `
-                                                                       <span class="sigma-private-comment-role">${primaryRoleBadge}</span>
                                                                    ` : ''}
                                                                    ${canDeletePrimary ? `<button type="button" class="sigma-comment-delete-btn" onclick="window.deleteStudentSubmissionComment('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})" title="Delete comment" aria-label="Delete comment"><i class="fa-regular fa-trash-can"></i></button>` : ''}
                                                                </div>
@@ -28595,7 +28591,6 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                                <div class="flex items-center gap-2 mb-0.5">
                                                                    <span class="text-xs font-bold text-slate-900">${window.escapeHtml ? window.escapeHtml(repAuthor) : repAuthor}</span>
                                                                    ${replyRoleBadge ? `
-                                                                       <span class="sigma-private-comment-role">${replyRoleBadge}</span>
                                                                    ` : ''}
                                                                    ${canDeleteRep ? `<button type="button" class="sigma-comment-delete-btn" onclick="window.deleteSubmissionReply('${subjectId}', '${tab}', ${activeIdx}, ${rIdx}, ${topicIdx})" title="Delete reply" aria-label="Delete reply"><i class="fa-regular fa-trash-can"></i></button>` : ''}
                                                                </div>
@@ -28671,7 +28666,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                        </div>`;
                 })()}
                                </div>
-                        `}
+                        ` : ''}
                         <div class="assessment-primary-action-slot" aria-label="Primary assessment action"></div>
                         </div>
                         </div>
