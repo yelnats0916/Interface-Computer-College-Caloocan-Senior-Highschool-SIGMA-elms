@@ -61,7 +61,39 @@
         modal.querySelector('[data-close]').onclick = close;
         document.body.appendChild(modal); document.addEventListener('keydown', keyboard); modal.querySelector('button').focus();
     };
-    window.openOfflineAssessmentForm = function () {
+    window.openOfflineAssessmentMenu = function (event, id) {
+        event.stopPropagation();
+        document.getElementById('offline-assessment-menu')?.remove();
+        const menu = document.createElement('div');
+        menu.id = 'offline-assessment-menu';
+        menu.setAttribute('role', 'menu');
+        menu.className = 'gb-manual-assessment-menu';
+        menu.innerHTML = '<button type="button" role="menuitem" data-edit><i class="fa-solid fa-pen" aria-hidden="true"></i><span>Edit</span></button><button type="button" role="menuitem" data-delete><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Delete</span></button>';
+        const trigger = event.currentTarget;
+        const rect = (trigger.closest('th') || trigger).getBoundingClientRect();
+        const close = () => { menu.remove(); document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', keyboard); };
+        const outside = e => { if (!menu.contains(e.target)) close(); };
+        const keyboard = e => { if (e.key === 'Escape') { close(); trigger.focus(); } };
+        menu.querySelector('[data-edit]').onclick = () => { close(); window.openOfflineAssessmentForm(id); };
+        menu.querySelector('[data-delete]').onclick = () => {
+            close();
+            const item = window.getOfflineAssessment(id);
+            if (!item || !window.confirm(`Delete "${item.title}" and all its scores? This cannot be undone.`)) return;
+            localStorage.setItem(key, JSON.stringify(read().filter(row => row.id !== id)));
+            window.clearCategoryDetailsCache?.();
+            window.renderAdminGradebookWorkspace?.();
+        };
+        document.body.append(menu);
+        const size = menu.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, Math.min(rect.right - size.width, innerWidth - size.width - 8))}px`;
+        menu.style.top = `${Math.max(8, rect.bottom + size.height + 4 <= innerHeight - 8 ? rect.bottom + 4 : rect.top - size.height - 4)}px`;
+        document.addEventListener('pointerdown', outside);
+        document.addEventListener('keydown', keyboard);
+        menu.querySelector('button').focus();
+    };
+    window.openOfflineAssessmentForm = function (id) {
+        const existing = id ? window.getOfflineAssessment(id) : null;
+        if (id && !existing) return;
         const state = window.sigmaGradesState;
         const scope = state?.selectedSubjectSection;
         const category = ['pt', 'perf. task'].includes(state?.currentView) ? 'perf. task' : state?.currentView === 'qa' ? 'qa' : 'ww';
@@ -76,6 +108,13 @@
         modal.querySelector('[name=hps]').placeholder = 'Highest possible score';
         const titleInput = modal.querySelector('[name=title]');
         const hpsInput = modal.querySelector('[name=hps]');
+        if (existing) {
+            modal.setAttribute('aria-label', 'Edit Assessment');
+            modal.querySelector('h2').textContent = 'Edit Assessment';
+            modal.querySelector('[type=submit]').textContent = 'Save Changes';
+            titleInput.value = existing.title;
+            hpsInput.value = existing.max;
+        }
         hpsInput.max = '100';
         hpsInput.inputMode = 'numeric';
         hpsInput.onkeydown = event => {
@@ -113,7 +152,15 @@
             if (!title || !Number.isInteger(max) || max < 1 || max > 100) return;
             try {
                 const items = read();
-                items.push({ id: `offline-${crypto.randomUUID()}`, title, max, points: max, category,
+                if (existing) {
+                    const record = items.find(item => item.id === id);
+                    if (!record) throw new Error('Assessment no longer exists');
+                    if (Object.values(record.scores || {}).some(score => score !== '' && score != null && Number(score) > max)) {
+                        modal.querySelector('[role=alert]').textContent = 'HPS cannot be lower than an existing student score.';
+                        return;
+                    }
+                    Object.assign(record, { title, max, points: max });
+                } else items.push({ id: `offline-${crypto.randomUUID()}`, title, max, points: max, category,
                     offline: true, subjectId: scope.subject, section: scope.sectionName, quarter: state.activeQuarter || 1,
                     createdAt: new Date().toISOString(), date: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }), scores: {} });
                 localStorage.setItem(key, JSON.stringify(items));

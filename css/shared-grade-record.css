@@ -1,8 +1,18 @@
 .shared-grade-record{background:#fff;color:#000;padding:24px 32px;overflow:auto;flex:1;min-height:0;font-family:Inter,sans-serif;letter-spacing:0}
 .record-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px}.record-actions>div{display:flex;gap:10px}
+.shared-grade-record .record-heading .record-adviser{display:flex;align-items:center;gap:8px!important;font-size:13px!important;line-height:20px!important;margin:10px 0 0!important}
+html body .shared-grade-record .record-heading .record-adviser > :is(strong,span){font-size:13px!important;line-height:20px!important}
+html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar,
+html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar :is(.sigma-user-avatar,img){width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;flex:0 0 28px!important}
+@media(max-width:767px){html body .shared-grade-record .record-heading .record-adviser,html body .shared-grade-record .record-heading .record-adviser > :is(strong,span){font-size:12px!important;line-height:18px!important}html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar,html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar :is(.sigma-user-avatar,img){width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;flex-basis:24px!important}}
+.record-adviser-avatar{display:flex;flex:0 0 32px;width:32px;height:32px;align-items:center;justify-content:center}
+.record-adviser-avatar :is(.sigma-user-avatar,img){width:32px!important;height:32px!important;border-radius:50%;object-fit:cover;flex-shrink:0}
+.record-adviser-avatar i{font-size:14px!important}
+@media(max-width:767px){.record-adviser-avatar{width:28px;height:28px;flex-basis:28px}.record-adviser-avatar :is(.sigma-user-avatar,img){width:28px!important;height:28px!important}.record-adviser-avatar i{font-size:12px!important}.shared-grade-record .record-adviser{gap:8px}}
 .record-heading{padding-bottom:24px;border-bottom:1px solid #e5e7eb}.record-heading h1{font-size:22px;font-weight:700;margin:0 0 16px}.record-heading h2{font-size:16px;font-weight:600;margin:0 0 6px}.record-heading p,.record-comments>p,.record-footnote,.record-comments small{font-size:12px;color:rgba(0,0,0,.45)}
 .record-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:32px;padding-top:24px}.record-comments{border:1px solid #e5e7eb;border-radius:8px;padding:20px;align-self:start}.record-comments h2{font-size:15px;font-weight:600;margin:0 0 6px}.record-comment-empty{padding:32px 0;color:rgba(0,0,0,.45);font-size:13px}.record-comments label{font-size:13px;font-weight:600;display:block;margin-bottom:8px}.record-comments textarea{width:100%;box-sizing:border-box;min-height:110px;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical}.record-comments textarea:focus{outline:2px solid #15803d;outline-offset:2px}.record-comments small{display:block;margin-top:10px}.record-status{display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:13px;margin-bottom:18px}.record-draft-label,.record-saved-label{padding:5px 9px;border-radius:4px;font-weight:600}.record-draft-label{background:#fff0bd;color:#825500}.record-saved-label{background:#e8f5ec;color:#166534}.record-main{min-width:0}.record-table-scroll{overflow-x:auto}.record-main table{width:100%;border-collapse:collapse;min-width:560px;font-size:13px}.record-main th{background:#15803d;color:#fff;font-weight:600;padding:16px 12px;white-space:nowrap}.record-main td{padding:18px 12px;border-bottom:1px solid #e5e7eb;text-align:center}.record-main th:nth-child(2),.record-main td:nth-child(2){text-align:left;min-width:180px}.record-main th small{display:block;font-size:10px;margin-top:3px;color:#ffe585}.record-draft-cell{background:#fff8db}.record-blank{color:rgba(0,0,0,.45)}.record-footnote{margin-top:16px}.record-error{color:#b91c1c;font-size:13px;margin-top:12px}
 .record-actions{width:100%;margin-top:28px;margin-bottom:0}
+.shared-grade-record .record-update[hidden]{display:none!important}
 .record-table-scroll + .record-status{margin-top:18px;margin-bottom:0}
 .record-status .record-draft-label{background:transparent;padding:0;border-radius:0;color:#825500;font-weight:600}
 .record-main table{table-layout:fixed}
@@ -67,6 +77,19 @@
 .record-student-identity{display:flex;align-items:center;gap:12px;min-width:0}
 .record-student-avatar{display:inline-flex;flex-shrink:0}
 .record-student-mobile-id{display:none}
+.record-quarter-short{display:none}
+.record-quarter-full{white-space:normal}
+.shared-grade-record .record-main table[data-quarter-count="4"]{min-width:0}
+.shared-grade-record .record-main table[data-quarter-count="4"] th:nth-child(2){width:28%;min-width:0}
+.shared-grade-record .record-main table[data-quarter-count="4"] td:nth-child(2){min-width:0}
+.shared-grade-record .record-main table[data-quarter-count="4"] th:nth-child(3){width:14%}
+.shared-grade-record .record-main table[data-quarter-count="4"] th:last-child{width:14%}
+@media(max-width:760px){
+    .shared-grade-record .record-main table[data-quarter-count="4"] th:nth-child(2){width:38%}
+    .shared-grade-record .record-main table[data-quarter-count="4"] th:last-child{width:18%}
+    .shared-grade-record .record-main table[data-quarter-count="4"] th:nth-child(n+4):not(:last-child){width:11%;white-space:nowrap}
+}
+@media(max-width:760px){.record-quarter-full{display:none}.record-quarter-short{display:inline}}
 @media(max-width:760px){
     .shared-grade-record .record-main table th:first-child,.shared-grade-record .record-main table td:first-child,
     .shared-grade-record .record-main table th:nth-child(3),.shared-grade-record .record-main table td:nth-child(3){display:none}
@@ -108,6 +131,29 @@ body:has(.shared-grade-record) #record-nav-title{display:flex;flex-direction:col
 @media(max-width:760px){.record-context-row{gap:8px 14px}.record-context-row>span{padding-left:14px}}
 .record-heading .record-adviser{margin-top:10px;font-size:13px;color:#000}
 body:has(.shared-grade-record) #admin-grades-shared-navbar{display:none!important}
+html body :is(#section-grades,#school-grades-view) .sigma-grades-page:has(.shared-grade-record) > :is(.classroom-gradebook-navigation,.admin-gradebook-classroom-links) {
+    display:none!important;
+}
+html body #school-grades-view .sigma-grades-page:has(.shared-grade-record) > div:has(> .sigma-header-tab-group) {display:none!important}
+@media(min-width:768px){
+    html:has(#school-grades-view:not(.hidden) .shared-grade-record),
+    html body:has(#school-grades-view:not(.hidden) .shared-grade-record) {overflow-x:clip!important;overflow-y:visible!important}
+    html body:has(#school-grades-view:not(.hidden) .shared-grade-record) :is(#layout-wrapper,#admin-main,#main-content,#school-grades-view) {overflow:visible!important}
+    html body #school-grades-view .sigma-grades-page:has(.shared-grade-record) > .admin-gradebook-classroom-links {
+        position:sticky!important;
+        top:calc(var(--shell-offset,106px) + 20px)!important;
+        margin-top:20px!important;
+        z-index:80;
+        background:#fff;
+        flex:0 0 auto;
+    }
+    html body #school-grades-view .sigma-grades-page:has(.shared-grade-record) > .admin-gradebook-classroom-links::before {
+        content:'';position:absolute;left:0;right:0;top:-20px;height:20px;background:#fff;pointer-events:none;
+    }
+}
+html body :is(#section-grades,#school-grades-view) .sigma-grades-page:has(#admin-gradebook-workspace-content .shared-grade-record) #admin-grades-shared-navbar#admin-grades-shared-navbar {
+    display:none!important;
+}
 @media(max-width:760px){
     .shared-grade-record .record-main table{width:100%;min-width:0;table-layout:fixed;font-size:10px}
     .shared-grade-record .record-table-scroll{width:calc(100% + 32px);max-width:none;margin-left:-16px;margin-right:-16px}
@@ -141,6 +187,33 @@ body:has(.shared-grade-record) #admin-grades-shared-navbar{display:none!importan
     .shared-grade-record .record-heading .record-adviser{font-size:12px;line-height:18px;margin-top:8px;margin-bottom:0;overflow-wrap:anywhere}
 }
 .record-adviser strong{font-weight:600}
+html body .shared-grade-record .record-heading .record-adviser > strong {
+    font-size:15px!important;
+    line-height:1.5!important;
+    font-weight:600!important;
+}
+html body .shared-grade-record .record-heading .record-adviser {
+    gap:12px!important;
+}
+html body .shared-grade-record .record-heading .record-adviser > .record-adviser-name {
+    font-size:13px!important;
+    line-height:20px!important;
+    font-weight:400!important;
+}
+html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar,
+html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar :is(.sigma-user-avatar,img) {
+    width:38px!important;height:38px!important;
+    min-width:38px!important;min-height:38px!important;
+    flex:0 0 38px!important;
+}
+@media(max-width:760px){
+    html body .shared-grade-record .record-heading .record-adviser > strong {font-size:13px!important;line-height:18px!important}
+    html body .shared-grade-record .record-heading .record-adviser > .record-adviser-name {font-size:13px!important;line-height:18px!important;font-weight:400!important}
+    html body .shared-grade-record .record-heading .record-adviser {gap:8px!important;align-items:baseline!important;flex-wrap:wrap}
+    html body .shared-grade-record .record-heading .record-adviser > .record-adviser-avatar {display:none!important}
+    html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar,
+    html body .shared-grade-record .record-heading .record-adviser .record-adviser-avatar :is(.sigma-user-avatar,img) {width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;flex-basis:28px!important}
+}
 body:has(.shared-grade-record) #main-content,
 body:has(#school-grades-view:not(.hidden) .shared-grade-record) #admin-main,
 body:has(#school-grades-view:not(.hidden) .shared-grade-record) #layout-wrapper,
@@ -152,3 +225,55 @@ body:has(.shared-grade-record) #section-school-grades{background:#fff!important}
 #admin-gradebook-workspace-content:has(.shared-grade-record){background:#fff!important}
 .record-layout{grid-template-columns:minmax(0,1fr) 300px}.record-main{grid-column:1;grid-row:1}.record-comments{grid-column:2;grid-row:1;padding:24px;border-radius:24px;border-color:#dce5ef}.record-comments-heading{display:flex;align-items:center;gap:10px;margin-bottom:24px}.record-comments-heading h2{margin:0;font-size:16px;font-weight:700;color:#182234}.record-comments-heading i{font-size:18px;color:#475569}.record-add-comment{display:inline-flex;align-items:center;gap:10px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;border-radius:16px;padding:12px 16px;font-size:12px;font-weight:600;cursor:pointer}.record-add-comment:hover{background:#f1f5f9;color:#000}.record-add-comment i{font-size:12px}#record-comment-composer{margin-top:20px}#record-comment-composer[hidden]{display:none}
 @media(max-width:760px){.shared-grade-record{padding:20px 16px}.record-actions{width:100%}.record-layout{grid-template-columns:minmax(0,1fr);gap:24px}.record-main{grid-column:1;grid-row:1}.record-comments{grid-column:1;grid-row:2}.record-actions button{padding:0 16px}.record-heading h1{font-size:20px}}
+
+html body .shared-grade-record .record-sidebar :is(.record-notes, .shared-private-comments) {
+    border-radius:22px!important;
+    width:100%!important;
+    box-sizing:border-box;
+}
+@media(max-width:767px){
+    html body:has(.shared-grade-record) {
+        overflow-y:auto!important;
+    }
+    html body:has(.shared-grade-record) :is(#layout-wrapper,#main-content,#content-sections,#section-grades,#school-grades-view) {
+        height:auto!important;
+        max-height:none!important;
+        overflow-y:visible!important;
+    }
+    html body .shared-grade-record {
+        height:auto!important;
+        overflow:visible!important;
+        padding-bottom:calc(88px + max(env(safe-area-inset-bottom,0px),8px) + var(--classroom-viewport-bottom,0px))!important;
+    }
+    html body .shared-grade-record .record-sidebar {
+        position:relative;
+        padding-top:24px;
+        background:#fff;
+        box-sizing:border-box;
+        display:flex!important;
+        flex-direction:column!important;
+        gap:16px!important;
+        width:100%!important;
+        min-width:0;
+        height:auto!important;
+        overflow:visible!important;
+    }
+    html body .shared-grade-record .record-sidebar::before {
+        content:'';
+        position:absolute;
+        top:0;
+        left:-32px;
+        right:-32px;
+        border-top:1px solid #e2e8f0;
+        pointer-events:none;
+    }
+    html body .shared-grade-record .record-sidebar :is(.record-notes, .shared-private-comments) {
+        border-radius:20px!important;
+        padding:16px!important;
+        margin:0!important;
+        scroll-margin-bottom:calc(88px + env(safe-area-inset-bottom,0px));
+    }
+}
+@media(max-width:760px){
+    html body .shared-grade-record .record-sidebar::before {left:-16px;right:-16px}
+}

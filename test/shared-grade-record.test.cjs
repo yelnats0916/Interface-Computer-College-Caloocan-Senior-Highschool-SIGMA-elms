@@ -62,7 +62,7 @@ assert.deepStrictEqual(sharedAssets(fs.readFileSync('admin.html', 'utf8')), shar
             assert(Math.abs(actionsBox.x + actionsBox.width - mainBox.x - mainBox.width) < 2);
             if (width > 760) assert(commentsBox.x > mainBox.x + mainBox.width);
             else assert(commentsBox.y > mainBox.y);
-            assert.match(await page.locator('.record-status').textContent(), /missing grades/);
+            assert.match(await page.locator('.record-status').textContent(), /missing grade/);
             await page.screenshot({ path: `${require('os').tmpdir()}/sigma-share-record-${width}.png`, fullPage: true });
             await page.locator('.record-update').click();
             assert.match(await page.locator('.record-status').textContent(), /Quarter Updated/);

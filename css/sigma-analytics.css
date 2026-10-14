@@ -1264,6 +1264,25 @@ body.mobile-panel-open .sigma-insight-detail-close,
     background: #166534;
 }
 
+#section-grades:not(.hidden):has(.sigma-grades-page),
+#school-grades-view:not(.hidden):has(.sigma-grades-page) {
+    display: flex !important;
+    flex-direction: column;
+    min-height: calc(100dvh - var(--shell-offset, 106px));
+}
+.sigma-grades-page:has(#admin-grades-gradebook-view:not(.hidden)) {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-bottom: 0 !important;
+}
+.sigma-grades-page #admin-grades-gradebook-view:not(.hidden),
+.sigma-grades-page #admin-gradebook-workspace-content,
+.sigma-grades-page .gb-summary-workspace {
+    flex: 1 1 0%;
+    min-height: 0;
+    height: auto !important;
+}
+
 @media (min-width: 769px) {
     .sigma-grades-page .grades-submit-export-btn {
         height: 46px;
@@ -1373,16 +1392,66 @@ body.mobile-panel-open .sigma-insight-detail-close,
 }
 
 @media (min-width: 768px) {
+    html body .sigma-grades-page:not(.sigma-grades-page--admin):has(#admin-gradebook-action-buttons:not(.hidden)) #admin-grades-shared-navbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        align-items: center;
+        gap: 16px !important;
+        padding-bottom: 10px !important;
+    }
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #admin-grades-shared-navbar > div:first-child,
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #admin-gradebook-action-buttons:not(.hidden) { display: contents !important; }
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #admin-grades-shared-navbar .gb-status-key {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        justify-self: start !important;
+        align-self: end;
+        margin: 0 0 4px !important;
+    }
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #admin-grades-quarters-wrapper { grid-column: 2 !important; grid-row: 1 !important; }
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #grades-submit-export { grid-column: 3 !important; grid-row: 1 !important; }
+    html body .sigma-grades-page:not(.sigma-grades-page--admin) #admin-grades-subject-section-dropdown-wrapper { display: none !important; }
+    .sigma-grades-page--admin #admin-grades-shared-navbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        column-gap: 16px !important;
+        row-gap: 16px !important;
+    }
+    .sigma-grades-page--admin #admin-grades-shared-navbar > div:first-child,
+    .sigma-grades-page--admin #admin-gradebook-action-buttons:not(.hidden) {
+        display: contents !important;
+    }
+    .sigma-grades-page--admin #admin-grades-shared-navbar .gb-status-key {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: start;
+        align-self: end;
+        margin: 0 0 4px !important;
+    }
+    .sigma-grades-page--admin #admin-btn-assessment-weights { grid-column: 3; grid-row: 2; }
+    .sigma-grades-page--admin #admin-btn-assessment-weights + span { display: none; }
+    .sigma-grades-page--admin #grades-submit-export { grid-column: 4; grid-row: 2; }
     .sigma-grades-page--admin #admin-grades-shared-navbar > div:first-child {
-        display: grid;
         grid-template-columns: minmax(0, max-content) max-content;
         gap: 12px;
         min-width: 0;
     }
 
     .sigma-grades-page--admin #admin-gradebook-teacher-picker-btn {
-        grid-column: 1 / -1;
+        grid-column: 1;
+        grid-row: 1;
         justify-self: start;
+    }
+
+    .sigma-grades-page--admin #admin-grades-subject-section-dropdown-wrapper {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .sigma-grades-page--admin #admin-grades-quarters-wrapper {
+        grid-column: 2;
+        grid-row: 2;
     }
 
     .sigma-grades-page #admin-grades-shared-navbar {
@@ -1497,7 +1566,7 @@ body.mobile-panel-open .sigma-insight-detail-close,
     .sigma-grades-page .gb-summary-icon i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity .18s ease, transform .18s ease; }
     .sigma-grades-page .gb-summary-icon .fa-chevron-down { opacity: 0; transform: rotate(-90deg) scale(.7); }
     .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-table { opacity: 0; transform: rotate(90deg) scale(.7); }
-    .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-chevron-down { opacity: 1; transform: rotate(0) scale(1); }
+    .sigma-grades-page [aria-pressed=true] .gb-summary-icon .fa-chevron-down { opacity: 1; transform: rotate(180deg) scale(1); }
     .sigma-grades-page .gb-mobile-view-switch button:focus-visible { outline: 2px solid #15803d !important; outline-offset: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1750,7 +1819,7 @@ body.mobile-panel-open .sigma-insight-detail-close,
         width: 100%;
         max-width: 100%;
         align-self: center;
-        overflow-x: auto;
+        overflow: visible;
     }
 
     .sigma-grades-page #admin-grades-quarters-wrapper button {
@@ -2325,3 +2394,325 @@ body.mobile-panel-open .sigma-insight-detail-close,
 .sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell { position: relative !important; }
 .sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell button.gb-add-assessment-desktop { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; }
 .sigma-grades-page #admin-gradebook-spreadsheet th.gb-add-assessment-cell button.gb-add-assessment-desktop i { font-size: 24px !important; line-height: 1 !important; color: #fff !important; }
+
+.sigma-grades-page:has(.gb-empty-workspace) {
+    background: #fff !important;
+    min-height: calc(100dvh - var(--sigma-shell-top-offset, 106px));
+}
+.gb-empty-workspace { background: #fff !important; }
+html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation),
+html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) :is(#admin-grades-shared-navbar, #admin-grades-gradebook-view, #admin-gradebook-workspace-content, .gb-summary-workspace) {
+    background: #fff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) {
+    height: auto !important;
+    flex: 1 1 auto;
+}
+html body #section-grades:not(.hidden):has(.classroom-gradebook-navigation) {
+    background: #fff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.sigma-grades-page .gb-empty-status-key {
+    display: flex !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap;
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+}
+@media (max-width: 767px) {
+    .sigma-grades-page .gb-empty-status-key { font-size: 10px !important; gap: 6px !important; }
+}
+#school-grades-view:not(.hidden):has(.sigma-grades-page--admin) {
+    background: #fff;
+    height: auto !important;
+    min-height: calc(100dvh - var(--shell-offset, 106px));
+}
+.sigma-grades-page--admin {
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 1 1 auto;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.sigma-grades-page--admin #admin-grades-gradebook-view:not(.hidden),
+.sigma-grades-page--admin #admin-grades-analytics-view:not(.hidden),
+.sigma-grades-page--admin #admin-gradebook-workspace-content,
+.sigma-grades-page--admin #admin-analytics-workspace-content,
+.sigma-grades-page--admin .gb-summary-workspace {
+    height: auto !important;
+    flex: 1 1 auto !important;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+.sigma-grades-page--admin #admin-grades-shared-navbar { border-bottom: 0 !important; }
+.admin-gradebook-selection-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
+    grid-column: 1 / -1;
+    grid-row: 1;
+}
+.admin-gradebook-selection-row #admin-grades-subject-section-dropdown-wrapper { max-width: 100%; }
+@media (max-width: 767px) {
+    .admin-gradebook-selection-row { width: 100%; }
+}
+.gb-empty-table th { text-align: center !important; height: 52px; box-sizing: border-box; }
+.gb-empty-table td { border-bottom: 0 !important; background: #fff !important; }
+
+@media (max-width: 767px) {
+    html body :is(#section-grades, #school-grades-view) .sigma-grades-page #admin-grades-shared-navbar {
+        grid-template-columns: max-content max-content !important;
+        justify-content: start !important;
+        column-gap: 12px !important;
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+    }
+    html body .sigma-grades-page #admin-grades-quarters-wrapper { grid-column: 2 !important; grid-row: 1 !important; justify-self: start; width: auto !important; }
+    html body .sigma-grades-page #admin-gradebook-action-buttons:not(.hidden) { display: contents !important; }
+    html body .sigma-grades-page #grades-submit-export { grid-column: 1 !important; grid-row: 1 !important; justify-self: start; }
+    html body .sigma-grades-page--admin :is(#admin-grades-quarters-wrapper, #grades-submit-export) { grid-row: 2 !important; }
+    html body .sigma-grades-page .admin-gradebook-selection-row { grid-column: 1 / -1 !important; }
+    html body .sigma-grades-page .grades-submit-export-btn {
+        height: 36px !important;
+        min-height: 36px !important;
+        box-sizing: border-box;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        border-radius: 12px !important;
+    }
+    html body .sigma-quarter-dropdown { height: 36px !important; }
+    html body .sigma-quarter-dropdown summary { height: 34px !important; min-height: 34px !important; font-size: 12px !important; }
+    html body :is(#section-grades, #school-grades-view):has(.sigma-grades-page),
+    html body :is(#section-grades, #school-grades-view) .sigma-grades-page,
+    html body .sigma-grades-page :is(#admin-grades-gradebook-view, #admin-gradebook-workspace-content, .gb-summary-workspace) {
+        background: #fff !important;
+        box-shadow: none !important;
+        border-bottom: 0 !important;
+    }
+}
+
+@media (min-width: 768px) {
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page:has(#admin-gradebook-action-buttons:not(.hidden)) #admin-grades-shared-navbar {
+        display: grid !important;
+        grid-template-columns: auto auto minmax(0, 1fr) auto auto !important;
+        column-gap: 16px !important;
+        row-gap: 16px !important;
+        align-items: center !important;
+        padding-bottom: 10px !important;
+    }
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #admin-grades-shared-navbar > div:first-child,
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #admin-gradebook-action-buttons:not(.hidden) { display: contents !important; }
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #admin-grades-shared-navbar .gb-status-key {
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+        justify-self: start !important;
+        align-self: end !important;
+        margin: 0 0 4px !important;
+    }
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #admin-btn-assessment-weights {
+        grid-column: 2 !important;
+        grid-row: 2 !important;
+        justify-self: start;
+        align-self: end;
+        margin-bottom: 4px;
+    }
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #grades-submit-export { grid-column: 4 !important; grid-row: 2 !important; }
+    html body :is(#school-grades-view, #section-grades) .sigma-grades-page #admin-grades-quarters-wrapper { grid-column: 5 !important; grid-row: 2 !important; }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar :is(.gb-status-key, #grades-submit-export, #admin-grades-quarters-wrapper) { grid-row: 1 !important; }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar #grades-submit-export { grid-column: 4 !important; }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar #admin-grades-quarters-wrapper { grid-column: 5 !important; }
+}
+
+.sigma-skeleton-insight-card {
+    pointer-events: none !important;
+    cursor: default !important;
+    user-select: none !important;
+}
+.sigma-skeleton-insight-card .sigma-card-date {
+    display: flex;
+    align-items: center;
+}
+html body .gb-manual-menu-trigger {
+    display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;min-width:28px;flex:0 0 28px;
+    padding:0;border:0;border-radius:50%;color:#fff!important;background:transparent;
+    font-size:13px;line-height:1;cursor:pointer;
+}
+html body .gb-manual-menu-trigger:hover,
+html body .gb-manual-menu-trigger:focus-visible {background:rgba(255,255,255,.2);outline:0}
+html body .gb-manual-menu-trigger i {color:inherit;font-size:inherit}
+html body .gb-manual-assessment-menu {
+    position:fixed;z-index:100000;width:144px;box-sizing:border-box;
+    padding:4px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#000;
+    box-shadow:0 4px 16px #0002;font-family:Inter,sans-serif;letter-spacing:0;
+}
+html body .gb-manual-assessment-menu button {
+    display:flex;align-items:center;gap:10px;width:100%;min-height:36px;
+    padding:8px 10px;border:0;border-radius:4px;background:transparent;color:#000!important;
+    font:500 13px/20px Inter,sans-serif;text-align:left;cursor:pointer;
+}
+html body .gb-manual-assessment-menu button i {width:16px;flex:0 0 16px;font-size:13px;line-height:16px;text-align:center;color:#000!important}
+html body .gb-manual-assessment-menu button:hover,
+html body .gb-manual-assessment-menu button:focus-visible {background:#f1f5f9;outline:0}
+@media(max-width:767px){
+    html body .gb-manual-menu-trigger {width:24px;height:24px;min-width:24px;flex-basis:24px;font-size:12px}
+    html body .gb-manual-assessment-menu {width:128px}
+    html body .gb-manual-assessment-menu button {gap:8px;min-height:32px;padding:6px 8px;font-size:12px;line-height:18px}
+    html body .gb-manual-assessment-menu button i {font-size:12px}
+}
+html body #section-grades .sigma-grades-page:not(.sigma-grades-page--admin) #admin-grades-subject-section-dropdown-wrapper {display:none!important}
+html body .teacher-grades-analytics .subject-performance-card {min-height:130px!important}
+html body .teacher-grades-analytics .grade-mini-chart {display:none!important}
+@media(max-width:767px){
+    html body .teacher-grades-analytics {padding-left:16px!important;padding-right:16px!important}
+}
+#admin-gradebook-open-section[hidden]{display:none!important}
+html body #section-grades .sigma-grades-page:not(.sigma-grades-page--admin):has(> #admin-grades-analytics-view:not(.hidden)) #admin-grades-shared-navbar {
+    display:none!important;
+}
+.teacher-class-panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
+html body .grade-distribution-panel{padding:24px;border-radius:8px;min-width:0}
+@media(max-width:767px){.grade-distribution-parenthesis{display:none}}
+html body .grade-distribution-panel > div:first-child{gap:16px;margin-bottom:20px;padding-bottom:16px}
+html body .grade-distribution-panel h3{font-size:14px;font-weight:600;line-height:20px;letter-spacing:0}
+html body .grade-distribution-panel > div:last-child > div > div:first-child,
+html body .grade-distribution-panel > div:last-child > div > div:first-child > span{color:#000!important}
+html body .grade-distribution-panel > div:last-child{display:flex;flex-direction:column;gap:20px}
+html body .grade-distribution-panel > div:last-child > div{margin:0!important}
+html body .grade-distribution-panel > div:last-child > div > div:first-child{gap:12px;font-size:13px;font-weight:400;line-height:20px;align-items:baseline;margin-bottom:8px}
+html body .grade-distribution-panel > div:last-child > div > div:first-child > span:last-child{flex-shrink:0;font-weight:600}
+html body .grade-distribution-panel > div:last-child > div > div:last-child{height:10px;background:#f1f5f9}
+html body .grade-distribution-panel > div:last-child > div:not(:last-child) > div:last-child > div{background:#15803d!important}
+html body .grade-distribution-panel > div:last-child > div:last-child > div:last-child > div{background:#dc2626!important}
+@media(max-width:767px){
+ html body .grade-distribution-panel{padding:16px;border-radius:0!important;box-shadow:none!important;border-left:0!important;border-right:0!important}
+ html body .teacher-grades-analytics > .grade-distribution-panel{width:calc(100% + 32px)!important;margin-left:-16px!important;margin-right:-16px!important;box-sizing:border-box}
+ html body .grade-distribution-panel > div:first-child{gap:12px;align-items:center}
+ html body .grade-distribution-panel h3{font-size:13px;line-height:18px}
+ html body .grade-distribution-panel > div:last-child{gap:16px}
+ html body .grade-distribution-panel > div:last-child > div > div:first-child{font-size:12px;line-height:18px;flex-wrap:wrap;gap:4px 8px}
+ html body .grade-distribution-panel > div:last-child > div > div:first-child > span:last-child{margin-left:auto}
+ html body .grade-distribution-panel > div:last-child > div > div:last-child{height:8px}
+}
+.teacher-class-advisory-tools{display:flex;justify-content:flex-end;margin-bottom:24px}
+html body #admin-grades-quarters-wrapper:has(> button){display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+html body #nav-context-text.advisory-header-title{display:flex;flex-direction:column;gap:2px;line-height:normal}
+.advisory-header-parent{font-size:12px;font-weight:400;line-height:16px;color:rgba(0,0,0,.45)}
+.advisory-header-main{font-size:14px;font-weight:600;line-height:20px;color:#000}
+@media(max-width:767px){.advisory-header-parent{font-size:10px;line-height:14px}.advisory-header-main{font-size:13px;line-height:18px}}
+@media(max-width:767px){
+ html body #teacher-header #nav-context-text.advisory-header-title,
+ html body #nav-context-text.advisory-header-title{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:0!important;min-width:0;white-space:normal!important}
+ html body #nav-context-text.advisory-header-title > .advisory-header-parent{display:block!important;font-size:10px!important;font-weight:400!important;line-height:14px!important;margin:0!important}
+ html body #nav-context-text.advisory-header-title > .advisory-header-main{display:block!important;font-size:13px!important;font-weight:600!important;line-height:18px!important;margin:0!important;overflow-wrap:anywhere}
+}
+.teacher-grades-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;min-height:220px;box-sizing:border-box}
+.teacher-grades-empty > i{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#f1f5f9;color:rgba(0,0,0,.45);font-size:20px;margin-bottom:16px}
+.teacher-grades-empty h3{margin:0;font-size:14px;font-weight:600;line-height:20px;color:#000}
+.teacher-grades-empty p{margin:8px 0 0;max-width:320px;font-size:12px;line-height:18px;color:rgba(0,0,0,.45)}
+.teacher-class-overview-body{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.teacher-analytics-detail-tools{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.teacher-analytics-detail-tools > div{flex:1;min-width:0;font-size:14px}
+.teacher-analytics-detail-tools p{font-size:12px;color:rgba(0,0,0,.45);margin-top:4px}
+.teacher-quarter-grade-table{overflow-x:auto}
+@media(max-width:767px){html body .teacher-grades-analytics > .teacher-quarter-grade-table{width:calc(100% + 32px)!important;max-width:none!important;margin-left:-16px!important;margin-right:-16px!important;border-radius:0;box-sizing:border-box;overscroll-behavior-x:contain}}
+.teacher-quarter-grade-table table{width:100%;border-collapse:collapse;font-size:14px;min-width:900px;table-layout:fixed;color:#000}
+.teacher-quarter-grade-table th{padding:16px 20px;background:#15803d;color:#fff;text-align:left;white-space:nowrap;font-weight:600;line-height:20px;border-right:1px solid rgba(0,0,0,.06)}
+.teacher-quarter-grade-table td{padding:20px 16px;height:72px;box-sizing:border-box;border-bottom:1px solid #e2e8f0;border-right:1px solid rgba(0,0,0,.08);line-height:20px;vertical-align:middle;overflow-wrap:anywhere}
+.teacher-quarter-grade-table th:first-child{width:27%}
+.teacher-quarter-grade-table th:nth-child(2){width:25%}
+.teacher-quarter-grade-table td:first-child{font-weight:600}
+html body .teacher-quarter-grade-table thead :is(th:first-child,th:nth-child(2)),
+html body .teacher-quarter-grade-table tbody td:nth-child(2){text-align:center}
+html body .teacher-quarter-grade-table tbody td:first-child{border-right:0!important}
+html body .teacher-quarter-grade-table tbody td:nth-child(2){border-right:1px solid rgba(0,0,0,.08)!important}
+html body .teacher-quarter-grade-table tbody td:nth-child(6){border-right:1px solid rgba(0,0,0,.18)!important}
+.teacher-quarter-grade-table :is(th,td):nth-child(n+3){text-align:center}
+.teacher-quarter-grade-table :is(th,td):last-child{border-right:0}
+.teacher-quarter-grade-table tbody tr:nth-child(even){background:#f8fafc}
+.teacher-quarter-grade-table tbody tr:hover{background:#f1f5f9}
+.teacher-quarter-grade-table tbody tr:last-child td{border-bottom:0}
+@media(max-width:767px){.teacher-quarter-grade-table table{min-width:700px;font-size:12px}.teacher-quarter-grade-table :is(th,td){padding:12px;line-height:18px}.teacher-quarter-grade-table td{height:60px}}
+.teacher-quarter-grade-empty{color:rgba(0,0,0,.45)}
+html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px solid rgba(0,0,0,.18)!important}
+.teacher-quarter-heading-short{display:none}
+.teacher-quarter-mobile-id,.teacher-quarter-mobile-toggle{display:none}
+@media(max-width:767px){
+    html body .teacher-quarter-grade-table table{min-width:0!important;width:100%!important;table-layout:fixed}
+    html body .teacher-quarter-grade-table :is(th,td):nth-child(2){display:none}
+    html body .teacher-quarter-grade-table th:first-child{width:48%;position:relative;padding-right:32px}
+    html body .teacher-quarter-grade-table :is(th,td):nth-child(n+3){padding:12px 4px}
+    html body .teacher-quarter-grade-table:not(.show-final-grade) :is(th,td):last-child{display:none}
+    html body .teacher-quarter-grade-table.show-final-grade :is(th,td):nth-child(n+3):nth-child(-n+6){display:none}
+    html body .teacher-quarter-grade-table.show-final-grade th:first-child{width:48%}
+    html body .teacher-quarter-grade-table thead th:first-child{border-right:1px solid #137638!important}
+    html body .teacher-quarter-grade-table tbody td:first-child{border-right:1px solid #e2e8f0!important}
+    html body .teacher-quarter-grade-table :is(th,td):nth-child(3){border-left:0!important}
+    .teacher-quarter-mobile-id{display:block;margin-top:4px;font-size:11px;line-height:16px;font-weight:400;color:rgba(0,0,0,.45);overflow-wrap:anywhere}
+    .teacher-quarter-mobile-toggle{display:inline-flex;align-items:center;justify-content:center;position:absolute;right:4px;top:50%;transform:translateY(-50%);width:28px;height:32px;padding:0;border:0;background:transparent;color:#fff;cursor:pointer;font-size:10px}
+    .teacher-quarter-mobile-toggle i{font-size:10px!important;line-height:1}
+    .teacher-quarter-mobile-toggle:is(:hover,:focus-visible){background:rgba(255,255,255,.15)}
+}
+.teacher-quarter-student-name{display:flex;align-items:center;gap:12px}
+.teacher-quarter-student-name > span:last-child{min-width:0;overflow-wrap:anywhere}
+.teacher-quarter-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#f1f5f9;color:rgba(0,0,0,.45);font-size:12px}
+@media(min-width:768px){
+ html body .teacher-quarter-student-avatar{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;min-height:38px!important;max-height:38px!important;flex:0 0 38px!important;box-sizing:border-box;padding:0!important;aspect-ratio:1}
+ html body .teacher-quarter-student-avatar > i{font-size:16px!important;line-height:1!important}
+}
+@media(max-width:767px){html body .teacher-quarter-student-avatar{display:none!important}}
+@media(max-width:767px){.teacher-quarter-heading-full{display:none}.teacher-quarter-heading-short{display:inline}}
+.teacher-class-grade-list{border-left:1px solid #e2e8f0;padding-left:20px;min-width:0}
+.teacher-class-grade-list header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.teacher-class-grade-list h3{font-size:14px;font-weight:600;margin:0}
+.advisory-student-identity{display:flex;align-items:center;gap:12px}
+.advisory-student-identity > div{min-width:0;overflow-wrap:anywhere}
+.advisory-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:#f1f5f9;color:rgba(0,0,0,.45);font-size:16px}
+@media(max-width:767px){.advisory-student-avatar{flex-basis:28px;width:28px;height:28px;font-size:12px}.advisory-student-identity{gap:8px}}
+.teacher-class-grade-list h4{font-size:13px;font-weight:600;margin:0 0 12px}
+.teacher-class-grade-list section + section{margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0}
+.teacher-student-grade-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;font-size:13px}
+.teacher-student-grade-entry > div{min-width:0;overflow-wrap:anywhere}
+.teacher-student-grade-entry strong{font-weight:600}
+.teacher-student-grade-entry p,.teacher-student-grade-empty{font-size:12px;color:rgba(0,0,0,.45);margin:4px 0}
+.teacher-student-grade-entry > span{font-weight:600;flex-shrink:0}
+.teacher-student-grade-entry .is-high{color:#15803d}
+.teacher-student-grade-entry .is-low{color:#dc2626}
+@media(max-width:1000px){.teacher-class-overview-body{grid-template-columns:1fr}.teacher-class-grade-list{border-left:0;padding:20px 0 0;border-top:1px solid #e2e8f0}}
+.teacher-class-panel{padding:18px;border:1px solid #e2e8f0;border-top:3px solid #15803d;border-radius:8px;background:#fff;min-width:0}
+.teacher-class-panel[hidden]{display:none!important}
+.teacher-class-panel header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.teacher-class-panel h3{margin:0;font-size:14px;font-weight:600;line-height:20px;overflow-wrap:anywhere}
+.teacher-class-panel p{margin:4px 0 0;font-size:12px;color:rgba(0,0,0,.45)}
+.teacher-class-panel-icon{display:flex;align-items:center;justify-content:center;flex:0 0 36px;height:36px;background:#e7f6ec;color:#15803d;border-radius:6px}
+.teacher-class-panel-students{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:16px}
+.teacher-class-panel-students strong{font-size:20px}
+.teacher-class-panel-quarters{font-size:12px;margin-bottom:16px;color:rgba(0,0,0,.45)}
+.teacher-class-panel-quarters > div{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.teacher-class-panel-quarters > div > span{padding:6px;text-align:center;background:#f1f5f9;border-radius:4px;font-size:12px;font-weight:600}
+.teacher-class-panel-quarters .is-graded{background:#e7f6ec;color:#15803d}
+.teacher-class-panel-quarters .is-incomplete{background:#fef3c7;color:#854d0e}
+.teacher-class-panel > button{width:100%;justify-content:center}
+.teacher-class-overview{padding:24px 32px;background:#fff;color:#000}
+.teacher-class-overview-tools{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.teacher-class-overview-tools label{display:flex;align-items:center;gap:12px}
+.teacher-class-overview select{padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff}
+.teacher-class-overview table{width:100%;border-collapse:collapse;font-size:13px}
+.teacher-class-overview th{background:#15803d;color:#fff;text-align:left;padding:16px}
+.teacher-class-overview td{padding:18px 16px;border-bottom:1px solid #e2e8f0}
+.teacher-class-overview tr[hidden]{display:none!important}
+.teacher-overview-mobile-label{display:none}
+@media(max-width:767px){
+ .teacher-class-overview{padding:20px 16px}
+ .teacher-class-overview :is(table,tbody,tr,td){display:block}
+ .teacher-class-overview thead{display:none}
+ .teacher-class-overview tr{padding:16px 0;border-bottom:1px solid #e2e8f0}
+ .teacher-class-overview td{padding:4px 0;border:0}
+ .teacher-overview-mobile-label{display:inline}
+}

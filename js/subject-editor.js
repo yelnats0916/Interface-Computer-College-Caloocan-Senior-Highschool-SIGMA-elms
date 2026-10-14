@@ -314,7 +314,7 @@
         }
 
         if (topicPills) {
-            topicPills.innerHTML = activeQuarters.map(q => {
+            topicPills.innerHTML = window.renderSharedQuarterDropdown ? window.renderSharedQuarterDropdown(activeQuarters, window.currentSubjectTopicQuarter, q => `window.setSubjectTopicQuarter('${q}')`) : activeQuarters.map(q => {
                 const isActive = (q === window.currentSubjectTopicQuarter);
                 const label = QUARTER_LABELS[q] || q;
                 return `
@@ -332,7 +332,7 @@
         }
 
         if (matPills) {
-            matPills.innerHTML = activeQuarters.map(q => {
+            matPills.innerHTML = window.renderSharedQuarterDropdown ? window.renderSharedQuarterDropdown(activeQuarters, window.currentSubjectMaterialQuarter, q => `window.setSubjectMaterialQuarter('${q}')`) : activeQuarters.map(q => {
                 const isActive = (q === window.currentSubjectMaterialQuarter);
                 const label = QUARTER_LABELS[q] || q;
                 return `
@@ -3738,6 +3738,7 @@
     };
 
     window.syncDepEdWeightsDefault = function (force = false) {
+        if (!force && window._userManuallySelectedWeights) return;
         const type = document.getElementById('edit-subject-type')?.value || 'Core';
         if (type === 'Core') {
             const weightsSelect = document.getElementById('edit-subject-weights');
@@ -3745,7 +3746,6 @@
             window.handleSubjectWeightPresetChange?.();
             return;
         }
-        if (!force && window._userManuallySelectedWeights) return;
         const weightsSelect = document.getElementById('edit-subject-weights');
         if (!weightsSelect) return;
         const name = (document.getElementById('edit-subject-name')?.value || '').trim();

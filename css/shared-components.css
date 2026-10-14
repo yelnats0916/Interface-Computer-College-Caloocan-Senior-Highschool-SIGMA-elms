@@ -5,26 +5,6 @@
  * Keep page-specific CSS in admin.css, teacher.css, or student.css.
  */
 
-@import "forms.css?v=20261004desktopTemplatesLayout1";
-@import url('date-time-inputs.css?v=20261011releaseState371');
-@import url('admin-insight-report.css?v=20261011insightReport347');
-@import "topbar.css?v=20260928cardpadalign1";
-@import "sidebar.css";
-@import "sigma-analytics.css";
-@import "welcome-panel.css";
-@import "dashboard-layout.css";
-@import "right-panel.css";
-@import "profile.css";
-@import "notifications.css?v=20261012notificationExpand567";
-@import "calendar.css?v=20261011calendarSmall357";
-@import "announcements.css?v=20261004hovergrey1";
-@import "announcement-cards.css?v=20261004badgenocut1";
-@import "classroom-room.css?v=20261004sharedMobileDots1";
-
-@import "settings-view.css";
-@import "topic-detail.css?v=20261004sharedSelectionRail1";
-@import "mobile.css?v=20261011calendarSmall357";
-
 /* ==========================================================================
    UNIVERSAL ELIMINATION OF BROWSER FOCUS/BLUR BLACK BORDER FLICKER
    Prevents Chromium/WebKit from flashing black outline or border rings
@@ -3136,6 +3116,18 @@ td:has(.gradebook-dash) {
 /* ==========================================================================
    Shared Analytics & Performance Trend Components (Shared by Student, Teacher, Admin)
    ========================================================================== */
+.shared-grades-top-panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3.15fr);gap:24px;align-items:stretch}
+html body .shared-grades-top-panels > .gwa-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:32px!important;border-radius:32px!important}
+html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:24px!important;border-radius:32px!important;gap:16px}
+@media(max-width:767px){
+ html body .shared-grades-top-panels{grid-template-columns:minmax(0,1fr);gap:24px}
+ html body .shared-grades-top-panels > .gwa-card{margin:0 16px!important;min-height:110px;padding:20px!important;border-radius:16px!important}
+ html body .shared-grades-top-panels .gwa-value{font-size:32px!important;line-height:40px!important;margin-top:12px!important}
+ html body .shared-grades-top-panels > .student-grades-insights-card{width:100%!important;min-height:0;border-radius:0!important;border-left:0!important;border-right:0!important;box-shadow:none!important;padding:20px 16px!important}
+ html body .shared-grades-top-panels > .student-grades-insights-card > div:last-child{border-radius:0!important}
+ html body .shared-grades-top-panels p{font-size:12px!important;line-height:18px!important}
+ html body .teacher-grades-analytics > .shared-grades-top-panels{width:calc(100% + 32px);margin-left:-16px;margin-right:-16px}
+}
 .gwa-card {
     background: linear-gradient(135deg, #15803d 0%, #166534 100%) !important;
     color: white !important;
@@ -3365,6 +3357,438 @@ textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-
 
 .canonical-back-btn i {
     font-size: 11px !important;
+}
+.grading-scale-label-break{display:none}
+html body .sigma-quarter-dropdown{position:relative;display:inline-block;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:6px;color:#000;font-size:14px;font-family:Inter,sans-serif}
+html body .sigma-quarter-dropdown summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;min-height:38px;box-sizing:border-box;list-style:none;cursor:pointer;white-space:nowrap}
+html body .sigma-quarter-dropdown summary::-webkit-details-marker{display:none}
+html body .sigma-quarter-dropdown summary i{font-size:10px}
+html body .sigma-quarter-dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;min-width:100%;width:180px;max-width:calc(100vw - 32px);padding:4px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:10060;box-sizing:border-box}
+html body .sigma-quarter-dropdown-menu button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;min-height:40px;border:0;background:#fff;color:#000;border-radius:4px;font:inherit;white-space:nowrap;cursor:pointer}
+html body .sigma-quarter-dropdown-menu button:hover{background:#f1f5f9}
+html body .sigma-quarter-dropdown-menu button[aria-pressed="true"]{background:#e7f6ec;color:#15803d}
+html body .sigma-quarter-dropdown summary:is(:hover,:focus-visible){
+    background:#f1f5f9;
+    border-radius:11px!important;
+}
+html body .sigma-quarter-dropdown-menu button:not([aria-pressed="true"]):is(:hover,:focus-visible){
+    background:#f1f5f9!important;
+}
+html body .sigma-quarter-dropdown-menu button[aria-pressed="true"]:is(:hover,:focus-visible){
+    background:#e7f6ec!important;
+    color:#15803d!important;
+    cursor:default;
+}
+html body .sigma-quarter-dropdown{
+    border-radius:12px;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0;
+    min-width:150px;
+}
+html body .sigma-quarter-dropdown summary{height:44px!important;min-height:44px!important;padding:0 16px!important;font-size:14px!important;font-weight:600!important;box-sizing:border-box!important}
+html body .sigma-quarter-dropdown-menu{
+    width:calc(100% + 2px);
+    min-width:0;
+    left:-1px;
+    border-radius:12px;
+}
+html body .sigma-quarter-dropdown-menu button{
+    font-size:14px;
+    font-weight:600;
+    line-height:20px;
+    border-radius:8px;
+    padding:10px 8px;
+}
+
+@media (max-width: 767px) {
+    html body .sigma-grades-page #admin-grades-quarters-wrapper .sigma-quarter-dropdown-menu button,
+    html body .sigma-quarter-dropdown-menu button {
+        display: flex !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 40px !important;
+        box-sizing: border-box !important;
+        padding: 10px 12px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 20px !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        border-radius: 8px !important;
+        flex: none !important;
+    }
+}
+html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills):has(.sigma-quarter-dropdown){background:transparent!important;padding:0!important;overflow:visible!important}
+html body .sigma-quarter-dropdown{
+    --quarter-control-width:150px;
+    --quarter-control-height:46px;
+    --quarter-control-font:14px;
+    box-sizing:border-box!important;
+    width:var(--quarter-control-width)!important;
+    min-width:var(--quarter-control-width)!important;
+    height:var(--quarter-control-height)!important;
+    flex:0 0 var(--quarter-control-width)!important;
+}
+html body .sigma-quarter-dropdown summary{
+    height:calc(var(--quarter-control-height) - 2px)!important;
+    min-height:calc(var(--quarter-control-height) - 2px)!important;
+    padding:0 12px!important;
+    font-size:var(--quarter-control-font)!important;
+    font-weight:600!important;
+    line-height:20px!important;
+}
+@media(max-width:767px){
+    html body .sigma-quarter-dropdown{
+        --quarter-control-width:140px;
+        --quarter-control-height:36px;
+        --quarter-control-font:12px;
+    }
+}
+html body :is(#subject-topic-scope-container,#subject-material-scope-container) > button,
+html body :is(#subject-add-topic-header-btn,#subject-content-reorder-btn,#subject-content-add-topic-btn,#add-material-trigger){
+    height:46px!important;min-height:46px!important;max-height:46px!important;
+    padding:0 16px!important;border-radius:12px!important;
+    font-size:14px!important;font-weight:600!important;line-height:20px!important;
+    box-sizing:border-box!important;gap:8px!important;
+}
+html body :is(#subject-topic-scope-container,#subject-material-scope-container) > button span,
+html body :is(#subject-add-topic-header-btn,#subject-content-reorder-btn,#subject-content-add-topic-btn,#add-material-trigger) span{
+    font-size:14px!important;font-weight:600!important;line-height:20px!important;
+}
+@media(max-width:767px){
+    html body :is(#subject-topic-scope-container,#subject-material-scope-container) > button,
+    html body :is(#subject-add-topic-header-btn,#subject-content-reorder-btn,#subject-content-add-topic-btn,#add-material-trigger){height:36px!important;min-height:36px!important;max-height:36px!important;padding:0 10px!important;font-size:12px!important}
+    html body :is(#subject-topic-scope-container,#subject-material-scope-container) > button span,
+    html body :is(#subject-add-topic-header-btn,#subject-content-reorder-btn,#subject-content-add-topic-btn,#add-material-trigger) span{font-size:12px!important}
+}
+@media(max-width:767px){html body .sigma-quarter-dropdown{font-size:12px;width:140px!important;min-width:140px!important;height:36px!important}html body .sigma-quarter-dropdown summary{height:34px!important;min-height:34px!important;padding:0 10px!important;font-size:12px!important}html body .sigma-quarter-dropdown-menu button{min-height:40px;font-size:12px}}
+html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-subject-section-dropdown-wrapper{
+    display:none!important;
+}
+html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar{
+    padding-top:20px!important;
+    padding-bottom:20px!important;
+}
+@media(min-width:768px){
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar{
+        display:grid!important;
+        grid-template-columns:minmax(0,1fr) auto auto;
+        align-items:center;
+        column-gap:16px!important;
+        padding-bottom:10px!important;
+    }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar > div:first-child,
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-gradebook-action-buttons{
+        display:contents!important;
+    }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) .gb-status-key{
+        grid-column:1!important;grid-row:1!important;align-self:end;justify-self:start!important;margin-left:0!important;margin-right:auto!important;margin-bottom:4px;
+    }
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-quarters-wrapper{grid-column:2!important;grid-row:1!important}
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #grades-submit-export{grid-column:3!important;grid-row:1!important}
+}
+@media(max-width:767px){
+    html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #admin-grades-shared-navbar{
+        padding-top:16px!important;
+        padding-bottom:16px!important;
+    }
+}
+/* Closed off-screen mobile sheets must not cast shadows onto the page. */
+html body .mobile-sigma-sheet:not(.open),
+html body .mobile-pull-up-panel:not(.open){
+    box-shadow:none!important;
+}
+@media(min-width:768px){
+    html body :is(.mobile-sigma-sheet,.mobile-pull-up-panel):not(.open){
+        visibility:hidden!important;
+        pointer-events:none!important;
+    }
+}
+@media(max-width:767px){
+    html body :is(#classes-detail-tabs:has(#tab-btn-gradebook), #student-classroom-tabs-wrapper) {
+        border-top:1px solid #e2e8f0!important;
+        box-shadow:0 -2px 8px rgba(0,0,0,.06)!important;
+        background:#fff!important;
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper) .teacher-section-tab > i,
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) > i{
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        width:20px!important;
+        height:20px!important;
+        min-height:20px!important;
+        flex:0 0 20px!important;
+        font-size:16px!important;
+        line-height:20px!important;
+        margin:0!important;
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper) .teacher-section-tab,
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn){
+        justify-content:flex-start!important;
+        padding-top:10px!important;
+        padding-bottom:4px!important;
+        gap:4px!important;
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper) .teacher-section-tab > span,
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) > span{
+        display:block!important;
+        font-size:10px!important;
+        font-weight:500!important;
+        line-height:12px!important;
+        letter-spacing:0!important;
+        text-align:center!important;
+        margin:0!important;
+        height:24px!important;
+        white-space:normal!important;
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper) :is(#classroom-quick-settings-btn, #student-room-menu-btn) {
+        display:flex!important;
+        flex-direction:column!important;
+        align-items:center!important;
+        justify-content:center!important;
+        width:48px!important;
+        height:60px!important;
+        padding:0!important;
+        gap:5px!important;
+        border-radius:0!important;
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper):has(:is(#classroom-quick-settings-btn, #student-room-menu-btn)) :is(#classroom-quick-settings-btn, #student-room-menu-btn) > i {
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        width:20px!important;
+        height:20px!important;
+        font-size:16px!important;
+        line-height:20px!important;
+        margin:0!important;
+        transform:rotate(90deg);
+    }
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper) :is(#classroom-quick-settings-btn, #student-room-menu-btn)::after {
+        content:'More';
+        margin:0!important;
+        font-size:10px!important;
+        font-weight:500!important;
+        line-height:14px!important;
+    }
+}
+@media(max-width:767px){
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) > div{
+        width:100%!important;min-width:0!important;gap:0!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) > div > .canonical-back-btn{flex:0 0 20%!important}
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) > div > nav{
+        flex:0 0 80%!important;min-width:0!important;gap:0!important;overflow:visible!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar [data-canonical-tab="grading-scale"] > span{
+        height:28px!important;font-size:10px!important;line-height:12px!important;text-align:center;
+    }
+    html body #section-topic-content .canonical-tabs-bar [data-canonical-tab="grading-scale"] .grading-scale-label-break{display:block!important;height:0!important}
+}
+html body #topic-content-main > div:has(#handout-list),
+html body #topic-content-main > div:has(#assessment-list){
+    padding-top:0!important;
+    margin-top:0!important;
+}
+html body #section-topic-content {
+    --topic-panel-radius:22px;
+}
+html body #section-topic-content :is(.topic-progress-card, .sigma-attached-file-panel, .video-thumbnail-panel) {
+    border-radius:var(--topic-panel-radius)!important;
+}
+html body #section-topic-content :is(#handout-list, #assessment-list) > .sigma-black-fade-panel {
+    border-radius:var(--topic-panel-radius, 22px)!important;
+}
+html body #section-topic-content #topic-content-main :is(#handout-list, #assessment-list) :is(.assessment-card-panel, .sigma-black-fade-panel) {
+    border-radius:var(--topic-panel-radius, 22px)!important;
+}
+html body #section-topic-content #assessment-list .assessment-facts-panel {
+    border-radius:12px!important;
+    overflow:hidden!important;
+}
+html body #section-topic-content #assessment-list .assessment-facts-panel table {
+    border-radius:0!important;
+}
+@media (min-width:768px){
+    html body #topic-content-main > div:has(#handout-list),
+    html body #topic-content-main > div:has(#assessment-list){padding-left:0!important;padding-right:0!important}
+    html body #topic-content-main :is(#handout-list,#assessment-list){margin-top:0!important;padding-top:0!important}
+    html body .teacher-topic-page-grid:has([id="handout-list"]),
+    html body .teacher-topic-page-grid:has([id="assessment-list"]){align-items:start!important}
+}
+@media (max-width:767px){
+    html body #topic-content-main > div:has(#handout-list),
+    html body #topic-content-main > div:has(#assessment-list){padding-left:0!important;padding-right:0!important}
+    html body #section-topic-content {--topic-panel-radius:20px}
+    html body #section-topic-content #topic-content-main:has(:is(#handout-list,#assessment-list)) {
+        padding-left:16px!important;
+        padding-right:16px!important;
+        box-sizing:border-box;
+    }
+    html body #section-topic-content :is(#handout-list,#assessment-list) {
+        width:100%!important;
+        margin-left:0!important;
+        margin-right:0!important;
+    }
+}
+@media (min-width:768px){
+    html body .classroom-detail-shell > .classroom-detail-tabs,
+    html body #classroom-detail-view > .classroom-detail-tabs,
+    html body .topic-page-tabs-header:has([data-canonical-tab="videos"]){
+        position:sticky!important;
+        top:var(--shell-offset,106px)!important;
+        z-index:80!important;
+        background:#fff!important;
+    }
+    html body .topic-page-tabs-header:has([data-canonical-tab="videos"]){
+        padding-top:20px!important;
+        height:auto!important;
+        min-height:68px!important;
+        box-sizing:border-box!important;
+    }
+    html body #topic-content-header:has([data-canonical-tab="videos"]){
+        position:static!important;
+    }
+    html body #section-topic-content:has([data-canonical-tab="videos"]) #topic-right-section{
+        top:calc(var(--shell-offset,106px) + 88px)!important;
+        max-height:calc(100dvh - var(--shell-offset,106px) - 104px)!important;
+    }
+    html body #topic-content-header .canonical-tabs-bar:has([data-canonical-tab="videos"]){margin-top:0!important}
+    html body .classroom-room-container:has(.classroom-detail-tabs),
+    html body .classroom-detail-shell:has(.classroom-detail-tabs){overflow:visible!important}
+}
+html body .canonical-tabs-bar,
+html body .classroom-detail-tabs{border-bottom-color:rgba(0,0,0,0.08)!important}
+html body .canonical-tabs-bar .w-px,
+html body .room-quarter-switch__rule{background:rgba(0,0,0,0.08)!important}
+html body .canonical-tabs-bar .canonical-back-btn + div,
+html body .classroom-detail-tabs .room-quarter-switch .room-quarter-switch__rule{
+    background-color:rgba(0,0,0,0.08)!important;
+    border-color:rgba(0,0,0,0.08)!important;
+}
+html body .canonical-tabs-bar .canonical-back-btn:has(.fa-book){
+    width:auto!important;
+    min-width:max-content!important;
+    height:32px!important;
+    padding:0 10px!important;
+    gap:6px!important;
+    border-radius:6px!important;
+    letter-spacing:0!important;
+    cursor:pointer!important;
+}
+html body .canonical-tabs-bar .canonical-back-btn:has(.fa-book):is(:hover,:focus-visible){
+    background:#f1f5f9!important;
+    border-radius:6px!important;
+}
+html body .canonical-tabs-bar .canonical-back-btn:has(.fa-book) :is(i,span){
+    display:inline-block!important;
+    color:#000!important;
+}
+@media (min-width:768px){
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]){
+        margin-top:20px!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]),
+    html body .classroom-detail-tabs{
+        height:48px!important;
+        min-height:48px!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tab-btn,
+    html body .classroom-detail-tabs .teacher-section-tab{
+        height:100%!important;
+        padding-top:0!important;
+        padding-bottom:0!important;
+        align-items:center!important;
+        line-height:20px!important;
+        border-bottom-width:3.5px!important;
+        box-sizing:border-box!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tab-btn span{
+        font-size:14px!important;
+        line-height:20px!important;
+    }
+    html body .canonical-tabs-bar .canonical-back-btn:has(.fa-book){
+        height:100%!important;
+        align-self:stretch;
+        margin:0!important;
+        padding:0 16px!important;
+        border-radius:0!important;
+    }
+    html body .canonical-tabs-bar .canonical-back-btn:has(.fa-book):is(:hover,:focus-visible){
+        border-radius:8px!important;
+    }
+}
+@media (max-width:767px){
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn){
+        display:flex!important;flex-direction:column!important;
+        justify-content:center!important;align-items:center!important;
+        height:60px!important;padding:8px 2px!important;gap:4px!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) i{
+        display:flex!important;align-items:center!important;justify-content:center!important;
+        width:20px!important;height:20px!important;min-height:20px!important;
+        font-size:16px!important;line-height:20px!important;margin:0!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) span{
+        height:14px!important;line-height:14px!important;font-size:10px!important;
+        font-weight:500!important;margin:0!important;letter-spacing:0!important;
+    }
+    html body #section-topic-content .topic-page-tabs-header:has([data-canonical-tab="videos"]),
+    html body #section-topic-content #topic-content-header:has([data-canonical-tab="videos"]){
+        height:0!important;min-height:0!important;
+        margin:0!important;padding:0!important;overflow:visible!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]){
+        height:calc(60px + env(safe-area-inset-bottom,0px))!important;
+        min-height:60px!important;
+        margin:0!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) nav button span{
+        font-size:10px!important;line-height:14px!important;font-weight:500!important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) nav button{
+        height:60px!important;min-height:60px!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]){
+        position:fixed!important;
+        inset:auto 0 0!important;
+        width:100%!important;
+        height:calc(60px + env(safe-area-inset-bottom,0px))!important;
+        padding:0 6px env(safe-area-inset-bottom,0px)!important;
+        background:#fff!important;
+        border-top:1px solid #e2e8f0!important;
+        border-bottom:0!important;
+        z-index:200!important;
+        box-shadow:0 -2px 8px rgba(0,0,0,.06);
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tabs-scroll > div{
+        width:100%!important;min-width:0!important;gap:0!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tabs-scroll > div > div.w-px{display:none!important}
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tabs-scroll nav{flex:3;min-width:0;gap:0!important}
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn){
+        flex:1 1 0!important;
+        width:auto!important;min-width:0!important;
+        height:60px!important;margin:0!important;padding:8px 3px!important;
+        display:flex!important;flex-direction:column!important;gap:5px!important;
+        justify-content:center!important;align-items:center!important;
+        border-bottom:0!important;border-radius:0!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn)::after{display:none!important}
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) span{
+        display:block!important;font-size:10px!important;line-height:14px!important;font-weight:500!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn,.canonical-back-btn) i{
+        font-size:16px!important;margin:0!important;
+    }
+    html body .canonical-tabs-bar:has([data-canonical-tab="videos"]) .canonical-tabs-right{width:36px!important}
+    html body #section-topic-content:has([data-canonical-tab="videos"]) #topic-content-main{
+        padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))!important;
+    }
+    html body #section-topic-content:has([data-canonical-tab="videos"]) #topic-right-section:has(.topic-score-sticky){
+        bottom:calc(60px + env(safe-area-inset-bottom,0px))!important;
+    }
 }
 
 /* ═══ Standard Action Buttons in Shared Modals & Panels ═══ */
@@ -3740,6 +4164,19 @@ html body .manage-curriculum-dropdown-btn i {
     box-sizing: border-box !important;
 }
 
+@media (min-width: 768px) {
+    html body .manage-curriculum-dropdown-btn {
+        height: 46px !important;
+        min-height: 46px !important;
+        padding: 0 24px !important;
+        font-size: 14px !important;
+        border-radius: 12px !important;
+    }
+    html body .manage-curriculum-dropdown-btn span {
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+    }
+}
 .manage-curriculum-dropdown-btn {
     width: 100% !important;
     display: inline-flex !important;
@@ -3804,15 +4241,25 @@ html body .manage-curriculum-dropdown-btn i {
 
 /* Open state: Plus spins and fades out, Chevron spins in and fades in */
 .manage-curriculum-dropdown-container.is-open .manage-dropdown-icon-spin-box .manage-icon-plus,
-.manage-curriculum-dropdown-btn.is-open .manage-dropdown-icon-spin-box .manage-icon-plus {
+.manage-curriculum-dropdown-btn.is-open .manage-dropdown-icon-spin-box .manage-icon-plus,
+.grades-submit-export-btn[aria-expanded="true"] .manage-icon-plus {
     opacity: 0 !important;
     transform: rotate(180deg) scale(0.5) !important;
 }
 
 .manage-curriculum-dropdown-container.is-open .manage-dropdown-icon-spin-box .manage-icon-chevron,
-.manage-curriculum-dropdown-btn.is-open .manage-dropdown-icon-spin-box .manage-icon-chevron {
+.manage-curriculum-dropdown-btn.is-open .manage-dropdown-icon-spin-box .manage-icon-chevron,
+.grades-submit-export-btn[aria-expanded="true"] .manage-icon-chevron {
     opacity: 1 !important;
-    transform: rotate(0deg) scale(1) !important;
+    transform: rotate(180deg) scale(1) !important;
+}
+
+.grades-submit-export-btn .manage-dropdown-icon-spin-box i,
+.manage-curriculum-dropdown-btn .manage-dropdown-icon-spin-box i {
+    font-size: 12px !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .manage-dropdown-icon-spin-box i { transition: none !important; }
 }
 
 .shared-manage-curriculum-menu {
@@ -3839,6 +4286,27 @@ html body .manage-curriculum-dropdown-btn i {
 .shared-manage-curriculum-menu button:hover {
     background-color: #f1f5f9 !important;
 }
+html body .manage-curriculum-dropdown-container > .shared-manage-curriculum-menu {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+@media (min-width: 768px) {
+    html body .shared-manage-curriculum-menu button {
+        min-height: 46px !important;
+        padding: 10px 12px !important;
+        gap: 10px !important;
+    }
+    html body .shared-manage-curriculum-menu button span {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        line-height: 20px !important;
+        letter-spacing: 0 !important;
+    }
+    html body .shared-manage-curriculum-menu button i {
+        font-size: 14px !important;
+    }
+}
 
 .teacher-topic-toolbar {
     display: flex !important;
@@ -3847,6 +4315,21 @@ html body .manage-curriculum-dropdown-btn i {
     width: 100% !important;
     margin-top: 0.5rem !important;
     margin-bottom: 1rem !important;
+}
+html body .teacher-topic-toolbar .room-quarter-switch{height:auto!important;margin-left:12px!important}
+html body .teacher-topic-toolbar .room-quarter-switch__btn,
+html body .teacher-gradebook-quarter-select{
+    width:auto!important;min-width:140px!important;height:38px!important;
+    padding:0 12px!important;gap:8px!important;
+    border:1px solid rgba(0,0,0,.12)!important;border-radius:6px!important;
+    background:#fff!important;color:#000!important;font-size:13px!important;cursor:pointer!important;
+}
+@media(max-width:767px){
+    html body #room-topics-mount :is(.teacher-topic-toolbar, .student-topic-toolbar){
+        padding-left:16px!important;
+        padding-right:16px!important;
+        box-sizing:border-box;
+    }
 }
 
 .teacher-topic-page-full {
@@ -4620,16 +5103,15 @@ body .sigma-card-timestamp-text {
     }
 }
 
-body .sigma-card-like-btn:not(.liked):hover,
-body .sigma-card-comment-btn:hover {
-    background: #f1f5f9 !important;
-    border-color: var(--sigma-black-fade-border, rgba(0, 0, 0, 0.10)) !important;
-    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.50)) !important;
+html body .sigma-card-like-btn:not(.liked):is(:hover, :focus-visible, :active),
+html body .sigma-card-comment-btn:is(:hover, :focus-visible, :active) {
+    background: #eeeeee !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    cursor: pointer !important;
 }
-body .sigma-card-like-btn:not(.liked):hover i,
-body .sigma-card-comment-btn:hover i,
-body .sigma-card-like-btn:not(.liked):hover span,
-body .sigma-card-comment-btn:hover span {
+html body .sigma-card-like-btn:not(.liked):is(:hover, :focus-visible, :active) :is(i, span),
+html body .sigma-card-comment-btn:is(:hover, :focus-visible, :active) :is(i, span) {
     color: inherit !important;
 }
 
@@ -6288,6 +6770,87 @@ html body .assessment-submission-details-card :is(#student-submission-action-are
     flex-shrink: 0;
 }
 .submission-attempt-selector-row label { margin: 0; white-space: nowrap; }
+html body .room-quarter-switch__btn{width:32px;min-width:32px;height:32px;justify-content:center;padding:0!important}
+html body .room-quarter-switch__btn i{font-size:11px!important;transform:none!important}
+html body .room-quarter-switch__btn[aria-expanded="true"] i{transform:rotate(180deg)!important}
+html body #tab-btn-topics:has(+ .room-quarter-switch:not([hidden])){
+    padding-right:6px!important;
+}
+html body #tab-btn-topics + .room-quarter-switch:not([hidden]){
+    margin-left:-4px;
+}
+html body #tab-btn-topics.active + .room-quarter-switch:not([hidden]) .room-quarter-switch__btn i{
+    color:#15803d!important;
+}
+@media (max-width:768px){
+    html body .room-quarter-switch__btn i{font-size:8px!important}
+    html body #tab-btn-topics:has(+ .room-quarter-switch:not([hidden])){
+        justify-content:flex-end!important;
+        padding-right:4px!important;
+    }
+    html body #tab-btn-topics + .room-quarter-switch:not([hidden]) .room-quarter-switch__btn{
+        width:24px!important;
+        min-width:24px!important;
+    }
+}
+@media (min-width:769px){
+    html body #tab-btn-topics + .room-quarter-switch:not([hidden]){margin-left:-8px}
+}
+@media (min-width:769px){
+    html body .room-quarter-menu{
+        width:180px!important;
+        min-width:180px!important;
+        padding:5px!important;
+        border-radius:8px!important;
+    }
+    html body .room-quarter-menu__item{
+        min-height:40px!important;
+        padding:10px 12px!important;
+        font-size:14px!important;
+        line-height:20px!important;
+        box-sizing:border-box;
+        border-radius:6px!important;
+    }
+}
+html body .desktop-grading-header{border-bottom:0!important;cursor:pointer!important;border-radius:0}
+@media (min-width:769px){
+    html body .topic-progress-card.topic-score-sticky:has(.desktop-grading-header){
+        border-radius:22px!important;
+        overflow:hidden!important;
+    }
+    html body .topic-score-sticky .desktop-grading-header{
+        width:calc(100% + 40px)!important;
+        margin:-20px -20px 0!important;
+        padding:20px 20px 8px!important;
+        box-sizing:border-box;
+        overflow:hidden;
+    }
+    html body #section-topic-content .topic-score-sticky .desktop-grading-header,
+    html body .topic-score-sticky .desktop-grading-header:is(:hover,:focus-visible){
+        border-radius:21px 21px 0 0!important;
+        clip-path:inset(0 round 21px 21px 0 0);
+    }
+}
+@media (max-width:768px){
+    html body .topic-score-sticky .desktop-grading-header{
+        width:calc(100% + 24px)!important;
+        margin:-9px -12px 0!important;
+        padding:9px 12px 3px!important;
+        box-sizing:border-box;
+        border-radius:0!important;
+    }
+}
+html body .topic-score-sticky .desktop-grading-header,
+html body #section-topic-content .topic-score-sticky .desktop-grading-header:is(:hover,:focus-visible,:active){
+    background:transparent!important;
+}
+html body .desktop-grading-header .topic-progress-title,
+html body .desktop-grading-header .mobile-grade-header-actions{pointer-events:none}
+.submission-attempt-select-wrap{position:relative;display:inline-flex;max-width:100%;min-width:0}
+html body .submission-attempt-select-wrap .submission-attempt-select{appearance:none!important;-webkit-appearance:none!important;background-image:none!important;padding-right:34px!important;cursor:pointer!important;box-sizing:border-box;line-height:20px}
+.submission-attempt-chevron{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:#000;pointer-events:none}
+.submission-work-toolbar{flex-wrap:wrap}
+.submission-attempt-selector-row{max-width:100%;min-width:0}
 .submission-attempt-select {
     max-width: 100%;
     min-width: 0;
@@ -6539,5 +7102,39 @@ html body button.sigma-dashed-dropzone.sigma-rubric-upload:focus-visible {
     }
     html body .sigma-rubric-upload:not(:hover):not(:focus-visible) .sigma-rubric-upload-title {
         color: #000000 !important;
+    }
+}
+html body :is([data-subject-grade-insight],[data-ai-insight-body]) {color:#000!important}
+html body :is([data-subject-grade-insight],[data-ai-insight-body])[data-insight-empty="true"],
+html body .sigma-ai-feedback-empty #sigma-ai-feedback-status {color:rgba(0,0,0,.45)!important}
+html body .sigma-quarter-dropdown > summary .fa-chevron-down {transition:transform .15s ease}
+html body .sigma-quarter-dropdown[open] > summary .fa-chevron-down {transform:rotate(180deg)!important}
+html body .sigma-quarter-dropdown:not([open]) > summary .fa-chevron-down {transform:rotate(0deg)!important}
+.sigma-quarter-mobile-label{display:none}
+@media(max-width:767px){
+ html body .sigma-quarter-full-label{display:none}
+ html body .sigma-quarter-mobile-label{display:inline}
+ html body .sigma-quarter-dropdown{width:84px!important;min-width:84px!important;height:36px!important;background:#fff!important;box-shadow:none!important}
+ html body .sigma-quarter-dropdown summary{height:34px!important;min-height:34px!important;border-radius:inherit;background:transparent;}
+ html body div:has(> .sigma-quarter-dropdown):is(.bg-slate-100,.p-1){background:transparent!important;padding:0!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+}
+@media(hover:none){html body .sigma-quarter-dropdown summary:hover{background:transparent!important}}
+html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
+    background:transparent!important;
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+}
+@media(max-width:767px){
+    html body .sigma-quarter-dropdown,
+    html body .room-quarter-switch__btn {
+        width:84px!important;
+        min-width:84px!important;
+        max-width:84px!important;
+    }
+    html body .sigma-quarter-dropdown .sigma-quarter-dropdown-menu {
+        width:84px!important;
+        min-width:84px!important;
+        max-width:84px!important;
     }
 }

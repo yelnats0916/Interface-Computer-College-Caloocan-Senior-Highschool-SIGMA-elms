@@ -8,6 +8,76 @@
     --sigma-page-tint-bg: rgba(21, 128, 61, 0.035);
     --sigma-black-fade-bg: rgba(0, 0, 0, 0.035);
 }
+html body .classroom-detail-shell:has(:is(#tab-btn-attendance,#tab-btn-topics).active) > :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper,#admin-classroom-banner-wrapper) {
+    display:none!important;
+}
+@media(min-width:768px){
+    html:has(#section-grades:not(.hidden) .classroom-gradebook-navigation),
+    html body:has(#section-grades:not(.hidden) .classroom-gradebook-navigation),
+    html body:has(#section-grades:not(.hidden) .classroom-gradebook-navigation) :is(#layout-wrapper,#main-content,#content-sections,#section-grades) {
+        overflow:visible!important;
+    }
+    html:has(#section-grades:not(.hidden) .classroom-gradebook-navigation),
+    html body:has(#section-grades:not(.hidden) .classroom-gradebook-navigation) {
+        overflow-x:clip!important;
+        overflow-y:visible!important;
+    }
+    html body #section-grades .classroom-gradebook-navigation {
+        position:sticky!important;
+        top:calc(var(--shell-offset,106px) + 20px)!important;
+        margin-top:20px!important;
+        z-index:80;
+        background:#fff;
+        flex:0 0 auto;
+    }
+    html body #section-grades .classroom-gradebook-navigation::before {
+        content:'';
+        position:absolute;
+        left:0;
+        right:0;
+        top:-20px;
+        height:20px;
+        background:#fff;
+        pointer-events:none;
+    }
+    html body #section-grades .classroom-gradebook-navigation .classroom-detail-tabs {
+        position:static!important;
+        margin:0!important;
+    }
+    html body .classroom-gradebook-navigation .classroom-detail-tabs{
+        width:100%!important;
+        border:0!important;
+        border-bottom:1px solid rgba(0,0,0,.08)!important;
+        border-radius:0!important;
+        box-shadow:none!important;
+        padding:0 32px!important;
+    }
+}
+html body #admin-classes-detail-tabs .classroom-settings-grades-btn{
+    display:none!important;
+}
+@media (min-width:768px) {
+    html body #admin-classes-detail-tabs .classroom-settings-menu button:has(.fa-chart-simple) {
+        display:none!important;
+    }
+}
+html body .classroom-gradebook-navigation #classroom-quick-settings-btn,
+html body .classroom-gradebook-navigation .classroom-settings-menu{
+    display:none!important;
+}
+@media (min-width: 768px) {
+    #section-classroom-detail .manage-curriculum-dropdown-btn {
+        height: 46px !important;
+        min-height: 46px !important;
+        padding: 0 24px !important;
+        font-size: 14px !important;
+        border-radius: 12px !important;
+    }
+    #section-classroom-detail .manage-curriculum-dropdown-btn span {
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+    }
+}
 
 /* ─── 1. Full-Bleed Canvas ─────────────────────────────────────────── */
 #section-classroom-detail,
@@ -98,6 +168,93 @@ body:has(#classroom-detail-view:not(.hidden)) {
 }
 
 /* ─── 3. High-Appearance Hero Banner ─────────────────────────────────────── */
+@media (min-width:768px){
+    html body :is(#teacher-classroom-banner-wrapper,#admin-classroom-banner-wrapper,#student-classroom-banner-wrapper){
+        margin-bottom:0!important;
+        padding-bottom:0!important;
+    }
+    html body :is(#teacher-classroom-banner-wrapper,#admin-classroom-banner-wrapper,#student-classroom-banner-wrapper) > .classroom-room-hero-banner{
+        margin-bottom:0!important;
+    }
+    html body :is(#class-detail-content,#admin-class-detail-content){
+        margin-top:24px!important;
+        padding-top:0!important;
+    }
+    html body #admin-class-detail-content > .classroom-tab-section,
+    html body #admin-class-detail-content .classroom-tab-section > :first-child,
+    html body #admin-class-detail-content #room-topics-mount{
+        margin-top:0!important;
+        padding-top:0!important;
+    }
+    html body #classroom-detail-view > .classroom-room-container,
+    html body #classroom-detail-view .classroom-room-container > .classroom-detail-shell{
+        width:100%!important;
+        max-width:none!important;
+        margin:0!important;
+        overflow:visible!important;
+    }
+    body:has(#classroom-detail-view:not(.hidden)):not(.modal-open):not(:has(.sigma-modal-overlay:not(.hidden))){overflow:visible!important}
+    body:has(#classroom-detail-view:not(.hidden)) :is(#admin-main,#layout-wrapper,#content-sections,#classroom-detail-view){
+        overflow:visible!important;
+        height:auto!important;
+        max-height:none!important;
+    }
+    html body .classroom-room-container:has(.classroom-detail-tabs){
+        max-width:none!important;
+        padding:20px 0 24px!important;
+    }
+    html:has(#section-classroom-detail:not(.hidden)){overflow-x:clip!important}
+    body:has(#section-classroom-detail:not(.hidden)):not(.modal-open):not(:has(.sigma-modal-overlay:not(.hidden))){overflow:visible!important}
+    body:has(#section-classroom-detail:not(.hidden)) :is(#layout-wrapper,#main-content,#content-sections,#section-classroom-detail){
+        overflow:visible!important;
+        height:auto!important;
+        max-height:none!important;
+    }
+    html body .classroom-detail-shell:has(> .classroom-detail-tabs),
+    html body #classroom-detail-view:has(> .classroom-detail-tabs){
+        display:flex!important;
+        flex-direction:column!important;
+    }
+    html body .classroom-detail-shell:has(> .classroom-detail-tabs) > :not(.classroom-detail-tabs),
+    html body #classroom-detail-view:has(> .classroom-detail-tabs) > :not(.classroom-detail-tabs){
+        width:calc(100% - 48px)!important;
+        max-width:1032px;
+        margin-left:auto!important;
+        margin-right:auto!important;
+    }
+    html body .classroom-detail-shell > .classroom-detail-tabs,
+    html body #classroom-detail-view > .classroom-detail-tabs{
+        order:-1;
+        width:100%!important;
+        max-width:none!important;
+        margin-left:auto!important;
+        margin-right:auto!important;
+        flex-shrink:0;
+        top:calc(var(--shell-offset,106px) + 20px)!important;
+        margin-top:0!important;
+        margin-bottom:24px!important;
+        height:48px!important;
+        min-height:48px!important;
+        border:0!important;
+        border-bottom:1px solid rgba(0,0,0,0.08)!important;
+        border-radius:0!important;
+        box-shadow:none!important;
+        padding:0 32px!important;
+    }
+    html body .classroom-detail-shell > .classroom-detail-tabs::before,
+    html body #classroom-detail-view > .classroom-detail-tabs::before{
+        content:"";
+        display:block;
+        position:absolute;
+        left:0;
+        right:0;
+        top:-20px;
+        height:20px;
+        background:#fff;
+        pointer-events:none;
+    }
+}
+
 .classroom-room-hero-banner {
     position: relative;
     width: 100%;
@@ -505,6 +662,195 @@ body:has(#classroom-detail-view:not(.hidden)) {
     overflow: visible;
     display: flex;
     align-items: center;
+}
+
+@media (max-width:767px) {
+    html body .classroom-gradebook-navigation #classes-detail-tabs #classroom-quick-settings-btn,
+    html body .classroom-gradebook-navigation #classes-detail-tabs #classroom-settings-menu,
+    html body .classroom-gradebook-navigation #classes-detail-tabs .classroom-settings-menu,
+    html body .classroom-gradebook-navigation #classes-detail-tabs div:has(> #classroom-quick-settings-btn) {
+        display: none !important;
+    }
+    html body .classroom-gradebook-navigation #classes-detail-tabs #classroom-quick-settings-btn::after {
+        display: none !important;
+        content: none !important;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) {
+        position:fixed!important;
+        inset:auto 0 0!important;
+        width:100%!important;
+        height:calc(60px + env(safe-area-inset-bottom,0px))!important;
+        padding:0 8px env(safe-area-inset-bottom,0px)!important;
+        margin:0!important;
+        background:#fff!important;
+        border-radius:0!important;
+        border-top:1px solid #e2e8f0!important;
+        z-index:200!important;
+        box-shadow:0 -2px 8px rgba(0,0,0,.06)!important;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) > div {gap:4px!important}
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab {
+        flex-direction:column!important;
+        height:60px!important;
+        gap:5px!important;
+        padding:8px 2px!important;
+        justify-content:center!important;
+        border-bottom:0!important;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab::after,
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab::before,
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .room-quarter-switch::after {display:none!important}
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .room-quarter-switch__rule {display:none!important}
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab span {
+        display:block!important;
+        font-size:10px!important;
+        line-height:14px!important;
+        font-weight:500!important;
+        letter-spacing:0!important;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) #classroom-quick-settings-btn {
+        width:48px!important;
+        height:60px!important;
+        display:flex!important;
+        flex-direction:column!important;
+        justify-content:center!important;
+        gap:5px!important;
+        border-radius:0!important;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) #classroom-quick-settings-btn i {display:none!important}
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) #classroom-quick-settings-btn::after {
+        content:"More";
+        font-size:10px;
+        line-height:14px;
+        font-weight:500;
+        color:#000;
+    }
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) #classroom-settings-menu,
+    html body #classes-detail-tabs:has(#tab-btn-gradebook) #room-quarter-menu {
+        position:fixed!important;
+        inset:auto 0 calc(60px + env(safe-area-inset-bottom,0px))!important;
+        width:100%!important;
+        min-width:0!important;
+        max-width:100%!important;
+        max-height:60dvh;
+        overflow-y:auto;
+        padding:12px 16px!important;
+        border-radius:0!important;
+        box-sizing:border-box;
+        box-shadow:0 -6px 24px rgba(0,0,0,.12)!important;
+    }
+    html body #classes-detail-tabs #classroom-settings-menu .classroom-settings-item {min-height:44px!important;font-size:14px!important}
+    html body #classes-detail-tabs #room-quarter-menu .room-quarter-menu__item {
+        min-height:44px!important;
+        padding:12px!important;
+        font-size:13px!important;
+        line-height:20px!important;
+        box-sizing:border-box;
+    }
+    html body:has(#classes-detail-tabs #tab-btn-gradebook) #class-detail-content {padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))!important}
+    html body .classroom-room-container:has(#classes-detail-tabs #tab-btn-gradebook){padding-bottom:0!important}
+}
+
+html body #classroom-theme-customizer-modal #classroom-customizer-cancel-btn {
+    background:#fff!important;
+    color:#000!important;
+    opacity:1!important;
+    border:1.5px solid #e2e8f0!important;
+    cursor:pointer!important;
+}
+html body #classroom-theme-customizer-modal #classroom-customizer-cancel-btn:hover {
+    background:#e2e8f0!important;
+    color:#000!important;
+}
+#classroom-theme-customizer-modal .classroom-customizer-banner-wrap {
+    margin-left:-24px;
+    margin-right:-24px;
+    width:calc(100% + 48px);
+}
+#classroom-theme-customizer-modal #modal-banner-preview {
+    width:100%!important;
+    max-width:none!important;
+    border-radius:0!important;
+    margin:0!important;
+}
+@media (max-width:767px){
+    html body #classroom-theme-customizer-modal .classroom-customizer-header {padding:16px!important}
+    html body #classroom-theme-customizer-modal .classroom-customizer-header h3 {font-size:18px!important;line-height:24px!important;letter-spacing:0!important}
+    html body #classroom-theme-customizer-modal .classroom-customizer-body {padding:16px!important}
+    html body #classroom-theme-customizer-modal .classroom-customizer-banner-wrap {
+        margin-left:-16px;
+        margin-right:-16px;
+        width:calc(100% + 32px);
+    }
+}
+
+.student-topic-toolbar {
+    display: flex;
+    align-items: center;
+    margin: 0 0 16px;
+    min-width: 0;
+}
+
+html body .classroom-detail-shell #room-topics-mount .room-embedded-topics {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    gap: 0 !important;
+}
+html body .classroom-detail-shell #room-topics-mount :is(.teacher-topic-toolbar, .student-topic-toolbar) {
+    margin-top: 0 !important;
+    margin-bottom: 16px !important;
+}
+html body .classroom-detail-shell #room-topics-mount .room-topics-body {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    align-items: start !important;
+}
+
+@media (max-width: 767px) {
+    html body #student-classroom-tabs-wrapper {
+        box-sizing: border-box;
+        position: fixed !important;
+        inset: auto 0 0 !important;
+        width: 100% !important;
+        height: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+        margin: 0 !important;
+        padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
+        background: #fff;
+        border-radius: 0 !important;
+        border-top: 1px solid rgba(0, 0, 0, .08);
+        z-index: 200;
+    }
+    #student-classroom-tabs-wrapper > div > div:first-child { flex: 1; overflow: visible; }
+    html body #student-classroom-tabs-wrapper .student-room-tab {
+        flex: 1 1 0;
+        min-width: 0 !important;
+        height: 60px !important;
+        padding: 10px 2px 6px !important;
+        flex-direction: column;
+        gap: 4px;
+        border-bottom: 0 !important;
+    }
+    html body #student-classroom-tabs-wrapper .student-room-tab span {
+        display: block !important;
+        font-size: 10px !important;
+        line-height: 14px;
+    }
+    #student-classroom-tabs-wrapper .student-room-tab::before,
+    #student-classroom-tabs-wrapper .student-room-tab::after { display: none !important; }
+    html body #student-room-menu-btn { width: 60px; height: 60px; border-radius: 0; }
+    #student-room-menu-btn::after { content: 'More'; display: block; font-size: 10px; line-height: 14px; margin-top: 4px; }
+    html body #student-room-dropdown {
+        position: fixed;
+        inset: auto 0 calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+        width: 100%;
+        max-height: 60dvh;
+        overflow-y: auto;
+        padding: 12px 16px;
+    }
+    #student-room-dropdown .classroom-settings-item { min-height: 44px; }
+    .classroom-detail-shell:has(#student-classroom-tabs-wrapper) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+    .classroom-detail-shell:has(#student-classroom-tabs-wrapper) .room-topics-body { display: flex !important; flex-direction: column; gap: 16px; }
+    .classroom-detail-shell:has(#student-classroom-tabs-wrapper) .student-topic-progress-rail { display: flex !important; width: 100% !important; position: static !important; }
 }
 
 .room-quarter-switch {
@@ -3451,4 +3797,108 @@ body > .sortable-drag-clone .card-body-main,
     justify-content: flex-start !important;
     gap: 0.75rem !important;
     transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+@media (max-width: 767px) {
+    #classes-detail-tabs:has(#tab-btn-gradebook) {
+        height: auto !important;
+        min-height: 48px;
+    }
+    #classes-detail-tabs:has(#tab-btn-gradebook) > div {
+        align-items: center !important;
+    }
+    #classes-detail-tabs:has(#tab-btn-gradebook) .overflow-x-auto {
+        display: flex !important;
+        gap: 0 4px !important;
+        overflow: visible !important;
+        flex: 1;
+        min-width: 0;
+    }
+    #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab {
+        width: auto;
+        flex: 1 1 0;
+        min-width: 0 !important;
+        height: 44px !important;
+        padding: 0 8px !important;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab span { display: none !important; }
+    #classes-detail-tabs:has(#tab-btn-gradebook) .teacher-section-tab i { font-size: 16px !important; }
+}
+@media(min-width:768px){
+    html body #section-classroom-detail .classroom-detail-shell:has(#tab-btn-attendance.active) > #class-detail-content {
+        width:calc(100% - 64px)!important;
+        max-width:none!important;
+        margin-left:auto!important;
+        margin-right:auto!important;
+    }
+}
+html body #section-classroom-detail .classroom-detail-shell:has(#tab-btn-attendance.active) .attendance-monthly-card {
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:#fff!important;
+}
+html body #section-classroom-detail .attendance-grid-container {
+    scrollbar-width:none!important;
+    -ms-overflow-style:none;
+}
+html body #section-classroom-detail .attendance-grid-container::-webkit-scrollbar {
+    display:none!important;
+    width:0!important;
+    height:0!important;
+}
+@media(max-width:767px){
+    html:has(#section-classroom-detail:not(.hidden) #tab-btn-attendance.active),
+    html body:has(#section-classroom-detail:not(.hidden) #tab-btn-attendance.active),
+    html body:has(#section-classroom-detail:not(.hidden) #tab-btn-attendance.active) :is(#layout-wrapper,#main-content,#content-sections,#section-classroom-detail) {
+        background:#fff!important;
+    }
+    html body #section-classroom-detail:not(.hidden):has(#tab-btn-attendance.active) {
+        min-height:calc(100dvh - var(--shell-offset,134px))!important;
+    }
+}
+@media(max-width:767px){
+    html body #section-classroom-detail .classroom-detail-shell:has(#tab-btn-attendance.active) :is(#class-detail-content,.classroom-tab-section,.attendance-monthly-card,.attendance-grid-container) {
+        border-bottom:0!important;
+        box-shadow:none!important;
+    }
+}
+@media(min-width:768px){
+    html body .classroom-detail-shell:has(#tab-btn-topics.active) > .classroom-detail-tabs {
+        margin-bottom:0!important;
+    }
+    html body .classroom-detail-shell:has(#tab-btn-topics.active) > :is(#class-detail-content,#admin-class-detail-content) {
+        margin-top:24px!important;
+        padding-top:0!important;
+    }
+    html body .classroom-detail-shell:has(#tab-btn-topics.active) :is(#detail-section-topics,#room-topics-mount) {
+        margin-top:0!important;
+        padding-top:0!important;
+    }
+}
+html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) .attendance-monthly-card {
+    border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;
+}
+html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) .attendance-grid-container {scrollbar-width:none!important;-ms-overflow-style:none}
+html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) .attendance-grid-container::-webkit-scrollbar {display:none!important;width:0!important;height:0!important}
+html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) > .classroom-detail-tabs {margin-bottom:0!important}
+@media(min-width:768px){
+    html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) > #admin-class-detail-content {
+        width:calc(100% - 64px)!important;max-width:none!important;margin:24px auto 0!important;padding-top:0!important;
+    }
+}
+@media(max-width:767px){
+    html body:has(#admin-main .classroom-detail-shell #tab-btn-attendance.active),
+    html body:has(#admin-main .classroom-detail-shell #tab-btn-attendance.active) :is(#layout-wrapper,#admin-main) {background:#fff!important}
+    html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) {min-height:calc(100dvh - var(--shell-offset,134px))!important}
+    html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) :is(#admin-class-detail-content,.classroom-tab-section,.attendance-monthly-card,.attendance-grid-container) {border-bottom:0!important;box-shadow:none!important}
+}
+@media(min-width:768px){
+    html body .classroom-detail-shell:has(:is(#tab-btn-topics,#tab-btn-attendance).active) :is(#classroom-quick-settings-btn,#student-room-menu-btn,#admin-room-menu-btn,.classroom-settings-menu) {display:none!important}
+    html body .classroom-detail-shell:has(:is(#tab-btn-topics,#tab-btn-attendance).active) .classroom-detail-tabs :is(div:has(> #classroom-quick-settings-btn),div:has(> #student-room-menu-btn),div:has(> #admin-room-menu-btn)) {display:none!important}
+}
+@media(max-width:767px){
+    html body .classroom-detail-shell:has(> :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper)):has(:is(#tab-btn-topics,#tab-btn-attendance).active) :is(#classroom-quick-settings-btn,#student-room-menu-btn,.classroom-settings-menu) {display:none!important}
+    html body .classroom-detail-shell:has(> :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper)):has(:is(#tab-btn-topics,#tab-btn-attendance).active) .classroom-detail-tabs :is(div:has(> #classroom-quick-settings-btn),div:has(> #student-room-menu-btn)) {display:none!important}
 }

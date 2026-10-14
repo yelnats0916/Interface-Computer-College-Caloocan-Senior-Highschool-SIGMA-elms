@@ -576,7 +576,7 @@
                 const activeClass = isActive ? 'active student-room-tab--active' : '';
                 const clickHandler = isTeacher ? `switchClassDetailTab('${tab.id}')` : `switchStudentRoomTab('${tab.id}')`;
                 const attrId = isTeacher ? `id="tab-btn-${tab.id}"` : `id="tab-btn-${tab.id}" data-room-tab="${tab.id}"`;
-                return `<button type="button" ${attrId} onclick="${clickHandler}" class="${tabBtnClass} ${activeClass}"><i class="${tab.icon}"></i><span>${tab.label}</span></button>`;
+                return `<button type="button" ${attrId} aria-label="${tab.label}" title="${tab.label}" onclick="${clickHandler}" class="${tabBtnClass} ${activeClass}"><i class="${tab.icon}"></i><span>${tab.label}</span></button>`;
             }).join('');
         }
 
@@ -584,7 +584,8 @@
         const attendanceHtml = renderTabButtons(leftTabs.slice(1, 2));
         const topicsHtml = renderTabButtons(leftTabs.slice(2, 3));
         const restTabsHtml = renderTabButtons(leftTabs.slice(3));
-        const leftTabsHtml = `${roomHtml}${attendanceHtml}${topicsHtml}<div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>${restTabsHtml}`;
+        const gradebookLink = isTeacher ? `<button type="button" id="tab-btn-gradebook" aria-label="Gradebook" title="Gradebook" onclick="window.openTeacherClassroomGradebook?.()" class="${tabBtnClass} ${activeTab === 'gradebook' ? 'active' : ''}"><i class="fa-solid fa-table" aria-hidden="true"></i><span>Gradebook</span></button>` : '';
+        const leftTabsHtml = `${roomHtml}${attendanceHtml}${topicsHtml}<div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>${gradebookLink}${restTabsHtml}`;
 
         if (isTeacher) {
             return `
@@ -805,7 +806,7 @@
         const canSave = hasCustomizerChanges();
         modal.innerHTML = `
         <div class="bg-white rounded-[24px] shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200" style="font-family: 'Inter', sans-serif;">
-            <div class="px-6 py-4.5 sm:py-5 border-b border-slate-100 flex items-center">
+            <div class="classroom-customizer-header px-6 py-4.5 sm:py-5 border-b border-slate-100 flex items-center">
                 <div>
                     <h3 class="text-lg sm:text-xl font-bold text-black tracking-tight flex items-center gap-2.5">
                         <i class="fa-solid fa-palette text-emerald-600 text-lg sm:text-xl"></i> Customize Theme
@@ -813,8 +814,8 @@
                 </div>
             </div>
 
-            <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-                <div>
+            <div class="classroom-customizer-body p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                <div class="classroom-customizer-banner-wrap">
                     <div id="modal-banner-preview" class="classroom-room-hero-banner classroom-modal-preview-banner relative overflow-hidden rounded-[20px] w-full select-none" style="background: ${pendingCustomTheme.gradient}; min-height: 145px; height: 145px;">
                         <img src="${escapeHtml(pendingCustomTheme.bannerImage)}" alt="${escapeHtml(subject)}" class="classroom-room-banner-bg absolute inset-0 w-full h-full object-cover">
                         <!-- Signature Black Fade Overlay for rich depth & contrast -->
@@ -874,7 +875,7 @@
             </div>
 
             <div class="px-6 py-4 bg-slate-50/60 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button type="button" onclick="window.ClassroomRoom.closeCustomizer()" class="sigma-btn sigma-btn-ghost sigma-btn-md text-black-fade hover:text-black cursor-pointer">
+                <button type="button" id="classroom-customizer-cancel-btn" onclick="window.ClassroomRoom.closeCustomizer()" class="sigma-btn sigma-btn-white sigma-btn-md cursor-pointer">
                     Cancel
                 </button>
                 <button type="button" id="classroom-customizer-save-btn" onclick="window.ClassroomRoom.saveCurrentCustomizer()" ${canSave ? "" : "disabled"} class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[130px] ${canSave ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}">
@@ -1700,7 +1701,9 @@
         if (typeof window.closeRoomQuarterMenu === 'function') {
             window.closeRoomQuarterMenu();
         }
-        const menu = document.getElementById('classroom-settings-menu') || document.querySelector('.classroom-settings-menu');
+        const trigger = event?.currentTarget || event?.target?.closest('.classroom-quick-btn');
+        const menu = trigger?.parentElement?.querySelector('.classroom-settings-menu')
+            || document.getElementById('classroom-settings-menu') || document.querySelector('.classroom-settings-menu');
         if (!menu) return;
         const isHidden = menu.classList.contains('hidden');
         closeClassroomSettingsMenu();
@@ -3667,4 +3670,29 @@
         }
     });
 
+    function updateClassroomViewportBottom() {
+        const viewport = window.visualViewport;
+        const inset = viewport && viewport.scale === 1
+            ? Math.max(0, document.documentElement.clientHeight - viewport.height - viewport.offsetTop) : 0;
+        document.documentElement.style.setProperty('--classroom-viewport-bottom', `${Math.round(inset)}px`);
+    }
+    function keepClassroomTabsBeforeBanner() {
+        document.querySelectorAll('.classroom-detail-shell > .classroom-detail-tabs').forEach(tabs => {
+            const shell = tabs.parentElement;
+            const banner = shell.querySelector(':scope > [id$="classroom-banner-wrapper"]');
+            if (banner && (banner.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+                shell.insertBefore(tabs, banner);
+            }
+        });
+    }
+    function initializeClassroomTabOrder() {
+        keepClassroomTabsBeforeBanner();
+        new MutationObserver(keepClassroomTabsBeforeBanner).observe(document.body, { childList: true, subtree: true });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeClassroomTabOrder, { once: true });
+    else initializeClassroomTabOrder();
+    window.visualViewport?.addEventListener('resize', updateClassroomViewportBottom);
+    window.visualViewport?.addEventListener('scroll', updateClassroomViewportBottom);
+    window.addEventListener('resize', updateClassroomViewportBottom);
+    updateClassroomViewportBottom();
 })(typeof window !== "undefined" ? window : this);

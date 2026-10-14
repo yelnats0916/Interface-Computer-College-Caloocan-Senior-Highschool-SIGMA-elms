@@ -8713,6 +8713,7 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
         backAction = '',
         backTitle = 'Back',
         backText = '',
+        backIcon = 'fa-solid fa-chevron-left',
         hideBack = false,
         tabs = [],
         extraRightHtml = ''
@@ -8735,7 +8736,7 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
                 style="${tabStyle}"
                 class="${activeClass}">
                 ${tab.icon ? `<i class="${tab.icon} text-xs sm:text-[13px] ${tab.iconOnly ? '' : 'mr-2'}" style="color:inherit!important" aria-hidden="true"></i>` : ''}
-                ${tab.iconOnly ? '' : `<span class="text-xs sm:text-sm font-semibold">${tab.label}</span>`}
+                ${tab.iconOnly ? '' : `<span class="text-xs sm:text-sm font-semibold">${tab.id === 'grading-scale' ? 'Grading<span class="grading-scale-label-break"></span> Scale' : tab.label}</span>`}
             </button>
         `;
     });
@@ -8747,8 +8748,8 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
         : "canonical-back-btn flex items-center justify-center w-8 h-8 my-auto text-slate-700 hover:text-black hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors cursor-pointer select-none shrink-0";
 
     const backBtnInner = backText
-        ? `<i class="fa-solid fa-chevron-left text-[10.5px] sm:text-[11px] text-black"></i><span class="text-xs sm:text-sm font-semibold text-black font-['Inter'] leading-none">${backText}</span>`
-        : `<i class="fa-solid fa-chevron-left text-xs"></i>`;
+        ? `<i class="${backIcon} text-[10.5px] sm:text-[11px] text-black" aria-hidden="true"></i><span class="text-xs sm:text-sm font-semibold text-black font-['Inter'] leading-none">${backText}</span>`
+        : `<i class="${backIcon} text-xs" aria-hidden="true"></i>`;
 
     const backHtml = hideBack ? '' : `
                 <button type="button"
@@ -8757,7 +8758,7 @@ window.renderCanonicalTopHeaderTabBarHtml = function (options = {}) {
                     class="${backBtnClass}">
                     ${backBtnInner}
                 </button>
-                <div class="h-4 sm:h-5 w-px bg-slate-200 shrink-0 my-auto mx-1 sm:mx-1.5"></div>
+                ${options.hideBackDivider ? '' : '<div class="h-4 sm:h-5 w-px bg-slate-200 shrink-0 my-auto mx-1 sm:mx-1.5"></div>'}
     `;
 
     return `
@@ -9131,18 +9132,18 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                 <div id="${prefix}-class-panel-card" onclick="event.stopPropagation()" class="topic-progress-card topic-score-sticky ${isMobileScreen && window._mobileGradePanelMinimized ? 'is-minimized' : ''} ${isPanelCollapsed ? 'is-collapsed is-desktop-collapsed' : 'is-expanded'} flex flex-col font-['Inter'] w-full box-border relative z-[75]">
                     <!-- Grading Controls Body (Unified layout on Mobile and Desktop) -->
                     <div class="mobile-score-sheet-body flex flex-col gap-3 font-['Inter'] w-full pt-1 sm:pt-0">
-                        <!-- Grading Title Header (Chevron-only click for expand/collapse) -->
-                        <div class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 border-b border-black/10 select-none w-full" onclick="if (window.innerWidth <= 768) window.toggleGradingPanelCollapse(event)" onkeydown="if (event.target === this && window.innerWidth <= 768 && (event.key === 'Enter' || event.key === ' ')) window.toggleGradingPanelCollapse(event)" tabindex="${isMobileScreen ? '0' : '-1'}">
+                        <!-- Shared clickable grading header -->
+                        <div role="button" aria-label="Toggle grading panel" aria-expanded="${!isPanelCollapsed}" class="desktop-grading-header flex items-center justify-between pb-1.5 sm:pb-2 select-none w-full" onclick="window.toggleGradingPanelCollapse(event); this.setAttribute('aria-expanded', String(!this.closest('.topic-progress-card').classList.contains('is-collapsed')))" onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); this.click(); }" tabindex="0">
                             <span class="topic-progress-title home-dashboard-panel-title flex items-center gap-1.5 sm:gap-2 text-[11.5px] sm:text-xs font-bold text-[#15803d]">
                                 <i class="fa-solid fa-award text-[#15803d] text-[11px] sm:text-xs"></i>
                                 <span>Grade</span>
                             </span>
                             <span class="mobile-grade-header-actions ml-auto inline-flex items-center gap-1 shrink-0">
-                            <button type="button" onclick="event.stopPropagation(); window.toggleGradingPanelCollapse?.(event)"
+                            <span aria-hidden="true"
                                 class="desktop-grading-toggle-btn ml-auto w-6 h-6 flex items-center justify-center text-[#15803d] hover:text-[#166534] bg-transparent border-0 cursor-pointer shrink-0 transition-colors"
                                 title="${isPanelCollapsed ? 'Expand grading panel' : 'Collapse grading panel'}">
-                                <i id="desktop-grading-panel-chevron" class="fa-solid ${isMobileScreen ? (isPanelCollapsed ? 'fa-chevron-up' : 'fa-chevron-down') : (isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up')} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
-                            </button>
+                                <i id="desktop-grading-panel-chevron" class="fa-solid ${isPanelCollapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200 pointer-events-none"></i>
+                            </span>
                             </span>
                         </div>
 
@@ -9356,7 +9357,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
         if (typeof event.preventDefault === 'function') event.preventDefault();
     }
-    const card = document.querySelector('.topic-score-sticky, [id$="-class-panel-card"]');
+    const card = event?.target?.closest?.('.topic-score-sticky, [id$="-class-panel-card"]') || document.querySelector('.topic-score-sticky, [id$="-class-panel-card"]');
     if (!card) return;
     card.classList.remove('is-minimized');
     window._mobileGradePanelMinimized = false;
@@ -9370,6 +9371,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
 
     const isCurrentlyCollapsed = card.classList.contains('is-collapsed') || card.classList.contains('is-desktop-collapsed');
     const shouldCollapse = (typeof forceState === 'boolean') ? !forceState : !isCurrentlyCollapsed;
+    card.querySelector('.desktop-grading-header')?.setAttribute('aria-expanded', String(!shouldCollapse));
 
     if (shouldCollapse) {
         window.closeGradingStatusDropdown?.();
@@ -9381,7 +9383,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         }
         if (collapsibleSection) collapsibleSection.classList.add('hidden');
         if (collapsibleControls) collapsibleControls.classList.add('hidden');
-        if (chevron) chevron.className = `fa-solid ${window.innerWidth <= 768 ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10.5px] text-[#15803d] transition-transform duration-200`;
+        if (chevron) chevron.className = 'fa-solid fa-chevron-down text-[10.5px] text-[#15803d] transition-transform duration-200';
         if (toggleBtn) toggleBtn.title = 'Expand grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = true;
@@ -9396,7 +9398,7 @@ window.toggleGradingPanelCollapse = function (event, forceState) {
         }
         if (collapsibleSection) collapsibleSection.classList.remove('hidden');
         if (collapsibleControls) collapsibleControls.classList.remove('hidden');
-        if (chevron) chevron.className = `fa-solid ${window.innerWidth <= 768 ? 'fa-chevron-down' : 'fa-chevron-up'} text-[10.5px] text-[#15803d] transition-transform duration-200`;
+        if (chevron) chevron.className = 'fa-solid fa-chevron-up text-[10.5px] text-[#15803d] transition-transform duration-200';
         if (toggleBtn) toggleBtn.title = 'Collapse grading panel';
         if (backdrop) backdrop.classList.add('hidden');
         window._gradingPanelCollapsed = false;
@@ -9976,6 +9978,7 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
 
     const topicsBodyHtml = options.embedded === true
         ? `
+            ${!isTeacher ? '<div class="student-topic-toolbar room-topic-toolbar"></div>' : ''}
             <div class="${isTeacher ? 'teacher-topic-page-full flex flex-col w-full' : 'topic-detail-grid teacher-topic-page-grid'} room-topics-body !p-0">
                 ${teacherToolbarHtml}
                 ${topicListHtml}
@@ -10013,6 +10016,35 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
     }
 };
 
+window.renderSharedQuarterDropdown = function (quarters, current, action) {
+    const names = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter'];
+    const label = q => names[Number(String(q).replace(/^q/i, '')) - 1] || String(q);
+    const optionLabel = q => `<span class="sigma-quarter-full-label">${label(q)}</span><span class="sigma-quarter-mobile-label">Q${Number(String(q).replace(/^q/i,''))}</span>`;
+    return `<details class="sigma-quarter-dropdown"><summary>${optionLabel(current)}<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="sigma-quarter-dropdown-menu">${quarters.map(q => `<button type="button" aria-pressed="${String(q) === String(current)}" onclick="this.closest('details').open=false; ${action(q)}">${optionLabel(q)}</button>`).join('')}</div></details>`;
+};
+document.addEventListener('pointerdown', event => {
+    document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => {
+        if (!menu.contains(event.target)) menu.open = false;
+    });
+}, true);
+document.addEventListener('toggle', event => {
+    const dropdown = event.target;
+    if (!dropdown.matches?.('.student-performance-track .student-shared-quarter') || !dropdown.open) return;
+    const panel = dropdown.querySelector('.sigma-quarter-dropdown-menu');
+    const bounds = dropdown.getBoundingClientRect();
+    if (!panel) return;
+    panel.style.width = `${bounds.width}px`;
+    panel.style.left = `${bounds.left}px`;
+    panel.style.top = `${bounds.bottom + 4}px`;
+}, true);
+// Fixed carousel menus must not remain floating after their trigger scrolls away.
+document.addEventListener('scroll', event => {
+    if (event.target.closest?.('.sigma-quarter-dropdown-menu')) return;
+    document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => menu.open = false);
+}, true);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => menu.open = false);
+});
 window.renderRoomQuarterSwitchHtml = function (subjectId) {
     const quarterLabels = { q1: 'Q1', q2: 'Q2', q3: 'Q3', q4: 'Q4' };
     const quarterTitles = { q1: '1st Quarter', q2: '2nd Quarter', q3: '3rd Quarter', q4: '4th Quarter' };
@@ -10025,16 +10057,15 @@ window.renderRoomQuarterSwitchHtml = function (subjectId) {
     if (!quarters.includes(current)) current = quarters[0];
     const safeId = String(resolvedId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const shortLabel = quarterLabels[current] || String(current).toUpperCase();
+    return window.renderSharedQuarterDropdown(quarters, current, q => `window.switchSubjectTopicQuarter('${safeId}', '${q}')`);
     const items = quarters.map(q => {
         const active = q === current ? ' is-current' : '';
         const title = quarterTitles[q] || quarterLabels[q] || String(q).toUpperCase();
         return `<button type="button" class="room-quarter-menu__item${active}" onclick="window.switchSubjectTopicQuarter('${safeId}', '${q}')">${title}</button>`;
     }).join('');
     return `
-        <span class="room-quarter-switch__rule" aria-hidden="true"></span>
-        <button type="button" class="room-quarter-switch__btn" title="${quarterTitles[current] || shortLabel}" aria-haspopup="listbox" aria-expanded="false" onclick="window.toggleRoomQuarterMenu(event)">${shortLabel}<i class="fa-solid fa-chevron-down"></i></button>
+        <button type="button" class="room-quarter-switch__btn" title="Quarters: ${quarterTitles[current] || shortLabel}" aria-label="Select quarter, current: ${quarterTitles[current] || shortLabel}" aria-haspopup="listbox" aria-expanded="false" onclick="window.toggleRoomQuarterMenu(event)"><span>${quarterTitles[current] || shortLabel}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
         <div id="room-quarter-menu" class="room-quarter-menu hidden" role="listbox">${items}</div>
-        <span class="room-quarter-switch__rule" aria-hidden="true"></span>
     `;
 };
 
@@ -10115,10 +10146,19 @@ if (!window._roomQuarterMenuBound) {
 }
 
 window.syncRoomQuarterSwitch = function () {
-    const hosts = document.querySelectorAll('[data-room-quarter-switch]');
-    if (!hosts.length) return;
     const topics = document.getElementById('detail-section-topics');
     const topicsOpen = Boolean(topics && !topics.classList.contains('hidden'));
+    const toolbar = document.querySelector('#room-topics-mount .teacher-topic-toolbar, #room-topics-mount .student-topic-toolbar');
+    // Toolbar rerenders remove the quarter host that was moved into it.
+    if (topicsOpen && toolbar && !document.querySelector('[data-room-quarter-switch]')) {
+        const host = document.createElement('div');
+        host.className = 'room-quarter-switch';
+        host.setAttribute('data-room-quarter-switch','');
+        toolbar.append(host);
+    }
+    const hosts = document.querySelectorAll('[data-room-quarter-switch]');
+    if (!hosts.length) return;
+    let toolbarQuarterHost = null;
     hosts.forEach(host => {
         if (!topicsOpen) {
             host.innerHTML = '';
@@ -10126,6 +10166,15 @@ window.syncRoomQuarterSwitch = function () {
             return;
         }
         host.hidden = false;
+        if (toolbar) {
+            if (toolbarQuarterHost) {
+                host.innerHTML = '';
+                host.hidden = true;
+                return;
+            }
+            toolbarQuarterHost = host;
+            if (host.parentElement !== toolbar) toolbar.appendChild(host);
+        }
         host.innerHTML = window.renderRoomQuarterSwitchHtml();
     });
 };
@@ -10205,6 +10254,11 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
     } = options;
 
     const tabKeys = ['videos', 'handouts', 'assessments'];
+    const tabIcons = {
+        videos: 'fa-solid fa-video',
+        handouts: 'fa-solid fa-book-open',
+        assessments: 'fa-solid fa-clipboard-check'
+    };
     const labels = {
         videos: 'Videos',
         handouts: 'Lessons',
@@ -10222,6 +10276,7 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
         return {
             id: tab,
             label: labels[tab] || tab,
+            icon: tabIcons[tab],
             isActive: isCurrentActive,
             onClick: `window.closeGradingScale(); switchTopicTab('${tab}')`
         };
@@ -10231,8 +10286,8 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
         label: 'Grading Scale',
         title: 'Grading Scale',
         icon: 'fa-solid fa-table-list',
-        iconOnly: true,
-        alignRight: true,
+        iconOnly: false,
+        alignRight: false,
         isActive: false,
         onClick: 'window.openGradingScale(this)'
     });
@@ -10240,7 +10295,9 @@ window.renderTopicContentTabBarHtml = function (options = {}) {
     return window.renderCanonicalTopHeaderTabBarHtml({
         backAction,
         backTitle: 'Back to Topics',
-        backText: '',
+        backText: 'Topics',
+        backIcon: 'fa-solid fa-book',
+        hideBackDivider: true,
         tabs
     });
 };
@@ -17030,6 +17087,7 @@ if (typeof window !== 'undefined' && !window._sharedScoreStorageListenerBound) {
             e.key === 'sigma-assessment-scored-broadcast' ||
             e.key === 'sigma-manual-grade-closures-v1' ||
             e.key === 'sigma-gradebook-subject-weights' ||
+            e.key === 'sigma-admin-subjects' ||
             e.key === 'sigma-teacher-gradebook-weights' ||
             e.key === 'sigma-teacher-gradebook-scores-v2' ||
             e.key === 'sigma-teacher-gradebook-statuses-v2' ||
@@ -28150,9 +28208,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const attemptPaginationHtml = !isAnyQuiz && totalAttemptPages > 1 ? `
             <div class="submission-attempt-selector-row">
+                <div class="submission-attempt-select-wrap">
                 <select id="submission-attempt-select" aria-label="Submission attempt" class="submission-attempt-select" onchange="window.switchStudentSubmissionAttemptPage(this.value, '${subjectId}', '${tab}', ${activeIdx}, ${topicIdx})">
                     ${reversedAttempts.map((attempt, index) => `<option value="${index + 1}" ${index + 1 === currentAttemptPage ? 'selected' : ''}>Attempt ${attempt.attemptNumber || totalAttemptPages - index}${index === 0 ? ' - Latest' : ''}</option>`).join('')}
                 </select>
+                <i class="fa-solid fa-chevron-down submission-attempt-chevron" aria-hidden="true"></i>
+                </div>
             </div>
         ` : '';
 
@@ -33712,6 +33773,20 @@ window.getSubjectGradebookWeights = function (subjectName) {
         ? window.getGradebookSubjectWeightKeys(sStr)
         : [sStr, sStr.toLowerCase()];
 
+    // The admin subject record is authoritative over legacy gradebook overrides.
+    try {
+        const subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+        const normalize = value => String(value || '').trim().toLowerCase().replace(/^(card-|subj-|gen-)/, '');
+        const query = normalize(sStr);
+        const subject = Array.isArray(subjects) ? subjects.find(row => row &&
+            [row.id, row.code, row.name].some(value => value && normalize(value) === query)) : null;
+        if (subject?.weights) {
+            const weights = Object.fromEntries(['ww', 'pt', 'qa'].map(key => [key, Number(subject.weights[key])]));
+            if (['ww', 'pt', 'qa'].every(key => subject.weights[key] !== null && subject.weights[key] !== '' &&
+                Number.isFinite(weights[key]) && weights[key] >= 0 && weights[key] <= 100)) return weights;
+        }
+    } catch (e) {}
+
     // 1. Check primary subject weights store: 'sigma-gradebook-subject-weights'
     try {
         const rawMap = localStorage.getItem('sigma-gradebook-subject-weights');
@@ -34801,7 +34876,7 @@ window.openStudentQuizScoreModal = function (subjectId = '', tab = 'quiz', activ
                                 <div class="text-xs font-semibold text-black-fade">Score</div>
                                 <div class="text-xl sm:text-2xl font-black text-slate-900 mt-1">
                                     ${isPending
-            ? `<span class="text-slate-400">--</span> <span class="text-xs font-semibold text-black-fade">/ ${totalPoints}</span>`
+            ? `<span class="text-slate-400">-</span> <span class="text-xs font-semibold text-black-fade">/ ${totalPoints}</span>`
             : `${displayScore !== null ? displayScore : earnedPoints} <span class="text-xs font-semibold text-black-fade">/ ${totalPoints}</span>`}
                                 </div>
                             </div>
@@ -35149,8 +35224,8 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
             const safeVal = (typeof val === 'number' && !isNaN(val)) ? Math.max(0, Math.min(100, val)) : 0;
             const x = (i / (values.length - 1)) * graphWidth + leftOffset;
             const y = bottomY - (safeVal / 100 * h);
-            return { x, y };
-        });
+            return { x, y, value: val, index: i };
+        }).filter(point => !options.omitMissingPoints || Number.isFinite(point.value));
 
         let pathD = `M ${points[0].x},${points[0].y}`;
         for (let i = 0; i < points.length - 1; i++) {
@@ -35160,7 +35235,15 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
             pathD += ` C ${cp1x},${p0.y} ${cp1x},${p1.y} ${p1.x},${p1.y}`;
         }
 
-        const fillPath = `${pathD} L ${leftOffset + graphWidth},${bottomY} L ${leftOffset},${bottomY} Z`;
+        const fillPath = `${pathD} L ${points[points.length - 1].x},${bottomY} L ${points[0].x},${bottomY} Z`;
+        const quarterTints = options.scoreTint ? points.slice(1).map((point, index) => {
+            const previous = points[index];
+            const mid = previous.x + (point.x - previous.x) / 2;
+            const color = window.getAssessmentScoreBarColor(point.value, true);
+            const area = `M ${previous.x},${bottomY} L ${previous.x},${previous.y} C ${mid},${previous.y} ${mid},${point.y} ${point.x},${point.y} L ${point.x},${bottomY} Z`;
+            const gradientId = `quarter-tint-${id}-${index}`;
+            return `<defs><linearGradient id="${gradientId}" gradientUnits="userSpaceOnUse" x1="0" y1="${topY}" x2="0" y2="${bottomY}"><stop offset="0%" stop-color="${color}" stop-opacity="0.14" /><stop offset="100%" stop-color="${color}" stop-opacity="0" /></linearGradient></defs><path d="${area}" fill="url(#${gradientId})" stroke="none" />`;
+        }).join('') : '';
 
         chartSvgBody = `
             <defs>
@@ -35169,7 +35252,7 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
                     <stop offset="100%" style="stop-color:${strokeColor};stop-opacity:0" />
                 </linearGradient>
             </defs>
-            <path d="${fillPath}" fill="url(#grad-${id})" stroke="none" />
+            ${options.scoreTint ? quarterTints : `<path d="${fillPath}" fill="url(#grad-${id})" stroke="none" />`}
             <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
             ${points.slice(1).map((p) => `
                 <circle cx="${p.x}" cy="${p.y}" r="2" fill="white" stroke="${strokeColor}" stroke-width="1" vector-effect="non-scaling-stroke" />
@@ -35177,7 +35260,6 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
         `;
     } else {
         chartSvgBody = `
-            <line x1="${leftOffset}" y1="${bottomY}" x2="${leftOffset + graphWidth}" y2="${bottomY}" stroke="rgba(0,0,0,0.15)" stroke-width="1.2" stroke-dasharray="3 3" />
         `;
     }
 
@@ -35205,6 +35287,12 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
 };
 
 const subjectPerformanceOptions = new Map();
+const performanceQuarterLabel = q => window.innerWidth >= 768 ? `${['1st', '2nd', '3rd', '4th'][q - 1]} Quarter` : `Q${q}`;
+window.addEventListener('resize', () => {
+    document.querySelectorAll('.subject-performance-card select option').forEach(option => {
+        option.textContent = performanceQuarterLabel(Number(option.value));
+    });
+});
 window.openSubjectPerformanceGrades = function (button) {
     const options = subjectPerformanceOptions.get(button.closest('.subject-performance-card').dataset.performanceKey);
     if (options && typeof window.openStudentClassroomGradesModal === 'function') {
@@ -35212,6 +35300,22 @@ window.openSubjectPerformanceGrades = function (button) {
     }
 };
 window.selectSubjectPerformanceQuarter = function (select) {
+    const slider = select.closest('.student-performance-slider');
+    if (slider) {
+        const quarter = Number(select.value);
+        slider.dataset.selectedQuarter = String(quarter);
+        const user = window.getLoggedInStudentUser?.();
+        const userId = user?.uid || user?.id;
+        if (userId) {
+            try { localStorage.setItem(`sigma-student-performance-quarter:${userId}`, String(quarter)); } catch (_) {}
+        }
+        slider.querySelectorAll('.subject-performance-card').forEach(card => {
+            const options = subjectPerformanceOptions.get(card.dataset.performanceKey);
+            if (!options) return;
+            card.outerHTML = window.renderSharedSubjectPerformanceCardHtml({ ...options, selectedQuarter: quarter, detailsOpen: card.querySelector('details')?.open });
+        });
+        return;
+    }
     const card = select.closest('.subject-performance-card');
     const options = subjectPerformanceOptions.get(card.dataset.performanceKey);
     if (!options) return;
@@ -35232,11 +35336,15 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
     const validTerms = quarterValues.filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
     const hasData = validTerms.length > 0;
 
-    const chartValues = [0, ...(quarterValues.map(v => (typeof v === 'number' && !isNaN(v) ? v : 0)))];
     const safeId = (id || title).toLowerCase().replace(/[^a-z0-9]/g, '-');
     subjectPerformanceOptions.set(safeId, options);
     const configuredQuarters = options.activeQuarters || (previewDetails ? ['q1', 'q2'] : ['q1', 'q2', 'q3', 'q4']);
     const availableQuarters = [...new Set(configuredQuarters.map(q => Number(String(q).replace(/^q/i, ''))))].filter(q => [1, 2, 3, 4].includes(q)).sort();
+    const chartQuarters = options.fitConfiguredQuarters ? availableQuarters : [1,2,3,4];
+    const chartValues = [0, ...chartQuarters.map(q => {
+        const value = quarterValues[q - 1];
+        return Number.isFinite(value) ? value : (options.omitMissingPoints ? null : 0);
+    })];
     const requestedQuarter = options.selectedQuarter || (previewDetails ? 2 : 1);
     const selectedQuarter = availableQuarters.includes(requestedQuarter) ? requestedQuarter : availableQuarters[0];
     const selectedScore = quarterValues[selectedQuarter - 1];
@@ -35253,13 +35361,16 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
         ? [quarterDetail.ww, quarterDetail.pt, quarterDetail.qa] : null;
     const svgChart = window.renderSharedSvgSplineChartHtml({
         values: chartValues,
+        labels: chartQuarters.map(q => `Q${q}`),
+        omitMissingPoints: options.omitMissingPoints,
+        scoreTint: options.scoreTint,
         id: safeId,
         strokeColor: strokeColor
     });
 
     const cardOverallDisplay = (typeof selectedScore === 'number' && !isNaN(selectedScore))
         ? `<div class="text-xl font-bold text-slate-900 font-['Inter'] flex-shrink-0 leading-none">${Math.round(selectedScore)}</div>`
-        : `<div class="text-xl font-medium font-['Inter'] flex-shrink-0 leading-none" style="color: rgba(0, 0, 0, 0.45);">--</div>`;
+        : `<div class="text-xl font-medium font-['Inter'] flex-shrink-0 leading-none" style="color: rgba(0, 0, 0, 0.45);">-</div>`;
 
     const escTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(title) : title;
     const escSub = (typeof window.escapeHtml === 'function') ? window.escapeHtml(subtitle) : subtitle;
@@ -35270,10 +35381,11 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
                 <div class="flex-grow pr-1 min-w-0">
                     ${options.openGrades ? `<button type="button" class="flex items-center gap-2 text-left text-sm font-bold text-black hover:text-yellow-400 transition-colors cursor-pointer bg-transparent border-0 p-0" style="cursor:pointer;" title="View grades" onclick="window.openSubjectPerformanceGrades(this)"><i class="fa-solid fa-chart-column shrink-0" aria-hidden="true"></i><span>${escTitle}</span></button>` : `<h4 class="text-sm font-bold text-slate-900 leading-snug font-['Inter'] truncate">${escTitle}</h4>`}
                     <p class="text-[11px] font-medium text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45);">${escSub}</p>
+                    ${options.teacherName ? `<div class="performance-subject-teacher"><span class="performance-subject-teacher-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></span><span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></div>` : ''}
                 </div>
                 <div class="flex items-start gap-2 flex-shrink-0">
                     <select aria-label="Quarter for ${escTitle}" class="bg-transparent text-black text-xs border border-slate-200 rounded px-2 py-1 cursor-pointer" style="cursor:pointer !important;" onchange="window.selectSubjectPerformanceQuarter(this)">
-                        ${availableQuarters.map(q => `<option value="${q}" ${q === selectedQuarter ? 'selected' : ''}>Q${q}</option>`).join('')}
+                        ${availableQuarters.map(q => `<option value="${q}" ${q === selectedQuarter ? 'selected' : ''}>${performanceQuarterLabel(q)}</option>`).join('')}
                     </select>
                     <div class="text-right" style="min-width:48px;">
                     ${cardOverallDisplay}
@@ -35284,7 +35396,7 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
             <div class="grade-mini-chart font-['Inter'] h-auto block mt-2">
                 <div class="flex items-end gap-3 mt-auto font-['Inter'] w-full">
                     <div class="flex-grow">
-                        ${svgChart}
+                        ${options.hideChart ? '' : svgChart}
                     </div>
                     ${changeDisplay}
                 </div>
@@ -35299,6 +35411,41 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
     `;
 };
 
+document.addEventListener('click', event => {
+    const navigation = event.target.closest('[id^="nav-"]');
+    if (!navigation || !navigation.closest('#sidebar')) return;
+    document.getElementById('record-nav-title')?.remove();
+    const pageHeader=document.getElementById('nav-context-text')||document.getElementById('header-brand-title');
+    if(pageHeader?.classList.contains('advisory-header-title')){
+        pageHeader.classList.remove('advisory-header-title');
+        pageHeader.replaceChildren();
+    }
+    document.querySelectorAll('.sigma-quarter-dropdown[open]').forEach(menu => menu.open=false);
+    document.querySelectorAll('.show-final-grade').forEach(table=>table.classList.remove('show-final-grade'));
+    if (window.sigmaGradesState && !navigation.id.includes('grades')) {
+        Object.assign(window.sigmaGradesState,{teacherAnalyticsDetail:false,teacherAdvisoryView:false,selectedSubjectSection:null,selectedSubject:'',selectedSection:'',currentView:'overview',assessmentPage:0});
+        window.saveSigmaGradesState?.();
+    }
+    if (navigation.id.includes('grades') && window.sigmaGradesState?.isTeacherPage) {
+        window.sigmaGradesState.teacherAnalyticsDetail=false;
+        window.sigmaGradesState.teacherAdvisoryView=false;
+        window.saveSigmaGradesState?.();
+    }
+    window.scrollTo(0,0);
+}, true);
+
+window.getPublishedSubjectGrade = function(student,subject,section,quarter){
+    try{
+        const normalize=value=>String(value||'').trim().toLowerCase();
+        const year=window.getActiveSchoolYearRecord?.()||{};
+        const schoolYear=year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified';
+        const key=JSON.stringify([schoolYear,normalize(section),normalize(subject),Number(quarter)]);
+        const record=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}')[key];
+        const ids=[student?.id,student?.uid,student?.lrn,student?.studentNumber].filter(Boolean).map(String);
+        const row=record?.rows?.find(row=>ids.includes(String(row.id)));
+        return row&&Number.isFinite(row.grade)?row.grade:null;
+    }catch(_){return null;}
+};
 window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
     const {
         gwa = null,
@@ -35309,10 +35456,10 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
     } = options;
 
     const hasGrades = (typeof gwa === 'number' && !isNaN(gwa) && gwa > 0);
-    const displayGwa = hasGrades ? (role === 'student' ? Math.round(gwa) : (Math.round(gwa * 10) / 10).toFixed(1)) : '--';
+    const displayGwa = hasGrades ? (role === 'student' ? Math.round(gwa) : (Math.round(gwa * 10) / 10).toFixed(1)) : '-';
 
     return `
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 font-['Inter']">
+        <div class="shared-grades-top-panels grid grid-cols-1 lg:grid-cols-4 gap-6 font-['Inter']">
             <div class="lg:col-span-1 gwa-card rounded-[32px] p-8 flex flex-col justify-between shadow-lg font-['Inter']">
                 <div class="font-['Inter']">
                     <p class="text-xs font-semibold text-white/90 font-['Inter']">${title}</p>
@@ -35329,7 +35476,7 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
                 </div>
 
                 <div class="bg-slate-50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-100 font-['Inter']">
-                    <p class="text-sm font-medium leading-relaxed font-['Inter'] text-slate-700">
+                    <p data-ai-insight-body data-insight-empty="${!hasGrades}" class="text-sm font-medium leading-relaxed font-['Inter'] text-slate-700">
                         ${aiMessage}
                     </p>
                 </div>
@@ -35913,8 +36060,9 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
     if (document.querySelector('script[data-sigma-date-time-inputs]')) return;
     const script = document.createElement('script');
     script.dataset.sigmaDateTimeInputs = 'true';
-    script.src = new URL('date-time-inputs.js?v=20261011releaseState371', document.currentScript.src).href;
-    script.async = false;
+    const baseSrc = document.currentScript?.src || (location.pathname.includes('/php/') ? '../js/shared-components.js' : 'js/shared-components.js');
+    script.src = new URL('date-time-inputs.js?v=20261011releaseState371', baseSrc).href;
+    script.defer = true;
     document.head.append(script);
 })();
 

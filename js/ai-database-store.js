@@ -152,7 +152,15 @@
             if (states.has(storageKey)) return 'ready';
             return failures.has(storageKey) ? 'error' : 'loading';
         },
-        getState: (kind, id) => states.get(key(kind, id))?.state || { cards: [] },
+        getState(kind, id) {
+            const memory = states.get(key(kind, id))?.state;
+            if (memory && Array.isArray(memory.cards) && memory.cards.length > 0) return memory;
+            try {
+                const cached = JSON.parse(localStorage.getItem(key(kind, id)) || "null");
+                if (cached && Array.isArray(cached.cards) && cached.cards.length > 0) return cached;
+            } catch {}
+            return memory || { cards: [] };
+        },
         getLogs: () => logReady ? logs.filter(log => !log.isDeleted) : [],
         async record(log) {
             await request('ai_records', { action: 'save_log', log });

@@ -2,9 +2,13 @@
     "liveServer.settings.port": 5519,
     "liveServer.settings.ignoreFiles": [
         "**/.vscode/**",
+        "**/.git/**",
+        "**/scratch/**",
         "**/*.scss",
         "**/*.sass",
         "**/*.ts",
+        "**/*.log",
+        "**/*.tmp",
         "**/config/services.php"
     ]
 }

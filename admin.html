@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interface Computer College - Admin</title>
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <!-- FONTS: Google Outfit + Inter + Font Awesome Icons -->
     <link
@@ -22,8 +24,14 @@
     <link rel="stylesheet" href="css/record-lifecycle.css?v=20261011recoveryDropdown323">
     <link rel="stylesheet" href="css/log-pagination.css?v=20261011circlePaging317">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261013commentHeading910">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261010chevronHover232">
+<link rel="stylesheet" href="css/shared-components.css?v=20261014adminSubject1245">
+    <link rel="stylesheet" href="css/welcome-panel.css">
+    <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
+    <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
+    <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
+    <link rel="stylesheet" href="css/notifications.css?v=20261012notificationExpand567">
+    <link rel="stylesheet" href="css/admin-insight-report.css?v=20261011insightReport347">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261014hideTopicsMore1142">
     <link rel="stylesheet" href="css/settings-view.css?v=20261010defaultKeyModel296">
     <link rel="stylesheet" href="css/service-vault-security.css?v=20261011secureServices300">
     <script src="js/service-vault-security.js?v=20261011keyInputs301"></script>
@@ -31,9 +39,9 @@
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261013advisoryText938">
-<link rel="stylesheet" href="css/shared-grade-record.css?v=20261013mobileDivider947">
-    <link rel="stylesheet" href="css/mobile.css?v=20261012descriptionBlack500">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261014adminAdvisory1246">
+<link rel="stylesheet" href="css/shared-grade-record.css?v=20261014hideUnchangedUpdate1116">
+    <link rel="stylesheet" href="css/mobile.css?v=20261014quarterHalo1181">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -244,7 +252,7 @@
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
-    <script src="js/page-skeleton.js?v=20261013homeSkeleton776"></script>
+    <script src="js/page-skeleton.js?v=20261014instantReveal1100"></script>
     <!-- Blocked Access for Mobile/Tablet -->
     <div id="mobile-blocked-screen" role="region" aria-label="Desktop access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
         <div class="flex flex-col items-center w-full max-w-xs text-center">
@@ -610,12 +618,16 @@
                             <i class="fa-solid fa-book-open"></i>
                             <span>Subjects</span>
                         </a>
-                        <a href="#" id="nav-school-grades" class="nav-sublink no-underline">
-                            <i class="fa-solid fa-chart-bar"></i>
-                            <span>Grades</span>
-                        </a>
                     </div>
                 </div>
+
+                <a href="#nav-school-grades" id="nav-school-grades" class="nav-link no-underline" title="Grades">
+                    <div class="sidebar-rail-icon">
+                        <i class="fa-solid fa-chart-bar text-xl"></i>
+                        <span class="rail-label">Grades</span>
+                    </div>
+                    <span class="full-label text-[13px] whitespace-nowrap overflow-hidden font-medium">Grades</span>
+                </a>
 
                 <!-- 4. Reports -->
                 <div class="nav-group" data-sidebar-group="reports">
@@ -805,6 +817,7 @@
                                         <button type="button" onclick="window.switchAdminClassDetailTab('topics')" id="tab-btn-topics"
                                             class="teacher-section-tab"><i class="fa-solid fa-book"></i><span>Topics</span></button>
                                         <div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>
+                                        <button type="button" onclick="window.openAdminClassroomGradebook()" class="teacher-section-tab" aria-label="Gradebook"><i class="fa-solid fa-table"></i><span>Gradebook</span></button>
                                     </div>
                                     <div class="flex items-center gap-1.5 sm:gap-2 h-full">
                                         <div class="relative">
@@ -907,7 +920,7 @@
                     <div class="dashboard-grid">
                         <!-- 1. Left Section (3/12) - Sticky Metrics Rail -->
                         <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
-                            <div id="dashboard-metrics-container"
+                            <div id="dashboard-metrics-container" data-sigma-loading="exclude"
                                 class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
                                 <!-- Dynamic live templates rendered via pocket-card.js -->
                             </div>
@@ -6464,12 +6477,12 @@
 
     <!-- SCRIPTS -->
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261013commentTime918"></script>
-<script src="js/offline-assessments.js?v=20261013pickerTypography859"></script>
+<script src="js/shared-components.js?v=20261014headerReset1244"></script>
+<script src="js/offline-assessments.js?v=20261014manualMenuPolish1118"></script>
 <script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
     <script src="js/topbar.js?v=20261012silentPolling638"></script>
     <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
-    <script src="js/sidebar.js?v=20261003viewportreset1"></script>
+    <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
 <script src="js/notifications.js?v=20261012notificationReset568"></script>
 <script src="js/log-pagination.js?v=20261011recordRecovery320"></script>
 <script src="js/notification-logs.js?v=20261011lazyRows314"></script>
@@ -6488,20 +6501,20 @@
     <script src="js/resources-view.js?v=20260923empty1"></script>
     <link rel="stylesheet" href="css/excel-export.css?v=20261013exportOptions820">
     <script src="js/excel-export.js?v=20261013summaryNoLegend866"></script>
-    <script src="js/sigma-analytics.js?v=20261013submitText900"></script>
-    <script src="js/shared-grade-record.js?v=20261013gradeCopy946"></script>
+    <script src="js/sigma-analytics.js?v=20261014cumulativeAverage1252"></script>
+    <script src="js/shared-grade-record.js?v=20261014hideUnchangedUpdate1116"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261013rubricClick803"></script>
+    <script src="js/subject-editor.js?v=20261014weightSync1072"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/classroom-room.js?v=20261013attendanceHeading861"></script>
+    <script src="js/classroom-room.js?v=20261014restoreTabs1087"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/curriculum-release.js?v=20261013assessmentOrder816"></script>
+    <script src="js/curriculum-release.js?v=20261014sharedQuarters1037"></script>
     <script src="js/recaptcha-client.js?v=20261009securityConnection129"></script>
     <script src="js/system-settings-history.js?v=20261010settingsBack157"></script>
     <script src="js/ai-routing-settings.js?v=20261011autoSave302"></script>
-    <script src="js/admin.js?v=20261013navigation774"></script>
-    <script src="js/ai-database-store.js?v=20261013panelLoading809"></script>
+    <script src="js/admin.js?v=20261014adminSelection1105"></script>
+    <script src="js/ai-database-store.js?v=20261014insightsFix1100"></script>
     <script src="js/admin-insight-report.js?v=20261011insightReport347"></script>
     <script src="js/record-lifecycle.js?v=20261011recoveryDropdown323"></script>
     <script src="js/ai-log-store.js?v=20261011database303"></script>

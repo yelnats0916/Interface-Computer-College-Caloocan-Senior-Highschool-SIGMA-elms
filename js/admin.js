@@ -4312,7 +4312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'school-mgmt': {
             button: schoolMgmtBtn, submenu: schoolMgmtSubmenu, chevron: schoolMgmtChevron,
             title: 'School Management',
-            childIds: ['nav-school-profile', 'nav-school-year', 'nav-school-sections', 'nav-school-subjects', 'nav-school-grades']
+            childIds: ['nav-school-profile', 'nav-school-year', 'nav-school-sections', 'nav-school-subjects']
         },
         'reports': {
             button: reportsBtn, submenu: reportsSubmenu, chevron: reportsChevron,
@@ -4662,7 +4662,7 @@ document.addEventListener('DOMContentLoaded', () => {
             navId = 'nav-dashboard';
         }
 
-        updateNavState(navId);
+        updateNavState(sectionId === 'school-grades-view' ? 'nav-school-grades' : navId);
 
         document.documentElement.classList.remove('sigma-hash-navigating');
         document.getElementById('sigma-early-hash-style')?.remove();
@@ -4823,6 +4823,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (sectionId === 'school-grades-view') {
+            window.setPortalHeader?.('Grades');
             const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
             if (topbarLabel) topbarLabel.textContent = 'Grades';
             const targetTab = gradesNav.targetTab || 'gradebook';
@@ -12367,17 +12368,32 @@ window.closeAdminClassroomGradesModal = function () {
 window.openFullAdminGradebookFromModal = function (encodedSec, encodedSubj) {
     const sec = encodedSec ? decodeURIComponent(encodedSec) : '';
     const subj = encodedSubj ? decodeURIComponent(encodedSubj) : '';
+    const users = window.getAdminTeacherList?.() || JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
+    const teacher = users.find(user => (window.getTeacherAssignedSubjectsAndSections?.(user) || []).some(item =>
+        String(item.sectionName).toLowerCase() === sec.toLowerCase() && String(item.subject).toLowerCase() === subj.toLowerCase()));
     if (window.sigmaGradesState) {
         window.sigmaGradesState.activeTab = 'gradebook';
         if (sec) window.sigmaGradesState.selectedSection = sec;
         if (subj) window.sigmaGradesState.selectedSubject = subj;
+        window.sigmaGradesState.selectedTeacher = teacher || null;
+        window.sigmaGradesState.selectedSubjectSection = teacher
+            ? window.getTeacherAssignedSubjectsAndSections(teacher).find(item => String(item.sectionName).toLowerCase() === sec.toLowerCase() && String(item.subject).toLowerCase() === subj.toLowerCase()) : null;
+        window.saveSigmaGradesState?.();
     }
+    window._pendingAdminClassroomGrades = { section: sec, subject: subj };
     if (typeof window.switchTab === 'function') {
         window.switchTab('nav-school-grades');
     }
 };
 
-window.openAdminClassroomGradebook = window.openAdminClassroomGradesModal;
+window.openAdminClassroomGradebook = function () {
+    window.openFullAdminGradebookFromModal(encodeURIComponent(window.currentClassroomSectionName || window.currentAdminClassroomSection?.name || ''), encodeURIComponent(window.currentClassroomSubject || window.currentAdminClassroomSection?.subject || ''));
+};
+window.openAdminGradebookClassroomTab = function (tab) {
+    const selected = window.sigmaGradesState?.selectedSubjectSection;
+    if (!selected) return;
+    window.location.hash = `classroom:${encodeURIComponent(selected.sectionName)}:${encodeURIComponent(selected.subject)}:${tab}`;
+};
 window.openClassroomGradebook = window.openAdminClassroomGradesModal;
 
 function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
@@ -20590,7 +20606,7 @@ window.applyCurrentAdminPermissions = function () {
     toggleElement('nav-grades', canSchoolGrades);
 
     // Parent group for School Management
-    const hasAnySchoolSublink = canSchoolProfile || canSyAuthority || canSchoolSections || canSubjectAuthority || canSchoolGrades;
+    const hasAnySchoolSublink = canSchoolProfile || canSyAuthority || canSchoolSections || canSubjectAuthority;
     const canSchoolMgmt = isMaster || (canSchoolMain && hasAnySchoolSublink);
     const schoolMgmtBtn = document.getElementById('nav-school-mgmt');
     const schoolMgmtGroup = schoolMgmtBtn ? (schoolMgmtBtn.closest('.nav-group') || schoolMgmtBtn) : null;

@@ -23,7 +23,8 @@
         return displayName(user) || section.adviserName || (typeof adviser === 'string' && !identity.slice(0, -1).includes(normalize(adviser)) ? adviser : '') || 'Not assigned';
     };
 
-    window.openSharedGradeRecord = function () {
+    window.openSharedGradeRecord = function (options = {}) {
+        const review = options.mode === 'review';
         const state = window.sigmaGradesState;
         const host = document.getElementById('admin-gradebook-workspace-content');
         if (!state?.selectedSubjectSection || !host) return;
@@ -58,26 +59,46 @@
         try { comments = JSON.parse(localStorage.getItem(commentsKey) || '[]'); if (!Array.isArray(comments)) comments = []; } catch (_) {}
         try { personalNote = localStorage.getItem(notesKey) || ''; } catch (_) {}
         const avatar = window.renderUserAvatarHtml?.(actor, 'sm') || '<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user" aria-hidden="true"></i></div>';
+        const adviserDisplayName = adviserName(selected);
+        const adviserProfile = ['sigma-admin-users', 'sigma-users-list'].flatMap(storedList).find(user =>
+            String(user.fullName || user.name || [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ')).trim().toLowerCase() === adviserDisplayName.trim().toLowerCase());
+        const adviserAvatar = window.renderUserAvatarHtml?.(adviserProfile || {}, 'sm') || '<span class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user" aria-hidden="true"></i></span>';
         const key = JSON.stringify([teacher.id || teacher.uid || teacher.email || teacher.fullName, year, snapshot.subject, snapshot.section]);
         let saved;
         try { saved = read()[key] || { quarters: {}, note: '' }; }
         catch (_) { saved = { quarters: {}, note: '' }; }
         const q = Number(snapshot.quarter);
-        const quarterCount = Math.max(q, document.querySelectorAll('#admin-grades-quarters-wrapper button').length || 2);
+        const configuredQuarters = window.getSubjectAvailableQuarters?.(snapshot.subject) || selected.quarters;
+        const quarters = Array.isArray(configuredQuarters) && configuredQuarters.length
+            ? [...new Set(configuredQuarters.map(Number).filter(value => value >= 1 && value <= 4))].sort((a, b) => a - b)
+            : Array.from({ length: Math.max(q, document.querySelectorAll('#admin-grades-quarters-wrapper button').length || 2) }, (_, index) => index + 1);
+        const quarterCount = quarters.length;
         const rows = snapshot.rows.map(row => ({ id: String(row.student.id || row.student.uid || row.student.lrn || ''), name: row.student.name || row.student.fullName || 'Student', grade: row.quarterly }));
         const baseRoute = location.pathname.endsWith('/admin.html') ? '#school-grades:gradebook' : '#grades:gradebook';
-        try { sessionStorage.setItem(routeContextKey, JSON.stringify({ selectedSubjectSection: selected, selectedTeacher: state.selectedTeacher, activeQuarter: q })); } catch (_) {}
-        if (!isRecordRoute()) history.pushState({ ...history.state, type: 'tab', subTab: 'gradebook' }, '', `${baseRoute}:share-record`);
+        try { sessionStorage.setItem(routeContextKey, JSON.stringify({ selectedSubjectSection: selected, selectedTeacher: state.selectedTeacher, activeQuarter: q, recordMode: review ? 'review' : 'share' })); } catch (_) {}
+        if (!isRecordRoute()) history.pushState({ ...history.state, type: 'tab', subTab: 'gradebook', recordMode:review?'review':'share' }, '', `${baseRoute}:share-record`);
         const isDraftRow = row => {
             const previousRow = saved.quarters[q]?.find(item => item.id === row.id);
-            return !previousRow || (previousRow.grade ?? null) !== (row.grade ?? null);
+            return (previousRow?.grade ?? null) !== (row.grade ?? null);
         };
-        let dirty = rows.some(isDraftRow) || (saved.quarters[q] || []).some(item => !rows.some(row => row.id === item.id));
+        let dirty = rows.some(isDraftRow) || (saved.quarters[q] || []).some(item => item.grade != null && !rows.some(row => row.id === item.id));
         const navbar = document.getElementById('admin-grades-shared-navbar');
         const pageHeader = document.getElementById('admin-grades-tab-gradebook')?.closest('.sigma-header-tab-group')?.parentElement;
         if (navbar) navbar.style.display = 'none';
         if (pageHeader) pageHeader.style.display = 'none';
         const close = () => {
+            if (review) {
+                document.getElementById('record-nav-title')?.remove();
+                if (navbar) navbar.style.removeProperty('display');
+                if (pageHeader) pageHeader.style.removeProperty('display');
+                sessionStorage.removeItem(routeContextKey);
+                window.sigmaGradesState.recordMode = 'share';
+                window.sigmaGradesState.teacherAdvisoryView = true;
+                window.switchAdminGradesTab('analytics', true);
+                history.replaceState({...history.state,type:'tab',subTab:'analytics',teacherGradesView:'advisory',recordMode:null},'','#grades:analytics');
+                window.openTeacherAdvisoryClass?.();
+                return;
+            }
             history.replaceState({ ...history.state, type: 'tab', subTab: 'gradebook' }, '', baseRoute);
             if (navbar) navbar.style.removeProperty('display');
             if (pageHeader) pageHeader.style.removeProperty('display');
@@ -88,21 +109,29 @@
             if (navTitle && !document.getElementById('record-nav-title')) {
                 const title = document.createElement('div');
                 title.id = 'record-nav-title';
-                title.innerHTML = '<span>Grades</span><strong>Share Grades</strong>';
+                title.innerHTML = `<span>${review ? 'Advisory Class' : 'Grades'}</span><strong>${review ? 'Review Grades' : 'Share Grades'}</strong>`;
                 navTitle.after(title);
             }
+            const recordTitle = document.querySelector('#record-nav-title strong');
+            if (recordTitle) recordTitle.textContent = review ? 'Review Grades' : 'Share Grades';
+            const recordParent = document.querySelector('#record-nav-title > span');
+            if (recordParent) recordParent.textContent = review ? 'Advisory Class' : 'Grades';
             const missing = rows.filter(row => row.grade == null).length;
             host.innerHTML = `<section class="shared-grade-record">
-                <div class="record-actions"><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md record-back">Back</button><div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md record-share" ${dirty || !rows.length ? 'disabled' : ''} title="${dirty ? 'Update all draft grades before sharing' : 'Advisory Class is not connected yet'}">Share</button><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md record-update" ${dirty ? '' : 'disabled'}>Update</button></div></div>
-                <header class="record-heading"><div class="record-context-row"><h2>${escape(snapshot.subject)}</h2><span>${escape(gradeLabel)} - ${escape(snapshot.section)}</span><span>S.Y. ${escape(year)}</span></div><p class="record-adviser"><strong>Adviser:</strong> ${escape(adviserName(selected))}</p></header>
+                <div class="record-actions"><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md record-back">Back</button><div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md record-share" ${dirty || !rows.length ? 'disabled' : ''} title="${dirty ? 'Update all draft grades before sharing' : 'Advisory Class is not connected yet'}">Share</button><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md record-update" ${dirty ? '' : 'hidden disabled'}>Update</button></div></div>
+                <header class="record-heading"><div class="record-context-row"><h2>${escape(snapshot.subject)}</h2><span>${escape(gradeLabel)} - ${escape(snapshot.section)}</span><span>S.Y. ${escape(year)}</span></div><div class="record-adviser"><strong>Adviser:</strong><div class="record-adviser-avatar" aria-hidden="true">${adviserAvatar}</div><span class="record-adviser-name">${escape(adviserDisplayName)}</span></div></header>
                 <div class="record-layout"><aside class="record-sidebar"><section class="record-comments record-notes"><div class="record-comments-heading"><i class="fa-solid fa-thumbtack record-notes-pin" aria-hidden="true"></i><h2>My Notes</h2></div><textarea id="record-note" aria-label="My Notes" maxlength="1000" placeholder="Write a note...">${escape(personalNote)}</textarea><p class="record-note-error" role="alert"></p></section><section class="record-comments shared-private-comments"><div class="shared-private-comments-heading record-comments-heading"><i class="fa-regular fa-comments" aria-hidden="true"></i><h2>Private Comments</h2></div><div class="sigma-comment-composer-row record-comment-row"><div class="sigma-comment-composer-avatar">${avatar}</div><div class="sigma-comment-input-pill record-comment-pill"><textarea class="sigma-comment-textarea" rows="1" maxlength="1000" aria-label="Private comment" placeholder="Add a comment..."></textarea><button type="button" class="sigma-comment-send-btn" disabled title="Adviser messaging is not connected yet" aria-label="Send private comment"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button></div></div></section></aside>
                 <main class="record-main"><div class="record-status" role="status"><span class="${dirty ? 'record-draft-label' : 'record-saved-label'}">${quarterName(q)} ${dirty ? 'Draft' : 'Updated'}</span><span>${missing ? `${missing} missing grade${missing === 1 ? '' : 's'}` : `${rows.length} of ${rows.length} grades available`}</span></div>
-                <div class="record-table-scroll"><table><thead><tr><th>No.</th><th>Name</th><th>Student ID</th>${Array.from({ length: quarterCount }, (_, i) => `<th>Q${i + 1}</th>`).join('')}<th>${quarterCount === 2 ? 'Semester Grade' : 'Final Grade'}</th></tr></thead><tbody>${rows.map((row, index) => {
-                    const grades = Array.from({ length: quarterCount }, (_, i) => i + 1 === q ? row.grade : saved.quarters[i + 1]?.find(item => item.id === row.id)?.grade);
+                <div class="record-table-scroll"><table data-quarter-count="${quarterCount}"><thead><tr><th>No.</th><th>Name</th><th>Student ID</th>${quarters.map(quarter => `<th><span class="record-quarter-full">${quarterName(quarter)}</span><span class="record-quarter-short">Q${quarter}</span></th>`).join('')}<th>${quarterCount === 2 ? 'Semester Grade' : 'Final Grade'}</th></tr></thead><tbody>${rows.map((row, index) => {
+                    const grades = quarters.map(quarter => quarter === q ? row.grade : saved.quarters[quarter]?.find(item => item.id === row.id)?.grade);
                     const complete = grades.every(grade => typeof grade === 'number' && Number.isFinite(grade));
-                    return `<tr><td>${index + 1}</td><td>${escape(row.name)}</td><td>${escape(row.id)}</td>${grades.map((grade, i) => `<td class="${i + 1 === q && isDraftRow(row) ? 'record-draft-cell' : ''}">${grade == null ? '<span class="record-blank gradebook-dash">-</span>' : escape(grade)}</td>`).join('')}<td>${complete ? Math.round(grades.reduce((a, b) => a + b, 0) / quarterCount) : '<span class="record-blank gradebook-dash">-</span>'}</td></tr>`;
+                    return `<tr><td>${index + 1}</td><td>${escape(row.name)}</td><td>${escape(row.id)}</td>${grades.map((grade, i) => `<td class="${quarters[i] === q && isDraftRow(row) ? 'record-draft-cell' : ''}">${grade == null ? '<span class="record-blank gradebook-dash">-</span>' : escape(grade)}</td>`).join('')}<td>${complete ? Math.round(grades.reduce((a, b) => a + b, 0) / quarterCount) : '<span class="record-blank gradebook-dash">-</span>'}</td></tr>`;
                 }).join('') || `<tr><td colspan="${quarterCount + 4}">No students in this section.</td></tr>`}</tbody></table></div><p class="record-error" role="alert"></p></main></div></section>`;
             host.querySelector('.record-table-scroll').after(host.querySelector('.record-status'));
+            host.querySelectorAll('.record-quarter-full').forEach(label => {
+                const ordinal = label.textContent.split(' ')[0];
+                label.replaceChildren(document.createTextNode(ordinal), document.createElement('br'), document.createTextNode('Quarter'));
+            });
             host.querySelectorAll('.record-main tbody tr').forEach((tr, index) => {
                 const student = snapshot.rows[index]?.student;
                 if (!student) return;
@@ -126,9 +155,26 @@
             host.querySelector('.record-main').append(host.querySelector('.record-actions'));
             host.querySelector('.record-back').onclick = close;
             host.querySelector('.record-share').onclick = () => {
+                if(review){
+                    if(!isSectionAdviser||!rows.length||rows.some(row=>!Number.isFinite(row.grade)))return;
+                    try{
+                        const all=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}');
+                        const publishedKey=JSON.stringify([year,normalizeIdentity(snapshot.section),normalizeIdentity(snapshot.subject),q]);
+                        all[publishedKey]={rows:rows.map(row=>({...row})),publishedAt:new Date().toISOString(),publishedBy:actor.id||actor.uid||actor.email};
+                        localStorage.setItem('sigma-published-quarter-grades-v1',JSON.stringify(all));
+                        host.querySelector('.record-error').textContent='Quarter grades published to students in this browser.';
+                    }catch(_){host.querySelector('.record-error').textContent='Publishing failed. No grades were released.';}
+                    return;
+                }
                 if (dirty) return;
                 host.querySelector('.record-error').textContent = 'Sharing is not available yet. No grades have been sent.';
             };
+            if(review){
+                const publish=host.querySelector('.record-share');publish.textContent='Publish to Students';
+                publish.disabled=!isSectionAdviser||!rows.length||rows.some(row=>!Number.isFinite(row.grade));
+                publish.title=publish.disabled?'All students need quarter grades and an assigned adviser':'Publish this subject quarter';
+                host.querySelector('.record-update').hidden=true;
+            }
             const commentPanel = host.querySelector('.shared-private-comments');
             commentPanel.hidden = isSectionAdviser;
             commentPanel.classList.add('assessment-private-comments-panel');
@@ -319,8 +365,16 @@
             const context = JSON.parse(sessionStorage.getItem(routeContextKey) || 'null');
             if (context) Object.assign(window.sigmaGradesState, context);
         } catch (_) {}
-        window.openSharedGradeRecord();
+        window.openSharedGradeRecord({ mode: window.sigmaGradesState.recordMode || 'share' });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.restoreSharedGradeRecordRoute);
     else window.restoreSharedGradeRecordRoute();
+    window.addEventListener('popstate',()=>{
+        if(isRecordRoute()){
+            setTimeout(window.restoreSharedGradeRecordRoute,0);
+        }else{
+            document.getElementById('record-nav-title')?.remove();
+            document.getElementById('admin-grades-shared-navbar')?.style.removeProperty('display');
+        }
+    });
 })();

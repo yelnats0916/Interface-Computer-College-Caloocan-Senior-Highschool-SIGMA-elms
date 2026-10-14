@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interface Computer College - Teacher</title>
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
         rel="stylesheet">
@@ -15,16 +17,22 @@
     <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
     <link rel="stylesheet" href="css/forms.css?v=20261013attendanceInstant783">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261013commentHeading910">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261010chevronHover232">
+<link rel="stylesheet" href="css/shared-components.css?v=20261014sharedGradePanels1213">
+    <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
+    <link rel="stylesheet" href="css/welcome-panel.css">
+    <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
+    <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
+    <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
+    <link rel="stylesheet" href="css/notifications.css?v=20261012notificationExpand567">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261014hideTopicsMore1142">
     <link rel="stylesheet" href="css/settings-view.css?v=20261010featureStatus291">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261013advisoryText938">
-<link rel="stylesheet" href="css/shared-grade-record.css?v=20261013mobileDivider947">
-    <link rel="stylesheet" href="css/mobile.css?v=20261012descriptionBlack500">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261014fullWidthDistribution1240">
+<link rel="stylesheet" href="css/shared-grade-record.css?v=20261014hideUnchangedUpdate1116">
+    <link rel="stylesheet" href="css/mobile.css?v=20261014quarterHalo1181">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script>
@@ -40,7 +48,7 @@
                     document.documentElement.classList.add('sigma-hash-navigating');
                     var s = document.createElement('style');
                     s.id = 'sigma-early-hash-style';
-                    var targetSel = (hash.indexOf('topic-content') === 0 || hash.indexOf('topic_content') === 0) ? '#section-topic-content' : (hash.indexOf('topic-detail') === 0 || hash.indexOf('topic_detail') === 0 || hash.indexOf('topic:') === 0) ? '#section-topic-detail' : (hash.indexOf('classroom') === 0) ? '#section-classroom-detail, #classroom-detail-view' : (hash.indexOf('curriculum') === 0) ? '#section-curriculum-page' : (hash.indexOf('grade') === 0 || hash.indexOf('analytics') === 0) ? '#section-grades, #school-grades-view' : (hash.indexOf('attendance') === 0 || hash.indexOf('calendar') === 0) ? '#section-attendance, #reports-attendance-view' : (hash.indexOf('materials') === 0 || hash.indexOf('resources') === 0) ? '#section-materials, #resources-view' : (hash.indexOf('assessment') === 0 || hash.indexOf('assignment') === 0) ? '#section-assessments, #section-assignments' : '#section-topic-content';
+                    var targetSel = (hash.indexOf('topic-content') === 0 || hash.indexOf('topic_content') === 0) ? '#section-topic-content' : (hash.indexOf('topic-detail') === 0 || hash.indexOf('topic_detail') === 0 || hash.indexOf('topic:') === 0) ? '#section-topic-detail' : (hash.indexOf('classroom') === 0) ? '#section-classroom-detail, #classroom-detail-view' : (hash.indexOf('curriculum') === 0) ? '#section-curriculum-page' : (hash.indexOf('grade') === 0 || hash.indexOf('analytics') === 0) ? '#section-grades, #school-grades-view' : (hash.indexOf('attendance') === 0 || hash.indexOf('calendar') === 0) ? '#section-attendance, #reports-attendance-view' : (hash.indexOf('resources') === 0) ? '#resources-view' : (hash.indexOf('materials') === 0) ? '#section-materials' : (hash.indexOf('assessment') === 0 || hash.indexOf('assignment') === 0) ? '#section-assessments, #section-assignments' : '#section-topic-content';
                     var rule = targetSel.split(',').map(function(sel) { return '.sigma-hash-navigating ' + sel.trim(); }).join(', ');
                     s.textContent = '.sigma-hash-navigating #section-dashboard, .sigma-hash-navigating #section-home, .sigma-hash-navigating #home-view { display: none !important; }\n' + rule + ' { display: block !important; }';
                     document.head.appendChild(s);
@@ -63,7 +71,7 @@
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed teacher-portal">
-    <script src="js/page-skeleton.js?v=20261013homeSkeleton776"></script>
+    <script src="js/page-skeleton.js?v=20261014instantReveal1100"></script>
 
     <header id="teacher-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
@@ -478,7 +486,7 @@
                     <div class="px-4 py-3 text-xs text-gray-400 select-none">No sections assigned</div>
                 </div>
             </div>
-            <a href="#" id="nav-grades" class="nav-link no-underline group cursor-pointer" title="Grades" onclick="window.switchTab('nav-grades', true, 'gradebook'); return false;">
+            <a href="#" id="nav-grades" class="nav-link no-underline group cursor-pointer" title="Grades" onclick="window.switchTab('nav-grades', true, 'analytics'); return false;">
                 <div class="sidebar-rail-icon">
                     <i class="fa-solid fa-chart-bar"></i>
                     <span class="rail-label">Grades</span>
@@ -611,6 +619,7 @@
                                             <button onclick="switchClassDetailTab('topics')" id="tab-btn-topics"
                                                 class="teacher-section-tab"><i class="fa-solid fa-book"></i><span>Topics</span></button>
                                             <div id="room-quarter-switch" class="room-quarter-switch" data-room-quarter-switch hidden></div>
+                                            <button type="button" id="tab-btn-gradebook" onclick="window.openTeacherClassroomGradebook?.()" class="teacher-section-tab"><i class="fa-solid fa-table" aria-hidden="true"></i><span>Gradebook</span></button>
                                         </div>
 
                                         <!-- Quick Actions / Dropdown -->
@@ -1415,14 +1424,14 @@
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261013commentTime918"></script>
-<script src="js/offline-assessments.js?v=20261013pickerTypography859"></script>
+<script src="js/shared-components.js?v=20261014headerReset1244"></script>
+<script src="js/offline-assessments.js?v=20261014manualMenuPolish1118"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
     <script src="js/topbar.js?v=20261012silentPolling638"></script>
     <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
-    <script src="js/sidebar.js?v=20261003viewportreset1"></script>
+    <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
 <script src="js/notifications.js?v=20261012notificationReset568"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
     <script src="js/analytics-unread.js?v=20261013badgeOnly752"></script>
@@ -1432,27 +1441,27 @@
     <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
     <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/classroom-room.js?v=20261013attendanceHeading861"></script>
+    <script src="js/classroom-room.js?v=20261014restoreTabs1087"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
     <script src="js/announcements.js?v=20261012studentCommentBadge564"></script>
     <script src="js/quiz-creator.js?v=20261011sharedQuestionUpload344"></script>
     <link rel="stylesheet" href="css/excel-export.css?v=20261013exportOptions820">
     <script src="js/excel-export.js?v=20261013summaryNoLegend866"></script>
-    <script src="js/sigma-analytics.js?v=20261013submitText900"></script>
-    <script src="js/shared-grade-record.js?v=20261013gradeCopy946"></script>
+    <script src="js/sigma-analytics.js?v=20261014cumulativeAverage1252"></script>
+    <script src="js/shared-grade-record.js?v=20261014reviewBackDestination1243"></script>
     <script src="js/student-analytics.js?v=20261013midnightInsights834"></script>
 <script src="js/student-insight-view.js?v=20261013unread732"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261013rubricClick803"></script>
+    <script src="js/subject-editor.js?v=20261014weightSync1072"></script>
     <script src="js/assessments-page.js?v=20260927gradefix5"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/teacher.js?v=20261013shareRefresh934"></script>
+    <script src="js/teacher.js?v=20261014headerReset1244"></script>
     <script src="js/teacher-analytics.js?v=20261013midnightInsights834"></script>
-    <script src="js/ai-database-store.js?v=20261013panelLoading809"></script>
+    <script src="js/ai-database-store.js?v=20261014insightsFix1100"></script>
     <script src="js/analytics-ai-client.js?v=20261010liveAnalytics299"></script>
-    <script src="js/curriculum-release.js?v=20261013assessmentOrder816" data-initialize-after-dom="true"></script>
+    <script src="js/curriculum-release.js?v=20261014sharedQuarters1037" data-initialize-after-dom="true"></script>
     <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
     <link rel="stylesheet" href="css/sigma-conversations.css?v=20261010restorePanel239">
     <script src="js/sigma-conversations.js?v=20261010sharedChat255"></script>

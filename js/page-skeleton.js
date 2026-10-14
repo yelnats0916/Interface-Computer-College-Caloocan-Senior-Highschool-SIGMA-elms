@@ -214,8 +214,11 @@
         if (clean.startsWith('attendance') || clean.startsWith('calendar')) {
             return { sectionId: 'section-attendance,reports-attendance-view', layout: 'attendance' };
         }
-        if (clean.startsWith('materials') || clean.startsWith('resources')) {
-            return { sectionId: 'section-materials,resources-view', layout: 'materials' };
+        if (clean.startsWith('resources')) {
+            return { sectionId: 'resources-view', layout: 'materials' };
+        }
+        if (clean.startsWith('materials')) {
+            return { sectionId: 'section-materials', layout: 'materials' };
         }
         if (clean.startsWith('assessment') || clean.startsWith('assignment')) {
             return { sectionId: 'section-assessments,section-assignments', layout: 'assessments' };
@@ -734,9 +737,23 @@
         if (!element) return () => {};
 
         const layout = layoutType || resolveLayoutFromSectionId(element.id) || 'generic';
-        element.innerHTML = getContentSkeletonHtml(layout);
+        if (element.querySelector('.sigma-content-skeleton')) {
+            element.setAttribute('data-sigma-skeleton-active', 'true');
+            element.classList.remove('hidden');
+            element.style.removeProperty('display');
+            return function hide() {
+                hideContentSkeleton(element);
+            };
+        }
+
+        const targetContainer = element.querySelector('#grades-layout, #assessments-layout, #curriculum-page-shell, #classroom-detail-view') || element;
+        targetContainer.innerHTML = getContentSkeletonHtml(layout);
         element.setAttribute('data-sigma-skeleton-active', 'true');
+        if (targetContainer !== element) {
+            targetContainer.setAttribute('data-sigma-skeleton-active', 'true');
+        }
         element.classList.remove('hidden');
+        element.style.removeProperty('display');
 
         return function hide() {
             hideContentSkeleton(element);
@@ -750,10 +767,15 @@
             : targetOrId;
         if (!element) return;
 
-        if (element.getAttribute('data-sigma-skeleton-active') === 'true') {
-            element.removeAttribute('data-sigma-skeleton-active');
+        element.removeAttribute('data-sigma-skeleton-active');
+        if (typeof element.querySelectorAll === 'function') {
+            const activeChildren = element.querySelectorAll('[data-sigma-skeleton-active]');
+            activeChildren.forEach(child => child.removeAttribute('data-sigma-skeleton-active'));
+            const skels = element.querySelectorAll('.sigma-content-skeleton');
+            skels.forEach(skel => skel.remove());
+        } else if (typeof element.querySelector === 'function') {
             const skel = element.querySelector('.sigma-content-skeleton');
-            if (skel) skel.remove();
+            if (skel && typeof skel.remove === 'function') skel.remove();
         }
     }
 
@@ -774,7 +796,9 @@
                 if (sec) {
                     sec.classList.remove('hidden');
                     sec.style.removeProperty('display');
-                    if (!sec.children.length || sec.querySelector('.sigma-content-skeleton') || sec.getAttribute('data-sigma-skeleton-active') === 'true') {
+                    if (sec.querySelector('.sigma-content-skeleton')) {
+                        sec.setAttribute('data-sigma-skeleton-active', 'true');
+                    } else if (!sec.children.length || !sec.innerHTML.trim() || sec.getAttribute('data-sigma-skeleton-active') === 'true') {
                         showContentSkeleton(sec, routeInfo.layout);
                     }
                     break;
@@ -809,6 +833,7 @@
         }
     } catch (_) {}
 
+    if (typeof setTimeout === 'function') setTimeout(revealInitial, 200);
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initial, { once: true });
     } else {

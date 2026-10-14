@@ -136,6 +136,15 @@ window.positionSubSidebarBeside = function (parentEl) {
 };
 
 window.updateLayout = function () {
+    if (window._deferPortalLayout) {
+        if (!window._portalLayoutFrame) {
+            window._portalLayoutFrame = requestAnimationFrame(() => {
+                window._portalLayoutFrame = null;
+                window.updateLayout();
+            });
+        }
+        return;
+    }
     restoreShellAfterViewportChange();
 };
 

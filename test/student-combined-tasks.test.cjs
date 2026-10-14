@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../js/student.js'), 'utf8');
-const start = source.indexOf('            const taskRows = assessments.map');
+const start = source.indexOf('            const taskRows = (');
 const end = source.indexOf('            scorePanelHtml =', start);
 for (const workView of [true, false]) {
     let panel;

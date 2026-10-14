@@ -4950,6 +4950,9 @@ function initTeacherPortal() {
         const mobileTasksSlot = document.getElementById('mobile-schedule-tasks-slot');
         const targetContainers = [homeList, sectionsList].filter(Boolean);
         if (targetContainers.length === 0 && !mobileClassSlot && !mobileTasksSlot) return;
+        const hasVisibleTarget = [...targetContainers, mobileClassSlot, mobileTasksSlot]
+            .filter(Boolean).some(element => !element.closest('.hidden') && element.getClientRects().length > 0);
+        if (!hasVisibleTarget) return;
 
         if (!window.SigmaPanels || typeof window.SigmaPanels.renderClassPanel !== 'function' || typeof window.SigmaPanels.renderTeacherSubmissionsPanel !== 'function') {
             setTimeout(renderTeacherHomeDashboardPanels, 50);
@@ -5110,7 +5113,6 @@ function initTeacherPortal() {
     }
 
     window.renderTeacherHomeDashboardPanels = renderTeacherHomeDashboardPanels;
-    renderTeacherHomeDashboardPanels();
 
     function getCompactSectionName(sectionName) {
         return String(sectionName || '').replace(/^Grade\s+\d+\s+-\s+/i, '').trim();
@@ -5190,7 +5192,18 @@ function initTeacherPortal() {
         const isCollapsed = document.body.classList.contains('sidebar-collapsed') && window.innerWidth >= 1024;
         const isDetailVisible = !document.getElementById('section-classroom-detail')?.classList.contains('hidden');
 
-        parent.classList.toggle('active', isDetailVisible && Boolean(currentClassroomKey));
+        const isGradebookVisible = !document.getElementById('section-grades')?.classList.contains('hidden') && window.sigmaGradesState?.activeTab === 'gradebook';
+        if (isGradebookVisible) {
+            const selected = window.sigmaGradesState.selectedSubjectSection || {};
+            const section = window.sigmaGradesState.selectedSection || selected.sectionName;
+            const subject = window.sigmaGradesState.selectedSubject || selected.subject;
+            if (section && subject) {
+                currentClassroomKey = `${section}::${subject}`;
+                renderSectionsNavChildren(section, subject);
+            }
+            document.getElementById('nav-grades')?.classList.remove('active');
+        }
+        parent.classList.toggle('active', isGradebookVisible || (isDetailVisible && Boolean(currentClassroomKey)));
         const isShow = showChildren && !isCollapsed;
         parent.classList.toggle('open', isShow);
         parent.setAttribute('aria-expanded', isShow ? 'true' : 'false');
@@ -5205,6 +5218,16 @@ function initTeacherPortal() {
     }
 
     function renderClassroomSectionsSidebar(activeClassName = '', activeSubject = '', showCollapsedOverlay = false) {
+        if (window.sigmaGradesState?.activeTab === 'gradebook' && !document.getElementById('section-grades')?.classList.contains('hidden')) {
+            activeClassName = window.sigmaGradesState.selectedSection || window.sigmaGradesState.selectedSubjectSection?.sectionName || activeClassName;
+            activeSubject = window.sigmaGradesState.selectedSubject || window.sigmaGradesState.selectedSubjectSection?.subject || activeSubject;
+            if (activeClassName && activeSubject) {
+                currentClassroomKey = `${activeClassName}::${activeSubject}`;
+                currentClassroomSectionName = activeClassName;
+                window.currentClassroomSectionName = activeClassName;
+                window.currentClassroomSubject = activeSubject;
+            }
+        }
         const subSidebar = document.getElementById('sub-sidebar');
         const content = document.getElementById('sub-sidebar-content');
         const title = document.getElementById('sub-sidebar-title');
@@ -18910,6 +18933,15 @@ function initTeacherPortal() {
     };
 
     function switchTab(navId, pushHistory = true, subTab = null) {
+        document.getElementById('record-nav-title')?.remove();
+        const previousHeader=document.getElementById('nav-context-text');
+        if(previousHeader?.classList.contains('advisory-header-title')){
+            previousHeader.classList.remove('advisory-header-title');
+            previousHeader.replaceChildren();
+        }
+        const previousLayoutDeferral = window._deferPortalLayout;
+        window._deferPortalLayout = true;
+        try {
         window.invalidateSigmaViewCaches?.();
         scrollToTop();
         if (navId && navIdByPage && navIdByPage[navId]) {
@@ -19089,6 +19121,17 @@ function initTeacherPortal() {
         if (navId === 'nav-grades') {
             document.getElementById('nav-grades')?.classList.add('active');
             const targetSubTab = gradesNav.targetTab || gradesExplicitTab || 'gradebook';
+            if (!window._classroomGradebookContext && targetSubTab === 'gradebook') {
+                try {
+                    const context = JSON.parse(sessionStorage.getItem('sigma-classroom-gradebook-context') || 'null');
+                    if (context?.subject && context?.section) window._classroomGradebookContext = context;
+                } catch (_) { /* Ignore invalid stored classroom context. */ }
+            }
+            const classroomGradebook = targetSubTab === 'gradebook';
+            if (classroomGradebook) {
+                document.getElementById('nav-grades')?.classList.remove('active');
+                document.getElementById('nav-classes')?.classList.add('active');
+            }
             if (window.sigmaGradesState) window.sigmaGradesState.activeTab = targetSubTab;
             const gradesOpts = {
                 tab: targetSubTab,
@@ -19110,6 +19153,16 @@ function initTeacherPortal() {
             if (typeof window.syncTeacherGradesNavState === 'function') {
                 window.syncTeacherGradesNavState(targetSubTab);
             }
+            if (classroomGradebook && window.ClassroomRoom?.renderTabBar) {
+                const page = document.querySelector('#section-grades .sigma-grades-page');
+                if (page && !page.querySelector('.classroom-gradebook-navigation')) {
+                    const mount = document.createElement('div');
+                    mount.className = 'classroom-gradebook-navigation';
+                    mount.innerHTML = window.ClassroomRoom.renderTabBar({ role: 'teacher', activeTab: 'gradebook' });
+                    mount.querySelector('#tab-btn-gradebook')?.classList.add('active');
+                    page.prepend(mount);
+                }
+            }
         }
 
         // --- Navigation context ---
@@ -19119,7 +19172,7 @@ function initTeacherPortal() {
             'nav-dashboard': 'Interface Computer College',
             'nav-classes': 'My Classes',
             'nav-assessments': 'Interface Computer College',
-            'nav-grades': 'Grades',
+            'nav-grades': window.sigmaGradesState?.activeTab === 'gradebook' ? 'My Classes' : 'Grades',
             'nav-resources': 'Resources',
             'nav-settings': 'Settings',
             'nav-attendance': 'Calendar',
@@ -19182,6 +19235,12 @@ function initTeacherPortal() {
             }
         }
 
+        if (navId === 'nav-resources') {
+            if (typeof window.renderResourcesView === 'function') {
+                window.renderResourcesView();
+            }
+        }
+
                 // Calendar Page Mode & Back Button (Navbar Context only)
         const isCalendarPage = (navId === 'nav-attendance' || navId === 'nav-calendar');
 
@@ -19228,6 +19287,9 @@ function initTeacherPortal() {
         // Sync Sections chevron visibility & active parent state
         if (typeof syncSectionsNavState === 'function') {
             syncSectionsNavState();
+        }
+        } finally {
+            window._deferPortalLayout = previousLayoutDeferral;
         }
     }
 
@@ -20888,6 +20950,17 @@ function initTeacherPortal() {
     };
 
     window.switchClassDetailTab = function (tabId, pushHistory = true) {
+        const gradesPage = document.getElementById('section-grades');
+        if (gradesPage && !gradesPage.classList.contains('hidden') && window.sigmaGradesState?.activeTab === 'gradebook') {
+            const selected = window.sigmaGradesState.selectedSubjectSection || {};
+            const section = window.sigmaGradesState.selectedSection || selected.sectionName;
+            const subject = window.sigmaGradesState.selectedSubject || selected.subject;
+            if (section && subject) {
+                window.closeClassroomSettingsMenu?.();
+                showStudentList(section, subject, tabId, pushHistory);
+                return;
+            }
+        }
         window.closeTeacherAttendanceCalendarPopup?.();
         document.body.classList.remove('calendar-page-mode');
         if (typeof window.syncCalendarPageActiveState === 'function') {
@@ -21092,6 +21165,12 @@ function initTeacherPortal() {
             : (window.sigmaGradesState.weights || {});
 
         const quarters = match.quarters || [1, 2];
+        window._classroomGradebookContext = { subject: match.subject, section: match.sectionName };
+        try {
+            sessionStorage.setItem('sigma-classroom-gradebook-context', JSON.stringify(window._classroomGradebookContext));
+        } catch (_) { /* Navigation still works if session storage is unavailable. */ }
+        const classroomQuarter = Number(String(window.currentSelectedTopicQuarter || '').replace(/^q/i, ''));
+        if (quarters.includes(classroomQuarter)) window.sigmaGradesState.activeQuarter = classroomQuarter;
         if (!quarters.includes(window.sigmaGradesState.activeQuarter)) {
             window.sigmaGradesState.activeQuarter = quarters[0] || 1;
         }
@@ -21120,6 +21199,12 @@ function initTeacherPortal() {
         switchTab('nav-grades', true, 'gradebook');
     };
     window.openClassroomGradebook = window.openTeacherClassroomGradebook;
+    window.openTeacherClassroomAnalytics = function () {
+        window.openTeacherClassroomGradebook();
+        if (window.sigmaGradesState?.selectedSubjectSection) {
+            switchTab('nav-grades', true, 'analytics');
+        }
+    };
 
     // ─── Teacher Classroom Grades Modal (Desktop & In-Room Shortcut) ───────────
     window.openTeacherClassroomGradesModal = function (classroomId) {
@@ -21330,18 +21415,17 @@ function initTeacherPortal() {
                     cancelText: 'Close',
                     cancelBtnClass: 'teacher-grades-modal-close sigma-btn sigma-btn-white sigma-modal-btn',
                     cancelOnClick: 'window.closeTeacherClassroomGradesModal()',
-                    confirmText: 'Open Full Gradebook',
-                    mobileConfirmText: 'Open gradebook',
-                    confirmOnClick: 'window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomGradebook?.();',
+                    confirmText: 'View Analytics',
+                    mobileConfirmText: 'View Analytics',
+                    confirmOnClick: 'window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomAnalytics?.();',
                     confirmIcon: ''
                 }) : `
                 <div class="sigma-modal-footer">
                     <button type="button" class="teacher-grades-modal-close sigma-btn sigma-btn-white sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal()">
                         Close
                     </button>
-                    <button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomGradebook?.();">
-                        <span class="sigma-desktop-only">Open Full Gradebook</span>
-                        <span class="sigma-mobile-only">Open gradebook</span>
+                    <button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" onclick="window.closeTeacherClassroomGradesModal(); window.openTeacherClassroomAnalytics?.();">
+                        <span>View Analytics</span>
                     </button>
                 </div>
                 `}
@@ -26218,9 +26302,9 @@ function initTeacherPortal() {
             }
             if (initialGrade !== null) quarterlyScores.push(initialGrade);
 
-            const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * (gradebookState.weights.ww / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-            const ptDisplay = (ptPct !== null && ptPct !== undefined) ? `${(Number(ptPct) * (gradebookState.weights.pt / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
-            const qaDisplay = (qaPct !== null && qaPct !== undefined) ? `${(Number(qaPct) * (gradebookState.weights.qa / 100)).toFixed(2)}` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * (gradebookState.weights.ww / 100)).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+            const ptDisplay = (ptPct !== null && ptPct !== undefined) ? `${(Number(ptPct) * (gradebookState.weights.pt / 100)).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
+            const qaDisplay = (qaPct !== null && qaPct !== undefined) ? `${(Number(qaPct) * (gradebookState.weights.qa / 100)).toFixed(2)}%` : '<span class="gradebook-dash" style="color: rgba(0, 0, 0, 0.40) !important;">-</span>';
 
             return `
                 <tr class="bg-white border-b border-black/[0.08] font-['Inter'] cursor-default select-none">
@@ -28145,25 +28229,6 @@ function initTeacherPortal() {
 
 
 
-    renderTeacherHomeDashboardPanels();
-    requestAnimationFrame(() => {
-        renderTeacherHomeDashboardPanels();
-    });
-    setTimeout(() => {
-        renderTeacherHomeDashboardPanels();
-    }, 100);
-    setTimeout(() => {
-        renderTeacherHomeDashboardPanels();
-    }, 400);
-
-    if (document.readyState === 'complete') {
-        renderTeacherHomeDashboardPanels();
-    } else {
-        window.addEventListener('load', () => {
-            renderTeacherHomeDashboardPanels();
-        });
-    }
-
     // â”€â”€ Force-close ALL panels on every load / refresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     window.hideHeaderOverlays();
 
@@ -28679,11 +28744,6 @@ function initTeacherPortal() {
             if (typeof renderTeacherHomeDashboardPanels === 'function') renderTeacherHomeDashboardPanels();
         }
     });
-    setInterval(() => {
-        if (!document.hidden && isDashboardOrClassesActive()) {
-            if (typeof renderTeacherHomeDashboardPanels === 'function') renderTeacherHomeDashboardPanels();
-        }
-    }, 30000);
 
     window.addEventListener("sigma-classroom-order-changed", () => {
         _cachedTeacherSectionCards = null;

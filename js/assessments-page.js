@@ -1130,6 +1130,18 @@
                         }
                     }
 
+                    let studentDetails = null;
+                    if (!isTeacher && typeof window.resolveStudentAssessmentSubmissionDetails === 'function') {
+                        studentDetails = window.resolveStudentAssessmentSubmissionDetails(
+                            ass, topicSubjectId, assTopIdx, unifiedIdx, sectionName, targetStudentObj
+                        );
+                        if (studentDetails) {
+                            const recorded = studentDetails.numericScore;
+                            score = studentDetails.isGraded && recorded !== null && recorded !== undefined
+                                && Number.isFinite(Number(recorded)) ? Number(recorded) : null;
+                            if (studentDetails.isGraded) status = 'graded';
+                        }
+                    }
                     rows.push({
                         cardId: cardId,
                         subjectId: topicSubjectId,
@@ -1144,7 +1156,9 @@
                         unifiedIdx: unifiedIdx,
                         status: status,
                         score: score,
-                        max: cat === 'quiz' && !resolvedHps && Number.isFinite(Number(subData?.maxScore))
+                        max: studentDetails && Number.isFinite(Number(studentDetails.maxScore)) && Number(studentDetails.maxScore) > 0
+                            ? Number(studentDetails.maxScore)
+                            : cat === 'quiz' && !resolvedHps && Number.isFinite(Number(subData?.maxScore))
                             && Number(subData.maxScore) > 0 ? Number(subData.maxScore) : maxScore,
                         weight: weight,
                         startDate: rawStart,

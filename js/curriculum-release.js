@@ -580,6 +580,7 @@ window.initializeSharedCurriculumRelease = function () {
             q4: '4th Quarter'
         };
 
+        if (window.renderSharedQuarterDropdown) return window.renderSharedQuarterDropdown(availableQuarters, activeQ, q => `window.switchReleaseQuarter?.('${q}')`);
         return `
             <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 font-['Inter'] select-none shrink-0 max-w-full overflow-x-auto no-scrollbar" data-release-quarter-toggle>
                 ${availableQuarters.map(q => {

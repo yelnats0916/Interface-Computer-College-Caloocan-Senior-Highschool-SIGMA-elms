@@ -16,6 +16,63 @@ const getStoredJson = (typeof window !== 'undefined' && typeof window.getStoredJ
     };
 
 document.addEventListener('DOMContentLoaded', initStudentPortal);
+document.addEventListener('DOMContentLoaded', () => {
+    const syncQuarterChevrons = () => {
+        document.querySelectorAll('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select').forEach(select => {
+            if (select.dataset.sharedQuarterReady) return;
+            select.dataset.sharedQuarterReady='true';
+            const details=document.createElement('details');details.className='sigma-quarter-dropdown student-shared-quarter';
+            details.innerHTML='<summary><span></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="sigma-quarter-dropdown-menu"></div>';
+            const label = option => !option ? '' : (/^[1-4]$/.test(option.value) ? `${['1st', '2nd', '3rd', '4th'][Number(option.value) - 1]} Quarter` : (option.text || option.value || ''));
+            const setLabel = (host, option) => {
+                if (!host || !option) return;
+                const full = document.createElement('span'); full.className = 'sigma-quarter-full-label'; full.textContent = label(option);
+                const compact = document.createElement('span'); compact.className = 'sigma-quarter-mobile-label'; compact.textContent = option.value === 'all' ? 'All' : /^[1-4]$/.test(option.value) ? `Q${option.value}` : (option.text || option.value || '');
+                host.replaceChildren(full, compact);
+            };
+            const update = () => {
+                const opt = select.selectedOptions?.[0] || select.options?.[0];
+                if (opt) setLabel(details.querySelector('summary > span'), opt);
+                details.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.value === select.value)));
+            };
+            [...select.options].forEach(option => { const button = document.createElement('button'); button.type = 'button'; button.dataset.value = option.value; setLabel(button, option); button.onclick = () => { select.value = option.value; details.open = false; update(); select.dispatchEvent(new Event('change', { bubbles: true })); }; details.querySelector('.sigma-quarter-dropdown-menu').append(button); });
+            const wrapper = select.parentElement?.classList?.contains('student-view-grades-quarter-control') ? select.parentElement : null;
+            if (wrapper) { wrapper.before(details); details.append(select); wrapper.remove(); } else { select.before(details); details.append(select); }
+            select.hidden = true; select.addEventListener('change', update); update();
+        });
+    };
+    syncQuarterChevrons();
+    new MutationObserver(syncQuarterChevrons).observe(document.body,{childList:true,subtree:true});
+});
+document.addEventListener('pointerdown', event => {
+    const select = event.target.closest('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select');
+    if (!select) return;
+    event.preventDefault();
+    document.getElementById('student-quarter-options')?.remove();
+    const panel = document.createElement('div');
+    panel.id = 'student-quarter-options';
+    panel.setAttribute('role','listbox');
+    panel.setAttribute('aria-label',select.getAttribute('aria-label') || 'Quarter');
+    [...select.options].forEach(option => {
+        const button=document.createElement('button');button.type='button';button.textContent=option.text;
+        button.setAttribute('role','option');button.setAttribute('aria-selected',String(option.selected));
+        button.onclick=()=>{select.value=option.value;close();select.dispatchEvent(new Event('change',{bubbles:true}));};
+        panel.append(button);
+    });
+    const close=()=>{panel.remove();document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',keyboard);};
+    const outside=e=>{if(!panel.contains(e.target))close();};
+    const keyboard=e=>{
+        if(e.key==='Escape'){close();select.focus();}
+        if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();const buttons=[...panel.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);buttons[(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus();}
+    };
+    document.body.append(panel);
+    const rect=select.getBoundingClientRect(),height=panel.getBoundingClientRect().height;
+    panel.style.width=`${rect.width}px`;
+    panel.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-rect.width-8))}px`;
+    panel.style.top=`${rect.bottom+height+4<innerHeight?rect.bottom+4:Math.max(8,rect.top-height-4)}px`;
+    document.addEventListener('pointerdown',outside);document.addEventListener('keydown',keyboard);
+    panel.querySelector('[aria-selected="true"]')?.focus();
+});
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
     initStudentPortal();
 }
@@ -1632,6 +1689,9 @@ function initStudentPortal() {
     }
 
     function _applyTab(navId) {
+        const previousLayoutDeferral = window._deferPortalLayout;
+        window._deferPortalLayout = true;
+        try {
         window.invalidateSigmaViewCaches?.();
         scrollToTop();
         const requestedNavId = navId;
@@ -1781,6 +1841,7 @@ if (overlay) overlay.classList.add('hidden');
         }
         else if (navId === 'nav-home') {
             hideStudentClassroomSectionsSidebar();
+            renderStudentHomeAnnouncements();
             if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
             if (window.SigmaAnnouncements && typeof window.SigmaAnnouncements.resetToDefaultTab === 'function') {
                 window.SigmaAnnouncements.resetToDefaultTab();
@@ -1840,6 +1901,9 @@ if (overlay) overlay.classList.add('hidden');
             syncStudentSectionsNavState();
         }
         window.sigmaResetScrollToTop ? window.sigmaResetScrollToTop() : window.scrollTo(0, 0);
+        } finally {
+            window._deferPortalLayout = previousLayoutDeferral;
+        }
     }
     //   Sub-sidebar instant show/hide (NO slide animation)  
 
@@ -3282,10 +3346,12 @@ if (overlay) overlay.classList.add('hidden');
                 return null;
             };
 
-            const term1Val = calculateTermAverage(data.q1Topics || data.topics);
-            const term2Val = calculateTermAverage(data.q2Topics);
-            const term3Val = calculateTermAverage(data.q3Topics);
-            const term4Val = calculateTermAverage(data.q4Topics);
+            const gradeStudent=window.getLoggedInStudentUser?.()||{};
+            const publishedGrade=q=>window.getPublishedSubjectGrade?.(gradeStudent,subject.name,gradeStudent.section||currentStudentSection,q)??null;
+            const term1Val = publishedGrade(1);
+            const term2Val = publishedGrade(2);
+            const term3Val = publishedGrade(3);
+            const term4Val = publishedGrade(4);
 
             const validQuarterVals = [term1Val, term2Val, term3Val, term4Val].filter(t => typeof t === 'number');
             const overallVal = validQuarterVals.length > 0 ? clampPercent(validQuarterVals.reduce((sum, t) => sum + t, 0) / validQuarterVals.length) : null;
@@ -3347,16 +3413,30 @@ if (overlay) overlay.classList.add('hidden');
         const gwa = hasGrades ? (validOverallRows.reduce((sum, r) => sum + r.overallVal, 0) / validOverallRows.length) : null;
 
         let subjectCards = '';
+        let savedPerformanceQuarter = 1;
+        try {
+            const user = window.getLoggedInStudentUser?.();
+            const userId = user?.uid || user?.id;
+            const saved = userId ? Number(localStorage.getItem(`sigma-student-performance-quarter:${userId}`)) : 1;
+            if ([1,2,3,4].includes(saved)) savedPerformanceQuarter = saved;
+        } catch (_) {}
         rows.forEach(function (row, index) {
             if (typeof window.renderSharedSubjectPerformanceCardHtml === 'function') {
+                const demo = String(row.subject).trim().toLowerCase() === 'oral communication'
+                    && ![row.term1Val,row.term2Val,row.term3Val,row.term4Val].some(Number.isFinite);
                 subjectCards += window.renderSharedSubjectPerformanceCardHtml({
                     id: row.id,
                     title: row.subject,
-                    subtitle: row.track,
+                    teacherName: row.teacher,
+                    subtitle: demo ? `${row.track} · Demo grades` : row.track,
+                    omitMissingPoints: demo,
+                    scoreTint: true,
+                    fitConfiguredQuarters: true,
+                    selectedQuarter: savedPerformanceQuarter,
                     activeQuarters: row.activeQuarters,
                     openGrades: true,
                     overallScore: row.overallVal,
-                    quarterValues: [row.term1Val, row.term2Val, row.term3Val, row.term4Val],
+                    quarterValues: demo ? [85,90,null,null] : [row.term1Val, row.term2Val, row.term3Val, row.term4Val],
                     strokeColor: '#15803d'
                 });
             }
@@ -3408,18 +3488,63 @@ if (overlay) overlay.classList.add('hidden');
                         <span class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full" style="background-color: rgba(0, 0, 0, 0.45);"></div> Q1-Q4 Trend</span>
                     </div>
                 </div>
-                <div class="student-performance-grid grid gap-4 font-['Inter']">
+                <div class="student-performance-slider" aria-label="Subject performance">
+                <div class="student-performance-track">
                     ${subjectCards}
+                </div>
+                <div class="student-performance-controls"><button type="button" data-performance-step="-1" aria-label="Previous subject"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><div class="student-performance-dots">${rows.map((row,index)=>`<button type="button" data-performance-slide="${index}" aria-label="Show ${escapeHtml(row.subject)} performance" aria-pressed="${index===0}"></button>`).join('')}</div><button type="button" data-performance-step="1" aria-label="Next subject"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div>
                 </div>
             </div>
             `
         };
     }
     let comparingSubjectIds = null;
+    function initStudentPerformanceSlider(layout) {
+        clearInterval(window._studentPerformanceCarouselTimer);
+        const slider = layout.querySelector('.student-performance-slider');
+        if (!slider) return;
+        const track = slider.querySelector('.student-performance-track');
+        const dots = [...slider.querySelectorAll('[data-performance-slide]')];
+        if (!dots.length) { slider.hidden = true; return; }
+        let index = 0;
+        const select = next => {
+            index = (next + dots.length) % dots.length;
+            track.scrollTo({left:index * track.clientWidth,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+            dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));
+        };
+        slider.querySelectorAll('[data-performance-step]').forEach(button=>button.onclick=()=>select(index+Number(button.dataset.performanceStep)));
+        dots.forEach((dot,i)=>dot.onclick=()=>select(i));
+        track.addEventListener('scroll',()=>{index=Math.round(track.scrollLeft/track.clientWidth);dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));},{passive:true});
+        let hovered = false;
+        let lastInteraction = 0;
+        slider.addEventListener('mouseenter',()=>{hovered=true;});
+        slider.addEventListener('mouseleave',()=>{hovered=false;});
+        slider.addEventListener('pointerdown',()=>{lastInteraction=Date.now();},{passive:true});
+        slider.addEventListener('change',()=>{lastInteraction=Date.now();});
+        if (dots.length > 1) window._studentPerformanceCarouselTimer = setInterval(()=>{
+            if (!slider.isConnected) { clearInterval(window._studentPerformanceCarouselTimer); return; }
+            if (document.hidden || hovered || slider.contains(document.activeElement) || Date.now()-lastInteraction<6000 || slider.closest('.hidden')) return;
+            select(index+1);
+        },6000);
+    }
     let selectingComparisonSubjects = false;
     function renderGradesPage(filterSubject = null) {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => renderGradesPage(filterSubject));
+        }
         window.renderGradesPage = renderGradesPage;
-        const layout = document.getElementById('grades-layout');
+        const gradesSection = document.getElementById('section-grades');
+        if (gradesSection) {
+            gradesSection.removeAttribute('data-sigma-skeleton-active');
+            if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+                window.SigmaPageLoading.hideContentSkeleton(gradesSection);
+            }
+        }
+        let layout = document.getElementById('grades-layout');
+        if (!layout && gradesSection) {
+            gradesSection.innerHTML = '<div class="w-full min-h-full bg-white p-0 relative flex flex-col"><div id="grades-layout" class="w-full px-6 sm:px-10 md:px-12 py-8 max-w-none"></div></div>';
+            layout = document.getElementById('grades-layout');
+        }
         if (!layout) return;
         try {
             const allRows = getSubjectGradeRows() || [];
@@ -3460,7 +3585,6 @@ if (overlay) overlay.classList.add('hidden');
                         <span>Filter by Subject</span>
                     </button>
                     ${selectingComparisonSubjects ? '<button type="button" id="student-subject-filter-reset" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-transparent hover:bg-gray-100 text-green-700 cursor-pointer" title="Reset subject filter" aria-label="Reset subject filter"><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i></button>' : ''}
-                    ${selectingComparisonSubjects ? `<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="checkbox" id="student-comparison-all" ${analyticsRows.length === allRows.length ? 'checked' : ''} style="accent-color:#15803d;">All Subjects</label>` : `<span class="text-xs text-black-fade">${analyticsRows.length === allRows.length ? 'All Subjects' : `${analyticsRows.length} Subjects Selected`}</span>`}
                     ${selectingComparisonSubjects ? '<button type="button" id="student-subject-filter-done" class="sigma-btn sigma-btn-sm sigma-btn-primary"><span>Done</span></button>' : ''}
                 </div>`;
 
@@ -3481,10 +3605,10 @@ if (overlay) overlay.classList.add('hidden');
                                 <tr class="bg-[#15803d] select-none text-white font-['Inter']">
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-left font-['Inter'] w-1/3">Subject</th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-left font-['Inter']"><div class="student-grades-column-heading"><span>Teacher</span><button type="button" class="student-grades-column-next" title="Show quarterly and final grades" aria-label="Show quarterly and final grades"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div></th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><div class="student-grades-quarter-heading"><button type="button" class="student-grades-column-prev" title="Show subjects and teachers" aria-label="Show subjects and teachers"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span>1st Quarter</span></div></th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">2nd Quarter</th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">3rd Quarter</th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">4th Quarter</th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><div class="student-grades-quarter-heading"><button type="button" class="student-grades-column-prev" title="Show subjects and teachers" aria-label="Show subjects and teachers"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span><span class="student-quarter-full">1st Quarter</span><span class="student-quarter-short">Q1</span></span></div></th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">2nd Quarter</span><span class="student-quarter-short">Q2</span></th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">3rd Quarter</span><span class="student-quarter-short">Q3</span></th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">4th Quarter</span><span class="student-quarter-short">Q4</span></th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Final Grade</th>
                                 </tr>
                             </thead>
@@ -3551,7 +3675,117 @@ if (overlay) overlay.classList.add('hidden');
 
 
 
+            const control = document.createElement('div');
+            control.className = 'student-grades-view-control';
+            control.innerHTML = '<div class="student-grades-view-segments" role="group" aria-label="Grades view"><button type="button" data-view="table">Table</button><button type="button" data-view="graph">Graph</button></div><div class="student-grades-view-mobile"><i class="fa-solid fa-table-cells" aria-hidden="true"></i><i class="fa-solid fa-chevron-down" aria-hidden="true"></i><select aria-label="Grades view"><option value="table">Table</option><option value="graph">Graph</option></select></div>';
+            layout.querySelector('.student-performance-filter')?.append(control);
+            const user = window.getLoggedInStudentUser?.();
+            const key = user?.uid || user?.id ? `sigma-student-grades-view:${user.uid || user.id}` : null;
+            const barButton = document.createElement('button');
+            barButton.type='button';barButton.dataset.view='bar';barButton.textContent='Bar';
+            control.querySelector('.student-grades-view-segments').append(barButton);
+            control.querySelector('select').add(new Option('Bar','bar'));
+            const barPanel = document.createElement('section');
+            barPanel.className='student-grade-bars';
+            barPanel.innerHTML='<div class="student-grade-bars-heading"><select class="sigma-grade-quarter-select" aria-label="Subject performance quarter"></select></div><div data-grade-bars></div>';
+            layout.querySelector('.student-performance-section').after(barPanel);
+            const quarters=[...new Set(analyticsRows.flatMap(row=>(row.activeQuarters || ['q1','q2','q3','q4']).map(q=>Number(String(q).replace(/^q/i,'')))))].filter(q=>q>=1&&q<=4).sort();
+            const quarterSelect=barPanel.querySelector('select');
+            quarters.forEach(q=>quarterSelect.add(new Option(`${['1st','2nd','3rd','4th'][q-1]} Quarter`,String(q))));
+            const quarterKey=user?.uid || user?.id ? `sigma-student-performance-quarter:${user.uid || user.id}` : null;
+            try { const saved=quarterKey&&localStorage.getItem(quarterKey);if(quarters.includes(Number(saved)))quarterSelect.value=saved; } catch (_) {}
+            let assessmentSubject=null;
+            const assessmentHeading=document.createElement('div');
+            assessmentHeading.className='student-grade-bar-detail-heading';
+            assessmentHeading.hidden=true;
+            barPanel.querySelector('.student-grade-bars-heading').prepend(assessmentHeading);
+            const renderBars=()=>{
+                const q=Number(quarterSelect.value);
+                if(assessmentSubject){
+                    const normalize=value=>String(value||'').trim().toLowerCase().replace(/\s+/g,' ');
+                    const classroomId=resolveStudentClassroomId({id:assessmentSubject.id,name:assessmentSubject.subject});
+                    const section=classroomData[classroomId]?.section || currentStudentSection;
+                    const assessments=(window.AssessmentsPage?.buildAssessmentRows?.('student')||[]).filter(row=>
+                        normalize(row.subject)===normalize(assessmentSubject.subject)
+                        && normalize(row.section)===normalize(section)
+                        && Number(String(row.quarter||'').replace(/^q/i,''))===q
+                    );
+                    barPanel.querySelector('[data-grade-bars]').innerHTML=assessments.map(row=>{
+                        const scored=row.score!==null&&row.score!==undefined&&String(row.score).trim()!==''&&Number.isFinite(Number(row.score))&&Number(row.max)>0;
+                        const percent=scored?Math.max(0,Math.min(100,Number(row.score)/Number(row.max)*100)):0;
+                        const color=percent>=75?'#15803d':'#f59e0b';
+                        return `<div class="student-grade-bar-row"><div>${escapeHtml(row.activity||'Assessment')}</div><div class="student-grade-bar-line"><div class="student-grade-bar-track" role="progressbar" aria-label="${escapeHtml(row.activity||'Assessment')} score" aria-valuemin="0" aria-valuemax="100" ${scored?`aria-valuenow="${percent}"`:'aria-valuetext="No score recorded"'}><div style="width:${percent}%;background:${scored?color:'transparent'}">${scored?`${Math.round(percent)}%`:''}</div></div><span class="student-grade-bar-score" data-empty="${!scored}">${scored?`${row.score}/${row.max}`:'-'}</span></div></div>`;
+                    }).join('')||'<p class="student-grade-bar-subtitle">No assessments for this quarter.</p>';
+                    return;
+                }
+                barPanel.querySelector('[data-grade-bars]').innerHTML=analyticsRows.map(row=>{
+                    const configured=(row.activeQuarters || ['q1','q2','q3','q4']).map(value=>Number(String(value).replace(/^q/i,'')));
+                    if(!configured.includes(q))return '';
+                    const value=[row.term1Val,row.term2Val,row.term3Val,row.term4Val][q-1];
+                    const scored=Number.isFinite(value),percent=scored?Math.max(0,Math.min(100,value)):0;
+                    const color=scored?(percent>=75?'#15803d':'#f59e0b'):'transparent';
+                    return `<div class="student-grade-bar-row"><div><button type="button" class="student-grade-bar-subject" data-subject-id="${escapeHtml(String(row.id))}">${escapeHtml(row.subject)}</button>${row.track?`<div class="student-grade-bar-subtitle">${escapeHtml(row.track)}</div>`:''}</div><div class="student-grade-bar-line"><div class="student-grade-bar-track" role="progressbar" aria-label="${escapeHtml(row.subject)} quarter grade" ${scored?`aria-valuenow="${percent}"`:'aria-valuetext="No grade recorded"'} aria-valuemin="0" aria-valuemax="100"><div style="width:${percent}%;background:${color}">${scored?`${percent}%`:''}</div></div><span class="student-grade-bar-score" data-empty="${!scored}">${scored?`${value}/100`:'-'}</span></div></div>`;
+                }).join('') || '<p>No subjects for this quarter.</p>';
+                barPanel.querySelectorAll('.student-grade-bar-row').forEach(element=>{
+                    const title=element.querySelector('.student-grade-bar-subject');
+                    const icon=document.createElement('button');
+                    icon.type='button';icon.className='student-grade-bar-assessments';
+                    icon.dataset.subjectId=title.dataset.subjectId;
+                    icon.title='View assessment performance';icon.setAttribute('aria-label',`View assessment performance for ${title.textContent}`);
+                    icon.innerHTML='<i class="fa-solid fa-chart-simple" aria-hidden="true"></i><span>Assessments</span>';
+                    const heading=title.parentElement;
+                    const subjectInfo=document.createElement('div');
+                    subjectInfo.className='student-grade-bar-subject-info';
+                    subjectInfo.append(...heading.childNodes);
+                    heading.classList.add('student-grade-bar-heading');
+                    heading.append(subjectInfo,icon);
+                    const track=element.querySelector('.student-grade-bar-track');
+                    track.dataset.subjectId=title.dataset.subjectId;
+                    track.tabIndex=0;track.title='View assessment performance';
+                });
+            };
+            quarterSelect.onchange=()=>{if(quarterKey){try{localStorage.setItem(quarterKey,quarterSelect.value)}catch(_){}}renderBars();};
+            renderBars();
+            const openBarAssessments=target=>{
+                const row=analyticsRows.find(row=>String(row.id)===target.dataset.subjectId);
+                if(!row)return;
+                assessmentSubject=row;
+                assessmentHeading.hidden=false;
+                assessmentHeading.innerHTML=`<button type="button" data-bars-back title="Back to subjects" aria-label="Back to subjects"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button><div><strong>${escapeHtml(row.subject)}</strong><div class="student-grade-bar-subtitle">Assessment Performance</div></div>`;
+                renderBars();
+                assessmentHeading.querySelector('button').focus({preventScroll:true});
+            };
+            barPanel.addEventListener('keydown',event=>{
+                const track=event.target.closest('.student-grade-bar-track');
+                if(track&&['Enter',' '].includes(event.key)){event.preventDefault();openBarAssessments(track);}
+            });
+            barPanel.addEventListener('click',event=>{
+                if(event.target.closest('[data-bars-back]')){assessmentSubject=null;assessmentHeading.hidden=true;assessmentHeading.replaceChildren();renderBars();barPanel.querySelector('.student-grade-bar-assessments')?.focus({preventScroll:true});return;}
+                const assessment=event.target.closest('.student-grade-bar-assessments,.student-grade-bar-track');
+                if(assessment){openBarAssessments(assessment);return;}
+                const button=event.target.closest('.student-grade-bar-subject');
+                if(!button)return;
+                const row=analyticsRows.find(row=>String(row.id)===button.dataset.subjectId);
+                if(!row)return;
+                const classroomId=resolveStudentClassroomId({id:row.id,name:row.subject});
+                if(classroomId){window.collapseSidebar?.();showClassroomDetail(classroomId,true,'room');}
+            });
+            let view = 'table';
+            try { const saved=key&&localStorage.getItem(key);if(['graph','bar'].includes(saved))view=saved; } catch (_) {}
+            const setView = (next, save = false) => {
+                layout.querySelector('.student-grades-summary-panel').hidden = next !== 'table';
+                layout.querySelector('.student-performance-section').hidden = next !== 'graph';
+                barPanel.hidden=next!=='bar';
+                control.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view === next)));
+                control.querySelector('select').value = next;
+                if (save && key) { try { localStorage.setItem(key,next); } catch (_) {} }
+            };
+            control.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view,true));
+            control.querySelector('select').onchange = event => setView(event.target.value,true);
+            setView(view);
+            initStudentPerformanceSlider(layout);
             layout.querySelectorAll('.grade-view-tab').forEach(button => {
+                
 
                 button.addEventListener('click', () => {
 
@@ -3576,9 +3810,36 @@ if (overlay) overlay.classList.add('hidden');
 
 
             layout.querySelector('#student-subject-filter-toggle')?.addEventListener('click', () => {
-                if (!selectingComparisonSubjects && comparingSubjectIds === null) comparingSubjectIds = new Set(analyticsRows.map(r => String(r.id)));
-                selectingComparisonSubjects = !selectingComparisonSubjects;
-                renderGradesPage();
+                document.getElementById('student-subject-filter-panel')?.remove();
+                const chosen = new Set(comparingSubjectIds ?? allRows.map(row => String(row.id)));
+                const mobile = innerWidth < 768;
+                const overlay = document.createElement('div');
+                overlay.id = 'student-subject-filter-panel';
+                overlay.className = mobile ? 'student-subject-filter-modal' : 'student-subject-filter-dropdown';
+                overlay.innerHTML = `<section role="dialog" aria-label="Filter by Subject" ${mobile ? 'aria-modal="true"' : ''}><div class="subject-filter-heading">Filter by Subject<button type="button" data-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><div class="subject-filter-options"><label><input type="checkbox" data-all>All Subjects</label>${allRows.map((row,index)=>`<label><input type="checkbox" data-index="${index}" ${chosen.has(String(row.id))?'checked':''}><span>${escapeHtml(row.subject)}</span></label>`).join('')}</div><footer><button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" data-reset>Reset</button><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-sm" data-done>Done</button></footer></section>`;
+                const previousFocus = document.activeElement;
+                const close = () => { overlay.remove(); document.removeEventListener('keydown',keyboard); document.removeEventListener('pointerdown',outside); previousFocus?.focus(); };
+                const keyboard = event => {
+                    if (event.key === 'Escape') close();
+                    if (mobile && event.key === 'Tab') {
+                        const elements=[...overlay.querySelectorAll('button,input')],first=elements[0],last=elements[elements.length-1];
+                        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+                        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+                    }
+                };
+                const outside = event => { if(!overlay.querySelector('section').contains(event.target)) close(); };
+                const sync = () => {
+                    const all=overlay.querySelector('[data-all]');all.checked=chosen.size===allRows.length;all.indeterminate=chosen.size>0&&chosen.size<allRows.length;
+                    overlay.querySelectorAll('[data-index]').forEach(input=>input.checked=chosen.has(String(allRows[Number(input.dataset.index)].id)));
+                };
+                overlay.querySelector('[data-all]').onchange=event=>{chosen.clear();if(event.target.checked)allRows.forEach(row=>chosen.add(String(row.id)));sync();};
+                overlay.querySelectorAll('[data-index]').forEach(input=>input.onchange=()=>{const id=String(allRows[Number(input.dataset.index)].id);input.checked?chosen.add(id):chosen.delete(id);sync();});
+                overlay.querySelector('[data-reset]').onclick=()=>{allRows.forEach(row=>chosen.add(String(row.id)));sync();};
+                overlay.querySelector('[data-done]').onclick=()=>{comparingSubjectIds=chosen;window.activeStudentGradeSubjectFilter=null;close();renderGradesPage();};
+                overlay.querySelector('[data-close]')?.remove();
+                document.body.append(overlay);
+                if(!mobile){const rect=previousFocus.getBoundingClientRect();overlay.style.top=`${rect.bottom+8}px`;overlay.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-328))}px`;}
+                sync();document.addEventListener('keydown',keyboard);document.addEventListener('pointerdown',outside);overlay.querySelector('input').focus();
             });
             layout.querySelector('#student-subject-filter-done')?.addEventListener('click', () => {
                 selectingComparisonSubjects = false;
@@ -3721,8 +3982,12 @@ if (overlay) overlay.classList.add('hidden');
 
             `;
 
+        } finally {
+            if (gradesSection) {
+                gradesSection.removeAttribute('data-sigma-skeleton-active');
+                gradesSection.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
+            }
         }
-
     }
     //   Calendar Logic (Admin Copy)  
 
@@ -7675,9 +7940,9 @@ if (overlay) overlay.classList.add('hidden');
                             <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#FFD000] flex items-center justify-center flex-shrink-0 shadow-2xs font-['Inter']">
                                 <i class="fa-solid fa-bolt text-black text-[10px] sm:text-[11px]"></i>
                             </div>
-                            <span class="text-xs sm:text-[13px] font-bold text-black font-['Inter']" style="color: #000000 !important;">SIGMA AI Assessment Insights</span>
+                            <span class="text-xs sm:text-[13px] font-bold text-black font-['Inter']" style="color: #000000 !important;">SIGMA AI Subject Insights</span>
                         </div>
-                        <p class="text-[11.5px] sm:text-xs font-medium leading-relaxed font-['Inter'] ${hasQData ? 'text-slate-700' : 'text-black-fade'}" ${!hasQData ? 'style="color: rgba(0, 0, 0, 0.45) !important;"' : ''}>
+                        <p data-subject-grade-insight class="text-[11.5px] sm:text-xs font-medium leading-relaxed font-['Inter'] ${hasQData ? 'text-slate-700' : 'text-black-fade'}" ${!hasQData ? 'style="color: rgba(0, 0, 0, 0.45) !important;"' : ''}>
                             ${aiInsightMessage}
                         </p>
                     </div>
@@ -7711,7 +7976,22 @@ if (overlay) overlay.classList.add('hidden');
 
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
-        overlay.querySelector('.student-assessment-quarter-select')?.addEventListener('change', event => {
+        const refreshGradeInsight = (quarter = 'all') => window.refreshSubjectGradeInsight?.(overlay.querySelector('[data-subject-grade-insight]'), {
+            subject: subjectName, subjectId: subjectName, sectionId: sectionName, quarter,
+            grades: qTerms.filter((_, index) => quarter === 'all' || String(index + 1) === quarter).map(term => Number.isFinite(term.val) ? term.val : null),
+            assessments: assessmentBars.filter(row => quarter === 'all' || row.quarter === quarter)
+        });
+        refreshGradeInsight();
+        const assessmentQuarterSelect = overlay.querySelector('.student-assessment-quarter-select');
+        if (assessmentQuarterSelect) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'student-view-grades-quarter-control';
+            assessmentQuarterSelect.before(wrapper);
+            wrapper.append(assessmentQuarterSelect);
+            wrapper.insertAdjacentHTML('beforeend','<i class="fa-solid fa-chevron-down" aria-hidden="true"></i>');
+        }
+        assessmentQuarterSelect?.addEventListener('change', event => {
+            refreshGradeInsight(event.target.value);
             let visible = 0;
             overlay.querySelectorAll('.student-assessment-quarter-row').forEach(row => {
                 const included = event.target.value === 'all' || row.dataset.quarter === event.target.value;
@@ -7965,19 +8245,10 @@ if (overlay) overlay.classList.add('hidden');
     }
 
     initCalendarEvents();
-    renderStudentHomeAnnouncements();
-    renderStudentHomeDashboardPanels();
     updateStudentAttendanceStatus();
 
     // Defer heavy secondary tabs that are not visible on initial load
     const deferSecondaryTabs = () => {
-        if (initialPage === 'assignments') {
-            renderAssessmentsPage();
-        } else if (initialPage === 'grades') {
-            renderGradesPage();
-        } else if (initialPage === 'courses') {
-            renderClassroomsGrid();
-        }
         buildScheduleNotifications();
     };
 
@@ -8292,10 +8563,6 @@ if (overlay) overlay.classList.add('hidden');
         });
     }
 
-    buildScheduleNotifications();
-
-    setInterval(buildScheduleNotifications, 60000);
-
     // Initial population
     if (typeof window.populateUserProfilePage === 'function') {
         window.populateUserProfilePage();
@@ -8375,21 +8642,6 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
     };
-    // Auto-refresh dashboard panels so ended classes disappear immediately
-    setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            if (typeof renderStudentHomeDashboardPanels === 'function') {
-                renderStudentHomeDashboardPanels();
-            }
-        }
-    }, 30000);
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            if (typeof renderStudentHomeDashboardPanels === 'function') {
-                renderStudentHomeDashboardPanels();
-            }
-        }
-    });
 
     window.showClassroomDetail = showClassroomDetail;
 

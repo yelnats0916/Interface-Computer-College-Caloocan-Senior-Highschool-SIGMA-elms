@@ -52,6 +52,164 @@
     }
 }
 
+/* Shared classroom navigation clears the visible browser viewport and home indicator. */
+@media (max-width: 767px) {
+    html body .classroom-detail-shell:has(#classes-detail-tabs) #detail-section-room .announcement-composer-trigger-card,
+    html body .classroom-detail-shell:has(#classes-detail-tabs) #detail-section-room .classroom-room-main > div:first-child:has(button[onclick*="openClassroomComposer"]) {
+        border-top: 1px solid rgba(0, 0, 0, .08) !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-radius: 0 !important;
+        width: 100% !important;
+        box-shadow: none !important;
+    }
+    html body .classroom-detail-shell:has(#student-classroom-tabs-wrapper) #room-announcements-feed .sigma-announcement-card {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-top: 1px solid rgba(0, 0, 0, .08) !important;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+    }
+    html body #student-classroom-tabs-wrapper #student-room-dropdown {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: calc(60px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        max-height: 60dvh;
+        margin: 0 !important;
+        padding: 12px 16px !important;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+        overflow-y: auto;
+        box-shadow: 0 -6px 24px rgba(0, 0, 0, .12) !important;
+    }
+    html body #student-classroom-tabs-wrapper #student-room-dropdown .classroom-settings-item {
+        width: 100% !important;
+        min-height: 44px !important;
+        font-size: 14px !important;
+        text-align: left;
+    }
+    html body :is(#classes-detail-tabs:has(#tab-btn-gradebook), #student-classroom-tabs-wrapper),
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) {
+        bottom: var(--classroom-viewport-bottom, 0px) !important;
+        height: calc(60px + max(env(safe-area-inset-bottom, 0px), 8px)) !important;
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
+        box-sizing: border-box !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        border-top: 1px solid #e2e8f0 !important;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, .06) !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) > div,
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) nav { gap: 0 !important; }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn, .canonical-back-btn) {
+        height: 60px !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 10px 2px 4px !important;
+        gap: 4px !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn, .canonical-back-btn) > i {
+        width: 20px !important;
+        height: 20px !important;
+        font-size: 16px !important;
+        line-height: 20px !important;
+        flex: 0 0 20px !important;
+    }
+    html body #section-topic-content .canonical-tabs-bar:has([data-canonical-tab="videos"]) :is(.canonical-tab-btn, .canonical-back-btn) > span {
+        font-size: 10px !important;
+        line-height: 12px !important;
+        height: 24px !important;
+        font-weight: 500 !important;
+        text-align: center !important;
+    }
+    html body #section-topic-content {
+        padding-bottom: calc(80px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important;
+    }
+    html body #student-classroom-tabs-wrapper > div { gap: 0 !important; }
+    html body #student-classroom-tabs-wrapper > div > div:first-child { flex: 3 1 0 !important; gap: 0 !important; }
+    html body #student-classroom-tabs-wrapper > div > div:last-child { flex: 1 1 0 !important; min-width: 0; }
+    html body #student-classroom-tabs-wrapper > div > div:last-child > div { width: 100%; }
+    html body #student-classroom-tabs-wrapper #student-room-menu-btn { width: 100% !important; }
+    html body .classroom-detail-shell:has(:is(#classes-detail-tabs, #student-classroom-tabs-wrapper)) {
+        padding-bottom: calc(76px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important;
+    }
+    html body :is(#student-room-dropdown, #classroom-settings-menu) {
+        bottom: calc(60px + max(env(safe-area-inset-bottom, 0px), 8px) + var(--classroom-viewport-bottom, 0px)) !important;
+    }
+}
+
+/* Embedded topic toolbars use the desktop 16px gap on mobile too. */
+@media (max-width: 767px) {
+    html body #section-topic-content :is(.topic-detail-grid, .teacher-topic-page-grid):has(#topic-task-progress-card) #topic-content-main {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    html body #section-topic-content #topic-content-main > div:has(:is(#handout-list, #assessment-list, .topic-videos-list-card)) {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+        min-height: 0 !important;
+    }
+    html body #section-topic-content :is(#topic-right-section, .student-topic-progress-rail, .teacher-topic-progress-rail):has(#topic-task-progress-card) {
+        order: 2 !important;
+        position: static !important;
+        min-height: 0 !important;
+        height: auto !important;
+        margin-top: 0 !important;
+        padding-top: 16px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        box-sizing: border-box !important;
+    }
+}
+
+@media (max-width: 767px) {
+    html body .classroom-detail-shell #room-topics-mount :is(.teacher-topic-toolbar, .student-topic-toolbar) {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 16px !important;
+    }
+    html body .classroom-detail-shell #room-topics-mount .room-embedded-topics :is(.topic-main-shell, .student-topic-main-shell, .teacher-topic-main-shell) {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    html body .classroom-detail-shell:has(> :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper)) #room-topics-mount :is(.teacher-topic-toolbar,.student-topic-toolbar) {
+        padding-top:16px!important;
+    }
+    html body .classroom-detail-shell #room-topics-mount .teacher-topic-toolbar .manage-curriculum-dropdown-btn {
+        height:36px!important;
+        min-height:36px!important;
+        padding:0 10px!important;
+        border-radius:12px!important;
+    }
+}
+
+/* Gradebooks keep one white surface beyond the final student row. */
+@media (max-width: 768px) {
+    html body:has(:is(#section-grades, #school-grades-view):not(.hidden) #admin-grades-gradebook-view:not(.hidden)):has(#layout-wrapper):has(#main-content):has(#admin-grades-gradebook-view),
+    html body :is(#layout-wrapper, #main-content, #admin-main, #content-sections):has(:is(#section-grades, #school-grades-view):not(.hidden) #admin-grades-gradebook-view:not(.hidden)):has(#admin-grades-gradebook-view) {
+        background: #fff !important;
+    }
+    html body :is(#section-grades, #school-grades-view):not(.hidden):has(#admin-grades-gradebook-view:not(.hidden)) {
+        min-height: calc(100dvh - var(--shell-offset, 106px)) !important;
+        background: #fff !important;
+        margin-bottom: 0 !important;
+    }
+}
+
 /* ==========================================================================
    1. GLOBAL RESPONSIVE CORE & LAYOUT WRAPPER (< 1024px)
    ========================================================================== */
@@ -6568,6 +6726,13 @@
         gap: 2px !important;
     }
 
+    html body #subject-edit-overlay :is(#subject-materials-quarter-pills, #subject-topics-quarter-pills):has(> .sigma-quarter-dropdown) {
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
     #subject-materials-quarter-pills button,
     #subject-topics-quarter-pills button,
     .teacher-portal #subject-materials-quarter-pills button,
@@ -10504,4 +10669,17 @@
 @media (max-width: 768px) {
     [id^="topic-dropdown-"] .material-panel-icon-group > span,
     body [id^="topic-dropdown-"] .sigma-black-fade-panel .material-panel-icon-group.mat-icon-col > .mat-type-badge { font-size: 10px !important; line-height: 14px !important; padding: 1px 4px !important; border-radius: 4px !important; }
+}
+
+@media (max-width: 767px) {
+    html body :is(#classes-detail-tabs, #student-classroom-tabs-wrapper):has(:is(#classroom-quick-settings-btn, #student-room-menu-btn)) :is(#classroom-quick-settings-btn, #student-room-menu-btn) > i {
+        display: flex !important;
+        width: 20px !important;
+        height: 20px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 16px !important;
+        line-height: 20px !important;
+        transform: rotate(90deg) !important;
+    }
 }

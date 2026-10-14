@@ -6,13 +6,49 @@
     const NativeWebSocket = window.WebSocket;
     const clients = new Set();
     const livePath = window.location.pathname + '/ws';
+    let lastReloadTime = 0;
+    let reloadDebounceTimer = null;
+
+    function wrapHandler(handler, context) {
+        if (typeof handler !== 'function') return handler;
+        return function (event) {
+            if (event && event.data === 'reload') {
+                const now = Date.now();
+                if (now - lastReloadTime < 500) {
+                    if (!reloadDebounceTimer) {
+                        reloadDebounceTimer = setTimeout(() => {
+                            reloadDebounceTimer = null;
+                            lastReloadTime = Date.now();
+                            handler.call(context, event);
+                        }, 500);
+                    }
+                    return;
+                }
+                lastReloadTime = now;
+            }
+            return handler.call(context, event);
+        };
+    }
+
     window.WebSocket = new Proxy(NativeWebSocket, {
         construct(Target, args) {
             const socket = Reflect.construct(Target, args);
-            const url = new URL(String(args[0]), window.location.href);
-            if (url.host === window.location.host && url.pathname === livePath) {
-                clients.add({ socket, current: socket, args, suspended: false });
-            }
+            try {
+                const url = new URL(String(args[0]), window.location.href);
+                if (url.host === window.location.host && url.pathname === livePath) {
+                    clients.add({ socket, current: socket, args, suspended: false });
+                    let currentOnMessage = null;
+                    Object.defineProperty(socket, 'onmessage', {
+                        get() { return currentOnMessage; },
+                        set(fn) {
+                            currentOnMessage = fn;
+                            const wrapped = wrapHandler(fn, socket);
+                            socket.addEventListener('message', wrapped);
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (_) {}
             return socket;
         }
     });
