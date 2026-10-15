@@ -162,6 +162,7 @@
     function renderResourcesView() {
         const section = document.getElementById('resources-view');
         if (!section) return;
+        const isAdminResourcesView = section.hasAttribute('data-admin-resource-view');
 
         section.removeAttribute('data-sigma-skeleton-active');
         if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
@@ -213,38 +214,58 @@
         section.innerHTML = `
         <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 font-['Inter']">
             <!-- 1. Header Toolbar -->
-            <div class="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <div class="flex items-center gap-2.5">
-                        <h2 class="text-xl font-bold text-slate-900 tracking-tight">Learning Resources & Course Shelves</h2>
-                        <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-xs font-bold">${allResources.length} Total</span>
+            <div class="bg-white border border-slate-200/80 ${isAdminResourcesView ? 'rounded-2xl p-3' : 'rounded-3xl p-6'} shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                ${isAdminResourcesView ? `
+                    <span class="text-xs font-semibold text-slate-500">${allResources.length} resources</span>
+                ` : `
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Learning Resources & Course Shelves</h2>
+                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-xs font-bold">${allResources.length} Total</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Manage syllabus guides, lecture slides, code starters, and worksheets shared across your classes.</p>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">Manage syllabus guides, lecture slides, code starters, and worksheets shared across your classes.</p>
-                </div>
+                `}
                 
                 <!-- Action Controls -->
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3">
                     <!-- Search Input -->
-                    <div class="relative w-48 sm:w-64">
-                        <svg class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        <input type="text" id="resource-search-input" value="${escapeHtml(_searchQuery)}" placeholder="Search resources..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600 focus:bg-white transition-all">
-                    </div>
+                    ${isAdminResourcesView ? `
+                        <form id="resource-search-form" role="search" class="relative w-full min-w-0 sm:w-64">
+                            <input type="search" id="resource-search-input" aria-label="Search resources" value="${escapeHtml(_searchQuery)}" placeholder="Search resources..." class="w-full box-border !pl-3 !pr-11 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600 focus:bg-white transition-all">
+                            <button type="submit" aria-label="Search resources" title="Search resources" class="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-emerald-700 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </button>
+                        </form>
+                    ` : `
+                        <div class="relative w-48 sm:w-64">
+                            <svg class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="resource-search-input" aria-label="Search resources" value="${escapeHtml(_searchQuery)}" placeholder="Search resources..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600 focus:bg-white transition-all">
+                        </div>
+                    `}
 
                     <!-- View Toggle -->
                     <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
-                        <button type="button" id="btn-view-grid" title="Card Shelf View" class="w-8 h-8 rounded-lg ${_currentViewMode === 'grid' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-700'} text-xs flex items-center justify-center transition-all cursor-pointer">
+                        <button type="button" id="btn-view-grid" aria-label="Grid view" title="Card Shelf View" class="w-8 h-8 rounded-lg ${isAdminResourcesView ? (_currentViewMode === 'grid' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-900 hover:bg-white hover:shadow-xs') : (_currentViewMode === 'grid' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-700')} text-xs flex items-center justify-center transition-all cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                         </button>
-                        <button type="button" id="btn-view-table" title="List View" class="w-8 h-8 rounded-lg ${_currentViewMode === 'table' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-700'} text-xs flex items-center justify-center transition-all cursor-pointer">
+                        <button type="button" id="btn-view-table" aria-label="List view" title="List View" class="w-8 h-8 rounded-lg ${isAdminResourcesView ? (_currentViewMode === 'table' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-900 hover:bg-white hover:shadow-xs') : (_currentViewMode === 'table' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-700')} text-xs flex items-center justify-center transition-all cursor-pointer">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
                     </div>
 
-                    <!-- Upload Button -->
-                    <button type="button" id="btn-open-upload" class="bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        <span>Upload Resource</span>
-                    </button>
+                    ${isAdminResourcesView ? `
+                        <button type="button" data-manage-materials class="md:w-[9.5rem] md:h-8 md:justify-center whitespace-nowrap bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                            <span>Manage Materials</span>
+                        </button>
+                    ` : `
+                        <!-- Upload Button -->
+                        <button type="button" id="btn-open-upload" class="bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            <span>Upload Resource</span>
+                        </button>
+                    `}
                 </div>
             </div>
 
@@ -292,14 +313,20 @@
                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
                     </div>
                     <h3 class="text-base font-bold text-slate-900 mb-1">No Matching Resources</h3>
-                    <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">No learning materials found matching your current filter criteria. You can clear your filters or upload a new resource.</p>
+                    <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">No learning materials found matching your current filter criteria. You can clear your filters${isAdminResourcesView ? ' or manage course materials.' : ' or upload a new resource.'}</p>
                     <div class="inline-flex items-center gap-2">
                         <button type="button" id="btn-reset-filters" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
                             Reset Filters
                         </button>
-                        <button type="button" onclick="document.getElementById('btn-open-upload')?.click()" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#15803d] hover:bg-[#166534] text-white transition-colors">
-                            Upload Material
-                        </button>
+                        ${isAdminResourcesView ? `
+                            <button type="button" data-manage-materials class="px-4 py-2 rounded-xl text-xs font-bold bg-[#15803d] hover:bg-[#166534] text-white transition-colors">
+                                Manage Materials
+                            </button>
+                        ` : `
+                            <button type="button" onclick="document.getElementById('btn-open-upload')?.click()" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#15803d] hover:bg-[#166534] text-white transition-colors">
+                                Upload Material
+                            </button>
+                        `}
                     </div>
                 </div>
             ` : _currentViewMode === 'grid' ? `
@@ -512,6 +539,12 @@
     }
 
     function bindEvents(section) {
+        section.querySelectorAll('[data-manage-materials]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.getElementById('nav-school-subjects')?.click();
+            });
+        });
+
         // Search Input
         const searchInput = section.querySelector('#resource-search-input');
         if (searchInput) {
@@ -526,6 +559,13 @@
                 }
             });
         }
+        section.querySelector('#resource-search-form')?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            _searchQuery = searchInput?.value || '';
+            renderResourcesView();
+            const nextInput = document.getElementById('resource-search-input');
+            if (nextInput) nextInput.focus();
+        });
 
         // View Mode Toggles
         section.querySelector('#btn-view-grid')?.addEventListener('click', () => {
@@ -700,7 +740,7 @@
     // Re-render whenever the section becomes visible (navigation)
     const _observer = new MutationObserver(() => {
         const section = document.getElementById('resources-view');
-        if (section && !section.classList.contains('hidden') && !section.querySelector('h2')) {
+        if (section && !section.classList.contains('hidden') && !section.querySelector('#resource-search-input')) {
             renderResourcesView();
         }
     });
