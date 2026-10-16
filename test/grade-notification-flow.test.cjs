@@ -1,0 +1,55 @@
+const { chromium } = require('playwright');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+(async () => {
+    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    try {
+        const page = await browser.newPage();
+        await page.route('http://grade.test/**', route => route.fulfill({ contentType: 'text/html', body: '<div id="admin-grades-shared-navbar"></div><div id="admin-grades-quarters-wrapper"><button>Q1</button></div><div id="admin-gradebook-workspace-content"></div>' }));
+        await page.goto('http://grade.test/teacher.html');
+        await page.addStyleTag({ content: fs.readFileSync('css/shared-grade-record.css', 'utf8') });
+        await page.evaluate(() => {
+            window.testTeacher = { id: 'teacher', fullName: 'Subject Teacher', role: 'Teacher' };
+            window.testAdviser = { id: 'adviser', fullName: 'Section Adviser', role: 'Teacher' };
+            window.testActor = window.testTeacher;
+            localStorage.setItem('sigma-admin-users', JSON.stringify([testTeacher, testAdviser]));
+            localStorage.setItem('sigma-admin-sections', JSON.stringify([{ name: 'Rizal', adviserId: 'adviser', adviserName: 'Section Adviser' }]));
+            window.getPrivateCommentActor = window.getEffectiveTeacher = () => window.testActor;
+            window.getActiveSchoolYearRecord = () => ({ name: '2026-2027' });
+            window.getAssignedGradeSections = student => student?.id === 'student' ? ['rizal'] : [];
+            window.sigmaGradesState = { selectedSubjectSection: { subject: 'Programming', sectionName: 'Rizal' }, activeQuarter: 1 };
+            window.switchTab = () => {};
+            window.renderAdminGradebookWorkspace = () => { window._gradebookExportSnapshot = { subject: sigmaGradesState.selectedSubjectSection.subject, section: sigmaGradesState.selectedSubjectSection.sectionName, quarter: sigmaGradesState.activeQuarter, teacher: testActor, rows: [{ student: { id: 'student', name: 'Student' }, quarterly: 90 }] }; };
+            window.sent = [];
+            window.SigmaNotifications = { sendToRole: (role, notification) => sent.push({ role, ...notification }) };
+        });
+        await page.addScriptTag({ content: fs.readFileSync('js/shared-grade-record.js', 'utf8') });
+        await page.evaluate(() => openSharedGradeRecord());
+        await page.locator('.record-update').click();
+        await page.locator('.record-share').click();
+        await page.locator('.record-share').click();
+        assert.equal(await page.evaluate(() => sent.length), 1, 'Unchanged sharing does not repeat notification');
+        assert.equal(await page.evaluate(() => sent[0].recipientId), 'adviser');
+        await page.locator('.record-add-comment').click();
+        await page.locator('.sigma-comment-textarea').fill('Please review this grade.');
+        await page.locator('.sigma-comment-send-btn').click();
+        await page.evaluate(() => { testActor = testAdviser; openGradeRecordNotification(sent[0].target.gradeRecord); });
+        assert.match(await page.locator('.record-comment-history').textContent(), /Please review/);
+        assert.equal(await page.locator('.sigma-comment-delete-btn').count(), 0, 'Adviser cannot delete the other teacher comment');
+        await page.locator('.sigma-comment-textarea').fill('Reviewed, thank you.');
+        await page.locator('.sigma-comment-send-btn').click();
+        assert.equal(await page.evaluate(() => sent.at(-1).recipientId), 'teacher');
+        await page.locator('.record-share').click();
+        const published = await page.evaluate(() => sent.filter(n => n.type === 'quarter-grades-published'));
+        assert.deepEqual(published.map(n => n.recipientId).sort(), ['student', 'teacher']);
+        await page.locator('.record-share').click();
+        assert.equal(await page.evaluate(() => sent.filter(n => n.type === 'quarter-grades-published').length), 2);
+        await page.getByRole('button', { name: 'Request Corrections' }).click();
+        assert.equal(await page.evaluate(() => sent.at(-1).type), 'grade-corrections-requested');
+        await page.evaluate(() => { testActor = testTeacher; openGradeRecordNotification(sent.at(-1).target.gradeRecord); });
+        assert.match(await page.locator('.record-comment-history').textContent(), /Reviewed, thank you/);
+        assert.equal(await page.evaluate(() => sigmaGradesState.selectedSubjectSection.sectionName), 'Rizal');
+        assert.equal(await page.evaluate(() => sigmaGradesState.activeQuarter), 1);
+        console.log('PASS: sharing, duplicate suppression, targeted review routes, private replies, publish recipients, correction requests.');
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

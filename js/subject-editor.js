@@ -616,10 +616,22 @@
     }
     window.isCurrentEditorTeacher = isCurrentEditorTeacher;
 
+    function canAdminEditTeacherScope() {
+        if (isCurrentEditorTeacher() || !window.activeCurriculumScope || ['master','all'].includes(window.activeCurriculumScope)) return false;
+        const user = getCurrentEditorUser();
+        const role = String(user?.role || user?.type || '').toLowerCase();
+        if (!role.includes('admin')) return false;
+        if (role.includes('master')) return true;
+        const permissions = user?.permissions || {};
+        return permissions.schoolMain !== false && permissions.schoolSubjects !== false && permissions.subjectAuthority !== false;
+    }
+    window.canAdminEditTeacherScope = canAdminEditTeacherScope;
+
     function isCurrentViewOnlyScope() {
         const isTeacher = isCurrentEditorTeacher();
         const isStandalone = Boolean(window.subjectEditorOptions?.standalone);
-        if (isTeacher || isStandalone) return false;
+        if (isTeacher || canAdminEditTeacherScope()) return false;
+        if (isStandalone && (!window.activeCurriculumScope || window.activeCurriculumScope === 'master')) return false;
         return Boolean(window.activeCurriculumScope && window.activeCurriculumScope !== 'master');
     }
     window.isCurrentViewOnlyScope = isCurrentViewOnlyScope;
@@ -644,8 +656,13 @@
                 return true;
             }
         } else {
-            // Admin portal: Teacher-created materials cannot be edited from admin
-            if (normRole === 'Teacher') return false;
+            // Admins edit the teacher's source record only within its selected scope.
+            if (normRole === 'Teacher') {
+                if (!canAdminEditTeacherScope()) return false;
+                if (authorId) return String(authorId) === String(window.activeCurriculumScope);
+                const scopeName = String(window.activeCurriculumScopeLabel || '').replace(/\s*\(.*?\)\s*/g,'').trim().toLowerCase();
+                return Boolean(authorName && String(authorName).trim().toLowerCase() === scopeName);
+            }
             if (normRole === 'Admin') return true;
         }
 
@@ -2437,6 +2454,47 @@
             window.renderSubjectQuarterTabs?.();
             window.renderSubjectTopics();
             window.renderSubjectMaterials();
+
+            if (window.subjectEditorOptions?.targetMaterialId || window.subjectEditorOptions?.targetMaterialTitle) {
+                const targetId = String(window.subjectEditorOptions.targetMaterialId || '');
+                const targetTitle = String(window.subjectEditorOptions.targetMaterialTitle || '').trim().toLowerCase();
+                const allMats = (Array.isArray(window.currentSubjectAllMaterials) && window.currentSubjectAllMaterials.length > 0)
+                    ? window.currentSubjectAllMaterials
+                    : (window.currentSubjectMaterials || []);
+                const foundMat = allMats.find(m => {
+                    if (!m) return false;
+                    const mId = String(m.id || '');
+                    if (targetId) return Boolean(mId && mId === targetId);
+                    const mTitle = String(m.title || m.name || '').trim().toLowerCase();
+                    const mFile = String(m.fileName || m.filename || '').trim().toLowerCase();
+                    return (targetTitle && (mTitle === targetTitle || mFile === targetTitle || mTitle.includes(targetTitle) || targetTitle.includes(mTitle)));
+                });
+                if (foundMat) {
+                    const foundIdx = allMats.indexOf(foundMat);
+                    const targetOptions = { ...window.subjectEditorOptions };
+                    setTimeout(() => {
+                        if (window.subjectEditorOptions !== null && targetOptions.targetMaterialMode === 'view') {
+                            if (targetOptions.targetMaterialScope && !isCurrentEditorTeacher() && normalizeSubjectAuthorRole(targetOptions.targetMaterialAuthorRole || foundMat.authorRole || foundMat.role) === 'Teacher') {
+                                const authorId = String(targetOptions.targetMaterialAuthorId || foundMat.authorId || '');
+                                const authorName = String(targetOptions.targetMaterialAuthorName || foundMat.authorName || foundMat.author || '');
+                                const teacher = getSubjectAssignedTeachers(window.originalEditingSubjectCode, window.originalEditingSubjectName)
+                                    .find(t => (authorId && String(t.id) === authorId) || (authorName && String(t.name).trim().toLowerCase() === authorName.trim().toLowerCase()));
+                                if (teacher) window.selectCurriculumScope(teacher.id, teacher.section ? `${teacher.name} (${teacher.section})` : teacher.name);
+                                else if (authorId) window.selectCurriculumScope(authorId, authorName || 'Teacher');
+                            }
+                            if (foundMat.quarter) {
+                                window.currentSubjectMaterialQuarter = normalizeQuarterKey(foundMat.quarter);
+                                window.currentSubjectTopicQuarter = window.currentSubjectMaterialQuarter;
+                                window.renderSubjectQuarterTabs?.();
+                            }
+                            window.viewSubjectMaterial(String(foundMat.id));
+                            return;
+                        }
+                        window.addSubjectMaterial('', false, foundIdx >= 0 ? foundIdx : -1, foundMat.id);
+                    }, 50);
+                }
+            }
+
             window.originalEditingSubjectState = window.getSubjectFormStateSnapshot ? window.getSubjectFormStateSnapshot() : null;
             window.checkSubjectFormValidity();
 
@@ -4919,6 +4977,9 @@ window.addSubjectTopic = function () {
                 image,
                 quarter: topicQuarter
             };
+            if (!isTeacher && normalizeSubjectAuthorRole(currentItem.authorRole || currentItem.role) === 'Teacher') {
+                updatedItem.editedBy = {id:currentUserId,name:currentUserName,role:currentUser?.role || currentUser?.type || 'Admin',at:new Date().toISOString()};
+            }
             if (!updatedItem.section && activeSection) {
                 updatedItem.section = activeSection;
             }
@@ -6890,7 +6951,7 @@ window.addSubjectTopic = function () {
         const modalHeader = document.getElementById('subject-modal-header');
         const segmentedHeader = document.getElementById('subject-segmented-header');
         const isTeacher = isCurrentEditorTeacher();
-        const isViewOnlyScope = !isTeacher && window.activeCurriculumScope && window.activeCurriculumScope !== 'master';
+        const isViewOnlyScope = isCurrentViewOnlyScope();
 
         // Hide segmented step navigation bar when viewing material
         if (segmentedHeader) {
@@ -10139,6 +10200,12 @@ window.addSubjectTopic = function () {
         }
 
         const existingMat = findMaterialById(state.id) || resolveMaterialForEdit(state.index, state.id);
+        const notificationPreviousMaterial = existingMat ? structuredClone(existingMat) : null;
+        if (existingMat) {
+            authorRole = existingMat.authorRole || authorRole;
+            authorId = existingMat.authorId || authorId;
+            authorName = existingMat.authorName || existingMat.author || authorName;
+        }
 
         // --- Wait for FileReader data URL conversions to finish ---
         // If the user clicked Save immediately after selecting a file, the async FileReader
@@ -10281,6 +10348,10 @@ window.addSubjectTopic = function () {
             updatedAt: new Date().toISOString()
         };
 
+        if (!isTeacher && existingMat && normalizeSubjectAuthorRole(existingMat.authorRole || existingMat.role) === 'Teacher') {
+            finalItem.section = existingMat.section || finalItem.section;
+            finalItem.editedBy = {id:currentUserId,name:currentUserName,role:currentUser?.role || currentUser?.type || 'Admin',at:new Date().toISOString()};
+        }
         const editorHidRubric = !isTeacher && (!window.activeCurriculumScope || window.activeCurriculumScope === 'master');
         const existingIsAdmin = existingMat && normalizeSubjectAuthorRole(existingMat.authorRole || existingMat.role || (existingMat.isAdmin ? 'Admin' : '')) === 'Admin';
         if (editorHidRubric && existingIsAdmin && !finalItem.hasRubric && (existingMat.hasRubric || existingMat.rubricFileName || existingMat.rubric)) {
@@ -10376,6 +10447,11 @@ window.addSubjectTopic = function () {
 
         if (typeof window.syncCurrentSubjectEditorToStorage === 'function') {
             window.syncCurrentSubjectEditorToStorage();
+        }
+
+        if (isTeacher && existingMat && !['Lesson','Video','Handout'].includes(type)) {
+            const subject = window.currentSubjectData || window.editingSubjectData;
+            window.SigmaNotifications?.notifyAssessmentContentUpdate(notificationPreviousMaterial, finalItem, subject?.code || subject?.id || window.currentSubjectCode, activeSection);
         }
 
         window.currentSubjectMaterialQuarter = matQuarter;

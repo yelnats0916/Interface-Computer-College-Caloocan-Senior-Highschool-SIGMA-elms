@@ -2731,38 +2731,40 @@ body > .sortable-drag-clone .card-body-main,
     line-height: 1;
     background: #ffffff;
     color: #475569;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn:hover:not(.active) {
     background: #f8fafc;
     border-color: #cbd5e1;
     color: #0f172a;
-    transform: scale(1.05);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.p-btn.active {
     background: #10b981 !important;
     color: #ffffff !important;
     border-color: #10b981 !important;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.a-btn.active {
     background: #ef4444 !important;
     color: #ffffff !important;
     border-color: #ef4444 !important;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.l-btn.active {
     background: #f59e0b !important;
     color: #ffffff !important;
     border-color: #f59e0b !important;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 /* Room only: clean card styling and standard spacing for announcement trigger card */
@@ -3902,3 +3904,255 @@ html body #admin-main .classroom-detail-shell:has(#tab-btn-attendance.active) > 
     html body .classroom-detail-shell:has(> :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper)):has(:is(#tab-btn-topics,#tab-btn-attendance).active) :is(#classroom-quick-settings-btn,#student-room-menu-btn,.classroom-settings-menu) {display:none!important}
     html body .classroom-detail-shell:has(> :is(#teacher-classroom-banner-wrapper,#student-classroom-banner-wrapper)):has(:is(#tab-btn-topics,#tab-btn-attendance).active) .classroom-detail-tabs :is(div:has(> #classroom-quick-settings-btn),div:has(> #student-room-menu-btn)) {display:none!important}
 }
+
+/* Attendance Live System Summary Panel (Admin & Teacher Sync) */
+.attendance-system-summary-panel {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: none;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    background: #ffffff;
+    padding: 1.15rem 1.5rem;
+    font-family: 'Inter', sans-serif !important;
+}
+
+@media (max-width: 640px) {
+    .attendance-system-summary-panel {
+        padding: 1rem 0.85rem;
+    }
+}
+
+.attendance-summary-card {
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 90px;
+    transition: all 0.15s ease;
+}
+
+.attendance-summary-card--present {
+    background: rgba(240, 253, 244, 0.7);
+    border: 1px solid #bbf7d0;
+}
+
+.attendance-summary-card--absent {
+    background: rgba(255, 241, 242, 0.7);
+    border: 1px solid #fecdd3;
+}
+
+.attendance-summary-card--late {
+    background: rgba(255, 251, 235, 0.7);
+    border: 1px solid #fef08a;
+}
+
+.attendance-summary-card--unmarked {
+    background: rgba(248, 250, 252, 0.85);
+    border: 1px solid #e2e8f0;
+}
+
+.attendance-student-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.attendance-dot {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 9999px !important;
+    display: inline-block !important;
+    flex-shrink: 0 !important;
+}
+
+.attendance-dot--present { background-color: #15803d !important; }
+.attendance-dot--absent { background-color: #e11d48 !important; }
+.attendance-dot--late { background-color: #d97706 !important; }
+.attendance-dot--unmarked { background-color: #94a3b8 !important; }
+
+/* ─── Attendance Footer Action Bar (Below Panels) ─── */
+.attendance-footer-action-bar {
+    margin-top: 1rem;
+    padding-top: 0.875rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+    .attendance-footer-action-bar {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+.attendance-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    align-self: flex-end !important;
+    margin-left: auto !important;
+}
+
+@media (min-width: 640px) {
+    .attendance-footer-actions {
+        align-self: center !important;
+        margin-left: 0 !important;
+    }
+}
+
+.attendance-rate-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+    color: #000000;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.attendance-rate-subtitle {
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+}
+
+.attendance-action-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    font-family: 'Inter', sans-serif !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, transform 0.1s ease !important;
+    user-select: none !important;
+    /* Desktop default matching reference button */
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 0 24px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.attendance-action-btn span {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+}
+
+.attendance-action-btn:active {
+    transform: scale(0.97) !important;
+}
+
+.attendance-action-btn--submit,
+.attendance-action-btn--update {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.attendance-action-btn--submit span,
+.attendance-action-btn--update span {
+    color: #ffffff !important;
+}
+
+.attendance-action-btn--submit:hover,
+.attendance-action-btn--update:hover {
+    background-color: #166534 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.attendance-action-btn--submit:active,
+.attendance-action-btn--update:active {
+    background-color: #14532d !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.attendance-action-btn--edit,
+.attendance-action-btn--cancel {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.attendance-action-btn--edit span,
+.attendance-action-btn--cancel span {
+    color: #0f172a !important;
+}
+
+.attendance-action-btn--edit:hover,
+.attendance-action-btn--cancel:hover {
+    background-color: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+@media (max-width: 767px) {
+    .attendance-action-btn {
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 16px !important;
+        border-radius: 12px !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+        box-shadow: none !important;
+        filter: none !important;
+    }
+    .attendance-action-btn span {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+        line-height: 1 !important;
+    }
+}
+
+/* Enforce zero glow / zero shadow across both Admin & Teacher on Desktop and Mobile */
+html body .attendance-opt-btn,
+html body .attendance-opt-btn.active,
+html body .attendance-opt-btn:hover,
+html body .attendance-opt-btn:focus,
+html body .attendance-opt-btn:active,
+html body .attendance-action-btn,
+html body .attendance-action-btn:hover,
+html body .attendance-action-btn:focus,
+html body .attendance-action-btn:active {
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+}
+
+
+

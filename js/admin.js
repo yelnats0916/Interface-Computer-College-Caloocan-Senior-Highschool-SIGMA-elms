@@ -1247,16 +1247,333 @@ window.toggleAttendanceActionDropdown = function (index, event) {
     }
 };
 
-window.viewAttendanceDetails = function (sectionName) {
-    if (typeof window.showToastNotification === 'function') {
-        window.showToastNotification(`Viewing attendance roster for ${sectionName}`, 'info');
+window.viewAttendanceDetails = function (sectionName, subjectName) {
+    const rawSection = sectionName ? decodeURIComponent(String(sectionName)) : '';
+    const rawSubject = subjectName ? decodeURIComponent(String(subjectName)) : '';
+
+    if (!rawSection) {
+        if (typeof window.showToastNotification === 'function') {
+            window.showToastNotification('Please select a valid section.', 'warning');
+        }
+        return;
+    }
+
+    if (typeof window.showAdminClassroom === 'function') {
+        window.showAdminClassroom(rawSection, rawSubject, 'attendance');
+    } else if (typeof window.showToastNotification === 'function') {
+        window.showToastNotification(`Viewing attendance roster for ${rawSection}`, 'info');
     }
 };
 
-window.exportAttendanceSheet = function (sectionName) {
-    if (typeof window.showToastNotification === 'function') {
-        window.showToastNotification(`Exporting attendance sheet for ${sectionName}...`, 'success');
+window.exportAttendanceSheet = function (sectionName, subjectName) {
+    const section = sectionName ? decodeURIComponent(String(sectionName)) : '';
+    const subject = subjectName ? decodeURIComponent(String(subjectName)) : '';
+    if (!section || !subject) return;
+    const range = window._appliedAttendanceReportRange || 'today';
+    window.exportFilteredAttendanceWorkbook?.(section, subject, getAttendanceDateFilterConfig(range));
+};
+window.getTodayAttendanceRecord = function (sectionName, subjectName) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    const sec = String(sectionName || '').trim();
+    const subj = String(subjectName || '').trim();
+
+    let classroomData = {};
+    if (typeof window.findAttendanceClassroomRecord === 'function') {
+        const res = window.findAttendanceClassroomRecord(sec, subj);
+        classroomData = res?.data || {};
+    } else {
+        let records = {};
+        try {
+            records = JSON.parse(localStorage.getItem('sigma-attendance-records-v1') || '{}');
+        } catch (_) {
+            records = {};
+        }
+        const baseSec = sec.replace(/^Grade\s*\d+\s*[-–]?\s*/i, '').trim();
+        const slugSubj = subj.replace(/\s+/g, '-');
+        const candidateKeys = [
+            `${sec}::${subj}`,
+            `${baseSec}::${subj}`,
+            `${sec}::${slugSubj}`,
+            `${baseSec}::${slugSubj}`,
+            `Grade 11 - ${baseSec}::${subj}`
+        ];
+        for (const k of candidateKeys) {
+            if (records[k]) {
+                classroomData = records[k];
+                break;
+            }
+        }
     }
+
+    const dayRecord = classroomData[todayStr] || (classroomData.date === todayStr ? classroomData : null);
+    const isSubmitted = Boolean(dayRecord && dayRecord.submitted);
+
+    return {
+        todayStr,
+        dayRecord,
+        isSubmitted,
+        classroomData
+    };
+};
+
+window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
+    const rawSection = sectionName ? decodeURIComponent(String(sectionName)) : '';
+    const rawSubject = subjectName ? decodeURIComponent(String(subjectName)) : '';
+
+    const todayCheck = window.getTodayAttendanceRecord(rawSection, rawSubject);
+    if (!todayCheck.isSubmitted || !todayCheck.dayRecord) {
+        if (typeof window.showToastNotification === 'function') {
+            window.showToastNotification(`Attendance for ${rawSection || 'this section'} has not been submitted today.`, 'warning');
+        }
+        return;
+    }
+
+    const modal = document.getElementById('admin-attendance-summary-modal');
+    if (!modal) return;
+
+    const dayRecord = todayCheck.dayRecord;
+    const activeStatuses = dayRecord.statuses || {};
+    const activeExcuses = dayRecord.excuses || {};
+
+    let students = [];
+    if (typeof window.getAttendanceStudents === 'function') {
+        students = window.getAttendanceStudents(rawSection, rawSubject);
+    }
+    if (!Array.isArray(students) || students.length === 0) {
+        if (typeof window.getUnifiedSectionStudents === 'function') {
+            const unified = window.getUnifiedSectionStudents(rawSection, rawSubject);
+            if (Array.isArray(unified) && unified.length > 0) students = unified;
+        }
+    }
+    if (!Array.isArray(students) || students.length === 0) {
+        let adminSecs = [];
+        try {
+            adminSecs = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+        } catch (_) {}
+        const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+        const base = stripGrade(rawSection);
+        const match = Array.isArray(adminSecs) ? adminSecs.find(s => s && (stripGrade(s.name || s.sectionName) === base || String(s.id) === String(rawSection))) : null;
+        if (match && Array.isArray(match.students) && match.students.length > 0) {
+            students = match.students;
+        }
+    }
+
+    const presentStudents = [];
+    const absentStudents = [];
+    const lateStudents = [];
+    const unmarkedStudents = [];
+
+    const normStatus = (val) => {
+        const s = String(val || '').trim().toUpperCase();
+        if (s === 'P' || s === 'PRESENT') return 'P';
+        if (s === 'A' || s === 'ABSENT') return 'A';
+        if (s === 'L' || s === 'LATE') return 'L';
+        return '';
+    };
+
+    const accountedKeys = new Set();
+
+    if (Array.isArray(students) && students.length > 0) {
+        students.forEach(st => {
+            let dName = (typeof st === 'object') ? (st.name || st.displayName || st.fullName || '') : String(st);
+            if (typeof st === 'object' && st.middleName && !dName.includes(st.middleName)) {
+                dName = `${st.name} ${st.middleName}`;
+            }
+            let s = activeStatuses[dName] || (st.id && activeStatuses[st.id]) || (st.uid && activeStatuses[st.uid]) || '';
+            let matchedKey = null;
+
+            if (!s) {
+                for (const [k, v] of Object.entries(activeStatuses)) {
+                    if ((st.id && String(k) === String(st.id)) || (st.uid && String(k) === String(st.uid)) || (typeof window.studentNamesMatch === 'function' ? window.studentNamesMatch(k, dName) : k.toLowerCase() === dName.toLowerCase())) {
+                        s = v;
+                        matchedKey = k;
+                        break;
+                    }
+                }
+            } else {
+                matchedKey = dName;
+            }
+
+            if (matchedKey) accountedKeys.add(matchedKey);
+            const code = normStatus(s);
+            if (code === 'P') {
+                presentStudents.push({ name: dName, excused: false });
+            } else if (code === 'A') {
+                const excuseText = activeExcuses[dName] || (st.id && activeExcuses[st.id]) || (matchedKey && activeExcuses[matchedKey]) || '';
+                absentStudents.push({ name: dName, excused: Boolean(excuseText), excuseText });
+            } else if (code === 'L') {
+                lateStudents.push({ name: dName });
+            } else {
+                unmarkedStudents.push({ name: dName });
+            }
+        });
+    }
+
+    Object.entries(activeStatuses).forEach(([k, v]) => {
+        if (!accountedKeys.has(k)) {
+            const code = normStatus(v);
+            if (code === 'P') {
+                presentStudents.push({ name: k, excused: false });
+            } else if (code === 'A') {
+                const excuseText = activeExcuses[k] || '';
+                absentStudents.push({ name: k, excused: Boolean(excuseText), excuseText });
+            } else if (code === 'L') {
+                lateStudents.push({ name: k });
+            }
+        }
+    });
+
+    const totalEnrolled = Math.max(students.length, presentStudents.length + absentStudents.length + lateStudents.length + unmarkedStudents.length);
+    const attendedStudents = presentStudents.length + lateStudents.length;
+    const dailyRate = totalEnrolled > 0 ? ((attendedStudents / totalEnrolled) * 100).toFixed(1) + '%' : '0.0%';
+
+    const now = new Date();
+    const activeDateFormatted = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
+
+    const submittedAt = dayRecord.submittedAt || dayRecord.updatedAt || null;
+    const formattedSubmittedTime = submittedAt ? new Date(submittedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+
+    const titleEl = document.getElementById('admin-att-summary-title');
+    const subEl = document.getElementById('admin-att-summary-subtitle');
+    const metaEl = document.getElementById('admin-att-summary-submission-meta');
+    const bodyEl = document.getElementById('admin-att-summary-body');
+    const openRoomBtn = document.getElementById('admin-att-summary-view-room-btn');
+
+    if (titleEl) titleEl.textContent = `Submitted Attendance Today`;
+    if (subEl) {
+        subEl.textContent = `${rawSection}${rawSubject ? ' • ' + rawSubject : ''}`;
+        subEl.style.color = 'rgba(0, 0, 0, 0.45)';
+    }
+    if (metaEl) {
+        metaEl.style.color = 'rgba(0, 0, 0, 0.45)';
+        metaEl.innerHTML = `
+            <i class="fa-solid fa-circle-check text-emerald-600"></i>
+            <span>Submitted today${formattedSubmittedTime ? ` at ${formattedSubmittedTime}` : ''}</span>
+        `;
+    }
+
+    if (openRoomBtn) {
+        openRoomBtn.onclick = function () {
+            window.closeTodayAttendanceSummaryModal();
+            window.viewAttendanceDetails(rawSection, rawSubject);
+        };
+    }
+
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <div class="attendance-system-summary-panel border border-slate-100 bg-white px-4 py-4 sm:px-6 sm:py-5 rounded-[18px] shadow-xs">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-regular fa-calendar-check text-[#15803d] text-base sm:text-lg"></i>
+                        <span class="text-xs sm:text-sm font-bold text-black font-['Inter']">${escapeHtml(activeDateFormatted)}</span>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="attendance-rate-pill">
+                            Attendance Rate: <span class="text-[#15803d] font-extrabold ml-0.5">${dailyRate}</span>
+                        </span>
+                        <span class="attendance-rate-subtitle text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;">
+                            (${attendedStudents} of ${totalEnrolled} attending)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3.5">
+                    <!-- Present -->
+                    <div class="attendance-summary-card attendance-summary-card--present">
+                        <div>
+                            <div class="flex items-center justify-between pb-2 border-b border-emerald-100/80">
+                                <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5 font-['Inter']">
+                                    <span class="attendance-dot attendance-dot--present"></span> Present
+                                </span>
+                                <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">${presentStudents.length}</span>
+                            </div>
+                            <div class="mt-2.5 flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                                ${presentStudents.length > 0
+                                    ? presentStudents.map(st => `<span class="attendance-student-chip text-slate-800 border border-emerald-200/90" title="${escapeHtml(st.name)}">${escapeHtml(st.name)}</span>`).join('')
+                                    : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Absent -->
+                    <div class="attendance-summary-card attendance-summary-card--absent">
+                        <div>
+                            <div class="flex items-center justify-between pb-2 border-b border-rose-100/80">
+                                <span class="text-xs font-bold text-rose-900 flex items-center gap-1.5 font-['Inter']">
+                                    <span class="attendance-dot attendance-dot--absent"></span> Absent
+                                </span>
+                                <span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[11px] font-bold">${absentStudents.length}</span>
+                            </div>
+                            <div class="mt-2.5 flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                                ${absentStudents.length > 0
+                                    ? absentStudents.map(st => `
+                                        <span class="attendance-student-chip text-slate-800 border border-rose-200/90 flex items-center gap-1" title="${escapeHtml(st.name)}${st.excuseText ? ' - ' + escapeHtml(st.excuseText) : ''}">
+                                            <span>${escapeHtml(st.name)}</span>
+                                            ${st.excused ? '<span class="text-[9px] px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-semibold">Excused</span>' : ''}
+                                        </span>`).join('')
+                                    : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Late -->
+                    <div class="attendance-summary-card attendance-summary-card--late">
+                        <div>
+                            <div class="flex items-center justify-between pb-2 border-b border-amber-100/80">
+                                <span class="text-xs font-bold text-amber-900 flex items-center gap-1.5 font-['Inter']">
+                                    <span class="attendance-dot attendance-dot--late"></span> Late
+                                </span>
+                                <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-bold">${lateStudents.length}</span>
+                            </div>
+                            <div class="mt-2.5 flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                                ${lateStudents.length > 0
+                                    ? lateStudents.map(st => `<span class="attendance-student-chip text-slate-800 border border-amber-200/90" title="${escapeHtml(st.name)}">${escapeHtml(st.name)}</span>`).join('')
+                                    : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Unmarked -->
+                    <div class="attendance-summary-card attendance-summary-card--unmarked">
+                        <div>
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                                <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5 font-['Inter']">
+                                    <span class="attendance-dot attendance-dot--unmarked"></span> Unmarked
+                                </span>
+                                <span class="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[11px] font-bold">${unmarkedStudents.length}</span>
+                            </div>
+                            <div class="mt-2.5 flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                                ${unmarkedStudents.length > 0
+                                    ? unmarkedStudents.map(st => `<span class="attendance-student-chip text-slate-600 border border-slate-200" title="${escapeHtml(st.name)}">${escapeHtml(st.name)}</span>`).join('')
+                                    : `<span class="text-[11px] text-[#15803d] font-semibold">All students accounted for!</span>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('dialog-open', 'modal-open');
+};
+
+window.closeTodayAttendanceSummaryModal = function () {
+    const modal = document.getElementById('admin-attendance-summary-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    document.body.classList.remove('dialog-open', 'modal-open');
 };
 
 // =========================================================================
@@ -1292,6 +1609,28 @@ function getAttendanceDateFilterConfig(range) {
         };
     }
 
+    if (range === 'yesterday') {
+        const yDate = new Date(now);
+        yDate.setDate(now.getDate() - 1);
+        const yY = yDate.getFullYear();
+        const yM = String(yDate.getMonth() + 1).padStart(2, '0');
+        const yD = String(yDate.getDate()).padStart(2, '0');
+        const yesterdayStr = `${yY}-${yM}-${yD}`;
+
+        return {
+            isMatch: (dateKey) => dateKey === yesterdayStr,
+            scale: 1,
+            label: 'Yesterday',
+            cardPresent: 'Present Yesterday',
+            cardAbsent: 'Absent Yesterday',
+            cardLate: 'Late Yesterday',
+            thPresent: 'Present',
+            thAbsent: 'Absent',
+            thLate: 'Late',
+            emptyText: 'No Matching Attendance Records Found for Yesterday'
+        };
+    }
+
     if (range === 'week') {
         const dayOfWeek = now.getDay();
         const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -1317,6 +1656,34 @@ function getAttendanceDateFilterConfig(range) {
             thAbsent: 'Absent',
             thLate: 'Late',
             emptyText: 'No Matching Attendance Records Found for This Week'
+        };
+    }
+
+    if (range === 'last_week') {
+        const dayOfWeek = now.getDay();
+        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const lastMonday = new Date(now);
+        lastMonday.setDate(now.getDate() + diffToMon - 7);
+        lastMonday.setHours(0, 0, 0, 0);
+
+        const lastSunday = new Date(lastMonday);
+        lastSunday.setDate(lastMonday.getDate() + 6);
+        lastSunday.setHours(23, 59, 59, 999);
+
+        return {
+            isMatch: (dateKey) => {
+                const dt = new Date(dateKey + 'T00:00:00');
+                return dt >= lastMonday && dt <= lastSunday;
+            },
+            scale: 5,
+            label: 'Last Week',
+            cardPresent: 'Present (Last Week)',
+            cardAbsent: 'Absent (Last Week)',
+            cardLate: 'Late (Last Week)',
+            thPresent: 'Present',
+            thAbsent: 'Absent',
+            thLate: 'Late',
+            emptyText: 'No Matching Attendance Records Found for Last Week'
         };
     }
 
@@ -1357,12 +1724,98 @@ function getAttendanceDateFilterConfig(range) {
 }
 
 const DEFAULT_ATTENDANCE_REPORT_ITEMS = [
-    { id: 1, section: 'Grade 11 - Einstein', sectionName: 'Einstein', gradeLevel: 'Grade 11', subject: 'Statistics and Probability', teacher: 'Jose Cruz Dela Pena', enrolled: 40, present: 38, absent: 1, late: 1 },
-    { id: 2, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Oral Communication', teacher: 'Maria Santos Ramos', enrolled: 44, present: 41, absent: 2, late: 1 },
-    { id: 3, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Empowerment Technologies', teacher: 'Jose Cruz Dela Pena', enrolled: 42, present: 39, absent: 2, late: 1 },
-    { id: 4, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Computer Programming 1', teacher: 'Maria Santos Ramos', enrolled: 45, present: 42, absent: 2, late: 1 },
-    { id: 5, section: 'Grade 12 - Newton', sectionName: 'Newton', gradeLevel: 'Grade 12', subject: 'General Mathematics', teacher: 'Jose Cruz Dela Pena', enrolled: 38, present: 35, absent: 2, late: 1 }
+    { id: 1, section: 'Grade 11 - Einstein', sectionName: 'Einstein', gradeLevel: 'Grade 11', subject: 'Statistics and Probability', teacher: 'Jose Cruz Dela Pena', enrolled: 40, present: 0, absent: 0, late: 0 },
+    { id: 2, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Oral Communication', teacher: 'Maria Santos Ramos', enrolled: 44, present: 0, absent: 0, late: 0 },
+    { id: 3, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Empowerment Technologies', teacher: 'Jose Cruz Dela Pena', enrolled: 42, present: 0, absent: 0, late: 0 },
+    { id: 4, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Computer Programming 1', teacher: 'Maria Santos Ramos', enrolled: 45, present: 0, absent: 0, late: 0 },
+    { id: 5, section: 'Grade 12 - Newton', sectionName: 'Newton', gradeLevel: 'Grade 12', subject: 'General Mathematics', teacher: 'Jose Cruz Dela Pena', enrolled: 38, present: 0, absent: 0, late: 0 }
 ];
+
+function getAttendanceReportBaseItems() {
+    let adminSecs = [];
+    try {
+        adminSecs = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
+    } catch (_) {
+        adminSecs = [];
+    }
+
+    const items = [];
+    const seen = new Set();
+
+    // 1. Incorporate any sections and subjects dynamically configured in sigma-admin-sections
+    if (Array.isArray(adminSecs) && adminSecs.length > 0) {
+        adminSecs.forEach((sec, sIdx) => {
+            if (!sec || sec.status === 'Archived') return;
+            const secName = String(sec.name || sec.sectionName || '').trim();
+            if (!secName) return;
+            const gradeLevel = sec.gradeLevel || (sec.grade ? `Grade ${sec.grade}` : 'Grade 11');
+            const fullSection = secName.toLowerCase().startsWith('grade') ? secName : `${gradeLevel} - ${secName}`;
+            const studentsList = Array.isArray(sec.students) ? sec.students : [];
+            const enrolled = Number(sec.studentsCount) || studentsList.length || 0;
+
+            const teacherObj = (Array.isArray(sec.teachers) ? sec.teachers[0] : null) || sec.teacher || sec.adviser;
+            const teacherName = (typeof teacherObj === 'object' && teacherObj) ? (teacherObj.name || '') : String(teacherObj || '');
+
+            const subjects = Array.isArray(sec.subjects) && sec.subjects.length > 0
+                ? sec.subjects
+                : (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects.length > 0
+                    ? sec.assignedSubjects
+                    : (sec.subject ? [sec.subject] : []));
+
+            if (subjects.length > 0) {
+                subjects.forEach(subj => {
+                    const cleanSubj = typeof subj === 'object' ? (subj.title || subj.name || '') : String(subj || '');
+                    if (!cleanSubj) return;
+                    const key = `${secName.toLowerCase()}::${cleanSubj.toLowerCase()}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        items.push({
+                            id: `sec-${sec.id || sIdx + 1}-${items.length + 1}`,
+                            section: fullSection,
+                            sectionName: secName.replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim(),
+                            gradeLevel: gradeLevel,
+                            subject: cleanSubj,
+                            teacher: teacherName || 'Jose Cruz Dela Pena',
+                            enrolled: enrolled || 40,
+                            present: 0,
+                            absent: 0,
+                            late: 0
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // 2. Append default baseline section-subject offerings if not already covered
+    DEFAULT_ATTENDANCE_REPORT_ITEMS.forEach(baseItem => {
+        const key = `${baseItem.sectionName.toLowerCase()}::${baseItem.subject.toLowerCase()}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            let enrolled = baseItem.enrolled;
+            if (Array.isArray(adminSecs) && adminSecs.length > 0) {
+                const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+                const matchedSec = adminSecs.find(s => s && stripGrade(s.name || s.sectionName) === baseItem.sectionName.toLowerCase());
+                if (matchedSec) {
+                    if (Array.isArray(matchedSec.students) && matchedSec.students.length > 0) {
+                        enrolled = matchedSec.students.length;
+                    } else if (matchedSec.studentsCount) {
+                        enrolled = Number(matchedSec.studentsCount);
+                    }
+                }
+            }
+            items.push({
+                ...baseItem,
+                enrolled,
+                present: 0,
+                absent: 0,
+                late: 0
+            });
+        }
+    });
+
+    return items;
+}
 
 window.getAttendanceReportRows = function (dateRange) {
     const range = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
@@ -1375,93 +1828,183 @@ window.getAttendanceReportRows = function (dateRange) {
         records = {};
     }
 
-    return DEFAULT_ATTENDANCE_REPORT_ITEMS.map((item) => {
-        const cleanSec = String(item.section || '').trim();
+    const baseItems = getAttendanceReportBaseItems();
+
+    const normStatus = (val) => {
+        const s = String(val || '').trim().toUpperCase();
+        if (s === 'P' || s === 'PRESENT') return 'P';
+        if (s === 'A' || s === 'ABSENT') return 'A';
+        if (s === 'L' || s === 'LATE') return 'L';
+        return '';
+    };
+
+    return baseItems.map((item, idx) => {
+        const cleanSec = String(item.sectionName || item.section || '').trim();
         const baseSec = cleanSec.replace(/^Grade\s*\d+\s*[-–]?\s*/i, '').trim();
         const cleanSubj = String(item.subject || '').trim();
         const slugSubj = cleanSubj.replace(/\s+/g, '-');
 
-        const candidateKeys = [
-            `${cleanSec}::${cleanSubj}`,
-            `${baseSec}::${cleanSubj}`,
-            `${cleanSec}::${slugSubj}`,
-            `${baseSec}::${slugSubj}`,
-            `Grade 11 - ${baseSec}::${cleanSubj}`
-        ];
-
-        let liveDays = [];
-        for (const k of candidateKeys) {
-            if (records[k]) {
-                const dates = Object.keys(records[k]).filter(d => config.isMatch(d) && records[k][d]?.statuses);
-                if (dates.length > 0) {
-                    liveDays = dates.map(d => records[k][d].statuses);
-                    break;
-                }
+        // Resolve classroom data from shared engine or multi-key lookup
+        let classroomData = {};
+        if (typeof window.findAttendanceClassroomRecord === 'function') {
+            const found = window.findAttendanceClassroomRecord(cleanSec, cleanSubj);
+            if (found && found.data && Object.keys(found.data).length > 0) {
+                classroomData = found.data;
             }
         }
 
-        if (liveDays.length === 0) {
-            const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
-            const norm = (s) => String(s || '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-            const targetBaseSec = stripGrade(cleanSec);
-            const targetSubj = norm(cleanSubj);
+        if (!classroomData || Object.keys(classroomData).length === 0) {
+            const candidateKeys = [
+                `${item.section}::${cleanSubj}`,
+                `${cleanSec}::${cleanSubj}`,
+                `${baseSec}::${cleanSubj}`,
+                `${cleanSec}::${slugSubj}`,
+                `${baseSec}::${slugSubj}`,
+                `Grade 11 - ${baseSec}::${cleanSubj}`,
+                `Grade 12 - ${baseSec}::${cleanSubj}`
+            ];
 
-            for (const k of Object.keys(records)) {
-                if (!k.includes('::')) continue;
-                const [kSec, kSubj] = k.split('::').map(x => x.trim());
-                if ((norm(kSec) === norm(cleanSec) || stripGrade(kSec) === targetBaseSec) && norm(kSubj) === targetSubj) {
-                    const dates = Object.keys(records[k]).filter(d => config.isMatch(d) && records[k][d]?.statuses);
-                    if (dates.length > 0) {
-                        liveDays = dates.map(d => records[k][d].statuses);
+            for (const k of candidateKeys) {
+                if (records[k] && Object.keys(records[k]).length > 0) {
+                    classroomData = records[k];
+                    break;
+                }
+            }
+
+            if (!classroomData || Object.keys(classroomData).length === 0) {
+                const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^g\d+\s*[-–]?\s*/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+                const norm = (s) => String(s || '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+                const targetBaseSec = stripGrade(cleanSec);
+                const targetSubj = norm(cleanSubj);
+
+                for (const k of Object.keys(records)) {
+                    if (!k.includes('::')) continue;
+                    const [kSec, kSubj] = k.split('::').map(x => x.trim());
+                    if ((norm(kSec) === norm(cleanSec) || stripGrade(kSec) === targetBaseSec) && norm(kSubj) === targetSubj) {
+                        classroomData = records[k];
                         break;
                     }
                 }
             }
         }
 
-        if (liveDays.length > 0) {
-            let presentCount = 0;
-            let absentCount = 0;
-            let lateCount = 0;
-            let maxStudents = 0;
+        // Retrieve real enrolled students roster for accurate matching & count
+        let students = [];
+        if (typeof window.getAttendanceStudents === 'function') {
+            students = window.getAttendanceStudents(cleanSec, cleanSubj);
+        }
+        if (!Array.isArray(students) || students.length === 0) {
+            if (typeof window.getUnifiedSectionStudents === 'function') {
+                const unified = window.getUnifiedSectionStudents(cleanSec, cleanSubj);
+                if (Array.isArray(unified) && unified.length > 0) students = unified;
+            }
+        }
+        if (!Array.isArray(students) || students.length === 0) {
+            let adminSecs = [];
+            try { adminSecs = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]'); } catch (_) {}
+            const stripGrade = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').trim().toLowerCase();
+            const base = stripGrade(cleanSec);
+            const match = Array.isArray(adminSecs) ? adminSecs.find(s => s && (stripGrade(s.name || s.sectionName) === base || String(s.id) === String(cleanSec))) : null;
+            if (match && Array.isArray(match.students) && match.students.length > 0) {
+                students = match.students;
+            }
+        }
 
-            liveDays.forEach(dayStatuses => {
-                const dayStudentCount = Object.keys(dayStatuses).length;
-                if (dayStudentCount > maxStudents) maxStudents = dayStudentCount;
+        const enrolledCount = Math.max(
+            Number(item.enrolled) || 0,
+            Array.isArray(students) ? students.length : 0
+        );
 
-                Object.values(dayStatuses).forEach(val => {
-                    const s = String(val || '').toLowerCase();
-                    if (s === 'present') presentCount++;
-                    else if (s === 'absent') absentCount++;
-                    else if (s === 'late') lateCount++;
-                });
-            });
+        // Find matching dates that have actual attendance statuses recorded
+        const matchingDates = Object.keys(classroomData || {}).filter(d => {
+            if (!config.isMatch(d)) return false;
+            const dayEntry = classroomData[d];
+            return dayEntry && dayEntry.statuses && typeof dayEntry.statuses === 'object';
+        });
 
-            const totalRecorded = presentCount + absentCount + lateCount;
-            const enrolled = Math.max(item.enrolled, maxStudents);
-            const rate = totalRecorded > 0 ? ((presentCount / totalRecorded) * 100).toFixed(1) + '%' : '100.0%';
+        if (matchingDates.length === 0 && classroomData.date && classroomData.statuses && config.isMatch(classroomData.date)) {
+            matchingDates.push(classroomData.date);
+        }
+
+        // If no real attendance records exist for this period, return strictly 0 (no mock scaling!)
+        if (matchingDates.length === 0) {
             return {
                 ...item,
-                enrolled,
-                present: presentCount,
-                absent: absentCount,
-                late: lateCount,
-                rate
+                id: item.id || (idx + 1),
+                enrolled: enrolledCount,
+                present: 0,
+                absent: 0,
+                late: 0,
+                rate: '0.0%'
             };
         }
 
-        const scale = config.scale || 1;
-        const present = item.present * scale;
-        const absent = item.absent * scale;
-        const late = item.late * scale;
-        const total = present + absent + late;
-        const rate = total > 0 ? ((present / total) * 100).toFixed(1) + '%' : '0.0%';
+        let presentCount = 0;
+        let absentCount = 0;
+        let lateCount = 0;
+
+        matchingDates.forEach(dateStr => {
+            const dayEntry = classroomData[dateStr] || (classroomData.date === dateStr ? classroomData : null);
+            const statuses = (dayEntry && dayEntry.statuses) || {};
+            const accountedKeys = new Set();
+
+            if (Array.isArray(students) && students.length > 0) {
+                students.forEach(st => {
+                    let dName = (typeof st === 'object') ? (st.name || st.displayName || st.fullName || '') : String(st);
+                    if (typeof st === 'object' && st.middleName && !dName.includes(st.middleName)) {
+                        dName = `${st.name} ${st.middleName}`;
+                    }
+                    let s = statuses[dName] || (st.id && statuses[st.id]) || (st.uid && statuses[st.uid]) || '';
+                    let matchedKey = null;
+
+                    if (!s) {
+                        for (const [k, v] of Object.entries(statuses)) {
+                            if ((st.id && String(k) === String(st.id)) || (st.uid && String(k) === String(st.uid)) || (typeof window.studentNamesMatch === 'function' ? window.studentNamesMatch(k, dName) : k.toLowerCase() === dName.toLowerCase())) {
+                                s = v;
+                                matchedKey = k;
+                                break;
+                            }
+                        }
+                    } else {
+                        matchedKey = dName;
+                    }
+
+                    if (matchedKey) accountedKeys.add(matchedKey);
+                    const code = normStatus(s);
+                    if (code === 'P') presentCount++;
+                    else if (code === 'A') absentCount++;
+                    else if (code === 'L') lateCount++;
+                });
+            }
+
+            // Also account for any student marked in statuses that was not in students list
+            Object.entries(statuses).forEach(([k, v]) => {
+                if (!accountedKeys.has(k)) {
+                    const alreadyMapped = Array.isArray(students) && students.some(st => {
+                        const dName = (typeof st === 'object') ? (st.name || st.displayName || st.fullName || '') : String(st);
+                        return (st.id && String(st.id) === String(k)) || (st.uid && String(st.uid) === String(k)) || (typeof window.studentNamesMatch === 'function' ? window.studentNamesMatch(k, dName) : k.toLowerCase() === dName.toLowerCase());
+                    });
+                    if (!alreadyMapped) {
+                        accountedKeys.add(k);
+                        const code = normStatus(v);
+                        if (code === 'P') presentCount++;
+                        else if (code === 'A') absentCount++;
+                        else if (code === 'L') lateCount++;
+                    }
+                }
+            });
+        });
+
+        const totalRecorded = presentCount + absentCount + lateCount;
+        const rate = totalRecorded > 0 ? ((presentCount / totalRecorded) * 100).toFixed(1) + '%' : '0.0%';
 
         return {
             ...item,
-            present,
-            absent,
-            late,
+            id: item.id || (idx + 1),
+            enrolled: enrolledCount,
+            present: presentCount,
+            absent: absentCount,
+            late: lateCount,
             rate
         };
     });
@@ -1546,6 +2089,7 @@ window.setAttendanceDisplayLimit = function (value) {
     window.applyAttendanceSearch();
 };
 window.renderAttendanceReportTable = function (filteredRows, dateRange) {
+    window._appliedAttendanceReportRange = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
     const tbody = document.getElementById('attendanceReportTableBody');
     if (!tbody) return;
     const range = dateRange || document.getElementById('attendance-filter-date')?.value || 'today';
@@ -1577,13 +2121,17 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
     tbody.innerHTML = pageRows.map((row, idx) => {
         const rowStripe = idx % 2 === 1 ? 'bg-slate-50/60' : '';
         const rowId = row.id || (idx + 1);
+        const todayCheck = (typeof window.getTodayAttendanceRecord === 'function')
+            ? window.getTodayAttendanceRecord(row.sectionName || row.section, row.subject || '')
+            : { isSubmitted: false };
+        const isSubmittedToday = Boolean(todayCheck && todayCheck.isSubmitted);
         return `
             <tr class="transition-colors ${rowStripe} hover:bg-slate-50/80">
                 <td class="px-3 py-4 text-center">
-                    <div class="text-[13px] font-bold text-black text-center font-['Inter']">${row.sectionName || row.section}</div>
-                    <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">${row.gradeLevel || (String(row.section).includes('12') ? 'Grade 12' : 'Grade 11')}</div>
+                    <div class="text-[13px] font-normal text-black text-center font-['Inter']">${row.sectionName || row.section}</div>
+                    <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${row.gradeLevel || (String(row.section).includes('12') ? 'Grade 12' : 'Grade 11')}</div>
                 </td>
-                <td class="px-3 py-4 text-center">
+                <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                     <div class="text-[13px] font-normal text-black text-center font-['Inter']">${row.subject}</div>
                 </td>
                 <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -1602,10 +2150,10 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                 <td class="px-2 py-4 text-center">
                     <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.present).toLocaleString()}</div>
                 </td>
-                <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                <td class="px-2 py-4 text-center">
                     <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.absent).toLocaleString()}</div>
                 </td>
-                <td class="px-2 py-4 text-center">
+                <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                     <div class="text-[13px] font-normal text-black text-center font-['Inter']">${Number(row.late).toLocaleString()}</div>
                 </td>
                 <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
@@ -1614,18 +2162,29 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                 <td class="px-2 py-4 text-center">
                     <div class="flex justify-center">
                         <div class="action-dropdown-container">
-                            <button type="button" onclick="window.toggleAttendanceActionDropdown(rowId, event)"
+                            <button type="button" onclick="window.toggleAttendanceActionDropdown('${rowId}', event)"
                                 id="attendance-dots-btn-${rowId}"
                                 class="action-dots-btn cursor-pointer" 
                                 title="Actions">
                                 <i class="fa-solid fa-ellipsis"></i>
                             </button>
                             <div id="attendance-action-menu-${rowId}" class="action-dropdown-menu">
-                                <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('${row.section}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                    <i class="fa-solid fa-eye"></i>
-                                    <span>View Details</span>
+                                <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                    <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                    <span>View Attendance</span>
                                 </button>
-                                <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${row.section}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                ${isSubmittedToday ? `
+                                <button type="button" onclick="window.openTodayAttendanceSummaryModal && window.openTodayAttendanceSummaryModal('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer is-submitted text-[#15803d]">
+                                    <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                                    <span>Submitted Attendance Today</span>
+                                </button>
+                                ` : `
+                                <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                    <i class="fa-solid fa-lock text-slate-400"></i>
+                                    <span>Submitted Attendance Today</span>
+                                </button>
+                                `}
+                                <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-file-export"></i>
                                     <span>Export Sheet</span>
                                 </button>
@@ -1672,7 +2231,38 @@ window.applyAttendanceSearch = function (resetPage = true) {
     window.renderAttendanceReportTable(filtered, dateRange);
 };
 
+window.populateAttendanceSectionFilter = function () {
+    const sectionSelect = document.getElementById('attendance-filter-section');
+    if (!sectionSelect) return;
+    const currentVal = sectionSelect.value;
+    const baseItems = typeof getAttendanceReportBaseItems === 'function' ? getAttendanceReportBaseItems() : DEFAULT_ATTENDANCE_REPORT_ITEMS;
+    const uniqueSecs = [];
+    const seenSecs = new Set();
+    baseItems.forEach(item => {
+        const secText = item.section || item.sectionName;
+        const normKey = String(secText || '').toLowerCase().trim();
+        if (normKey && !seenSecs.has(normKey)) {
+            seenSecs.add(normKey);
+            uniqueSecs.push({
+                value: item.sectionName || item.section,
+                label: item.section || item.sectionName
+            });
+        }
+    });
+
+    const optionsHtml = ['<option value="" selected>All Sections</option>'];
+    uniqueSecs.forEach(sec => {
+        const isSelected = currentVal && (currentVal === sec.value || currentVal.toLowerCase() === sec.value.toLowerCase() || currentVal.toLowerCase() === sec.label.toLowerCase());
+        optionsHtml.push(`<option value="${sec.value}"${isSelected ? ' selected' : ''}>${sec.label}</option>`);
+    });
+    sectionSelect.innerHTML = optionsHtml.join('');
+    if (currentVal) sectionSelect.value = currentVal;
+};
+
 window.renderAttendanceReport = function () {
+    if (typeof window.populateAttendanceSectionFilter === 'function') {
+        window.populateAttendanceSectionFilter();
+    }
     window.applyAttendanceSearch();
 };
 
@@ -1688,6 +2278,101 @@ if (document.readyState === 'loading') {
         window.renderAttendanceReport();
     }
 }
+
+// =========================================================================
+// ACADEMIC PERFORMANCE REPORT WORKSTATION
+// =========================================================================
+window.togglePerformanceActionDropdown = function (index, event) {
+    if (event) event.stopPropagation();
+    const menuId = `perf-action-menu-${index}`;
+    const btnId = `perf-dots-btn-${index}`;
+    const menu = document.getElementById(menuId);
+    const btn = document.getElementById(btnId);
+
+    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
+        if (m.id !== menuId) {
+            m.classList.remove('show');
+            m.classList.remove('dropup');
+        }
+    });
+    document.querySelectorAll('.action-dots-btn').forEach(b => {
+        if (b.id !== btnId) b.classList.remove('active');
+    });
+
+    if (menu && btn) {
+        const isShown = menu.classList.contains('show');
+        if (isShown) {
+            menu.classList.remove('show');
+            menu.classList.remove('dropup');
+            btn.classList.remove('active');
+        } else {
+            const rect = btn.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            if (spaceBelow < 140 && rect.top > 140) {
+                menu.classList.add('dropup');
+            } else {
+                menu.classList.remove('dropup');
+            }
+            menu.classList.add('show');
+            btn.classList.add('active');
+        }
+    }
+};
+
+window.applyPerformanceSearch = function () {
+    const query = String(document.getElementById('perf-search-input')?.value || '').trim().toLowerCase();
+    const subjectFilter = String(document.getElementById('perf-filter-subject')?.value || '').trim().toLowerCase();
+    const typeFilter = String(document.getElementById('perf-filter-type')?.value || '').trim().toLowerCase();
+
+    const rows = document.querySelectorAll('#performanceReportTableBody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const matchesQuery = !query || text.includes(query);
+        const matchesSubject = !subjectFilter || text.includes(subjectFilter);
+        const matchesType = !typeFilter || text.includes(typeFilter);
+
+        if (matchesQuery && matchesSubject && matchesType) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+};
+
+window.refreshPerformanceReport = function () {
+    const queryInput = document.getElementById('perf-search-input');
+    const subjSelect = document.getElementById('perf-filter-subject');
+    const typeSelect = document.getElementById('perf-filter-type');
+    if (queryInput) queryInput.value = '';
+    if (subjSelect) subjSelect.value = '';
+    if (typeSelect) typeSelect.value = '';
+    window.applyPerformanceSearch();
+    if (typeof window.showToastNotification === 'function') {
+        window.showToastNotification('Academic performance data refreshed.', 'info');
+    }
+};
+
+window.exportPerformanceReport = function () {
+    const rows = [
+        ['Student Name', 'Section', 'Subject', 'Assessment Type', 'Score', 'Status'],
+        ['Ana Flores', 'Grade 11 - Einstein', 'Statistics and Probability', 'Quarterly Exam', '98 / 100', 'Passed'],
+        ['Juan dela Cruz', 'Grade 11 - Rizal', 'Computer Programming 1', 'Performance Task', '94 / 100', 'Passed'],
+        ['Maria Santos', 'Grade 11 - Rizal', 'Empowerment Technologies', 'Written Work', '76 / 100', 'Needs Review'],
+        ['Carlo Reyes', 'Grade 12 - Newton', 'General Mathematics', 'Quarterly Exam', '68 / 100', 'Failed']
+    ];
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n'));
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    link.setAttribute('download', 'academic_performance_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (typeof window.showToastNotification === 'function') {
+        window.showToastNotification('Academic performance report exported successfully!', 'success');
+    }
+};
 
 
 window.toggleSubjectActionDropdown = function (index, event) {
@@ -2493,6 +3178,10 @@ window.toggleUserLock = function (userId) {
             if (typeof syncUserToDB === 'function') {
                 syncUserToDB(users[userIdx], 'save');
             }
+            window.SigmaAuthenticationLogs?.record({
+                event: isLocking ? 'Account locked' : 'Account unlocked',
+                user: users[userIdx], outcome: isLocking ? 'warning' : 'success'
+            });
 
             // Update local state if currently viewing this user
             if (window.currentUserProfileData && String(window.currentUserProfileData.id) === String(userId)) {
@@ -2571,11 +3260,14 @@ window.resetUser2FA = function (userId) {
             localStorage.removeItem('sigma-2fa-secret-' + cleanId);
 
             let base = 'php/api/auth.php';
-            await fetch(base, {
+            const resetResponse = await fetch(base, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'disable_2fa', id: cleanId })
             });
+            const resetResult = await resetResponse.json();
+            if (!resetResponse.ok || !resetResult.success) throw new Error(resetResult.error || '2FA reset failed');
+            window.SigmaAuthenticationLogs?.record({ event:'Google Authenticator 2FA reset', user, outcome:'warning' });
 
             const successTitle = '2FA Reset Successfully';
             const successDesc = `Google Authenticator 2FA has been reset for ${userName} (${cleanId}). They will be presented with a new QR barcode setup screen on their next login.`;
@@ -4317,7 +5009,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'reports': {
             button: reportsBtn, submenu: reportsSubmenu, chevron: reportsChevron,
             title: 'Reports',
-            childIds: ['nav-reports-ai', 'nav-reports-attendance']
+            childIds: ['nav-reports-ai', 'nav-reports-attendance', 'nav-reports-performance']
         },
         'settings': {
             button: settingsBtn, submenu: settingsSubmenu, chevron: settingsChevron,
@@ -4687,6 +5379,12 @@ document.addEventListener('DOMContentLoaded', () => {
             section.style.display = 'none';
         });
 
+        // Close any open audit log detail panels when switching sections
+        if (sectionId !== 'audit-ai-view') window.closeAiUserDetails?.();
+        if (sectionId !== 'audit-activity-view') window.closeActivityLogDetails?.();
+        if (sectionId !== 'audit-auth-view') window.closeAuthenticationLogDetails?.();
+        if (sectionId !== 'audit-notifications-view') window.closeNotificationLogDetails?.();
+
         // Clear new user toast if navigating away from user accounts
         if (sectionId !== 'users-view') {
             sessionStorage.removeItem('sigma-new-user-toast');
@@ -4711,6 +5409,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             targetSection.classList.remove('hidden');
             targetSection.style.display = 'block';
+            setTimeout(() => window.bindInteractiveMetricCards?.(), 30);
             if ((!targetSection.children.length || !targetSection.innerHTML.trim()) && typeof window.SigmaPageLoading?.showContentSkeleton === 'function') {
                 const layout = window.SigmaPageLoading.resolveLayoutFromSectionId(sectionId);
                 window.SigmaPageLoading.showContentSkeleton(targetSection, layout);
@@ -4754,6 +5453,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.removeProperty('touch-action');
             document.documentElement.style.removeProperty('overflow');
             document.documentElement.style.removeProperty('touch-action');
+            const targetProfile = document.getElementById('user-profile-view');
+            if (targetProfile) {
+                targetProfile.classList.remove('hidden');
+                targetProfile.style.display = 'block';
+                targetProfile.removeAttribute('data-sigma-skeleton-active');
+                if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+                    window.SigmaPageLoading.hideContentSkeleton(targetProfile);
+                }
+                targetProfile.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
+            }
             if (typeof window.populateUserProfilePage === 'function') {
                 window.populateUserProfilePage();
             }
@@ -4902,7 +5611,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.setPortalHeader?.('System Settings', 'Record Recovery');
         } else if (sectionId === 'settings-view' || (navId && navId.startsWith('nav-settings'))) {
             if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader('System Settings');
+                window.setPortalHeader('System Settings', getNavLabelText(navId) || 'Security & Access');
             }
         } else if (sectionId === 'user-profile-view' || navId === 'nav-profile') {
             if (typeof window.setPortalHeader === 'function') {
@@ -4912,6 +5621,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('School Management', 'Section Details');
             }
+        } else if (['reports-ai-view', 'reports-attendance-view', 'reports-performance-view'].includes(sectionId)) {
+            const reportTitle = {
+                'reports-ai-view': 'AI Analytics',
+                'reports-attendance-view': 'Attendance',
+                'reports-performance-view': 'Academic Performance'
+            }[sectionId];
+            window.setPortalHeader?.('Reports', reportTitle);
         } else if (['audit-ai-view', 'audit-activity-view', 'audit-auth-view', 'audit-notifications-view'].includes(sectionId)) {
             const auditTitle = {
                 'audit-ai-view': 'AI Logs',
@@ -4930,14 +5646,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const parentTitle = getParentTitleForNav(navId);
             const activeTitle = parentTitle || 'Interface Computer College';
             if (typeof window.setPortalHeader === 'function') {
-                window.setPortalHeader(activeTitle);
+                const groupId = getGroupIdForNav(navId);
+                window.setPortalHeader(activeTitle, groupId ? getNavLabelText(navId) : undefined);
             } else if (headerBrandTitle) {
                 headerBrandTitle.textContent = activeTitle;
             }
         }
 
         if (sectionId === 'settings-recovery-view') window.renderRecordRecovery?.();
-        if (sectionId === 'audit-activity-view') window.renderRecordLifecycleEvents?.();
+        if (sectionId === 'audit-activity-view') {
+            window.renderActivityLogs?.();
+            window.renderRecordLifecycleEvents?.();
+        }
         if (sectionId === 'announcements-view') {
             renderAnnouncementActivePosts();
         }
@@ -4974,6 +5694,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        if (sectionId === 'resources-view') {
+            if (typeof window.resetResourcesView === 'function') {
+                window.resetResourcesView();
+            } else if (typeof window.renderResourcesView === 'function') {
+                window.renderResourcesView();
+            }
+        }
+
         if (sectionId === 'logs-view') {
             const logsContainer = document.getElementById('logs-terminal');
             if (logsContainer) {
@@ -4998,7 +5726,18 @@ document.addEventListener('DOMContentLoaded', () => {
         let sectionId;
 
         if (tabId === 'nav-users-accounts' || tabId === 'nav-users') sectionId = 'users-view';
-        else if (tabId === 'nav-grades' || tabId === 'grades' || tabId === 'nav-school-grades' || tabId === 'school-grades' || tabId === 'nav-reports-gradebooks' || tabId === 'nav-gradebooks' || tabId === 'nav-reports-performance' || tabId === 'nav-analytics') sectionId = 'school-grades-view';
+        else if (tabId === 'nav-profile' || tabId === 'nav-user-profile' || tabId === 'user-profile' || tabId === 'profile' || tabId === 'user-profile-view') sectionId = 'user-profile-view';
+        else if (tabId.startsWith('profile-') || tabId.startsWith('profile:')) {
+            const userId = tabId.replace(/^profile[-:]/, '').trim();
+            window.editUser(userId, true);
+            return;
+        }
+        else if (tabId.startsWith('edit-user-') || tabId.startsWith('edit-user:')) {
+            const userId = tabId.replace(/^edit-user[-:]/, '').trim();
+            window.editUser(userId, false);
+            return;
+        }
+        else if (tabId === 'nav-grades' || tabId === 'grades' || tabId === 'nav-school-grades' || tabId === 'school-grades' || tabId === 'nav-reports-gradebooks' || tabId === 'nav-gradebooks' || tabId === 'nav-analytics') sectionId = 'school-grades-view';
         else if (tabId === 'nav-school-profile') sectionId = 'school-profile-view';
         else if (tabId === 'nav-school-year') sectionId = 'school-year-view';
         else if (tabId === 'nav-attendance' || tabId === 'attendance' || tabId === 'nav-calendar' || tabId === 'calendar' || tabId === 'section-attendance') {
@@ -5179,7 +5918,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (tabId === 'nav-audit-logs' || tabId === 'audit-logs' || tabId === 'nav-audit-ai' || tabId === 'audit-ai-view') {
             sectionId = 'audit-ai-view';
-            if (!skipHashUpdate) window.closeAiUserDetails?.();
+            window.closeAiUserDetails?.();
+            window.closeActivityLogDetails?.();
+            window.closeAuthenticationLogDetails?.();
+            window.closeNotificationLogDetails?.();
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
@@ -5188,6 +5930,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (tabId === 'nav-audit-activity' || tabId === 'audit-activity-view') {
             sectionId = 'audit-activity-view';
+            window.closeActivityLogDetails?.();
+            window.closeAiUserDetails?.();
+            window.closeAuthenticationLogDetails?.();
+            window.closeNotificationLogDetails?.();
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
@@ -5196,6 +5942,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (tabId === 'nav-audit-notifications' || tabId === 'audit-notifications-view') {
             sectionId = 'audit-notifications-view';
+            window.closeNotificationLogDetails?.();
+            window.closeAiUserDetails?.();
+            window.closeActivityLogDetails?.();
+            window.closeAuthenticationLogDetails?.();
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
@@ -5205,9 +5955,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (tabId === 'nav-audit-auth' || tabId === 'audit-auth-view') {
             sectionId = 'audit-auth-view';
+            window.closeAuthenticationLogDetails?.();
+            window.closeAiUserDetails?.();
+            window.closeActivityLogDetails?.();
+            window.closeNotificationLogDetails?.();
             hideHeaderOverlays();
             hideSubSidebarOverlay();
             window.showSection(sectionId, 'nav-audit-logs');
+            window.renderAuthenticationLogs?.();
             if (!skipHashUpdate) window.location.hash = 'nav-audit-auth';
             return;
         }
@@ -7090,59 +7845,16 @@ document.addEventListener('DOMContentLoaded', () => {
             window.updateSystemStatus('operational');
         }
         if (typeof window.updateAiUsage === 'function') {
-            window.updateAiUsage(42);
+            window.updateAiDisplay?.();
         }
-        if (typeof window.updateStorageUsage === 'function') {
-            window.updateStorageUsage(83, 12.4);
-        }
+        window.loadGoogleDriveFolderUsage?.();
+        window.syncSecurityMetric?.();
+        window.syncGradingMetric?.();
     }, 500);
 });
 
-const AI_USAGE_LEVELS = [
-    { max: 40, label: 'Efficient', color: '#15803d', icon: 'fa-brain' },
-    { max: 60, label: 'Normal', color: '#15803d', icon: 'fa-brain' },
-    { max: 75, label: 'Moderate', color: '#ca8a04', icon: 'fa-brain' },
-    { max: 90, label: 'Heavy', color: '#ea580c', icon: 'fa-brain' },
-    { max: 99, label: 'Critical', color: '#dc2626', icon: 'fa-triangle-exclamation' },
-    { max: 100, label: 'Exceeded', color: '#dc2626', icon: 'fa-triangle-exclamation' }
-];
-
-window.updateAiUsage = function (percent) {
-    const level = AI_USAGE_LEVELS.find(l => percent <= l.max) || AI_USAGE_LEVELS[AI_USAGE_LEVELS.length - 1];
-    const label = document.getElementById('ai-status-label');
-    const icon = document.getElementById('ai-status-icon');
-    const usagePercent = document.getElementById('ai-usage-percent');
-    const bar = document.getElementById('ai-usage-bar');
-
-    if (label) {
-        label.innerText = level.label;
-        label.style.color = level.color;
-    }
-    if (icon) {
-        icon.style.color = level.color;
-        if (level.icon) {
-            icon.className = `fa-solid ${level.icon} pocket-metric-status-icon`;
-        }
-    }
-    if (usagePercent) {
-        usagePercent.innerText = `${percent}%`;
-    }
-    if (bar) {
-        bar.style.width = `${percent}%`;
-        bar.style.backgroundColor = level.color;
-    }
-};
-
-const AI_MODEL_DATA = {
-    gemini: {
-        daily: { requests: '1,242', percent: 42, label: 'Requests Today', sub: '(Sunday)' },
-        monthly: { requests: '45,820', percent: 18, label: 'Requests in this Month', sub: '(April)' }
-    },
-    groq: {
-        daily: { requests: '842', percent: 65, label: 'Requests Today', sub: '(Sunday)' },
-        monthly: { requests: '24,150', percent: 12, label: 'Requests in this Month', sub: '(April)' }
-    }
-};
+// AI metrics come only from recorded activity; provider quota is not measured.
+window.updateAiUsage = function () { window.updateAiDisplay?.(); };
 
 let currentAiModel = 'gemini';
 let currentAiPeriod = 'daily';
@@ -7186,56 +7898,235 @@ window.setAiPeriod = function (period) {
 };
 
 function updateAiDisplay() {
-    const data = AI_MODEL_DATA[currentAiModel][currentAiPeriod];
-    const descEl = document.getElementById('ai-period-desc');
-    const reqVal = document.getElementById('ai-requests-value');
-    const quotaLabel = document.getElementById('ai-quota-label');
+    const snapshot = window.getAiUsageSnapshot?.(currentAiModel, currentAiPeriod) || { state: 'loading', logs: [] };
+    const rows = snapshot.logs || [];
+    const state = snapshot.state;
+    let status = 'Recorded', message = currentAiPeriod === 'daily' ? 'Activity today' : 'Activity this month';
+    let count = String(rows.length), color = '#15803d';
+    if (state === 'loading') { status = 'Loading'; message = 'Loading activity…'; count = '-'; }
+    else if (state === 'signed-out') { status = 'Sign in'; message = 'Sign in to view activity'; count = '-'; }
+    else if (state === 'error') { status = navigator.onLine === false ? 'Offline' : 'Unavailable'; message = 'Unable to load activity'; count = '-'; color = '#b91c1c'; }
+    else if (!rows.length) { status = 'No activity'; message = 'No activity yet'; }
+    else if (rows.every(row => row.status === 'Failed')) { status = 'Failed'; message = 'Activities failed'; color = '#b91c1c'; }
+    else if (rows.some(row => row.status === 'Failed')) { status = 'Some failed'; message += ' · ' + rows.filter(row => row.status === 'Failed').length + ' failed'; color = '#b45309'; }
+    else if (rows.some(row => row.status === 'Fallback Used')) { status = 'Fallback used'; message = 'Fallback used'; color = '#b45309'; }
+    const isDaily = currentAiPeriod === 'daily';
+    const isGemini = currentAiModel === 'gemini';
 
-    if (descEl) descEl.innerText = `${data.label} ${data.sub}`;
-    if (reqVal) reqVal.innerText = data.requests;
-    if (quotaLabel) quotaLabel.innerText = currentAiPeriod === 'daily' ? 'Daily Quota' : 'Monthly Quota';
+    // Calculate total tokens used across active logs
+    const totalTokens = rows.reduce((sum, log) => {
+        const t = Number(log.tokens) || Math.ceil(((log.prompt?.length || 0) + (log.response?.length || 0)) / 4) || 0;
+        return sum + t;
+    }, 0);
 
-    window.updateAiUsage(data.percent);
+    // Free tier token limits:
+    // Gemini: 1,000,000 tokens/day target (30M monthly)
+    // Groq: 500,000 tokens/day free ceiling (15M monthly)
+    const tokenLimit = isDaily ? (isGemini ? 1000000 : 500000) : (isGemini ? 30000000 : 15000000);
+    const tokenPercent = Math.min(100, Math.max(0, (totalTokens / tokenLimit) * 100));
+
+    function formatTokenCount(num) {
+        if (!num) return '0';
+        if (num >= 1000000) return (num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'K';
+        return num.toLocaleString();
+    }
+
+    const quotaLabelText = isDaily ? 'Daily Tokens' : 'Monthly Tokens';
+    const quotaPercentText = `${formatTokenCount(totalTokens)} / ${formatTokenCount(tokenLimit)}`;
+
+    for (const [id, text] of [
+        ['ai-status-label', status],
+        ['ai-requests-value', count],
+        ['ai-quota-label', quotaLabelText],
+        ['ai-usage-percent', (state === 'loading' || state === 'error') ? '-' : quotaPercentText]
+    ]) {
+        const node = document.getElementById(id); if (node) node.textContent = text;
+    }
+    const requestsValEl = document.getElementById('ai-requests-value');
+    if (requestsValEl) {
+        if (count === '-') {
+            requestsValEl.classList.remove('text-black');
+            requestsValEl.classList.add('text-black-fade');
+        } else {
+            requestsValEl.classList.remove('text-black-fade');
+            requestsValEl.classList.add('text-black');
+        }
+    }
+    const usagePercentEl = document.getElementById('ai-usage-percent');
+    if (usagePercentEl) {
+        if (state === 'loading' || state === 'error') {
+            usagePercentEl.classList.remove('text-black');
+            usagePercentEl.classList.add('text-black-fade');
+        } else {
+            usagePercentEl.classList.remove('text-black-fade');
+            usagePercentEl.classList.add('text-black');
+        }
+    }
+    const bar = document.getElementById('ai-usage-bar');
+    if (bar) bar.style.width = Math.min(100, Math.max(tokenPercent > 0 ? 0.5 : 0, tokenPercent)) + '%';
+    const track = document.getElementById('ai-capacity-track');
+    if (track) {
+        track.title = `${totalTokens.toLocaleString()} of ${formatTokenCount(tokenLimit)} ${isGemini ? 'Gemini' : 'Groq'} tokens used (${tokenPercent.toFixed(1)}%)`;
+        track.setAttribute('role', 'progressbar');
+        track.setAttribute('aria-valuenow', String(tokenPercent));
+    }
+    const label = document.getElementById('ai-status-label'); if (label) label.style.color = color;
+    const retry = document.getElementById('ai-usage-retry'); if (retry) retry.hidden = !['error', 'signed-out'].includes(state);
+    for (const [id, active] of [['btn-ai-gemini', currentAiModel === 'gemini'], ['btn-ai-groq', currentAiModel === 'groq'], ['btn-period-daily', currentAiPeriod === 'daily'], ['btn-period-monthly', currentAiPeriod === 'monthly']]) {
+        const button = document.getElementById(id); if (!button) continue;
+        for (const cls of ['bg-white', 'text-black', 'shadow-sm']) button.classList.toggle(cls, active);
+        button.classList.toggle('text-black-fade', !active); button.setAttribute('aria-pressed', String(active));
+    }
 }
+window.updateAiDisplay = updateAiDisplay;
+window.retryAiUsage = () => window.SigmaAiDatabase?.reloadLogs().catch(() => {});
+window.addEventListener('sigma:ai-logs-updated', updateAiDisplay);
+window.addEventListener('online', updateAiDisplay);
+window.addEventListener('offline', updateAiDisplay);
 
-window.updateStorageUsage = function (percent, usedGB) {
-    const label = document.getElementById('storage-status-label');
-    const icon = document.getElementById('storage-status-icon');
-    const usedValue = document.getElementById('storage-used-value');
-    const percentLabel = document.getElementById('storage-percent-label');
-    const bar = document.getElementById('storage-usage-bar');
+window.updateStorageUsage = function () {
+    window.syncGoogleDriveStorageMetric?.();
+};
 
-    let statusLabel = 'Optimal';
-    let color = '#15803d';
 
-    if (percent > 95) {
-        statusLabel = 'Critical';
-        color = '#dc2626';
-    } else if (percent > 85) {
-        statusLabel = 'Warning';
-        color = '#ea580c';
-    } else if (percent > 70) {
-        statusLabel = 'Notice';
-        color = '#ca8a04';
-    } else {
-        statusLabel = 'Optimal';
-        color = '#15803d';
+
+window.syncGradingMetric = function () {
+    let totalSubmissions = 0;
+    let gradedSubmissions = 0;
+
+    try {
+        const bucket = JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
+        if (typeof bucket === 'object' && bucket !== null) {
+            Object.values(bucket).forEach(studentSubs => {
+                if (typeof studentSubs === 'object' && studentSubs !== null) {
+                    Object.values(studentSubs).forEach(sub => {
+                        if (!sub) return;
+                        const hasSubmission = Boolean(
+                            sub.status === 'Submitted' || sub.status === 'Graded' ||
+                            sub.submittedAt || sub.completedAt || sub.fileName || sub.file || sub.textAnswer || sub.answers
+                        );
+                        if (hasSubmission) {
+                            totalSubmissions++;
+                            const isGraded = sub.status === 'Graded' || (sub.score !== undefined && sub.score !== null && sub.score !== '' && sub.score !== '-');
+                            if (isGraded) gradedSubmissions++;
+                        }
+                    });
+                }
+            });
+        }
+    } catch (_) {}
+
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            if (k.startsWith('sigma_sub_') || k.startsWith('sigma_submission_')) {
+                try {
+                    const sub = JSON.parse(localStorage.getItem(k));
+                    if (sub && typeof sub === 'object') {
+                        const isSub = Boolean(sub.status === 'Submitted' || sub.status === 'Graded' || sub.submittedAt || sub.completedAt);
+                        if (isSub) {
+                            totalSubmissions++;
+                            if (sub.status === 'Graded' || (sub.score !== undefined && sub.score !== null && sub.score !== '' && sub.score !== '-')) {
+                                gradedSubmissions++;
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+        }
+    } catch (_) {}
+
+    const pendingCount = Math.max(0, totalSubmissions - gradedSubmissions);
+    const pace = totalSubmissions > 0 ? Math.round((gradedSubmissions / totalSubmissions) * 100) : 100;
+
+    const countEl = document.getElementById('grading-submitted-count');
+    if (countEl) {
+        countEl.textContent = String(totalSubmissions);
+        countEl.className = 'text-2xl font-black text-black leading-none tracking-tight';
     }
 
-    if (label) {
-        label.innerText = statusLabel;
-        label.style.color = color;
+    const pendingEl = document.getElementById('grading-pending-count');
+    if (pendingEl) {
+        pendingEl.textContent = totalSubmissions === 0 ? 'Queue Clear' : (pendingCount === 0 ? 'All Submissions Graded' : `${pendingCount} Pending Grading`);
     }
-    if (icon) {
-        icon.style.color = color;
+
+    const paceEl = document.getElementById('grading-pace-percent');
+    if (paceEl) {
+        paceEl.textContent = `${pace}%`;
     }
-    if (usedValue && usedGB !== undefined) usedValue.innerText = usedGB;
-    if (percentLabel) percentLabel.innerText = `${percent}% Full`;
-    if (bar) {
-        bar.style.width = `${percent}%`;
-        bar.style.backgroundColor = color;
+
+    const barEl = document.getElementById('grading-pace-bar');
+    if (barEl) {
+        barEl.style.width = `${pace}%`;
+    }
+
+    const statusLabel = document.getElementById('grading-status-label');
+    const statusIcon = document.getElementById('grading-status-icon');
+    if (statusLabel) {
+        const isWarning = totalSubmissions > 0 && pace < 70;
+        statusLabel.textContent = isWarning ? 'Action Needed' : (totalSubmissions === 0 ? 'Up to Date' : 'On Track');
+        statusLabel.style.color = isWarning ? '#ea580c' : '#15803d';
+        if (statusIcon) {
+            statusIcon.style.color = isWarning ? '#ea580c' : '#15803d';
+        }
     }
 };
+window.addEventListener('storage', event => {
+    if (!event.key || event.key.includes('submission') || event.key.includes('grade')) {
+        window.syncGradingMetric?.();
+    }
+});
+
+window.syncSecurityMetric = function () {
+    const rawLogs = window.SigmaAuthenticationLogs?.records?.() || [];
+    const dateKey = value => {
+        try {
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
+        } catch (_) { return ''; }
+    };
+    const today = dateKey(Date.now());
+    const todayLogs = rawLogs.filter(log => dateKey(log.timestamp) === today);
+    const failedToday = todayLogs.filter(log => log.outcome === 'failed' || log.outcome === 'error' || /failed|threat|blocked|breach/i.test(log.event));
+
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem('sigma-admin-users') || '[]'); } catch (_) {}
+    let twoFaCount = 0;
+    if (Array.isArray(users) && users.length > 0) {
+        twoFaCount = users.filter(u => {
+            const uid = u.uid || u.id;
+            return localStorage.getItem('sigma-2fa-enabled-' + uid) === 'true' || u.is_2fa_enabled || u.two_factor_enabled;
+        }).length;
+    }
+    const twoFaRate = users.length > 0 ? Math.round((twoFaCount / users.length) * 100) : 100;
+    const threatsBlocked = failedToday.length;
+
+    const threatsEl = document.getElementById('security-threats-count');
+    if (threatsEl) {
+        threatsEl.textContent = String(threatsBlocked);
+        threatsEl.className = 'text-2xl font-black text-black leading-none tracking-tight';
+    }
+
+    const twoFaEl = document.getElementById('security-2fa-status');
+    if (twoFaEl) {
+        twoFaEl.textContent = `${twoFaRate}% 2FA Active · reCAPTCHA v3`;
+    }
+
+    const failedEl = document.getElementById('security-failed-attempts');
+    if (failedEl) {
+        failedEl.textContent = threatsBlocked === 0 ? '0 Failed Today' : `${threatsBlocked} Failed Today`;
+    }
+
+    const statusKey = threatsBlocked >= 5 ? 'threat' : threatsBlocked > 0 ? 'warning' : 'secure';
+    window.updateSecurityStatus?.(statusKey);
+};
+window.addEventListener('sigma-authentication-log', () => window.syncSecurityMetric?.());
+window.addEventListener('storage', event => {
+    if (!event.key || event.key === 'sigma-authentication-logs-v1' || event.key.startsWith('sigma-2fa-')) {
+        window.syncSecurityMetric?.();
+    }
+});
 
 window.updateSecurityStatus = function (statusKey) {
     const label = document.getElementById('security-status-label');
@@ -7601,7 +8492,7 @@ let initialSYValues = {};
 let currentSYRecordId = null;
 
 const formatSchoolYearDate = (value) => {
-    if (!value) return '—';
+    if (!value) return '-';
 
     const date = new Date(`${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) return value;
@@ -8540,10 +9431,10 @@ const renderSchoolYearTable = () => {
                     <div class="text-[14px] font-normal text-black font-['Inter'] tracking-tight">${q.name}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
-                    <div class="text-[14px] font-normal text-black font-['Inter'] tracking-wide">${formatSchoolYearDate(q.start)}</div>
+                    <div class="text-[14px] font-normal ${q.start ? 'text-black' : 'text-black-fade'} font-['Inter'] tracking-wide" ${!q.start ? 'style="color: rgba(0, 0, 0, 0.45) !important;"' : ''}>${formatSchoolYearDate(q.start)}</div>
                 </td>
                 <td class="px-4 py-4 text-center border-r border-slate-200">
-                    <div class="text-[14px] font-normal text-black font-['Inter'] tracking-wide">${formatSchoolYearDate(q.end)}</div>
+                    <div class="text-[14px] font-normal ${q.end ? 'text-black' : 'text-black-fade'} font-['Inter'] tracking-wide" ${!q.end ? 'style="color: rgba(0, 0, 0, 0.45) !important;"' : ''}>${formatSchoolYearDate(q.end)}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-medium ${statusClass} font-['Inter'] tracking-wide">${status}</div>
@@ -16322,11 +17213,11 @@ function renderSectionsTable() {
                     </div>
                 </td>
                 <td class="px-3 py-4 text-center align-middle">
-                    <div class="text-[14px] font-normal text-black text-center tracking-tight font-['Inter'] leading-5 break-words">${escapeHtml(sec.subject || sec.track || '—')}</div>
+                    <div class="text-[14px] font-normal text-black text-center tracking-tight font-['Inter'] leading-5 break-words">${(sec.subject || sec.track) && (sec.subject || sec.track) !== '—' && (sec.subject || sec.track) !== '-' ? escapeHtml(sec.subject || sec.track) : '<span class="gradebook-dash text-black-fade font-normal select-none" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>'}</div>
                 </td>
                 <td class="px-3 py-4 text-center align-middle">
                     <div class="flex flex-col items-center gap-0.5 max-w-full shrink-0">
-                        <span class="text-[14px] font-normal text-black text-center tracking-tight font-['Inter']">${escapeHtml(sec.room || 'Room —')}</span>
+                        <span class="text-[14px] font-normal text-black text-center tracking-tight font-['Inter']">${sec.room && sec.room !== 'Room —' && sec.room !== '—' && sec.room !== '-' ? escapeHtml(sec.room) : '<span class="gradebook-dash text-black-fade font-normal select-none" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>'}</span>
                         ${scheduleLinesHtml}
                     </div>
                 </td>
@@ -17755,8 +18646,23 @@ window.editUser = function (userId, isReadOnly = false) {
     if (!userId) return;
 
     const cleanId = String(userId).replace(/^#/, '').trim();
-    const users = getStoredJson(USER_STORAGE_KEY, []);
-    const user = users.find(u => String(u.uid || u.id || '').replace(/^#/, '').trim() === cleanId);
+    let user = null;
+    const storageKeys = ['sigma-admin-users', 'sigma-student-users', 'sigma-teacher-users', 'sigma-users-list', 'sigma-users'];
+    for (const key of storageKeys) {
+        const arr = getStoredJson(key, []);
+        if (Array.isArray(arr)) {
+            user = arr.find(u => {
+                if (!u) return false;
+                const uid = String(u.uid || u.id || u.lrn || u.studentNumber || u.employeeId || '').replace(/^#/, '').trim();
+                return uid.toLowerCase() === cleanId.toLowerCase();
+            });
+            if (user) break;
+        }
+    }
+
+    if (!user && typeof window.findAccountInAllStores === 'function') {
+        user = window.findAccountInAllStores(cleanId);
+    }
 
     if (!user) {
         console.warn('User not found:', userId, '- Redirecting to User Accounts view.');
@@ -17766,13 +18672,19 @@ window.editUser = function (userId, isReadOnly = false) {
             window.location.hash = '#users';
         }
         const profileView = document.getElementById('user-profile-view');
-        if (profileView) profileView.classList.add('hidden');
+        if (profileView) {
+            profileView.classList.add('hidden');
+            profileView.style.display = 'none';
+        }
         window.currentUserProfileData = {};
         window.currentViewingUserId = null;
         window.currentEditingUserId = null;
 
         const usersView = document.getElementById('users-view');
-        if (usersView) usersView.classList.remove('hidden');
+        if (usersView) {
+            usersView.classList.remove('hidden');
+            usersView.style.display = 'block';
+        }
 
         if (typeof window.switchTab === 'function') {
             window.switchTab('nav-users-accounts', false);
@@ -17792,14 +18704,25 @@ window.editUser = function (userId, isReadOnly = false) {
     window.currentViewingUserId = userId;
     window.currentEditingUserId = isReadOnly ? null : userId;
     const sections = document.querySelectorAll('.dynamic-section');
-    sections.forEach(s => s.classList.add('hidden'));
+    sections.forEach(s => {
+        s.classList.add('hidden');
+        s.style.display = 'none';
+    });
 
     const adminMain = document.getElementById('admin-main');
     if (adminMain) adminMain.scrollTop = 0;
     window.scrollTo(0, 0);
 
     const target = document.getElementById('user-profile-view');
-    if (target) target.classList.remove('hidden');
+    if (target) {
+        target.classList.remove('hidden');
+        target.style.display = 'block';
+        target.removeAttribute('data-sigma-skeleton-active');
+        if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+            window.SigmaPageLoading.hideContentSkeleton(target);
+        }
+        target.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
+    }
 
     // Close header profile dropdown / slideout drawer so it never pops open or shows edited user
     const profileDropdown = document.getElementById('profileDropdownMenu') || document.getElementById('profile-dropdown');
@@ -17926,6 +18849,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 nameInput.value = query;
                 if (typeof window.applySectionSearch === 'function') window.applySectionSearch();
             }
+        } else if (sectionId === 'resources-view') {
+            if (typeof window.refreshResourcesView === 'function') {
+                window.refreshResourcesView(query);
+            }
         }
     };
 
@@ -18011,7 +18938,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const profileView = document.getElementById('user-profile-view');
-        const isProfileHash = hash.startsWith('profile-') || hash.startsWith('edit-user-');
+        const isProfileHash = hash === 'profile' || hash === 'user-profile' || hash.startsWith('profile-') || hash.startsWith('profile:') || hash.startsWith('edit-user-') || hash.startsWith('edit-user:') || rawHash.startsWith('profile ') || rawHash.startsWith('edit-user ');
 
         if (profileView && !profileView.classList.contains('hidden') && !isProfileHash) {
             profileView.classList.add('hidden');
@@ -18059,11 +18986,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hash === 'nav-attendance' || hash === 'nav_attendance' || hash === 'attendance' || hash === 'calendar' || hash === 'nav-calendar' || hash === 'nav_calendar' || hash === 'section-attendance') {
             window.switchTab('nav-attendance', true);
-        } else if (hash.startsWith('profile-')) {
-            const userId = hash.replace('profile-', '');
+        } else if (hash === 'profile' || hash === 'user-profile' || hash === 'nav-profile' || hash === 'nav-user-profile') {
+            const selfId = (typeof window.getLoggedInAdminUser === 'function') ? (window.getLoggedInAdminUser()?.uid || '0000000') : '0000000';
+            window.editUser(selfId, true);
+        } else if (hash.startsWith('profile-') || hash.startsWith('profile:') || rawHash.startsWith('profile ') || rawHash.startsWith('profile-') || rawHash.startsWith('profile:')) {
+            const userId = hash.replace(/^profile[-:]/, '').replace(/^profile\s+/, '').trim() || rawHash.replace(/^profile[-:\s]+/, '').trim();
             window.editUser(userId, true);
-        } else if (hash.startsWith('edit-user-')) {
-            const userId = hash.replace('edit-user-', '');
+        } else if (hash.startsWith('edit-user-') || hash.startsWith('edit-user:') || rawHash.startsWith('edit-user ') || rawHash.startsWith('edit-user-') || rawHash.startsWith('edit-user:')) {
+            const userId = hash.replace(/^edit-user[-:]/, '').replace(/^edit-user\s+/, '').trim() || rawHash.replace(/^edit-user[-:\s]+/, '').trim();
             window.editUser(userId, false);
         } else if (hash === 'nav-users' || hash === 'nav-users-accounts' || hash === 'users' || hash === 'users-accounts') {
             window.switchTab('nav-users-accounts', true);
@@ -18108,6 +19038,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (hash === 'settings' || hash.startsWith('settings-') || hash === 'system-settings') {
             const tab = (hash === 'settings' || hash === 'system-settings') ? 'security' : hash.replace(/^settings-/, '');
             window.switchTab('nav-settings-' + (tab || 'security'), true);
+        } else if (hash === 'nav-audit-logs' || hash === 'audit-logs' || hash === 'nav-audit-ai' || hash === 'audit-ai' || hash === 'audit-ai-view') {
+            window.switchTab('nav-audit-ai', true);
+        } else if (hash === 'nav-audit-activity' || hash === 'audit-activity' || hash === 'audit-activity-view') {
+            window.switchTab('nav-audit-activity', true);
+        } else if (hash === 'nav-audit-notifications' || hash === 'audit-notifications' || hash === 'audit-notifications-view') {
+            window.switchTab('nav-audit-notifications', true);
+        } else if (hash === 'nav-audit-auth' || hash === 'audit-auth' || hash === 'audit-auth-view' || hash === 'nav-audit-authentication' || hash === 'audit-authentication') {
+            window.switchTab('nav-audit-auth', true);
         } else {
             window.switchTab(hash.startsWith('nav-') ? hash : 'nav-' + hash, true);
         }
@@ -18934,6 +19872,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (folderNameEl) folderNameEl.textContent = drive.folder_name || (drive.folder_id ? 'Folder configured' : 'Not configured');
                     if (statusEl) statusEl.textContent = drive.configured ? 'Credentials configured' : 'No credentials configured';
+                    const tierSelect = document.getElementById('gdrive-page-capacity-tier');
+                    if (tierSelect && drive.storage_limit_gb) {
+                        tierSelect.value = String(drive.storage_limit_gb);
+                    }
                     setDriveConnectionStatus(drive.configured ? 'Not tested' : 'Not Connected');
                     window.updateGoogleDriveSaveState();
                     return;
@@ -19038,6 +19980,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.getElementById('btn-save-gdrive-page-config') || document.getElementById('btn-save-gdrive-config');
         const folderVal = folderInput ? folderInput.value.trim() : '';
 
+        const tierSelect = document.getElementById('gdrive-page-capacity-tier');
+        const tierVal = tierSelect ? parseFloat(tierSelect.value) : 15;
+
         if (saveBtn) {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
@@ -19050,7 +19995,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'save_config',
-                    folder_id: folderVal
+                    folder_id: folderVal,
+                    storage_limit_gb: tierVal
                 })
             });
             const data = await res.json().catch(() => null);
@@ -19062,6 +20008,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (linkEl && data.folder_id) {
                     linkEl.href = 'https://drive.google.com/drive/folders/' + data.folder_id;
                     linkEl.removeAttribute('aria-disabled');
+                }
+                if (typeof window.loadGoogleDriveFolderUsage === 'function') {
+                    window.loadGoogleDriveFolderUsage();
                 }
                 if (window.showToast) window.showToast('Google Drive Settings Saved Successfully');
                 else alert('Google Drive Settings Saved Successfully');
@@ -19076,6 +20025,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveBtn.textContent = 'Save';
                 window.updateGoogleDriveSaveState();
             }
+        }
+    };
+
+    window.handleGoogleDriveCapacityChange = async function (event) {
+        const val = parseFloat(event.target.value) || 15;
+        const status = document.getElementById('gdrive-page-capacity-save-status');
+        try {
+            const apiUrl = resolveUploadApiUrl();
+            const res = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_config',
+                    storage_limit_gb: val
+                })
+            });
+            const data = await res.json().catch(() => null);
+            if (data && data.success) {
+                if (status) {
+                    status.classList.remove('hidden');
+                    setTimeout(() => status.classList.add('hidden'), 2500);
+                }
+                if (typeof window.loadGoogleDriveFolderUsage === 'function') {
+                    window.loadGoogleDriveFolderUsage();
+                }
+            }
+        } catch (e) {
+            console.warn('[SIGMA] Error saving Google Drive capacity tier:', e);
         }
     };
 
@@ -19800,6 +20777,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!host) return;
         const complete = (data, error) => {
             window.renderRecaptchaTestResult(recaptchaNode('recaptcha-test-result'), data, error);
+            window.SigmaAuthenticationLogs?.record({
+                event: error || !data?.success ? 'reCAPTCHA verification failed' : 'reCAPTCHA verified',
+                outcome: error || !data?.success ? 'failed' : 'success', details:'Administrator reCAPTCHA test.'
+            });
             const feedback = recaptchaNode('recaptcha-page-test-feedback');
             if (feedback) {
                 feedback.classList.remove('hidden');
@@ -20139,6 +21120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 users[userIndex].password = newPass;
                 window.saveStoredJson('sigma-admin-users', users);
                 syncUserToDB({ id: userId, password: newPass }, 'change_password');
+                window.SigmaAuthenticationLogs?.record({ event:'Password reset', user:users[userIndex], outcome:'warning' });
             }
 
             if (loading) loading.classList.add('hidden');

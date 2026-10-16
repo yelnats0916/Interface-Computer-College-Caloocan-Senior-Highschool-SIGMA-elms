@@ -1,5 +1,28 @@
 (function () {
     'use strict';
+    const localFiles = () => JSON.parse(localStorage.getItem('sigma-deleted-submission-files') || '[]');
+    const restoreLocalFile = record => {
+        // Validate every saved location before restoring; never overwrite newer student work.
+        const writes = new Map();
+        for (const edit of record.edits) {
+            const storage = edit.store === 'session' ? sessionStorage : localStorage;
+            const token = edit.store + ':' + edit.storageKey;
+            if (!writes.has(token)) writes.set(token,{storage,key:edit.storageKey,root:JSON.parse(storage.getItem(edit.storageKey) || 'null')});
+            const change = writes.get(token);
+            let row = change.root;
+            for (const part of edit.path) row = row?.[part];
+            if (JSON.stringify(row) !== JSON.stringify(edit.after)) throw new Error('This submission has changed since deletion. Restore was stopped to protect newer work.');
+            if (!edit.path.length) change.root = edit.before;
+            else {
+                let parent = change.root;
+                edit.path.slice(0,-1).forEach(part => { parent = parent[part]; });
+                parent[edit.path[edit.path.length-1]] = edit.before;
+            }
+        }
+        writes.forEach(change => change.storage.setItem(change.key,JSON.stringify(change.root)));
+        window.invalidateSharedAssessmentSubmissionsStorage?.();
+        window.dispatchEvent(new Event('sigma:submission-files-updated'));
+    };
     const names = { users: 'Accounts', school_years: 'School Years', sections: 'Sections', subjects: 'Subjects', quizzes: 'Quizzes', announcements: 'Announcements', audit_logs: 'Audit Records', ai_logs: 'AI Logs', ai_insight_cards: 'AI Cards' };
     function sampleRecords(table) {
         const labels = {
@@ -69,11 +92,14 @@
         async function load() {
             notice.hidden = false; notice.textContent = 'Loading...'; select.disabled = true;
             try {
-                const result = await window.SigmaAiDatabase.request('record_lifecycle', { table: select.value }, true);
+                let result;
+                try { result = select.value === 'submission_files' ? {tables:[],records:[]} : await window.SigmaAiDatabase.request('record_lifecycle', { table: select.value }, true); }
+                catch (error) { if (!localFiles().length) throw error; result = {tables:[],records:[]}; }
+                if (!result.tables.includes('submission_files')) result.tables.push('submission_files');
                 body.replaceChildren();
                 if (!select.options.length) {
                     select.add(new Option('All', 'all'));
-                    result.tables.forEach(table => select.add(new Option(names[table] || table, table)));
+                    result.tables.forEach(table => select.add(new Option(table === 'submission_files' ? 'Submission Files' : names[table] || table, table)));
                     select.value = 'all'; select.disabled = false; return load();
                 }
                 const sampleTypes = select.value === 'all' ? Array.from(select.options).map(option => option.value).filter(value => value !== 'all') : [select.value];
@@ -88,11 +114,11 @@
                         });
                     } else if (!result.records.length) samples = sampleRecords(select.value).map(record => ({ ...record, recordType: select.value }));
                 }
-                const records = [...result.records, ...samples];
+                const records = [...result.records, ...samples, ...(['all','submission_files'].includes(select.value) ? localFiles() : [])];
                 const renderRow = record => {
                     const row = document.createElement('tr');
                     if (record.sample) row.dataset.sampleRecord = 'true';
-                    const date = record.deletedAt ? new Date(record.deletedAt.replace(' ', 'T') + 'Z').toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : 'Not recorded';
+                    const date = record.deletedAt ? new Date(record.deletedAt.includes('T') ? record.deletedAt : record.deletedAt.replace(' ', 'T') + 'Z').toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : 'Not recorded';
                     [record.label, record.deletedByName || record.deletedBy || 'Not recorded', date].forEach((text, index) => {
                         const cell = document.createElement('td'); cell.dataset.label = ['Record', 'Removed By', 'Removed At'][index];
                         if (index === 1) cell.append(removerIdentity(record)); else cell.textContent = text;
@@ -130,7 +156,10 @@
                             if (action === 'restore' && !window.confirm('Restore ' + record.label + '?')) return;
                             actions.querySelectorAll('button').forEach(button => { button.disabled = true; });
                             try {
-                                await window.SigmaAiDatabase.change(record.recordType || select.value, record.id, action, confirmation);
+                                if (record.recordType === 'submission_files' && record.edits) {
+                                    if (action === 'restore') restoreLocalFile(record);
+                                    localStorage.setItem('sigma-deleted-submission-files',JSON.stringify(localFiles().filter(item => item.id !== record.id)));
+                                } else await window.SigmaAiDatabase.change(record.recordType || select.value, record.id, action, confirmation);
                                 await load();
                             } catch (error) { notice.hidden = false; notice.textContent = error.message; actions.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
                         };

@@ -9,19 +9,15 @@
         if (className) node.className = className;
         return node;
     };
-    const tabs = el('div', undefined, 'insight-report-tabs');
+    const tabs = el('div', undefined, 'insight-report-tabs ai-engine-tabs');
     tabs.setAttribute('role', 'tablist');
-    for (const [id, title] of [['school', 'School Overview'], ['users', 'User Insights']]) {
-        const button = el('button', title);
+    for (const [id, title] of [['school', 'AI Analytics Overview'], ['users', 'User Insights']]) {
+        const button = el('button', title, 'ai-engine-tab');
         button.type = 'button'; button.setAttribute('role', 'tab');
         button.onclick = () => { tab = id; render(); };
         button.dataset.tab = id; tabs.append(button);
     }
-    const refresh = el('button', undefined, 'insight-report-refresh');
-    refresh.type = 'button'; refresh.title = 'Refresh saved insights'; refresh.setAttribute('aria-label', refresh.title);
-    const icon = el('i'); icon.className = 'fa-solid fa-rotate-right'; refresh.append(icon);
-    refresh.onclick = () => load();
-    const toolbar = el('div', undefined, 'insight-report-toolbar'); toolbar.append(tabs, refresh);
+    const toolbar = el('div', undefined, 'insight-report-toolbar'); toolbar.append(tabs);
     const filters = el('div', undefined, 'insight-report-filters');
     const search = el('input'); search.type = 'search'; search.placeholder = 'Search users'; search.setAttribute('aria-label', 'Search users'); search.maxLength = 100;
     const roles = el('select'); roles.setAttribute('aria-label', 'Filter by role');
@@ -46,24 +42,209 @@
     roles.onchange = () => { role = roles.value; updatePicker(); render(); };
     picker.onchange = () => { selected = picker.value; render(); };
     function empty(message) { content.append(el('p', message, 'insight-report-empty')); }
+    function metricCard(label, value, iconClass) {
+        const card = el('div', undefined, 'sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between');
+        const text = el('div', undefined, 'metric-text-content');
+        
+        const base = el('div', undefined, 'metric-text-base');
+        base.append(
+            el('span', label, "text-xs font-bold text-black tracking-normal block font-['Inter']"),
+            el('span', String(value), "text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight")
+        );
+        
+        const spotlight = el('div', undefined, 'metric-text-spotlight');
+        spotlight.setAttribute('aria-hidden', 'true');
+        spotlight.append(
+            el('span', label, "text-xs font-bold tracking-normal block font-['Inter']"),
+            el('span', String(value), "text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight")
+        );
+        
+        text.append(base, spotlight);
+
+        const iconBox = el('div', undefined, 'metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0');
+        const glyphBase = el('i', undefined, iconClass + ' metric-icon-base');
+        const glyphSpotlight = el('i', undefined, iconClass + ' metric-icon-spotlight');
+        glyphSpotlight.setAttribute('aria-hidden', 'true');
+        iconBox.append(glyphBase, glyphSpotlight);
+
+        card.append(text, iconBox);
+        return card;
+    }
+    const TYPE_CONFIGS = [
+        {
+            key: 'descriptive',
+            title: 'Descriptive Analytics',
+            question: 'What Happened?',
+            badge: 'Historical Review',
+            icon: 'fa-solid fa-chart-simple',
+            meaning: 'Analyzes past assessment scores, quiz results, and activity completions to summarize what occurred in student learning.',
+            triggers: [
+                'Student quarterly exam & assessment score analysis',
+                'Completed task & submission volume review',
+                'Historical mastery & performance baseline summaries'
+            ]
+        },
+        {
+            key: 'predictive',
+            title: 'Predictive Analytics',
+            question: 'What Will Happen?',
+            badge: 'Trend Forecast',
+            icon: 'fa-solid fa-chart-line',
+            meaning: 'Detects learning trajectories and risk patterns to forecast academic outcomes, GWA trends, and students likely needing support.',
+            triggers: [
+                'Grade trajectory & risk of failure projections',
+                'Upcoming quarterly exam outcome estimation',
+                'Early detection of at-risk student patterns'
+            ]
+        },
+        {
+            key: 'prescriptive',
+            title: 'Prescriptive Analytics',
+            question: 'What Should We Do?',
+            badge: 'Recommended Action',
+            icon: 'fa-solid fa-lightbulb',
+            meaning: 'Formulates targeted interventions, remedial study directions, and concrete coaching steps for teachers and students.',
+            triggers: [
+                'Student Grades Insights modal ("Try: review...")',
+                'Teacher Dashboard AI Intelligence intervention cards',
+                'Targeted remedial practice & action checklists'
+            ]
+        }
+    ];
+
+    function createTypePlanCard(config, cards, users) {
+        const totalCards = cards.length || 0;
+        const matchingCards = cards.filter(card => 
+            (card.analyses || []).some(a => String(a.category || '').toLowerCase().includes(config.key))
+        );
+        const count = matchingCards.length;
+        const pct = totalCards > 0 ? Math.round((count / totalCards) * 100) : 0;
+
+        const studentCount = users
+            .filter(u => u.role === 'student')
+            .flatMap(u => u.cards || [])
+            .filter(card => (card.analyses || []).some(a => String(a.category || '').toLowerCase().includes(config.key))).length;
+
+        const teacherCount = users
+            .filter(u => u.role === 'teacher')
+            .flatMap(u => u.cards || [])
+            .filter(card => (card.analyses || []).some(a => String(a.category || '').toLowerCase().includes(config.key))).length;
+
+        const card = el('div', undefined, 'insight-intact-card bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col overflow-hidden transition-all duration-200 hover:shadow-md hover:border-slate-300');
+        card.innerHTML = `
+            <!-- Top: Interactive Metric Counter Panel -->
+            <div class="sigma-interactive-metric-card p-5 group flex items-center justify-between relative overflow-hidden" data-spotlight-bound="false">
+                <div class="metric-text-content flex-1">
+                    <div class="metric-text-base">
+                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">${config.title}</span>
+                        <span class="text-[11px] font-medium text-black-fade italic font-['Inter'] mt-0.5 block">${config.question}</span>
+                        <span class="text-3xl md:text-[34px] font-extrabold text-black block mt-2 font-['Inter'] tracking-tight">${count}</span>
+                    </div>
+                    <div class="metric-text-spotlight" aria-hidden="true">
+                        <span class="text-xs font-bold tracking-normal block font-['Inter']">${config.title}</span>
+                        <span class="text-[11px] font-medium italic font-['Inter'] mt-0.5 block">${config.question}</span>
+                        <span class="text-3xl md:text-[34px] font-extrabold block mt-2 font-['Inter'] tracking-tight">${count}</span>
+                    </div>
+                </div>
+                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                    <i class="${config.icon} metric-icon-base"></i>
+                    <i class="${config.icon} metric-icon-spotlight" aria-hidden="true"></i>
+                </div>
+            </div>
+
+            <!-- Bottom: White Panel (Intact directly underneath) -->
+            <div class="p-5 bg-white flex-1 flex flex-col justify-between space-y-4">
+                <!-- Badge & Progress Bar Section -->
+                <div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full font-['Inter']" style="background:rgba(21, 128, 61, 0.08); color:#15803d; border: 1px solid rgba(21, 128, 61, 0.25);">
+                            ${config.badge}
+                        </span>
+                        <span class="text-[11px] font-bold text-black font-['Inter']">${pct}% of all</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mt-2.5">
+                        <div class="h-2 rounded-full transition-all duration-500" style="width: ${Math.max(pct, count > 0 ? 6 : 0)}%; background:#15803d;"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-1.5 text-[11px] font-['Inter']">
+                        <span class="font-bold text-black">${count} of ${totalCards} total</span>
+                        <span class="font-medium text-black-fade">Category share</span>
+                    </div>
+                </div>
+
+                <!-- Importance & Purpose -->
+                <div class="border-t border-slate-100 pt-3.5">
+                    <div class="flex items-center gap-1.5 mb-1.5">
+                        <i class="fa-solid fa-circle-info text-[#15803d] text-xs"></i>
+                        <span class="text-[11px] font-bold text-black font-['Inter'] tracking-normal">Importance & Purpose</span>
+                    </div>
+                    <p class="text-[12.5px] text-black font-['Inter'] leading-relaxed">${config.meaning}</p>
+                </div>
+
+                <!-- Cards Per Role -->
+                <div class="border-t border-slate-100 pt-3.5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold text-black font-['Inter'] tracking-normal">Cards Per Role</span>
+                        <span class="text-[11px] font-medium text-black-fade font-['Inter']">${count} total</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-user-graduate text-[#15803d] text-xs"></i>
+                                <span class="text-xs font-bold text-black font-['Inter']">Students</span>
+                            </div>
+                            <span class="text-sm font-extrabold text-black font-['Inter']">${studentCount}</span>
+                        </div>
+                        <div class="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-chalkboard-user text-[#15803d] text-xs"></i>
+                                <span class="text-xs font-bold text-black font-['Inter']">Teachers</span>
+                            </div>
+                            <span class="text-sm font-extrabold text-black font-['Inter']">${teacherCount}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- When AI Selects This Type -->
+                <div class="border-t border-slate-100 pt-3.5">
+                    <span class="text-[11px] font-bold text-black font-['Inter'] tracking-normal block mb-2">When AI Selects This Type</span>
+                    <ul class="space-y-2">
+                        ${config.triggers.map(t => `
+                            <li class="flex items-start text-xs text-black font-['Inter']">
+                                <i class="fa-solid fa-circle-check text-[#15803d] text-xs mt-0.5 mr-2 shrink-0"></i>
+                                <span>${t}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
     function render() {
-        for (const button of tabs.children) button.setAttribute('aria-selected', String(button.dataset.tab === tab));
+        for (const button of tabs.children) {
+            const isSelected = button.dataset.tab === tab;
+            button.setAttribute('aria-selected', String(isSelected));
+            button.setAttribute('aria-pressed', String(isSelected));
+        }
         filters.hidden = tab !== 'users'; content.replaceChildren();
         if (loading) { empty('Loading saved insights...'); return; }
         if (tab === 'school') {
             const cards = users.flatMap(user => user.cards || []);
-            const metrics = el('div', undefined, 'insight-report-metrics');
-            for (const [label, value] of [['Students', users.filter(user => user.role === 'student').length], ['Teachers', users.filter(user => user.role === 'teacher').length], ['Saved Insight Cards', cards.length]]) {
-                const item = el('div'); item.append(el('strong', String(value)), el('span', label)); metrics.append(item);
+            const metrics = el('div', undefined, 'grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6');
+            for (const [label, value, icon] of [['Saved Insights', cards.length, 'fa-solid fa-brain'], ['Students with Insights', users.filter(user => user.role === 'student' && user.cards?.length > 0).length, 'fa-solid fa-user-graduate'], ['Teachers with Insights', users.filter(user => user.role === 'teacher' && user.cards?.length > 0).length, 'fa-solid fa-chalkboard-user']]) {
+                metrics.append(metricCard(label, value, icon));
             }
-            content.append(metrics, el('h2', 'Saved Insights by Type'));
-            const categories = el('div', undefined, 'insight-report-metrics');
-            for (const category of ['descriptive', 'predictive', 'prescriptive']) {
-                const count = cards.filter(card => (card.analyses || []).some(analysis => String(analysis.category).toLowerCase().includes(category))).length;
-                const item = el('div'); item.append(el('strong', String(count)), el('span', category[0].toUpperCase() + category.slice(1))); categories.append(item);
+            content.append(metrics, el('h3', 'AI Analytics Types', "text-sm font-bold text-black font-['Inter'] mt-6 mb-3"));
+            
+            const planGrid = el('div', undefined, 'insight-plan-grid');
+            for (const config of TYPE_CONFIGS) {
+                planGrid.append(createTypePlanCard(config, cards, users));
             }
-            content.append(categories);
-            empty(cards.length ? 'Select User Insights to review saved cards by account.' : 'No saved AI insights available yet.');
+            content.append(planGrid);
+
+            if (!cards.length) empty('No saved AI insights available yet.');
+            setTimeout(() => window.bindInteractiveMetricCards?.(), 10);
             return;
         }
         const user = users.find(item => item.id === selected);
@@ -96,17 +277,17 @@
     }
     async function load() {
         if (loading) return;
-        loading = true; refresh.disabled = true; render();
+        loading = true; render();
         try {
             const result = await window.SigmaAiDatabase.loadInsightReport(); users = result.users || []; updatePicker();
             loading = false; render();
         } catch (error) {
             loading = false; content.replaceChildren(); empty(`Unable to load saved insights. ${error.message}`);
-        } finally { refresh.disabled = false; }
+        }
     }
     const section = document.getElementById('reports-ai-view');
-    new MutationObserver(() => { if (!section.classList.contains('hidden')) load(); }).observe(section, {attributes: true, attributeFilter: ['class']});
-    window.addEventListener('sigma:refresh-analytics-cards', () => { if (!section.classList.contains('hidden')) load(); });
+    new MutationObserver(() => { if (!section.classList.contains('hidden')) { load(); setTimeout(() => window.bindInteractiveMetricCards?.(), 30); } }).observe(section, {attributes: true, attributeFilter: ['class']});
+    window.addEventListener('sigma:refresh-analytics-cards', () => { if (!section.classList.contains('hidden')) { load(); setTimeout(() => window.bindInteractiveMetricCards?.(), 30); } });
     render();
     if (!section.classList.contains('hidden')) load();
 })();

@@ -1,3 +1,4 @@
+
 /**
  * SIGMA ELMS - Shared UI Component Styles
  *
@@ -3128,6 +3129,71 @@ html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:
  html body .shared-grades-top-panels p{font-size:12px!important;line-height:18px!important}
  html body .teacher-grades-analytics > .shared-grades-top-panels{width:calc(100% + 32px);margin-left:-16px;margin-right:-16px}
 }
+.sigma-ai-shared-heading{display:flex;align-items:center;gap:8px;color:#000;font-size:14px;font-weight:700;line-height:20px;margin-bottom:10px}
+.sigma-ai-panel{background:#fff!important;border:1px solid #e2e8f0!important;border-radius:16px!important;padding:20px!important;box-shadow:0 1px 3px rgba(0,0,0,0.03)!important;font-family:Inter,sans-serif}
+.sigma-ai-panel .sigma-ai-shared-heading{margin:0 0 12px;min-height:28px;flex-wrap:nowrap}
+.sigma-grading-notification-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,0.45);backdrop-filter:blur(3px)}
+.sigma-grading-notification-dialog{width:100%;max-width:520px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:20px!important;color:#000;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25),0 0 0 1px rgba(0,0,0,0.04);margin:auto}
+.sigma-grading-notification-dialog>header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.sigma-grading-notification-dialog>header [data-close]{display:none!important}
+.sigma-grading-notification-dialog h3{margin:0;font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em}
+.sigma-grading-notification-dialog h4{margin:0 0 4px;font-size:16px;font-weight:700;color:#0f172a;line-height:1.35;overflow-wrap:anywhere}
+.sigma-grading-notification-content{padding:22px 24px;overflow-y:auto;overscroll-behavior:contain;min-height:0}
+.sigma-grading-notification-content p{overflow-wrap:anywhere}
+.sigma-grading-notification-content .text-black-fade{font-size:13px;color:rgba(0,0,0,0.45);margin:0}
+.sigma-grading-notification-content > p:not(.text-black-fade):not(.sigma-grading-notification-empty){margin:0 0 16px 0;font-size:13.5px;color:#0f172a}
+.sigma-grading-notification-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #e2e8f0;margin:12px 0 14px;font-size:14px;font-weight:500;color:#0f172a}
+.sigma-grading-notification-score strong,.sigma-grading-notification-score .sigma-grading-score-display{display:inline-flex;align-items:baseline;gap:2px;font-size:18px;font-weight:700}
+.sigma-grading-notification-score .sigma-score-earned{color:#15803d;font-size:20px;font-weight:800}
+.sigma-grading-notification-score :is(.sigma-score-divider,.sigma-score-max){color:#000000;font-size:14.5px;font-weight:500}
+.sigma-grading-score-label{font-weight:700;color:#000}
+.sigma-grading-notification-score .sigma-score-unavailable{color:rgba(0,0,0,.45);font-size:14px;font-weight:500}
+.sigma-grading-score-display{flex-wrap:wrap;justify-content:flex-end;min-width:0}
+.sigma-grading-notification-content .sigma-ai-panel{margin-top:0}
+.sigma-grading-notification-content .sigma-grading-notification-empty{color:rgba(0,0,0,.45)!important;margin:0;line-height:1.5;font-size:13px;font-weight:500}
+.sigma-ai-panel-body{background:#ecfdf5!important;border:1px solid #bbf7d0!important;border-radius:12px!important;padding:14px 16px!important;color:#000;font-size:13.5px;line-height:1.6;margin:0;display:block!important;min-height:46px;text-align:left;overflow-wrap:break-word;word-break:break-word}
+.sigma-ai-panel-body p{margin:0;color:inherit;overflow-wrap:anywhere}
+.sigma-ai-panel-body strong,:is([data-subject-grade-insight],[data-ai-insight-body]) strong{font-weight:700!important;color:#000!important;margin-right:4px!important;display:inline!important}
+.sigma-ai-panel [data-insight-empty="true"],.sigma-ai-empty{color:rgba(0,0,0,.45)!important}
+.sigma-ai-entry+.sigma-ai-entry{border-top:1px solid #bbf7d0;margin-top:12px;padding-top:12px}
+.sigma-ai-entry-title{display:flex;align-items:center;gap:10px;color:#15803d;font-size:13px;line-height:20px;font-weight:700}
+.sigma-ai-entry-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:0 0 20px}
+.sigma-ai-entry p{padding-left:30px;color:#000}
+
+/* Modal Footer */
+.sigma-grading-notification-dialog>footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;border-top:1px solid #e2e8f0;background:#ffffff;flex-shrink:0}
+
+/* Mobile Responsive Scaling */
+@media(max-width:767px){
+  .sigma-grading-notification-overlay{padding:12px}
+  .sigma-grading-notification-dialog{border-radius:16px!important;max-width:100%;max-height:calc(100dvh - 24px)}
+  .sigma-grading-notification-dialog>header{padding:14px 18px}
+  .sigma-grading-notification-dialog h3{font-size:14.5px!important}
+  .sigma-grading-notification-content{padding:16px 18px}
+  .sigma-grading-notification-dialog h4{font-size:14.5px!important;line-height:1.35}
+  .sigma-grading-notification-content .text-black-fade{font-size:12px!important}
+  .sigma-grading-notification-score{padding:9px 0;margin:9px 0 11px;font-size:13px!important}
+  .sigma-grading-notification-score .sigma-score-earned{font-size:17px!important}
+  .sigma-grading-notification-score :is(.sigma-score-divider,.sigma-score-max){font-size:13px!important}
+  .sigma-grading-notification-content > p:not(.text-black-fade):not(.sigma-grading-notification-empty){margin:0 0 12px 0;font-size:13px!important}
+  .sigma-ai-panel{padding:12px 14px!important;border-radius:12px!important}
+  .sigma-ai-panel .sigma-ai-shared-heading{margin:0 0 8px;font-size:12px!important;gap:6px;min-height:22px}
+  .sigma-ai-shared-icon{width:22px!important;height:22px!important;border-radius:6px!important;font-size:10px!important}
+  .sigma-ai-panel-body{padding:10px 12px!important;font-size:12px!important;border-radius:9px!important;min-height:38px;line-height:1.45}
+  .sigma-grading-notification-empty{font-size:12px!important}
+  .sigma-grading-notification-dialog>footer{padding:12px 18px;gap:8px}
+  .sigma-grading-notification-dialog>footer button.sigma-btn-white{flex:0 0 auto;min-width:76px}
+  .sigma-grading-notification-dialog>footer button.sigma-btn-primary{flex:1}
+}
+@media(max-width:360px){
+  .sigma-grading-notification-dialog>footer button{padding:0 10px!important;font-size:12px!important}
+}
+.sigma-ai-shared-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:8px;background:#ffd000;color:#000;font-size:12px}
+/* Standalone AI actions are yellow; lightning inside yellow badges is black. */
+.fa-bolt{color:#ffd000!important;-webkit-text-fill-color:#ffd000!important}
+header .fa-bolt{color:inherit!important;-webkit-text-fill-color:currentColor!important}
+:is(.sigma-ai-shared-icon,[class*="bg-[#FFD000]"],[class*="bg-[#ffd000]"],[class*="bg-yellow-"]) .fa-bolt{color:#000!important;-webkit-text-fill-color:#000!important}
+@media(max-width:767px){.sigma-ai-shared-heading{font-size:12px;line-height:18px}.sigma-ai-shared-icon{width:24px;height:24px;flex-basis:24px;font-size:11px}}
 .gwa-card {
     background: linear-gradient(135deg, #15803d 0%, #166534 100%) !important;
     color: white !important;
@@ -4110,10 +4176,10 @@ div.cursor-not-allowed:focus-within,
 div.cursor-not-allowed:hover,
 div.cursor-not-allowed:active,
 div.cursor-not-allowed:focus,
-.bg-slate-100\/70:focus-within,
-.bg-slate-100\/70:hover,
-.bg-slate-100\/70:active,
-.bg-slate-100\/70:focus {
+:is(div, input, textarea).bg-slate-100\/70:focus-within,
+:is(div, input, textarea).bg-slate-100\/70:hover,
+:is(div, input, textarea).bg-slate-100\/70:active,
+:is(div, input, textarea).bg-slate-100\/70:focus {
     background-color: rgba(241, 245, 249, 0.7) !important;
     border-color: #e2e8f0 !important;
     outline: none !important;
@@ -7138,3 +7204,299 @@ html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
         max-width:84px!important;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   RESOURCES VIEW: HEADER TOOLBAR, SEARCH BAR & VIEW TOGGLE
+   ══════════════════════════════════════════════════════════════════════ */
+.resources-header-toolbar {
+    background-color: #ffffff;
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    padding: 16px 20px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.resources-search-box {
+    position: relative;
+    width: 420px;
+    max-width: 100%;
+}
+.resources-search-box input {
+    width: 100%;
+    height: 46px;
+    padding-left: 16px;
+    padding-right: 42px;
+    background-color: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+}
+.resources-search-box input:focus {
+    outline: none;
+    border-color: #15803d;
+    background-color: #ffffff;
+}
+.resources-search-box .resources-search-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #000000 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.resources-search-box .resources-search-btn:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+.resources-search-box .resources-search-btn:active {
+    transform: translateY(-50%) scale(0.92);
+}
+.resources-search-box .resources-search-btn svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+    width: 16px;
+    height: 16px;
+}
+.resources-view-toggle-group {
+    height: 46px;
+    padding: 4px;
+    background-color: #f1f5f9;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    gap: 2px;
+}
+.resources-view-toggle-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    border: none;
+    background: transparent;
+}
+.resources-view-toggle-btn.is-active {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    cursor: default;
+    pointer-events: none;
+}
+.resources-view-toggle-btn.is-active svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+}
+.resources-view-toggle-btn:not(.is-active) {
+    color: rgba(0, 0, 0, 0.45) !important;
+    cursor: pointer;
+}
+.resources-view-toggle-btn:not(.is-active) svg {
+    color: rgba(0, 0, 0, 0.45) !important;
+    stroke: rgba(0, 0, 0, 0.45) !important;
+    transition: color 0.15s ease, stroke 0.15s ease;
+}
+.resources-view-toggle-btn:not(.is-active):hover {
+    background-color: rgba(226, 232, 240, 0.8) !important;
+    color: #000000 !important;
+}
+.resources-view-toggle-btn:not(.is-active):hover svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+}
+
+/* White trigger, neutral hover, and green selected menu option. */
+#btn-resource-sy-toggle {
+    background-color: #fff !important;
+    border-color: #e2e8f0 !important;
+    color: #000 !important;
+}
+
+#btn-resource-sy-toggle:is(:hover,:focus-visible,[aria-expanded="true"]) {
+    background-color: #e2e8f0 !important;
+    border-color: #e2e8f0 !important;
+    color: #000 !important;
+}
+
+#resource-sy-dropdown .btn-select-sy {
+    background: #fff !important;
+}
+#resource-sy-dropdown .btn-select-sy:is(:hover,:focus-visible) {
+    background: #f1f5f9 !important;
+}
+#resource-sy-dropdown .btn-select-sy[aria-pressed="true"],
+#resource-sy-dropdown .btn-select-sy[aria-pressed="true"]:hover {
+    background: #dcfce7 !important;
+}
+
+/* ==========================================================================
+   STANDARDIZED ACTION DROPDOWN & THREE DOTS (MATCHES USER ACCOUNTS)
+   ========================================================================== */
+.action-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.action-dots-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #000;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+}
+
+.action-dots-btn:hover,
+.action-dots-btn.active {
+    color: #FFD000 !important;
+    background-color: transparent !important;
+}
+
+.action-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 8px;
+    min-width: 195px;
+    width: max-content;
+    max-width: 240px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+    padding: 6px;
+    display: none;
+    transform-origin: top right;
+}
+
+.action-dropdown-menu.show {
+    display: block;
+    animation: action-slide-up 0.2s ease-out;
+}
+
+.action-dropdown-menu.dropup {
+    top: auto !important;
+    bottom: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+    transform-origin: bottom right !important;
+}
+
+.action-dropdown-menu.dropup.show {
+    animation: action-slide-down 0.2s ease-out;
+}
+
+@keyframes action-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes action-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.action-dropdown-item {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+    color: #000000 !important;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+    background: transparent;
+    border: none;
+    font-family: 'Inter', sans-serif !important;
+    cursor: pointer;
+}
+
+.action-dropdown-item i,
+.action-dropdown-item span {
+    color: #000000 !important;
+}
+
+.action-dropdown-item:hover {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+}
+
+.action-dropdown-item:hover i,
+.action-dropdown-item:hover span {
+    color: #000000 !important;
+}
+
+/* Resources View: Hover Underline for Author & Resource Name (Matches Audit Logs) */
+.btn-filter-author:hover span,
+.btn-filter-author:hover .author-name-text,
+.btn-preview-resource:hover {
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+    cursor: pointer !important;
+}
+
+
+
+.sigma-ai-feedback-empty {
+    width: 100%;
+    min-height: 140px;
+    box-sizing: border-box;
+}
+.sigma-ai-feedback-empty #sigma-ai-feedback-status {
+    width: 100%;
+    max-width: none;
+    text-align: center;
+}
+@media (max-width: 480px) {
+    html body #teacher-ai-assistance-panel .ai-panel-header-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-areas: "title" "badge" "btn" !important;
+    }
+    html body #teacher-ai-assistance-panel :is(.ai-header-score-area span, #ai-review-action-btn) {
+        font-size: 11px !important;
+    }
+    html body #teacher-ai-assistance-panel #ai-review-action-btn { min-height: 36px; }
+}
+.sigma-rubric-summary { min-width: 0; overflow-wrap: anywhere; }

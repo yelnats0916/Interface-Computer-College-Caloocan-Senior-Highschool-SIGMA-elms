@@ -267,7 +267,7 @@
     }
     root.addEventListener?.('sigma:refresh-analytics-cards', refresh);
     function status(message) {
-        document.querySelectorAll('.sigma-analyze-button').forEach(button => {
+        document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => {
             button.disabled = running;
             button.title = message;
             button.setAttribute('aria-label', message);
@@ -365,12 +365,14 @@
                 status(error.message);
                 return;
             }
-            retryAfter = Date.now() + 3600000;
+            retryAfter = automatic ? Date.now() + 3600000 : Date.now() + 5000;
             status(error.message);
-            root.SigmaAnnouncements?.showToast(error.message, 'error');
+            if (!automatic) {
+                root.SigmaAnnouncements?.showToast(error.message, 'error');
+            }
         } finally {
             running = false;
-            document.querySelectorAll('.sigma-analyze-button').forEach(button => { button.disabled = false; button.querySelector('i')?.classList.remove('fa-spin'); });
+            document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => { button.disabled = false; button.querySelector('i')?.classList.remove('fa-spin'); });
             schedule();
         }
     }

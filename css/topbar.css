@@ -567,7 +567,10 @@
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.header-icon-btn:hover {
+.header-icon-btn:hover,
+#sigma-toggle:hover,
+#calendar-toggle:hover,
+#noti-toggle:hover {
     background-color: #e2e8f0 !important;
 }
 
@@ -610,7 +613,7 @@
 }
 
 #sigma-toggle:hover {
-    background-color: #e2e8f0;
+    background-color: #e2e8f0 !important;
 }
 
 #sigma-toggle i {

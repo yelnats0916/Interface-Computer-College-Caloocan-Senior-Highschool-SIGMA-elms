@@ -139,7 +139,7 @@
             return rules.withGenerationLock(root, storageKey(expectedId), async () => {
                 if (running || teacherId() !== expectedId) return;
                 running = true;
-                document.querySelectorAll('.sigma-analyze-button').forEach(button => { button.disabled = true; });
+                document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => { button.disabled = true; });
                 try {
                     const input = snapshot(true);
                     if (!input.teacherId) throw new Error('Sign in as a teacher to analyze your classes.');
@@ -178,7 +178,7 @@
                     });
                     refresh();
                 } catch (error) { root.SigmaAnnouncements?.showToast(error.message, 'error'); }
-                finally { running = false; document.querySelectorAll('.sigma-analyze-button').forEach(button => { button.disabled = false; }); }
+                finally { running = false; document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => { button.disabled = false; }); }
             });
         }
     };

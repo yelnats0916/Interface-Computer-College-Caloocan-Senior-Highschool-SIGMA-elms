@@ -9,7 +9,7 @@ $extraCss  = ["css/admin.css", "css/settings-view.css", "css/ai-log-details.css"
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<link rel="stylesheet" href="css/classroom-room.css"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/recaptcha-client.js", "js/system-settings-history.js", "js/ai-routing-settings.js", "js/notification-logs.js", "js/audit-log-search.js", "js/admin.js", "js/admin-insight-report.js"];
+$extraJs   = ["js/time-picker-dial.js", "js/classroom-room.js", "js/recaptcha-client.js", "js/system-settings-history.js", "js/ai-routing-settings.js", "js/notification-logs.js", "js/authentication-logs.js", "js/activity-logs.js", "js/audit-log-search.js", "js/admin.js", "js/admin-insight-report.js"];
 $topbarHeaderId = "admin-header";
 
 require_once __DIR__ . "/../config/app.php";
@@ -643,13 +643,7 @@ require_once __DIR__ . "/includes/topbar.php";
                         </div>
 
                         <!-- Actions & Search Toolbar (Single Unified Row - Shared Code) -->
-                        <div id="attendance-report-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-between gap-4">
-                            <!-- Left: Export Button -->
-                            <button onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('All')"
-                                class="sigma-btn sigma-btn-primary sigma-btn-md gap-3 shrink-0">
-                                <i class="fa-solid fa-file-export text-xs"></i>
-                                <span>Export Report</span>
-                            </button>
+                        <div id="attendance-report-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-end gap-4">
 
                             <!-- Right: Combined Search, Role/Filter, and Search Button -->
                             <div class="flex flex-wrap items-center gap-3">
@@ -1035,12 +1029,7 @@ require_once __DIR__ . "/includes/topbar.php";
                     <div class="mx-auto max-w-[1024px] w-full">
                         <div
                             class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-['Inter']"><i class="fa-solid fa-chart-simple text-[9px]"></i> SIGMA Analytics</span></div>
-                                <h1 class="text-2xl font-black text-black tracking-tight font-['Inter']">Analytics</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">Student assessments and grades
-                                    overview</p>
-                            </div>
+                            
                             <div class="px-10 py-8 space-y-8">
                                 <!-- Summary Cards -->
                                 <div class="grid grid-cols-4 gap-4">
@@ -1595,54 +1584,13 @@ require_once __DIR__ . "/includes/topbar.php";
                                     <table class="sigma-table sigma-audit-table" aria-label="Activity logs">
                                         <thead>
                                             <tr>
-                                                <th>Admin / User</th>
-                                                <th>Action</th>
+                                                <th>User</th>
+                                                <th>Activity</th>
                                                 <th>Module</th>
                                                 <th>Timestamp</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Master Admin</p>
-                                                            <p class="text-sm text-black-fade">Administrator</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-black">Updated School Year Configuration</span>
-                                                </td>
-                                                <td>
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">System</span>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">1h ago</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Jane Smith</p>
-                                                            <p class="text-sm text-black-fade">Teacher</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-black">Modified Grade Entry - Math 101</span>
-                                                </td>
-                                                <td>
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">Grades</span>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">3h ago</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+                                        <tbody id="activity-log-rows"><tr><td colspan="4" class="text-center text-black-fade">No activity events recorded yet.</td></tr></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -1668,62 +1616,10 @@ require_once __DIR__ . "/includes/topbar.php";
                                                 <th>Event</th>
                                                 <th>IP / Device</th>
                                                 <th>Timestamp</th>
+                                                <th class="text-center" data-auth-actions="true">Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Mark Kevin</p>
-                                                            <p class="text-sm text-black-fade">Teacher</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                                        <span class="text-black">Login Successful</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex flex-col">
-                                                        <span class="text-black">192.168.1.45</span>
-                                                        <span class="text-sm text-black-fade">Chrome / Windows</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">5m ago</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Stanley Tan</p>
-                                                            <p class="text-sm text-black-fade">Student</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                                                        <span class="text-black">Failed Login Attempt</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex flex-col">
-                                                        <span class="text-black">10.0.0.122</span>
-                                                        <span class="text-sm text-black-fade">Safari / iOS</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">12m ago</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+<tbody><tr><td colspan="5" class="text-center text-black-fade">No authentication events recorded yet.</td></tr></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -1739,7 +1635,7 @@ require_once __DIR__ . "/includes/topbar.php";
                         <div class="flex-1 min-w-0">
                             <div class="sigma-table-container overflow-x-auto">
                                 <table class="sigma-table sigma-audit-table" aria-label="Notification logs">
-                                    <thead><tr><th>Recipient</th><th>Notification</th><th>Channel</th><th>Status</th><th>Read</th><th>Timestamp</th></tr></thead>
+                                    <thead><tr><th>Sender</th><th>Recipient</th><th>Notification</th><th>Status</th><th>Read</th><th>Timestamp</th><th class="text-center" data-notification-actions="true">Action</th></tr></thead>
                                     <tbody id="notification-log-rows"></tbody>
                                 </table>
                             </div>

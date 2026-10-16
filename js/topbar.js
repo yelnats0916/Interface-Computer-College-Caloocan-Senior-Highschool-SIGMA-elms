@@ -145,8 +145,8 @@
                 const resource = args[0];
                 const method = String(args[1]?.method || resource?.method || 'GET').toUpperCase();
                 const url = String(resource?.url || resource || '');
-                // Read-only API polling does not represent page navigation.
-                if (method === 'GET' && /\/api\//.test(url)) return originalFetch.apply(this, args);
+                // Background API calls and initial page loads do not represent top navigation loading.
+                if (/\/api\//.test(url) || document.documentElement.classList.contains('sigma-initial-loading')) return originalFetch.apply(this, args);
                 window.showTopNavLoading();
                 return originalFetch.apply(this, args)
                     .then(res => {
@@ -165,7 +165,7 @@
             const originalSend = XMLHttpRequest.prototype.send;
 
             XMLHttpRequest.prototype.open = function (...args) {
-                this.__topNavTracked = !(String(args[0]).toUpperCase() === 'GET' && /\/api\//.test(String(args[1])));
+                this.__topNavTracked = !/\/api\//.test(String(args[1])) && !document.documentElement.classList.contains('sigma-initial-loading');
                 return originalOpen.apply(this, args);
             };
 
@@ -274,14 +274,47 @@ window.setPortalHeader = function (title, subtitle) {
     if (brandTitle) {
         if (parentText && childText) {
             brandTitle.className = 'admin-topbar__brand-label text-black has-breadcrumb';
-            brandTitle.classList.remove('cursor-pointer', 'pointer-events-auto');
+            brandTitle.classList.remove('cursor-pointer');
             brandTitle.onclick = null;
+
+            const isAudit = parentText === 'Audit Logs';
+            const isSchool = parentText === 'School Management' || parentText === 'School';
+            const isSettings = parentText === 'System Settings' || parentText === 'Settings';
+
+            let subjectAction = '';
+            let topicAction = '';
+
+            if (isAudit) {
+                const childTab = childText === 'Activity Logs' ? 'nav-audit-activity'
+                    : childText === 'Authentication Logs' ? 'nav-audit-auth'
+                    : childText === 'Notification Logs' ? 'nav-audit-notifications'
+                    : 'nav-audit-ai';
+                subjectAction = `window.switchTab('nav-audit-ai')`;
+                topicAction = `if (typeof window.getActiveModalCloser === 'function' && window.getActiveModalCloser()) { window.navigateSigmaBack(); } else if (typeof window.switchTab === 'function') { window.switchTab('${childTab}'); }`;
+            } else if (isSchool) {
+                subjectAction = `if (typeof window.switchTab === 'function') window.switchTab('nav-school-sections')`;
+                topicAction = `if (typeof window.getActiveModalCloser === 'function' && window.getActiveModalCloser()) { window.navigateSigmaBack(); }`;
+            } else if (isSettings) {
+                subjectAction = `if (typeof window.switchTab === 'function') window.switchTab('nav-settings')`;
+                topicAction = `if (typeof window.getActiveModalCloser === 'function' && window.getActiveModalCloser()) { window.navigateSigmaBack(); }`;
+            } else {
+                topicAction = `if (typeof window.getActiveModalCloser === 'function' && window.getActiveModalCloser()) { window.navigateSigmaBack(); }`;
+            }
+
             brandTitle.innerHTML = `
                 <div class="breadcrumb-line-group">
-                    <span class="breadcrumb-subject">${escapeText(parentText)}</span>
-                    <span class="breadcrumb-topic">${escapeText(childText)}</span>
+                    <span class="breadcrumb-subject ${subjectAction ? 'cursor-pointer hover:underline' : ''}" ${subjectAction ? `role="button" tabindex="0" onclick="${subjectAction}"` : ''}>${escapeText(parentText)}</span>
+                    <span class="breadcrumb-topic ${topicAction ? 'cursor-pointer hover:underline' : ''}" ${topicAction ? `role="button" tabindex="0" onclick="${topicAction}"` : ''}>${escapeText(childText)}</span>
                 </div>
             `;
+            brandTitle.querySelectorAll('[role="button"]').forEach(btn => {
+                btn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        btn.click();
+                    }
+                });
+            });
         } else {
             brandTitle.className = 'admin-topbar__brand-label text-black';
             brandTitle.classList.remove('has-breadcrumb', 'cursor-pointer', 'pointer-events-auto');

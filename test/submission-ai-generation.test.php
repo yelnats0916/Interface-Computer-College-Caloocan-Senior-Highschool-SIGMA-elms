@@ -18,6 +18,12 @@ $result = generateSubmissionAi($services, $input, function ($url, $headers, $bod
 });
 check($calls === 2 && $result['status'] === 'Fallback Used' && $result['score'] === 9.0);
 check($result['criteria'][0]['title'] === 'Content and Understanding');
+foreach ([['term' => 'Unsupported', 'description' => 'Text', 'type' => 'diagnosis'], ['term' => 'Link', 'description' => 'See https://example.com', 'type' => 'feedback'], ['term' => '', 'description' => 'Text', 'type' => 'feedback']] as $invalidSummary) {
+    try { validateSubmissionAiResult(array_merge($evaluation, ['commentary' => [$invalidSummary]]), 10, $input['criteria']); throw new Exception('Invalid summary accepted'); }
+    catch (RuntimeException $expected) {}
+}
+$sanitized = validateSubmissionAiResult(array_merge($evaluation, ['commentary' => [['term' => '<b>Accuracy</b>', 'description' => '<em>Correct declaration.</em>', 'type' => 'feedback']]]), 10, $input['criteria']);
+check($sanitized['commentary'][0]['term'] === 'Accuracy' && $sanitized['commentary'][0]['description'] === 'Correct declaration.');
 foreach ([-1, 11, '9'] as $score) {
     try { validateSubmissionAiResult(array_merge($evaluation, ['score' => $score]), 10, $input['criteria']); throw new Exception('Invalid score accepted'); }
     catch (RuntimeException $expected) {}

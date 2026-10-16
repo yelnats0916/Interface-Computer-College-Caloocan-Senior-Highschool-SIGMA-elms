@@ -316,6 +316,7 @@
         }
         return null;
     }
+    window.findAccountInAllStores = findAccountInAllStores;
 
     function parseNameComponents(userObj, defaultRole) {
         if (!userObj) {
@@ -590,7 +591,15 @@
 
     function ensureSharedUserProfileView() {
         const section = document.getElementById('user-profile-view');
-        if (!section || section.dataset.sharedProfileRendered === 'true') return;
+        if (!section) return;
+        if (section.dataset.sharedProfileRendered === 'true') {
+            section.removeAttribute('data-sigma-skeleton-active');
+            if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+                window.SigmaPageLoading.hideContentSkeleton(section);
+            }
+            section.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
+            return;
+        }
 
         section.classList.add('dynamic-section');
         section.innerHTML = `
@@ -900,6 +909,11 @@
         `;
 
         section.dataset.sharedProfileRendered = 'true';
+        section.removeAttribute('data-sigma-skeleton-active');
+        if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+            window.SigmaPageLoading.hideContentSkeleton(section);
+        }
+        section.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
     }
 
     function ensureSharedProfilePictureOverlay() {
@@ -980,6 +994,17 @@
 
         ensureSharedUserProfileView();
         ensureSharedProfilePictureOverlay();
+        const profileSection = document.getElementById('user-profile-view');
+        if (profileSection) {
+            profileSection.removeAttribute('data-sigma-skeleton-active');
+            if (typeof window.SigmaPageLoading?.hideContentSkeleton === 'function') {
+                window.SigmaPageLoading.hideContentSkeleton(profileSection);
+            }
+            profileSection.querySelectorAll('.sigma-content-skeleton').forEach(el => el.remove());
+            // Population also runs during portal startup and background updates.
+            // Section navigation alone decides whether Profile is visible.
+            if (!profileSection.classList.contains('hidden')) profileSection.style.display = 'block';
+        }
         const userData = getActiveUserData();
         let authUser = {};
         try {

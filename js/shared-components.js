@@ -89,6 +89,7 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
 
             // 3. Reset all known scroll containers in SIGMA ELMS
             const scrollIds = [
+                'resources-view',
                 'main-content',
                 'admin-main',
                 'student-main',
@@ -1019,7 +1020,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
     // Checks if an element is currently visible to the user
     function isElementVisible(el) {
         if (!el || !el.isConnected) return false;
-        if (el.classList.contains('hidden') || el.closest('.hidden')) return false;
+        if (el.hidden || el.hasAttribute('hidden') || el.classList.contains('hidden') || el.closest('.hidden, [hidden]')) return false;
         if (el.id === 'sidebar' && (window.innerWidth >= 1024 || !el.classList.contains('sidebar-visible'))) return false;
         if (el.id === 'sub-sidebar' && !el.classList.contains('sub-sidebar-visible') && !document.body.classList.contains('sub-sidebar-open')) return false;
         if (el.id === 'mobile-sigma-sheet' && !el.classList.contains('open')) return false;
@@ -1032,7 +1033,8 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             const opening = el.classList.contains('active') || el.classList.contains('open') || el.classList.contains('curriculum-hub-overlay--visible');
             if (style.display === 'none' || style.visibility === 'hidden' || (style.opacity === '0' && !opening)) return false;
             const rect = el.getBoundingClientRect();
-            if (!opening && (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth)) return false;
+            const isDetailPanel = ['activity-account-details', 'ai-user-details-panel', 'ai-interaction-details-panel', 'ai-conversation-bubbles-panel', 'authentication-account-details', 'notification-account-details'].includes(el.id);
+            if (!opening && !isDetailPanel && (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth)) return false;
         } catch (e) { }
         return true;
     }
@@ -1742,6 +1744,16 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             };
         }
 
+        const authView = document.getElementById('audit-auth-view');
+        const authenticationDetails = document.getElementById('authentication-account-details');
+        if ((authView?.dataset?.authenticationDetailOpen === 'true' || (authenticationDetails && isElementVisible(authenticationDetails))) && typeof window.closeAuthenticationLogDetails === 'function') {
+            return () => window.closeAuthenticationLogDetails();
+        }
+        const notifView = document.getElementById('audit-notifications-view');
+        const notificationDetails = document.getElementById('notification-account-details');
+        if ((notifView?.dataset?.notificationDetailOpen === 'true' || (notificationDetails && isElementVisible(notificationDetails))) && typeof window.closeNotificationLogDetails === 'function') {
+            return () => window.closeNotificationLogDetails();
+        }
         const aiBubbles = document.getElementById('ai-conversation-bubbles-panel');
         if (aiBubbles && isElementVisible(aiBubbles) && typeof window.closeAiConversationBubbles === 'function') {
             return () => window.closeAiConversationBubbles();
@@ -1750,9 +1762,15 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         if (aiInteractionDetails && isElementVisible(aiInteractionDetails) && typeof window.closeAiInteractionDetails === 'function') {
             return () => window.closeAiInteractionDetails();
         }
+        const aiView = document.getElementById('audit-ai-view');
         const aiUserDetails = document.getElementById('ai-user-details-panel');
-        if (aiUserDetails && isElementVisible(aiUserDetails) && typeof window.closeAiUserDetails === 'function') {
+        if ((aiView?.dataset?.aiUserDetailOpen === 'true' || (aiUserDetails && isElementVisible(aiUserDetails))) && typeof window.closeAiUserDetails === 'function') {
             return () => window.closeAiUserDetails();
+        }
+        const activityView = document.getElementById('audit-activity-view');
+        const activityAccountDetails = document.getElementById('activity-account-details');
+        if ((activityView?.dataset.activityDetailOpen === 'true' || (activityAccountDetails && isElementVisible(activityAccountDetails))) && typeof window.closeActivityLogDetails === 'function') {
+            return () => window.closeActivityLogDetails();
         }
 
         const sidebar = document.getElementById('sidebar');
@@ -1947,6 +1965,7 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
             '#teacher-material-upload-overlay, #teacher-material-editor-view, #leaveRoomModal, ' +
             '#curriculum-hub-overlay, #teacher-release-topics-overlay, #teacher-topic-picker-overlay, #teacher-release-learning-materials-overlay, #teacher-learning-picker-overlay, #teacher-release-assessments-overlay, #teacher-assessments-picker-overlay, #teacher-release-category-overlay, #teacher-topic-schedule-overlay, ' +
             '#gradebook-weight-picker-panel, #gradebook-card-modal-backdrop, #ai-user-details-panel, #ai-interaction-details-panel, #ai-conversation-bubbles-panel, ' +
+            '#activity-account-details, #authentication-account-details, #notification-account-details, ' +
             '#mobile-sigma-sheet, #mobile-calendar-panel, #mobile-noti-panel, #classroom-mobile-people-panel, #sigmaAiPanel, .mobile-pull-up-panel, ' +
             '.header-panel, #classroom-settings-menu, #sidebar, #sub-sidebar, ' +
             '#ai-generator-modal, #ai-discard-modal, #ai-confirm-generate-modal, #import-questions-modal, ' +
@@ -2286,8 +2305,9 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
         const leftDraftPage = Boolean(draftUrl && draftUrl !== window.location.href);
         const closer = getActiveModalCloser();
         const isModalPopping = Boolean(
+            closer ||
             (e && e.state && (e.state._sigmaModalOpen || e.state.mobileOverlay))
-            || (_modalScrollStack.length > 0 && closer)
+            || (_modalScrollStack.length > 0)
         );
         if (!isModalPopping && leftDraftPage && !window._gradeDraftLeaveAllowed && typeof window.gradeScoreDraftIsDirty === 'function' && window.gradeScoreDraftIsDirty()) {
             history.pushState({ sigmaGradeDraft: true }, '', draftUrl);
@@ -5099,6 +5119,7 @@ window.isSectionAssignedToStudent = function (sec, student) {
             .concat(Array.isArray(student.assignedSections) ? student.assignedSections : [])
             .concat(Array.isArray(student.sections) ? student.sections : [])
             .concat(student.section ? [student.section] : [])
+            .concat(student.gradeSection ? [student.gradeSection] : [])
             .map(s => cleanStr(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s))
             .filter(Boolean)
     );
@@ -15968,9 +15989,111 @@ window.resetAssessmentSubmission = function (subjectId, tabOrTopicIdx, activeIdx
     }
 };
 
+window.registerAdminSubmissionFile = function (context) {
+    window._adminSubmissionFiles = window._adminSubmissionFiles || [];
+    return window._adminSubmissionFiles.push(context) - 1;
+};
+
+window.deleteAdminSubmissionFile = function (index) {
+    const auth = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+    if (!/admin/i.test(auth.role || auth.type || '')) return;
+    const context = window._adminSubmissionFiles?.[index];
+    if (!context) return;
+    const execute = () => {
+        const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const studentIds = [context.studentId, context.student?.id, context.student?.uid, context.student?.studentNumber, context.student?.lrn, context.student?.name, context.student?.fullName].filter(Boolean).map(normalize);
+        const subjects = [context.subjectId,...(window.getUnifiedSubjectAliases?.(context.subjectId) || [])].map(normalize);
+        const fileName = String(context.file.name || context.file.fileName || '');
+        const fileUrl = String(context.file.dataUrl || context.file.url || context.file.fileUrl || '');
+        const stamp = context.attempt.submittedAt || context.attempt.completedAt || context.attempt.timestamp || '';
+        const matchesFile = file => {
+            if (!file || typeof file !== 'object') return false;
+            const name = file.name || file.fileName || '';
+            const url = file.dataUrl || file.url || file.fileUrl || '';
+            return name === fileName && (!fileUrl || !url || url === fileUrl);
+        };
+        const edits = [];
+        const applyRecord = (row, key, path, store, storageKey) => {
+            if (!row || typeof row !== 'object') return;
+            const aliases = [key,row.subjectId,row.subject,row.subjectName].map(normalize);
+            if (!subjects.some(subject => subject && aliases.some(alias => alias.includes(subject)))) return;
+            const itemId = context.item?.id || context.item?.materialId;
+            const identity = [row.materialId,row.assessmentId,row.itemId,row.id].filter(Boolean).map(String);
+            const slotKey = String(key).endsWith(`_${context.topicIdx}_${context.tab}_${context.activeIdx}`);
+            const title = row.assessmentTitle || row.title || row.taskTitle;
+            if (!(itemId && identity.includes(String(itemId))) && !slotKey && !(title && normalize(title) === normalize(context.item?.title))) return;
+            const before = JSON.stringify(row);
+            const removeFiles = attempt => {
+                if (!attempt || typeof attempt !== 'object') return;
+                const attemptStamp = attempt.submittedAt || attempt.completedAt || attempt.timestamp || '';
+                if (stamp && attemptStamp && stamp !== attemptStamp) return;
+                for (const field of ['files','attachments','fileList']) if (Array.isArray(attempt[field])) attempt[field] = attempt[field].filter(file => !matchesFile(file));
+                if (matchesFile({name:attempt.fileName,url:attempt.fileUrl || attempt.dataUrl || attempt.url})) {
+                    for (const field of ['fileName','fileUrl','dataUrl','url','fileSize','fileType']) delete attempt[field];
+                }
+            };
+            // Historical attempts keep their own timestamps; only the selected attempt is changed.
+            if (stamp || context.page === 1) removeFiles(row);
+            if (Array.isArray(row.attempts)) row.attempts.forEach((attempt, i) => {
+                if (stamp || i === row.attempts.length - context.page) removeFiles(attempt);
+            });
+            const after = JSON.stringify(row);
+            if (before !== after) edits.push({store,storageKey,path,before:JSON.parse(before),after:JSON.parse(after)});
+        };
+        const writes = [];
+        for (const [store, storage] of [['local',localStorage],['session',sessionStorage]]) {
+            for (const storageKey of Object.keys(storage)) {
+                if (storageKey !== 'sigma_student_assessment_submissions' && !/^sigma_(sub_|submission_)/.test(storageKey)) continue;
+                let root; try { root = JSON.parse(storage.getItem(storageKey)); } catch (_) { continue; }
+                const count = edits.length;
+                if (storageKey === 'sigma_student_assessment_submissions') {
+                    for (const [sid,bucket] of Object.entries(root || {})) {
+                        if (!studentIds.includes(normalize(sid)) || !bucket || typeof bucket !== 'object') continue;
+                        for (const [key,row] of Object.entries(bucket)) applyRecord(row,key,[sid,key],store,storageKey);
+                    }
+                } else if (studentIds.includes(normalize(root?.studentId || root?.studentUid || root?.userId || root?.studentName))) {
+                    applyRecord(root,storageKey,[],store,storageKey);
+                }
+                if (edits.length !== count) writes.push({storage,storageKey,root});
+            }
+        }
+        if (!writes.length) { window.showToast?.('The file could not be matched to a saved submission. Refresh and try again.'); return; }
+        const recovery = JSON.parse(localStorage.getItem('sigma-deleted-submission-files') || '[]');
+        recovery.push({id:'submission-file-'+Date.now(),label:fileName,recordType:'submission_files',deletedAt:new Date().toISOString(),deletedByName:auth.fullName || auth.name || [auth.firstName,auth.lastName].filter(Boolean).join(' '),deletedByUser:{name:auth.fullName || auth.name,role:auth.role},edits});
+        localStorage.setItem('sigma-deleted-submission-files', JSON.stringify(recovery));
+        writes.forEach(({storage,storageKey,root}) => storage.setItem(storageKey,JSON.stringify(root)));
+        window.invalidateSharedAssessmentSubmissionsStorage?.();
+        window.dispatchEvent(new Event('sigma:submission-files-updated'));
+        window.switchTopicTab?.(context.tab,context.activeIdx);
+        window.showToast?.('File moved to Record Recovery.');
+    };
+    if (window.showSigmaDialog) window.showSigmaDialog({title:'Delete submitted file?',desc:'Move this file to Record Recovery? It will be removed from the shared submission shown to the admin, teacher, and student. Other files and grades are preserved.',confirmText:'Delete File',cancelText:'Cancel',isDanger:true,onConfirm:execute});
+    else if (window.confirm('Delete this file from the shared submission and move it to Record Recovery?')) execute();
+};
+
 window.deleteStudentAssessmentSubmission = function (subjectId, tab, activeIdx, topicIdx, item) {
     window.resetAssessmentSubmission(subjectId, tab, activeIdx, topicIdx, item);
 };
+
+window.addEventListener('storage', event => {
+    if (event.key !== 'sigma-deleted-submission-files') return;
+    // Drop matching session-cache copies in other portal tabs as well.
+    try {
+        const recovery = JSON.parse(event.newValue || '[]');
+        recovery.flatMap(record => record.edits || []).filter(edit => edit.store === 'local').forEach(edit => {
+            let root = JSON.parse(sessionStorage.getItem(edit.storageKey) || 'null');
+            let row = root;
+            edit.path.forEach(part => { row = row?.[part]; });
+            if (JSON.stringify(row) !== JSON.stringify(edit.before)) return;
+            if (!edit.path.length) root = edit.after;
+            else { let parent = root; edit.path.slice(0,-1).forEach(part => { parent = parent[part]; }); parent[edit.path[edit.path.length-1]] = edit.after; }
+            sessionStorage.setItem(edit.storageKey,JSON.stringify(root));
+        });
+    } catch (_) {}
+    window.invalidateSharedAssessmentSubmissionsStorage?.();
+    const state = window.currentTopicState;
+    if (state && (window._sharedViewSubmissionMode || window._studentViewSubmissionMode) && !window._studentSubmissionMode) window.switchTopicTab?.(state.activeTab,state.activeIdx);
+});
 
 window.clearAllStudentSubmissions = function () {
     for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -26448,21 +26571,19 @@ window.renderSigmaAiFeedbackPanelHtml = function ({ context, graded, restricted,
     const escape = window.escapeHtml;
     const items = context && graded ? window.SigmaSubmissionAi?.readFeedback(context, context.attemptPage) || [] : [];
     const status = context ? window.SigmaSubmissionAi?.state(context) : null;
-    const icons = { check: 'fa-circle-check', award: 'fa-award', target: 'fa-bullseye', book: 'fa-book-open', lightbulb: 'fa-lightbulb', search: 'fa-magnifying-glass', list: 'fa-list-check', pen: 'fa-pen', info: 'fa-circle-info', triangle: 'fa-triangle-exclamation', trend: 'fa-arrow-trend-up', steps: 'fa-shoe-prints' };
-    const labels = { strength: 'What You Did Well', improvement: 'What Needs Improvement', next_step: 'What To Do Next' };
-    const empty = !submitted ? 'No submission yet. SIGMA AI Feedback will be available after work is submitted and graded.'
-        : !context ? 'Select an assigned student to view their feedback.' : !graded ? 'Feedback will be available after grading.'
-        : status?.status === 'failed' ? 'SIGMA AI Feedback is unavailable. ' + status.message
-        : status?.status === 'pending' ? 'Generating SIGMA AI Feedback...' : 'No feedback generated yet.';
-    return `<div id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel w-full p-5 sm:p-7 md:p-8 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-4 font-['Inter']">
-            <h3 class="text-sm font-bold text-[#15803d]" style="color: #15803d !important;">SIGMA AI Feedback</h3>
-            ${items.length ? items.map(item => `<div class="flex items-start gap-2"><i class="fa-solid ${icons[item.icon] || 'fa-circle-info'} text-[#15803d] shrink-0 mt-1" aria-hidden="true"></i><div class="min-w-0"><p class="text-xs text-black-fade">${labels[item.category] || 'Feedback'}</p><p class="text-xs sm:text-sm leading-relaxed break-words"><strong>${escape(item.term)}</strong>: ${escape(item.description)}</p></div></div>`).join('')
-                : `<div class="sigma-ai-feedback-empty flex flex-col items-center justify-center text-center gap-3 py-5 sm:py-8">
+    const empty = !submitted ? 'No submission yet.'
+        : !context ? 'Select a student to view feedback.' : !graded ? 'Feedback available after grading.'
+        : status?.status === 'failed' ? 'Feedback unavailable. Please try again.'
+        : status?.status === 'pending' ? 'Generating feedback…' : 'No feedback yet.';
+    return `<div id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel sigma-ai-panel">
+            ${window.renderSigmaAiHeading('SIGMA AI Feedback')}
+            <div class="sigma-ai-panel-body">${items.length ? window.renderSigmaAiEntries(items)
+                : `<div class="sigma-ai-feedback-empty sigma-ai-empty flex flex-col items-center justify-center text-center gap-3 py-5 sm:py-8">
                     <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100/70 shrink-0" aria-hidden="true">
                         <i class="fa-solid ${status?.status === 'pending' ? 'fa-spinner fa-spin' : status?.status === 'failed' ? 'fa-circle-exclamation' : 'fa-comment-dots'} text-base" style="color: rgba(0, 0, 0, 0.45);"></i>
                     </span>
                     <p id="sigma-ai-feedback-status" role="status" class="text-xs sm:text-sm leading-relaxed max-w-md m-0" style="color: rgba(0, 0, 0, 0.45);">${escape(empty)}</p>
-                </div>`}
+                </div>`}</div>
     </div>`;
 };
 
@@ -27924,7 +28045,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const aiOwnScore = explicitAiScore !== null
             ? explicitAiScore
             : (storedAiScore !== null && storedAiScore !== teacherOwnedScore ? storedAiScore : null);
-        const aiCalculatedScore = aiOwnScore !== null ? aiOwnScore : null;
+        const aiEvaluationReady = Boolean(savedAiEvaluation?.aiEvaluation && Number.isFinite(savedAiEvaluation.aiSuggestedScore)
+            && savedAiEvaluation.aiSuggestedScore >= 0 && savedAiEvaluation.aiSuggestedScore <= assMaxScore
+            && Array.isArray(savedAiEvaluation.aiEvaluatedCriteria) && savedAiEvaluation.aiEvaluatedCriteria.length);
+        const aiCalculatedScore = aiEvaluationReady ? savedAiEvaluation.aiSuggestedScore : null;
         const aiScoreLabel = aiCalculatedScore !== null ? String(aiCalculatedScore) : '-';
         const aiScorePercentage = (aiCalculatedScore !== null && assMaxScore > 0) ? Math.round((aiCalculatedScore / assMaxScore) * 100) : null;
 
@@ -28178,7 +28302,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
         const canShowSubmissionAi = !isAnyQuiz && (role === 'student' || (isViewSubmissionMode && isSubmitted && studentUser && curSelectedStudent && curSelectedStudent !== 'All'));
         window._sigmaSubmissionAiContext = canShowSubmissionAi && ['teacher', 'student', 'admin'].includes(role) && !isUnassignedToStudent && subData && studentUser && window.SigmaSubmissionAi ? {
-            role, key: aiSubmissionKey, submission: subData, identity: window.SigmaSubmissionAi.identity(activeAttempt),
+            role, key: aiSubmissionKey, attemptPage: aiAttemptPage, submission: subData, identity: window.SigmaSubmissionAi.identity(activeAttempt),
             studentId: String(studentUser.id || studentUser.uid || studentUser.studentId || studentUser.lrn || ''),
             enabled: hasAiAssistant, hasEvaluation: Boolean(subData.aiEvaluation),
             subjectId, topicIdx, tab, activeIdx, title: displayTitle,
@@ -28190,7 +28314,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             criteria: (isCriteriaAiAuto ? allDepedDimensions : activeCriteriaList).map(criterion => ({ id: criterion.id, title: criterion.title })),
             autoSelect: isCriteriaAiAuto
         } : null;
-        if (role !== 'admin') window.SigmaSubmissionAi?.scheduleAutomatic(window._sigmaSubmissionAiContext);
+        if (role === 'teacher') window.SigmaSubmissionAi?.scheduleAutomatic(window._sigmaSubmissionAiContext);
         const feedbackBase = window._sigmaSubmissionAiContext;
         window._sigmaSubmissionFeedbackContext = feedbackBase ? {
             ...feedbackBase, mode: 'feedback', enabled: true, subjectId, section: targetSection || section || '', assessmentId: assIdStr,
@@ -28203,7 +28327,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         if (window._sigmaSubmissionFeedbackContext) {
             const feedbackContext = window._sigmaSubmissionFeedbackContext;
             feedbackContext.hasEvaluation = Boolean(window.SigmaSubmissionAi.readFeedback(feedbackContext, currentAttemptPage).length);
-            if (role !== 'admin') window.SigmaSubmissionAi.scheduleAutomatic(feedbackContext);
+            if (role === 'teacher') window.SigmaSubmissionAi.scheduleAutomatic(feedbackContext);
         }
 
         const attemptPaginationHtml = !isAnyQuiz && totalAttemptPages > 1 ? `
@@ -28361,6 +28485,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         return window.renderSharedAttachedFilePanelHtml({
                             title: f.name || f.fileName || 'Submitted_Work.pdf',
                             url: f.dataUrl || f.url || f.fileUrl || '',
+                            rightActionHtml: /admin/i.test(JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}').role || '') ? `<button type="button" class="sigma-comment-delete-btn" title="Delete submitted file" aria-label="Delete submitted file" onclick="event.stopPropagation();window.deleteAdminSubmissionFile(${window.registerAdminSubmissionFile({subjectId,topicIdx,tab,activeIdx,studentId:attemptOwner,student:studentUser,attempt:activeAttempt,page:currentAttemptPage,file:f,item:ass})})"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>` : '',
                             type: ((f.name || f.fileName || 'pdf').split('.').pop() || 'pdf').toLowerCase(),
                             size: f.size ? (f.size > 1024 * 1024 ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : Math.round(f.size / 1024) + ' KB') : ''
                         });
@@ -29068,8 +29193,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             </div>
 
                             <!-- 1. Assessment Criteria Section (Dynamic 1-4 Explanatory Cards) -->
-                            <p id="submission-ai-error" role="status" class="text-xs text-red-700" ${window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message ? '' : 'hidden'}>${window.escapeHtml(window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message || '')}</p>
-                            <div class="space-y-3.5 sm:space-y-4">
+                            <p id="submission-ai-error" role="status" class="text-xs text-black-fade" style="color:rgba(0,0,0,.45)" ${aiEvaluationReady ? 'hidden' : ''}>${window.escapeHtml(window.SigmaSubmissionAi?.state(window._sigmaSubmissionAiContext || {})?.message || 'Awaiting evaluation of the submitted file. No suggested score is available yet.')}</p>
+                            ${aiEvaluationReady ? `<div class="space-y-3.5 sm:space-y-4">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                                     <div class="space-y-0.5">
                                         <h4 class="text-sm sm:text-base font-bold text-black font-['Inter'] tracking-tight">Assessment Criteria</h4>
@@ -29102,12 +29227,16 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </div>
                                     `}
                                 </div>
-                            </div>
+                            </div>` : ''}
 
 
                         </div>
                     ` : ''}
 
+                    ${(canShowSubmissionAi && role !== 'student' && hasAiAssistant && aiEvaluationReady && Array.isArray(savedAiEvaluation.aiCommentary) && savedAiEvaluation.aiCommentary.length) ? `<section class="sigma-rubric-summary bg-white border border-slate-200 rounded-2xl p-5 sm:p-7">
+                        <h4 class="text-sm sm:text-base font-bold text-black">Rubric-Based Evaluation Summary</h4>
+                        <div class="mt-4 space-y-3">${savedAiEvaluation.aiCommentary.map(item => `<div><h5 class="text-sm font-semibold text-black">${window.escapeHtml(item.term || '')}</h5><p class="text-xs sm:text-sm leading-relaxed mt-1">${window.escapeHtml(item.description || '')}</p></div>`).join('')}</div>
+                    </section>` : ''}
                     ${canShowSubmissionAi ? window.renderSigmaAiFeedbackPanelHtml({ context: window._sigmaSubmissionFeedbackContext, graded: isGraded, restricted: isUnassignedToStudent, submitted: isSubmitted }) : ''}
                 ` : ''}
             </div>
@@ -33951,10 +34080,18 @@ window.saveSubjectGradebookWeights = function (subjectName, weights) {
 };
 
 window.transferAiScoreToGradebook = function (score, maxScore) {
+    const context = window._sigmaSubmissionAiContext;
+    const evaluation = context && window.SigmaSubmissionAi?.readEvaluation(context.key, context.attemptPage || 1);
+    if (context?.role !== 'teacher' || !evaluation?.aiEvaluation
+        || !Array.isArray(evaluation.aiEvaluatedCriteria) || !evaluation.aiEvaluatedCriteria.length
+        || !Number.isFinite(evaluation.aiSuggestedScore) || Number(score) !== evaluation.aiSuggestedScore) {
+        window.showToast?.('Complete AI evaluation of this submission before transferring a score.', 'info');
+        return;
+    }
     const raw = String(score ?? '').trim();
     const numScore = Number(raw);
     const max = Number(maxScore) || 100;
-    if (raw === '' || raw === '-' || Number.isNaN(numScore)) {
+    if (raw === '' || raw === '-' || !Number.isFinite(numScore) || numScore < 0 || numScore > max) {
         if (typeof window.showToast === 'function') window.showToast('No AI score to transfer yet.', 'info');
         return;
     }
@@ -35434,17 +35571,59 @@ document.addEventListener('click', event => {
     window.scrollTo(0,0);
 }, true);
 
+window.getAssignedGradeSections = function(student, subject) {
+    const normalize = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const year = window.getActiveSchoolYearRecord?.() || {};
+    const schoolYear = year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : year.name || year.schoolYear || year.year || '';
+    const yearKey = value => normalize(value).replace(/[\u2013\u2014]/g, '-');
+    const aliases = value => {
+        const id = typeof value === 'object' ? value?.id || value?.subjectId : value;
+        const entry = window.getSubjectById?.(id);
+        return [id, typeof value === 'object' ? value?.name || value?.title : value, entry?.name, entry?.title].map(normalize).filter(Boolean);
+    };
+    const wanted = aliases(subject);
+    const sections = [];
+    for (const key of ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections']) {
+        try { const list = JSON.parse(localStorage.getItem(key) || '[]'); if (Array.isArray(list)) sections.push(...list); } catch (_) {}
+    }
+    return [...new Set(sections.filter(section => {
+        if (!section || normalize(section.status) === 'archived') return false;
+        if (section.schoolYear && schoolYear && yearKey(section.schoolYear) !== yearKey(schoolYear)) return false;
+        const subjects = [section.subject, section.subjectId, section.assignedSubject, ...(Array.isArray(section.assignedSubjects) ? section.assignedSubjects : [])].flatMap(aliases);
+        return wanted.some(value => subjects.includes(value)) && window.isSectionAssignedToStudent?.(section, student) === true;
+    }).map(section => normalize(section.name || section.sectionName || section.section)).filter(Boolean))];
+};
 window.getPublishedSubjectGrade = function(student,subject,section,quarter){
     try{
-        const normalize=value=>String(value||'').trim().toLowerCase();
+        const normalize=value=>String(value||'').trim().replace(/\s+/g,' ').toLowerCase();
         const year=window.getActiveSchoolYearRecord?.()||{};
         const schoolYear=year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified';
-        const key=JSON.stringify([schoolYear,normalize(section),normalize(subject),Number(quarter)]);
-        const record=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}')[key];
+        const assigned = window.getAssignedGradeSections(student, subject).filter(name => !section || name === normalize(section));
+        const records=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}');
         const ids=[student?.id,student?.uid,student?.lrn,student?.studentNumber].filter(Boolean).map(String);
-        const row=record?.rows?.find(row=>ids.includes(String(row.id)));
-        return row&&Number.isFinite(row.grade)?row.grade:null;
+        const grades = assigned.flatMap(name => {
+            const key=JSON.stringify([schoolYear,name,normalize(subject),Number(quarter)]);
+            const row=records[key]?.rows?.find(row=>ids.includes(String(row.id)));
+            return row && Number.isFinite(row.grade) ? [row.grade] : [];
+        });
+        return grades.length === 1 ? grades[0] : null;
     }catch(_){return null;}
+};
+window.getSigmaAiLanguage = function(feature){
+    try{const user=JSON.parse(sessionStorage.getItem('sigma-authenticated-user')||'{}');const prefs=JSON.parse(localStorage.getItem(`sigma-ai-preferences:${user.uid||user.id||'default'}`)||'{}');return prefs[feature]||(feature==='bot'?'auto':'en');}catch(_){return feature==='bot'?'auto':'en';}
+};
+window.renderSigmaAiHeading = function(label='SIGMA AI Insights') {
+    return `<div class="sigma-ai-shared-heading"><span class="sigma-ai-shared-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${window.escapeHtml?window.escapeHtml(label):label}</span></div>`;
+};
+window.sigmaAiIcons = Object.freeze({check:'fa-circle-check',award:'fa-award',target:'fa-bullseye',book:'fa-book-open',lightbulb:'fa-lightbulb',search:'fa-magnifying-glass',list:'fa-list-check',pen:'fa-pen',info:'fa-circle-info',triangle:'fa-triangle-exclamation',trend:'fa-arrow-trend-up',steps:'fa-shoe-prints',progress:'fa-chart-column',improvement:'fa-arrow-trend-up',decline:'fa-arrow-trend-down',completion:'fa-circle-check',tasks:'fa-list-check',review:'fa-magnifying-glass',goal:'fa-bullseye',timing:'fa-clock',deadline:'fa-calendar',suggestion:'fa-lightbulb',guidance:'fa-compass',learning:'fa-book-open',feedback:'fa-comment-dots',evidence:'fa-file-lines',information:'fa-circle-info'});
+window.renderSigmaAiIcon = function(icon) {
+    return `<span class="sigma-ai-entry-icon" aria-hidden="true"><i class="fa-solid ${window.sigmaAiIcons[icon] || window.sigmaAiIcons.info}"></i></span>`;
+};
+window.renderSigmaAiEntries = function(items) {
+    return items.map(item => `<section class="sigma-ai-entry"><div class="sigma-ai-entry-title">${window.renderSigmaAiIcon(item.icon)}<strong>${window.escapeHtml(item.term)}</strong></div><p>${window.renderSigmaAiText(item.description)}</p></section>`).join('');
+};
+window.renderSigmaAiText = function(text) {
+    return window.escapeHtml(String(text || '')).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 };
 window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
     const {
@@ -35467,17 +35646,12 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
                 </div>
             </div>
 
-            <div class="student-grades-insights-card lg:col-span-3 bg-white rounded-[32px] border border-slate-200/80 p-6 shadow-sm flex flex-col justify-center gap-4 font-['Inter']">
-                <div class="flex items-center gap-2 font-['Inter']">
-                    <div class="w-8 h-8 bg-[#FFD000] rounded-lg flex items-center justify-center shadow-md flex-shrink-0 font-['Inter']">
-                        <i class="fa-solid fa-bolt text-black text-sm"></i>
-                    </div>
-                    <span class="text-xs font-bold tracking-normal text-slate-900 font-['Inter']" style="letter-spacing:0;text-transform:none;">SIGMA AI Insights</span>
-                </div>
+            <div class="student-grades-insights-card sigma-ai-panel lg:col-span-3">
+                ${window.renderSigmaAiHeading()}
 
-                <div class="bg-slate-50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-100 font-['Inter']">
+                <div class="sigma-ai-panel-body">
                     <p data-ai-insight-body data-insight-empty="${!hasGrades}" class="text-sm font-medium leading-relaxed font-['Inter'] text-slate-700">
-                        ${aiMessage}
+                        ${window.renderSigmaAiText(aiMessage)}
                     </p>
                 </div>
             </div>
@@ -36030,8 +36204,8 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
         ? currentScript.src.replace(/[^/]*$/, '')
         : 'js/';
     const versionQuery = currentScript && currentScript.src.includes('?')
-        ? currentScript.src.slice(currentScript.src.indexOf('?')) + '&t=' + Date.now()
-        : '?v=20260830ee&t=' + Date.now();
+        ? currentScript.src.slice(currentScript.src.indexOf('?'))
+        : '?v=20260830ee';
 
     [
         'topbar.js',
@@ -36061,7 +36235,7 @@ window.calculateCategoryPercentage = window.calculateGradebookCategoryPercentage
     const script = document.createElement('script');
     script.dataset.sigmaDateTimeInputs = 'true';
     const baseSrc = document.currentScript?.src || (location.pathname.includes('/php/') ? '../js/shared-components.js' : 'js/shared-components.js');
-    script.src = new URL('date-time-inputs.js?v=20261011releaseState371', baseSrc).href;
+    script.src = new URL('date-time-inputs.js?v=20261015pickerStyles', baseSrc).href;
     script.defer = true;
     document.head.append(script);
 })();

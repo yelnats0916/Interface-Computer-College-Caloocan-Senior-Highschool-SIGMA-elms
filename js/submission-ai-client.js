@@ -99,6 +99,7 @@
         } catch { return null; }
     }
     function scheduleAutomatic(context) {
+        if (context?.role !== 'teacher') return;
         if (context?.isQuiz || /quiz/i.test(context?.assessmentType || context?.tab || '') || context?.submission?.quizId || context?.submission?.selectedQuizId) return;
         if (context?.role === 'admin') return;
         if (!context?.studentId || context.hasEvaluation) return;
@@ -119,7 +120,7 @@
     window.evaluateSelectedSubmissionWithAi = async function (button, suppliedContext) {
         const context = suppliedContext || window._sigmaSubmissionAiContext;
         if (context?.isQuiz || /quiz/i.test(context?.assessmentType || context?.tab || '') || context?.submission?.quizId || context?.submission?.selectedQuizId) return;
-        if (!context || !['teacher', 'student'].includes(context.role) || !context.studentId) return;
+        if (!context || context.role !== 'teacher' || !context.studentId) return;
         button = button || document.createElement('button');
         const feedback = context.mode === 'feedback';
         if (feedback && (!context.submitted || !context.graded || !Number.isFinite(context.teacherScore)
@@ -159,7 +160,7 @@
             sent = true;
             const response = await fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evidence) });
             const result = await response.json();
-            if (!response.ok || !result.success || (feedback ? !Array.isArray(result.feedback) || result.feedback.length !== 3 : !Number.isFinite(result.score) || result.score < 0 || result.score > context.maxScore || !Array.isArray(result.criteria) || !Array.isArray(result.commentary))) throw new Error(result.error || 'AI returned an invalid evaluation.');
+            if (!response.ok || !result.success || (feedback ? !Array.isArray(result.feedback) || result.feedback.length < 1 || result.feedback.length > 3 : !Number.isFinite(result.score) || result.score < 0 || result.score > context.maxScore || !Array.isArray(result.criteria) || !Array.isArray(result.commentary))) throw new Error(result.error || 'AI returned an invalid evaluation.');
             save(context, result);
             localStorage.setItem(stateKey(context), JSON.stringify({ status: 'complete', message: '' }));
             const user = context.role === 'student' ? window.getLoggedInStudentUser?.() : window.getLoggedInTeacherUser?.();
@@ -179,7 +180,8 @@
                     ? 'Unable to connect to the AI service or read the submitted file. Please try again later.' : error.message;
             localStorage.setItem(stateKey(context), JSON.stringify({ status: 'failed', message }));
             if (isCurrent() && errorNode) {
-                errorNode.textContent = feedback ? 'SIGMA AI Feedback is unavailable. ' + message : message;
+                errorNode.textContent = feedback ? 'Feedback unavailable. Please try again.' : message;
+                errorNode.title = message || '';
                 errorNode.hidden = false;
                 if (feedback) {
                     const icon = errorNode.parentElement?.querySelector('i');

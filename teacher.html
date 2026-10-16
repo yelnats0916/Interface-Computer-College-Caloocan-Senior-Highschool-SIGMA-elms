@@ -13,24 +13,25 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/teacher.css?v=20261011sharedCalendar342">
+    <link rel="stylesheet" href="css/teacher.css?v=20261016removeButtonGlow">
     <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
-    <link rel="stylesheet" href="css/forms.css?v=20261013attendanceInstant783">
+    <link rel="stylesheet" href="css/forms.css?v=20261016yearFilterHover">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261014sharedGradePanels1213">
+<link rel="stylesheet" href="css/shared-components.css?v=20261016gradeInsightAlign">
+    <link rel="stylesheet" href="css/log-pagination.css?v=20261016resourcesPagination">
     <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
     <link rel="stylesheet" href="css/welcome-panel.css">
     <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
     <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
     <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
-    <link rel="stylesheet" href="css/notifications.css?v=20261012notificationExpand567">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261014hideTopicsMore1142">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261010featureStatus291">
+    <link rel="stylesheet" href="css/notifications.css?v=20261015notificationSize1282">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261016removeButtonGlow">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261015autoSwitch1265">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261014fullWidthDistribution1240">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261015gradeStatus1259">
 <link rel="stylesheet" href="css/shared-grade-record.css?v=20261014hideUnchangedUpdate1116">
     <link rel="stylesheet" href="css/mobile.css?v=20261014quarterHalo1181">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -64,7 +65,7 @@
             display: none !important;
         }
     </style>
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261013headerSweep756">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261016fastLoading757">
     <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
@@ -1007,7 +1008,7 @@
 
 
                 <!-- Shared resources page rendered by js/resources-view.js -->
-                <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view>
+                <section id="resources-view" class="dynamic-section hidden" data-shared-resources-view>
                     <div class="sigma-content-skeleton sigma-skeleton-materials p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="materials">
                         <div class="sigma-card sigma-skeleton-card min-h-[64px] rounded-[20px] p-4"></div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1424,44 +1425,45 @@
     <!-- SCRIPTS -->
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261014headerReset1244"></script>
+<script src="js/shared-components.js?v=20261016feedbackStates"></script>
 <script src="js/offline-assessments.js?v=20261014manualMenuPolish1118"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
-    <script src="js/topbar.js?v=20261012silentPolling638"></script>
-    <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
+<script src="js/submission-ai-client.js?v=20261016feedbackStates"></script>
+    <script src="js/topbar.js?v=20261016fastLoading639"></script>
+    <script src="js/sigma-chat-client.js?v=20261015aiLanguage1253"></script>
     <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
-<script src="js/notifications.js?v=20261012notificationReset568"></script>
+<script src="js/notifications.js?v=20261015assessmentUpdateNotices"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
     <script src="js/analytics-unread.js?v=20261013badgeOnly752"></script>
     <script src="js/calendar.js?v=20261011calendarDismiss346"></script>
     <script src="js/dialog.js?v=20261012gradingDialog695"></script>
-    <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
-    <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
+    <script src="js/profile-view.js?v=20261016profileVisibility"></script>
+    <script src="js/settings-view.js?v=20261015languageFieldIds1269"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
-    <script src="js/resources-view.js?v=20260923empty1"></script>
-    <script src="js/classroom-room.js?v=20261014restoreTabs1087"></script>
+    <script src="js/resources-view.js?v=20261016noScrollFix"></script>
+    <script src="js/classroom-room.js?v=20261016attendanceDayExport"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
-    <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
+    <script src="js/document-viewer.js?v=20261016viewerFix"></script>
     <script src="js/announcements.js?v=20261012studentCommentBadge564"></script>
     <script src="js/quiz-creator.js?v=20261011sharedQuestionUpload344"></script>
     <link rel="stylesheet" href="css/excel-export.css?v=20261013exportOptions820">
     <script src="js/excel-export.js?v=20261013summaryNoLegend866"></script>
-    <script src="js/sigma-analytics.js?v=20261014cumulativeAverage1252"></script>
-    <script src="js/shared-grade-record.js?v=20261014reviewBackDestination1243"></script>
+    <script src="js/sigma-analytics.js?v=20261016realAiStates"></script>
+    <script src="js/shared-grade-record.js?v=20261015publishedAssignments1287"></script>
     <script src="js/student-analytics.js?v=20261013midnightInsights834"></script>
 <script src="js/student-insight-view.js?v=20261013unread732"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261014weightSync1072"></script>
-    <script src="js/assessments-page.js?v=20260927gradefix5"></script>
+    <script src="js/subject-editor.js?v=20261016adminTeacherScopeEdit"></script>
+    <script src="js/assessments-page.js?v=20261016cacheBuild1196"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/teacher.js?v=20261014headerReset1244"></script>
+    <script src="js/teacher.js?v=20261016attendanceDayExport"></script>
+    <script src="js/teacher-grade-insights.js?v=20261016sharedInsightTypes"></script>
     <script src="js/teacher-analytics.js?v=20261013midnightInsights834"></script>
-    <script src="js/ai-database-store.js?v=20261014insightsFix1100"></script>
-    <script src="js/analytics-ai-client.js?v=20261010liveAnalytics299"></script>
-    <script src="js/curriculum-release.js?v=20261014sharedQuarters1037" data-initialize-after-dom="true"></script>
+    <script src="js/ai-database-store.js?v=20261016realAiStates"></script>
+    <script src="js/analytics-ai-client.js?v=20261015aiLanguage1253"></script>
+    <script src="js/curriculum-release.js?v=20261015assessmentUpdateNotices" data-initialize-after-dom="true"></script>
     <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
     <link rel="stylesheet" href="css/sigma-conversations.css?v=20261010restorePanel239">
     <script src="js/sigma-conversations.js?v=20261010sharedChat255"></script>

@@ -54,9 +54,16 @@
         const actor = window.getPrivateCommentActor?.() || window.getLoggedInTeacherUser?.() || teacher;
         const notesKey = JSON.stringify(['sigma-grade-personal-notes-v1', actor.id || actor.uid || actor.email || actor.name, year, snapshot.subject, snapshot.section, snapshot.quarter]);
         let personalNote = '';
-        const commentsKey = JSON.stringify(['sigma-grade-comments-local-v1', actor.id || actor.uid || actor.email || actor.name, year, snapshot.subject, snapshot.section, snapshot.quarter]);
+        const commentsKey = JSON.stringify(['sigma-grade-comments-v2', year, snapshot.subject, snapshot.section, snapshot.quarter]);
         let comments = [];
         try { comments = JSON.parse(localStorage.getItem(commentsKey) || '[]'); if (!Array.isArray(comments)) comments = []; } catch (_) {}
+        try {
+            const legacyKey = JSON.stringify(['sigma-grade-comments-local-v1', actor.id || actor.uid || actor.email || actor.name, year, snapshot.subject, snapshot.section, snapshot.quarter]);
+            const legacy = JSON.parse(localStorage.getItem(legacyKey) || '[]');
+            const merged = [...comments];
+            for (const comment of legacy) if (!merged.some(item => item.date === comment.date && item.text === comment.text && item.author === comment.author)) merged.push({ ...comment, authorId: String(actor.id || actor.uid || actor.email || '') });
+            if (merged.length !== comments.length) { comments = merged; localStorage.setItem(commentsKey, JSON.stringify(comments)); }
+        } catch (_) {}
         try { personalNote = localStorage.getItem(notesKey) || ''; } catch (_) {}
         const avatar = window.renderUserAvatarHtml?.(actor, 'sm') || '<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user" aria-hidden="true"></i></div>';
         const adviserDisplayName = adviserName(selected);
@@ -68,12 +75,41 @@
         try { saved = read()[key] || { quarters: {}, note: '' }; }
         catch (_) { saved = { quarters: {}, note: '' }; }
         const q = Number(snapshot.quarter);
+        const submissionKey=quarter=>JSON.stringify([year,normalizeIdentity(snapshot.section),normalizeIdentity(snapshot.subject),Number(quarter)]);
+        const accounts = ['sigma-admin-users', 'sigma-users-list'].flatMap(storedList);
+        const actorId = String(actor.id || actor.uid || actor.email || '');
+        const notify = (recipient, type, title, mode, extra = {}) => {
+            const recipientId = String(recipient?.id || recipient?.uid || '');
+            if (!recipientId || recipientId === actorId) return;
+            window.SigmaNotifications?.sendToRole(mode === 'student' ? 'student' : 'teacher', {
+                id: `${type}:${submissionKey(q)}:${recipientId}:${Date.now()}`, type, title,
+                body: `${snapshot.subject} • ${snapshot.section} • ${quarterName(q)}`,
+                senderId: actorId, senderName: actor.fullName || actor.name || 'Teacher',
+                recipientId, timestamp: new Date().toISOString(), read: false,
+                target: { gradeRecord: { subject: snapshot.subject, section: snapshot.section, quarter: q, year, mode, selected: { ...selected }, ...extra } }
+            });
+        };
+        const subjectTeacher = () => {
+            let shared;
+            try { shared = JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1') || '{}')[submissionKey(q)]; } catch (_) {}
+            return accounts.find(user => [user.id, user.uid, user.email].some(id => id && String(id) === String(shared?.submittedBy))) || teacher;
+        };
+        let submittedRecords={};
+        try{submittedRecords=JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1')||'{}');}catch(_){}
+        if(review){
+            saved={quarters:{}};
+            for(const quarter of [1,2,3,4])saved.quarters[quarter]=submittedRecords[submissionKey(quarter)]?.rows||[];
+        }
         const configuredQuarters = window.getSubjectAvailableQuarters?.(snapshot.subject) || selected.quarters;
         const quarters = Array.isArray(configuredQuarters) && configuredQuarters.length
             ? [...new Set(configuredQuarters.map(Number).filter(value => value >= 1 && value <= 4))].sort((a, b) => a - b)
             : Array.from({ length: Math.max(q, document.querySelectorAll('#admin-grades-quarters-wrapper button').length || 2) }, (_, index) => index + 1);
         const quarterCount = quarters.length;
-        const rows = snapshot.rows.map(row => ({ id: String(row.student.id || row.student.uid || row.student.lrn || ''), name: row.student.name || row.student.fullName || 'Student', grade: row.quarterly }));
+        const rows = snapshot.rows.map(row => {
+            const id=String(row.student.id||row.student.uid||row.student.lrn||'');
+            const submitted=saved.quarters[q]?.find(item=>String(item.id)===id);
+            return {id,name:row.student.name||row.student.fullName||'Student',grade:review?(Number.isFinite(submitted?.grade)?submitted.grade:null):row.quarterly};
+        });
         const baseRoute = location.pathname.endsWith('/admin.html') ? '#school-grades:gradebook' : '#grades:gradebook';
         try { sessionStorage.setItem(routeContextKey, JSON.stringify({ selectedSubjectSection: selected, selectedTeacher: state.selectedTeacher, activeQuarter: q, recordMode: review ? 'review' : 'share' })); } catch (_) {}
         if (!isRecordRoute()) history.pushState({ ...history.state, type: 'tab', subTab: 'gradebook', recordMode:review?'review':'share' }, '', `${baseRoute}:share-record`);
@@ -157,26 +193,75 @@
             host.querySelector('.record-share').onclick = () => {
                 if(review){
                     if(!isSectionAdviser||!rows.length||rows.some(row=>!Number.isFinite(row.grade)))return;
+                    const assignedRows = rows.filter(row => {
+                        const student = accounts.find(user => [user.id, user.uid, user.lrn, user.studentNumber].some(id => id && String(id) === String(row.id)))
+                            || snapshot.rows.find(item => [item.student?.id, item.student?.uid, item.student?.lrn].some(id => id && String(id) === String(row.id)))?.student;
+                        return window.getAssignedGradeSections?.(student, snapshot.subject).includes(normalizeIdentity(snapshot.section)) === true;
+                    });
+                    if (assignedRows.length !== rows.length) {
+                        host.querySelector('.record-error').textContent = 'Student assignments have changed. Reopen Review Grades before publishing.';
+                        return;
+                    }
                     try{
                         const all=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}');
                         const publishedKey=JSON.stringify([year,normalizeIdentity(snapshot.section),normalizeIdentity(snapshot.subject),q]);
+                        const previous = all[publishedKey];
+                        const changed = JSON.stringify(previous?.rows) !== JSON.stringify(rows);
                         all[publishedKey]={rows:rows.map(row=>({...row})),publishedAt:new Date().toISOString(),publishedBy:actor.id||actor.uid||actor.email};
                         localStorage.setItem('sigma-published-quarter-grades-v1',JSON.stringify(all));
+                        window.dispatchEvent(new CustomEvent('sigma:grades-published'));
+                        if (changed) {
+                            const title = previous ? 'Published Grades Updated' : 'Quarter Grades Published';
+                            rows.forEach(row => notify({ id: row.id }, 'quarter-grades-published', title, 'student'));
+                            notify(subjectTeacher(), 'quarter-grades-published', title, 'share');
+                        }
                         host.querySelector('.record-error').textContent='Quarter grades published to students in this browser.';
                     }catch(_){host.querySelector('.record-error').textContent='Publishing failed. No grades were released.';}
                     return;
                 }
                 if (dirty) return;
-                host.querySelector('.record-error').textContent = 'Sharing is not available yet. No grades have been sent.';
+                if(!rows.length||rows.some(row=>!Number.isFinite(row.grade))){host.querySelector('.record-error').textContent='Complete all student grades before sharing.';return;}
+                try{
+                    const all=JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1')||'{}');
+                    const previous = all[submissionKey(q)];
+                    const changed = JSON.stringify(previous?.rows) !== JSON.stringify(rows);
+                    all[submissionKey(q)]={rows:rows.map(row=>({...row})),submittedAt:new Date().toISOString(),submittedBy:actor.id||actor.uid||actor.email,teacherName:actor.fullName||actor.name||[actor.firstName,actor.lastName].filter(Boolean).join(' ')};
+                    localStorage.setItem('sigma-submitted-quarter-grades-v1',JSON.stringify(all));
+                    window.dispatchEvent(new CustomEvent('sigma:grades-submitted'));
+                    if (changed) notify(adviserProfile, 'quarter-grades-shared', previous ? 'Shared Grades Updated' : 'Grades Ready for Review', 'review');
+                    host.querySelector('.record-error').textContent='Grades shared with the adviser in this browser.';
+                }catch(_){host.querySelector('.record-error').textContent='Unable to share grades. Please try again.';}
             };
             if(review){
+                const status=host.querySelector('.record-status');
+                const received=submittedRecords[submissionKey(q)];
+                if(status)status.textContent=received?`${quarterName(q)} Received: ${rows.length-missing} of ${rows.length} student grades. Ready for adviser review.`:'No Grades Received Yet. Waiting for the subject teacher to share this quarter.';
+                const person=host.querySelector('.record-adviser');
+                if(person){
+                    const sender=['sigma-admin-users','sigma-users-list'].flatMap(storedList).find(user=>[user.id,user.uid,user.email].filter(Boolean).map(String).includes(String(received?.submittedBy)));
+                    const assignedTeacher=window.getUnifiedClassroomTeacher?.(snapshot.section,snapshot.subject);
+                    const teacherName=assignedTeacher||received?.teacherName||sender?.fullName||sender?.name||'Not Assigned';
+                    const teacherProfile=['sigma-admin-users','sigma-users-list'].flatMap(storedList).find(user=>String(user.fullName||user.name||[user.firstName,user.middleName,user.lastName].filter(Boolean).join(' ')).trim().toLowerCase()===String(teacherName).trim().toLowerCase());
+                    const teacherAvatar=window.renderUserAvatarHtml?.(teacherProfile||{},'sm')||'<span class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user" aria-hidden="true"></i></span>';
+                    person.innerHTML=`<strong>Teacher:</strong><div class="record-adviser-avatar" aria-hidden="true">${teacherAvatar}</div><span class="record-adviser-name">${escape(teacherName)}</span>`;
+                }
                 const publish=host.querySelector('.record-share');publish.textContent='Publish to Students';
                 publish.disabled=!isSectionAdviser||!rows.length||rows.some(row=>!Number.isFinite(row.grade));
-                publish.title=publish.disabled?'All students need quarter grades and an assigned adviser':'Publish this subject quarter';
+                publish.title=publish.disabled?'Wait for the subject teacher to share all student grades before publishing.':'Publish received grades to students';
+                const request = document.createElement('button');
+                request.type = 'button'; request.className = 'sigma-btn sigma-btn-white sigma-btn-md';
+                request.textContent = 'Request Corrections'; request.disabled = !received || !isSectionAdviser;
+                request.onclick = () => {
+                    notify(subjectTeacher(), 'grade-corrections-requested', 'Grade Corrections Requested', 'share', { focusComments: true });
+                    request.disabled = true;
+                    host.querySelector('.record-error').textContent = 'Correction request sent. Add details in Private Comments.';
+                    host.querySelector('.sigma-comment-textarea')?.focus();
+                };
+                publish.before(request);
                 host.querySelector('.record-update').hidden=true;
             }
             const commentPanel = host.querySelector('.shared-private-comments');
-            commentPanel.hidden = isSectionAdviser;
+            commentPanel.hidden = false;
             commentPanel.classList.add('assessment-private-comments-panel');
             if (comments.length) {
                 const countBadge = document.createElement('span');
@@ -190,6 +275,7 @@
             commentHistory.className = 'record-comment-history';
             commentHistory.innerHTML = comments.map((comment, index) => `<div class="sigma-private-comment-row record-posted-comment"><div>${avatar}</div><div class="sigma-private-comment-content"><div class="sigma-private-comment-message"><div><span class="text-xs font-bold text-slate-900">${escape(comment.author)}</span><button type="button" class="sigma-comment-delete-btn" data-record-comment-index="${index}" title="Delete comment" aria-label="Delete comment"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button></div><div class="sigma-private-comment-time">${escape(new Date(comment.date).toLocaleString('en-PH', { timeZone: 'Asia/Manila' }))}</div><p>${escape(comment.text)}</p></div></div></div>`).join('');
             commentHistory.querySelectorAll('.sigma-comment-delete-btn').forEach(button => {
+                if (String(comments[Number(button.dataset.recordCommentIndex)]?.authorId || '') !== actorId) { button.remove(); return; }
                 button.onclick = () => {
                     const doDelete = () => {
                     const next = comments.filter((_, index) => index !== Number(button.dataset.recordCommentIndex));
@@ -208,7 +294,12 @@
                 };
             });
             commentRow.before(commentHistory);
-            commentHistory.querySelectorAll('.record-posted-comment').forEach(row => row.classList.add('group', 'sigma-private-comment-row--own'));
+            commentHistory.querySelectorAll('.record-posted-comment').forEach((row, index) => {
+                row.classList.add('group');
+                row.classList.toggle('sigma-private-comment-row--own', String(comments[index].authorId) === actorId);
+                const author = accounts.find(user => [user.id, user.uid, user.email].some(id => id && String(id) === String(comments[index].authorId)));
+                row.firstElementChild.innerHTML = window.renderUserAvatarHtml?.(author || {}, 'sm') || '<span class="sigma-user-avatar"><i class="fa-solid fa-user" aria-hidden="true"></i></span>';
+            });
             commentHistory.querySelectorAll('.sigma-private-comment-time').forEach((element, index) => {
                 element.textContent = window.formatPrivateCommentTime?.(comments[index].date) || element.textContent;
             });
@@ -329,13 +420,17 @@
             const commentInput = host.querySelector('.sigma-comment-textarea');
             const send = host.querySelector('.sigma-comment-send-btn');
             send.disabled = false;
-            send.title = 'Post comment locally (not delivered to adviser)';
+            send.title = 'Send private comment';
             send.setAttribute('aria-label', send.title);
             send.onclick = () => {
                 const text = validateText(commentInput);
                 if (text === null) return;
-                const next = [...comments, { author: actor.fullName || actor.name || teacher.fullName || teacher.name || 'Teacher', text, date: new Date().toISOString() }];
-                try { localStorage.setItem(commentsKey, JSON.stringify(next)); comments = next; render(); }
+                const next = [...comments, { authorId: actorId, author: actor.fullName || actor.name || teacher.fullName || teacher.name || 'Teacher', text, date: new Date().toISOString() }];
+                try {
+                    localStorage.setItem(commentsKey, JSON.stringify(next)); comments = next;
+                    notify(review ? subjectTeacher() : adviserProfile, 'grade-record-comment', 'New Private Grade Comment', review ? 'share' : 'review', { focusComments: true });
+                    render();
+                }
                 catch (_) { host.querySelector('.record-error').textContent = 'Unable to save the comment locally.'; }
             };
             commentInput.onkeydown = event => {
@@ -358,6 +453,37 @@
             };
         };
         render();
+        window._gradeRecordNotificationCleanup?.();
+        const refreshComments = event => {
+            if (!host.querySelector('.shared-grade-record')) return;
+            if (event.key !== commentsKey) return;
+            try { const next = JSON.parse(event.newValue || '[]'); if (Array.isArray(next)) { comments = next; render(); } } catch (_) {}
+        };
+        window.addEventListener('storage', refreshComments);
+        window._gradeRecordNotificationCleanup = () => window.removeEventListener('storage', refreshComments);
+    };
+    window.openGradeRecordNotification = function (target) {
+        const activeYear = window.getActiveSchoolYearRecord?.() || {};
+        const year = activeYear.yearStart && activeYear.yearEnd ? `${activeYear.yearStart}-${activeYear.yearEnd}` : activeYear.name || activeYear.schoolYear || activeYear.year || 'Not specified';
+        if (target.year !== year) {
+            window.SigmaAnnouncements?.showToast('Select the school year for this notification before opening the grade record.', 'error');
+            return;
+        }
+        window._skipNextGradebookReset = true;
+        window.switchTab?.('nav-grades', true, 'gradebook');
+        const teacher = window.getEffectiveTeacher?.() || window.getLoggedInTeacherUser?.();
+        Object.assign(window.sigmaGradesState, {
+            activeTab: 'gradebook', selectedTeacher: teacher, activeQuarter: Number(target.quarter),
+            selectedSubjectSection: { ...target.selected, subject: target.subject, sectionName: target.section, role: target.mode === 'review' ? 'Adviser' : 'Teacher' },
+            selectedSubject: target.subject, selectedSection: target.section, currentView: 'overview',
+            recordMode: target.mode === 'review' ? 'review' : 'share'
+        });
+        window.renderAdminGradebookWorkspace?.();
+        window.openSharedGradeRecord({ mode: target.mode });
+        if (target.focusComments) requestAnimationFrame(() => {
+            const input = document.querySelector('#admin-gradebook-workspace-content .sigma-comment-textarea');
+            if (input) { input.closest('.record-comment-row').hidden = false; input.scrollIntoView({ block: 'center' }); input.focus(); }
+        });
     };
     window.restoreSharedGradeRecordRoute = function () {
         if (!isRecordRoute() || !window.sigmaGradesState || !document.getElementById('admin-gradebook-workspace-content')) return;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="sigma-initial-loading">
 
 <head>
     <meta charset="UTF-8">
@@ -8,30 +8,33 @@
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/student.css?v=20261014gradeAvatarSize1221">
+    <!-- Optional remote typography must never block the student shell or startup scripts. -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="css/student.css?v=20261016gradeInsightAlign">
     <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
-    <link rel="stylesheet" href="css/forms.css?v=20261011footerCounter430">
+    <link rel="stylesheet" href="css/forms.css?v=20261016yearFilterHover">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261014sharedGradePanels1213">
+<link rel="stylesheet" href="css/shared-components.css?v=20261016gradeInsightAlign">
+    <link rel="stylesheet" href="css/log-pagination.css?v=20261016resourcesPagination">
     <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
     <link rel="stylesheet" href="css/welcome-panel.css">
     <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
     <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
     <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
-    <link rel="stylesheet" href="css/notifications.css?v=20261012notificationExpand567">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261014hideTopicsMore1142">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261010featureStatus291">
+    <link rel="stylesheet" href="css/notifications.css?v=20261015notificationSize1282">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261016removeButtonGlow">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261015autoSwitch1265">
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004videoPreviewHover1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
 <link rel="stylesheet" href="css/sigma-analytics.css?v=20261014insightsFix1100">
-    <link rel="stylesheet" href="css/mobile.css?v=20261014quarterHalo1181">
+    <link rel="stylesheet" href="css/mobile.css?v=20261015threeTabs1271">
     <script>
         (function() {
             try {
+                document.documentElement.classList.add('sigma-initial-loading');
                 var hash = (window.location.hash || '').replace(/^#/, '').trim();
                 if (!hash || hash === 'home' || hash === 'dashboard') {
                     var s = document.createElement('style');
@@ -50,14 +53,14 @@
             } catch(e) {}
         })();
     </script>
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261013headerSweep756">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261016fastLoading757">
     <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
-    <script src="js/page-skeleton.js?v=20261014instantReveal1100"></script>
+    <script src="js/page-skeleton.js?v=20261015startupRecovery1279"></script>
 
     <header id="student-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
@@ -520,11 +523,11 @@
             <div id="content-sections" class="w-full min-h-full">
 
                 <!-- ══ HOME ════════════════════════════════════════ -->
-                <section id="section-home" class="dynamic-section hidden">
+                <section id="section-home" class="dynamic-section">
                     <div class="dashboard-grid">
                         <!-- 1. Left Section (3/12) - Sticky Metrics Rail -->
                         <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
-                            <div id="sigma-panels-container" data-sigma-loading="exclude" class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2">
+                            <div id="sigma-panels-container" class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
                                 <!-- Populated dynamically by js/sigma-analytics.js with cards and More expansion -->
                             </div>
                         </div>
@@ -919,37 +922,48 @@
     </div>
 
     <!-- SCRIPTS -->
-    <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        // Load optional drag support after the page is ready, outside its initial load lifecycle.
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';
+                script.async = true;
+                script.onload = function () { window.SectionsPanel?.initSortable('student'); };
+                document.head.appendChild(script);
+            }, 0);
+        }, { once: true });
+    </script>
     <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261014headerReset1244"></script>
+<script src="js/shared-components.js?v=20261016feedbackStates"></script>
 <script src="js/offline-assessments.js?v=20261013pickerTypography859"></script>
-<script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
-    <script src="js/topbar.js?v=20261012silentPolling638"></script>
-    <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
+<script src="js/submission-ai-client.js?v=20261016feedbackStates"></script>
+    <script src="js/topbar.js?v=20261016fastLoading639"></script>
+    <script src="js/sigma-chat-client.js?v=20261015aiLanguage1253"></script>
     <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
-<script src="js/notifications.js?v=20261012notificationReset568"></script>
+<script src="js/notifications.js?v=20261015assessmentUpdateNotices"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
-    <script src="js/analytics-unread.js?v=20261013badgeOnly752"></script>
+    <script src="js/analytics-unread.js?v=20261015studentStartup1278"></script>
     <script src="js/announcements.js?v=20261013studentNoOptions749"></script>
     <script src="js/calendar.js?v=20261011calendarDismiss346"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
-    <script src="js/sigma-analytics.js?v=20261014studentGradesRoute1115"></script>
+    <script src="js/sigma-analytics.js?v=20261016realAiStates"></script>
 <script src="js/student-insight-view.js?v=20261013unread732"></script>
-    <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
+    <script src="js/profile-view.js?v=20261016profileVisibility"></script>
     <script src="js/dialog.js?v=20261012gradingDialog695"></script>
-    <script src="js/document-viewer.js?v=20260927syncquizpanel1"></script>
-    <script src="js/settings-view.js?v=20261005editInfoSaveLock1"></script>
+    <script src="js/document-viewer.js?v=20261016viewerFix"></script>
+    <script src="js/settings-view.js?v=20261015languageFieldIds1269"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
-    <script src="js/resources-view.js?v=20260927syncquizpanel1"></script>
-    <script src="js/classroom-room.js?v=20261014restoreTabs1087"></script>
-    <script src="js/assessments-page.js?v=20261014sharedAssessmentScores1195"></script>
-    <script src="js/subject-grade-insights.js?v=20261014insightText1161"></script>
-    <script src="js/student.js?v=20261014publication1232"></script>
+    <script src="js/resources-view.js?v=20261016noScrollFix"></script>
+    <script src="js/classroom-room.js?v=20261016removeButtonGlow"></script>
+    <script src="js/assessments-page.js?v=20261016cacheBuild1196"></script>
+    <script src="js/subject-grade-insights.js?v=20261016sharedInsightTypes"></script>
+    <script src="js/student.js?v=20261016gradeInsightAlign"></script>
     <script src="js/student-analytics.js?v=20261013midnightInsights834"></script>
     <script src="js/student-submission-analytics.js?v=20261010insightSources267"></script>
-    <script src="js/ai-database-store.js?v=20261014insightsFix1100"></script>
-    <script src="js/analytics-ai-client.js?v=20261010liveAnalytics299"></script>
+    <script src="js/ai-database-store.js?v=20261016realAiStates"></script>
+    <script src="js/analytics-ai-client.js?v=20261015aiLanguage1253"></script>
     <script src="js/student-coursework-notifications.js?v=20261012courseworkSender469"></script>
     <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
     <link rel="stylesheet" href="css/sigma-conversations.css?v=20261010restorePanel239">

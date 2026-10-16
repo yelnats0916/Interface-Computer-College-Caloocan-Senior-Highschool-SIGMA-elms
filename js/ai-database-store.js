@@ -4,7 +4,9 @@
     const failures = new Set();
     const offline = new Set();
     let logs = [], logReady = false, importing = null;
+    let logStatus = 'loading', logError = '';
     let retryNotBefore = 0;
+    const importedLogs = new Set();
     const actor = () => {
         try { const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(user.id || user.uid || ''); } catch { return ''; }
     };
@@ -14,7 +16,7 @@
     async function request(name, input, get = false) {
         const response = await fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
             method: get ? 'GET' : 'POST', credentials: 'include',
-            ...(get && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
+            ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': actor() },
             ...(get ? {} : { body: JSON.stringify(input) })
         });
@@ -66,7 +68,7 @@
             return result.state;
         })().catch(error => {
             // Only the current owner can use an offline cache; authorization failures never fall back.
-            const unavailable = error.code === 'account_not_synced' || error instanceof TypeError || error.status >= 500;
+            const unavailable = error.code === 'account_not_synced' || error instanceof TypeError || error.name === 'TimeoutError' || error.status >= 500;
             if (unavailable && id === actor()) {
                 let cached;
                 try { cached = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
@@ -109,9 +111,16 @@
         return result.state;
     }
     async function reloadLogs() {
-        const result = await request('ai_records', { action: 'logs' }, true);
-        logs = result.logs; logReady = true;
+        logStatus = 'loading'; logError = '';
         window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+        try {
+            const result = await request('ai_records', { action: 'logs' }, true);
+            if (!Array.isArray(result.logs)) throw new Error('Invalid AI activity response.');
+            logs = result.logs; logReady = true; logStatus = 'ready';
+        } catch (error) {
+            logStatus = 'error'; logError = error.message;
+            throw error;
+        } finally { window.dispatchEvent(new Event('sigma:ai-logs-updated')); }
     }
     async function initialize() {
         if (!actor() || importing || Date.now() < retryNotBefore) return importing;
@@ -128,11 +137,20 @@
                 await ensureState(kind, actor(), true);
             }
             const legacy = JSON.parse(localStorage.getItem('sigma-ai-recorded-logs') || '[]');
-            for (const log of legacy.filter(log => isAdmin || log.userId === actor())) await request('ai_records', { action: 'save_log', log });
+            for (const log of legacy.filter(log => isAdmin || log.userId === actor())) {
+                const fingerprint = JSON.stringify([actor(), log]);
+                if (importedLogs.has(fingerprint)) continue;
+                await request('ai_records', { action: 'save_log', log });
+                importedLogs.add(fingerprint);
+            }
             if (isAdmin) await reloadLogs();
             window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
         })().catch(error => {
             retryNotBefore = Date.now() + 300000;
+            if (!logReady) {
+                logStatus = 'error'; logError = error.message;
+                window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+            }
             if (error.code === 'account_not_synced') {
                 const feedback = document.getElementById('ai-routing-feedback');
                 if (feedback) feedback.textContent = error.message;
@@ -161,6 +179,8 @@
             } catch {}
             return memory || { cards: [] };
         },
+        logsReady: () => logReady,
+        getLogStatus: () => ({ state: actor() ? logStatus : 'signed-out', error: logError }),
         getLogs: () => logReady ? logs.filter(log => !log.isDeleted) : [],
         async record(log) {
             await request('ai_records', { action: 'save_log', log });

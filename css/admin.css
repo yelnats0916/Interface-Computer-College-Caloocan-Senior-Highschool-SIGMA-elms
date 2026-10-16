@@ -2,6 +2,10 @@
     display: none !important;
 }
 
+.text-black-fade {
+    color: rgba(0, 0, 0, 0.45) !important;
+}
+
 /* ==========================================================================
    UNIVERSAL ELIMINATION OF BROWSER FOCUS/BLUR BLACK BORDER FLICKER
    Prevents Chromium/WebKit from flashing black outline or border rings
@@ -888,7 +892,7 @@ body.section-edit-mode {
 
 #admin-main {
     padding-top: 0 !important;
-    overflow-x: clip !important;
+    overflow: visible !important;
 }
 
 .branch-edit-shell {
@@ -1492,6 +1496,22 @@ body.sorting-subject-topics * {
     width: 16px;
     text-align: center;
 }
+
+.action-dropdown-item.is-locked,
+.action-dropdown-item:disabled {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    background-color: transparent !important;
+}
+
+.action-dropdown-item.is-locked i,
+.action-dropdown-item.is-locked span,
+.action-dropdown-item:disabled i,
+.action-dropdown-item:disabled span {
+    color: #94a3b8 !important;
+}
+
 /* Manage Search Fields Checkboxes */
 input[type='checkbox']:checked ~ i.fa-check {
     opacity: 1 !important;
@@ -2243,14 +2263,40 @@ input#curriculum-scope-search-input::placeholder {
     cursor: pointer;
 }
 
+/* Ensure ancestors stay visible for position: sticky in audit logs */
+html:has(.audit-log-layout) {
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+}
+
+body:has(.audit-log-layout) {
+    overflow: visible !important;
+}
+
+body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, #audit-ai-view, #audit-activity-view, #audit-auth-view, #audit-notifications-view, .audit-log-layout) {
+    overflow: visible !important;
+}
+
+#audit-ai-view,
+#audit-activity-view,
+#audit-auth-view,
+#audit-notifications-view,
+#audit-ai-view > div,
+#audit-activity-view > div,
+#audit-auth-view > div,
+#audit-notifications-view > div {
+    overflow: visible !important;
+}
+
 .audit-log-sidebar > .audit-log-search { margin-bottom: 20px; }
 
 .audit-log-layout {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
-    grid-template-rows: 1fr;
     min-height: calc(100vh - var(--sidebar-top-offset, 82px));
     background: var(--admin-bg, #f8fafc);
+    align-items: start;
+    overflow: visible !important;
 }
 
 .dynamic-section .audit-log-layout {
@@ -2268,10 +2314,36 @@ input#curriculum-scope-search-input::placeholder {
     background: #ffffff;
     border-right: 1px solid #e5e7eb;
     grid-column: 1;
-    grid-row: 1;
     min-width: 0;
     padding: 2rem 1.5rem;
     box-sizing: border-box;
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: var(--sidebar-top-offset, 82px) !important;
+    height: calc(100vh - var(--sidebar-top-offset, 82px)) !important;
+    max-height: calc(100vh - var(--sidebar-top-offset, 82px)) !important;
+    align-self: start !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+    z-index: 20;
+}
+
+.audit-log-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.audit-log-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.audit-log-sidebar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 3px;
+}
+
+.audit-log-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
 }
 
 .audit-log-layout > .audit-log-sidebar + div {
@@ -2324,6 +2396,10 @@ input#curriculum-scope-search-input::placeholder {
     }
 
     .audit-log-sidebar {
+        position: static;
+        height: auto;
+        max-height: none;
+        overflow-y: visible;
         min-height: auto;
         border-right: 0;
         border-bottom: 1px solid #e5e7eb;
@@ -2357,3 +2433,144 @@ input#curriculum-scope-search-input::placeholder {
         font-size: 13px;
     }
 }
+
+/* Authentication status dots align with the first line of the event title. */
+.auth-event { display:flex; align-items:flex-start; gap:8px; line-height:1.5; }
+.auth-event-dot { display:block; width:8px; height:8px; flex:0 0 8px; margin-top:calc(.75em - 4px); border-radius:50%; }
+.auth-event-dot--success { background:#10b981; }
+.auth-event-dot--failed { background:#ef4444; }
+.auth-event-dot--warning { background:#fbbf24; }
+.authentication-user-link { border:0; padding:0; background:transparent; color:#000; font:inherit; text-align:left; cursor:pointer; }
+#audit-auth-view .authentication-user-link:is(:hover,:focus-visible) { color:#000 !important; text-decoration:underline !important; text-underline-offset:3px; }
+.authentication-user-link:focus-visible { outline:2px solid #15803d; outline-offset:4px; }
+#authentication-account-details { scroll-margin-top:100px; }
+#audit-auth-view[data-authentication-detail-open] .audit-log-sidebar { display:none; }
+#audit-auth-view[data-authentication-detail-open] .audit-log-layout { grid-template-columns:minmax(0,1fr); background:#fff; }
+#audit-auth-view[data-authentication-detail-open] .audit-log-layout > .audit-log-sidebar + div { grid-column:1; width:100%; min-width:0; box-sizing:border-box; padding:24px; background:#fff; }
+
+/* Notification log identities and responsive table. */
+#audit-notifications-view .sigma-table-container { max-width:100%; overflow-x:auto; }
+#audit-notifications-view table[aria-label="Notification logs"] { table-layout:fixed; width:100%; min-width:1140px; }
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(1),
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(2) { width:23%; }
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(3) { width:25%; }
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(4) { width:8%; }
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(5) { width:10%; }
+#audit-notifications-view table[aria-label="Notification logs"] th:nth-child(6) { width:11%; }
+#audit-notifications-view table[aria-label="Notification logs"] :is(th,td) { box-sizing:border-box; padding:18px 16px; vertical-align:middle; line-height:1.5; }
+#audit-notifications-view table[aria-label="Notification logs"] td { white-space:normal; overflow-wrap:anywhere; }
+#audit-notifications-view table[aria-label="Notification logs"] td:nth-child(4) { white-space:nowrap; }
+#audit-notifications-view table[aria-label="Notification logs"] td:nth-child(-n+3) { text-align:left; }
+#audit-notifications-view .notification-log-person { display:flex; align-items:center; gap:12px; text-align:left; }
+#audit-notifications-view .notification-log-avatar { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; flex:0 0 38px; border-radius:50%; overflow:hidden; background:#f1f5f9; color:#94a3b8; font-size:15px; }
+#audit-notifications-view .notification-log-avatar img { width:100%; height:100%; object-fit:cover; }
+#audit-notifications-view .notification-log-avatar--school { background:#fff; }
+#audit-notifications-view .notification-log-avatar--school img { object-fit:contain; padding:4px; box-sizing:border-box; }
+#audit-notifications-view .notification-log-avatar--sigma { background:#ffd000; color:#000; }
+#audit-notifications-view .notification-log-person-text { min-width:0; }
+
+.notification-log-name-link { border:0; background:transparent; padding:0; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.notification-log-name-link:hover { color:#15803d; text-decoration:underline; }
+.notification-log-name-link:focus-visible { outline:2px solid #15803d; outline-offset:3px; }
+.notification-detail-identity { display:flex; align-items:flex-start; gap:12px; margin:20px 0 24px; font-size:18px; }
+.notification-detail-identity-text { min-width:0; padding-top:4px; }
+#notification-account-details { margin-bottom:20px; }
+#notification-account-details[hidden] { display:none; }
+
+/* Black headings across audit log pages and account detail headers. */
+:is(#audit-ai-view,#audit-activity-view,#audit-auth-view,#audit-notifications-view) :is(h1,h2,h3,.ai-log-detail-name,.ai-log-detail-identity-text,.ai-log-detail-identity-text > p,.notification-detail-identity) { color:#000 !important; }
+
+/* Yellow hover applies to detail header names only. */
+#audit-ai-view .ai-log-account-link:is(:hover,:focus-visible) { color:#eab308 !important; }
+/* Table names retain black text and underline on hover. */
+:is(#audit-ai-view,#audit-notifications-view) table .notification-log-name-link:is(:hover,:focus-visible),
+#audit-ai-view table .ai-log-user-button:is(:hover,:focus-visible) .sigma-table-primary-text,
+.activity-user-link:is(:hover,:focus-visible) { color:#000 !important; text-decoration:underline; }
+
+#audit-notifications-view table .notification-log-person:is(:hover,:focus-within) .notification-log-name-link { color:#000 !important; text-decoration:underline !important; text-underline-offset:3px; }
+
+#audit-notifications-view[data-notification-detail-open] .audit-log-sidebar,
+#audit-activity-view[data-activity-detail-open] .audit-log-sidebar { display:none !important; }
+#audit-notifications-view[data-notification-detail-open] .audit-log-layout,
+#audit-activity-view[data-activity-detail-open] .audit-log-layout { grid-template-columns:minmax(0,1fr); background:#fff; }
+#audit-notifications-view[data-notification-detail-open] .audit-log-layout > .audit-log-sidebar + div,
+#audit-activity-view[data-activity-detail-open] .audit-log-layout > .audit-log-sidebar + div { grid-column:1; background:#fff; padding:24px; }
+#notification-account-details,
+#activity-account-details { position:relative; padding-top:0; scroll-margin-top:100px; }
+#activity-account-details[hidden] { display:none; }
+#notification-account-details .notification-detail-identity,
+#activity-account-details .activity-detail-identity { margin:24px 0 36px; }
+#notification-account-details .notification-detail-context { margin:8px 0 0; font-size:14px; color:#000; }
+#notification-account-details > .sigma-btn { margin-bottom:16px; }
+
+/* Match activity table typography and user button to AI logs standard */
+#audit-activity-view table.sigma-audit-table { font-size:13px; line-height:1.5; }
+#audit-activity-view table.sigma-audit-table td { padding:16px 12px !important; vertical-align:middle; }
+#audit-activity-view .ai-log-user-button { display:flex; align-items:center; gap:12px; width:100%; padding:0; border:0; background:transparent; color:#000; font:inherit; text-align:left; cursor:pointer; }
+#audit-activity-view .ai-log-user-button:is(:hover, :focus-visible) .sigma-table-primary-text { text-decoration:underline !important; text-underline-offset:3px; color:#000000 !important; }
+#audit-activity-view .ai-log-interaction-button { border:0; padding:0; background:transparent; color:#000000; font:inherit; font-size:13px; font-weight:500; text-align:left; cursor:pointer; }
+#audit-activity-view .ai-log-interaction-button:is(:hover, :focus-visible) { text-decoration:underline !important; text-underline-offset:3px; color:#000000 !important; }
+#audit-activity-view .ai-log-user-identity { display:flex; flex-direction:column; gap:2px; }
+#audit-activity-view .sigma-table-primary-text { font-size:13px !important; font-weight:500 !important; color:#000000 !important; line-height:1.4 !important; }
+#audit-activity-view .ai-log-user-id { font-size:12px !important; line-height:1.5 !important; font-weight:400 !important; color:rgba(0,0,0,.55) !important; text-decoration:none !important; }
+#audit-activity-view table .text-black-fade { font-size:12px !important; line-height:1.5 !important; color:rgba(0,0,0,.55) !important; }
+
+#audit-notifications-view table.notification-log-overview th:nth-child(1),
+#audit-notifications-view table.notification-log-overview th:nth-child(2) { width:24%; }
+#audit-notifications-view table.notification-log-overview th:nth-child(3) { width:29%; }
+#audit-notifications-view table.notification-log-overview th:nth-child(4) { width:9%; }
+#audit-notifications-view table.notification-log-overview th:nth-child(6) { width:14%; }
+
+/* Keep the timestamp inside the available notification page width. */
+#audit-notifications-view table[aria-label="Notification logs"] { min-width:0; }
+#audit-notifications-view table[aria-label="Notification logs"] :is(th,td):first-child { min-width:0; }
+#audit-notifications-view table[aria-label="Notification logs"] :is(th,td) { min-width:0; padding:16px 12px !important; }
+#audit-notifications-view table[aria-label="Notification logs"] th:last-child { width:16%; }
+#audit-notifications-view table[aria-label="Notification logs"] td:last-child { white-space:normal; overflow-wrap:normal; }
+#audit-notifications-view table.notification-log-overview th:nth-child(1),
+#audit-notifications-view table.notification-log-overview th:nth-child(2) { width:23%; }
+#audit-notifications-view table.notification-log-overview th:nth-child(3) { width:29%; }
+#audit-notifications-view table.notification-log-overview th:nth-child(4) { width:9%; }
+#audit-notifications-view table.notification-log-overview th:last-child { width:16%; }
+#audit-notifications-view table[aria-label="Notification logs"] th[hidden] { display:none !important; }
+@media (max-width:900px) { #audit-notifications-view table[aria-label="Notification logs"] { min-width:960px; } }
+
+#audit-notifications-view table[aria-label="Notification logs"] th[data-notification-actions] { width:76px; }
+#audit-notifications-view table[aria-label="Notification logs"] td:last-child { text-align:center; }
+#audit-auth-view table[aria-label="Authentication logs"] th[data-auth-actions],
+#audit-auth-view table[aria-label="Authentication logs"] th:last-child { width:76px; text-align:center; }
+#audit-auth-view table[aria-label="Authentication logs"] td:last-child { text-align:center; }
+.notification-log-actions-wrap { position: relative; display: inline-flex; }
+.notification-log-more { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:0; border-radius:50%; background:transparent; cursor:pointer; color:#000000 !important; font-size:14px; transition:all .2s ease; }
+.notification-log-more i { font-size:14px; color:#000000; }
+.notification-log-more:hover,
+.notification-log-more[aria-expanded="true"] { color:#000000 !important; background-color:#f1f5f9 !important; }
+.notification-log-action-menu { position:absolute; right:0; top:100%; margin-top:8px; min-width:185px; width:max-content; max-width:calc(100vw - 32px); padding:6px !important; border:1px solid #e2e8f0 !important; border-radius:18px !important; background:#ffffff !important; box-shadow:0 12px 32px rgba(0,0,0,.12) !important; z-index:1000; box-sizing:border-box; transform-origin:top right; animation:action-slide-up 0.2s ease-out; }
+.notification-log-action-menu.dropup { top:auto !important; bottom:100% !important; margin-top:0 !important; margin-bottom:8px !important; transform-origin:bottom right !important; }
+.notification-log-action-menu[hidden] { display:none !important; }
+.notification-log-action-menu button { display:flex !important; align-items:center !important; gap:10px !important; width:100% !important; padding:9px 12px !important; border:0 !important; border-radius:10px !important; background:transparent !important; color:#000000 !important; font-family:'Inter', sans-serif !important; font-size:13px !important; font-weight:500 !important; line-height:normal !important; text-align:left !important; cursor:pointer !important; transition:all 0.15s ease !important; }
+.notification-log-action-menu button i { width:16px !important; font-size:13px !important; text-align:center !important; color:#000000 !important; flex-shrink:0 !important; }
+.notification-log-action-menu button span { color:#000000 !important; }
+.notification-log-action-menu button:hover { background-color:#f1f5f9 !important; color:#000000 !important; }
+.notification-log-action-menu button:hover i,
+.notification-log-action-menu button:hover span { color:#000000 !important; }
+
+/* Prevent table clipping on audit action menus */
+.sigma-table-container.sigma-table-container--unframed,
+#audit-activity-view[data-activity-detail-open="true"] .sigma-table-container,
+#audit-activity-view[data-ai-user-detail-open="true"] .sigma-table-container {
+    overflow: visible !important;
+}
+.sigma-table-container:has(.ai-log-message-menu:not([hidden])),
+.sigma-table-container:has(.notification-log-action-menu:not([hidden])) {
+    padding-bottom: 110px !important;
+}
+.notification-log-dialog { width:min(560px,calc(100vw - 32px)); max-height:85vh; overflow:auto; padding:24px; border:1px solid #e2e8f0; border-radius:12px; color:#000; }
+.notification-log-dialog::backdrop { background:#0006; }
+.notification-log-dialog h2 { margin:0 0 20px; font-size:20px; }
+.notification-log-dialog dt { font-weight:600; margin-top:14px; }
+.notification-log-dialog dd { margin:4px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.notification-log-dialog > button { margin-top:20px; }
+
+/* Match notification subtitles to AI log request context. */
+#audit-notifications-view table .text-black-fade { font-size:12px !important; line-height:1.5; color:rgba(0,0,0,.55); margin-top:4px; }

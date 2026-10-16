@@ -555,7 +555,23 @@
         return realAssessments;
     }
 
-    function buildUnifiedAssessmentRows(role, currentStudent) {
+    let _cachedRows = null;
+    let _cachedKey = '';
+    let _cachedTime = 0;
+
+    window.invalidateAssessmentRowsCache = function () {
+        _cachedRows = null;
+        _cachedKey = '';
+        _cachedTime = 0;
+    };
+
+    function buildUnifiedAssessmentRows(role, currentStudent, forceFresh = false) {
+        const cacheKey = `${role || ''}_${typeof currentStudent === 'string' ? currentStudent : (currentStudent?.id || currentStudent?.name || '')}`;
+        const now = Date.now();
+        if (!forceFresh && _cachedRows && _cachedKey === cacheKey && (now - _cachedTime) < 1500) {
+            return _cachedRows;
+        }
+
         const rows = [];
         const isTeacher = (role === 'teacher' || (!role && typeof isTeacherPortal !== 'undefined' && isTeacherPortal));
         const loggedInStudent = (!isTeacher && typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
@@ -1148,6 +1164,7 @@
                         subject: rawSubjectName,
                         section: sectionName,
                         activity: ass.title,
+                        submissionKey: role === 'student' ? window.getStudentSubmissionStorageKey?.(topicSubjectId, assTopIdx, currentTab, assItemIdx, ass, targetStudentObj) : null,
                         quarter: ass.quarter || null,
                         category: cat,
                         tab: currentTab,
@@ -1201,11 +1218,15 @@
         });
 
         // Always sort newest release first at the top
-        return uniqueRows.sort((a, b) => {
+        const sorted = uniqueRows.sort((a, b) => {
             const timeA = a.startDate ? new Date(a.startDate).getTime() : 0;
             const timeB = b.startDate ? new Date(b.startDate).getTime() : 0;
             return timeB - timeA;
         });
+        _cachedRows = sorted;
+        _cachedKey = cacheKey;
+        _cachedTime = now;
+        return sorted;
     }
 
     function isSubjectMatch(row, target) {

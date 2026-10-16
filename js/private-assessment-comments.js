@@ -6,6 +6,10 @@
     const norm = value => String(value || '').toLowerCase().replace(/^grade\s*\d+\s*[-\u2013]?\s*/, '').replace(/[^a-z0-9]/g, '');
     const esc = value => String(value || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     function renderLogs() {
+        if (typeof window.renderActivityLogs === 'function') {
+            window.renderActivityLogs();
+            return;
+        }
         const body = document.querySelector('#audit-activity-view .sigma-audit-table tbody');
         if (!body) return;
         body.querySelectorAll('[data-communication-log]').forEach(row => row.remove());

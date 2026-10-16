@@ -21,6 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// Network metadata comes from the connection, never a client-supplied IP or
+// an untrusted forwarded header. This endpoint does not require a database.
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'client_network') {
+    $address = $_SERVER['REMOTE_ADDR'] ?? '';
+    echo json_encode(['success' => true, 'ip' => filter_var($address, FILTER_VALIDATE_IP) ? $address : null]);
+    exit;
+}
+
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/totp_service.php';

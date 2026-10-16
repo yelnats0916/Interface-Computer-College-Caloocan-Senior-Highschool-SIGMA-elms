@@ -50,7 +50,7 @@
                 ? 'http://localhost/sigma-elms/php/api/sigma_chat.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/sigma_chat.php' : 'php/api/sigma_chat.php', location.href).href;
             const response = await fetch(apiUrl, { method: 'POST', credentials: 'include', signal: controller.signal,
-                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history }) });
+                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, language:window.getSigmaAiLanguage?.('bot')||'auto' }) });
             const result = await response.json();
             if (!response.ok || !result.success || typeof result.text !== 'string' || !result.text.trim()) throw new Error(result.error || 'SIGMA could not get an answer. Try again.');
             const answer = window.renderSigmaChatMessage({ role: 'assistant', text: result.text, stamp });

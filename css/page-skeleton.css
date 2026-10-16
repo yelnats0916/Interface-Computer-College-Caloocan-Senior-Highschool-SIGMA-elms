@@ -44,6 +44,10 @@ html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main
     pointer-events: none !important;
 }
 
+html.sigma-initial-loading body :is(header, #student-header, #admin-header, #teacher-header, #sidebar) :is(button, a, .nav-link, .header-icon-btn, .header-profile-btn, .admin-topbar__logo-btn, #sidebarToggleBtn, #mobileSidebarToggleBtn) {
+    pointer-events: auto !important;
+}
+
 html.sigma-initial-loading body :is(header, #sidebar, #main-content, #admin-main) :is(h1,h2,h3,h4,h5,p,i,.full-label,.short-label,.sidebar-label,.rail-label):not(:where([id*="modal"] *, [role="dialog"] *, [aria-modal="true"] *, .header-panel *, [data-sigma-loading="exclude"] *)) {
     border-radius: 4px !important;
 }
@@ -340,6 +344,10 @@ html.sigma-initial-loading body :is(#main-content, #admin-main) :is(
     border-color: transparent !important;
     box-shadow: none !important;
     pointer-events: none !important;
+}
+
+html.sigma-initial-loading body :is(#main-content, #admin-main) .home-dashboard-group {
+    min-height: 180px !important;
 }
 
 html.sigma-initial-loading body :is(#main-content, #admin-main) :is(

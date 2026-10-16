@@ -932,10 +932,27 @@
                 sanitized.forEach(post => {
                     const old = previous.find(p => p.id === post.id);
                     if (!old || fields(old) !== fields(post)) {
-                        window.recordCommunicationActivity(!old ? 'Announcement created' : (old.status !== post.status && ['published', 'released'].includes(String(post.status).toLowerCase()) ? 'Announcement published' : 'Announcement edited'), { module: 'Announcements', announcementId: post.id, section: post.section || '', subjectId: post.subjectId || '', audience: post.audience || post.visibility || '' });
+                        const actTitle = !old ? 'Announcement created' : (old.status !== post.status && ['published', 'released'].includes(String(post.status).toLowerCase()) ? 'Announcement published' : 'Announcement edited');
+                        const detailSummary = `${actTitle.replace('Announcement ', '')} "${post.title || 'Untitled'}"${post.audience || post.visibility ? ' for ' + (post.audience || post.visibility) : ''}${post.section ? ' (' + post.section + ')' : ''}`;
+                        window.recordCommunicationActivity(actTitle, {
+                            module: 'Announcements',
+                            announcementId: post.id,
+                            title: post.title || 'General Announcement',
+                            details: detailSummary,
+                            section: post.section || '',
+                            subjectId: post.subjectId || '',
+                            audience: post.audience || post.visibility || ''
+                        });
                     }
                 });
-                previous.filter(old => !sanitized.some(post => post.id === old.id)).forEach(old => window.recordCommunicationActivity('Announcement deleted', { module: 'Announcements', announcementId: old.id, section: old.section || '', subjectId: old.subjectId || '' }));
+                previous.filter(old => !sanitized.some(post => post.id === old.id)).forEach(old => window.recordCommunicationActivity('Announcement deleted', {
+                    module: 'Announcements',
+                    announcementId: old.id,
+                    title: old.title || '',
+                    details: `Deleted announcement "${old.title || 'Untitled'}"`,
+                    section: old.section || '',
+                    subjectId: old.subjectId || ''
+                }));
             }
         } catch (e) {
             console.warn('[Announcements] localStorage full, offloading all dataUrl media...', e);

@@ -595,8 +595,13 @@
         <div class="gdrive-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
             <h1 class="sr-only">Google Drive Cloud Storage</h1>
 
+            <div class="ai-engine-tabs py-8" role="tablist" aria-label="Google Drive">
+                <button type="button" id="gdrive-settings-tab" class="ai-engine-tab" role="tab" aria-selected="true" aria-pressed="true" aria-controls="gdrive-settings-panel" onclick="window.selectGoogleDriveSettingsTab('settings')">Connection &amp; Settings</button>
+                <button type="button" id="gdrive-usage-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="gdrive-usage-panel" onclick="window.selectGoogleDriveSettingsTab('usage')">Usage</button>
+            </div>
+            <div id="gdrive-usage-panel" role="tabpanel" aria-labelledby="gdrive-usage-tab" class="pb-12" hidden><p role="status">Storage usage has not loaded yet.</p></div>
             <!-- Main Content Container -->
-            <div class="pb-12 space-y-6">
+            <div id="gdrive-settings-panel" role="tabpanel" aria-labelledby="gdrive-settings-tab" class="pb-12 space-y-6">
                 <!-- Card 1: Live Cloud Connection Status -->
                 <div class="gdrive-settings-section space-y-4">
                     <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
@@ -765,7 +770,9 @@
                 <div class="ai-engine-tabs" role="tablist" aria-label="AI configuration">
                     <button type="button" id="ai-functions-tab" class="ai-engine-tab" role="tab" aria-selected="true" aria-pressed="true" aria-controls="ai-functions-panel" onclick="window.selectAiSettingsTab('functions')">Function Assignments</button>
                     <button type="button" id="ai-keys-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="ai-provider-panel" onclick="window.selectAiSettingsTab('keys')">Provider Keys</button>
+                <button type="button" id="ai-usage-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="ai-usage-panel" onclick="window.selectAiSettingsTab('usage')">Usage</button>
                 </div>
+                <div id="ai-usage-panel" role="tabpanel" aria-labelledby="ai-usage-tab" class="ai-settings-section" hidden></div>
                 <div id="ai-functions-panel" role="tabpanel" aria-labelledby="ai-functions-tab" class="ai-settings-section">
                     <h2 class="text-sm font-bold text-black">Function Assignments</h2>
                     <div class="ai-routing-table-wrap">

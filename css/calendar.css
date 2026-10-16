@@ -22,7 +22,7 @@
 }
 
 #calendar-toggle:hover {
-    background-color: #e2e8f0;
+    background-color: #e2e8f0 !important;
 }
 
 #calendar-toggle.active,

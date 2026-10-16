@@ -1,5 +1,6 @@
 (function () {
     'use strict';
+    if (window.SigmaPageLoading) return;
     let overlay;
     let active = 0;
     let target;
@@ -13,9 +14,9 @@
     let initialDismissed = false;
     let earlyRouteObserver;
 
-    function revealInitial() {
+    function revealInitial(force = false) {
         if (initialDismissed) return;
-        if (initialPending > 0) return;
+        if (!force && initialPending > 0) return;
         initialDismissed = true;
         if (earlyRouteObserver) earlyRouteObserver.disconnect();
         document.documentElement.classList.remove('sigma-initial-loading');
@@ -126,7 +127,7 @@
             try { return await operation(); }
             finally {
                 initialPending--;
-                if (initialFrame) requestAnimationFrame(revealInitial);
+                if (initialFrame) requestAnimationFrame(() => revealInitial());
             }
         },
         showRenderingLoading(scope, durationMs) {
@@ -811,7 +812,7 @@
         if (initialFrame) return;
         initialFrame = true;
         mountEarlyHashSkeleton();
-        requestAnimationFrame(revealInitial);
+        requestAnimationFrame(() => revealInitial());
     }
 
     try {
@@ -833,7 +834,12 @@
         }
     } catch (_) {}
 
-    if (typeof setTimeout === 'function') setTimeout(revealInitial, 200);
+    if (typeof setTimeout === 'function') {
+        setTimeout(revealInitial, 150);
+        setTimeout(() => revealInitial(true), 350);
+        // A stalled optional dependency must not leave the entire shell masked.
+        setTimeout(() => revealInitial(true), 3000);
+    }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initial, { once: true });
     } else {
@@ -841,9 +847,17 @@
     }
 
     window.addEventListener('pageshow', event => {
+        revealInitial(true);
         if (event.persisted) {
-            revealInitial();
             finish(active);
+        }
+    });
+    window.addEventListener('focus', () => {
+        revealInitial(true);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            revealInitial(true);
         }
     });
 })();

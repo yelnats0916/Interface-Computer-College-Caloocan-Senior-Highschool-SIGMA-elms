@@ -171,7 +171,7 @@
         if (currentTab.startsWith('account-settings-')) currentTab = currentTab.replace('account-settings-', '');
         if (currentTab.startsWith('settings-')) currentTab = currentTab.replace('settings-', '');
 
-        const validTabs = ['notifications', 'account', 'security'];
+        const validTabs = ['notifications', 'account', 'security', 'ai'];
 
         if (!validTabs.includes(currentTab)) {
             currentTab = 'notifications';
@@ -185,6 +185,7 @@
             { id: 'notifications', label: 'Notifications', icon: 'fa-bell', title: 'Notifications' },
             { id: 'account', label: 'Account Information', icon: 'fa-user', title: 'Account Information' },
             { id: 'security', label: 'Security & Password', icon: 'fa-lock', title: 'Security & Password' },
+            { id: 'ai', label: 'AI Preferences', icon: 'fa-robot', title: 'AI Preferences' },
         ];
 
         const activeMeta = tabs.find(t => t.id === currentTab) || tabs[0];
@@ -389,6 +390,65 @@
         `;
 
         container.innerHTML = html;
+        if(currentTab==='ai'){
+            const key=`sigma-ai-preferences:${userId}`;
+            let prefs={bot:'auto',insights:'en'};
+            try{prefs={...prefs,...JSON.parse(localStorage.getItem(key)||'{}')};}catch(_){}
+            const settings=[{id:'auto',label:'Automatic Bot Language',description:'Match the language of your message.'},{id:'bot',label:'SIGMA Bot Language',description:'English when off, Filipino when on.'}];
+            if(getActivePortal()!=='admin')settings.push({id:'insights',label:'AI Insights Language',description:'English when off, Filipino when on.'});
+            container.querySelector('.sigma-settings-inner').innerHTML=`<div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6"><div><h2 class="text-lg font-bold text-black">AI Preferences</h2><p class="text-xs text-black-fade font-medium mt-1">Choose the language for your AI responses.</p></div><div class="divide-y divide-slate-100 pt-2">${settings.map(setting=>`<div class="flex items-center justify-between py-4 gap-4"><div><h3 class="text-sm font-bold text-black">${setting.label}</h3><p class="text-xs text-black-fade font-medium mt-0.5">${setting.description}</p></div><label class="sigma-toggle-switch shrink-0 ml-4"><input type="checkbox" data-ai-setting="${setting.id}" aria-label="${setting.label}"><span class="sigma-toggle-slider"></span></label></div>`).join('')}</div></div>`;
+            container.querySelectorAll('[data-ai-setting]:not([data-ai-setting="auto"])').forEach(input=>{
+                const select=document.createElement('select');select.dataset.aiSetting=input.dataset.aiSetting;
+                select.id=`${container.id}-ai-${input.dataset.aiSetting}-language`;
+                select.name=`ai-${input.dataset.aiSetting}-language`;
+                select.setAttribute('aria-label',input.getAttribute('aria-label'));
+                select.className='sigma-input';select.style.cssText='width:140px;flex-shrink:0;max-width:100%;';
+                select.innerHTML='<option value="en">English</option><option value="fil">Filipino</option>';
+                const row=input.closest('label').parentElement;
+                row.style.flexWrap='wrap';
+                const description=row.querySelector('p');
+                description.textContent=input.dataset.aiSetting==='bot'?'Choose the language for SIGMA Bot replies.':'Choose the language for new AI insights.';
+                if(input.dataset.aiSetting==='bot'){description.id=`${container.id}-bot-language-help`;select.setAttribute('aria-describedby',description.id);}
+                input.closest('label').replaceWith(select);
+            });
+            const sync=()=>container.querySelectorAll('[data-ai-setting]').forEach(input=>{
+                const setting=input.dataset.aiSetting;
+                if(setting==='auto')input.checked=prefs.bot==='auto';else input.value=prefs[setting]==='fil'?'fil':'en';
+                input.disabled=setting==='bot'&&prefs.bot==='auto';
+                input.style.opacity=input.disabled?'0.45':'1';
+                if(input.tagName==='SELECT')input.style.cursor=input.disabled?'not-allowed':'pointer';
+                if(setting==='bot'){
+                    const help=document.getElementById(`${container.id}-bot-language-help`);
+                    const message=input.disabled?'Turn off Automatic Bot Language to choose English or Filipino.':'Choose the language for SIGMA Bot replies.';
+                    if(help)help.textContent=message;input.title=message;
+                }
+            });
+            container.querySelectorAll('[data-ai-setting]').forEach(input=>input.onchange=()=>{
+                const setting=input.dataset.aiSetting;
+                if(setting==='auto')prefs.bot=input.checked?'auto':'en';else prefs[setting]=input.value;
+                localStorage.setItem(key,JSON.stringify(prefs));sync();
+                window.dispatchEvent(new CustomEvent('sigma:ai-language-changed',{detail:prefs}));
+            });sync();
+            const automaticInput=container.querySelector('[data-ai-setting="auto"]');
+            const automaticSwitch=document.createElement('button');
+            automaticSwitch.type='button';automaticSwitch.className='sigma-toggle-switch';automaticSwitch.setAttribute('role','switch');automaticSwitch.setAttribute('aria-label','Automatic Bot Language');
+            automaticSwitch.style.cssText='border:0;padding:0;background:transparent;cursor:pointer;pointer-events:auto!important;';
+            automaticSwitch.innerHTML='<span class="sigma-toggle-slider" aria-hidden="true"></span>';
+            automaticInput.closest('label').replaceWith(automaticSwitch);
+            const updateAutomatic=()=>{
+                const automatic=prefs.bot==='auto';
+                automaticSwitch.setAttribute('aria-checked',String(automatic));
+                const slider=automaticSwitch.firstElementChild;
+                slider.style.backgroundColor=automatic?'#15803d':'#cbd5e1';
+                automaticSwitch.classList.toggle('ai-automatic-enabled',automatic);
+            };
+            automaticSwitch.onclick=()=>{
+                prefs.bot=prefs.bot==='auto'?'en':'auto';
+                localStorage.setItem(key,JSON.stringify(prefs));sync();updateAutomatic();
+                window.dispatchEvent(new CustomEvent('sigma:ai-language-changed',{detail:prefs}));
+            };
+            updateAutomatic();
+        }
         const detailHeading = container.querySelector('.sigma-settings-inner h2');
         if (detailHeading) {
             const headingRow = document.createElement('div');

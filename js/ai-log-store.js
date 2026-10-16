@@ -94,9 +94,31 @@
             window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
             window.dispatchEvent(new Event('sigma:ai-logs-updated'));
         },
-        deleteLog(logId) {
-            if (!window.SigmaAiDatabase) throw new Error('Database log storage is not available.');
-            return window.SigmaAiDatabase.change('ai_logs', logId, 'remove');
+        async deleteLog(logId) {
+            let errorOccurred = null;
+            if (window.SigmaAiDatabase) {
+                try {
+                    await window.SigmaAiDatabase.change('ai_logs', logId, 'remove');
+                } catch (e) {
+                    errorOccurred = e;
+                    console.warn('[AI Logs] Database sync remove warning:', e);
+                }
+            }
+            const removeLocal = storageKey => {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                    if (Array.isArray(saved)) {
+                        const filtered = saved.filter(item => String(item?.id) !== String(logId));
+                        localStorage.setItem(storageKey, JSON.stringify(filtered));
+                    }
+                } catch (_) {}
+            };
+            removeLocal(key);
+            removeLocal(sampleKey);
+            window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+            if (errorOccurred && !window.SigmaAiDatabase?.getLogs) {
+                throw errorOccurred;
+            }
         }
     };
     window.addEventListener('storage', event => { if (!event.key || event.key === key || event.key === sampleKey) window.dispatchEvent(new Event('sigma:ai-logs-updated')); });

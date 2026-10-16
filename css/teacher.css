@@ -2470,12 +2470,18 @@ header .relative button i {
     color: #000000;
 }
 
-#profileDropdownBtn {
+#profileDropdownBtn,
+#sigma-toggle,
+#calendar-toggle,
+#noti-toggle {
     color: #000000 !important;
     background: #f1f5f9 !important;
 }
 
-#profileDropdownBtn:hover {
+#profileDropdownBtn:hover,
+#sigma-toggle:hover,
+#calendar-toggle:hover,
+#noti-toggle:hover {
     background: #e2e8f0 !important;
 }
 
@@ -7449,38 +7455,40 @@ input:active,
     line-height: 1;
     background: #ffffff;
     color: #475569;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn:hover:not(.active) {
     background: #f8fafc;
     border-color: #cbd5e1;
     color: #0f172a;
-    transform: scale(1.05);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.p-btn.active {
     background: #10b981 !important;
     color: #ffffff !important;
     border-color: #10b981 !important;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.a-btn.active {
     background: #ef4444 !important;
     color: #ffffff !important;
     border-color: #ef4444 !important;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 .attendance-opt-btn.l-btn.active {
     background: #f59e0b !important;
     color: #ffffff !important;
     border-color: #f59e0b !important;
-    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4) !important;
-    transform: scale(1.06);
+    box-shadow: none !important;
+    filter: none !important;
 }
 
 /* Attendance Mobile Responsiveness */

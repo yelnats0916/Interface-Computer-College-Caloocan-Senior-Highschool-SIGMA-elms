@@ -2611,6 +2611,10 @@ function initTeacherPortal() {
             event.preventDefault();
             event.stopPropagation();
         }
+        if (dateString && typeof dateString === 'string' && dateString.includes('-')) {
+            const pDay = parseInt(dateString.split('-')[2], 10);
+            if (!isNaN(pDay)) attendanceSelectedDay = pDay;
+        }
         const statuses = getCurrentAttendanceStatuses(dateString);
 
         // Check if ANY matching key currently has this status
@@ -2689,6 +2693,20 @@ function initTeacherPortal() {
                     delete excuses[k];
                 }
             });
+        }
+
+        const secName = currentClassroomSectionName || (currentClassroomKey ? currentClassroomKey.split('::')[0] : '');
+        const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
+        const existingRecord = (classroomData && classroomData[dateString]) || {};
+        if (existingRecord.submitted) {
+            window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
+            if (!window.attendanceEditSnapshots[dateString]) {
+                const preStatuses = getCurrentAttendanceStatuses(dateString);
+                window.attendanceEditSnapshots[dateString] = JSON.parse(JSON.stringify(preStatuses || {}));
+            }
+            if (!window.attendanceEditingDays) window.attendanceEditingDays = {};
+            window.attendanceEditingDays[dateString] = true;
         }
 
         saveCurrentAttendanceStatuses(statuses, dateString, excuses);
@@ -2783,6 +2801,135 @@ function initTeacherPortal() {
             }
         }
 
+        // Build Daily Attendance Breakdown (System Summary)
+        const activeDay = (expandedAttendanceCol !== -1)
+            ? expandedAttendanceCol
+            : ((attendanceSelectedDay !== -1)
+                ? attendanceSelectedDay
+                : (isCurrentMonth ? todayDay : 1));
+        const activeLocalDateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(activeDay).padStart(2, '0')}`;
+        const activeDateObj = new Date(attendanceViewingYear, attendanceViewingMonth, activeDay);
+        const activeDateFormatted = activeDateObj.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        const activeDayData = (dailyStatuses && dailyStatuses[activeDay]) || {};
+        const activeStatuses = activeDayData.statuses || getCurrentAttendanceStatuses(activeLocalDateStr);
+
+        const presentStudents = [];
+        const absentStudents = [];
+        const lateStudents = [];
+        const unmarkedStudents = [];
+
+        students.forEach(st => {
+            let dName = st.name;
+            if (st.middleName && !st.name.includes(st.middleName)) {
+                dName = `${st.name} ${st.middleName}`;
+            }
+            let s = activeStatuses[st.name] ||
+                    (st.id && activeStatuses[st.id]) ||
+                    activeStatuses[dName] || '';
+            if (!s) {
+                for (const k of Object.keys(activeStatuses)) {
+                    if ((st.id && String(k) === String(st.id)) || studentNamesMatch(k, st.name)) {
+                        s = activeStatuses[k];
+                        break;
+                    }
+                }
+            }
+            if (s === 'P') presentStudents.push(dName);
+            else if (s === 'A') absentStudents.push(dName);
+            else if (s === 'L') lateStudents.push(dName);
+            else unmarkedStudents.push(dName);
+        });
+
+        const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : '');
+        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
+        const dayRecord = (classroomData && classroomData[activeLocalDateStr]) || {};
+        const isSubmitted = Boolean(dayRecord.submitted);
+        const submittedAt = dayRecord.submittedAt || dayRecord.updatedAt || null;
+        const isEditing = Boolean(window.attendanceEditingDays && window.attendanceEditingDays[activeLocalDateStr]);
+
+        const totalEnrolled = students.length;
+        const totalRecorded = presentStudents.length + absentStudents.length + lateStudents.length;
+        const attendedStudents = presentStudents.length + lateStudents.length;
+        const dailyRate = totalEnrolled > 0 ? ((attendedStudents / totalEnrolled) * 100).toFixed(1) + '%' : '0.0%';
+
+        let statusBadgeHtml = '';
+        if (totalEnrolled === 0) {
+            statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 shadow-xs"><i class="fa-solid fa-circle-info text-[11px] text-slate-400"></i> No Students Enrolled</span>`;
+        } else if (isSubmitted) {
+            statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs"><i class="fa-solid fa-circle-check text-[11px] text-emerald-600"></i> Submitted (${totalRecorded}/${totalEnrolled} Recorded)</span>`;
+        } else if (totalRecorded === totalEnrolled && totalEnrolled > 0) {
+            statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200 shadow-xs"><i class="fa-solid fa-clock text-[11px] text-blue-600"></i> Ready to Submit (${totalRecorded}/${totalEnrolled} Recorded)</span>`;
+        } else if (totalRecorded > 0) {
+            statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 shadow-xs"><i class="fa-solid fa-clock text-[11px] text-amber-600"></i> In Progress (${totalRecorded}/${totalEnrolled} Recorded)</span>`;
+        } else {
+            statusBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shadow-xs"><i class="fa-solid fa-circle-info text-[11px] text-slate-400"></i> Not Yet Recorded (0/${totalEnrolled})</span>`;
+        }
+
+        const formattedSubmittedTime = submittedAt ? new Date(submittedAt).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        }) : '';
+
+        let savedNoticeParagraphHtml = '';
+        let actionButtonHtml = '';
+
+        if (isSubmitted && !isEditing) {
+            savedNoticeParagraphHtml = `
+                <p class="text-[11px] sm:text-xs text-[#15803d] font-semibold m-0 flex items-center gap-1.5 font-['Inter']">
+                    <i class="fa-solid fa-circle-check text-[#15803d]"></i>
+                    <span>Attendance record for this day has been saved and submitted successfully${formattedSubmittedTime ? ` at ${formattedSubmittedTime}` : ''}.</span>
+                </p>
+            `;
+            actionButtonHtml = `
+                <button type="button" class="attendance-action-btn attendance-action-btn--edit" onclick="window.enableDailyAttendanceEdit('${activeLocalDateStr}')" title="Edit this day's attendance">
+                    <span>Edit</span>
+                </button>
+            `;
+        } else if (isEditing) {
+            savedNoticeParagraphHtml = `
+                <p class="text-[11px] sm:text-xs text-amber-700 font-semibold m-0 flex items-center gap-1.5 font-['Inter']">
+                    <i class="fa-solid fa-pen text-amber-600"></i>
+                    <span>Edit mode active. Make changes to student marks and click Update when done.</span>
+                </p>
+            `;
+            actionButtonHtml = `
+                <button type="button" class="attendance-action-btn attendance-action-btn--cancel" onclick="window.cancelDailyAttendanceEdit('${activeLocalDateStr}')" title="Cancel edit">
+                    <span>Cancel</span>
+                </button>
+                <button type="button" class="attendance-action-btn attendance-action-btn--update" onclick="window.updateDailyAttendance('${activeLocalDateStr}')" title="Save updated attendance">
+                    <span>Update</span>
+                </button>
+            `;
+        } else {
+            if (totalRecorded > 0) {
+                savedNoticeParagraphHtml = `
+                    <p class="text-[11px] sm:text-xs text-amber-700 font-medium m-0 flex items-center gap-1.5 font-['Inter']">
+                        <i class="fa-solid fa-circle-exclamation text-amber-500"></i>
+                        <span>Attendance has recorded marks (${totalRecorded}/${totalEnrolled}). Click Submit to save this day's record.</span>
+                    </p>
+                `;
+            } else {
+                savedNoticeParagraphHtml = `
+                    <p class="text-[11px] sm:text-xs text-black-fade font-normal m-0 flex items-center gap-1.5 font-['Inter']">
+                        <i class="fa-solid fa-circle-info text-black-fade"></i>
+                        <span>No attendance marks recorded yet for this day. Click P, A, or L on student cells then Submit.</span>
+                    </p>
+                `;
+            }
+            actionButtonHtml = `
+                <button type="button" class="attendance-action-btn attendance-action-btn--submit" onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
+                    <span>Submit</span>
+                </button>
+            `;
+        }
+
         let html = `
             <div class="attendance-monthly-card">
                 <div class="attendance-monthly-header flex items-center justify-between w-full relative px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100 bg-white">
@@ -2809,6 +2956,7 @@ function initTeacherPortal() {
                         </button>
                     </div>
                 </div>
+
                 <div class="attendance-grid-container">
                     <table class="attendance-month-table font-['Inter'] text-black">
                         <thead>
@@ -2938,10 +3086,106 @@ function initTeacherPortal() {
                 html += `</tr>`;
             });
         }
-
         html += `
                         </tbody>
                     </table>
+                </div>
+
+                <div class="attendance-system-summary-panel border-t border-slate-100 bg-white px-3.5 py-4 sm:px-6 sm:py-5 rounded-b-[20px]">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-regular fa-calendar-check text-[#15803d] text-base sm:text-lg"></i>
+                            <span class="text-xs sm:text-sm font-bold text-black font-['Inter']">${escapeHtml(activeDateFormatted)}</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="attendance-rate-pill">
+                                Attendance Rate: <span class="text-[#15803d] font-extrabold ml-0.5">${dailyRate}</span>
+                            </span>
+                            <span class="attendance-rate-subtitle text-black-fade">
+                                (${attendedStudents} of ${totalEnrolled} attending)
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3.5">
+                        <!-- Present -->
+                        <div class="attendance-summary-card attendance-summary-card--present">
+                            <div>
+                                <div class="flex items-center justify-between pb-2 border-b border-emerald-100/80">
+                                    <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5 font-['Inter']">
+                                        <span class="attendance-dot attendance-dot--present"></span> Present
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">${presentStudents.length}</span>
+                                </div>
+                                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                    ${presentStudents.length > 0
+                                        ? presentStudents.map(n => `<span class="attendance-student-chip text-slate-800 border border-emerald-200/90">${escapeHtml(n)}</span>`).join('')
+                                        : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Absent -->
+                        <div class="attendance-summary-card attendance-summary-card--absent">
+                            <div>
+                                <div class="flex items-center justify-between pb-2 border-b border-rose-100/80">
+                                    <span class="text-xs font-bold text-rose-900 flex items-center gap-1.5 font-['Inter']">
+                                        <span class="attendance-dot attendance-dot--absent"></span> Absent
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[11px] font-bold">${absentStudents.length}</span>
+                                </div>
+                                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                    ${absentStudents.length > 0
+                                        ? absentStudents.map(n => `<span class="attendance-student-chip text-slate-800 border border-rose-200/90">${escapeHtml(n)}</span>`).join('')
+                                        : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Late -->
+                        <div class="attendance-summary-card attendance-summary-card--late">
+                            <div>
+                                <div class="flex items-center justify-between pb-2 border-b border-amber-100/80">
+                                    <span class="text-xs font-bold text-amber-900 flex items-center gap-1.5 font-['Inter']">
+                                        <span class="attendance-dot attendance-dot--late"></span> Late
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-bold">${lateStudents.length}</span>
+                                </div>
+                                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                    ${lateStudents.length > 0
+                                        ? lateStudents.map(n => `<span class="attendance-student-chip text-slate-800 border border-amber-200/90">${escapeHtml(n)}</span>`).join('')
+                                        : `<span class="text-[11px] text-slate-400 italic">None recorded</span>`}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Unmarked -->
+                        <div class="attendance-summary-card attendance-summary-card--unmarked">
+                            <div>
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                                    <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5 font-['Inter']">
+                                        <span class="attendance-dot attendance-dot--unmarked"></span> Unmarked
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 text-[11px] font-bold">${unmarkedStudents.length}</span>
+                                </div>
+                                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                    ${unmarkedStudents.length > 0
+                                        ? unmarkedStudents.map(n => `<span class="attendance-student-chip text-slate-600 border border-slate-200">${escapeHtml(n)}</span>`).join('')
+                                        : `<span class="text-[11px] text-[#15803d] font-semibold">All students accounted for!</span>`}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Bar below panels: Saved Notice & Submit/Edit/Update Button -->
+                    <div class="attendance-footer-action-bar">
+                        <div class="flex flex-col gap-1">
+                            ${savedNoticeParagraphHtml}
+                        </div>
+                        <div class="attendance-footer-actions flex items-center gap-2 shrink-0 self-end sm:self-center ml-auto sm:ml-0">
+                            ${actionButtonHtml}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -3456,16 +3700,31 @@ function initTeacherPortal() {
                             
                             <div class="space-y-4">
                                 <!-- Option 1: Current Month (Full Month) -->
-                                <label class="export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80" id="export-option-month-label">
-                                    <input type="radio" name="attendance-export-scope" value="month" checked class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
+                                <label class="export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80" id="export-option-day-label">
+                                    <input type="radio" name="attendance-export-scope" value="day" checked class="mt-1 w-5 h-5 accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
+                                    <div class="flex-1 min-w-0">
+                                        <span class="export-scope-title text-base font-bold text-black font-['Inter']">Today (${new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date())})</span>
+                                        <p class="text-sm text-black-fade mt-1.5 leading-relaxed">Exports today’s attendance only.</p>
+                                    </div>
+                                </label>
+                                <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-month-label">
+                                    <input type="radio" name="attendance-export-scope" value="month" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center gap-2.5 flex-wrap">
                                             <span class="export-scope-title text-base font-bold text-black font-['Inter']">Current Month (${currentMonthName} ${attendanceViewingYear})</span>
                                             <span class="export-scope-badge px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-800">Days 1–31</span>
                                         </div>
-                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports full monthly register (Days 1–30/31) including non-school and empty day columns.</p>
+                                        <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports the selected month. Choose whether to include non-school days.</p>
                                     </div>
                                 </label>
+                                <fieldset id="attendance-export-school-days" class="hidden border border-slate-200 rounded-xl p-4 space-y-3">
+                                    <legend class="px-2 text-sm font-semibold">Non-school days</legend>
+                                    <div class="flex flex-col lg:flex-row gap-3 lg:gap-8">
+                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="exclude" checked class="accent-[#15803d]">Exclude non-school days</label>
+                                    <label class="flex items-center gap-3 cursor-pointer text-sm"><input type="radio" name="attendance-export-non-school" onchange="window.updateAttendanceExportOptionUI()" value="include" class="accent-[#15803d]">Include non-school days</label>
+                                    </div>
+                                    <p id="attendance-export-school-days-description" class="text-xs text-black-fade">Excludes Saturdays and Sundays. Unrecorded school days remain blank.</p>
+                                </fieldset>
 
                                 <!-- Option 2: Current Month - Recorded Dates Only (No Blank Columns) -->
                                 <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-month-active-label">
@@ -3510,6 +3769,14 @@ function initTeacherPortal() {
     };
 
     window.updateAttendanceExportOptionUI = function () {
+        const includeNonSchool = document.querySelector('input[name="attendance-export-non-school"]:checked')?.value === 'include';
+        const description = document.getElementById('attendance-export-school-days-description');
+        if (description) description.textContent = includeNonSchool
+            ? 'Includes Saturdays and Sundays. Unrecorded days remain blank.'
+            : 'Excludes Saturdays and Sundays. Unrecorded school days remain blank.';
+
+        const monthSelected = document.querySelector('input[name="attendance-export-scope"]:checked')?.value === 'month';
+        document.getElementById('attendance-export-school-days')?.classList.toggle('hidden', !monthSelected);
         const activeClass = 'export-scope-option active flex items-start gap-4 p-5 sm:p-6 rounded-2xl border-2 border-[#15803d] bg-emerald-50/60 cursor-pointer transition-all hover:bg-emerald-50/80';
         const inactiveClass = 'export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50';
 
@@ -3530,7 +3797,7 @@ function initTeacherPortal() {
     };
 
     window.executeAttendanceExport = function () {
-        const scope = document.querySelector('input[name="attendance-export-scope"]:checked')?.value || 'month';
+        const scope = document.querySelector('input[name="attendance-export-scope"]:checked')?.value || 'day';
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const currentMonthName = monthNames[attendanceViewingMonth];
         const secName = (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName) ? currentClassroomSectionName : (currentClassroomKey ? currentClassroomKey.split('::')[0] : 'Section');
@@ -3761,12 +4028,22 @@ function initTeacherPortal() {
         // Determine which sheets to generate
         const sheetsToExport = []; // array of { sheetName, periodLabel, datesToExport }
 
-        if (scope === 'month') {
+        if (scope === 'day') {
+            const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+            const part = name => parts.find(item => item.type === name).value;
+            const dateStr = `${part('year')}-${part('month')}-${part('day')}`;
+            sheetsToExport.push({ sheetName: 'Today', periodLabel: dateStr,
+                datesToExport: [{ dateStr, label: `${part('month')}/${part('day')}`, dayNum: Number(part('day')) }] });
+        } else if (scope === 'month') {
             // Current Month (Full Month: Days 1–30/31)
             const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
             const datesToExport = [];
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                if (document.querySelector('input[name="attendance-export-non-school"]:checked')?.value !== 'include') {
+                    const weekday = new Date(attendanceViewingYear, attendanceViewingMonth, d).getDay();
+                    if (weekday === 0 || weekday === 6) continue;
+                }
                 datesToExport.push({
                     dateStr: dateStr,
                     label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
@@ -3871,11 +4148,14 @@ function initTeacherPortal() {
         const safeSubj = subjName.replace(/[^a-zA-Z0-9_-]/g, '_');
         const safeSec = secName.replace(/[^a-zA-Z0-9_-]/g, '_');
         let fileScopeTag = `${currentMonthName}_${attendanceViewingYear}`;
-        if (scope === 'month-active') {
+        if (scope === 'day') {
+            fileScopeTag = sheetsToExport[0].periodLabel;
+        } else if (scope === 'month-active') {
             fileScopeTag = `${currentMonthName}_${attendanceViewingYear}_Active_Dates`;
         } else if (scope === 'all' || scope === 'all-active') {
             fileScopeTag = 'All_Recorded_Dates';
         }
+        if (scope === 'month') fileScopeTag += document.querySelector('input[name="attendance-export-non-school"]:checked')?.value === 'include' ? '_All_Days' : '_School_Days';
         const fileName = `Attendance_${safeSubj}_${safeSec}_${fileScopeTag}.xlsx`;
 
         // Check if XLSX library is loaded
@@ -14753,14 +15033,17 @@ function initTeacherPortal() {
 
                 const itemTitle = itemObj?.title || itemObj?.name;
                 if (itemTitle) {
+                    const assessmentNotice = category === 'assessments' ? window.SigmaNotifications?.assessmentReleaseNotice(saved, config, sIdVal, itemObj) : null;
+                    if (category === 'assessments' && !assessmentNotice) return;
                     const studentNotif = {
                         id: 'notif_rel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        type: assessmentNotice?.type || 'material-released',
                         senderName: senderTeacherName,
                         assignmentScope: { section, subjectId, subjectName: window.getTopicSubject?.(subjectId)?.name || subjectId },
                         senderInitials: senderTeacherInitials,
                         senderColor: '#1d4ed8',
-                        title: `New ${notifTypeStr} Posted`,
-                        body: `${itemTitle} coursework is now available.`,
+                        title: assessmentNotice?.title || `New ${notifTypeStr} Posted`,
+                        body: assessmentNotice?.type === 'assessment-updated' ? `${itemTitle} — Updated: ${assessmentNotice.changes.join(', ')}.` : `${itemTitle} coursework is now available.`,
                         timestamp: new Date().toISOString(),
                         read: false,
                         target: {
@@ -19236,9 +19519,12 @@ function initTeacherPortal() {
         }
 
         if (navId === 'nav-resources') {
-            if (typeof window.renderResourcesView === 'function') {
+            if (typeof window.resetResourcesView === 'function') {
+                window.resetResourcesView();
+            } else if (typeof window.renderResourcesView === 'function') {
                 window.renderResourcesView();
             }
+            if (typeof scrollToTop === 'function') scrollToTop();
         }
 
                 // Calendar Page Mode & Back Button (Navbar Context only)
@@ -19808,7 +20094,7 @@ function initTeacherPortal() {
             navContextText.onclick = null;
         }
         if (typeof window.setPortalHeader === 'function') {
-            window.setPortalHeader('My Classes');
+            window.setPortalHeader('My Classes', showDetail ? (subject || className || title) : 'Classrooms');
         }
         if (mainTitle) mainTitle.textContent = showDetail ? '' : 'Classrooms';
         if (classesHeader) classesHeader.classList.toggle('hidden', showDetail);
@@ -22319,6 +22605,16 @@ function initTeacherPortal() {
         });
         if (shouldClose) {
             closeClassroomSettingsMenu();
+        }
+    });
+
+    window.addEventListener('sigma:attendance-changed', () => {
+        refreshAttendanceRecords();
+        if (typeof renderClassroomAttendanceTab === 'function') {
+            renderClassroomAttendanceTab(false);
+        }
+        if (typeof window.renderClassroomAttendanceTab === 'function') {
+            window.renderClassroomAttendanceTab(false);
         }
     });
 

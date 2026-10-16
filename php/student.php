@@ -8,7 +8,7 @@ $pageTitle = "Interface Computer College - Student";
 $extraCss  = "css/student.css";
 $bodyClass = "bg-admin-bg min-h-screen font-['Inter'] flex flex-col sidebar-collapsed text-slate-700";
 $extraHead = '<link rel="stylesheet" href="css/classroom-room.css"><script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>';
-$extraJs   = ["js/classroom-room.js", "js/assessments-page.js", "js/student.js", "js/student-analytics.js", "js/student-submission-analytics.js", "js/analytics-ai-client.js"];
+$extraJs   = ["js/classroom-room.js", "js/assessments-page.js", "js/subject-grade-insights.js", "js/student.js", "js/student-analytics.js", "js/student-submission-analytics.js", "js/analytics-ai-client.js"];
 $topbarHeaderId = "student-header";
 
 require_once __DIR__ . "/../config/app.php";

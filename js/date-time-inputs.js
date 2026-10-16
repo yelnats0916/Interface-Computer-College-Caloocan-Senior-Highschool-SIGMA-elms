@@ -3,6 +3,13 @@
     if (window.SigmaDateTimeInputs) return;
     const selector = 'input[type="date"],input[type="time"],input[type="month"],input[type="datetime-local"]';
     const base = document.currentScript.src;
+    if (base && !document.querySelector('link[data-sigma-date-time-styles]')) {
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.dataset.sigmaDateTimeStyles = 'true';
+        stylesheet.href = new URL('../css/date-time-inputs.css?v=20261015pickerStyles', base).href;
+        document.head.append(stylesheet);
+    }
     const controls = new WeakMap(), dependencies = new Map();
     let active = null, popup = null, sequence = 0;
     function dependency(file, available) {

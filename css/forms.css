@@ -1300,6 +1300,10 @@ button.teacher-save-grade-btn:not(:disabled):hover {
 }
 
 /* White / Bordered Button (e.g. Save as Draft, Cancel) */
+#btn-resource-sy-toggle .resource-sy-chevron { display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; flex:0 0 12px; margin-left:2px; font-size:10px; line-height:1; color:#000; transition:transform .15s ease; }
+#btn-resource-sy-toggle[aria-expanded="true"] .resource-sy-chevron { transform:rotate(180deg); }
+#btn-resource-sy-toggle[aria-expanded="true"] { background-color:#e2e8f0 !important; }
+
 .sigma-btn-white {
     background-color: #ffffff !important;
     color: #000000 !important;
@@ -2956,14 +2960,14 @@ select[readonly]:hover {
 }
 
 /* Locked text boxes with slate-100 or slate-50 background must stay grey when clicked */
-.bg-slate-100\/70:focus-within,
-.bg-slate-100\/70:hover,
-.bg-slate-100\/70:active,
-.bg-slate-100\/70:focus,
-.bg-slate-100:focus-within,
-.bg-slate-100:hover,
-.bg-slate-100:active,
-.bg-slate-100:focus,
+:is(div, input, textarea).bg-slate-100\/70:focus-within,
+:is(div, input, textarea).bg-slate-100\/70:hover,
+:is(div, input, textarea).bg-slate-100\/70:active,
+:is(div, input, textarea).bg-slate-100\/70:focus,
+:is(div, input, textarea).bg-slate-100:focus-within,
+:is(div, input, textarea).bg-slate-100:hover,
+:is(div, input, textarea).bg-slate-100:active,
+:is(div, input, textarea).bg-slate-100:focus,
 div:has(> input[readonly]):focus-within,
 div:has(> input:disabled):focus-within,
 div:has(> textarea[readonly]):focus-within,

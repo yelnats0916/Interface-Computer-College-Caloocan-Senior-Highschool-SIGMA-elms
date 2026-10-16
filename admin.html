@@ -17,29 +17,29 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css?v=20261011stepBadges316">
+    <link rel="stylesheet" href="css/admin.css?v=20261017blackFadeSubtitles">
     <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
-    <link rel="stylesheet" href="css/forms.css?v=20261013attendanceInstant783">
-    <link rel="stylesheet" href="css/ai-log-details.css?v=20261013feedbackActions747">
+    <link rel="stylesheet" href="css/forms.css?v=20261016yearFilterHover">
+    <link rel="stylesheet" href="css/ai-log-details.css?v=20261015navbarAvatarSize">
     <link rel="stylesheet" href="css/record-lifecycle.css?v=20261011recoveryDropdown323">
     <link rel="stylesheet" href="css/log-pagination.css?v=20261011circlePaging317">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261014adminSubject1245">
+<link rel="stylesheet" href="css/shared-components.css?v=20261016gradeInsightAlign">
     <link rel="stylesheet" href="css/welcome-panel.css">
     <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
     <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
     <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
-    <link rel="stylesheet" href="css/notifications.css?v=20261012notificationExpand567">
-    <link rel="stylesheet" href="css/admin-insight-report.css?v=20261011insightReport347">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261014hideTopicsMore1142">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261010defaultKeyModel296">
+    <link rel="stylesheet" href="css/notifications.css?v=20261015notificationSize1282">
+    <link rel="stylesheet" href="css/admin-insight-report.css?v=20261016deepWebsiteGreen">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261016removeButtonGlow">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261016aiUsageTokensRequests">
     <link rel="stylesheet" href="css/service-vault-security.css?v=20261011secureServices300">
     <script src="js/service-vault-security.js?v=20261011keyInputs301"></script>
     <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261004sharedSelectionRail1">
     <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
     <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261014adminAdvisory1246">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261016dashLineFade">
 <link rel="stylesheet" href="css/shared-grade-record.css?v=20261014hideUnchangedUpdate1116">
     <link rel="stylesheet" href="css/mobile.css?v=20261014quarterHalo1181">
 
@@ -246,7 +246,7 @@
         })();
     </script>
     <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261013headerSweep756">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261016fastLoading757">
     <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
     <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
@@ -649,6 +649,10 @@
                         <a href="#" id="nav-reports-attendance" class="nav-sublink no-underline">
                             <i class="fa-solid fa-calendar-check"></i>
                             <span>Attendance</span>
+                        </a>
+                        <a href="#" id="nav-reports-performance" class="nav-sublink no-underline">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Academic Performance</span>
                         </a>
                     </div>
                 </div>
@@ -1994,12 +1998,10 @@
                 <section id="school-year-view" class="dynamic-section hidden">
                     <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
                         <!-- Exact Title Placement -->
-                        <div class="px-10 py-8">
-                            <h1 class="text-2xl font-bold text-black tracking-tight">School Year</h1>
-                        </div>
+                        
 
                         <!-- Auxiliary Header Controls -->
-                        <div class="px-10 pb-10 border-b border-slate-50 flex items-end justify-between gap-12">
+                        <div class="px-10 pt-8 pb-10 border-b border-slate-50 flex items-end justify-between gap-12">
                             <div class="shrink-0 flex flex-col gap-3 w-64">
                                 <button type="button" onclick="window.openSYManager()"
                                     class="sigma-btn sigma-btn-primary sigma-btn-md w-full justify-start gap-3.5">
@@ -2101,7 +2103,7 @@
     <div class="sigma-settings-layout">
         <!-- Left Categories Sidebar (Help Center Style) -->
         <aside class="sigma-settings-sidebar">
-            <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Security &amp; Access</h2>
+            
             <nav class="flex flex-col gap-2" role="tablist" aria-label="Security & Access Sections">
                 <button type="button" 
                     class="sigma-settings-cat-btn active bg-icc-yellow text-white shadow-sm" 
@@ -2251,7 +2253,7 @@
     <div class="sigma-settings-layout">
         <!-- Left Categories Sidebar -->
         <aside class="sigma-settings-sidebar">
-            <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Branding &amp; Appearance</h2>
+            
             <nav class="flex flex-col gap-2" role="tablist" aria-label="Branding Sections">
                 <button type="button" 
                     class="sigma-settings-cat-btn active bg-icc-yellow text-white shadow-sm" 
@@ -2390,7 +2392,7 @@
     <div class="sigma-settings-layout">
         <!-- Left Categories Sidebar -->
         <aside class="sigma-settings-sidebar">
-            <h2 class="text-xs font-bold text-black-fade tracking-wide mb-6">Integrations &amp; Storage</h2>
+            
             <nav class="flex flex-col gap-2" role="tablist" aria-label="Integrations Sections">
                 <button type="button" 
                     class="sigma-settings-cat-btn active bg-icc-yellow text-white shadow-sm" 
@@ -2688,8 +2690,13 @@
         <div class="gdrive-settings-content max-w-5xl mx-auto w-full px-6 sm:px-10">
             <h1 class="sr-only">Google Drive Cloud Storage</h1>
 
+            <div class="ai-engine-tabs py-8" role="tablist" aria-label="Google Drive">
+                <button type="button" id="gdrive-settings-tab" class="ai-engine-tab" role="tab" aria-selected="true" aria-pressed="true" aria-controls="gdrive-settings-panel" onclick="window.selectGoogleDriveSettingsTab('settings')">Connection &amp; Settings</button>
+                <button type="button" id="gdrive-usage-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="gdrive-usage-panel" onclick="window.selectGoogleDriveSettingsTab('usage')">Usage</button>
+            </div>
+            <div id="gdrive-usage-panel" role="tabpanel" aria-labelledby="gdrive-usage-tab" class="pb-12" hidden><p role="status">Storage usage has not loaded yet.</p></div>
             <!-- Main Content Container -->
-            <div class="pb-12 space-y-6">
+            <div id="gdrive-settings-panel" role="tabpanel" aria-labelledby="gdrive-settings-tab" class="pb-12 space-y-6">
                 <!-- Card 1: Live Cloud Connection Status -->
                 <div class="gdrive-settings-section space-y-4">
                     <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
@@ -2751,7 +2758,28 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Upload JSON Key -->
+                <!-- Card 3: Account Capacity Tier -->
+                <div class="gdrive-settings-section space-y-3">
+                    <div class="pb-2 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-bold text-black">Account Capacity Tier</h2>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 font-['Inter']">Storage Quota</span>
+                    </div>
+                    <div class="space-y-1.5">
+                        <p class="text-xs text-black-fade">Google Cloud Service Accounts connect to your shared folder without exposing your private Google account limit. Set your storage tier to track usage and total limit accurately.</p>
+                        <div class="flex items-center gap-3 pt-2">
+                            <select id="gdrive-page-capacity-tier" onchange="window.handleGoogleDriveCapacityChange && window.handleGoogleDriveCapacityChange(event)" class="bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all font-['Inter'] cursor-pointer">
+                                <option value="15" selected>15 GB (Standard Google Account - Free)</option>
+                                <option value="100">100 GB (Google One Basic)</option>
+                                <option value="200">200 GB (Google One Standard)</option>
+                                <option value="2048">2 TB (Google One Premium)</option>
+                                <option value="5120">5 TB (Google Workspace Enterprise)</option>
+                            </select>
+                            <span id="gdrive-page-capacity-save-status" class="text-xs font-medium text-emerald-600 hidden"><i class="fa-solid fa-check"></i> Saved</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Upload JSON Key -->
                 <details class="gdrive-settings-section gdrive-advanced">
                     <summary class="text-sm font-bold text-black cursor-pointer">Advanced Settings</summary>
                     <div class="gdrive-advanced-content">
@@ -2858,7 +2886,9 @@
                 <div class="ai-engine-tabs" role="tablist" aria-label="AI configuration">
                     <button type="button" id="ai-functions-tab" class="ai-engine-tab" role="tab" aria-selected="true" aria-pressed="true" aria-controls="ai-functions-panel" onclick="window.selectAiSettingsTab('functions')">Function Assignments</button>
                     <button type="button" id="ai-keys-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="ai-provider-panel" onclick="window.selectAiSettingsTab('keys')">Provider Keys</button>
+                <button type="button" id="ai-usage-tab" class="ai-engine-tab" role="tab" aria-selected="false" aria-pressed="false" aria-controls="ai-usage-panel" onclick="window.selectAiSettingsTab('usage')">Usage</button>
                 </div>
+                <div id="ai-usage-panel" role="tabpanel" aria-labelledby="ai-usage-tab" class="ai-settings-section" hidden></div>
                 <div id="ai-functions-panel" role="tabpanel" aria-labelledby="ai-functions-tab" class="ai-settings-section">
                     <h2 class="text-sm font-bold text-black">Function Assignments</h2>
                     <div class="ai-routing-table-wrap">
@@ -3067,12 +3097,10 @@
                 <section id="school-sections-view" class="dynamic-section hidden">
                     <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
                             <!-- Page Header -->
-                            <div class="px-10 py-8 flex justify-between items-center">
-                                <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Sections</h1>
-                            </div>
+                            
 
                             <!-- Metric / Counter Cards (Modern Elevated Suite) -->
-                            <div class="px-10 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="px-10 pt-8 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <!-- Total Sections -->
                                 <div class="sigma-section-metric-card rounded-xl p-5 group flex items-center justify-between">
                                     <div class="metric-text-content">
@@ -3239,12 +3267,10 @@
                 <section id="school-subjects-view" class="dynamic-section hidden">
                     <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
                         <!-- Page Header -->
-                        <div class="px-10 py-8 flex justify-between items-center">
-                            <h1 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Subjects</h1>
-                        </div>
+                        
 
                         <!-- Metric / Counter Cards (Universal Elevated Suite) -->
-                        <div class="px-10 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="px-10 pt-8 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Total Subjects -->
                             <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
                                 <div class="metric-text-content">
@@ -3446,11 +3472,22 @@
                 </section>
 
                 <!-- REPORTS AI VIEW -->
-<section id="reports-ai-view" class="dynamic-section hidden"><div class="reports-page"><div class="reports-page-header"><h1 class="text-2xl font-bold text-black">AI Analytics</h1></div><div id="ai-insight-report" class="reports-page-content" aria-live="polite"></div></div></section>
+                <section id="reports-ai-view" class="dynamic-section hidden">
+                    <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
+                        <!-- Standard Unified Page Header -->
+                        
+                        <div class="px-10 py-6">
+                            <div id="ai-insight-report" class="reports-page-content" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </section>
 
-                                <!-- REPORTS ATTENDANCE VIEW -->
+                <!-- REPORTS ATTENDANCE VIEW -->
                 <section id="reports-attendance-view" class="dynamic-section hidden">
                     <div class="flex flex-col h-full bg-white min-h-screen border-b border-slate-200">
+                        <!-- Standard Unified Page Header -->
+                        
+
                         <!-- Metric / Counter Cards (Universal Elevated Suite) -->
                         <div class="px-10 pt-8 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Present -->
@@ -3458,11 +3495,11 @@
                                 <div class="metric-text-content">
                                     <div class="metric-text-base">
                                         <span id="metric-attendance-present-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Present Today</span>
-                                        <span id="metric-attendance-present" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">193</span>
+                                        <span id="metric-attendance-present" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                     <div class="metric-text-spotlight" aria-hidden="true">
                                         <span id="metric-attendance-present-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Present Today</span>
-                                        <span id="metric-attendance-present-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">193</span>
+                                        <span id="metric-attendance-present-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                 </div>
                                 <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
@@ -3476,11 +3513,11 @@
                                 <div class="metric-text-content">
                                     <div class="metric-text-base">
                                         <span id="metric-attendance-absent-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Absent Today</span>
-                                        <span id="metric-attendance-absent" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">10</span>
+                                        <span id="metric-attendance-absent" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                     <div class="metric-text-spotlight" aria-hidden="true">
                                         <span id="metric-attendance-absent-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Absent Today</span>
-                                        <span id="metric-attendance-absent-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">10</span>
+                                        <span id="metric-attendance-absent-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                 </div>
                                 <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
@@ -3494,11 +3531,11 @@
                                 <div class="metric-text-content">
                                     <div class="metric-text-base">
                                         <span id="metric-attendance-late-label" class="text-xs font-bold text-black tracking-normal block font-['Inter']">Late Today</span>
-                                        <span id="metric-attendance-late" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">6</span>
+                                        <span id="metric-attendance-late" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                     <div class="metric-text-spotlight" aria-hidden="true">
                                         <span id="metric-attendance-late-spotlight-label" class="text-xs font-bold tracking-normal block font-['Inter']">Late Today</span>
-                                        <span id="metric-attendance-late-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">6</span>
+                                        <span id="metric-attendance-late-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">0</span>
                                     </div>
                                 </div>
                                 <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
@@ -3512,11 +3549,11 @@
                                 <div class="metric-text-content">
                                     <div class="metric-text-base">
                                         <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Attendance Rate</span>
-                                        <span id="metric-attendance-rate" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">92.3%</span>
+                                        <span id="metric-attendance-rate" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">0.0%</span>
                                     </div>
                                     <div class="metric-text-spotlight" aria-hidden="true">
                                         <span class="text-xs font-bold tracking-normal block font-['Inter']">Attendance Rate</span>
-                                        <span id="metric-attendance-rate-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">92.3%</span>
+                                        <span id="metric-attendance-rate-spotlight" class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">0.0%</span>
                                     </div>
                                 </div>
                                 <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
@@ -3527,26 +3564,10 @@
                         </div>
 
                         <!-- Actions & Search Toolbar (Single Unified Row - Shared Code) -->
-                        <div id="attendance-report-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-between gap-4">
-                            <!-- Left: Export Button -->
-                            <button onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('All')"
-                                class="sigma-btn sigma-btn-primary sigma-btn-md gap-3 shrink-0">
-                                <i class="fa-solid fa-file-export text-xs"></i>
-                                <span>Export Report</span>
-                            </button>
+                        <div id="attendance-report-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-end gap-4">
 
                             <!-- Right: Combined Search, Role/Filter, and Search Button -->
                             <div class="flex flex-wrap items-center gap-3">
-                                <label class="flex items-center gap-2 text-sm" for="attendance-display-limit">
-                                    Display Limit
-                                    <select id="attendance-display-limit" class="sigma-select" style="width: 80px;" onchange="window.setAttendanceDisplayLimit(this.value)">
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20" selected>20</option>
-                                        <option value="50">50</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </label>
                                 <!-- Search Section / Subject / Teacher -->
                                 <div class="w-[280px] relative">
                                     <input type="text" id="attendance-search-query" aria-label="Search section, subject or teacher" 
@@ -3579,7 +3600,9 @@
                                     <div class="sigma-select-wrapper">
                                         <select id="attendance-filter-date" onchange="window.applyAttendanceSearch && window.applyAttendanceSearch()" aria-label="Filter by Date Range" class="sigma-select">
                                             <option value="today" selected>Today</option>
+                                            <option value="yesterday">Yesterday</option>
                                             <option value="week">This Week</option>
+                                            <option value="last_week">Last Week</option>
                                             <option value="month">This Month</option>
                                             <option value="last_month">Last Month</option>
                                         </select>
@@ -3607,28 +3630,28 @@
                                     <col style="width: 8.5%;"> <!-- Absent -->
                                     <col style="width: 8%;">   <!-- Late -->
                                     <col style="width: 14%;">  <!-- Attendance Rate -->
-                                    <col style="width: 5%;">   <!-- Action -->
+                                    <col style="width: 7%;">   <!-- Action -->
                                 </colgroup>
                                 <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                     <tr>
-                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Section</th>
+                                        <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis">Section</th>
                                         <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Subject</th>
                                         <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Teacher</th>
                                         <th class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Enrolled</th>
-                                        <th id="th-attendance-present" title="Present" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Present</th>
-                                        <th id="th-attendance-absent" title="Absent" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Absent</th>
+                                        <th id="th-attendance-present" title="Present" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis">Present</th>
+                                        <th id="th-attendance-absent" title="Absent" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis">Absent</th>
                                         <th id="th-attendance-late" title="Late" class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Late</th>
                                         <th class="px-3 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]" style="border-right: 1px solid #137638 !important;">Attendance Rate</th>
-                                        <th class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis" title="Actions"><span class="sr-only">Actions</span><i class="fa-solid fa-ellipsis"></i></th>
+                                        <th class="px-2 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis" title="Action">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="attendanceReportTableBody" class="divide-y divide-slate-100">
                                     <tr class="transition-colors hover:bg-slate-50/80">
                                         <td class="px-3 py-4 text-center">
-                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Einstein</div>
-                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Einstein</div>
+                                            <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']">Grade 11</div>
                                         </td>
-                                        <td class="px-3 py-4 text-center">
+                                        <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">Statistics and Probability</div>
                                         </td>
                                         <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -3645,16 +3668,16 @@
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">40</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">38</div>
-                                        </td>
-                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">95.0%</div>
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">0.0%</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
                                             <div class="flex justify-center">
@@ -3666,11 +3689,15 @@
                                                         <i class="fa-solid fa-ellipsis"></i>
                                                     </button>
                                                     <div id="attendance-action-menu-1" class="action-dropdown-menu">
-                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Einstein'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                            <span>View Details</span>
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Einstein', 'Statistics and Probability'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                                            <span>View Attendance</span>
                                                         </button>
-                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Einstein'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                                            <i class="fa-solid fa-lock text-slate-400"></i>
+                                                            <span>Submitted Attendance Today</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Einstein', 'Statistics and Probability'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                                             <i class="fa-solid fa-file-export"></i>
                                                             <span>Export Sheet</span>
                                                         </button>
@@ -3681,10 +3708,10 @@
                                     </tr>
                                     <tr class="transition-colors bg-slate-50/60 hover:bg-slate-50/80">
                                         <td class="px-3 py-4 text-center">
-                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
-                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']">Grade 11</div>
                                         </td>
-                                        <td class="px-3 py-4 text-center">
+                                        <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">Oral Communication</div>
                                         </td>
                                         <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -3701,16 +3728,16 @@
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">44</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">41</div>
-                                        </td>
-                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">93.2%</div>
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">0.0%</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
                                             <div class="flex justify-center">
@@ -3722,11 +3749,15 @@
                                                         <i class="fa-solid fa-ellipsis"></i>
                                                     </button>
                                                     <div id="attendance-action-menu-2" class="action-dropdown-menu">
-                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                            <span>View Details</span>
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Rizal', 'Oral Communication'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                                            <span>View Attendance</span>
                                                         </button>
-                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                                            <i class="fa-solid fa-lock text-slate-400"></i>
+                                                            <span>Submitted Attendance Today</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Rizal', 'Oral Communication'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                                             <i class="fa-solid fa-file-export"></i>
                                                             <span>Export Sheet</span>
                                                         </button>
@@ -3737,10 +3768,10 @@
                                     </tr>
                                     <tr class="transition-colors hover:bg-slate-50/80">
                                         <td class="px-3 py-4 text-center">
-                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
-                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']">Grade 11</div>
                                         </td>
-                                        <td class="px-3 py-4 text-center">
+                                        <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">Empowerment Technologies</div>
                                         </td>
                                         <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -3757,16 +3788,16 @@
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">42</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">39</div>
-                                        </td>
-                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">92.9%</div>
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">0.0%</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
                                             <div class="flex justify-center">
@@ -3778,11 +3809,15 @@
                                                         <i class="fa-solid fa-ellipsis"></i>
                                                     </button>
                                                     <div id="attendance-action-menu-3" class="action-dropdown-menu">
-                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                            <span>View Details</span>
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Rizal', 'Empowerment Technologies'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                                            <span>View Attendance</span>
                                                         </button>
-                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                                            <i class="fa-solid fa-lock text-slate-400"></i>
+                                                            <span>Submitted Attendance Today</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Rizal', 'Empowerment Technologies'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                                             <i class="fa-solid fa-file-export"></i>
                                                             <span>Export Sheet</span>
                                                         </button>
@@ -3793,10 +3828,10 @@
                                     </tr>
                                     <tr class="transition-colors bg-slate-50/60 hover:bg-slate-50/80">
                                         <td class="px-3 py-4 text-center">
-                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Rizal</div>
-                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 11</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Rizal</div>
+                                            <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']">Grade 11</div>
                                         </td>
-                                        <td class="px-3 py-4 text-center">
+                                        <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">Computer Programming 1</div>
                                         </td>
                                         <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -3813,16 +3848,16 @@
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">45</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">42</div>
-                                        </td>
-                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">93.3%</div>
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">0.0%</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
                                             <div class="flex justify-center">
@@ -3834,11 +3869,15 @@
                                                         <i class="fa-solid fa-ellipsis"></i>
                                                     </button>
                                                     <div id="attendance-action-menu-4" class="action-dropdown-menu">
-                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                            <span>View Details</span>
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Rizal', 'Computer Programming 1'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                                            <span>View Attendance</span>
                                                         </button>
-                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 11 - Rizal'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                                            <i class="fa-solid fa-lock text-slate-400"></i>
+                                                            <span>Submitted Attendance Today</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Rizal', 'Computer Programming 1'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                                             <i class="fa-solid fa-file-export"></i>
                                                             <span>Export Sheet</span>
                                                         </button>
@@ -3849,10 +3888,10 @@
                                     </tr>
                                     <tr class="transition-colors hover:bg-slate-50/80">
                                         <td class="px-3 py-4 text-center">
-                                            <div class="text-[13px] font-bold text-black text-center font-['Inter']">Newton</div>
-                                            <div class="text-[11px] font-normal text-slate-500 text-center font-['Inter']">Grade 12</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">Newton</div>
+                                            <div class="text-[11px] font-normal text-black-fade text-center font-['Inter']">Grade 12</div>
                                         </td>
-                                        <td class="px-3 py-4 text-center">
+                                        <td class="px-3 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">General Mathematics</div>
                                         </td>
                                         <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
@@ -3869,16 +3908,16 @@
                                             <div class="text-[13px] font-normal text-black text-center font-['Inter']">38</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">35</div>
-                                        </td>
-                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">2</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
-                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">1</div>
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
+                                        </td>
+                                        <td class="px-2 py-4 text-center" style="border-right: 1px solid #e2e8f0;">
+                                            <div class="text-[13px] font-normal text-black text-center font-['Inter']">0</div>
                                         </td>
                                         <td class="px-3 py-4 text-center whitespace-nowrap" style="border-right: 1px solid #e2e8f0;">
-                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">92.1%</div>
+                                            <div class="text-[13px] font-normal text-[#15803d] text-center font-['Inter']">0.0%</div>
                                         </td>
                                         <td class="px-2 py-4 text-center">
                                             <div class="flex justify-center">
@@ -3890,11 +3929,15 @@
                                                         <i class="fa-solid fa-ellipsis"></i>
                                                     </button>
                                                     <div id="attendance-action-menu-5" class="action-dropdown-menu">
-                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Grade 12 - Newton'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                                            <i class="fa-solid fa-eye"></i>
-                                                            <span>View Details</span>
+                                                        <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('Newton', 'General Mathematics'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                            <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                                            <span>View Attendance</span>
                                                         </button>
-                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Grade 12 - Newton'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                                            <i class="fa-solid fa-lock text-slate-400"></i>
+                                                            <span>Submitted Attendance Today</span>
+                                                        </button>
+                                                        <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('Newton', 'General Mathematics'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
                                                             <i class="fa-solid fa-file-export"></i>
                                                             <span>Export Sheet</span>
                                                         </button>
@@ -3927,236 +3970,445 @@
 
                 <!-- REPORTS PERFORMANCE VIEW -->
                 <section id="reports-performance-view" class="dynamic-section hidden">
-                    <div class="mx-auto max-w-[1024px] w-full">
-                        <div
-                            class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col">
-                            <div class="px-10 py-8 border-b border-slate-100">
-                                <div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-['Inter']"><i class="fa-solid fa-chart-simple text-[9px]"></i> SIGMA Analytics</span></div>
-                                <h1 class="text-2xl font-black text-black tracking-tight font-['Inter']">Analytics</h1>
-                                <p class="text-xs text-slate-400 mt-1 font-medium">Student assessments and grades
-                                    overview</p>
+                    <div class="bg-white border-x border-b border-slate-200 min-h-screen p-0 standard-panel-shadow relative flex flex-col font-['Inter']">
+                        <!-- Header -->
+                        <div class="px-10 pt-8 flex justify-end"><button type="button" onclick="window.exportPerformanceReport && window.exportPerformanceReport()" class="h-9 px-4 flex items-center gap-2 rounded-xl bg-[#15803d] hover:bg-[#166534] text-white text-xs font-bold font-['Inter'] transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-file-export text-xs"></i>
+                                    <span>Export Report</span>
+                                </button></div>
+
+                        <!-- Universal Elevated Metric Cards -->
+                        <div class="px-10 pt-8 pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Class Average -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Class Average</span>
+                                        <span id="metric-perf-avg" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">84.7%</span>
+                                    </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span class="text-xs font-bold tracking-normal block font-['Inter']">Class Average</span>
+                                        <span class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">84.7%</span>
+                                    </div>
+                                </div>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-chart-simple metric-icon-base"></i>
+                                    <i class="fa-solid fa-chart-simple metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
                             </div>
-                            <div class="px-10 py-8 space-y-8">
-                                <!-- Summary Cards -->
-                                <div class="grid grid-cols-4 gap-4">
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-[#15803d]/10 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-chart-bar text-[#15803d] text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">84.7</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Class
-                                            Average</p>
+
+                            <!-- Highest Score -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Highest Grade</span>
+                                        <span id="metric-perf-highest" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">98.0</span>
                                     </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-trophy text-amber-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">98</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Highest
-                                            Score</p>
-                                    </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-circle-check text-blue-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">87.6%</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Passing
-                                            Rate</p>
-                                    </div>
-                                    <div class="border border-slate-200 rounded-2xl p-5 bg-slate-50 space-y-1">
-                                        <div
-                                            class="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center mb-2">
-                                            <i class="fa-solid fa-circle-xmark text-red-500 text-sm"></i>
-                                        </div>
-                                        <p class="text-2xl font-black text-black">156</p>
-                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Failing
-                                            Students</p>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span class="text-xs font-bold tracking-normal block font-['Inter']">Highest Grade</span>
+                                        <span class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">98.0</span>
                                     </div>
                                 </div>
-                                <!-- Assessments Section -->
-                                <div class="space-y-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-1 h-6 bg-[#15803d] rounded-full"></div>
-                                        <h3 class="text-[11px] font-bold text-black uppercase tracking-widest">
-                                            Assessments</h3>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-trophy metric-icon-base"></i>
+                                    <i class="fa-solid fa-trophy metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
+                            </div>
+
+                            <!-- Passing Rate -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Passing Rate</span>
+                                        <span id="metric-perf-passrate" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">87.6%</span>
                                     </div>
-                                    <div class="flex items-center gap-3">
-                                         <select id="admin-reports-filter-subject" name="reports_subject" aria-label="Filter by Subject"
-                                             class="w-44 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
-                                             <option value="">All Subjects</option>
-                                             <option value="prog-101">Computer Programming 1</option>
-                                             <option value="oral-comm">Oral Communication</option>
-                                             <option value="gen-math">General Mathematics</option>
-                                             <option value="emp-tech">Empowerment Technologies</option>
-                                             <option value="abm-fin">Business Finance</option>
-                                         </select>
-                                         <select id="admin-reports-filter-section" name="reports_section" aria-label="Filter by Section"
-                                             class="w-44 h-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 px-3 outline-none">
-                                             <option value="">All Sections</option>
-                                             <option value="11-ICT-A">Grade 11 - ICT A</option>
-                                             <option value="11-ABM-A">Grade 11 - ABM A</option>
-                                             <option value="11-STEM-A">Grade 11 - STEM A</option>
-                                             <option value="12-ICT-A">Grade 12 - ICT A</option>
-                                             <option value="12-HUMSS-A">Grade 12 - HUMSS A</option>
-                                         </select>
-                                         <button
-                                             class="ml-auto px-5 h-9 bg-[#15803d] text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-[#166534] transition-all">Export</button>
-                                     </div>
-                                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                                        <table class="w-full text-left border-collapse">
-                                            <thead class="bg-slate-50 border-b border-slate-200">
-                                                <tr>
-                                                    <th
-                                                        class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-black">
-                                                        Student Name</th>
-                                                    <th
-                                                        class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-black">
-                                                        Subject</th>
-                                                    <th
-                                                        class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-black">
-                                                        Type</th>
-                                                    <th
-                                                        class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-black">
-                                                        Score</th>
-                                                    <th
-                                                        class="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-black">
-                                                        Result</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-100">
-                                                <tr>
-                                                    <td class="px-5 py-3 text-sm font-medium text-black">Juan dela Cruz
-                                                    </td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Mathematics</td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Quarterly Exam</td>
-                                                    <td class="px-5 py-3 text-xs font-bold text-black">88/100</td>
-                                                    <td class="px-5 py-3"><span
-                                                            class="px-3 py-1 bg-green-100 text-green-700 text-[9px] font-bold rounded-xl uppercase">Passed</span>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="px-5 py-3 text-sm font-medium text-black">Maria Santos
-                                                    </td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Science</td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Written Work</td>
-                                                    <td class="px-5 py-3 text-xs font-bold text-black">62/100</td>
-                                                    <td class="px-5 py-3"><span
-                                                            class="px-3 py-1 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded-xl uppercase">Needs
-                                                            Review</span></td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="px-5 py-3 text-sm font-medium text-black">Carlo Reyes
-                                                    </td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">English</td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Performance Task</td>
-                                                    <td class="px-5 py-3 text-xs font-bold text-black">55/100</td>
-                                                    <td class="px-5 py-3"><span
-                                                            class="px-3 py-1 bg-red-100 text-red-700 text-[9px] font-bold rounded-xl uppercase">Failed</span>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td class="px-5 py-3 text-sm font-medium text-black">Ana Flores</td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Filipino</td>
-                                                    <td class="px-5 py-3 text-xs text-slate-500">Quarterly Exam</td>
-                                                    <td class="px-5 py-3 text-xs font-bold text-black">92/100</td>
-                                                    <td class="px-5 py-3"><span
-                                                            class="px-3 py-1 bg-green-100 text-green-700 text-[9px] font-bold rounded-xl uppercase">Passed</span>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span class="text-xs font-bold tracking-normal block font-['Inter']">Passing Rate</span>
+                                        <span class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">87.6%</span>
                                     </div>
                                 </div>
-                                <!-- Grades Section -->
-                                <div class="space-y-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
-                                        <h3 class="text-[11px] font-bold text-black uppercase tracking-widest">Grades
-                                        </h3>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-circle-check metric-icon-base"></i>
+                                    <i class="fa-solid fa-circle-check metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
+                            </div>
+
+                            <!-- Intervention Needed -->
+                            <div class="sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between">
+                                <div class="metric-text-content">
+                                    <div class="metric-text-base">
+                                        <span class="text-xs font-bold text-black tracking-normal block font-['Inter']">Needs Intervention</span>
+                                        <span id="metric-perf-atrisk" class="text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight">24</span>
                                     </div>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <!-- Grade Distribution -->
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-3">
-                                            <p class="text-xs font-bold text-black mb-3">Grade Distribution</p>
-                                            <div class="space-y-2">
-                                                <div class="flex items-center gap-3"><span
-                                                        class="text-[10px] font-bold text-slate-600 w-6">A</span>
-                                                    <div class="flex-1 bg-slate-200 rounded-lg overflow-hidden h-5">
-                                                        <div class="bg-[#15803d] h-full rounded-lg" style="width:42%">
-                                                        </div>
-                                                    </div><span
-                                                        class="text-[10px] font-bold text-slate-500 w-8">42%</span>
-                                                </div>
-                                                <div class="flex items-center gap-3"><span
-                                                        class="text-[10px] font-bold text-slate-600 w-6">B</span>
-                                                    <div class="flex-1 bg-slate-200 rounded-lg overflow-hidden h-5">
-                                                        <div class="bg-blue-400 h-full rounded-lg" style="width:28%">
-                                                        </div>
-                                                    </div><span
-                                                        class="text-[10px] font-bold text-slate-500 w-8">28%</span>
-                                                </div>
-                                                <div class="flex items-center gap-3"><span
-                                                        class="text-[10px] font-bold text-slate-600 w-6">C</span>
-                                                    <div class="flex-1 bg-slate-200 rounded-lg overflow-hidden h-5">
-                                                        <div class="bg-yellow-400 h-full rounded-lg" style="width:18%">
-                                                        </div>
-                                                    </div><span
-                                                        class="text-[10px] font-bold text-slate-500 w-8">18%</span>
-                                                </div>
-                                                <div class="flex items-center gap-3"><span
-                                                        class="text-[10px] font-bold text-slate-600 w-6">D</span>
-                                                    <div class="flex-1 bg-slate-200 rounded-lg overflow-hidden h-5">
-                                                        <div class="bg-red-400 h-full rounded-lg" style="width:12%">
-                                                        </div>
-                                                    </div><span
-                                                        class="text-[10px] font-bold text-slate-500 w-8">12%</span>
-                                                </div>
+                                    <div class="metric-text-spotlight" aria-hidden="true">
+                                        <span class="text-xs font-bold tracking-normal block font-['Inter']">Needs Intervention</span>
+                                        <span class="text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight">24</span>
+                                    </div>
+                                </div>
+                                <div class="metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0">
+                                    <i class="fa-solid fa-triangle-exclamation metric-icon-base"></i>
+                                    <i class="fa-solid fa-triangle-exclamation metric-icon-spotlight" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Insights: Grade Distribution & Top Honor Performers -->
+                        <div class="px-10 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <!-- Grade Distribution -->
+                            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 p-6 flex flex-col justify-between shadow-xs">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 rounded-full bg-[#15803d]"></div>
+                                            <h3 class="text-sm font-bold text-black font-['Inter']">Institutional Grade Distribution</h3>
+                                        </div>
+                                        <span class="text-[11px] text-slate-500 font-medium">All Senior High Strands</span>
+                                    </div>
+                                    <div class="space-y-3.5">
+                                        <!-- A (90 - 100) -->
+                                        <div>
+                                            <div class="flex items-center justify-between text-xs mb-1">
+                                                <span class="font-semibold text-slate-700">Outstanding (90 - 100)</span>
+                                                <span class="font-bold text-[#15803d]">42% <span class="text-[11px] text-slate-400 font-normal">(168 students)</span></span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                                <div class="bg-[#15803d] h-2.5 rounded-full transition-all duration-500" style="width: 42%;"></div>
                                             </div>
                                         </div>
-                                        <!-- Top Performers -->
-                                        <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50 space-y-3">
-                                            <p class="text-xs font-bold text-black mb-1">Top Performers</p>
-                                            <div class="space-y-2">
-                                                <div
-                                                    class="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100">
-                                                    <div
-                                                        class="w-7 h-7 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 text-[9px] font-black">
-                                                        1</div>
-                                                    <span class="flex-1 text-xs font-medium text-black">Ana
-                                                        Flores</span>
-                                                    <span class="text-[10px] font-black text-[#15803d]">98</span>
+                                        <!-- B (85 - 89) -->
+                                        <div>
+                                            <div class="flex items-center justify-between text-xs mb-1">
+                                                <span class="font-semibold text-slate-700">Very Satisfactory (85 - 89)</span>
+                                                <span class="font-bold text-emerald-600">28% <span class="text-[11px] text-slate-400 font-normal">(112 students)</span></span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                                <div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 28%;"></div>
+                                            </div>
+                                        </div>
+                                        <!-- C (80 - 84) -->
+                                        <div>
+                                            <div class="flex items-center justify-between text-xs mb-1">
+                                                <span class="font-semibold text-slate-700">Satisfactory (80 - 84)</span>
+                                                <span class="font-bold text-amber-600">18% <span class="text-[11px] text-slate-400 font-normal">(72 students)</span></span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                                <div class="bg-amber-400 h-2.5 rounded-full transition-all duration-500" style="width: 18%;"></div>
+                                            </div>
+                                        </div>
+                                        <!-- D (75 - 79) -->
+                                        <div>
+                                            <div class="flex items-center justify-between text-xs mb-1">
+                                                <span class="font-semibold text-slate-700">Fairly Satisfactory (75 - 79)</span>
+                                                <span class="font-bold text-orange-500">8% <span class="text-[11px] text-slate-400 font-normal">(32 students)</span></span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                                <div class="bg-orange-400 h-2.5 rounded-full transition-all duration-500" style="width: 8%;"></div>
+                                            </div>
+                                        </div>
+                                        <!-- F (Below 75) -->
+                                        <div>
+                                            <div class="flex items-center justify-between text-xs mb-1">
+                                                <span class="font-semibold text-slate-700">Did Not Meet Expectations (&lt; 75)</span>
+                                                <span class="font-bold text-rose-600">4% <span class="text-[11px] text-slate-400 font-normal">(16 students)</span></span>
+                                            </div>
+                                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                                <div class="bg-rose-500 h-2.5 rounded-full transition-all duration-500" style="width: 4%;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Honor Roll Performers -->
+                            <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-6 flex flex-col justify-between shadow-xs">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 rounded-full bg-amber-400"></div>
+                                            <h3 class="text-sm font-bold text-black font-['Inter']">Top Academic Performers</h3>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">Honor Roll</span>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <!-- Rank 1 -->
+                                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 transition-colors hover:bg-emerald-50/50">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-black shrink-0 border border-amber-200">
+                                                    <i class="fa-solid fa-crown text-[10px]"></i>
                                                 </div>
-                                                <div
-                                                    class="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100">
-                                                    <div
-                                                        class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 text-[9px] font-black">
-                                                        2</div>
-                                                    <span class="flex-1 text-xs font-medium text-black">Ramon
-                                                        Garcia</span>
-                                                    <span class="text-[10px] font-black text-[#15803d]">95</span>
+                                                <div>
+                                                    <div class="text-xs font-bold text-black leading-snug">Ana Flores</div>
+                                                    <div class="text-[11px] text-slate-500">Grade 11 - Einstein</div>
                                                 </div>
-                                                <div
-                                                    class="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100">
-                                                    <div
-                                                        class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 text-[9px] font-black">
-                                                        3</div>
-                                                    <span class="flex-1 text-xs font-medium text-black">Juan dela
-                                                        Cruz</span>
-                                                    <span class="text-[10px] font-black text-[#15803d]">91</span>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="text-sm font-black text-[#15803d]">98.2</span>
+                                                <div class="text-[10px] text-slate-400 font-medium">GWA</div>
+                                            </div>
+                                        </div>
+                                        <!-- Rank 2 -->
+                                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 transition-colors hover:bg-emerald-50/50">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black shrink-0 border border-slate-300">
+                                                    2
                                                 </div>
+                                                <div>
+                                                    <div class="text-xs font-bold text-black leading-snug">Ramon Garcia</div>
+                                                    <div class="text-[11px] text-slate-500">Grade 12 - Newton</div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="text-sm font-black text-[#15803d]">96.8</span>
+                                                <div class="text-[10px] text-slate-400 font-medium">GWA</div>
+                                            </div>
+                                        </div>
+                                        <!-- Rank 3 -->
+                                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 transition-colors hover:bg-emerald-50/50">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-amber-50 text-amber-800 flex items-center justify-center text-xs font-black shrink-0 border border-amber-200/80">
+                                                    3
+                                                </div>
+                                                <div>
+                                                    <div class="text-xs font-bold text-black leading-snug">Juan dela Cruz</div>
+                                                    <div class="text-[11px] text-slate-500">Grade 11 - Rizal</div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="text-sm font-black text-[#15803d]">95.4</span>
+                                                <div class="text-[10px] text-slate-400 font-medium">GWA</div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Assessments & Course Mastery Table Section -->
+                        <div class="px-10 pb-12 flex-1 flex flex-col">
+                            <!-- Table Toolbar -->
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-1.5 h-4 bg-[#15803d] rounded-full"></div>
+                                    <h2 class="text-xs font-bold text-black uppercase tracking-wider font-['Inter']">Assessment Records & Mastery Overview</h2>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2.5">
+                                    <div class="relative w-full sm:w-64">
+                                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                        <input type="text" id="perf-search-input" oninput="window.applyPerformanceSearch && window.applyPerformanceSearch()" placeholder="Search student or subject..." class="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#15803d] font-['Inter'] transition-colors">
+                                    </div>
+                                    <select id="perf-filter-subject" onchange="window.applyPerformanceSearch && window.applyPerformanceSearch()" class="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#15803d] font-['Inter'] text-slate-700">
+                                        <option value="">All Subjects</option>
+                                        <option value="Statistics and Probability">Statistics and Probability</option>
+                                        <option value="Oral Communication">Oral Communication</option>
+                                        <option value="Empowerment Technologies">Empowerment Technologies</option>
+                                        <option value="Computer Programming 1">Computer Programming 1</option>
+                                        <option value="General Mathematics">General Mathematics</option>
+                                    </select>
+                                    <select id="perf-filter-type" onchange="window.applyPerformanceSearch && window.applyPerformanceSearch()" class="h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#15803d] font-['Inter'] text-slate-700">
+                                        <option value="">All Assessment Types</option>
+                                        <option value="Quarterly Exam">Quarterly Exam</option>
+                                        <option value="Written Work">Written Work</option>
+                                        <option value="Performance Task">Performance Task</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Styled Table -->
+                            <div class="rounded-xl border border-slate-200/90 overflow-hidden bg-white shadow-xs">
+                                <table class="sigma-table w-full border-collapse table-fixed font-['Inter']">
+                                    <colgroup>
+                                        <col style="width: 22%;"> <!-- Student Name -->
+                                        <col style="width: 14%;"> <!-- Section -->
+                                        <col style="width: 22%;"> <!-- Subject -->
+                                        <col style="width: 16%;"> <!-- Type -->
+                                        <col style="width: 10%;"> <!-- Score -->
+                                        <col style="width: 10%;"> <!-- Result -->
+                                        <col style="width: 7%;">  <!-- Action -->
+                                    </colgroup>
+                                    <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
+                                        <tr>
+                                            <th class="px-4 py-3.5 text-xs font-semibold text-white tracking-normal text-left font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Student Name</th>
+                                            <th class="px-3 py-3.5 text-xs font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Section</th>
+                                            <th class="px-4 py-3.5 text-xs font-semibold text-white tracking-normal text-left font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Subject</th>
+                                            <th class="px-3 py-3.5 text-xs font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Type</th>
+                                            <th class="px-3 py-3.5 text-xs font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Score</th>
+                                            <th class="px-3 py-3.5 text-xs font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis border-r border-[#137638]">Status</th>
+                                            <th class="px-2 py-3.5 text-xs font-semibold text-white tracking-normal text-center font-['Inter'] whitespace-nowrap overflow-hidden text-ellipsis" title="Action">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="performanceReportTableBody" class="divide-y divide-slate-100">
+                                        <!-- Row 1 -->
+                                        <tr class="transition-colors hover:bg-slate-50/80">
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                                        <i class="fa-solid fa-user text-[11px] text-slate-400"></i>
+                                                    </div>
+                                                    <span class="text-xs font-semibold text-black">Ana Flores</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-medium text-slate-700">Einstein (G11)</span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <span class="text-xs font-normal text-black">Statistics and Probability</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs text-slate-600 font-medium">Quarterly Exam</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-black text-black">98 / 100</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">Passed</span>
+                                            </td>
+                                            <td class="px-2 py-3.5 text-center">
+                                                <div class="flex justify-center">
+                                                    <div class="action-dropdown-container">
+                                                        <button type="button" onclick="window.togglePerformanceActionDropdown && window.togglePerformanceActionDropdown(1, event)" id="perf-dots-btn-1" class="action-dots-btn cursor-pointer" title="Actions">
+                                                            <i class="fa-solid fa-ellipsis"></i>
+                                                        </button>
+                                                        <div id="perf-action-menu-1" class="action-dropdown-menu">
+                                                            <button type="button" onclick="window.showAdminClassroom && window.showAdminClassroom('Einstein', 'Statistics and Probability', 'room'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                                <i class="fa-solid fa-door-open"></i>
+                                                                <span>View Section Room</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <!-- Row 2 -->
+                                        <tr class="transition-colors bg-slate-50/50 hover:bg-slate-50/80">
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                                        <i class="fa-solid fa-user text-[11px] text-slate-400"></i>
+                                                    </div>
+                                                    <span class="text-xs font-semibold text-black">Juan dela Cruz</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-medium text-slate-700">Rizal (G11)</span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <span class="text-xs font-normal text-black">Computer Programming 1</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs text-slate-600 font-medium">Performance Task</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-black text-black">94 / 100</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">Passed</span>
+                                            </td>
+                                            <td class="px-2 py-3.5 text-center">
+                                                <div class="flex justify-center">
+                                                    <div class="action-dropdown-container">
+                                                        <button type="button" onclick="window.togglePerformanceActionDropdown && window.togglePerformanceActionDropdown(2, event)" id="perf-dots-btn-2" class="action-dots-btn cursor-pointer" title="Actions">
+                                                            <i class="fa-solid fa-ellipsis"></i>
+                                                        </button>
+                                                        <div id="perf-action-menu-2" class="action-dropdown-menu">
+                                                            <button type="button" onclick="window.showAdminClassroom && window.showAdminClassroom('Rizal', 'Computer Programming 1', 'room'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                                <i class="fa-solid fa-door-open"></i>
+                                                                <span>View Section Room</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <!-- Row 3 -->
+                                        <tr class="transition-colors hover:bg-slate-50/80">
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                                        <i class="fa-solid fa-user text-[11px] text-slate-400"></i>
+                                                    </div>
+                                                    <span class="text-xs font-semibold text-black">Maria Santos</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-medium text-slate-700">Rizal (G11)</span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <span class="text-xs font-normal text-black">Empowerment Technologies</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs text-slate-600 font-medium">Written Work</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-black text-black">76 / 100</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">Needs Review</span>
+                                            </td>
+                                            <td class="px-2 py-3.5 text-center">
+                                                <div class="flex justify-center">
+                                                    <div class="action-dropdown-container">
+                                                        <button type="button" onclick="window.togglePerformanceActionDropdown && window.togglePerformanceActionDropdown(3, event)" id="perf-dots-btn-3" class="action-dots-btn cursor-pointer" title="Actions">
+                                                            <i class="fa-solid fa-ellipsis"></i>
+                                                        </button>
+                                                        <div id="perf-action-menu-3" class="action-dropdown-menu">
+                                                            <button type="button" onclick="window.showAdminClassroom && window.showAdminClassroom('Rizal', 'Empowerment Technologies', 'room'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                                <i class="fa-solid fa-door-open"></i>
+                                                                <span>View Section Room</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <!-- Row 4 -->
+                                        <tr class="transition-colors bg-slate-50/50 hover:bg-slate-50/80">
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                                                        <i class="fa-solid fa-user text-[11px] text-slate-400"></i>
+                                                    </div>
+                                                    <span class="text-xs font-semibold text-black">Carlo Reyes</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-medium text-slate-700">Newton (G12)</span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-left border-r border-slate-100">
+                                                <span class="text-xs font-normal text-black">General Mathematics</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs text-slate-600 font-medium">Quarterly Exam</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="text-xs font-black text-rose-600">68 / 100</span>
+                                            </td>
+                                            <td class="px-3 py-3.5 text-center border-r border-slate-100">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">Failed</span>
+                                            </td>
+                                            <td class="px-2 py-3.5 text-center">
+                                                <div class="flex justify-center">
+                                                    <div class="action-dropdown-container">
+                                                        <button type="button" onclick="window.togglePerformanceActionDropdown && window.togglePerformanceActionDropdown(4, event)" id="perf-dots-btn-4" class="action-dots-btn cursor-pointer" title="Actions">
+                                                            <i class="fa-solid fa-ellipsis"></i>
+                                                        </button>
+                                                        <div id="perf-action-menu-4" class="action-dropdown-menu">
+                                                            <button type="button" onclick="window.showAdminClassroom && window.showAdminClassroom('Newton', 'General Mathematics', 'room'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                                                <i class="fa-solid fa-door-open"></i>
+                                                                <span>View Section Room</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
                 <!-- Shared resources page rendered by js/resources-view.js -->
-                <section id="resources-view" class="dynamic-section hidden bg-white min-h-screen" data-shared-resources-view>
+                <section id="resources-view" class="dynamic-section hidden" data-shared-resources-view>
                     <div class="sigma-content-skeleton sigma-skeleton-materials p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="materials">
                         <div class="sigma-card sigma-skeleton-card min-h-[64px] rounded-[20px] p-4"></div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -4342,54 +4594,13 @@
                                     <table class="sigma-table sigma-audit-table" aria-label="Activity logs">
                                         <thead>
                                             <tr>
-                                                <th>Admin / User</th>
-                                                <th>Action</th>
+                                                <th>User</th>
+                                                <th>Activity</th>
                                                 <th>Module</th>
                                                 <th>Timestamp</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Master Admin</p>
-                                                            <p class="text-sm text-black-fade">Administrator</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-black">Updated School Year Configuration</span>
-                                                </td>
-                                                <td>
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">System</span>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">1h ago</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Jane Smith</p>
-                                                            <p class="text-sm text-black-fade">Teacher</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-black">Modified Grade Entry - Math 101</span>
-                                                </td>
-                                                <td>
-                                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded">Grades</span>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">3h ago</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+                                        <tbody id="activity-log-rows"><tr><td colspan="4" class="text-center text-black-fade">No activity events recorded yet.</td></tr></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -4428,62 +4639,10 @@
                                                 <th>Event</th>
                                                 <th>IP / Device</th>
                                                 <th>Timestamp</th>
+                                                <th class="text-center" data-auth-actions="true">Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Mark Kevin</p>
-                                                            <p class="text-sm text-black-fade">Teacher</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                                        <span class="text-black">Login Successful</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex flex-col">
-                                                        <span class="text-black">192.168.1.45</span>
-                                                        <span class="text-sm text-black-fade">Chrome / Windows</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">5m ago</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    <div class="flex items-center gap-3">
-                                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>
-                                                        <div>
-                                                            <p class="text-black">Stanley Tan</p>
-                                                            <p class="text-sm text-black-fade">Student</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                                                        <span class="text-black">Failed Login Attempt</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex flex-col">
-                                                        <span class="text-black">10.0.0.122</span>
-                                                        <span class="text-sm text-black-fade">Safari / iOS</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="text-sm text-black-fade">12m ago</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+<tbody><tr><td colspan="5" class="text-center text-black-fade">No authentication events recorded yet.</td></tr></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -4499,7 +4658,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="sigma-table-container overflow-x-auto">
                                 <table class="sigma-table sigma-audit-table" aria-label="Notification logs">
-                                    <thead><tr><th>Recipient</th><th>Notification</th><th>Channel</th><th>Status</th><th>Read</th><th>Timestamp</th></tr></thead>
+                                    <thead><tr><th>Sender</th><th>Recipient</th><th>Notification</th><th>Status</th><th>Read</th><th>Timestamp</th><th class="text-center" data-notification-actions="true">Action</th></tr></thead>
                                     <tbody id="notification-log-rows"></tbody>
                                 </table>
                             </div>
@@ -6325,6 +6484,48 @@
         </div>
     </div>
 
+    <!-- Admin Attendance Summary Modal (White Panel View Only) -->
+    <div id="admin-attendance-summary-modal"
+        onclick="if(event.target === this) window.closeTodayAttendanceSummaryModal()"
+        class="fixed inset-0 z-[2200] flex items-center justify-center bg-slate-900/40 backdrop-blur-xs hidden transition-all duration-300 p-4">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-[22px] shadow-2xl flex flex-col overflow-hidden animate-slide-up border border-slate-100">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 sm:py-5 border-b border-slate-100 bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#15803d] flex items-center justify-center text-lg border border-emerald-100">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                    </div>
+                    <div>
+                        <h3 id="admin-att-summary-title" class="text-base sm:text-lg font-bold text-slate-900 font-['Inter'] leading-tight">Submitted Attendance Today</h3>
+                        <p id="admin-att-summary-subtitle" class="text-xs text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45) !important;">Section • Subject</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Modal Body containing the white panel -->
+            <div id="admin-att-summary-body" class="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-140px)] bg-slate-50/50">
+                <!-- White Panel Injected Dynamically -->
+            </div>
+
+            <!-- Footer -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 bg-white">
+                <div id="admin-att-summary-submission-meta" class="text-xs text-black-fade font-['Inter'] flex items-center gap-1.5" style="color: rgba(0, 0, 0, 0.45) !important;">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                    <span>Submitted today</span>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <button type="button" id="admin-att-summary-view-room-btn" class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer font-['Inter']">
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                        <span>Open Section Attendance</span>
+                    </button>
+                    <button type="button" onclick="window.closeTodayAttendanceSummaryModal()" class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px] cursor-pointer font-['Inter']">
+                        <span>Close</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global SY Context (Wireframe)
         const sy = "SY 2026-2027";
@@ -6477,49 +6678,51 @@
 
     <!-- SCRIPTS -->
 <script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261014headerReset1244"></script>
+<script src="js/shared-components.js?v=20261016feedbackStates"></script>
 <script src="js/offline-assessments.js?v=20261014manualMenuPolish1118"></script>
-<script src="js/submission-ai-client.js?v=20261012noQuizFeedback716"></script>
-    <script src="js/topbar.js?v=20261012silentPolling638"></script>
-    <script src="js/sigma-chat-client.js?v=20261010liveSigma294"></script>
+<script src="js/submission-ai-client.js?v=20261016feedbackStates"></script>
+    <script src="js/topbar.js?v=20261016fastLoading639"></script>
+    <script src="js/sigma-chat-client.js?v=20261015aiLanguage1253"></script>
     <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
-<script src="js/notifications.js?v=20261012notificationReset568"></script>
+<script src="js/notifications.js?v=20261015assessmentUpdateNotices"></script>
 <script src="js/log-pagination.js?v=20261011recordRecovery320"></script>
-<script src="js/notification-logs.js?v=20261011lazyRows314"></script>
+<script src="js/notification-logs.js?v=20261016identityAlignment"></script>
+<script src="js/authentication-logs.js?v=20261016realEventsOnly"></script>
+<script src="js/activity-logs.js?v=20261016shortFadeDash"></script>
 <script src="js/audit-log-search.js?v=20261011recordRecovery320"></script>
     <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
     <script src="js/panels.js?v=20260928panelpolish1"></script>
     <script src="js/announcements.js?v=20261012studentCommentBadge564"></script>
     <script src="js/quiz-creator.js?v=20261011sharedQuestionUpload344"></script>
     <script src="js/calendar.js?v=20261011calendarDismiss346"></script>
-    <script src="js/profile-view.js?v=20261005mobileprofile2"></script>
+    <script src="js/profile-view.js?v=20261016profileVisibility"></script>
     <script src="js/admin-session-controls.js?v=20261003signoutlabel1"></script>
     <script src="js/dialog.js?v=20261012gradingDialog695"></script>
-    <script src="js/document-viewer.js?v=20260929mobiledl1"></script>
-    <script src="js/settings-view.js?v=20261009counterLimits127"></script>
+    <script src="js/document-viewer.js?v=20261016viewerFix"></script>
+    <script src="js/settings-view.js?v=20261015languageFieldIds1269"></script>
     <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
-    <script src="js/resources-view.js?v=20260923empty1"></script>
+    <script src="js/resources-view.js?v=20261016noScrollFix"></script>
     <link rel="stylesheet" href="css/excel-export.css?v=20261013exportOptions820">
     <script src="js/excel-export.js?v=20261013summaryNoLegend866"></script>
-    <script src="js/sigma-analytics.js?v=20261014cumulativeAverage1252"></script>
-    <script src="js/shared-grade-record.js?v=20261014hideUnchangedUpdate1116"></script>
+    <script src="js/sigma-analytics.js?v=20261016gradingLiveSync"></script>
+    <script src="js/shared-grade-record.js?v=20261015publishedAssignments1287"></script>
     <script src="js/subject-content-editor.js?v=20261004adminsection1"></script>
-    <script src="js/subject-editor.js?v=20261014weightSync1072"></script>
-    <script src="js/assessments-page.js?v=20260927gradefix5"></script>
+    <script src="js/subject-editor.js?v=20261016adminTeacherScopeEdit"></script>
+    <script src="js/assessments-page.js?v=20261016cacheBuild1196"></script>
     <script src="js/time-picker-dial.js?v=20260923calmonthfix1"></script>
-    <script src="js/classroom-room.js?v=20261014restoreTabs1087"></script>
+    <script src="js/classroom-room.js?v=20261016filteredAttendanceExcel"></script>
     <script src="js/release-workspace.js?v=20261004mobileReleaseToolbar1"></script>
-    <script src="js/curriculum-release.js?v=20261014sharedQuarters1037"></script>
+    <script src="js/curriculum-release.js?v=20261015assessmentUpdateNotices"></script>
     <script src="js/recaptcha-client.js?v=20261009securityConnection129"></script>
     <script src="js/system-settings-history.js?v=20261010settingsBack157"></script>
-    <script src="js/ai-routing-settings.js?v=20261011autoSave302"></script>
-    <script src="js/admin.js?v=20261014adminSelection1105"></script>
-    <script src="js/ai-database-store.js?v=20261014insightsFix1100"></script>
-    <script src="js/admin-insight-report.js?v=20261011insightReport347"></script>
-    <script src="js/record-lifecycle.js?v=20261011recoveryDropdown323"></script>
+    <script src="js/ai-routing-settings.js?v=20261016aiUsageQuotaBars"></script>
+    <script src="js/admin.js?v=20261017desktopModalButtons"></script>
+    <script src="js/ai-database-store.js?v=20261016realAiStates"></script>
+    <script src="js/admin-insight-report.js?v=20261016aiAnalyticsTypesHeader"></script>
+    <script src="js/record-lifecycle.js?v=20261016submissionFileRecovery"></script>
     <script src="js/ai-log-store.js?v=20261011database303"></script>
     <script src="js/ai-log-preview.js?v=20261010realAiLogs298"></script>
-    <script src="js/ai-log-details.js?v=20261013sharedLogTable748"></script>
+    <script src="js/ai-log-details.js?v=20261015aiLogUserIds"></script>
     <script src="js/institution-branding.js?v=20261010brandingReturn182"></script>
     <script src="js/slideshow-settings.js?v=20261010slideAddCard192"></script>
     <script src="js/welcome-banner-settings.js?v=20261010bannerLibrary194"></script>

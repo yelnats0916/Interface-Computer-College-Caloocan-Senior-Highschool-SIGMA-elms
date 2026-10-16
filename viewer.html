@@ -1661,6 +1661,11 @@
                 }
 
                 if (arrayBuffer && arrayBuffer.byteLength > 0) {
+                    // Downloads must use the resolved bytes, including files recovered from IndexedDB.
+                    if (downloadBtn) {
+                        downloadBtn.href = URL.createObjectURL(new Blob([arrayBuffer]));
+                        downloadBtn.download = fileName;
+                    }
                     const sizeKb = arrayBuffer.byteLength / 1024;
                     document.getElementById('doc-size-label').textContent = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(2)} MB` : `${sizeKb.toFixed(0)} KB`;
 
@@ -1694,7 +1699,7 @@
 
                 // If no binary data is available but a document was requested, render clean document preview
                 if (fileName || paramDocId) {
-                    await renderSimulatedDocument(fileName, fileType);
+                    showError('The uploaded file could not be found. Please return to the material and check that the attachment is still available.');
                     return;
                 }
 

@@ -7431,15 +7431,17 @@ window.initializeSharedCurriculumRelease = function () {
 
                 const itemTitle = itemObj?.title || itemObj?.name;
                 if (itemTitle) {
+                    const assessmentNotice = category === 'assessments' ? window.SigmaNotifications?.assessmentReleaseNotice(saved, config, sIdVal, itemObj) : null;
+                    if (category === 'assessments' && !assessmentNotice) return;
                     const studentNotif = {
                         id: 'notif_rel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                        type: category === 'learning' ? 'material-released' : 'assessment-released',
+                        type: assessmentNotice?.type || (category === 'learning' ? 'material-released' : 'assessment-released'),
                         senderName: senderTeacherName,
                         assignmentScope: { section, subjectId, subjectName: window.getTopicSubject?.(subjectId)?.name || window.getSubjectById?.(subjectId)?.name || subjectId },
                         senderInitials: senderTeacherInitials,
                         senderColor: '#1d4ed8',
-                        title: `New ${notifTypeStr} Posted`,
-                        body: `${itemTitle} coursework is now available.`,
+                        title: assessmentNotice?.title || `New ${notifTypeStr} Posted`,
+                        body: assessmentNotice?.type === 'assessment-updated' ? `${itemTitle} — Updated: ${assessmentNotice.changes.join(', ')}.` : `${itemTitle} coursework is now available.`,
                         timestamp: new Date().toISOString(),
                         read: false,
                         target: {

@@ -107,14 +107,97 @@ function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $file
     return json_decode($raw, true) ?: null;
 }
 
+// Folder usage is read-only and restricted to integration administrators.
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'folder_usage') {
+    requireServiceVaultAccess();
+    require_once dirname(__DIR__) . '/includes/gdrive_usage.php';
+    try {
+        $auth = getGoogleAccessToken('');
+        if (empty($auth['token'])) throw new RuntimeException('Connect Google Drive before checking folder usage.');
+        $driveRequest = function ($url) use ($auth) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $auth['token']], CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 10]);
+            $raw = curl_exec($ch); $status = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+            $data = json_decode($raw ?: '', true);
+            if ($status < 200 || $status >= 300 || !is_array($data)) throw new RuntimeException('Unable to read the connected Google Drive folder. Check its sharing permissions and try again.');
+            return $data;
+        };
+        $usage = collectElmsDriveUsage($driveConfig['folder_id'] ?? '', $driveRequest);
+        $usage['limit_bytes'] = null;
+        $usage['account_used_bytes'] = null;
+        $usage['is_estimated_limit'] = false;
+        try {
+            $about = $driveRequest('https://www.googleapis.com/drive/v3/about?fields=storageQuota');
+            $quota = $about['storageQuota'] ?? [];
+            if (isset($quota['limit']) && is_numeric($quota['limit']) && (float)$quota['limit'] > 0) $usage['limit_bytes'] = (float)$quota['limit'];
+            if (isset($quota['usage']) && is_numeric($quota['usage'])) $usage['account_used_bytes'] = (float)$quota['usage'];
+        } catch (Throwable $error) { /* Folder totals remain valid when account quota is unavailable. */ }
+
+        // Google Cloud Service Accounts connect to shared folders without exposing the owner's account limit.
+        // Fallback to the configured or standard 15 GB Google Drive storage tier.
+        $configuredLimitGb = isset($driveConfig['storage_limit_gb']) && is_numeric($driveConfig['storage_limit_gb']) && (float)$driveConfig['storage_limit_gb'] > 0
+            ? (float)$driveConfig['storage_limit_gb']
+            : 15.0; // Standard Google Drive free tier (15 GB)
+        if (empty($usage['limit_bytes'])) {
+            $usage['limit_bytes'] = $configuredLimitGb * 1024 * 1024 * 1024;
+            $usage['is_estimated_limit'] = true;
+        }
+        if ($usage['account_used_bytes'] === null || $usage['account_used_bytes'] <= 0) {
+            $usage['account_used_bytes'] = (float)($usage['total_bytes'] ?? 0);
+        }
+        $usage['storage_limit_gb'] = $configuredLimitGb;
+        jsonOut(['success' => true, 'usage' => $usage]);
+    } catch (Throwable $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 502); }
+}
+
 // GET status endpoint
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $keyPath = $rootDir . '/config/google_service_account.json';
     $hasKey = !empty($driveConfig['service_account']['private_key']);
     $email = '';
+    $quota = null;
+    $configuredLimitGb = isset($driveConfig['storage_limit_gb']) && is_numeric($driveConfig['storage_limit_gb']) && (float)$driveConfig['storage_limit_gb'] > 0
+        ? (float)$driveConfig['storage_limit_gb']
+        : 15.0;
+
     if ($hasKey) {
         $k = $driveConfig['service_account'];
         $email = $k['client_email'] ?? '';
+        $auth = getGoogleAccessToken($keyPath);
+        if ($auth && !empty($auth['token'])) {
+            $ch = curl_init("https://www.googleapis.com/drive/v3/about?fields=storageQuota,user");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $auth['token']]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            $about = json_decode(curl_exec($ch), true);
+            curl_close($ch);
+            if (!empty($about['storageQuota'])) {
+                $sq = $about['storageQuota'];
+                $limit = (isset($sq['limit']) && (float)$sq['limit'] > 0) ? (float)$sq['limit'] : ($configuredLimitGb * 1024 * 1024 * 1024);
+                $usage = isset($sq['usage']) ? (float)$sq['usage'] : 0;
+                $usedGB = round($usage / (1024 * 1024 * 1024), 2);
+                $limitGB = round($limit / (1024 * 1024 * 1024), 1);
+                $pct = ($limit && $limit > 0) ? round(($usage / $limit) * 100) : 0;
+                $quota = [
+                    'used_bytes'  => $usage,
+                    'used_gb'     => $usedGB,
+                    'limit_bytes' => $limit,
+                    'limit_gb'    => $limitGB,
+                    'percent'     => $pct
+                ];
+            }
+        }
+    }
+
+    if (!$quota && $hasKey) {
+        $defaultLimit = $configuredLimitGb * 1024 * 1024 * 1024;
+        $quota = [
+            'used_bytes'  => 0,
+            'used_gb'     => 0,
+            'limit_bytes' => $defaultLimit,
+            'limit_gb'    => $configuredLimitGb,
+            'percent'     => 0
+        ];
     }
 
     jsonOut([
@@ -125,6 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'service_account_email' => $email ?: ($driveConfig['service_account_email'] ?? ''),
             'folder_id'             => $driveConfig['folder_id'] ?? '',
             'folder_url'            => $driveConfig['folder_url'] ?? '',
+            'storage_limit_gb'      => $configuredLimitGb,
+            'quota'                 => $quota
         ]
     ]);
 }
@@ -178,7 +263,7 @@ if ($action === 'test_connection') {
     ]);
 }
 
-// ── Action: SAVE CONFIG (Folder ID or URL) ───────────────────────────────────
+// ── Action: SAVE CONFIG (Folder ID, URL & Capacity Tier) ──────────────────────
 if ($action === 'save_config') {
     $newFolderId = trim((string)($jsonPayload['folder_id'] ?? $_POST['folder_id'] ?? ''));
     if ($newFolderId !== '') {
@@ -187,9 +272,20 @@ if ($action === 'save_config') {
         }
         $services['google_drive']['folder_id'] = $newFolderId;
         $services['google_drive']['folder_url'] = 'https://drive.google.com/drive/folders/' . $newFolderId;
-        saveServiceSettings($services);
     }
-    jsonOut(['success' => true, 'message' => 'Google Drive configuration saved successfully.', 'folder_id' => $newFolderId]);
+    if (isset($jsonPayload['storage_limit_gb']) || isset($_POST['storage_limit_gb'])) {
+        $limitGb = (float)($jsonPayload['storage_limit_gb'] ?? $_POST['storage_limit_gb']);
+        if ($limitGb > 0) {
+            $services['google_drive']['storage_limit_gb'] = $limitGb;
+        }
+    }
+    saveServiceSettings($services);
+    jsonOut([
+        'success'          => true, 
+        'message'          => 'Google Drive configuration saved successfully.', 
+        'folder_id'        => $services['google_drive']['folder_id'] ?? $newFolderId,
+        'storage_limit_gb' => $services['google_drive']['storage_limit_gb'] ?? 15
+    ]);
 }
 
 // ── Action: UPLOAD JSON KEY FILE ─────────────────────────────────────────────

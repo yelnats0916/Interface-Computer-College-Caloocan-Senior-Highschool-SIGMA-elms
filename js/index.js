@@ -686,6 +686,10 @@ document.addEventListener('DOMContentLoaded', function () {
         passwordFailedAttempts[id] = 0;
     }
 
+    function recordAuthenticationEvent(event, user, outcome = 'success', details = '') {
+        window.SigmaAuthenticationLogs?.record({ event, user, outcome, details });
+    }
+
     function resetRecaptcha(formType) {
         if (pendingCaptchaSubmission?.formType === formType) {
             pendingCaptchaFlow = null;
@@ -736,11 +740,13 @@ document.addEventListener('DOMContentLoaded', function () {
             window.SigmaRecaptcha.challenge(container, () => {
                 if (pendingCaptchaFlow !== flow) return;
                 activeValidatedFlows[formType] = flow;
+                recordAuthenticationEvent('reCAPTCHA verified', findManagedAccount(submission.id), 'success');
                 if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
                 container.classList.add('hidden');
             }, () => {
                 if (pendingCaptchaFlow !== flow) return;
                 activeValidatedFlows[formType] = null;
+                recordAuthenticationEvent('reCAPTCHA verification failed', findManagedAccount(submission.id), 'failed');
                 container.classList.remove('hidden');
                 if (btn) btn.disabled = true;
             });
@@ -941,6 +947,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Step 3: Match Account ID BEFORE checking password presence
         if (!account) {
             invalidLoginIdAttempts++;
+            recordAuthenticationEvent('Failed login attempt', { name:'Unknown account', role:'Not recorded' }, 'failed', 'An unrecognized ID or email was used.');
             setLoading(formType, false);
             resetRecaptcha(formType);
             const err = formType === 'modal' ? ui.errors.modalId : ui.errors.id;
@@ -961,6 +968,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (sessionLockedAccounts.has(accountKey) || account.status === 'locked') {
             setLoading(formType, false);
+            recordAuthenticationEvent('Locked account login blocked', matchedUser, 'warning');
             const err = formType === 'modal' ? ui.errors.modalPass : ui.errors.pass;
             const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass;
             showError(err, "The account is locked. Please contact Administrative personnel", false, inp);
@@ -992,9 +1000,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 sessionLockedAccounts.add(accountKey);
+                recordAuthenticationEvent('Failed login attempt', matchedUser, 'failed', 'Incorrect password. Account locked after repeated failures.');
+                recordAuthenticationEvent('Account locked after failed sign-ins', matchedUser, 'warning');
                 showError(err, "The account is locked. Please contact Administrative personnel", false, inp);
                 return;
             }
+            recordAuthenticationEvent('Failed login attempt', matchedUser, 'failed', 'Incorrect password.');
             showError(err, "Wrong password.", false, inp);
             return;
         }
@@ -1002,6 +1013,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (account.status !== 'active') {
             setLoading(formType, false);
             resetRecaptcha(formType);
+            recordAuthenticationEvent('Inactive account login blocked', matchedUser, 'warning');
             const err = formType === 'modal' ? ui.errors.modalPass : ui.errors.pass;
             const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass;
             showError(err, "Invalid credentials. Please check your Email or Login ID and password.", false, inp);
@@ -1102,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('sigma-logged-in-user', JSON.stringify(userSessionObj));
             localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             localStorage.setItem('sigma-login-explicit', 'true');
+            recordAuthenticationEvent('Login successful', userSessionObj, 'success');
             window.location.href = account.redirect;
         }
 
@@ -1499,10 +1512,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (verified) {
+                recordAuthenticationEvent('Google Authenticator 2FA verified', findManagedAccount(current2faUserId), 'success');
                 if (typeof current2faSuccessCallback === 'function') {
                     current2faSuccessCallback();
                 }
             } else {
+                recordAuthenticationEvent('Google Authenticator 2FA failed', findManagedAccount(current2faUserId), 'failed');
                 if (err) {
                     err.textContent = 'Invalid 6-digit code. Please check Google Authenticator on your phone.';
                     err.classList.remove('hidden');
@@ -1696,6 +1711,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (verified) {
                 localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
                 markLocalUser2faEnabled(current2faUserId, true);
+                recordAuthenticationEvent('Google Authenticator 2FA enabled', findManagedAccount(current2faUserId), 'success');
                 if (typeof current2faSuccessCallback === 'function') {
                     current2faSuccessCallback();
                 }

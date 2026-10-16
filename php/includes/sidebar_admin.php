@@ -78,7 +78,7 @@ $activeTab = $activeTab ?? 'home';
             <div id="reports-submenu" class="sidebar-submenu hidden">
                 <a href="admin.php?tab=reports-ai" id="nav-reports-ai" class="nav-sublink <?= $activeTab === 'reports-ai' ? 'active' : '' ?> no-underline">
                     <i class="fa-solid fa-brain"></i>
-                    <span>AI Reports</span>
+                    <span>AI Analytics</span>
                 </a>
                 <a href="admin.php?tab=reports-attendance" id="nav-reports-attendance" class="nav-sublink <?= $activeTab === 'reports-attendance' ? 'active' : '' ?> no-underline">
                     <i class="fa-solid fa-calendar-check"></i>

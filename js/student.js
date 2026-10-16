@@ -42,36 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
     syncQuarterChevrons();
-    new MutationObserver(syncQuarterChevrons).observe(document.body,{childList:true,subtree:true});
-});
-document.addEventListener('pointerdown', event => {
-    const select = event.target.closest('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select');
-    if (!select) return;
-    event.preventDefault();
-    document.getElementById('student-quarter-options')?.remove();
-    const panel = document.createElement('div');
-    panel.id = 'student-quarter-options';
-    panel.setAttribute('role','listbox');
-    panel.setAttribute('aria-label',select.getAttribute('aria-label') || 'Quarter');
-    [...select.options].forEach(option => {
-        const button=document.createElement('button');button.type='button';button.textContent=option.text;
-        button.setAttribute('role','option');button.setAttribute('aria-selected',String(option.selected));
-        button.onclick=()=>{select.value=option.value;close();select.dispatchEvent(new Event('change',{bubbles:true}));};
-        panel.append(button);
-    });
-    const close=()=>{panel.remove();document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',keyboard);};
-    const outside=e=>{if(!panel.contains(e.target))close();};
-    const keyboard=e=>{
-        if(e.key==='Escape'){close();select.focus();}
-        if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();const buttons=[...panel.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);buttons[(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus();}
-    };
-    document.body.append(panel);
-    const rect=select.getBoundingClientRect(),height=panel.getBoundingClientRect().height;
-    panel.style.width=`${rect.width}px`;
-    panel.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-rect.width-8))}px`;
-    panel.style.top=`${rect.bottom+height+4<innerHeight?rect.bottom+4:Math.max(8,rect.top-height-4)}px`;
-    document.addEventListener('pointerdown',outside);document.addEventListener('keydown',keyboard);
-    panel.querySelector('[aria-selected="true"]')?.focus();
+    let quarterFrame = 0;
+    const quarterSelector = '.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider';
+    new MutationObserver(records => {
+        if (!records.some(record => [...record.addedNodes].some(node => node.nodeType === 1
+            && (node.matches(quarterSelector) || node.querySelector(quarterSelector))))) return;
+        if (!quarterFrame) quarterFrame = requestAnimationFrame(() => { quarterFrame = 0; syncQuarterChevrons(); });
+    }).observe(document.body,{childList:true,subtree:true});
 });
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
     initStudentPortal();
@@ -616,7 +593,7 @@ function initStudentPortal() {
             if (!ln && parts.length > 1) ln = parts[parts.length - 1];
         }
 
-        let sec = (matchedUser?.section || matchedUser?.gradeSection || matchedUser?.sectionName || authUser?.section || authUser?.gradeSection || '').trim();
+        let sec = (matchedUser?.section || authUser?.section || matchedUser?.sectionName || authUser?.sectionName || matchedUser?.gradeSection || authUser?.gradeSection || '').trim();
         if (!sec) {
             try {
                 const adminSections = getStoredJson('sigma-admin-sections', []);
@@ -1878,6 +1855,8 @@ if (overlay) overlay.classList.add('hidden');
         const ctx = navContextMap[navId] || '';
 
         setNavContext(ctx);
+        if (navId === 'nav-resources' || navId === 'resources') window.setPortalHeader?.('Resources', 'My Uploads');
+        if (navId === 'nav-classrooms') window.setPortalHeader?.('My Classes', 'Classrooms');
         const shouldShowSub = hasSubSidebar.includes(navId);
         if (shouldShowSub) {
 
@@ -2927,118 +2906,7 @@ if (overlay) overlay.classList.add('hidden');
             q2Topics: []
         }
     };
-    function getAssessmentsForSubject(subjectId, category) {
-        const data = getTopicData(subjectId);
-        if (!data) return [];
 
-        const labels = {
-            'assignment': 'Assignment',
-            'quiz': 'Quiz',
-            'activity': 'Activity',
-            'perf. task': 'PT'
-        };
-        const label = labels[category] || category;
-        const generated = [];
-
-        ['q1Topics', 'q2Topics', 'q3Topics', 'q4Topics'].forEach((termKey, termIdx) => {
-            const topics = data[termKey] || [];
-            topics.forEach((topic, tIdx) => {
-                generated.push({
-                    title: `${label} #${tIdx + 1}: Introduction to ${topic.title}`,
-                    date: null,
-                    max: 100,
-                    subjectId: subjectId,
-                    term: termIdx + 1,
-                    topicIdx: tIdx,
-                    itemIdx: 0
-                });
-                generated.push({
-                    title: `${label} #${tIdx + 1}.2: Advanced concepts in ${topic.title}`,
-                    date: null,
-                    max: 100,
-                    subjectId: subjectId,
-                    term: termIdx + 1,
-                    topicIdx: tIdx,
-                    itemIdx: 1
-                });
-            });
-        });
-        return generated;
-    }
-
-    function buildAssessmentRows() {
-        const rows = [];
-        const baseDate = new Date('2026-03-26T08:00:00');
-        const seen = new Set();
-        const sEnrolled = (typeof subjectsData !== 'undefined' && Array.isArray(subjectsData?.enrolled)) ? subjectsData.enrolled : (Array.isArray(window.subjectsData?.enrolled) ? window.subjectsData.enrolled : []);
-        const sCompleted = (typeof subjectsData !== 'undefined' && Array.isArray(subjectsData?.completed)) ? subjectsData.completed : (Array.isArray(window.subjectsData?.completed) ? window.subjectsData.completed : []);
-        const sources = [
-            ...sEnrolled.map(subject => subject.id),
-            ...sCompleted.map(subject => subject.id)
-        ];
-
-        if (sources.length === 0 && typeof topicDataBySubject !== 'undefined' && topicDataBySubject) {
-            Object.keys(topicDataBySubject).forEach(id => sources.push(id));
-        }
-
-        sources.forEach((subjectId, sIdx) => {
-            if (seen.has(subjectId)) return;
-            seen.add(subjectId);
-
-            const subject = typeof getTopicSubject === 'function' ? getTopicSubject(subjectId) : null;
-            const subjectName = subject ? (typeof getSubjectDisplayName === 'function' ? getSubjectDisplayName(subject) : (subject.text || subject.name || subject.title || subjectId)) : subjectId;
-            if (!subjectName) return;
-
-            const categories = ['assignment', 'quiz', 'activity', 'perf. task'];
-
-            const isCompletedSubject = Array.isArray(sCompleted) && sCompleted.some(s => s.id === subjectId);
-
-            categories.forEach(cat => {
-                const assessments = getAssessmentsForSubject(subjectId, cat);
-                assessments.forEach((ass, aIdx) => {
-                    const startDate = new Date(baseDate);
-                    startDate.setDate(baseDate.getDate() - (aIdx * 5 + (sIdx * 2) + 2));
-                    const dueDate = new Date(startDate);
-                    dueDate.setDate(startDate.getDate() + 7);
-
-                    let status = 'not-started';
-                    if (isCompletedSubject) {
-                        status = 'graded';
-                    } else if (aIdx % 4 === 0) {
-                        status = 'graded';
-                    } else if (aIdx % 4 === 1) {
-                        status = 'submitted';
-                    } else if (aIdx % 4 === 2) {
-                        status = 'waiting';
-                    } else if (aIdx % 5 === 0) {
-                        status = 'overdue';
-                    }
-
-                    const score = status === 'graded' ? 85 + (aIdx % 15) : 0;
-                    const tabMap = { 'assignment': 'assignments', 'quiz': 'quiz', 'activity': 'activity', 'perf. task': 'performance' };
-
-                    rows.push({
-                        subjectId: subjectId,
-                        subject: subjectName,
-                        activity: ass.title,
-                        category: cat,
-                        tab: tabMap[cat] || 'activity',
-                        topicIdx: ass.topicIdx,
-                        itemIdx: ass.itemIdx,
-                        status: status,
-                        score: score,
-                        max: ass.max,
-                        startDate: startDate,
-                        dueDate: dueDate,
-                        submittedOn: status !== 'not-started' ? new Date(startDate.getTime() + 86400000) : null,
-                        gradedOn: status === 'graded' ? new Date(startDate.getTime() + 259200000) : null
-                    });
-                });
-            });
-        });
-
-        return rows.sort((a, b) => b.startDate - a.startDate);
-    }
     function openStudentAssessmentsPage(subjectName, sectionName) {
         if (activeStudentClassroomId && typeof switchStudentRoomTab === 'function') {
             switchStudentRoomTab('topics');
@@ -3347,7 +3215,7 @@ if (overlay) overlay.classList.add('hidden');
             };
 
             const gradeStudent=window.getLoggedInStudentUser?.()||{};
-            const publishedGrade=q=>window.getPublishedSubjectGrade?.(gradeStudent,subject.name,gradeStudent.section||currentStudentSection,q)??null;
+            const publishedGrade=q=>window.getPublishedSubjectGrade?.(gradeStudent,subject.name,null,q)??null;
             const term1Val = publishedGrade(1);
             const term2Val = publishedGrade(2);
             const term3Val = publishedGrade(3);
@@ -3442,30 +3310,7 @@ if (overlay) overlay.classList.add('hidden');
             }
         });
 
-        let aiMessage = rows.length ? 'No grades recorded yet.' : 'No grades to display.';
-        if (hasGrades) {
-            if (filteredSubjectName) {
-                if (gwa >= 90) {
-                    aiMessage = `Outstanding academic mastery in ${escapeHtml(filteredSubjectName)}! With a subject average of ${gwa.toFixed(1)}, you are maintaining honors-level competency across all quarters.`;
-                } else if (gwa >= 85) {
-                    aiMessage = `Very satisfactory academic performance in ${escapeHtml(filteredSubjectName)}! Your average is ${gwa.toFixed(1)}. Keep up the solid participation and consistent submissions.`;
-                } else if (gwa >= 75) {
-                    aiMessage = `Satisfactory progress in ${escapeHtml(filteredSubjectName)} (Average: ${gwa.toFixed(1)}). Review quarters where scores dipped to reinforce your learning targets.`;
-                } else {
-                    aiMessage = `Your current standing in ${escapeHtml(filteredSubjectName)} is ${gwa.toFixed(1)}. Work closely with your instructor and submit remedial activities to achieve passing standing.`;
-                }
-            } else {
-                if (gwa >= 90) {
-                    aiMessage = `Outstanding academic standing! Your General Weighted Average is ${gwa.toFixed(1)}, demonstrating excellence across your Senior High School subjects. Keep up the high level of consistency and engagement.`;
-                } else if (gwa >= 85) {
-                    aiMessage = `Very satisfactory academic performance! With a GWA of ${gwa.toFixed(1)}, you are maintaining strong quarterly momentum. Continue focusing on key assessment areas.`;
-                } else if (gwa >= 75) {
-                    aiMessage = `Satisfactory overall progress (GWA: ${gwa.toFixed(1)}). Review quarters where scores dipped to reinforce your learning targets for upcoming quarters.`;
-                } else {
-                    aiMessage = `Your current GWA is ${gwa.toFixed(1)}. Work closely with your teachers and access remedial handouts to raise your performance above the 75 passing threshold.`;
-                }
-            }
-        }
+        const aiMessage = hasGrades ? 'Loading grade insights...' : 'No grades recorded yet.';
 
         const topTitle = filteredSubjectName ? `${filteredSubjectName} Average` : 'General Weighted Average';
 
@@ -3783,6 +3628,7 @@ if (overlay) overlay.classList.add('hidden');
             control.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view,true));
             control.querySelector('select').onchange = event => setView(event.target.value,true);
             setView(view);
+            window.refreshOverallGradeInsight?.(layout.querySelector('[data-ai-insight-body]'), analyticsRows);
             initStudentPerformanceSlider(layout);
             layout.querySelectorAll('.grade-view-tab').forEach(button => {
                 
@@ -6425,12 +6271,15 @@ if (overlay) overlay.classList.add('hidden');
         return false;
     }
 
-    function getStudentOverdueSubmissionItems(limit = 20) {
-        let rows = [];
-        if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
-            rows = window.AssessmentsPage.buildAssessmentRows('student');
-        } else {
-            rows = getStoredJson('sigma_student_assessments', []);
+    function getStudentOverdueSubmissionItems(limitOrRows = 20, maxLimit = 20) {
+        let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
+        const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
+        if (!rows.length) {
+            if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
+                rows = window.AssessmentsPage.buildAssessmentRows('student');
+            } else {
+                rows = getStoredJson('sigma_student_assessments', []);
+            }
         }
         if (!Array.isArray(rows)) rows = [];
         const now = Date.now();
@@ -6450,12 +6299,15 @@ if (overlay) overlay.classList.add('hidden');
             .slice(0, limit);
     }
 
-    function getStudentDueSubmissionItems(limit = 20) {
-        let rows = [];
-        if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
-            rows = window.AssessmentsPage.buildAssessmentRows('student');
-        } else {
-            rows = getStoredJson('sigma_student_assessments', []);
+    function getStudentDueSubmissionItems(limitOrRows = 20, maxLimit = 20) {
+        let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
+        const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
+        if (!rows.length) {
+            if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
+                rows = window.AssessmentsPage.buildAssessmentRows('student');
+            } else {
+                rows = getStoredJson('sigma_student_assessments', []);
+            }
         }
         if (!Array.isArray(rows)) rows = [];
         const now = Date.now();
@@ -6472,12 +6324,15 @@ if (overlay) overlay.classList.add('hidden');
             .slice(0, limit);
     }
 
-    function getStudentUpcomingSubmissionItems(limit = 20) {
-        let rows = [];
-        if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
-            rows = window.AssessmentsPage.buildAssessmentRows('student');
-        } else {
-            rows = getStoredJson('sigma_student_assessments', []);
+    function getStudentUpcomingSubmissionItems(limitOrRows = 20, maxLimit = 20) {
+        let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
+        const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
+        if (!rows.length) {
+            if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
+                rows = window.AssessmentsPage.buildAssessmentRows('student');
+            } else {
+                rows = getStoredJson('sigma_student_assessments', []);
+            }
         }
         if (!Array.isArray(rows)) rows = [];
         const now = Date.now();
@@ -6552,9 +6407,12 @@ if (overlay) overlay.classList.add('hidden');
         // ── Submissions Panel (student's enrolled subjects only) ─────────────
         const allDueTargets = [dueList, sectionDueList].filter(Boolean);
         if (allDueTargets.length > 0) {
-            const overdueItems = getStudentOverdueSubmissionItems(20);
-            const dueItems = getStudentDueSubmissionItems(20);
-            const upcomingItems = getStudentUpcomingSubmissionItems(20);
+            const sharedRows = (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function')
+                ? window.AssessmentsPage.buildAssessmentRows('student')
+                : getStoredJson('sigma_student_assessments', []);
+            const overdueItems = getStudentOverdueSubmissionItems(sharedRows, 20);
+            const dueItems = getStudentDueSubmissionItems(sharedRows, 20);
+            const upcomingItems = getStudentUpcomingSubmissionItems(sharedRows, 20);
 
             allDueTargets.forEach(target => {
                 if (window.SigmaPanels && typeof window.SigmaPanels.renderStudentSubmissionsPanel === 'function') {
@@ -7432,6 +7290,7 @@ if (overlay) overlay.classList.add('hidden');
         }
 
         setNavContext('My Classes');
+        window.setPortalHeader?.('My Classes', data.subject || data.section || 'Classroom');
         const navContextText = document.getElementById('nav-context-text');
         if (navContextText) {
             navContextText.classList.remove('cursor-pointer');
@@ -7935,16 +7794,11 @@ if (overlay) overlay.classList.add('hidden');
                     </div>
 
                     <!-- AI Subject Insights Box -->
-                    <div class="p-3.5 sm:p-5 rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col font-['Inter'] shadow-xs">
-                        <div class="flex items-center gap-2 mb-1.5 sm:mb-2 font-['Inter']">
-                            <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-[#FFD000] flex items-center justify-center flex-shrink-0 shadow-2xs font-['Inter']">
-                                <i class="fa-solid fa-bolt text-black text-[10px] sm:text-[11px]"></i>
-                            </div>
-                            <span class="text-xs sm:text-[13px] font-bold text-black font-['Inter']" style="color: #000000 !important;">SIGMA AI Subject Insights</span>
-                        </div>
-                        <p data-subject-grade-insight class="text-[11.5px] sm:text-xs font-medium leading-relaxed font-['Inter'] ${hasQData ? 'text-slate-700' : 'text-black-fade'}" ${!hasQData ? 'style="color: rgba(0, 0, 0, 0.45) !important;"' : ''}>
+                    <div class="sigma-ai-panel">
+                        ${window.renderSigmaAiHeading()}
+                        <div data-subject-grade-insight class="sigma-ai-panel-body" data-insight-empty="${!hasQData}">
                             ${aiInsightMessage}
-                        </p>
+                        </div>
                     </div>
                 </div>
 
@@ -8056,8 +7910,33 @@ if (overlay) overlay.classList.add('hidden');
             renderGradesPage();
         }
     };
+    const refreshPublishedGrades = () => {
+        const section = document.getElementById('section-grades');
+        if (section && !section.classList.contains('hidden')) renderGradesPage();
+    };
+    window.addEventListener('sigma:grades-published', refreshPublishedGrades);
+    function refreshStudentSubjectContent() {
+        const normalize = value => String(value || '').toLowerCase().replace(/^(card-|subj-|gen-)/,'').replace(/[^a-z0-9]/g,'');
+        let subjects = [];
+        try { subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]'); } catch (_) {}
+        const aliases = new Set(subjects.flatMap(subject => [subject.id,subject.code,subject.name,subject.title]).filter(Boolean).map(normalize));
+        for (const cache of [curriculumTopicCatalog,dynamicCurriculumSubjects]) {
+            Object.keys(cache).forEach(key => { if (aliases.has(normalize(key))) delete cache[key]; });
+        }
+        // Preserve unsent student work; refreshed content is read on the next navigation.
+        if (window._studentSubmissionMode) return;
+        const detail = document.getElementById('section-topic-content');
+        if (detail && !detail.classList.contains('hidden') && typeof _tcSubjectId !== 'undefined' && _tcSubjectId) {
+            _renderTopicContentMain(_tcSubjectId,_tcTopicIdx,_tcTab || 'videos');
+        }
+        const classroom = document.getElementById('section-classroom-detail');
+        if (classroom && !classroom.classList.contains('hidden') && activeStudentRoomTab === 'topics') window.renderRoomTopicsPanel?.();
+    }
+    window.addEventListener('sigma:subjectUpdated', refreshStudentSubjectContent);
+    window.addEventListener('storage', event => { if (event.key === 'sigma-admin-subjects') refreshStudentSubjectContent(); });
     window.addEventListener('storage', (e) => {
         if (!e || !e.key) return;
+        if (e.key === 'sigma-published-quarter-grades-v1' || ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'].includes(e.key)) refreshPublishedGrades();
 
         if (e.key === 'sigma-announcements-posts' || e.key === 'sigma-classroom-announcements-v2') {
             renderStudentHomeAnnouncements();
@@ -8106,12 +7985,19 @@ if (overlay) overlay.classList.add('hidden');
     });
     //  
 
+    function isStudentHomeActive() {
+        const home = document.getElementById('section-home');
+        return home && !home.classList.contains('hidden') && home.style.display !== 'none';
+    }
+
     window.addEventListener('pageshow', () => {
-        if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
-        if (typeof renderInstitutionalAnnouncements === 'function') renderInstitutionalAnnouncements();
+        if (isStudentHomeActive()) {
+            if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
+            if (typeof renderInstitutionalAnnouncements === 'function') renderInstitutionalAnnouncements();
+        }
     });
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
+        if (!document.hidden && isStudentHomeActive()) {
             if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
             if (typeof renderInstitutionalAnnouncements === 'function') renderInstitutionalAnnouncements();
         }
@@ -8177,45 +8063,6 @@ if (overlay) overlay.classList.add('hidden');
             );
         }
     }
-    const featureNotifications = [
-        { icon: 'fa-solid fa-graduation-cap', title: 'Grade Update', message: 'Your final grade for Computer Programming 1 has been posted.', nav: 'nav-grades' },
-        { icon: 'fa-solid fa-calendar-check', title: 'Attendance Alert', message: 'You have been marked present for all classes today.', nav: 'nav-home' },
-        { icon: 'fa-solid fa-clipboard-list', title: 'New Quiz', message: 'Teacher Sarah Lim posted a new quiz in Web Development 1.', nav: 'nav-assignments' },
-        { icon: 'fa-solid fa-envelope', title: 'New Message', message: 'You have an unread message from Prof. Maria Clara.', nav: 'nav-home' }
-    ];
-    function buildScheduleNotifications() {
-        const notifList = document.getElementById('noti-dropdown');
-        const notifBadge = document.getElementById('noti-badge');
-        if (!notifList) return;
-        const container = notifList.querySelector('.overflow-y-auto > div');
-        if (!container) return;
-        let html = '';
-        featureNotifications.forEach(item => {
-            html += `
-                <div class="notif-item px-4 py-4 hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 rounded-xl mb-2 transition-all" 
-                     data-nav="${item.nav}">
-                    <div class="flex gap-4 items-start">
-                        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-black text-sm shadow-sm border border-slate-200/60">
-                            <i class="${item.icon}"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[13px] font-bold text-gray-800 leading-tight font-['Inter']">${item.title}</p>
-                            <p class="text-[12px] text-gray-500 mt-1 font-['Inter']">${item.message}</p>
-                        </div>
-                    </div>
-                </div>`;
-        });
-
-        container.innerHTML = html;
-
-        container.querySelectorAll('.notif-item[data-nav]').forEach(item => {
-            item.addEventListener('click', () => {
-                switchTab(item.dataset.nav);
-                hideHeaderOverlays();
-            });
-        });
-        if (notifBadge) notifBadge.classList.toggle('hidden', featureNotifications.length === 0);
-    }
 
     syncStudentEnrolledClassrooms();
     renderStudentSectionsNavChildren('');
@@ -8246,19 +8093,6 @@ if (overlay) overlay.classList.add('hidden');
 
     initCalendarEvents();
     updateStudentAttendanceStatus();
-
-    // Defer heavy secondary tabs that are not visible on initial load
-    const deferSecondaryTabs = () => {
-        buildScheduleNotifications();
-    };
-
-    if (typeof requestIdleCallback === 'function') {
-        requestIdleCallback(deferSecondaryTabs, { timeout: 800 });
-    } else {
-        setTimeout(deferSecondaryTabs, 20);
-    }
-
-    setInterval(buildScheduleNotifications, 60000);
 
     function renderClassroomsGrid() {
         if (window.SectionsPanel && typeof window.SectionsPanel.render === 'function') {

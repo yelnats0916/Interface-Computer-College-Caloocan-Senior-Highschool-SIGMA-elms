@@ -6,6 +6,7 @@
 
 (function () {
     'use strict';
+    const defaultSchoolLogo = new URL('../image/ICC logo.jpg', document.currentScript.src).href;
 
     // ─── Detect Portal Role (Admin, Teacher, Student) ─────────────────────────
     function getCurrentRole() {
@@ -26,8 +27,101 @@
     function getNotificationLogs() {
         try {
             const logs = JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '[]');
-            return Array.isArray(logs) ? logs.filter(log => log && log.notificationId && log.role) : [];
+            const valid = Array.isArray(logs) ? logs.filter(log => log && log.notificationId && log.role) : [];
+            let changed = false;
+            for (const log of valid) {
+                let source = [];
+                try { source = JSON.parse(localStorage.getItem('sigma-notifications-' + log.role + '-v3') || '[]'); } catch (_) {}
+                const candidates = Array.isArray(source) ? source.filter(item => String(item.id) === String(log.notificationId)
+                    && String(item.recipientId || '') === String(log.recipientId || '')) : [];
+                if (candidates.length !== 1) continue;
+                if (!Array.isArray(log.recipients) && Array.isArray(candidates[0].recipients)) { log.recipients = candidates[0].recipients; changed = true; }
+                for (const field of ['senderId', 'senderName', 'senderRole', 'senderType']) {
+                    if (!log[field] && candidates[0][field]) { log[field] = String(candidates[0][field]); changed = true; }
+                }
+            }
+            if (changed) localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(valid));
+            return valid;
         } catch (_) { return []; }
+    }
+
+    function notificationAudienceMatches(role, notif, user) {
+        const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g,' ');
+        const subjectKey = value => norm(value).replace(/^grade\s*\d+\s*[-–]?\s*/i,'').replace(/^(card-|subj-)/,'').replace(/[^a-z0-9]/g,'');
+        const userRole = norm(window.normalizeUserRole?.(user.role || user.type) || user.role || user.type);
+        if (role === 'admin' ? !userRole.includes('admin') : userRole !== role) return false;
+        if (notif.recipientId && ![user.id,user.uid,user.lrn,user.studentNumber].some(id => id != null && String(id) === String(notif.recipientId))) return false;
+        if (!notif.recipientId && (notif.recipientName || notif.targetTeacher)) {
+            const names = [user.fullName,user.name,[user.firstName,user.middleName,user.lastName].filter(Boolean).join(' '),[user.firstName,user.lastName].filter(Boolean).join(' ')].map(norm);
+            if (!names.includes(norm(notif.recipientName || notif.targetTeacher))) return false;
+        }
+        const scope=notif.assignmentScope;
+        if (!scope) return !notif.target?.subjectId;
+        if (!scope.section || !scope.subjectId) return false;
+        const subject=window.getSubjectById?.(scope.subjectId) || window.getTopicSubject?.(scope.subjectId);
+        const wanted=[scope.subjectId,scope.subjectName,subject?.name,subject?.title].map(subjectKey).filter(Boolean);
+        if (role === 'teacher') return (window.getTeacherAssignedSubjectsAndSections?.(user) || []).some(assignment =>
+            norm(assignment.sectionName || assignment.section) === norm(scope.section)
+            && [assignment.subject,assignment.subjectId,assignment.name].map(subjectKey).some(value => value && wanted.includes(value)));
+        if (role !== 'student') return false;
+        let sections=[];
+        try { sections=JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]'); } catch (_) {}
+        return Array.isArray(sections) && sections.some(section => {
+            if (section.status === 'Archived') return false;
+            if (scope.sectionId ? String(section.id || '') !== String(scope.sectionId)
+                : ![norm(section.name || section.sectionName),norm(section.id)].includes(norm(scope.section))) return false;
+            const subjects=[section.subject,section.subjectId,section.assignedSubject,...(section.assignedSubjects || [])]
+                .map(value => subjectKey(typeof value === 'object' ? value.id || value.name || value.title : value)).filter(Boolean);
+            return subjects.some(value => wanted.includes(value)) && window.isSectionAssignedToStudent?.(section,user) === true;
+        });
+    }
+    function snapshotNotificationRecipients(role, notif) {
+        if (notif.recipientId) return null;
+        try {
+            const users = JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
+            if (!Array.isArray(users)) return null;
+            return [...new Map(users.filter(user => notificationAudienceMatches(role,notif,user) && (user.uid || user.id)).map(user => [String(user.uid || user.id), {
+                id:String(user.uid || user.id), name:[user.firstName,user.middleName,user.lastName].filter(Boolean).join(' ') || user.fullName || user.name || String(user.uid || user.id), role:user.role || role
+            }])).values()];
+        } catch (_) { return null; }
+    }
+
+    function assessmentReleaseNotice(previous, next, id, item = {}, now = Date.now()) {
+        const aliases=[id,item.id,item.originalAdminId,item.title,item.name].filter(value=>value!=null).map(value=>String(value).trim().toLowerCase());
+        const lookup=(config,key)=>{
+            const entry=Object.entries(config?.[key] || {}).find(([key])=>aliases.includes(String(key).trim().toLowerCase()));
+            return entry?.[1];
+        };
+        const released=config=>(config?.releasedMaterialIds || config?.releasedAssessmentIds || []).some(value=>aliases.includes(String(value).trim().toLowerCase()));
+        const available=config=>{
+            if(!released(config)) return false;
+            const start=lookup(config,'assessmentSchedules') ?? lookup(config,'materialSchedules');
+            if(!start || ['now','immediate'].includes(start)) return true;
+            const time=Date.parse(start);return Number.isFinite(time)&&time<=now;
+        };
+        const before=available(previous),after=available(next);
+        if(!before) return after ? {type:'assessment-released',title:'New Assessment Released',changes:[]} : null;
+        const fields=[['assessmentSchedules','availability'],['materialSchedules','availability'],['assessmentEndSchedules','due date'],['materialEndSchedules','due date'],['assessmentDueDates','due date'],['assessmentMaxScores','points'],['assessmentWeights','grading criteria'],['assessmentSelectedCriteria','grading criteria'],['assessmentRubrics','rubric'],['assessmentRubricUrls','rubric'],['assessmentMaxAttempts','attempt limit'],['assessmentTimeLimitMinutes','time limit'],['assessmentHasTimers','time limit'],['assessmentLatePermissions','late submission rules']];
+        const changes=[...new Set(fields.filter(([key])=>JSON.stringify(lookup(previous,key)??null)!==JSON.stringify(lookup(next,key)??null)).map(([,label])=>label))];
+        if(before!==after) changes.unshift('availability');
+        return changes.length ? {type:'assessment-updated',title:'Assessment Updated',changes:[...new Set(changes)]} : null;
+    }
+    function notifyAssessmentContentUpdate(previous, next, subjectId, section) {
+        if(!previous || !subjectId || !section) return;
+        const config=window.getAssessmentReleaseConfig?.(subjectId,section);
+        // Only a previously released assessment can create an update notification.
+        if(!assessmentReleaseNotice({},config,previous.id,{...next,originalAdminId:previous.originalAdminId || previous.id})) return;
+        const clean=value=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+        const changes=[];
+        if(clean(previous.description)!==clean(next.description)) changes.push('instructions');
+        for(const [fields,label] of [[['fileUrl','fileName'],'attached files'],[['rubricUrl','rubricFileName'],'rubric'],[['selectedQuizId','selectedQuizQuestions','selectedQuizPoints'],'questions or points']]) {
+            if(fields.some(key=>JSON.stringify(previous[key]??null)!==JSON.stringify(next[key]??null))) changes.push(label);
+        }
+        if(!changes.length) return;
+        const user=window.getEffectiveTeacher?.() || {};
+        window.SigmaNotifications.sendToRole('student',{id:'assessment-update:'+subjectId+':'+section+':'+next.id+':'+Date.now(),type:'assessment-updated',title:'Assessment Updated',
+            body:next.title+' — Updated: '+changes.join(', ')+'.',senderId:user.uid||user.id||'',senderName:user.fullName||user.name||[user.firstName,user.lastName].filter(Boolean).join(' '),
+            timestamp:new Date().toISOString(),read:false,assignmentScope:{subjectId,section},target:{subjectId,tab:'assessments',itemId:next.id,materialTitle:next.title}});
     }
 
     function recordNotificationLog(role, notif, status = 'Stored in-app') {
@@ -37,13 +131,19 @@
         const id = JSON.stringify([role, String(notif.id), recipientId]);
         const existing = logs.find(log => log.id === id);
         if (existing) {
+            for (const field of ['senderId', 'senderName', 'senderRole', 'senderType']) {
+                if (!existing[field] && notif[field]) existing[field] = String(notif[field]);
+            }
             if (notif.read && !existing.readAt) existing.readAt = new Date().toISOString();
             if (status === 'Stored in-app') existing.status = status;
         } else {
             logs.unshift({ id, notificationId: String(notif.id), role, recipientId,
+                senderId: String(notif.senderId || ''), senderName: String(notif.senderName || ''),
+                senderRole: String(notif.senderRole || ''), senderType: String(notif.senderType || ''),
                 recipient: String(notif.recipientName || notif.targetTeacher || recipientId || (notif.assignmentScope?.section ? `${role}: ${notif.assignmentScope.section}` : `${role} audience`)),
                 type: String(notif.type || 'General'), title: String(notif.title || 'Notification'),
                 related: String(notif.target?.materialTitle || notif.assignmentScope?.subjectName || notif.assignmentScope?.subjectId || ''),
+                recipients: Array.isArray(notif.recipients) ? notif.recipients : null,
                 channel: 'In-app', status, timestamp: new Date().toISOString(),
                 readAt: notif.read ? new Date().toISOString() : null });
         }
@@ -51,6 +151,36 @@
             localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
             window.dispatchEvent(new Event('notification-logs-updated'));
         } catch (error) { console.error('[SIGMA Notifications] Audit save error:', error); }
+    }
+
+    function recordFeedRecipients(notifs, updateRead = false) {
+        try {
+            let user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            if (currentRole === 'student') user = window.getLoggedInStudentUser?.() || user;
+            if (currentRole === 'teacher') user = window.getEffectiveTeacher?.() || user;
+            const userId = String(user.uid || user.id || '');
+            if (!userId) return;
+            const name = [user.firstName,user.middleName,user.lastName].filter(Boolean).join(' ') || user.fullName || user.name || userId;
+            const logs = getNotificationLogs();
+            let changed = false;
+            for (const notif of notifs) {
+                if (!notificationAudienceMatches(currentRole,notif,{...user,role:user.role || user.type || currentRole})) continue;
+                const source = logs.find(log => log.role === currentRole && String(log.notificationId) === String(notif.id));
+                // Never convert unlogged demo/feed entries into audit evidence.
+                if (!source) continue;
+                const id = JSON.stringify([currentRole,String(notif.id),userId]);
+                let receipt = logs.find(log => log.id === id);
+                if (!receipt) {
+                    receipt = {...source,id,recipientId:userId,recipient:name,recipients:null,readAt:null,
+                        recipientReadUnknown:true,feedConfirmedAt:new Date().toISOString()};
+                    logs.push(receipt); changed = true;
+                }
+                if (updateRead && notif.read && !receipt.readAt) {
+                    receipt.readAt = new Date().toISOString(); receipt.recipientReadUnknown = false; changed = true;
+                }
+            }
+            if (changed) { localStorage.setItem(LOG_STORAGE_KEY,JSON.stringify(logs)); window.dispatchEvent(new Event('notification-logs-updated')); }
+        } catch (error) { console.warn('[SIGMA Notifications] Recipient receipt could not be saved:',error); }
     }
 
     // ─── Relative Time Helper for Mock / Seed Data ────────────────────────────
@@ -290,7 +420,7 @@
     }
 
     function isVisibleNotification(notif) {
-        const preference = ({ 'school-announcement': 'schoolAnnouncements', 'class-announcement': 'classAnnouncements', 'topic-released': 'topicReleases', 'material-released': 'materialReleases', 'assessment-released': 'assessmentReleases', 'coursework-released': notif.target?.tab === 'assessments' ? 'assessmentReleases' : 'materialReleases', 'due-reminder': 'dueDates', 'submission-graded': 'grades' })[notif.type];
+        const preference = ({ 'school-announcement': 'schoolAnnouncements', 'class-announcement': 'classAnnouncements', 'topic-released': 'topicReleases', 'material-released': 'materialReleases', 'assessment-released': 'assessmentReleases', 'assessment-updated': 'assessmentReleases', 'coursework-released': notif.target?.tab === 'assessments' ? 'assessmentReleases' : 'materialReleases', 'due-reminder': 'dueDates', 'submission-graded': 'grades' })[notif.type];
         if (preference) {
             try {
                 const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
@@ -299,50 +429,12 @@
                 if (enabled === false) return false;
             } catch (_) {}
         }
-        if (notif.recipientId || notif.recipientName || notif.targetTeacher) {
-            let user;
-            try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch { return false; }
-            if (currentRole === 'student') user = window.getLoggedInStudentUser?.() || user;
-            if (currentRole === 'teacher') user = window.getEffectiveTeacher?.() || user;
-            if (notif.recipientId) {
-                if (![user.id, user.uid, user.lrn, user.studentNumber].some(id => id != null && String(id) === String(notif.recipientId))) return false;
-            } else {
-                const name = String(user.fullName || user.name || `${user.firstName || ''} ${user.lastName || ''}`).trim().toLowerCase();
-                if (!name || name !== String(notif.recipientName || notif.targetTeacher).trim().toLowerCase()) return false;
-            }
-        }
-        if (!notif.assignmentScope) return !notif.target?.subjectId;
-        const normalize = value => String(value || '').toLowerCase().replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/^(card-|subj-)/, '').replace(/[^a-z0-9]/g, '');
-        const scope = notif.assignmentScope;
-        const normalizeSection = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-        if (!scope.section || !scope.subjectId) return false;
-        if (currentRole === 'student') {
-            const student = window.getLoggedInStudentUser?.();
-            if (!student) return false;
-            const sections = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]');
-            const subject = window.getSubjectById?.(scope.subjectId) || window.getTopicSubject?.(scope.subjectId);
-            const wanted = [scope.subjectId, scope.subjectName, subject?.name, subject?.title].map(normalize).filter(Boolean);
-            return Array.isArray(sections) && sections.some(section => {
-                if (section.status === 'Archived') return false;
-                if (scope.sectionId) {
-                    if (String(section.id || '') !== String(scope.sectionId)) return false;
-                } else if (normalizeSection(section.name || section.sectionName) !== normalizeSection(scope.section)
-                    && normalizeSection(section.id) !== normalizeSection(scope.section)) return false;
-                const subjects = [section.subject, section.subjectId, section.assignedSubject, ...(section.assignedSubjects || [])]
-                    .map(value => normalize(typeof value === 'object' ? value.id || value.name || value.title : value)).filter(Boolean);
-                return subjects.some(value => wanted.includes(value))
-                    && window.isSectionAssignedToStudent?.(section, student) === true;
-            });
-        }
-        if (currentRole !== 'teacher') return false;
-        const teacher = window.getEffectiveTeacher?.();
-        if (!teacher || typeof window.getTeacherAssignedSubjectsAndSections !== 'function') return false;
-        return (window.getTeacherAssignedSubjectsAndSections(teacher) || []).some(assignment => {
-            const section = normalizeSection(assignment.sectionName || assignment.section);
-            const subjects = [assignment.subject, assignment.subjectId, assignment.name].map(normalize).filter(Boolean);
-            return section && section === normalizeSection(scope.section)
-                && [scope.subjectId, scope.subjectName].map(normalize).filter(Boolean).some(subject => subjects.includes(subject));
-        });
+        let user;
+        try { user=JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) { return false; }
+        if (currentRole === 'student') user=window.getLoggedInStudentUser?.() || user;
+        if (currentRole === 'teacher') user=window.getEffectiveTeacher?.() || user;
+        // Some portal account objects omit role; the active portal supplies it.
+        return notificationAudienceMatches(currentRole,notif,{...user,role:user.role || user.type || currentRole});
     }
 
     function saveNotifications(notifs) {
@@ -350,6 +442,7 @@
             const existing = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
             const otherRecipients = Array.isArray(existing) ? existing.filter(n => !isVisibleNotification(n)) : [];
             localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify([...notifs, ...otherRecipients]));
+            recordFeedRecipients(notifs, true);
             // Update read state only for previously recorded notifications, not demo/legacy feed data.
             const loggedIds = new Set(getNotificationLogs().filter(log => log.role === currentRole).map(log => log.notificationId));
             notifs.filter(notif => notif.read && loggedIds.has(String(notif.id))).forEach(notif => recordNotificationLog(currentRole, notif));
@@ -476,6 +569,47 @@
         } catch (_) { return null; }
     }
 
+    window.openGradingDetails = function openGradingDetails(notif) {
+        const target = notif.target || {};
+        const user = window.getLoggedInStudentUser?.();
+        if (!user || (notif.recipientId && ![user.id, user.uid].some(id => String(id) === String(notif.recipientId)))) return;
+        const row = window.AssessmentsPage?.buildAssessmentRows('student').find(row =>
+            String(row.subjectId) === String(target.subjectId) && Number(row.topicIdx) === Number(target.topicIdx)
+            && Number(row.unifiedIdx) === Number(target.itemIdx) && String(row.section) === String(notif.assignmentScope?.section));
+        const escape = window.escapeHtml;
+        let record = null;
+        try { if (row?.submissionKey) record = JSON.parse(localStorage.getItem(row.submissionKey) || 'null'); } catch (_) {}
+        const attempt = record?.history?.at(-1) || record?.attempts?.at(-1) || record;
+        const feedback = attempt?.aiFeedback || record?.aiFeedback || [];
+        const comments = attempt?.teacherFeedback || attempt?.gradingFeedback || record?.teacherFeedback || record?.gradingFeedback || '';
+        document.getElementById('sigma-grading-notification-modal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'sigma-grading-notification-modal';
+        modal.className = 'sigma-grading-notification-overlay';
+        modal.innerHTML = `<section class="sigma-grading-notification-dialog" role="dialog" aria-modal="true" aria-labelledby="grading-notification-title">
+            <header><h3 id="grading-notification-title">Submission Details</h3></header>
+            <div class="sigma-grading-notification-content"><h4>${escape(row?.activity || target.materialTitle || 'Graded Submission')}</h4><p class="text-black-fade">${escape(row?.subject || notif.assignmentScope?.subjectName || '')}</p>
+            <div class="sigma-grading-notification-score"><span class="sigma-grading-score-label">Score:</span><strong class="sigma-grading-score-display">${row?.score != null && String(row.score).trim() !== '' && Number.isFinite(Number(row.score)) ? `<span class="sigma-score-earned">${escape(String(row.score))}</span><span class="sigma-score-divider"> / </span><span class="sigma-score-max">${escape(String(row.max))}</span>` : '<span class="sigma-score-unavailable">Unavailable</span>'}</strong></div>
+            <p><strong>${escape(notif.senderName || 'Teacher')}</strong></p>${String(comments).trim() ? `<p>${escape(comments)}</p>` : '<p class="sigma-grading-notification-empty">No teacher comments yet.</p>'}
+            <div class="sigma-ai-panel">${window.renderSigmaAiHeading('SIGMA AI Feedback')}<div class="sigma-ai-panel-body">${feedback.length ? window.renderSigmaAiEntries(feedback) : '<p class="sigma-grading-notification-empty" role="status">Waiting for teacher-generated feedback.</p>'}</div></div></div>
+            <footer><button type="button" class="sigma-btn sigma-btn-white sigma-modal-btn" data-close>Close</button><button type="button" class="sigma-btn sigma-btn-primary sigma-modal-btn" data-view ${row ? '' : 'disabled'}>View Submission <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></footer></section>`;
+        const previous = document.activeElement;
+        const close = () => { modal.remove(); document.removeEventListener('keydown', onKey); previous?.focus?.(); };
+        const onKey = event => {
+            if (event.key === 'Escape') close();
+            if (event.key === 'Tab') {
+                const buttons = [...modal.querySelectorAll('button:not(:disabled)')];
+                const first = buttons[0], last = buttons.at(-1);
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+        };
+        modal.querySelectorAll('[data-close]').forEach(button => button.onclick = close);
+        modal.querySelector('[data-view]').onclick = () => { close(); window.openTopicContent?.(target.subjectId, Number(target.topicIdx), target.tab || 'assessments', Number(target.itemIdx), false, { selectedSection: notif.assignmentScope?.section }); };
+        modal.onclick = event => { if (event.target === modal) close(); };
+        document.body.append(modal); document.addEventListener('keydown', onKey); modal.querySelector('[data-close]').focus();
+    }
+
     function buildNotificationItem(notif) {
         if (['submission-graded', 'due-reminder'].includes(notif.type) && String(notif.id || '').startsWith(`${notif.type}:`)) {
             notif = { ...notif, senderId: '', senderName: 'Coursework Updates', avatarImg: '',
@@ -485,22 +619,31 @@
                 if (teacher) notif = { ...notif, ...teacher };
             }
         }
-        if (notif.senderId) {
+        const originalSenderName = String(notif.senderName || '');
+        {
             try {
-                const senderId = String(notif.senderId);
+                const senderId = String(notif.senderId || '');
                 const accounts = ['sigma-admin-users', 'sigma-users-list']
                     .flatMap(key => {
                         const records = JSON.parse(localStorage.getItem(key) || '[]');
                         return Array.isArray(records) ? records : [];
                     });
-                const account = accounts.find(user =>
-                    [user.id, user.uid].some(id => id != null && String(id) === senderId));
-                const storedAvatar = localStorage.getItem(`sigma_avatar_${senderId}`);
+                const normalized = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+                const account = accounts.find(user => senderId
+                    ? [user.id, user.uid].some(id => id != null && String(id) === senderId)
+                    : [user.fullName, user.name, [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ')].some(name => name && normalized(name) === normalized(originalSenderName)));
+                const storedAvatar = senderId ? localStorage.getItem(`sigma_avatar_${senderId}`) : '';
                 const currentAvatar = account
                     ? account.avatar || account.profilePicture || storedAvatar || ''
                     : storedAvatar;
                 if (account || currentAvatar) {
                     notif = { ...notif, avatarImg: currentAvatar || '' };
+                }
+                if (account?.firstName && account?.lastName) {
+                    const name = `${account.firstName.trim()} ${account.lastName.trim()}`;
+                    let body = String(notif.body || '');
+                    for (const full of new Set([originalSenderName, account.fullName, account.name].filter(Boolean))) body = body.split(full).join(name);
+                    notif = { ...notif, senderName: name, body };
                 }
             } catch (error) {
                 console.warn('Unable to resolve notification sender profile', error);
@@ -515,7 +658,15 @@
             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); item.click(); }
         });
 
-        // Support FontAwesome icon, image avatar, or initials
+        const schoolSender = notif.senderType === 'system' || notif.type === 'quarter-reminder'
+            || (!notif.senderId && ['Academic Calendar', 'Account Management', 'Directory Service', 'System Security',
+                'Security Center', 'IT Infrastructure', 'Database Cloud', 'Office of the Registrar',
+                'Academic Office', 'Principal Office', 'System Notice', 'Coursework Updates', 'Sigma AI Monitor'].includes(notif.senderName));
+        let schoolLogo = defaultSchoolLogo;
+        if (schoolSender) {
+            try { schoolLogo = localStorage.getItem('sigma-institution-logo') || localStorage.getItem('sigma-custom-nav-logo') || defaultSchoolLogo; } catch (_) {}
+            notif = { ...notif, avatarImg: schoolLogo };
+        }
         let avatarInner = '';
         const useProfile = true;
         const profileFallback = useProfile && !notif.avatarImg;
@@ -527,7 +678,7 @@
         }
 
         item.innerHTML = `
-            <div class="notif-item__avatar" style="background-color: ${profileFallback ? '#f1f5f9' : notif.senderColor || '#1d4ed8'}">
+            <div class="notif-item__avatar${schoolSender ? ' notif-item__avatar--school' : ''}" style="background-color: ${schoolSender ? '#ffffff' : profileFallback ? '#f1f5f9' : notif.senderColor || '#1d4ed8'}">
                 ${avatarInner}
             </div>
             <div class="notif-item__body">
@@ -546,11 +697,11 @@
         item.querySelector('.notif-item__context').textContent = `${notificationTitle ? notificationTitle + ' — ' : ''}${notif.body || ''}`;
         if (avatarImage) {
             avatarImage.src = notif.avatarImg;
-            avatarImage.alt = notif.senderName || 'Sender profile';
-            avatarImage.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            avatarImage.alt = schoolSender ? 'School logo' : notif.senderName || 'Sender profile';
             avatarImage.onerror = () => {
+                if (schoolSender && avatarImage.src !== defaultSchoolLogo) { avatarImage.src = defaultSchoolLogo; return; }
                 avatarImage.parentElement.style.backgroundColor = '#f1f5f9';
-                avatarImage.parentElement.innerHTML = profileFallbackHtml;
+                avatarImage.parentElement.innerHTML = schoolSender ? '<i class="fa-solid fa-school" style="color:#15803d" aria-hidden="true"></i>' : profileFallbackHtml;
             };
         }
 
@@ -573,14 +724,40 @@
             }
 
             // Navigate if notification points to a material / coursework
+            if (currentRole === 'admin' && (notif.type === 'quarter-reminder' || String(notif.id || '').startsWith('sy-quarter-reminder-'))) {
+                window.openAskingPanel?.({
+                    title: notif.title || 'Quarter Reminder',
+                    message: notif.body || 'Review the quarter dates in School Year settings.',
+                    icon: 'fa-solid fa-calendar-days text-[#15803d]',
+                    confirmText: 'View School Year',
+                    cancelText: 'Close',
+                    onConfirm: () => window.switchTab?.('nav-school-year', true)
+                });
+                return;
+            }
+            if (notif.type === 'submission-graded' && currentRole === 'student') {
+                openGradingDetails(notif);
+                return;
+            }
             if (notif.target?.postId) {
                 window.SigmaAnnouncements?.openPostDialog(notif.target.postId);
+                return;
+            }
+            if (notif.target?.gradeRecord) {
+                const grade = notif.target.gradeRecord;
+                if (currentRole === 'student') {
+                    const student = window.getLoggedInStudentUser?.();
+                    if (student && grade.quarter) localStorage.setItem(`sigma-student-performance-quarter:${student.uid || student.id}`, String(grade.quarter));
+                    window.switchTab?.('nav-grades');
+                } else {
+                    window.openGradeRecordNotification?.(grade);
+                }
                 return;
             }
             if (currentRole === 'teacher' && notif.assignmentScope && typeof window.openTopicContent === 'function') {
                 const target = notif.target || {};
                 window.openTopicContent(target.subjectId, target.topicIdx, target.tab || 'assessments', target.itemIdx, true, {
-                    selectedSection: target.selectedSection,
+                    selectedSection: target.selectedSection || notif.assignmentScope.section,
                     selectedStudent: target.selectedStudent,
                     viewSubmission: true
                 });
@@ -611,6 +788,7 @@
 
     function renderFeed() {
         const notifs = getNotifications();
+        recordFeedRecipients(notifs);
         updateBadge(notifs);
         const feedContainer = document.getElementById('noti-dropdown-feed');
         const prevBtnWrap = document.getElementById('noti-prev-wrapper');
@@ -897,6 +1075,7 @@
                 list = [];
             }
             if (list.some(item => item.id === notif.id)) return;
+            if (!notif.recipientId) notif = { ...notif, recipients: snapshotNotificationRecipients(targetRole, notif) };
             list.unshift(notif);
             try {
                 localStorage.setItem(targetKey, JSON.stringify(list));
@@ -913,6 +1092,9 @@
             return window.SigmaNotifications.sendToRole(role || currentRole, notif);
         },
         getLogs: getNotificationLogs,
+        deleteLog: (logOrId) => window.deleteNotificationLog?.(logOrId),
+        assessmentReleaseNotice, notifyAssessmentContentUpdate,
+        syncRecipientReceipts() { recordFeedRecipients(getNotifications()); },
         getAll: getNotifications,
         refresh: renderFeed,
         // Developer / Designer Preview Helpers
@@ -937,7 +1119,7 @@
     window.loadDemoNotifications = () => window.SigmaNotifications.loadDemoData();
     window.clearDemoNotifications = () => window.SigmaNotifications.clearAll();
     window.addEventListener('storage', event => {
-        if (event.key === NOTIF_STORAGE_KEY || event.key === null) renderFeed();
+        if ([NOTIF_STORAGE_KEY, 'sigma-institution-logo', 'sigma-custom-nav-logo', null].includes(event.key)) renderFeed();
     });
     window.addEventListener('notifications-updated', renderFeed);
     window.addEventListener('pageshow', () => updateBadge(getNotifications()));

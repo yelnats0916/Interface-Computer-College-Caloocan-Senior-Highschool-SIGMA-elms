@@ -361,6 +361,7 @@ require_once __DIR__ . '/../config/app.php';
     <script src="../js/shared-components.js?v=<?= time() ?>"></script>
     <script src="../js/secure-input-guard.js?v=<?= time() ?>"></script>
     <script src="../js/recaptcha-client.js?v=<?= time() ?>"></script>
+    <script src="../js/authentication-logs.js?v=<?= time() ?>"></script>
     <script src="../js/index.js?v=<?= time() ?>"></script>
 
 </body>

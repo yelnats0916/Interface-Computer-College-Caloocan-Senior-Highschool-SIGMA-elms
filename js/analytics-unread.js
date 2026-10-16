@@ -36,7 +36,8 @@
                     actions.prepend(label);
                 }
             });
-            localStorage.setItem(storageKey, JSON.stringify({ unread: [...unread], read: [...read] }));
+            const serialized = JSON.stringify({ unread: [...unread], read: [...read] });
+            if (localStorage.getItem(storageKey) !== serialized) localStorage.setItem(storageKey, serialized);
             const count = unread.size > 99 ? '99+' : String(unread.size);
             if (badge.textContent !== count) badge.textContent = count;
             badge.classList.toggle('hidden', unread.size === 0);
@@ -49,7 +50,7 @@
                     markAll.className = 'sigma-insight-mark-all sigma-analyze-button';
                     markAll.title = 'Mark all insights as read';
                     markAll.setAttribute('aria-label', 'Mark all insights as read');
-                    markAll.innerHTML = '<i class="fa-solid fa-check-double" aria-hidden="true"></i>';
+                    markAll.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>';
                     markAll.addEventListener('click', event => {
                         event.stopPropagation();
                         unread.forEach(id => read.add(id));
@@ -77,7 +78,13 @@
                 render();
             } catch (_) {}
         });
-        new MutationObserver(render).observe(document.body, { childList: true, subtree: true });
+        let frame = 0;
+        const relevant = '.sigma-card--insight,.sigma-insight-search-toggle';
+        new MutationObserver(records => {
+            if (!records.some(record => [...record.addedNodes, ...record.removedNodes].some(node =>
+                node.nodeType === 1 && (node.matches(relevant) || node.querySelector(relevant))))) return;
+            if (!frame) frame = requestAnimationFrame(() => { frame = 0; render(); });
+        }).observe(document.body, { childList: true, subtree: true });
         render();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -11,10 +11,10 @@
             const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/analytics_ai.php' : 'php/api/analytics_ai.php', location.href).href;
             const timeout = new AbortController();
-            const timer = setTimeout(() => timeout.abort(), 130000);
+            const timer = setTimeout(() => timeout.abort(), 30000);
             try {
                 const response = await fetch(api, { method: 'POST', credentials: 'include', signal: timeout.signal, headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ kind, snapshot: request.snapshot, maxCards: request.maxCards }) });
+                    body: JSON.stringify({ kind, snapshot: request.snapshot, maxCards: request.maxCards, language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
                 const result = await response.json();
                 if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'AI returned invalid analytics.');
                 return result;

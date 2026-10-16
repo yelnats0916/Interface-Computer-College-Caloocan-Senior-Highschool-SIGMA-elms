@@ -72,30 +72,30 @@
         {
             id: 'metric-ai',
             type: 'interactive-switcher',
-            title: 'AI Usage',
-            desc: 'Gemini and Groq AI token requests and quotas',
-            status: { label: 'Efficient', icon: 'fa-brain', color: '#15803d' },
+            title: 'SIGMA AI Usage',
+            desc: 'Recorded Gemini and Groq AI activity',
+            status: { label: 'Loading', icon: 'fa-brain', color: '#15803d' },
             models: ['Gemini', 'Groq'],
             periods: ['Daily', 'Monthly'],
             activeModel: 'gemini',
             activePeriod: 'daily',
-            periodDesc: 'Requests Today (Sunday)',
-            requestsValue: '1,242',
-            quotaLabel: 'Daily Quota',
-            quotaPercent: '42%'
+            periodDesc: 'Loading activity…',
+            requestsValue: '0',
+            quotaLabel: 'Daily Tokens',
+            quotaPercent: '0 / 1M'
         },
         {
             id: 'metric-storage',
             type: 'resource-capacity',
             title: 'Storage Usage',
-            desc: 'Cloud file storage and media quotas',
-            status: { label: 'Optimal', icon: 'fa-hard-drive', color: '#15803d' },
-            usedValue: '12.4',
-            unit: 'GB Used',
-            subtitle: 'Cloud Storage',
-            capacityLabel: '83% Full',
-            capacityPercent: '83%',
-            barColor: 'bg-[#ea580c]'
+            desc: 'Live ELMS folder storage',
+            status: { label: 'Checking', icon: 'fa-brands fa-google-drive', color: '#15803d' },
+            usedValue: '0',
+            unit: 'B',
+            subtitle: 'Google Drive',
+            capacityLabel: 'Checking…',
+            capacityPercent: '0%',
+            barColor: 'bg-[#15803d]'
         },
         {
             id: 'metric-security',
@@ -105,8 +105,8 @@
             status: { label: 'Secure', icon: 'fa-shield-halved', color: '#15803d' },
             threatsCount: '0',
             threatsLabel: 'Threats Blocked',
-            twoFactorRate: '100% 2FA Active',
-            failedAttempts: '2 Failed Attempts Today'
+            twoFactorRate: '100% 2FA Active · reCAPTCHA v3',
+            failedAttempts: '0 Failed Today'
         },
         {
             id: 'metric-database',
@@ -123,11 +123,11 @@
             type: 'grading-queue',
             title: 'Grading Pipeline',
             desc: 'Student assignment submissions and teacher queue',
-            status: { label: 'On Track', icon: 'fa-file-signature', color: '#15803d' },
-            submittedCount: '318',
-            submittedLabel: 'Submitted Today',
-            pendingCount: '42 Pending Grading',
-            progressPercent: '88%'
+            status: { label: 'Up to Date', icon: 'fa-file-signature', color: '#15803d' },
+            submittedCount: '0',
+            submittedLabel: 'Submissions',
+            pendingCount: 'Queue Clear',
+            progressPercent: '100%'
         }
     ];
 
@@ -215,19 +215,31 @@
 
     function toTitleCase(str) {
         if (!str) return '';
-        return String(str).toLowerCase().replace(/(?:^|\s|\/|-)\w/g, match => match.toUpperCase());
+        let result = String(str).toLowerCase().replace(/(?:^|\s|\/|-)\w/g, match => match.toUpperCase());
+        result = result.replace(/\bSigma Ai\b/gi, 'SIGMA AI').replace(/\bAi\b/g, 'AI').replace(/\bElms\b/gi, 'ELMS');
+        return result;
     }
 
     function renderMetricHeaderHtml(title, statusLabel, iconName = '', labelId = '', indicatorId = '') {
         const titleFormatted = toTitleCase(title);
         const statusFormatted = toTitleCase(statusLabel);
+        const usageAction = labelId === 'ai-status-label'
+            ? "window.openAiSettingsPage?.(); window.selectAiSettingsTab?.('usage')"
+            : labelId === 'storage-status-label'
+                ? "window.openGoogleDriveSettingsPage?.(); window.selectGoogleDriveSettingsTab?.('usage')"
+                : labelId === 'security-status-label'
+                    ? "window.switchTab?.('nav-audit-auth', true)"
+                    : labelId === 'grading-status-label'
+                        ? "window.switchTab?.('nav-grades', true)" : '';
+        const isFullFaClass = iconName && (iconName.includes('fa-brands') || iconName.includes('fa-regular') || iconName.includes('fa-solid'));
+        const iconClass = isFullFaClass ? iconName : `fa-solid ${iconName}`;
         const indicatorHtml = iconName
-            ? `<i ${indicatorId ? `id="${indicatorId}"` : ''} class="fa-solid ${iconName} sigma-metric-status-icon pocket-metric-status-icon text-[#15803d]"></i>`
+            ? `<i ${indicatorId ? `id="${indicatorId}"` : ''} class="${iconClass} sigma-metric-status-icon pocket-metric-status-icon text-[#15803d]"></i>`
             : `<div ${indicatorId ? `id="${indicatorId}"` : ''} class="sigma-metric-status-dot pocket-metric-status-dot bg-[#15803d] animate-pulse"></div>`;
 
         return `
             <div class="sigma-metric-header pocket-metric-header flex items-center justify-between w-full">
-                <h4 class="sigma-metric-title pocket-metric-title text-black">${titleFormatted}</h4>
+                <h4 class="sigma-metric-title pocket-metric-title text-black">${usageAction ? `<button type="button" class="sigma-usage-title-link" onclick="event.stopPropagation(); ${usageAction}">${titleFormatted}</button>` : titleFormatted}</h4>
                 <div class="sigma-metric-status pocket-metric-status ml-auto">
                     <span ${labelId ? `id="${labelId}"` : ''} class="sigma-metric-status-label pocket-metric-status-label text-[#15803d]">${statusFormatted}</span>
                     ${indicatorHtml}
@@ -254,7 +266,7 @@
                     </div>
                     <div class="space-y-1.5 pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-black-fade">Response Time</span>
+                            <span class="text-[11px] font-semibold text-black">Response Time</span>
                             <span id="system-latency-label" class="text-[11px] font-bold text-[#15803d]">${item.latency.label}</span>
                         </div>
                         <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -275,31 +287,29 @@
                         <!-- Model Switcher -->
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                             <button id="btn-ai-gemini" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all bg-white text-black shadow-sm cursor-pointer" onclick="window.setAiModel && window.setAiModel('gemini')">Gemini</button>
-                            <button id="btn-ai-groq" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade hover:text-black cursor-pointer" onclick="window.setAiModel && window.setAiModel('groq')">Groq</button>
+                            <button id="btn-ai-groq" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade cursor-pointer" onclick="window.setAiModel && window.setAiModel('groq')">Groq</button>
                         </div>
                         <!-- Period Switcher -->
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                             <button id="btn-period-daily" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all bg-white text-black shadow-sm cursor-pointer" onclick="window.setAiPeriod && window.setAiPeriod('daily')">Daily</button>
-                            <button id="btn-period-monthly" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade hover:text-black cursor-pointer" onclick="window.setAiPeriod && window.setAiPeriod('monthly')">Monthly</button>
+                            <button id="btn-period-monthly" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade cursor-pointer" onclick="window.setAiPeriod && window.setAiPeriod('monthly')">Monthly</button>
                         </div>
                     </div>
 
-                    <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-0.5 py-0.5">
-                        <p id="ai-period-desc" class="text-[10.5px] font-medium text-black-fade truncate w-full text-center">${item.periodDesc}</p>
-                        <div class="flex items-baseline justify-center gap-1.5 mt-0.5">
+                    <div class="metric-body-centered flex-1 flex items-center justify-center text-center py-2">
+                        <div class="flex items-baseline justify-center gap-1.5">
                             <span id="ai-requests-value" class="text-2xl font-black text-black leading-none tracking-tight">${item.requestsValue}</span>
-                            <span class="text-[11px] font-semibold text-black-fade">Requests</span>
+                            <span class="text-[11px] font-semibold text-black">Requests</span>
                         </div>
                     </div>
 
                     <div class="space-y-1.5 pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between">
-                            <span id="ai-quota-label" class="text-[11px] font-semibold text-black-fade">${item.quotaLabel}</span>
+                            <span id="ai-quota-label" class="text-[11px] font-semibold text-black">${item.quotaLabel}</span>
                             <span id="ai-usage-percent" class="text-[11px] font-bold text-black">${item.quotaPercent}</span>
                         </div>
-                        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="ai-usage-bar" class="w-[42%] h-full bg-[#15803d] rounded-full"></div>
-                        </div>
+                        <div id="ai-capacity-track" class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="ai-usage-bar" class="w-[0%] h-full bg-[#15803d] rounded-full transition-all duration-500"></div></div>
+                        <button type="button" id="ai-usage-retry" class="text-xs underline cursor-pointer" onclick="window.retryAiUsage?.()" hidden>Retry</button>
                     </div>
                 </div>
             `;
@@ -307,22 +317,26 @@
 
         if (item.type === 'resource-capacity') {
             return `
-                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
-                    ${renderMetricHeaderHtml(item.title, item.status.label, item.status.icon || 'fa-hard-drive', 'storage-status-label', 'storage-status-icon')}
-                    <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-1">
+                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between cursor-pointer hover:border-slate-300 transition-all group" onclick="window.openGoogleDriveSettingsPage?.(); window.selectGoogleDriveSettingsTab?.('usage')" role="button" tabindex="0" title="View ELMS folder usage">
+                    ${renderMetricHeaderHtml(item.title, item.status.label, item.status.icon || 'fa-brands fa-google-drive', 'storage-status-label', 'storage-status-icon')}
+                    <div class="metric-body-centered flex-1 flex items-center justify-center text-center gap-3 py-1" style="flex-direction:row; gap:12px;">
+                        <p id="storage-subtitle" class="text-[11.5px] font-medium leading-snug flex items-center justify-center gap-1" style="color:#000;">
+                            <i class="fa-brands fa-google-drive" aria-hidden="true" style="color:#000;"></i>
+                            <span data-storage-provider-label>${item.subtitle}</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[9.5px]" aria-hidden="true" style="color:#000;"></i>
+                        </p>
                         <div class="flex items-baseline justify-center gap-1.5">
                             <span id="storage-used-value" class="text-2xl font-black text-black leading-none tracking-tight">${item.usedValue}</span>
-                            <span class="text-[11px] font-semibold text-black-fade">${item.unit}</span>
+                            <span id="storage-unit-label" class="text-[11px] font-semibold text-black">${item.unit}</span>
                         </div>
-                        <p class="text-[11.5px] font-medium text-black-fade leading-snug">${item.subtitle}</p>
                     </div>
                     <div class="space-y-1.5 pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-black-fade">Total Capacity</span>
+                            <span class="text-[11px] font-semibold text-black">Account Capacity</span>
                             <span id="storage-percent-label" class="text-[11px] font-bold text-black">${item.capacityLabel}</span>
                         </div>
-                        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="storage-usage-bar" class="w-[83%] h-full bg-[#ea580c] rounded-full"></div>
+                        <div id="storage-capacity-track" class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="storage-usage-bar" class="w-[0%] h-full bg-[#15803d] rounded-full transition-all duration-500"></div>
                         </div>
                     </div>
                 </div>
@@ -331,21 +345,21 @@
 
         if (item.type === 'security-guard') {
             return `
-                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
+                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between cursor-pointer hover:border-slate-300 transition-all group" onclick="window.switchTab?.('nav-audit-auth', true)" role="button" tabindex="0" title="View Authentication Logs">
                     ${renderMetricHeaderHtml(item.title, item.status.label, item.status.icon || 'fa-shield-halved', 'security-status-label', 'security-status-icon')}
                     <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-1">
                         <div class="flex items-baseline justify-center gap-1.5">
-                            <span class="text-2xl font-black text-black leading-none tracking-tight">${item.threatsCount}</span>
-                            <span class="text-[11px] font-semibold text-black-fade">${item.threatsLabel}</span>
+                            <span id="security-threats-count" class="text-2xl font-black text-black leading-none tracking-tight">${item.threatsCount}</span>
+                            <span class="text-[11px] font-semibold text-black">${item.threatsLabel}</span>
                         </div>
-                        <p class="text-[11.5px] font-medium text-black-fade leading-snug">
+                        <p id="security-2fa-status" class="text-[11.5px] font-medium text-black-fade leading-snug">
                             ${item.twoFactorRate}
                         </p>
                     </div>
                     <div class="pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between min-h-[22px]">
-                            <span class="text-[11px] font-semibold text-black-fade">Login Security</span>
-                            <span class="text-[11px] font-bold text-black">${item.failedAttempts}</span>
+                            <span class="text-[11px] font-semibold text-black">Login Security</span>
+                            <span id="security-failed-attempts" class="text-[11px] font-bold text-black">${item.failedAttempts}</span>
                         </div>
                     </div>
                 </div>
@@ -367,7 +381,7 @@
                     </div>
                     <div class="pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between min-h-[22px]">
-                            <span class="text-[11px] font-semibold text-black-fade">Connection Pool</span>
+                            <span class="text-[11px] font-semibold text-black">Connection Pool</span>
                             <span class="text-[11px] font-bold text-[#15803d]">${item.activeConnections}</span>
                         </div>
                     </div>
@@ -377,24 +391,24 @@
 
         if (item.type === 'grading-queue') {
             return `
-                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
+                <div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between cursor-pointer hover:border-slate-300 transition-all group" onclick="window.switchTab?.('nav-grades', true)" role="button" tabindex="0" title="View Gradebook">
                     ${renderMetricHeaderHtml(item.title, item.status.label, item.status.icon || 'fa-file-signature', 'grading-status-label', 'grading-status-icon')}
                     <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-1">
                         <div class="flex items-baseline justify-center gap-1.5">
-                            <span class="text-2xl font-black text-black leading-none tracking-tight">${item.submittedCount}</span>
-                            <span class="text-[11px] font-semibold text-black-fade">${item.submittedLabel}</span>
+                            <span id="grading-submitted-count" class="text-2xl font-black text-black leading-none tracking-tight">${item.submittedCount}</span>
+                            <span class="text-[11px] font-semibold text-black">${item.submittedLabel}</span>
                         </div>
-                        <p class="text-[11.5px] font-medium text-black-fade leading-snug">
+                        <p id="grading-pending-count" class="text-[11.5px] font-medium text-black-fade leading-snug">
                             ${item.pendingCount}
                         </p>
                     </div>
                     <div class="space-y-1.5 pt-2 border-t border-slate-100 flex-shrink-0">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-semibold text-black-fade">Grading Pace</span>
-                            <span class="text-[11px] font-bold text-[#15803d]">${item.progressPercent}</span>
+                            <span class="text-[11px] font-semibold text-black">Grading Pace</span>
+                            <span id="grading-pace-percent" class="text-[11px] font-bold text-[#15803d]">${item.progressPercent}</span>
                         </div>
                         <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div class="w-[88%] h-full bg-[#15803d] rounded-full"></div>
+                            <div id="grading-pace-bar" class="w-[${item.progressPercent}] h-full bg-[#15803d] rounded-full transition-all duration-500"></div>
                         </div>
                     </div>
                 </div>
@@ -423,10 +437,15 @@
         container.innerHTML = initialCards.map(item => renderMetricCardHtml(item)).join('');
 
         wireInteractiveSwitchers();
+        window.updateAiDisplay?.();
+        window.syncGoogleDriveStorageMetric?.();
+        window.syncSecurityMetric?.();
+        window.syncGradingMetric?.();
         initPocketCardsContainer(container, activeItems);
     }
 
     function wireInteractiveSwitchers() {
+        window.syncGoogleDriveStorageMetric?.();
         const geminiBtn = document.getElementById('btn-ai-gemini');
         const groqBtn = document.getElementById('btn-ai-groq');
         if (geminiBtn && typeof window.setAiModel === 'function') {
@@ -1145,6 +1164,7 @@
                             }
                         });
                         wireInteractiveSwitchers();
+                        window.updateAiDisplay?.();
                     } else {
                         // Dynamically render extra Student/Teacher SIGMA cards (cards 5-8)
                         const extraCards = userCards.slice(4);
@@ -2260,6 +2280,7 @@
         const searchInput = document.getElementById('admin-teacher-search-input');
         if (searchInput) {
             searchInput.value = '';
+            window.sanitizeAdminTeacherSearchInput(searchInput);
             setTimeout(() => searchInput.focus(), 50);
         }
 
@@ -2284,7 +2305,21 @@
         if (input.value !== clean) {
             input.value = clean;
         }
+        const clear = document.getElementById('admin-teacher-search-clear');
+        if (clear) clear.hidden = !clean;
         return clean;
+    };
+
+    window.clearAdminTeacherModalSearch = function () {
+        const input = document.getElementById('admin-teacher-search-input');
+        if (!input) return;
+        input.value = '';
+        window.sanitizeAdminTeacherSearchInput(input);
+        window._pendingAdminTeacher = null;
+        window._pendingAdminTeacherId = null;
+        window.renderAdminTeacherModalList('', false);
+        window.updateAdminTeacherModalFooter();
+        input.focus({ preventScroll: true });
     };
 
     window.executeAdminTeacherModalSearch = function () {
@@ -2399,7 +2434,7 @@
             listContainer.innerHTML = `
                 <div class="py-12 px-4 text-center font-['Inter']">
                     <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
-                        <i class="fa-solid fa-user-xmark text-lg"></i>
+                        <i class="fa-solid fa-chalkboard-user text-lg" style="color: rgba(0, 0, 0, 0.40);"></i>
                     </div>
                     <p class="text-sm font-bold text-black">No faculty found</p>
                     <p class="text-xs font-normal mt-0.5" style="color: rgba(0, 0, 0, 0.45);">No teachers matched "${escapeHtml(query)}"</p>
@@ -2836,6 +2871,18 @@
         });
         return [...found.values()];
     };
+    function getAnalyticsSubjectIcon(subjectName) {
+        if (typeof window.getSubjectIcon === 'function') return window.getSubjectIcon(subjectName);
+        const s = String(subjectName || '').toLowerCase();
+        if (s.includes('math') || s.includes('calculus') || s.includes('stat') || s.includes('algebra')) return 'fa-solid fa-calculator';
+        if (s.includes('program') || s.includes('code') || s.includes('software') || s.includes('web') || s.includes('cs') || s.includes('it')) return 'fa-solid fa-laptop-code';
+        if (s.includes('empowerment') || s.includes('tech')) return 'fa-solid fa-microchip';
+        if (s.includes('science') || s.includes('physics') || s.includes('chem') || s.includes('bio')) return 'fa-solid fa-flask';
+        if (s.includes('english') || s.includes('literature') || s.includes('reading') || s.includes('communication') || s.includes('oral')) return 'fa-solid fa-comments';
+        if (s.includes('history') || s.includes('filipino') || s.includes('social') || s.includes('society')) return 'fa-solid fa-landmark';
+        if (s.includes('pe') || s.includes('physical') || s.includes('health') || s.includes('sports')) return 'fa-solid fa-heart-pulse';
+        return 'fa-solid fa-book-open';
+    }
     window.openTeacherAdvisoryClass = function () {
         if (!isCurrentPageTeacherPortal() && window.sigmaGradesState.activeTab !== 'analytics') return;
         const assignments=window.getTeacherAssignedSubjectsAndSections(getEffectiveTeacher())||[];
@@ -2858,7 +2905,17 @@
         window.scrollTo(0,0);
         container.querySelector('.teacher-class-overview > h3')?.remove();
         const page=container.querySelector('.teacher-class-overview');
-        page.querySelector(':scope > button')?.remove();
+        const backButton = page.querySelector(':scope > button');
+        if (backButton) {
+            backButton.className = 'sigma-btn sigma-btn-primary sigma-btn-md';
+            backButton.setAttribute('aria-label', 'Subject Classes');
+            backButton.querySelector('span').textContent = 'Subject Classes';
+            backButton.querySelector('i').className = 'fa-solid fa-chalkboard-user';
+            const tools = document.createElement('div');
+            tools.className = 'teacher-class-advisory-tools';
+            backButton.before(tools);
+            tools.append(backButton);
+        }
         page.querySelectorAll(':scope > section').forEach(section=>section.remove());
         const subjects=advisoryRecords.flatMap(section=>{
             const names=[...(section.assignedSubjects||[]),...(section.subjects||[]),...(section.teachers||[]).map(row=>row.subject||row.assignedSubject),...assignments.filter(row=>row.sectionName===(section.name||section.sectionName)).map(row=>row.subject)];
@@ -2866,8 +2923,36 @@
         });
         window._advisoryReviewSubjects=subjects;
         const body=document.createElement('div');body.className='teacher-class-overview-body';body.style.marginTop='24px';
-        body.innerHTML=`<div class="teacher-class-panels">${subjects.map((item,index)=>`<article class="teacher-class-panel"><header><span class="teacher-class-panel-icon"><i class="fa-solid fa-book-open" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.sectionName)}</p></div></header><div class="teacher-class-panel-students"><strong>${(window.getStudentsForSection?.(item.sectionName)||[]).length}</strong><span>Students</span></div><p class="teacher-student-grade-empty">Awaiting Submitted Grades</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openAdvisorySubjectReview(${index})"><span>Review Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')||'<div class="teacher-grades-empty"><h3>No Subjects Assigned Yet</h3></div>'}</div><aside class="teacher-class-grade-list"><header><h3>General Average</h3>${window.renderSharedQuarterDropdown([1,2,3,4],window.sigmaGradesState.activeQuarter||1,q=>`window.sigmaGradesState.activeQuarter=${q};window.openTeacherAdvisoryClass()`)}</header>${sections.map(section=>(window.getStudentsForSection?.(section)||[]).map(student=>`<div class="teacher-student-grade-entry"><div><strong>${escapeHtml(student.fullName||student.name||'Student')}</strong><p>${escapeHtml(section)} · Incomplete</p></div><span class="teacher-quarter-grade-empty">-</span></div>`).join('')).join('')||'<p class="teacher-student-grade-empty">No Students Assigned Yet</p>'}</aside>`;
+        body.innerHTML=`<div class="teacher-class-panels">${subjects.map((item,index)=>`<article class="teacher-class-panel"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.sectionName)}</p></div></header><div class="teacher-class-panel-students"><strong>${(window.getStudentsForSection?.(item.sectionName)||[]).length}</strong><span>Students</span></div><p class="teacher-student-grade-empty">Awaiting Submitted Grades</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openAdvisorySubjectReview(${index})"><span>Review Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')||'<div class="teacher-grades-empty"><h3>No Subjects Assigned Yet</h3></div>'}</div><aside class="teacher-class-grade-list"><header><h3>General Average</h3>${window.renderSharedQuarterDropdown([1,2,3,4],window.sigmaGradesState.activeQuarter||1,q=>`window.sigmaGradesState.activeQuarter=${q};window.openTeacherAdvisoryClass()`)}</header>${sections.map(section=>(window.getStudentsForSection?.(section)||[]).map(student=>`<div class="teacher-student-grade-entry"><div><strong>${escapeHtml(student.fullName||student.name||'Student')}</strong><p>${escapeHtml(section)} · Incomplete</p></div><span class="teacher-quarter-grade-empty">-</span></div>`).join('')).join('')||'<p class="teacher-student-grade-empty">No Students Assigned Yet</p>'}</aside>`;
         page.append(body);
+        body.querySelectorAll('.teacher-class-panel').forEach((panel,index)=>{
+            const item=subjects[index];
+            const students=window.getStudentsForSection?.(item.sectionName)||[];
+            const quarter=Number(window.sigmaGradesState.activeQuarter)||1;
+            let submitted=0;
+            try{
+                const year=window.getActiveSchoolYearRecord?.()||{};
+                const schoolYear=year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified';
+                const normalize=value=>String(value||'').trim().toLowerCase();
+                const key=JSON.stringify([schoolYear,normalize(item.sectionName),normalize(item.subject),quarter]);
+                const record=JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1')||'{}')[key];
+                submitted=students.filter(student=>record?.rows?.some(row=>[student.id,student.uid,student.lrn,student.studentNumber].filter(Boolean).map(String).includes(String(row.id))&&Number.isFinite(row.grade))).length;
+            }catch(_){}
+            const summary=panel.querySelector('.teacher-class-panel-students');
+            summary.replaceChildren();
+            const label=document.createElement('span');label.textContent='Grades Submitted';
+            const count=document.createElement('strong');count.textContent=`${submitted}/${students.length}`;
+            summary.append(label,count);summary.title=`Quarter ${quarter}: ${submitted} of ${students.length} student grades submitted`;
+            const published=students.length>0&&students.every(student=>Number.isFinite(window.getPublishedSubjectGrade?.(student,item.subject,item.sectionName,quarter)));
+            const ready=students.length>0&&submitted===students.length;
+            const status=panel.querySelector('.teacher-student-grade-empty');
+            if(status){
+                status.textContent=published?'Published':ready?'Ready for Review':'Pending';
+                status.dataset.gradeStatus=published?'published':ready?'ready':'pending';
+                status.setAttribute('role','status');
+                status.title=`Quarter ${quarter}: ${status.textContent}`;
+            }
+        });
         const averageList=body.querySelector('.teacher-class-grade-list');
         averageList.querySelector('.sigma-quarter-dropdown')?.remove();
         const advisoryStudents=sections.flatMap(section=>(window.getStudentsForSection?.(section)||[]).map(student=>({student,section})));
@@ -2916,10 +3001,23 @@
         const header=document.getElementById('nav-context-text');
         if(header)header.innerHTML='<span class="advisory-header-parent">Grades</span><span class="advisory-header-main">Review Grades</span>';
     };
+    const refreshVisibleAdvisoryGrades=()=>{
+        const state=window.sigmaGradesState;
+        const host=document.getElementById('admin-analytics-workspace-content');
+        if(state?.teacherAdvisoryView&&state.activeTab==='analytics'&&host?.querySelector('.teacher-class-overview-body')&&!host.closest('.hidden')){
+            window.openTeacherAdvisoryClass();
+        }
+    };
+    window.addEventListener('sigma:grades-submitted',refreshVisibleAdvisoryGrades);
+    window.addEventListener('sigma:grades-published',refreshVisibleAdvisoryGrades);
+    window.addEventListener('storage',event=>{
+        if(['sigma-submitted-quarter-grades-v1','sigma-published-quarter-grades-v1'].includes(event.key))refreshVisibleAdvisoryGrades();
+    });
     window.backToTeacherGradeClasses = function () {
         window.sigmaGradesState.teacherAdvisoryView=false;
         const header=document.getElementById('nav-context-text');
-        if(header){header.classList.remove('advisory-header-title');header.textContent='Grades';}
+        if(header){header.classList.remove('advisory-header-title');}
+        window.setPortalHeader?.('Grades', 'Subject Classes');
         window.sigmaGradesState.teacherAnalyticsDetail=false;
         saveSigmaGradesState();
         window.renderAdminAnalyticsWorkspace();
@@ -2936,6 +3034,7 @@
             if (getAdvisorySectionRecords().length) { window.openTeacherAdvisoryClass(); return; }
             window.sigmaGradesState.teacherAdvisoryView=false;
         }
+        window.setPortalHeader?.('Grades', isTeacher ? 'Subject Classes' : 'Analytics');
         if (isTeacher && (!window.sigmaGradesState.teacherAnalyticsDetail || !subSec)) {
             const assignments = window.getTeacherAssignedSubjectsAndSections(teacher) || [];
             workspaceContainer.innerHTML = `<div class="teacher-class-overview">
@@ -2949,7 +3048,7 @@
                             })
                         )
                     ));
-                    return `<article class="teacher-class-panel" data-subject="${escapeHtml(item.subject)}"><header><span class="teacher-class-panel-icon"><i class="fa-solid fa-book-open" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(formatGradeSectionDisplay(item.sectionName,item.grade))}</p></div></header><div class="teacher-class-panel-students"><strong>${students.length}</strong><span>Students</span></div><div class="teacher-class-panel-quarters"><span>Quarters Graded</span><div>${[1,2,3,4].map(q=>`<span class="${gradedQuarters.includes(q)?'is-graded':''}" aria-label="Quarter ${q}${gradedQuarters.includes(q)?' graded':' not graded'}">Q${q}</span>`).join('')}</div></div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openTeacherOverviewClass(${index})"><span>View Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`;
+                    return `<article class="teacher-class-panel" data-subject="${escapeHtml(item.subject)}"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(formatGradeSectionDisplay(item.sectionName,item.grade))}</p></div></header><div class="teacher-class-panel-students"><strong>${students.length}</strong><span>Students</span></div><div class="teacher-class-panel-quarters"><span>Quarters Graded</span><div>${[1,2,3,4].map(q=>`<span class="${gradedQuarters.includes(q)?'is-graded':''}" aria-label="Quarter ${q}${gradedQuarters.includes(q)?' graded':' not graded'}">Q${q}</span>`).join('')}</div></div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openTeacherOverviewClass(${index})"><span>View Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`;
                 }).join('') || '<div class="teacher-grades-empty" role="status"><i class="fa-solid fa-book-open" aria-hidden="true"></i><h3>No Assigned Classes Yet</h3><p>Your subjects and sections will appear here once assigned.</p></div>'}</div></div>`;
             const panels=workspaceContainer.querySelector('.teacher-class-panels');
             panels.querySelectorAll('button[onclick^="window.openTeacherOverviewClass"] i').forEach(icon=>icon.remove());
@@ -3210,9 +3309,9 @@
         aiMessage = classGwa == null ? 'No grades recorded yet.' : `${activeQuarterLabel}: Class average ${classGwa.toFixed(1)} across ${gradesForDist.length} graded students. Component scores: WW ${activeQMetric.avgWw ?? '--'}%, PT ${activeQMetric.avgPt ?? '--'}%, QA ${activeQMetric.avgQa ?? '--'}%.`;
         const topSectionHtml = (typeof window.renderSharedAnalyticsTopSectionHtml === 'function')
             ? window.renderSharedAnalyticsTopSectionHtml({
-                gwa: null,
+                gwa: classGwa,
                 title: 'Class Average',
-                aiMessage: 'No AI insights available yet.',
+                aiMessage: 'No grades recorded yet.',
                 role: isTeacher ? 'teacher' : 'admin'
             })
             : '';
@@ -3395,6 +3494,11 @@
                 </div>
             </div>
         `;
+        if (isTeacher) window.refreshTeacherGradeInsight?.(workspaceContainer.querySelector('[data-ai-insight-body]'), {
+            subject: subSec.subject, section: subSec.sectionName, selectedQuarter: activeQuarter,
+            quarters: quarterMetrics.map(row => ({ quarter: row.quarter, average: row.avgOverall, gradedStudents: row.studentFinalGrades.length,
+                writtenWorkPercent: row.avgWw, performanceTaskPercent: row.avgPt, quarterlyAssessmentPercent: row.avgQa }))
+        });
         if (!isTeacher) {
             const root=workspaceContainer.querySelector('.teacher-grades-analytics');
             const components=[...root.querySelectorAll('h3')].find(title=>title.textContent==='Component Performance');
@@ -4503,9 +4607,6 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
 
         hydrateSigmaGradesState(isTeacherPage ? 'teacher' : 'admin');
 
-        const topbarLabel = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
-        if (topbarLabel) topbarLabel.textContent = 'Grades';
-
         const state = window.sigmaGradesState;
         if (options.quarter) state.activeQuarter = options.quarter;
         if (options.strand) state.activeStrand = options.strand;
@@ -4657,6 +4758,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
 
         saveSigmaGradesState();
 
+        window.setPortalHeader?.('Grades', state.activeTab === 'gradebook' ? 'Gradebooks' : (isTeacherPage ? 'Subject Classes' : 'Analytics'));
         container.innerHTML = `
             <div class="sigma-grades-page ${isTeacherPage ? '' : 'sigma-grades-page--admin'} flex flex-col flex-1 w-full h-full bg-white min-h-0 border-b border-slate-200">
                 ${isTeacherPage && state.activeTab === 'gradebook' && window.ClassroomRoom?.renderTabBar ? `<div class="classroom-gradebook-navigation">${window.ClassroomRoom.renderTabBar({ role: 'teacher', activeTab: 'gradebook' })}</div>` : ''}
@@ -4796,7 +4898,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                     <div class="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                         <div class="flex items-center gap-3">
                             <div>
-                                <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">Select Faculty / Teacher</h2>
+                                <h2 class="text-xl font-bold text-black font-['Inter'] tracking-tight">Faculty Directory</h2>
                                 <p class="text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Choose a faculty member to inspect and manage their Senior High School gradebooks</p>
                             </div>
                         </div>
@@ -4808,26 +4910,25 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                         <div class="space-y-3 font-['Inter']">
                             <div class="flex items-center justify-between pb-2 border-b-2 border-black transition-colors">
                                 <div>
-                                    <h3 class="text-base sm:text-[17px] font-bold text-black font-['Inter'] tracking-tight">Faculty Directory</h3>
                                     <p class="text-xs font-normal mt-0.5" style="color: rgba(0,0,0,0.45);">Search and select a teacher from the active school roster</p>
                                 </div>
                             </div>
 
                             <!-- Search Input + Shared Green Search Button -->
-                            <div class="flex items-center gap-3">
-                                <div class="relative flex-1">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-black text-sm pointer-events-none z-10"></i>
+                            <div class="ai-log-search flex items-center gap-3">
+                                <div class="ai-log-search-input-wrap relative flex-1" style="width:auto">
                                     <input type="text" id="admin-teacher-search-input" aria-label="Search faculty" placeholder="Search teacher by name or ID..." maxlength="50"
                                         autocomplete="off"
                                         spellcheck="false"
-                                        style="padding-left: 44px !important;"
+                                        style="padding-right:44px !important;"
                                         oninput="window.sanitizeAdminTeacherSearchInput(this)"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); window.executeAdminTeacherModalSearch();}"
                                         class="sigma-input font-['Inter']">
+                                    <button type="button" id="admin-teacher-search-clear" class="ai-log-search-clear" title="Clear search" aria-label="Clear search" onclick="window.clearAdminTeacherModalSearch()" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                                 </div>
                                 <button type="button" id="admin-teacher-search-btn" onclick="window.executeAdminTeacherModalSearch()"
-                                    class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px] shrink-0 flex items-center justify-center gap-2 cursor-pointer font-['Inter']">
-                                    <span>Search</span>
+                                    class="sigma-btn sigma-btn-primary sigma-btn-md ai-log-conversation-search-button shrink-0 flex items-center justify-center cursor-pointer" title="Search faculty" aria-label="Search faculty">
+                                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>

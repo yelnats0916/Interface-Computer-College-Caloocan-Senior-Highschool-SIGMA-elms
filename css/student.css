@@ -1151,12 +1151,18 @@ header .relative button i {
     color: #000000;
 }
 
-#profileDropdownBtn {
+#profileDropdownBtn,
+#sigma-toggle,
+#calendar-toggle,
+#noti-toggle {
     color: #000000 !important;
     background: #f1f5f9 !important;
 }
 
-#profileDropdownBtn:hover {
+#profileDropdownBtn:hover,
+#sigma-toggle:hover,
+#calendar-toggle:hover,
+#noti-toggle:hover {
     background: #e2e8f0 !important;
 }
 
@@ -6034,6 +6040,13 @@ body.curriculum-mode .student-topic-progress-rail {
         padding-bottom: 0 !important;
     }
 
+    #section-home .main-dashboard-column > :is(.welcome-panel-container, .sigma-feed-tabs-container, #student-announcements-feed) {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
     #admin-announcements-feed,
     #student-announcements-feed,
     .room-announcements-feed {
@@ -6874,6 +6887,16 @@ html body #grades-layout .student-performance-slider .subject-performance-card >
 }
 html body #student-classroom-grades-modal-overlay [data-subject-grade-insight] {
     color:#000!important;
+    display:block!important;
+    line-height:1.6!important;
+    text-align:left!important;
+    font-size:13.5px!important;
+}
+html body #student-classroom-grades-modal-overlay [data-subject-grade-insight] strong {
+    font-weight:700!important;
+    color:#000!important;
+    margin-right:4px!important;
+    display:inline!important;
 }
 html body #student-classroom-grades-modal-overlay [data-subject-grade-insight][data-insight-empty="true"] {color:rgba(0,0,0,.45)!important}
 html body #grades-layout .student-performance-slider .subject-performance-card > div:first-child > div:last-child > div:last-child > div:first-child.font-bold {

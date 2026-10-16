@@ -235,10 +235,20 @@
                 urlString = dec;
             } catch (e) { break; }
         }
-        const extractedFileName = urlString ? urlString.split('/').pop().split('\\').pop() : '';
+        const extractedFileName = urlString && !/^(data|blob):/i.test(urlString)
+            ? urlString.split(/[?#]/)[0].split('/').pop().split('\\').pop() : '';
 
         const determinedType = (fileType || (actualName ? actualName.split('.').pop() : '') || (extractedFileName ? extractedFileName.split('.').pop() : '') || 'docx').toLowerCase();
         const docId = 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        // Reserve the tab during the click, before IndexedDB awaits consume user activation.
+        const mobilePreview = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const previewWindow = (determinedType === 'pdf' || (!mobilePreview && ['docx', 'pptx', 'txt', 'text'].includes(determinedType)))
+            ? window.open('about:blank', '_blank') : null;
+        if (previewWindow) previewWindow.opener = null;
+        const navigatePreview = (url) => {
+            if (previewWindow && !previewWindow.closed) previewWindow.location.replace(url);
+            else window.open(url, '_blank', 'noopener,noreferrer');
+        };
 
         let targetFile = null;
         let targetUrl = null;
@@ -276,7 +286,7 @@
         }
 
         // Check in-memory registry by fileName/actualName if not found yet
-        if (!targetFile && window._sigmaUploadedFiles) {
+        if (!targetFile && !targetUrl && window._sigmaUploadedFiles) {
             targetFile = window._sigmaUploadedFiles.get(actualName) ||
                          window._sigmaUploadedFiles.get(actualName.toLowerCase()) ||
                          (fileName ? window._sigmaUploadedFiles.get(fileName) : null) ||
@@ -285,7 +295,7 @@
         }
 
         // Check editingMaterialState if available
-        if (!targetFile && window.editingMaterialState) {
+        if (!targetFile && !targetUrl && window.editingMaterialState) {
             const em = window.editingMaterialState;
             if (em.file && (em.fileName === actualName || em.fileName === extractedFileName || em.title === actualName)) {
                 targetFile = em.file;
@@ -299,7 +309,7 @@
         }
 
         // Check IndexedDB (SigmaDocumentDB) if file/blob is not yet resolved
-        if (!targetFile && typeof window.sigmaGetStoredDocument === 'function') {
+        if (!targetFile && (!targetUrl || targetUrl.startsWith('blob:')) && typeof window.sigmaGetStoredDocument === 'function') {
             try {
                 const keysToTry = [
                     actualName,
@@ -369,10 +379,11 @@
         // 3. PDF: Always use browser's native built-in PDF viewer tab
         if (determinedType === 'pdf' || (actualName && actualName.toLowerCase().endsWith('.pdf')) || (extractedFileName && extractedFileName.toLowerCase().endsWith('.pdf'))) {
             if (targetFile) {
-                window.open(URL.createObjectURL(targetFile), '_blank');
+                navigatePreview(URL.createObjectURL(targetFile));
             } else if (targetUrl && !targetUrl.startsWith('image/')) {
-                window.open(targetUrl, '_blank');
+                navigatePreview(targetUrl);
             } else {
+                if (previewWindow) previewWindow.close();
                 alert('PDF document file not found.');
             }
             return;
@@ -458,6 +469,10 @@
         }
 
         const viewerUrl = `viewer.html?${queryParts.join('&')}`;
+        if (previewWindow && !previewWindow.closed) {
+            navigatePreview(viewerUrl);
+            return;
+        }
         try {
             const a = document.createElement('a');
             a.href = viewerUrl;

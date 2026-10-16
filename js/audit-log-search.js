@@ -34,6 +34,7 @@
         if (!section) return;
         if (section.id === 'audit-ai-view') window.filterAiAuditLogs?.();
         else if (section.id === 'audit-notifications-view') window.filterNotificationAuditLogs?.();
+        else if (section.id === 'audit-activity-view') window.filterActivityAuditLogs?.();
         else filterRows(section);
     }
     function init() {
