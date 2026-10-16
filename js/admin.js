@@ -9127,8 +9127,33 @@ window.checkQuarterEndReminders = function () {
         { key: 'q4', name: '4th Quarter', nextKey: null, nextName: 'Next School Year', start: activeRecord.q4Start, end: activeRecord.q4End }
     ];
 
+    const storageKey = 'sigma-notifications-admin-v3';
+    let existingNotifs = getStoredJson(storageKey, []);
+    let modified = false;
+
+    const isMatch = (notif, qKey) => {
+        if (!notif) return false;
+        const id = String(notif.id || '');
+        if (id === `sy-quarter-reminder-${activeRecord.id}-${qKey}`) return true;
+        if (id.startsWith(`sy-quarter-reminder-${activeRecord.id}-${qKey}-`)) return true;
+        if (id.startsWith('sy-quarter-reminder-') && id.includes(`-${qKey}`)) return true;
+        if (notif.type === 'quarter-reminder') {
+            const titleLower = String(notif.title || '').toLowerCase();
+            const targetQuarter = qKey === 'q1' ? '1st quarter' : qKey === 'q2' ? '2nd quarter' : qKey === 'q3' ? '3rd quarter' : '4th quarter';
+            if (titleLower.includes(targetQuarter)) return true;
+        }
+        return false;
+    };
+
     quarters.forEach((q) => {
-        if (!q.start || !q.end) return;
+        const notifId = `sy-quarter-reminder-${activeRecord.id}-${q.key}`;
+
+        if (!q.start || !q.end) {
+            const beforeLen = existingNotifs.length;
+            existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
+            if (existingNotifs.length !== beforeLen) modified = true;
+            return;
+        }
 
         const startDate = new Date(`${q.start}T00:00:00`);
         const endDate = new Date(`${q.end}T23:59:59`);
@@ -9138,39 +9163,80 @@ window.checkQuarterEndReminders = function () {
             const diffTime = endDate.getTime() - today.getTime();
             const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Reminder triggered if within 7 days of quarter ending
+            // Reminder triggered only if within 7 days of quarter ending
             if (daysRemaining <= 7 && daysRemaining >= 0) {
                 const nextQStart = q.nextKey ? activeRecord[`${q.nextKey}Start`] : null;
                 const nextQMissing = q.nextKey && !nextQStart;
+                const daysLabel = daysRemaining === 0 ? 'ends today' : daysRemaining === 1 ? 'ends in 1 day' : `ends in ${daysRemaining} days`;
 
-                const notifId = `sy-quarter-reminder-${activeRecord.id}-${q.key}-${today.toISOString().split('T')[0]}`;
-                const storageKey = 'sigma-notifications-admin-v3';
-                const existingNotifs = getStoredJson(storageKey, []);
+                const notifTitle = `${q.name} Ending Soon (${daysLabel})`;
+                const notifBody = `SY ${activeRecord.yearStart}–${activeRecord.yearEnd} deadline: ${formatSchoolYearDate(q.end)}.${nextQMissing ? ` Please configure the start and end dates for ${q.nextName}.` : ''}`;
 
-                // Avoid duplicate daily notification
-                if (!existingNotifs.some(n => n.id === notifId)) {
-                    const daysLabel = daysRemaining === 0 ? 'ends today' : daysRemaining === 1 ? 'ends in 1 day' : `ends in ${daysRemaining} days`;
+                // Find existing reminder (canonical or legacy)
+                const existingIdx = existingNotifs.findIndex(n => isMatch(n, q.key));
+
+                // Remove duplicate legacy entries for this quarter, keeping only the primary one
+                const filtered = existingNotifs.filter((n, idx) => idx === existingIdx || !isMatch(n, q.key));
+                if (filtered.length !== existingNotifs.length) {
+                    existingNotifs = filtered;
+                    modified = true;
+                }
+
+                if (existingIdx !== -1 && existingNotifs[existingIdx]) {
+                    const existing = existingNotifs[existingIdx];
+                    if (existing.title !== notifTitle || existing.body !== notifBody || existing.id !== notifId) {
+                        existingNotifs[existingIdx] = {
+                            ...existing,
+                            id: notifId,
+                            senderName: 'Academic Calendar',
+                            title: notifTitle,
+                            body: notifBody,
+                            timestamp: new Date().toISOString(),
+                            type: 'quarter-reminder'
+                        };
+                        modified = true;
+                    }
+                } else {
                     const newNotif = {
                         id: notifId,
                         senderName: 'Academic Calendar',
                         icon: 'fa-calendar-exclamation',
                         senderColor: '#15803d',
-                        title: `${q.name} Ending Soon (${daysLabel})`,
-                        body: `${q.name} for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ${daysLabel} (${formatSchoolYearDate(q.end)}).${nextQMissing ? ` Please configure the start and end dates for ${q.nextName}.` : ''}`,
+                        title: notifTitle,
+                        body: notifBody,
                         timestamp: new Date().toISOString(),
-                        read: false
+                        read: false,
+                        type: 'quarter-reminder'
                     };
-
-                    window.SigmaNotifications?.sendToRole('admin', { ...newNotif, type: 'quarter-reminder' });
-
-                    if (window.dispatchEvent) {
-                        window.dispatchEvent(new Event('storage'));
-                        window.dispatchEvent(new CustomEvent('notifications-updated'));
-                    }
+                    existingNotifs.unshift(newNotif);
+                    modified = true;
                 }
+            } else {
+                const beforeLen = existingNotifs.length;
+                existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
+                if (existingNotifs.length !== beforeLen) modified = true;
             }
+        } else {
+            const beforeLen = existingNotifs.length;
+            existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
+            if (existingNotifs.length !== beforeLen) modified = true;
         }
     });
+
+    if (modified) {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(existingNotifs));
+        } catch (_) {}
+        if (window.dispatchEvent) {
+            window.dispatchEvent(new Event('storage'));
+            window.dispatchEvent(new CustomEvent('notifications-updated'));
+        }
+        if (typeof window.SigmaNotifications?.renderFeed === 'function') {
+            window.SigmaNotifications.renderFeed();
+        } else if (typeof window.renderNotificationsFeed === 'function') {
+            window.renderNotificationsFeed();
+        }
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => {

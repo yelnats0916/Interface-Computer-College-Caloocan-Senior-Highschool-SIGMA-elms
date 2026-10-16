@@ -405,7 +405,30 @@
             if (saved) {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
-                    return parsed.filter(isVisibleNotification);
+                    // Deduplicate quarter reminders (keep single latest entry per quarter)
+                    const seenQuarterKeys = new Set();
+                    let hasQuarterDupes = false;
+                    const deduplicated = [];
+                    for (const n of parsed) {
+                        if (!n) continue;
+                        const id = String(n.id || '');
+                        if (n.type === 'quarter-reminder' || id.startsWith('sy-quarter-reminder-')) {
+                            const match = id.match(/^(sy-quarter-reminder-[^-]+-[^-]+)/) || (n.title || '').match(/(\d(?:st|nd|rd|th)\s+Quarter)/i);
+                            const key = match ? match[1].toLowerCase() : id;
+                            if (seenQuarterKeys.has(key)) {
+                                hasQuarterDupes = true;
+                                continue;
+                            }
+                            seenQuarterKeys.add(key);
+                        }
+                        deduplicated.push(n);
+                    }
+                    if (hasQuarterDupes) {
+                        try {
+                            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(deduplicated));
+                        } catch (_) {}
+                    }
+                    return deduplicated.filter(isVisibleNotification);
                 }
             }
         } catch (e) {
@@ -1074,9 +1097,13 @@
             } catch (e) {
                 list = [];
             }
-            if (list.some(item => item.id === notif.id)) return;
-            if (!notif.recipientId) notif = { ...notif, recipients: snapshotNotificationRecipients(targetRole, notif) };
-            list.unshift(notif);
+            const existingIdx = list.findIndex(item => item.id === notif.id);
+            if (existingIdx !== -1) {
+                list[existingIdx] = { ...list[existingIdx], ...notif, id: list[existingIdx].id };
+            } else {
+                if (!notif.recipientId) notif = { ...notif, recipients: snapshotNotificationRecipients(targetRole, notif) };
+                list.unshift(notif);
+            }
             try {
                 localStorage.setItem(targetKey, JSON.stringify(list));
                 recordNotificationLog(targetRole, notif);
@@ -1096,6 +1123,7 @@
         assessmentReleaseNotice, notifyAssessmentContentUpdate,
         syncRecipientReceipts() { recordFeedRecipients(getNotifications()); },
         getAll: getNotifications,
+        renderFeed: renderFeed,
         refresh: renderFeed,
         // Developer / Designer Preview Helpers
         loadDemoData: function () {
