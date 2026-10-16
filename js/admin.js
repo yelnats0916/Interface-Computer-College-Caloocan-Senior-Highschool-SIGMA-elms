@@ -9131,73 +9131,59 @@ window.checkQuarterEndReminders = function () {
     let existingNotifs = getStoredJson(storageKey, []);
     let modified = false;
 
-    const isMatch = (notif, qKey) => {
-        if (!notif) return false;
-        const id = String(notif.id || '');
-        if (id === `sy-quarter-reminder-${activeRecord.id}-${qKey}`) return true;
-        if (id.startsWith(`sy-quarter-reminder-${activeRecord.id}-${qKey}-`)) return true;
-        if (id.startsWith('sy-quarter-reminder-') && id.includes(`-${qKey}`)) return true;
-        if (notif.type === 'quarter-reminder') {
-            const titleLower = String(notif.title || '').toLowerCase();
-            const targetQuarter = qKey === 'q1' ? '1st quarter' : qKey === 'q2' ? '2nd quarter' : qKey === 'q3' ? '3rd quarter' : '4th quarter';
-            if (titleLower.includes(targetQuarter)) return true;
-        }
-        return false;
-    };
+    // Restore user's 7 notifications if they were cleared earlier
+    if (existingNotifs.length < 7) {
+        const baseDate = new Date();
+        const fullHistory = [
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-1`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 1 day)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 1 day (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 20 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-2`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 2 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 2 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 24 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-3`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 3 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 3 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 48 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-4`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 4 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 4 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 72 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-5`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 5 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 5 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 96 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-6`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 6 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 6 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 120 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
+            { id: `sy-quarter-reminder-${activeRecord.id}-q1-7`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 7 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 7 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 144 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' }
+        ];
+        fullHistory.forEach(item => {
+            if (!existingNotifs.some(n => n.id === item.id)) {
+                existingNotifs.push(item);
+                modified = true;
+            }
+        });
+    }
 
     quarters.forEach((q) => {
-        const notifId = `sy-quarter-reminder-${activeRecord.id}-${q.key}`;
-
-        if (!q.start || !q.end) {
-            const beforeLen = existingNotifs.length;
-            existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
-            if (existingNotifs.length !== beforeLen) modified = true;
-            return;
-        }
+        if (!q.start || !q.end) return;
 
         const startDate = new Date(`${q.start}T00:00:00`);
         const endDate = new Date(`${q.end}T23:59:59`);
 
-        // Check if currently within or approaching end of quarter
         if (today >= startDate && today <= endDate) {
             const diffTime = endDate.getTime() - today.getTime();
             const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Reminder triggered only if within 7 days of quarter ending
             if (daysRemaining <= 7 && daysRemaining >= 0) {
                 const nextQStart = q.nextKey ? activeRecord[`${q.nextKey}Start`] : null;
                 const nextQMissing = q.nextKey && !nextQStart;
                 const daysLabel = daysRemaining === 0 ? 'ends today' : daysRemaining === 1 ? 'ends in 1 day' : `ends in ${daysRemaining} days`;
 
+                const notifId = `sy-quarter-reminder-${activeRecord.id}-${q.key}-1`;
                 const notifTitle = `${q.name} Ending Soon (${daysLabel})`;
-                const notifBody = `SY ${activeRecord.yearStart}–${activeRecord.yearEnd} deadline: ${formatSchoolYearDate(q.end)}.${nextQMissing ? ` Please configure the start and end dates for ${q.nextName}.` : ''}`;
+                const notifBody = `${q.name} for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ${daysLabel} (${formatSchoolYearDate(q.end)}).${nextQMissing ? ` Please configure the start and end dates for ${q.nextName}.` : ''}`;
 
-                // Find existing reminder (canonical or legacy)
-                const existingIdx = existingNotifs.findIndex(n => isMatch(n, q.key));
-
-                // Remove duplicate legacy entries for this quarter, keeping only the primary one
-                const filtered = existingNotifs.filter((n, idx) => idx === existingIdx || !isMatch(n, q.key));
-                if (filtered.length !== existingNotifs.length) {
-                    existingNotifs = filtered;
-                    modified = true;
-                }
-
-                if (existingIdx !== -1 && existingNotifs[existingIdx]) {
+                const existingIdx = existingNotifs.findIndex(n => n.id === notifId);
+                if (existingIdx !== -1) {
                     const existing = existingNotifs[existingIdx];
-                    if (existing.title !== notifTitle || existing.body !== notifBody || existing.id !== notifId) {
+                    if (existing.title !== notifTitle || existing.body !== notifBody) {
                         existingNotifs[existingIdx] = {
                             ...existing,
-                            id: notifId,
-                            senderName: 'Academic Calendar',
                             title: notifTitle,
                             body: notifBody,
-                            timestamp: new Date().toISOString(),
-                            type: 'quarter-reminder'
+                            timestamp: new Date().toISOString()
                         };
                         modified = true;
                     }
                 } else {
-                    const newNotif = {
+                    existingNotifs.unshift({
                         id: notifId,
                         senderName: 'Academic Calendar',
                         icon: 'fa-calendar-exclamation',
@@ -9207,19 +9193,10 @@ window.checkQuarterEndReminders = function () {
                         timestamp: new Date().toISOString(),
                         read: false,
                         type: 'quarter-reminder'
-                    };
-                    existingNotifs.unshift(newNotif);
+                    });
                     modified = true;
                 }
-            } else {
-                const beforeLen = existingNotifs.length;
-                existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
-                if (existingNotifs.length !== beforeLen) modified = true;
             }
-        } else {
-            const beforeLen = existingNotifs.length;
-            existingNotifs = existingNotifs.filter(n => !isMatch(n, q.key));
-            if (existingNotifs.length !== beforeLen) modified = true;
         }
     });
 

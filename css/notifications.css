@@ -158,7 +158,8 @@
 
 /* Scroll Area */
 .notif-scroll-area {
-    flex: 1;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
     overflow-y: hidden;
     padding: 0;
     display: flex;
@@ -336,7 +337,7 @@ html body .notif-item__avatar--school > img {
 .notif-prev-btn-wrapper {
     padding: 0;
     background-color: #ffffff;
-    flex-shrink: 0;
+    flex-shrink: 0 !important;
     border-top: 1px solid #f1f5f9;
 }
 

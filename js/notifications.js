@@ -405,30 +405,7 @@
             if (saved) {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
-                    // Deduplicate quarter reminders (keep single latest entry per quarter)
-                    const seenQuarterKeys = new Set();
-                    let hasQuarterDupes = false;
-                    const deduplicated = [];
-                    for (const n of parsed) {
-                        if (!n) continue;
-                        const id = String(n.id || '');
-                        if (n.type === 'quarter-reminder' || id.startsWith('sy-quarter-reminder-')) {
-                            const match = id.match(/^(sy-quarter-reminder-[^-]+-[^-]+)/) || (n.title || '').match(/(\d(?:st|nd|rd|th)\s+Quarter)/i);
-                            const key = match ? match[1].toLowerCase() : id;
-                            if (seenQuarterKeys.has(key)) {
-                                hasQuarterDupes = true;
-                                continue;
-                            }
-                            seenQuarterKeys.add(key);
-                        }
-                        deduplicated.push(n);
-                    }
-                    if (hasQuarterDupes) {
-                        try {
-                            localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(deduplicated));
-                        } catch (_) {}
-                    }
-                    return deduplicated.filter(isVisibleNotification);
+                    return parsed.filter(isVisibleNotification);
                 }
             }
         } catch (e) {
@@ -845,28 +822,37 @@
         if (prevBtnWrap) prevBtnWrap.style.display = 'block';
         const rowHeight = sample.getBoundingClientRect().height || 80;
         const availableHeight = scrollArea?.clientHeight || 0;
-        const initialLimit = availableHeight > 0
-            ? Math.max(1, Math.ceil(availableHeight / rowHeight))
-            : INITIAL_LIMIT;
         feedContainer.innerHTML = '';
-        const hasMany = filtered.length > initialLimit;
+
+        // Check if items exceed INITIAL_LIMIT or exceed uncompressed panel capacity
+        const totalHeightNeeded = filtered.length * rowHeight;
+        const exceedsCapacity = availableHeight > 0 && totalHeightNeeded > availableHeight;
+        const hasMany = filtered.length > INITIAL_LIMIT || exceedsCapacity;
+
+        // How many items fit in the collapsed view
+        const maxCompressedCount = availableHeight > 0
+            ? Math.max(1, Math.min(filtered.length, Math.floor(availableHeight / 60)))
+            : INITIAL_LIMIT;
+        const initialLimit = Math.max(INITIAL_LIMIT, maxCompressedCount);
+
         batchSize = initialLimit;
-        visibleLimit = isExpanded ? Math.max(visibleLimit, initialLimit) : initialLimit;
+        visibleLimit = isExpanded ? Math.max(visibleLimit, filtered.length) : initialLimit;
         hasOlder = filtered.length > visibleLimit;
         const visibleItems = filtered.slice(0, visibleLimit);
 
         visibleItems.forEach(notif => {
             const item = buildNotificationItem(notif);
-            if (!isExpanded && hasMany && availableHeight > 0) {
+            if (!isExpanded && hasMany && availableHeight > 0 && visibleItems.length > 0) {
                 const height = `${availableHeight / visibleItems.length}px`;
                 ['height', 'min-height', 'max-height'].forEach(property => item.style.setProperty(property, height, 'important'));
             }
             feedContainer.appendChild(item);
         });
 
-        // "Previous Notifications" button logic
+        // "Previous Notifications" button logic:
+        // Always display at the bottom when there are multiple notifications or items exceed capacity
         if (prevBtnWrap) {
-            if (hasMany && !isExpanded) {
+            if ((hasMany || hasOlder) && !isExpanded) {
                 prevBtnWrap.style.display = 'block';
                 if (scrollArea) scrollArea.classList.remove('can-scroll');
             } else {
