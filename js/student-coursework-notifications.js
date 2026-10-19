@@ -37,10 +37,17 @@
         } catch (error) { console.warn('Unable to check coursework notifications', error); }
         finally { busy = false; }
     }
-    window.addEventListener('load', check);
+    function scheduleCheck() {
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => check(), { timeout: 1500 });
+        } else {
+            setTimeout(check, 250);
+        }
+    }
+    window.addEventListener('load', scheduleCheck);
     window.addEventListener('storage', event => {
-        if (event.key && /gradebook|assessment|submission|sigma_sub_/.test(event.key)) check();
+        if (event.key && /gradebook|assessment|submission|sigma_sub_/.test(event.key)) scheduleCheck();
     });
-    window.addEventListener('focus', check);
-    setInterval(check, 60000);
+    window.addEventListener('focus', scheduleCheck);
+    setInterval(scheduleCheck, 60000);
 })();

@@ -140,7 +140,10 @@
             const identity = document.createElement('div'); identity.className = 'ai-log-detail-identity';
             const identityRow = document.createElement('div'); identityRow.className = 'ai-log-detail-name-row';
             const avatar = document.createElement('span'); avatar.className = 'ai-log-avatar'; avatar.setAttribute('aria-hidden', 'true');
-            if (selectedUser.userAvatar) { const image = document.createElement('img'); image.src = selectedUser.userAvatar; image.alt = ''; avatar.append(image); }
+            const selectedAvatarSrc = (typeof window.resolveUserAvatar === 'function'
+                ? window.resolveUserAvatar({ id: selectedUser.userId, name: selectedUser.userName, avatar: selectedUser.userAvatar })
+                : '') || selectedUser.userAvatar || '';
+            if (selectedAvatarSrc) { const image = document.createElement('img'); image.src = selectedAvatarSrc; image.alt = ''; image.onerror = () => { avatar.innerHTML = '<i class="fa-solid fa-user"></i>'; }; avatar.append(image); }
             else avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
             const text = document.createElement('div'); text.className = 'ai-log-detail-identity-text';
             const name = document.createElement('p'); name.className = 'ai-log-detail-name'; name.textContent = selectedUser.userName;
@@ -179,9 +182,14 @@
         }
         const createRow = record => {
             const row = document.createElement('tr');
-            const avatar = record.userAvatar
-                ? `<img src="${escape(record.userAvatar)}" alt="" class="w-8 h-8 rounded-full object-cover">`
-                : '<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>';
+            const rowAvatarSrc = (typeof window.resolveUserAvatar === 'function'
+                ? window.resolveUserAvatar({ id: record.userId, name: record.userName, avatar: record.userAvatar })
+                : '') || record.userAvatar || '';
+            const avatar = typeof window.renderUserAvatarHtml === 'function'
+                ? window.renderUserAvatarHtml({ id: record.userId, name: record.userName, avatar: rowAvatarSrc }, 'sm')
+                : (rowAvatarSrc
+                    ? `<img src="${escape(rowAvatarSrc)}" alt="" class="w-8 h-8 rounded-full object-cover">`
+                    : '<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>');
             const actor = record.actorId && record.actorId !== record.userId ? `<p class="text-xs text-black-fade mt-1">By ${escape(record.actorName)}</p>` : '';
             const ip = record.ip ? escape(record.ip) : 'Not recorded';
             row.innerHTML = `<td><div class="flex items-center gap-3">${avatar}<div><p class="text-black">${escape(record.userName)}</p><p class="text-sm text-black-fade">${escape(record.userRole)}</p>${actor}</div></div></td><td><div class="auth-event"><span class="auth-event-dot ${statusClass(record)}" aria-hidden="true"></span><div><span class="text-black">${escape(record.event)}</span>${record.details ? `<p class="text-sm text-black-fade mt-1">${escape(record.details)}</p>` : ''}</div></div></td><td><div class="flex flex-col"><span class="text-black">${ip}</span><span class="text-sm text-black-fade">${escape(record.device)}</span></div></td><td><span class="text-sm text-black-fade">${escape(date(record.timestamp))}</span></td>`;
@@ -233,12 +241,24 @@
             toggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const willShow = menu.hidden;
+                window.closeAllTableActionDropdowns?.(menu);
                 document.querySelectorAll('#audit-auth-view .notification-log-action-menu, .ai-log-message-menu, .notification-log-action-menu').forEach(m => {
-                    m.hidden = true;
-                    m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+                    if (m !== menu) {
+                        m.hidden = true;
+                        m.classList.remove('dropup');
+                        window.resetActionDropdownPosition?.(m);
+                        m.previousElementSibling?.classList.remove('active');
+                        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+                    }
                 });
                 menu.hidden = !willShow;
+                toggle.classList.toggle('active', willShow);
                 toggle.setAttribute('aria-expanded', String(willShow));
+                if (willShow) {
+                    window.positionActionDropdown?.(menu, toggle);
+                } else {
+                    window.resetActionDropdownPosition?.(menu);
+                }
             });
 
             menu.append(deleteBtn);

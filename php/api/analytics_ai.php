@@ -17,9 +17,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); ex
 $raw = file_get_contents('php://input', false, null, 0, 32001);
 if (strlen($raw) > 32000) { http_response_code(413); echo json_encode(['success' => false, 'error' => 'Too much evidence for one request.']); exit; }
 require_once __DIR__ . '/../includes/analytics_ai_generation.php';
+require_once __DIR__ . '/../includes/ai_generation_id.php';
 try {
+    $input = json_decode($raw, true) ?: [];
     $services = require dirname(__DIR__, 2) . '/config/services.php';
-    $result = generateAnalyticsAi($services, json_decode($raw, true) ?: [], function ($url, $headers, $body) {
+    $result = generateAnalyticsAi($services, $input, function ($url, $headers, $body) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body), CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers), CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 60, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_FOLLOWLOCATION => false]);
         $raw = curl_exec($ch);
@@ -28,6 +30,27 @@ try {
         if ($raw === false || $code < 200 || $code >= 300) throw new RuntimeException($code === 429 ? 'AI quota reached. Wait before analyzing again.' : 'Analytics provider request failed. Check the saved key and model.');
         return json_decode($raw, true) ?: [];
     });
+    // Determine specific insight code prefix (3 insight types):
+    // 1. Cards (INSC) - Analytics Cards
+    // 2. Subject (INSS) - Subject Grade Insights
+    // 3. Grades (INSGR) - Overall Grades / Class Grades
+    $insightType = strtolower($input['insightType'] ?? $input['scope'] ?? '');
+    if (!$insightType && isset($input['snapshot']['scope'])) {
+        $insightType = strtolower($input['snapshot']['scope']);
+    }
+    if (!$insightType && ($input['feature'] ?? '') === 'grade_insights') {
+        $insightType = 'grades';
+    }
+    $areaId = strtolower($input['snapshot']['areas'][0]['id'] ?? '');
+
+    if (strpos($areaId, 'subject') !== false || $insightType === 'subject' || strpos($insightType, 'subject') !== false) {
+        $kind = 'insight_subject';
+    } elseif (strpos($areaId, 'grade') !== false || $insightType === 'grades' || $insightType === 'overall' || strpos($insightType, 'grade') !== false) {
+        $kind = 'insight_grades';
+    } else {
+        $kind = 'insight_cards';
+    }
+    $result['generationId'] = sigmaAiGenerationId($kind);
     echo json_encode(['success' => true] + $result);
 } catch (InvalidArgumentException $error) { http_response_code(400); echo json_encode(['success' => false, 'error' => $error->getMessage()]); }
 catch (Throwable $error) { http_response_code(502); echo json_encode(['success' => false, 'error' => $error instanceof RuntimeException ? $error->getMessage() : 'Analytics generation is unavailable.']); }

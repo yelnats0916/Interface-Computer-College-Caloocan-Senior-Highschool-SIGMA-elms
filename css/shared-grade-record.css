@@ -100,7 +100,7 @@ html body .shared-grade-record .record-heading .record-adviser .record-adviser-a
     .shared-grade-record .record-main table tbody td:nth-child(2){border-right:1px solid rgba(0,0,0,.08)!important}
 }
 .record-student-identity>span:last-child{min-width:0;overflow-wrap:anywhere}
-@media(max-width:760px){.record-student-avatar{display:none}.record-student-identity{display:block}}
+@media(max-width:760px){.record-student-identity{display:flex;align-items:center;gap:8px}.record-student-avatar :is(.sigma-user-avatar,img){width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;max-width:28px!important;max-height:28px!important;flex:0 0 28px!important}}
 .record-note-counter{font-size:11px;line-height:16px;color:rgba(0,0,0,.45);text-align:right;margin-top:6px}
 .record-note-counter[hidden]{display:none!important}
 .record-note-footer{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;width:100%;margin-top:12px}

@@ -1,6 +1,20 @@
 <?php
 require_once __DIR__ . '/record_lifecycle.php';
 
+function aiInsightControls(PDO $db): void {
+    static $ready=false;if($ready)return;
+    $db->exec("CREATE TABLE IF NOT EXISTS ai_insight_controls (
+        source_type VARCHAR(24) NOT NULL,source_id VARCHAR(191) NOT NULL,user_id VARCHAR(50) NOT NULL,
+        hidden TINYINT(1) NOT NULL DEFAULT 0,is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+        changed_by VARCHAR(50) NOT NULL,changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY(source_type,source_id),KEY owner_lookup(user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    try {
+        $db->exec("ALTER TABLE ai_insight_controls CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    } catch (Throwable $e) {}
+    $ready=true;
+}
+
 function aiCardId(string $user, string $kind, array $card): string {
     return hash('sha256', $user . '\n' . $kind . '\n' . ($card['id'] ?? '') . '\n' . json_encode($card, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
@@ -13,7 +27,8 @@ function saveAiLog(PDO $db, array $log): void {
         || !in_array($log['feature'] ?? '', ['sigmabot','analytics','quiz','submission_evaluation','submission_feedback','grade_insights'], true)
         || !in_array($log['status'] ?? '', ['Success','Failed','Fallback Used'], true)) throw new InvalidArgumentException('Invalid AI log.');
     // Accept public request metadata only, never service credentials.
-    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','provider','keyId','keyLabel','evidenceSources','source','messages'];
+    if (isset($log['generationId']) && (!is_string($log['generationId']) || !preg_match('/^[A-Z]{3,8}-\\d{4}-\\d{4,}$/', $log['generationId']))) throw new InvalidArgumentException('Invalid AI generation ID.');
+    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','generationId','provider','keyId','keyLabel','evidenceSources','source','messages'];
     $log = array_intersect_key($log, array_flip($allowed));
     $payload = json_encode($log, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     if (strlen($payload) > 128000) throw new InvalidArgumentException('AI log is too large.');
@@ -22,11 +37,12 @@ function saveAiLog(PDO $db, array $log): void {
     $db->prepare('INSERT IGNORE INTO ai_logs(id,user_id,feature,payload) VALUES(?,?,?,?)')->execute([$log['id'], $log['userId'], $log['feature'], $payload]);
 }
 function aiAnalyticsState(PDO $db, string $user, string $kind): array {
+    aiInsightControls($db);
     $q = $db->prepare('SELECT payload, revision FROM ai_analytics_state WHERE user_id=? AND kind=?'); $q->execute([$user,$kind]); $row=$q->fetch();
     $state = $row ? json_decode($row['payload'], true) : ['cards'=>[]];
     unset($state['cardRefs']); $state['cards']=[];
     // State references once pointed only at the latest version; retain account history.
-    $q=$db->prepare('SELECT id,payload FROM ai_insight_cards WHERE user_id=? AND kind=? AND is_deleted=0 ORDER BY created_at DESC,id DESC');
+    $q=$db->prepare("SELECT c.id,c.payload FROM ai_insight_cards c LEFT JOIN ai_insight_controls v ON v.source_type='dashboard' AND v.source_id COLLATE utf8mb4_unicode_ci = c.id COLLATE utf8mb4_unicode_ci WHERE c.user_id=? AND c.kind=? AND c.is_deleted=0 AND COALESCE(v.hidden,0)=0 AND COALESCE(v.is_deleted,0)=0 ORDER BY c.created_at DESC,c.id DESC");
     $q->execute([$user,$kind]);
     $rows=$q->fetchAll(); $counts=[];
     foreach($rows as $record){

@@ -796,9 +796,28 @@ function getUserInitials(name) {
 }
 window.getUserInitials = getUserInitials;
 
+const _sharedResolveUserAvatar = (typeof window.resolveUserAvatar === 'function' && window.resolveUserAvatar !== resolveUserAvatar)
+    ? window.resolveUserAvatar
+    : null;
 function resolveUserAvatar(user) {
     if (!user) return '';
-    const id = String(user.uid || user.id || '').replace(/^#/, '').trim();
+    if (typeof user === 'string') {
+        if (_sharedResolveUserAvatar && _sharedResolveUserAvatar !== resolveUserAvatar) {
+            return _sharedResolveUserAvatar(user);
+        }
+        const trimmed = user.trim();
+        if (!trimmed) return '';
+        const matchedByStr = typeof window.findMatchedUserAccount === 'function'
+            ? window.findMatchedUserAccount(trimmed.replace(/^#/, ''), trimmed)
+            : null;
+        if (matchedByStr) {
+            user = matchedByStr;
+        } else {
+            return (typeof window.getCurrentUserAvatar === 'function' ? window.getCurrentUserAvatar(trimmed) : '') || '';
+        }
+    }
+    const id = String(user.uid || user.id || user.lrn || user.studentNumber || user.userId || '').replace(/^#/, '').trim();
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || String(user.fullName || user.name || '').trim();
 
     // 1. Direct account avatar properties
     if (user.avatar && typeof user.avatar === 'string' && user.avatar.trim() && user.avatar !== 'null' && user.avatar !== 'undefined') return user.avatar.trim();
@@ -817,12 +836,30 @@ function resolveUserAvatar(user) {
     }
 
     // 3. Shared profile-view system lookup (strict target lookup)
-    if (typeof window.getCurrentUserAvatar === 'function' && id) {
-        const sharedAvatar = window.getCurrentUserAvatar(id);
+    if (typeof window.getCurrentUserAvatar === 'function' && (id || fullName)) {
+        const sharedAvatar = window.getCurrentUserAvatar(id || fullName);
         if (sharedAvatar && typeof sharedAvatar === 'string' && sharedAvatar.trim() && sharedAvatar !== 'null' && sharedAvatar !== 'undefined') return sharedAvatar.trim();
     }
 
-    // 4. Return empty to display clean default avatar
+    // 4. Match via findMatchedUserAccount if available
+    if (typeof window.findMatchedUserAccount === 'function' && (id || fullName)) {
+        const matched = window.findMatchedUserAccount(id, fullName);
+        if (matched) {
+            const matchedPhoto = matched.avatar || matched.profilePicture || matched.photo || matched.profileImage || '';
+            if (matchedPhoto && typeof matchedPhoto === 'string' && matchedPhoto.trim() && matchedPhoto !== 'null' && matchedPhoto !== 'undefined') {
+                return matchedPhoto.trim();
+            }
+            const matchedId = String(matched.uid || matched.id || matched.lrn || '').replace(/^#/, '').trim();
+            if (matchedId) {
+                const storedMatched = localStorage.getItem(`sigma_avatar_${matchedId}`);
+                if (storedMatched && typeof storedMatched === 'string' && storedMatched.trim() && storedMatched !== 'null' && storedMatched !== 'undefined') {
+                    return storedMatched.trim();
+                }
+            }
+        }
+    }
+
+    // 5. Return empty to display clean default avatar
     return '';
 }
 window.resolveUserAvatar = resolveUserAvatar;
@@ -1111,26 +1148,137 @@ function renderUserAccountsTable() {
     renderPaginationControls('user-pagination-container', totalItems, window.userPaginationState, 'onUserPageChange');
 }
 
+window.resetActionDropdownPosition = function (menu) {
+    if (!menu) return;
+    menu.classList.remove('dropup');
+    if (menu.classList.contains('action-dropdown-menu') || menu.classList.contains('ai-log-message-menu') || menu.classList.contains('notification-log-action-menu')) {
+        menu.style.position = '';
+        menu.style.top = '';
+        menu.style.bottom = '';
+        menu.style.left = '';
+        menu.style.right = '';
+        menu.style.marginTop = '';
+        menu.style.marginBottom = '';
+    }
+};
+
+window.closeAllTableActionDropdowns = function (exceptMenu = null) {
+    document.querySelectorAll('.action-dropdown-menu.show').forEach(m => {
+        if (m !== exceptMenu) {
+            m.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition(m);
+        }
+    });
+    document.querySelectorAll('.action-dots-btn.active').forEach(b => {
+        const container = b.closest('.action-dropdown-container');
+        if (!exceptMenu || !container || !container.contains(exceptMenu)) {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        }
+    });
+    document.querySelectorAll('.ai-log-message-menu:not([hidden]), .notification-log-action-menu:not([hidden])').forEach(m => {
+        if (m !== exceptMenu) {
+            m.hidden = true;
+            m.classList.remove('dropup');
+            window.resetActionDropdownPosition(m);
+            const btn = m.previousElementSibling || m.parentElement?.querySelector('.ai-log-message-more, .notification-log-more');
+            if (btn) {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+    document.querySelectorAll('.removed-records-menu').forEach(m => {
+        if (m !== exceptMenu && typeof m.matches === 'function' && m.matches(':popover-open')) {
+            try { m.hidePopover(); } catch (_) {}
+        }
+    });
+};
+
 window.positionActionDropdown = function (menu, btn) {
     if (!menu || !btn) return;
     menu.classList.remove('dropup');
+
+    const isFixedCapable = menu.classList.contains('action-dropdown-menu') ||
+        menu.classList.contains('ai-log-message-menu') ||
+        menu.classList.contains('notification-log-action-menu');
+
+    if (!isFixedCapable) {
+        const btnRect = btn.getBoundingClientRect();
+        const menuHeight = (menu.offsetHeight > 0) ? menu.offsetHeight : 240;
+        const spaceBelow = window.innerHeight - btnRect.bottom;
+        const spaceAbove = btnRect.top;
+        if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
+            menu.classList.add('dropup');
+        } else {
+            menu.classList.remove('dropup');
+        }
+        return;
+    }
+
+    menu.style.position = 'fixed';
+    menu.style.right = 'auto';
+    menu.style.bottom = 'auto';
+    menu.style.marginTop = '0';
+    menu.style.marginBottom = '0';
+    menu.style.zIndex = '9999';
+
     const btnRect = btn.getBoundingClientRect();
-    const menuHeight = (menu.offsetHeight > 0) ? menu.offsetHeight : 240;
-    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const menuRect = menu.getBoundingClientRect();
+    const menuWidth = menuRect.width || menu.offsetWidth || 195;
+    const menuHeight = menuRect.height || menu.offsetHeight || 160;
+    const viewportW = window.innerWidth || document.documentElement.clientWidth;
+    const viewportH = window.innerHeight || document.documentElement.clientHeight;
+
+    let left = btnRect.right - menuWidth;
+    if (left < 12) left = 12;
+    if (left + menuWidth > viewportW - 12) left = Math.max(12, viewportW - menuWidth - 12);
+
+    const spaceBelow = viewportH - btnRect.bottom;
     const spaceAbove = btnRect.top;
+    let top;
 
     if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
+        top = Math.max(12, btnRect.top - menuHeight - 6);
         menu.classList.add('dropup');
     } else {
+        top = Math.min(viewportH - menuHeight - 12, btnRect.bottom + 6);
         menu.classList.remove('dropup');
     }
+
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
 };
 
 window.repositionActiveAdminDropdowns = function () {
     document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
         const parent = menu.closest('.action-dropdown-container');
         const btn = parent ? parent.querySelector('.action-dots-btn') : null;
-        if (btn) window.positionActionDropdown(menu, btn);
+        if (btn) {
+            const rect = btn.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight || (rect.width === 0 && rect.height === 0)) {
+                menu.classList.remove('show', 'dropup');
+                window.resetActionDropdownPosition(menu);
+                btn.classList.remove('active');
+            } else {
+                window.positionActionDropdown(menu, btn);
+            }
+        }
+    });
+    document.querySelectorAll('.ai-log-message-menu:not([hidden]), .notification-log-action-menu:not([hidden])').forEach(menu => {
+        const btn = menu.previousElementSibling || menu.parentElement?.querySelector('.ai-log-message-more, .notification-log-more');
+        if (btn) {
+            const rect = btn.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight || (rect.width === 0 && rect.height === 0)) {
+                menu.hidden = true;
+                menu.classList.remove('dropup');
+                window.resetActionDropdownPosition(menu);
+                btn.classList.remove('active');
+                btn.setAttribute('aria-expanded', 'false');
+            } else {
+                window.positionActionDropdown(menu, btn);
+            }
+        }
     });
     document.querySelectorAll('.teacher-dropdown-menu:not(.hidden)').forEach(menu => {
         const parent = menu.parentElement;
@@ -1146,7 +1294,7 @@ window.repositionActiveAdminDropdowns = function () {
 
 if (!window._adminDropdownScrollAttached) {
     window._adminDropdownScrollAttached = true;
-    window.addEventListener('scroll', window.repositionActiveAdminDropdowns, { passive: true });
+    window.addEventListener('scroll', window.repositionActiveAdminDropdowns, { passive: true, capture: true });
     window.addEventListener('resize', window.repositionActiveAdminDropdowns, { passive: true });
 }
 
@@ -1158,16 +1306,7 @@ window.toggleUserActionDropdown = function (userId, event) {
     const menu = document.getElementById(menuId);
     const btn = document.getElementById(btnId);
 
-    // Close all other menus first
-    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-        if (m.id !== menuId) {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
-        }
-    });
-    document.querySelectorAll('.action-dots-btn').forEach(b => {
-        if (b.id !== btnId) b.classList.remove('active');
-    });
+    window.closeAllTableActionDropdowns?.(menu);
 
     if (menu && btn) {
         const isShowing = menu.classList.contains('show');
@@ -1176,8 +1315,8 @@ window.toggleUserActionDropdown = function (userId, event) {
             btn.classList.add('active');
             window.positionActionDropdown(menu, btn);
         } else {
-            menu.classList.remove('show');
-            menu.classList.remove('dropup');
+            menu.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(menu);
             btn.classList.remove('active');
         }
     }
@@ -1190,15 +1329,7 @@ window.toggleSectionActionDropdown = function (index, event) {
     const menu = document.getElementById(menuId);
     const btn = document.getElementById(btnId);
 
-    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-        if (m.id !== menuId) {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
-        }
-    });
-    document.querySelectorAll('.action-dots-btn').forEach(b => {
-        if (b.id !== btnId) b.classList.remove('active');
-    });
+    window.closeAllTableActionDropdowns?.(menu);
 
     if (menu && btn) {
         const isShowing = menu.classList.contains('show');
@@ -1207,8 +1338,8 @@ window.toggleSectionActionDropdown = function (index, event) {
             btn.classList.add('active');
             window.positionActionDropdown(menu, btn);
         } else {
-            menu.classList.remove('show');
-            menu.classList.remove('dropup');
+            menu.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(menu);
             btn.classList.remove('active');
         }
     }
@@ -1221,27 +1352,17 @@ window.toggleAttendanceActionDropdown = function (index, event) {
     const menu = document.getElementById(menuId);
     const btn = document.getElementById(btnId);
 
-    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-        if (m.id !== menuId) {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
-        }
-    });
-    document.querySelectorAll('.action-dots-btn').forEach(b => {
-        if (b.id !== btnId) b.classList.remove('active');
-    });
+    window.closeAllTableActionDropdowns?.(menu);
 
     if (menu && btn) {
         const isShowing = menu.classList.contains('show');
         if (!isShowing) {
             menu.classList.add('show');
             btn.classList.add('active');
-            if (typeof window.positionActionDropdown === 'function') {
-                window.positionActionDropdown(menu, btn);
-            }
+            window.positionActionDropdown(menu, btn);
         } else {
-            menu.classList.remove('show');
-            menu.classList.remove('dropup');
+            menu.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(menu);
             btn.classList.remove('active');
         }
     }
@@ -2136,9 +2257,7 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                 </td>
                 <td class="px-3 py-3.5 text-left" style="border-right: 1px solid #e2e8f0;">
                     <div class="flex items-center justify-start gap-2.5 text-left">
-                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
-                            <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
-                        </div>
+                        ${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(row.teacherUser || row.teacher, 'sm')) || `<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>`}
                         <div class="text-[13px] font-normal text-black break-words font-['Inter'] leading-snug text-left">
                             ${row.teacher}
                         </div>
@@ -2169,13 +2288,13 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                                 <i class="fa-solid fa-ellipsis"></i>
                             </button>
                             <div id="attendance-action-menu-${rowId}" class="action-dropdown-menu">
-                                <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
-                                    <i class="fa-solid fa-calendar-check text-[#15803d]"></i>
+                                <button type="button" onclick="window.viewAttendanceDetails && window.viewAttendanceDetails('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer">
+                                    <i class="fa-solid fa-calendar-check"></i>
                                     <span>View Attendance</span>
                                 </button>
                                 ${isSubmittedToday ? `
-                                <button type="button" onclick="window.openTodayAttendanceSummaryModal && window.openTodayAttendanceSummaryModal('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer is-submitted text-[#15803d]">
-                                    <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                                <button type="button" onclick="window.openTodayAttendanceSummaryModal && window.openTodayAttendanceSummaryModal('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer is-submitted">
+                                    <i class="fa-solid fa-clipboard-check"></i>
                                     <span>Submitted Attendance Today</span>
                                 </button>
                                 ` : `
@@ -2184,7 +2303,7 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                                     <span>Submitted Attendance Today</span>
                                 </button>
                                 `}
-                                <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item cursor-pointer">
+                                <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-file-export"></i>
                                     <span>Export Sheet</span>
                                 </button>
@@ -2289,32 +2408,20 @@ window.togglePerformanceActionDropdown = function (index, event) {
     const menu = document.getElementById(menuId);
     const btn = document.getElementById(btnId);
 
-    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-        if (m.id !== menuId) {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
-        }
-    });
-    document.querySelectorAll('.action-dots-btn').forEach(b => {
-        if (b.id !== btnId) b.classList.remove('active');
-    });
+    if (typeof window.closeAllTableActionDropdowns === 'function') {
+        window.closeAllTableActionDropdowns(menu);
+    }
 
     if (menu && btn) {
         const isShown = menu.classList.contains('show');
         if (isShown) {
-            menu.classList.remove('show');
-            menu.classList.remove('dropup');
+            menu.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(menu);
             btn.classList.remove('active');
         } else {
-            const rect = btn.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            if (spaceBelow < 140 && rect.top > 140) {
-                menu.classList.add('dropup');
-            } else {
-                menu.classList.remove('dropup');
-            }
             menu.classList.add('show');
             btn.classList.add('active');
+            window.positionActionDropdown(menu, btn);
         }
     }
 };
@@ -2382,15 +2489,7 @@ window.toggleSubjectActionDropdown = function (index, event) {
     const menu = document.getElementById(menuId);
     const btn = document.getElementById(btnId);
 
-    document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-        if (m.id !== menuId) {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
-        }
-    });
-    document.querySelectorAll('.action-dots-btn').forEach(b => {
-        if (b.id !== btnId) b.classList.remove('active');
-    });
+    window.closeAllTableActionDropdowns?.(menu);
 
     if (menu && btn) {
         const isShowing = menu.classList.contains('show');
@@ -2399,8 +2498,8 @@ window.toggleSubjectActionDropdown = function (index, event) {
             btn.classList.add('active');
             window.positionActionDropdown(menu, btn);
         } else {
-            menu.classList.remove('show');
-            menu.classList.remove('dropup');
+            menu.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(menu);
             btn.classList.remove('active');
         }
     }
@@ -3101,6 +3200,19 @@ window.executeDeleteAccount = function () {
         localStorage.removeItem(`sigma-profile-custom-${userId}`);
     } catch (e) {}
 
+    // Synchronize soft delete to MySQL database
+    try {
+        const currentActor = (() => {
+            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
+        })();
+        const usersApiUrl = typeof resolveUsersApiUrl === 'function' ? resolveUsersApiUrl() : 'php/api/users.php';
+        fetch(usersApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
+            body: JSON.stringify({ action: 'delete', id: userId, actor: currentActor })
+        }).catch(err => console.warn('Account deletion DB sync failed:', err));
+    } catch (e) {}
+
     // Hide modals
     const modal2 = document.getElementById('delete-account-modal-2');
     if (modal2) modal2.classList.add('hidden');
@@ -3327,21 +3439,28 @@ document.addEventListener('pointerdown', (e) => {
         const container = menu.closest('.action-dropdown-container');
         if (container?.contains(e.target)) return;
         menu.classList.remove('show', 'dropup');
+        window.resetActionDropdownPosition?.(menu);
         container?.querySelector('.action-dots-btn')?.classList.remove('active');
     });
 }, true);
 
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.action-dropdown-container')) {
+    if (!e.target.closest('.action-dropdown-container') || e.target.closest('.action-dropdown-item:not(:disabled):not(.is-locked)')) {
         document.querySelectorAll('.action-dropdown-menu').forEach(m => {
-            m.classList.remove('show');
-            m.classList.remove('dropup');
+            m.classList.remove('show', 'dropup');
+            window.resetActionDropdownPosition?.(m);
         });
         document.querySelectorAll('.action-dots-btn').forEach(b => b.classList.remove('active'));
     }
     // Close profile settings menu
     if (!e.target.closest('#profile-settings-btn') && !e.target.closest('#profile-settings-menu')) {
         window.toggleProfileSettingsMenu(null, true);
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        window.closeAllTableActionDropdowns?.();
     }
 });
 
@@ -3358,11 +3477,14 @@ function getFilteredUsersBySearch(searchState) {
     try {
         authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
     } catch (e) {}
-    const authUserId = String(authUser.uid || authUser.id || '');
+    const authUserId = String(authUser.uid || authUser.id || '').trim().toLowerCase();
 
     const filtered = users.filter(user => {
         const id = String(user.uid || user.id || '').trim();
         const idLower = id.toLowerCase();
+
+        // Exclude current authenticated user from the list
+        if (authUserId && idLower === authUserId) return false;
 
         const firstName = String(user.firstName || '').trim();
         const lastName = String(user.lastName || '').trim();
@@ -4652,6 +4774,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'nav-users': 'users-view',
         'nav-users-accounts': 'users-view',
         'nav-school-grades': 'school-grades-view',
+        'nav-sigma-ai': 'ai-evaluations-view',
+        'nav-ai-evaluations': 'ai-evaluations-view',
+        'nav-ai-feedback': 'ai-feedback-view',
+        'nav-ai-assessments': 'ai-assessments-view',
+        'nav-ai-insights': 'ai-insights-view',
+        'nav-ai-bot': 'ai-bot-view',
         'nav-school-library': 'school-library-view',
         'nav-school-profile': 'school-profile-view',
         'nav-school-year': 'school-year-view',
@@ -5005,6 +5133,13 @@ document.addEventListener('DOMContentLoaded', () => {
             button: schoolMgmtBtn, submenu: schoolMgmtSubmenu, chevron: schoolMgmtChevron,
             title: 'School Management',
             childIds: ['nav-school-profile', 'nav-school-year', 'nav-school-sections', 'nav-school-subjects']
+        },
+        'sigma-ai': {
+            button: document.getElementById('nav-sigma-ai'),
+            submenu: document.getElementById('sigma-ai-submenu'),
+            chevron: document.getElementById('sigma-ai-chevron'),
+            title: 'SIGMA AI',
+            childIds: ['nav-ai-evaluations', 'nav-ai-assessments', 'nav-ai-insights', 'nav-ai-bot']
         },
         'reports': {
             button: reportsBtn, submenu: reportsSubmenu, chevron: reportsChevron,
@@ -5621,6 +5756,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('School Management', 'Section Details');
             }
+        } else if (['ai-evaluations-view', 'ai-feedback-view', 'ai-assessments-view', 'ai-insights-view', 'ai-bot-view', 'sigma-ai-view'].includes(sectionId)) {
+            const aiTitles = {
+                'ai-evaluations-view': 'Evaluation and Feedback',
+                'ai-feedback-view': 'Evaluation and Feedback',
+                'ai-assessments-view': 'Assessment Generation',
+                'ai-insights-view': 'Insights',
+                'ai-bot-view': 'Sigma Bot',
+                'sigma-ai-view': 'Evaluation and Feedback'
+            };
+            const activeAiTitle = aiTitles[sectionId] || 'Submission Evaluation';
+            window.setPortalHeader?.('SIGMA AI', activeAiTitle);
+            if (window.SigmaAiResults?.render) {
+                const key = sectionId.replace('ai-', '').replace('-view', '');
+                window.SigmaAiResults.render(key);
+            }
         } else if (['reports-ai-view', 'reports-attendance-view', 'reports-performance-view'].includes(sectionId)) {
             const reportTitle = {
                 'reports-ai-view': 'AI Analytics',
@@ -5628,6 +5778,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'reports-performance-view': 'Academic Performance'
             }[sectionId];
             window.setPortalHeader?.('Reports', reportTitle);
+            if (sectionId === 'reports-performance-view' && typeof window.refreshPerformanceReport === 'function') {
+                window.refreshPerformanceReport();
+            }
         } else if (['audit-ai-view', 'audit-activity-view', 'audit-auth-view', 'audit-notifications-view'].includes(sectionId)) {
             const auditTitle = {
                 'audit-ai-view': 'AI Logs',
@@ -5726,6 +5879,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let sectionId;
 
         if (tabId === 'nav-users-accounts' || tabId === 'nav-users') sectionId = 'users-view';
+        else if (tabId === 'nav-search-results' || tabId === 'search-results-view') sectionId = 'search-results-view';
         else if (tabId === 'nav-profile' || tabId === 'nav-user-profile' || tabId === 'user-profile' || tabId === 'profile' || tabId === 'user-profile-view') sectionId = 'user-profile-view';
         else if (tabId.startsWith('profile-') || tabId.startsWith('profile:')) {
             const userId = tabId.replace(/^profile[-:]/, '').trim();
@@ -8220,15 +8374,20 @@ const resolveSchoolYearApiUrl = () => {
 const syncSchoolYearToDB = async (payload) => {
     try {
         const url = resolveSchoolYearApiUrl();
+        const currentActor = (() => {
+            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
+        })();
+        const reqPayload = Object.assign({ actor: currentActor }, payload);
         await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
+            body: JSON.stringify(reqPayload)
         });
     } catch (e) {
         console.warn('School year DB sync offline or unavailable, cached in localStorage.');
     }
 };
+window.syncSchoolYearToDB = syncSchoolYearToDB;
 
 const fetchSchoolYearsFromDB = async () => {
     try {
@@ -8247,6 +8406,7 @@ const fetchSchoolYearsFromDB = async () => {
         // Fallback silently to existing browser storage if server is offline
     }
 };
+window.fetchSchoolYearsFromDB = fetchSchoolYearsFromDB;
 
 const loadSYFromStorage = () => {
     const saved = localStorage.getItem('sigma_school_year_records') || localStorage.getItem('sigma-school-years');
@@ -8353,6 +8513,7 @@ const fetchUsersFromDB = async () => {
 
 // Initial DB Fetch for users
 fetchUsersFromDB();
+window.fetchUsersFromDB = fetchUsersFromDB;
 
 // --- DATABASE INTEGRATION: SECTIONS TABLE API ---
 const resolveSectionsApiUrl = () => {
@@ -8383,10 +8544,13 @@ window.syncSectionToDB = syncSectionToDB;
 const deleteSectionFromDB = async (sectionIdOrName) => {
     try {
         const url = resolveSectionsApiUrl();
+        const currentActor = (() => {
+            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
+        })();
         await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', id: sectionIdOrName })
+            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
+            body: JSON.stringify({ action: 'delete', id: sectionIdOrName, actor: currentActor })
         });
     } catch (e) {
         console.warn('Section DB delete offline or unavailable.');
@@ -8444,10 +8608,13 @@ window.syncSubjectToDB = syncSubjectToDB;
 const deleteSubjectFromDB = async (subjectCodeOrId) => {
     try {
         const url = resolveSubjectsApiUrl();
+        const currentActor = (() => {
+            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
+        })();
         await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'delete', code: subjectCodeOrId })
+            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
+            body: JSON.stringify({ action: 'delete', code: subjectCodeOrId, actor: currentActor })
         });
     } catch (e) {
         console.warn('Subject DB delete offline or unavailable.');
@@ -9113,108 +9280,93 @@ window.updateSYQuarterStatuses = function () {
     window.checkSYFormValidity();
 };
 
-window.checkQuarterEndReminders = function () {
-    const activeRecord = getActiveSchoolYearRecord();
-    if (!activeRecord) return;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const quarters = [
-        { key: 'q1', name: '1st Quarter', nextKey: 'q2', nextName: '2nd Quarter', start: activeRecord.q1Start, end: activeRecord.q1End },
-        { key: 'q2', name: '2nd Quarter', nextKey: 'q3', nextName: '3rd Quarter', start: activeRecord.q2Start, end: activeRecord.q2End },
-        { key: 'q3', name: '3rd Quarter', nextKey: 'q4', nextName: '4th Quarter', start: activeRecord.q3Start, end: activeRecord.q3End },
-        { key: 'q4', name: '4th Quarter', nextKey: null, nextName: 'Next School Year', start: activeRecord.q4Start, end: activeRecord.q4End }
-    ];
-
+window.checkQuarterEndReminders = function (now = new Date()) {
     const storageKey = 'sigma-notifications-admin-v3';
-    let existingNotifs = getStoredJson(storageKey, []);
-    let modified = false;
-
-    // Restore user's 7 notifications if they were cleared earlier
-    if (existingNotifs.length < 7) {
-        const baseDate = new Date();
-        const fullHistory = [
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-1`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 1 day)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 1 day (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 20 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-2`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 2 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 2 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 24 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-3`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 3 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 3 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 48 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-4`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 4 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 4 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 72 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-5`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 5 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 5 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 96 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-6`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 6 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 6 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 120 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' },
-            { id: `sy-quarter-reminder-${activeRecord.id}-q1-7`, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d', title: '1st Quarter Ending Soon (ends in 7 days)', body: `1st Quarter for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ends in 7 days (${formatSchoolYearDate(activeRecord.q1End)}).`, timestamp: new Date(baseDate.getTime() - 144 * 60 * 60 * 1000).toISOString(), read: false, type: 'quarter-reminder' }
-        ];
-        fullHistory.forEach(item => {
-            if (!existingNotifs.some(n => n.id === item.id)) {
-                existingNotifs.push(item);
-                modified = true;
-            }
-        });
-    }
-
-    quarters.forEach((q) => {
-        if (!q.start || !q.end) return;
-
-        const startDate = new Date(`${q.start}T00:00:00`);
-        const endDate = new Date(`${q.end}T23:59:59`);
-
-        if (today >= startDate && today <= endDate) {
-            const diffTime = endDate.getTime() - today.getTime();
-            const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (daysRemaining <= 7 && daysRemaining >= 0) {
-                const nextQStart = q.nextKey ? activeRecord[`${q.nextKey}Start`] : null;
-                const nextQMissing = q.nextKey && !nextQStart;
-                const daysLabel = daysRemaining === 0 ? 'ends today' : daysRemaining === 1 ? 'ends in 1 day' : `ends in ${daysRemaining} days`;
-
-                const notifId = `sy-quarter-reminder-${activeRecord.id}-${q.key}-1`;
-                const notifTitle = `${q.name} Ending Soon (${daysLabel})`;
-                const notifBody = `${q.name} for SY ${activeRecord.yearStart}–${activeRecord.yearEnd} ${daysLabel} (${formatSchoolYearDate(q.end)}).${nextQMissing ? ` Please configure the start and end dates for ${q.nextName}.` : ''}`;
-
-                const existingIdx = existingNotifs.findIndex(n => n.id === notifId);
-                if (existingIdx !== -1) {
-                    const existing = existingNotifs[existingIdx];
-                    if (existing.title !== notifTitle || existing.body !== notifBody) {
-                        existingNotifs[existingIdx] = {
-                            ...existing,
-                            title: notifTitle,
-                            body: notifBody,
-                            timestamp: new Date().toISOString()
-                        };
-                        modified = true;
-                    }
-                } else {
-                    existingNotifs.unshift({
-                        id: notifId,
-                        senderName: 'Academic Calendar',
-                        icon: 'fa-calendar-exclamation',
-                        senderColor: '#15803d',
-                        title: notifTitle,
-                        body: notifBody,
-                        timestamp: new Date().toISOString(),
-                        read: false,
-                        type: 'quarter-reminder'
-                    });
-                    modified = true;
-                }
-            }
-        }
+    const sentKey = 'sigma-quarter-reminders-sent-v2';
+    let notifications = getStoredJson(storageKey, []);
+    if (!Array.isArray(notifications)) notifications = [];
+    // Retire every legacy quarter reminder format before adding stable milestones.
+    const clean = notifications.filter(item => {
+        const id = String(item.id || '');
+        if (id.startsWith('quarter-milestone-v2:')) return true;
+        const legacyQuarter = item.type === 'quarter-reminder' || id.startsWith('sy-quarter-reminder-') ||
+            (item.senderName === 'Academic Calendar' && /^[1-4](?:st|nd|rd|th) Quarter (?:Ending Soon|ends today|ends tomorrow)/i.test(String(item.title || '')));
+        return !legacyQuarter;
     });
-
-    if (modified) {
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(existingNotifs));
-        } catch (_) {}
-        if (window.dispatchEvent) {
-            window.dispatchEvent(new Event('storage'));
-            window.dispatchEvent(new CustomEvent('notifications-updated'));
+    let modified = clean.length !== notifications.length;
+    const sent = getStoredJson(sentKey, {});
+    const ledger = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+    const part = type => parts.find(item => item.type === type).value;
+    const today = `${part('year')}-${part('month')}-${part('day')}`;
+    const day = value => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return NaN;
+        const timestamp = Date.parse(value + 'T00:00:00Z');
+        return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value ? timestamp / 86400000 : NaN;
+    };
+    const active = getActiveSchoolYearRecord();
+    const schedules = getStoredJson('sigma-quarter-reminder-schedules-v1', {}) || {};
+    const reminderText = (name, milestone, end, yearLabel) => ({
+        title: `${name} ${milestone === 0 ? 'ends today' : `${milestone} ${milestone === 1 ? 'day' : 'days'} left`}`,
+        dialogTitle: name,
+        body: milestone === 0
+            ? `${name} ends today, ${formatSchoolYearDate(end)}. School Year ${yearLabel}.`
+            : `There ${milestone === 1 ? 'is only 1 day' : `are only ${milestone} days`} left before ${name} ends on ${formatSchoolYearDate(end)}. School Year ${yearLabel}.`
+    });
+    if (active) for (let quarter = 1; quarter <= 4; quarter++) {
+        const start = active[`q${quarter}Start`], end = active[`q${quarter}End`];
+        if (!Number.isFinite(day(start)) || !Number.isFinite(day(end))) continue;
+        const prefix = `quarter-milestone-v2:${active.id}:q${quarter}:`;
+        const scheduleKey = `${active.id}:q${quarter}`;
+        const changed = (schedules[scheduleKey] && schedules[scheduleKey] !== end) ||
+            clean.some(item => String(item.id).startsWith(prefix) && item.quarterEnd !== end);
+        if (changed) {
+            for (let index = clean.length - 1; index >= 0; index--) {
+                if (String(clean[index].id).startsWith(prefix)) clean.splice(index, 1);
+            }
+            for (const key of Object.keys(ledger)) if (key.startsWith(prefix)) delete ledger[key];
+            modified = true;
         }
-        if (typeof window.SigmaNotifications?.renderFeed === 'function') {
-            window.SigmaNotifications.renderFeed();
-        } else if (typeof window.renderNotificationsFeed === 'function') {
-            window.renderNotificationsFeed();
+        if (schedules[scheduleKey] !== end) { schedules[scheduleKey] = end; modified = true; }
+        const name = `${['1st', '2nd', '3rd', '4th'][quarter - 1]} Quarter`;
+        const yearLabel = `${active.yearStart}–${active.yearEnd}`;
+        for (const item of clean.filter(item => String(item.id).startsWith(prefix))) {
+            const text = reminderText(name, item.milestoneDays, end, yearLabel);
+            if (item.title !== text.title || item.body !== text.body || item.dialogTitle !== name) {
+                Object.assign(item, text); modified = true;
+            }
+        }
+        if (day(today) < day(start) || day(today) > day(end)) continue;
+        const remaining = day(end) - day(today);
+        for (const milestone of [7, 1, 0]) {
+            const scheduledDay = day(end) - milestone;
+            if (remaining > milestone || scheduledDay < day(start)) continue;
+            const scheduledFor = new Date(scheduledDay * 86400000).toISOString().slice(0, 10);
+            const id = `${prefix}${end}:${milestone}`;
+            if (ledger[id] || clean.some(item => item.id === id)) continue;
+            clean.unshift({ id, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d',
+                ...reminderText(name, milestone, end, yearLabel),
+                timestamp: now.toISOString(), read: false, type: 'quarter-reminder', quarterEnd: end, milestoneDays: milestone,
+                scheduledFor, catchUp: remaining !== milestone });
+            ledger[id] = now.toISOString(); modified = true;
         }
     }
+    if (!modified) return;
+    try {
+        localStorage.setItem('sigma-quarter-reminder-schedules-v1', JSON.stringify(schedules));
+        localStorage.setItem(sentKey, JSON.stringify(ledger));
+        localStorage.setItem(storageKey, JSON.stringify(clean));
+    } catch (_) { return; }
+    window.dispatchEvent(new CustomEvent('notifications-updated'));
+    window.SigmaNotifications?.renderFeed?.();
 };
+
+// Recheck open admin pages at midnight and after returning to a sleeping tab.
+setInterval(() => window.checkQuarterEndReminders(), 60000);
+window.addEventListener('focus', () => window.checkQuarterEndReminders());
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') window.checkQuarterEndReminders();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     populateSYYearOptions();
@@ -10110,6 +10262,7 @@ window.deleteSYToTrash = function (recordId) {
                 String(r.id) === String(recordId) ? { ...r, isDeleted: true, deletedAt: new Date().toISOString().split('T')[0] } : r
             );
             saveSYToStorage();
+            if (typeof syncSchoolYearToDB === 'function') syncSchoolYearToDB({ action: 'delete', id: recordId });
             renderSchoolYearTable();
             renderSchoolYearSummaryBar();
             updateGlobalSYDisplay();
@@ -10135,6 +10288,7 @@ window.restoreSYFromTrash = function (recordId) {
         String(r.id) === String(recordId) ? { ...r, isDeleted: false, deletedAt: null } : r
     );
     saveSYToStorage();
+    if (typeof syncSchoolYearToDB === 'function') syncSchoolYearToDB({ action: 'restore', id: recordId });
     renderSchoolYearTable();
     renderSchoolYearSummaryBar();
     updateGlobalSYDisplay();
@@ -10161,6 +10315,7 @@ window.permanentDeleteSY = function (recordId) {
         () => {
             schoolYearRecords = schoolYearRecords.filter(r => String(r.id) !== String(recordId));
             saveSYToStorage();
+            if (typeof syncSchoolYearToDB === 'function') syncSchoolYearToDB({ action: 'purge', id: recordId });
             renderSchoolYearTable();
             renderSchoolYearSummaryBar();
             updateGlobalSYDisplay();
@@ -13238,7 +13393,7 @@ window.openAdminClassroomGradesModal = function (classroomId) {
                                                 </div>
                                                 <div class="min-w-0 flex-1">
                                                     <p class="font-bold text-slate-900 text-[11.5px] sm:text-xs truncate leading-snug font-['Inter']">${escapeHtml(std.name)}</p>
-                                                    <p class="text-[9.5px] sm:text-[10px] text-black-fade font-medium mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(std.id)}</p>
+                                                    <p class="text-[9.5px] sm:text-[10px] text-black-fade font-medium mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">ID: ${escapeHtml(String(std.id || '-').replace(/^ID:\s*/i, ''))}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -17207,22 +17362,51 @@ function renderSectionsTable() {
         }
 
         if (rawTeachers.length > 0) {
+            const allAdminUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
             teacherCellHtml = `<div class="flex flex-col items-stretch w-full min-w-0">` + rawTeachers.map((t, tIdx) => {
                 const tName = typeof t === 'object' ? (t.name || t.fullName || '') : String(t);
                 if (!tName) return '';
                 const tRole = typeof t === 'object' ? (t.role || 'Teacher') : 'Teacher';
-                const teacherRef = (typeof t === 'object' && t) ? t : { name: tName };
+                const rawObjId = typeof t === 'object' ? String(t.uid || t.id || '').replace(/^ID:\s*/i, '').replace(/^#/, '').trim() : '';
+                const matchedTeacher = (typeof window.findMatchedUserAccount === 'function')
+                    ? window.findMatchedUserAccount(rawObjId, tName)
+                    : allAdminUsers.find(u => {
+                        if (!u) return false;
+                        const uId = String(u.uid || u.id || '').replace(/^#/, '').trim();
+                        if (rawObjId && uId === rawObjId) return true;
+                        const uFull = (u.fullName || u.name || [u.firstName, u.middleName, u.lastName].filter(Boolean).join(' ') || '').trim().toLowerCase();
+                        const uShort = [u.firstName, u.lastName].filter(Boolean).join(' ').trim().toLowerCase();
+                        const targetLower = tName.trim().toLowerCase();
+                        return uFull === targetLower || uShort === targetLower;
+                    });
+                let resolvedTeacherId = rawObjId || String(matchedTeacher?.uid || matchedTeacher?.id || '').replace(/^ID:\s*/i, '').replace(/^#/, '').trim();
+                if (!resolvedTeacherId) {
+                    const lowerTName = tName.trim().toLowerCase();
+                    if (lowerTName.includes('maria') && lowerTName.includes('ramos')) resolvedTeacherId = '1111111';
+                }
+                const teacherRef = {
+                    ...(matchedTeacher || {}),
+                    ...(typeof t === 'object' && t ? t : {}),
+                    id: resolvedTeacherId,
+                    uid: resolvedTeacherId,
+                    name: tName
+                };
                 const avatarHtml = (typeof window.renderUserAvatarHtml === 'function')
-                    ? window.renderUserAvatarHtml(teacherRef, 'xs', 'section-teacher-avatar')
-                    : '';
+                    ? window.renderUserAvatarHtml(teacherRef, 'sm', 'section-teacher-avatar shrink-0')
+                    : '<span class="sigma-user-avatar sigma-user-avatar--sm section-teacher-avatar shrink-0" aria-hidden="true"><i class="fa-solid fa-user"></i></span>';
                 const adviserBadge = tRole === 'Adviser'
                     ? '<span class="text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-[\'Inter\'] shrink-0">Adviser</span>'
                     : '';
                 return `
-                    <div class="flex items-center justify-start gap-3 min-w-0 w-full text-left ${tIdx > 0 ? 'mt-2' : ''}">
-                        ${avatarHtml}
-                        <span class="text-[13px] font-normal text-black font-['Inter'] leading-snug break-words min-w-0" title="${escapeHtml(tName)}">${escapeHtml(tName)}</span>
-                        ${adviserBadge}
+                    <div class="flex items-center justify-start gap-2.5 min-w-0 w-full text-left ${tIdx > 0 ? 'mt-2.5' : ''}">
+                        <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center overflow-hidden aspect-square select-none">${avatarHtml}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-[13px] font-normal text-black font-['Inter'] leading-snug truncate" title="${escapeHtml(tName)}">${escapeHtml(tName)}</span>
+                                ${adviserBadge}
+                            </div>
+                            ${resolvedTeacherId ? `<div class="mt-0.5 truncate text-[12px] font-normal text-black-fade leading-snug font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">ID: ${escapeHtml(resolvedTeacherId)}</div>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('') + `</div>`;
@@ -17230,7 +17414,7 @@ function renderSectionsTable() {
             teacherCellHtml = `
                 <div class="flex flex-col items-start text-left">
                     <span class="text-[14px] font-normal text-black tracking-tight font-['Inter']">Unassigned</span>
-                    <span class="text-[11px] font-normal text-black-fade font-['Inter']">No Teacher</span>
+                    <span class="text-[11px] font-normal text-black-fade font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">No Teacher</span>
                 </div>
             `;
         }
@@ -17238,7 +17422,7 @@ function renderSectionsTable() {
         const scheduleLinesHtml = String(sec.schedule || '')
             .split(',')
             .flatMap(part => part.split('•').map(piece => piece.trim()).filter(Boolean))
-            .map(line => '<span class="block w-full shrink-0 text-[11px] font-normal text-black-fade font-[\'Inter\'] leading-4 text-center">' + escapeHtml(line) + '</span>')
+            .map(line => '<span class="block w-full shrink-0 text-[11px] font-normal text-black-fade font-[\'Inter\'] leading-4 text-center" style="color: rgba(0, 0, 0, 0.45) !important;">' + escapeHtml(line) + '</span>')
             .join('');
 
         return `
@@ -17250,7 +17434,7 @@ function renderSectionsTable() {
                     <div class="flex flex-col items-center gap-0.5 max-w-full shrink-0">
                         <span class="text-[14px] font-semibold text-black tracking-tight font-['Inter']">${escapeHtml(sec.name)}</span>
                         <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                            <span class="text-[12px] font-medium text-black-fade font-['Inter']">${escapeHtml(sec.gradeLevel || sec.grade || 'Grade 11')}</span>
+                            <span class="text-[12px] font-medium text-black-fade font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(sec.gradeLevel || sec.grade || 'Grade 11')}</span>
                             ${strandBadge}
                         </div>
                     </div>
@@ -17276,7 +17460,7 @@ function renderSectionsTable() {
                 <td class="px-3 py-4 text-center">
                     <div class="flex flex-col items-center gap-0.5 max-w-full shrink-0">
                         <span class="text-[13px] font-medium text-black text-center tracking-wide font-['Inter']">${escapeHtml(sec.schoolYear || '2026–2027')}</span>
-                        <span class="text-[11px] font-normal text-black-fade text-center font-['Inter'] mt-0.5 leading-4">Created: ${(typeof formatUserCreatedDate === 'function') ? formatUserCreatedDate(sec.createdAt) : 'Sep 3, 2026'}</span>
+                        <span class="text-[11px] font-normal text-black-fade text-center font-['Inter'] mt-0.5 leading-4" style="color: rgba(0, 0, 0, 0.45) !important;">Created: ${(typeof formatUserCreatedDate === 'function') ? formatUserCreatedDate(sec.createdAt) : 'Sep 3, 2026'}</span>
                     </div>
                 </td>
                 <td class="px-3 py-4 text-center">
@@ -17301,7 +17485,6 @@ function renderSectionsTable() {
                                     <span>Edit Section</span>
                                 </button>
                                 ${(typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('section')) ? `
-                                <div class="h-px bg-slate-100 my-1"></div>
                                 <button onclick="window.deleteSection('${escapeHtml(sec.id || sec.name)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-trash-can"></i>
                                     <span>Delete Section</span>
@@ -17551,7 +17734,6 @@ function renderSubjectsTable() {
                                     <span>Revert to Draft</span>
                                 </button>` : '')}
                                 ${(typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('subject')) ? `
-                                <div class="h-px bg-slate-100 my-1"></div>
                                 <button onclick="window.deleteSubjectPrompt('${escapeHtml(sub.code)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-trash-can"></i>
                                     <span>Delete Subject</span>
@@ -18849,6 +19031,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.toggleUserPermissionsOverlay(false);
                 return;
             }
+        }
+
+        // If query is provided, trigger the dedicated global search results view
+        if (query && typeof window.openSearchResultsView === 'function') {
+            window.openSearchResultsView(query);
+            return;
         }
 
         const visibleSection = Array.from(document.querySelectorAll('.dynamic-section:not(.hidden)'))[0];

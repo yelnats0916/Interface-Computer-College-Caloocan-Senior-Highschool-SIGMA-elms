@@ -186,12 +186,19 @@
                 historyView.append(row);
             });
             if (visible < available.length) {
-                const older = node('button', 'Previous Conversations', 'sigma-btn sigma-btn-white sigma-conversation-previous');
-                older.type = 'button'; older.addEventListener('click', () => {
+                const prevWrap = node('div', undefined, 'notif-prev-btn-wrapper');
+                prevWrap.style.borderTop = '1px solid #f1f5f9';
+                prevWrap.style.marginTop = '16px';
+                const older = node('button', undefined, 'notif-prev-btn sigma-conversation-previous');
+                older.type = 'button';
+                older.append(node('span', 'Previous Conversations'), node('i', undefined, 'fa-solid fa-chevron-down text-[10px]'));
+                older.addEventListener('click', () => {
                     const scroll = historyView.scrollTop;
                     visible += batch; paintHistory(); historyView.scrollTop = scroll;
                     historyView.querySelectorAll('.sigma-conversation-item')[visible - batch]?.focus({ preventScroll: true });
-                }); historyView.append(older);
+                });
+                prevWrap.append(older);
+                historyView.append(prevWrap);
             }
         }
         function closeMenus() {

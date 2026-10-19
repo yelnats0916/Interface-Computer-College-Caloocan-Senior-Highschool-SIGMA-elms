@@ -506,21 +506,37 @@ body .sigma-insight-searching > .sigma-insight-search {
     background: #fff;
     color: var(--icc-green, #15803d);
 }
-body .sigma-insight-search input {
-    width: 100%;
-    min-width: 0;
-    height: 100%;
-    flex: 1;
-    border: 0;
-    background: transparent;
-    outline: none;
-    color: #111;
-    font: inherit;
-    font-size: 13px;
-    letter-spacing: 0;
+body .sigma-insight-search input,
+body .sigma-insight-search input:focus,
+body .sigma-insight-search input:hover,
+body .sigma-insight-search input:active,
+body .sigma-insight-search input:focus-visible {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    flex: 1 1 auto !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #111 !important;
+    font: inherit !important;
+    font-size: 13px !important;
+    letter-spacing: 0 !important;
 }
-body .sigma-insight-search:focus-within { border-color: #FFD000; }
-body .sigma-insight-search input::-webkit-search-cancel-button { display: none; }
+body .sigma-insight-search:focus-within { border-color: #FFD000 !important; }
+body .sigma-insight-search input::-webkit-search-cancel-button { display: none !important; }
 .sigma-insight-search-empty { padding: 24px 12px; font-size: 13px; color: #777; text-align: center; }
 @media (max-width: 768px) {
     body #analytics-dropdown .sigma-insight-searching > .sigma-insight-search {
@@ -2431,22 +2447,27 @@ html body #section-grades:not(.hidden):has(.classroom-gradebook-navigation) {
     height: auto !important;
     min-height: calc(100dvh - var(--shell-offset, 106px));
 }
-.sigma-grades-page--admin {
+.sigma-grades-page--admin,
+.sigma-grades-page:has(#admin-grades-analytics-view:not(.hidden)) {
     height: auto !important;
     min-height: 0 !important;
     flex: 1 1 auto;
     border: 0 !important;
     box-shadow: none !important;
+    overflow: visible !important;
 }
 .sigma-grades-page--admin #admin-grades-gradebook-view:not(.hidden),
 .sigma-grades-page--admin #admin-grades-analytics-view:not(.hidden),
+.sigma-grades-page #admin-grades-analytics-view:not(.hidden),
 .sigma-grades-page--admin #admin-gradebook-workspace-content,
 .sigma-grades-page--admin #admin-analytics-workspace-content,
+.sigma-grades-page #admin-analytics-workspace-content,
 .sigma-grades-page--admin .gb-summary-workspace {
     height: auto !important;
     flex: 1 1 auto !important;
     background: #fff !important;
     box-shadow: none !important;
+    overflow: visible !important;
 }
 .sigma-grades-page--admin #admin-grades-shared-navbar { border-bottom: 0 !important; }
 .admin-gradebook-selection-row {
@@ -2577,7 +2598,8 @@ html body #section-grades .sigma-grades-page:not(.sigma-grades-page--admin):has(
     display:none!important;
 }
 .teacher-class-panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:20px}
-html body .grade-distribution-panel{padding:24px;border-radius:8px;min-width:0}
+html body .grade-distribution-panel{padding:24px;border-radius:8px;min-width:0;overflow:visible!important}
+html body .grade-distribution-panel .sigma-quarter-dropdown-menu{top:auto!important;bottom:calc(100% + 4px)!important;right:0!important;left:auto!important}
 @media(max-width:767px){.grade-distribution-parenthesis{display:none}}
 html body .grade-distribution-panel > div:first-child{gap:16px;margin-bottom:20px;padding-bottom:16px}
 html body .grade-distribution-panel h3{font-size:14px;font-weight:600;line-height:20px;letter-spacing:0}
@@ -2660,20 +2682,23 @@ html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px soli
     .teacher-quarter-mobile-toggle:is(:hover,:focus-visible){background:rgba(255,255,255,.15)}
 }
 .teacher-quarter-student-name{display:flex;align-items:center;gap:12px}
+.teacher-quarter-student-details{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
 .teacher-quarter-student-name > span:last-child{min-width:0;overflow-wrap:anywhere}
-.teacher-quarter-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#f1f5f9;color:rgba(0,0,0,.45);font-size:12px}
+.teacher-quarter-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#e2e8f0;color:#94a3b8;font-size:12px;overflow:hidden;border:1px solid rgba(226,232,240,.7)}
+.teacher-quarter-student-avatar i{color:#94a3b8!important}
 @media(min-width:768px){
  html body .teacher-quarter-student-avatar{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;min-height:38px!important;max-height:38px!important;flex:0 0 38px!important;box-sizing:border-box;padding:0!important;aspect-ratio:1}
- html body .teacher-quarter-student-avatar > i{font-size:16px!important;line-height:1!important}
+ html body .teacher-quarter-student-avatar > i{font-size:15px!important;line-height:1!important;color:#94a3b8!important}
 }
-@media(max-width:767px){html body .teacher-quarter-student-avatar{display:none!important}}
+@media(max-width:767px){html body .teacher-quarter-student-avatar{display:inline-flex!important;width:28px!important;height:28px!important;min-width:28px!important;max-width:28px!important;min-height:28px!important;max-height:28px!important;flex:0 0 28px!important}.teacher-quarter-student-name{gap:8px}}
 @media(max-width:767px){.teacher-quarter-heading-full{display:none}.teacher-quarter-heading-short{display:inline}}
 .teacher-class-grade-list{border-left:1px solid #e2e8f0;padding-left:20px;min-width:0}
 .teacher-class-grade-list header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
 .teacher-class-grade-list h3{font-size:14px;font-weight:600;margin:0}
 .advisory-student-identity{display:flex;align-items:center;gap:12px}
 .advisory-student-identity > div{min-width:0;overflow-wrap:anywhere}
-.advisory-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:#f1f5f9;color:rgba(0,0,0,.45);font-size:16px}
+.advisory-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:#e2e8f0;color:#94a3b8;font-size:15px;overflow:hidden;border:1px solid rgba(226,232,240,.7)}
+.advisory-student-avatar i{color:#94a3b8!important}
 @media(max-width:767px){.advisory-student-avatar{flex-basis:28px;width:28px;height:28px;font-size:12px}.advisory-student-identity{gap:8px}}
 .teacher-class-grade-list h4{font-size:13px;font-weight:600;margin:0 0 12px}
 .teacher-class-grade-list section + section{margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0}

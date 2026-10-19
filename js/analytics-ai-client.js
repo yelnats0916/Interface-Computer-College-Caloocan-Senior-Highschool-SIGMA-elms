@@ -17,6 +17,7 @@
                     body: JSON.stringify({ kind, snapshot: request.snapshot, maxCards: request.maxCards, language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
                 const result = await response.json();
                 if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'AI returned invalid analytics.');
+                if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI returned analytics without a generation ID.');
                 return result;
             } catch (error) {
                 if (error.name === 'AbortError') throw new Error('Analytics request timed out. Please try again later.');

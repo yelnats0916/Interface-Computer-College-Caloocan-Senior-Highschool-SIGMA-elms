@@ -43,6 +43,7 @@
         // Variants let high-focus flows use an appropriately sized desktop dialog.
         if (card) card.classList.toggle('sigma-universal-ask-card--quiz-start', options.variant === 'quiz-start');
         if (card) card.classList.toggle('sigma-universal-ask-card--grading', options.variant === 'grading');
+        if (card) card.classList.toggle('sigma-universal-ask-card--quarter-reminder', options.variant === 'quarter-reminder');
 
         const title = options.title || 'Notice';
         const message = options.message || options.desc || '';
@@ -60,8 +61,6 @@
             proceedBtn.textContent = confirmText;
             if (options.confirmClass) {
                 proceedBtn.className = `h-9 sm:h-10 px-3 ${options.confirmClass} rounded-xl text-xs sm:text-[12.5px] font-semibold capitalize tracking-normal active:scale-[0.98] transition-all cursor-pointer font-['Inter'] shadow-none border border-transparent`;
-            } else if (options.type === 'danger') {
-                proceedBtn.className = 'h-9 sm:h-10 px-3 bg-red-600 text-white rounded-xl text-xs sm:text-[12.5px] font-semibold capitalize tracking-normal hover:bg-red-700 active:scale-[0.98] transition-all cursor-pointer font-[\'Inter\'] shadow-none border border-transparent';
             } else {
                 proceedBtn.className = 'h-9 sm:h-10 px-3 bg-[#15803d] text-white rounded-xl text-xs sm:text-[12.5px] font-semibold capitalize tracking-normal hover:bg-[#166534] active:scale-[0.98] transition-all cursor-pointer font-[\'Inter\'] shadow-none border border-transparent';
             }
@@ -76,6 +75,7 @@
         }
 
         if (cancelBtn) {
+            cancelBtn.classList.toggle('sigma-btn-white', options.variant === 'quarter-reminder');
             cancelBtn.textContent = cancelText;
             if (showCancel) {
                 cancelBtn.classList.remove('hidden');

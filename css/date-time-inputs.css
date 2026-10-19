@@ -44,4 +44,6 @@ button[id*="time-icon"] i,button[id*="date-icon"] i,[data-admin-time-btn] i{font
 }
 #sigma-field-picker.sigma-field-picker.sigma-field-picker--calendar .sigma-field-picker-month-header{grid-template-columns:30px minmax(0,1fr) 30px!important;padding-bottom:0!important;margin-bottom:8px!important;border-bottom:0!important}
 #sigma-field-picker.sigma-field-picker--calendar .sigma-field-picker-month-header .cal-picker-year-label{white-space:nowrap;padding:0}
+#sigma-field-picker.sigma-field-picker--calendar button.cal-picker-year-label{border-radius:6px;padding:6px 10px;transition:background-color .15s}
+#sigma-field-picker.sigma-field-picker--calendar button.cal-picker-year-label:hover,#sigma-field-picker.sigma-field-picker--calendar button.cal-picker-year-label:focus-visible{background:#e5e7eb}
 @media(max-width:767px){.sigma-date-time-trigger i,button[id*="time-icon"] i,button[id*="date-icon"] i,[data-admin-time-btn] i{font-size:14px!important}.sigma-date-time-trigger{width:28px;height:28px;right:4px}.sigma-date-time-field>input{padding-right:34px!important}.sigma-field-picker{width:250px;padding:10px}}

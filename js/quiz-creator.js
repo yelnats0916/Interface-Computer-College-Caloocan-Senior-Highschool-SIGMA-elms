@@ -194,6 +194,10 @@ function _saveBeforeExit() {
                 library[idx].authorName     = (library[idx].authorName && library[idx].authorName !== 'You' && library[idx].authorName !== 'Self') ? library[idx].authorName : authorName;
                 library[idx].authorRole     = library[idx].authorRole || authorRole;
                 library[idx].questions      = JSON.parse(JSON.stringify(questions || []));
+                if (window._quizIsAIGenerated && window._quizAiGenerationId) {
+                    library[idx].source = 'ai'; library[idx].isAi = true; library[idx].is_ai = 1;
+                    library[idx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
+                }
             } else {
                 savedId = null; // entry removed; fall through to create new
             }
@@ -216,7 +220,10 @@ function _saveBeforeExit() {
                 status: 'draft', isDraft: true,
                 icon: currentQuizIcon  || 'fa-bolt-lightning',
                 color: currentQuizColor || '#FFD000',
-                source: 'manual',
+                source: window._quizIsAIGenerated ? 'ai' : 'manual',
+                isAi: Boolean(window._quizIsAIGenerated),
+                is_ai: window._quizIsAIGenerated ? 1 : 0,
+                ...(window._quizAiGenerationId ? { aiGeneration: { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() } } : {}),
                 questions: JSON.parse(JSON.stringify(questions || []))
             });
         }
@@ -2031,6 +2038,10 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                 library[existingIdx].authorName = (library[existingIdx].authorName && library[existingIdx].authorName !== 'You' && library[existingIdx].authorName !== 'Self') ? library[existingIdx].authorName : authorName;
                 library[existingIdx].authorRole = library[existingIdx].authorRole || authorRole;
                 library[existingIdx].questions = JSON.parse(JSON.stringify(questions));
+                if (window._quizIsAIGenerated && window._quizAiGenerationId) {
+                    library[existingIdx].source = 'ai'; library[existingIdx].isAi = true; library[existingIdx].is_ai = 1;
+                    library[existingIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
+                }
             } else {
                 // ID not found — check if there's an existing entry with the same code (e.g., autosave draft)
                 const codeToFind = currentQuizCode;
@@ -2055,6 +2066,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                         library[codeIdx].source = 'ai';
                         library[codeIdx].isAi = true;
                         library[codeIdx].is_ai = 1;
+                        if (window._quizAiGenerationId) library[codeIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
                     }
                     library[codeIdx].questions = JSON.parse(JSON.stringify(questions));
                 }
@@ -2092,6 +2104,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
                 source: window._quizIsAIGenerated ? 'ai' : 'manual',
                 isAi: !!window._quizIsAIGenerated,
                 is_ai: window._quizIsAIGenerated ? 1 : 0,
+                ...(window._quizAiGenerationId ? { aiGeneration: { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() } } : {}),
                 questions: JSON.parse(JSON.stringify(questions))
             };
             library.unshift(newQuiz);
@@ -4807,13 +4820,31 @@ window.executeAIQuestionGeneration = async function () {
         const startIndex = questions.length;
         questions.push(...generated);
         activeQuestionIndex = startIndex < questions.length ? startIndex : Math.max(0, questions.length - 1);
+        if (!/^ASMTG?-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI generation completed without an assessment ID. Try again.');
         window._quizIsAIGenerated = true;
         window._quizAiModel = result.model;
         window._quizAiProvider = result.provider;
+        window._quizAiGenerationId = result.generationId;
         try {
             const user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-            if (user.id || user.uid) window.SigmaAiLogs?.record({ userId: String(user.id || user.uid), feature: 'quiz', model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, status: result.status,
-                timestamp: new Date().toISOString(), prompt: `Generate ${count} ${selectedType} questions about ${topic}`, response: JSON.stringify(generated), actionDescription: `Generated ${count} quiz questions` });
+            const uploadedFileName = currentAIGenFile?.name || '';
+            if (user.id || user.uid) window.SigmaAiLogs?.record({
+                userId: String(user.id || user.uid),
+                feature: 'quiz',
+                model: result.model,
+                provider: result.provider,
+                keyId: result.keyId,
+                keyLabel: result.keyLabel,
+                status: result.status,
+                generationId: result.generationId,
+                timestamp: new Date().toISOString(),
+                prompt: `Generate ${count} ${selectedType} questions about ${topic}`,
+                response: JSON.stringify(generated),
+                actionDescription: uploadedFileName ? `Generated ${count} quiz questions from ${uploadedFileName}` : `Generated ${count} quiz questions`,
+                fileName: uploadedFileName,
+                fileType: currentAIGenFile ? (currentAIGenFile.name.split('.').pop() || '').toLowerCase() : '',
+                topic: topic
+            });
         } catch (error) { console.warn('Quiz generated, but the AI audit log could not be saved.', error); }
 
         renderQuestions();

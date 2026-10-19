@@ -555,10 +555,15 @@
             const avatarSpan = document.createElement('span');
             avatarSpan.className = 'ai-log-avatar';
             avatarSpan.setAttribute('aria-hidden', 'true');
-            if (selectedUser.userAvatar) {
+            const detailCleanId = String(selectedUser.userId || '').replace(/^ID:\s*/i, '').trim();
+            const resolvedDetailAvatar = (typeof window.resolveUserAvatar === 'function'
+                ? window.resolveUserAvatar({ id: detailCleanId, name: selectedUser.userName, avatar: selectedUser.userAvatar })
+                : '') || selectedUser.userAvatar || '';
+            if (resolvedDetailAvatar) {
                 const img = document.createElement('img');
-                img.src = selectedUser.userAvatar;
+                img.src = resolvedDetailAvatar;
                 img.alt = '';
+                img.onerror = () => { avatarSpan.innerHTML = '<i class="fa-solid fa-user"></i>'; };
                 avatarSpan.append(img);
             } else {
                 avatarSpan.innerHTML = '<i class="fa-solid fa-user"></i>';
@@ -784,21 +789,24 @@
                 toggle.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const willShow = menu.hidden;
+                    window.closeAllTableActionDropdowns?.(menu);
                     document.querySelectorAll('.ai-log-message-menu, .notification-log-action-menu').forEach(m => {
-                        m.hidden = true;
-                        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
-                    });
-                    if (willShow) {
-                        const rect = toggle.getBoundingClientRect();
-                        const spaceBelow = window.innerHeight - rect.bottom;
-                        if (spaceBelow < 120 && rect.top > 120) {
-                            menu.classList.add('dropup');
-                        } else {
-                            menu.classList.remove('dropup');
+                        if (m !== menu) {
+                            m.hidden = true;
+                            m.classList.remove('dropup');
+                            window.resetActionDropdownPosition?.(m);
+                            m.previousElementSibling?.classList.remove('active');
+                            m.previousElementSibling?.setAttribute('aria-expanded', 'false');
                         }
-                    }
+                    });
                     menu.hidden = !willShow;
+                    toggle.classList.toggle('active', willShow);
                     toggle.setAttribute('aria-expanded', String(willShow));
+                    if (willShow) {
+                        window.positionActionDropdown?.(menu, toggle);
+                    } else {
+                        window.resetActionDropdownPosition?.(menu);
+                    }
                 });
 
                 menu.append(deleteBtn);
@@ -822,10 +830,14 @@
                 const avatar = document.createElement('span');
                 avatar.className = 'ai-log-avatar';
                 avatar.setAttribute('aria-hidden', 'true');
-                if (record.userAvatar) {
+                const resolvedRowAvatar = (typeof window.resolveUserAvatar === 'function'
+                    ? window.resolveUserAvatar({ id: cleanId, name: record.userName, avatar: record.userAvatar })
+                    : '') || record.userAvatar || '';
+                if (resolvedRowAvatar) {
                     const img = document.createElement('img');
-                    img.src = record.userAvatar;
+                    img.src = resolvedRowAvatar;
                     img.alt = '';
+                    img.onerror = () => { avatar.innerHTML = '<i class="fa-solid fa-user"></i>'; };
                     avatar.append(img);
                 } else {
                     avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
@@ -839,8 +851,8 @@
                 nameSpan.textContent = record.userName;
 
                 const idSpan = document.createElement('span');
-                idSpan.className = 'ai-log-user-id';
-                idSpan.textContent = cleanId;
+                idSpan.className = 'ai-log-user-id text-black-fade';
+                idSpan.textContent = cleanId ? 'ID: ' + cleanId : '';
 
                 identity.append(nameSpan, idSpan);
                 userBtn.append(avatar, identity);

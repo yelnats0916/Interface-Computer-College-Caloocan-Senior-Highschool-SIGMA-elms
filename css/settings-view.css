@@ -143,8 +143,8 @@
     min-height: inherit;
     height: auto;
 }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tabs { display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab {
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tabs { display: flex; gap: 8px; border-bottom: 1px solid #e2e8f0; }
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab {
     position: relative;
     min-height: 48px;
     padding: 12px 16px;
@@ -157,14 +157,14 @@
     font-weight: 600;
     cursor: pointer;
 }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab:not([aria-selected="true"]):hover,
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab:not([aria-selected="true"]):focus-visible {
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab:not([aria-selected="true"]):hover,
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab:not([aria-selected="true"]):focus-visible {
     background: #f1f5f9;
     border-radius: 8px;
 }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab[aria-selected="true"] { background: transparent; border-radius: 0; }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab[aria-pressed="true"] { color: var(--icc-green, #15803d); }
-:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report) .ai-engine-tab[aria-pressed="true"]::after {
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab[aria-selected="true"] { background: transparent; border-radius: 0; }
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab:is([aria-pressed="true"], [aria-selected="true"], .active) { color: var(--icc-green, #15803d); }
+:is(#settings-ai-view, #settings-gdrive-view, #reports-ai-view, #ai-insight-report, #reports-performance-view) .ai-engine-tab:is([aria-pressed="true"], [aria-selected="true"], .active)::after {
     content: '';
     position: absolute;
     bottom: 0;

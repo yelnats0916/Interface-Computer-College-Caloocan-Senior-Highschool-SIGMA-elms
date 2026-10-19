@@ -162,9 +162,37 @@ try {
                 jsonResponse(['success' => false, 'error' => 'Master Admin cannot be deleted'], 403);
             }
 
-            $stmt = $pdo->prepare("UPDATE `users` SET `is_deleted` = 1 WHERE `id` = :id");
-            $stmt->execute([':id' => $id]);
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($input['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $stmt = $pdo->prepare("UPDATE `users` SET `is_deleted` = 1, `deleted_at` = UTC_TIMESTAMP(), `deleted_by` = :actor WHERE `id` = :id");
+            $stmt->execute([':id' => $id, ':actor' => $actor]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('users', ?, 'remove', ?)");
+                $logStmt->execute([$id, $actor]);
+            } catch (Throwable $e) {}
+
             jsonResponse(['success' => true, 'message' => "User {$id} deleted"]);
+        }
+
+        // ACTION: Restore Soft Deleted User
+        if ($action === 'restore') {
+            $id = trim($input['id'] ?? $input['uid'] ?? '');
+            if (!$id) jsonResponse(['success' => false, 'error' => 'User ID is required'], 400);
+
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($input['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $stmt = $pdo->prepare("UPDATE `users` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id");
+            $stmt->execute([':id' => $id]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('users', ?, 'restore', ?)");
+                $logStmt->execute([$id, $actor]);
+            } catch (Throwable $e) {}
+
+            jsonResponse(['success' => true, 'message' => "User {$id} restored"]);
         }
 
         // ACTION: Batch Sync from client

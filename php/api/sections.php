@@ -180,10 +180,48 @@ try {
                 jsonResponse(['success' => false, 'error' => 'Missing section identifier for deletion'], 400);
             }
 
-            $stmt = $pdo->prepare("UPDATE `sections` SET `is_deleted` = 1 WHERE `id` = :id OR `name` = :target_name");
-            $stmt->execute([':id' => $targetId, ':target_name' => $targetId]);
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            // Look up the exact id to record in lifecycle events
+            $findStmt = $pdo->prepare("SELECT id FROM `sections` WHERE `id` = :id OR `name` = :target_name LIMIT 1");
+            $findStmt->execute([':id' => $targetId, ':target_name' => $targetId]);
+            $foundId = $findStmt->fetchColumn() ?: $targetId;
+
+            $stmt = $pdo->prepare("UPDATE `sections` SET `is_deleted` = 1, `deleted_at` = UTC_TIMESTAMP(), `deleted_by` = :actor WHERE `id` = :id OR `name` = :target_name");
+            $stmt->execute([':id' => $targetId, ':target_name' => $targetId, ':actor' => $actor]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('sections', ?, 'remove', ?)");
+                $logStmt->execute([$foundId, $actor]);
+            } catch (Throwable $e) {}
 
             jsonResponse(['success' => true, 'message' => "Section {$targetId} deleted successfully"]);
+        }
+
+        // ── Action: RESTORE ──────────────────────────────────────
+        if ($action === 'restore') {
+            $targetId = trim((string) ($payload['id'] ?? $payload['name'] ?? ''));
+            if (!$targetId) {
+                jsonResponse(['success' => false, 'error' => 'Missing section identifier for restore'], 400);
+            }
+
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $findStmt = $pdo->prepare("SELECT id FROM `sections` WHERE `id` = :id OR `name` = :target_name LIMIT 1");
+            $findStmt->execute([':id' => $targetId, ':target_name' => $targetId]);
+            $foundId = $findStmt->fetchColumn() ?: $targetId;
+
+            $stmt = $pdo->prepare("UPDATE `sections` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id OR `name` = :target_name");
+            $stmt->execute([':id' => $targetId, ':target_name' => $targetId]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('sections', ?, 'restore', ?)");
+                $logStmt->execute([$foundId, $actor]);
+            } catch (Throwable $e) {}
+
+            jsonResponse(['success' => true, 'message' => "Section {$targetId} restored successfully"]);
         }
 
         // ── Action: SAVE (single section) ────────────────────────

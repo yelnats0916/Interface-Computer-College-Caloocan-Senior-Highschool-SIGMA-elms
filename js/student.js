@@ -111,6 +111,7 @@ function initStudentPortal() {
         if (isScoreOrGradeKey) {
             window.invalidateTeacherGradebookCache?.();
             window.invalidateSharedAssessmentSubmissionsStorage?.();
+            window.invalidateAssessmentRowsCache?.();
             window.clearCategoryDetailsCache?.();
             if (typeof _renderTopicContentMain === 'function') {
                 const topicSection = document.getElementById('section-topic-content');
@@ -557,10 +558,22 @@ function initStudentPortal() {
     let currentStudentName = 'Juan Dela Cruz';
     let currentStudentSection = 'Grade 11 - STEM A';
 
+    let _cachedLoggedInStudentUser = null;
+    let _cachedLoggedInStudentTime = 0;
+    let _cachedLoggedInStudentRawAuth = null;
+
     function getLoggedInStudentUser() {
+        const now = Date.now();
+        let rawAuth = '';
+        try {
+            rawAuth = sessionStorage.getItem('sigma-authenticated-user') || '';
+        } catch (e) {}
+        if (_cachedLoggedInStudentUser && _cachedLoggedInStudentRawAuth === rawAuth && (now - _cachedLoggedInStudentTime) < 1500) {
+            return _cachedLoggedInStudentUser;
+        }
         let authUser = {};
         try {
-            authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            authUser = JSON.parse(rawAuth || '{}');
         } catch (e) {}
 
         const users = getStoredJson(USER_STORAGE_KEY, getStoredJson('sigma-admin-users', []));
@@ -624,7 +637,7 @@ function initStudentPortal() {
             sec = window.currentClassroomSectionName.trim();
         }
 
-        return {
+        const resolvedUser = {
             ...matchedUser,
             ...authUser,
             id: id,
@@ -636,6 +649,10 @@ function initStudentPortal() {
             section: sec,
             gradeSection: sec
         };
+        _cachedLoggedInStudentUser = resolvedUser;
+        _cachedLoggedInStudentTime = now;
+        _cachedLoggedInStudentRawAuth = rawAuth;
+        return resolvedUser;
     }
     window.getLoggedInStudentUser = getLoggedInStudentUser;
 
@@ -740,7 +757,11 @@ function initStudentPortal() {
         }
     }
     window.sanitizeSubjectCurriculumData = sanitizeSubjectCurriculumData;
-    sanitizeSubjectCurriculumData();
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => sanitizeSubjectCurriculumData(), { timeout: 1000 });
+    } else {
+        setTimeout(sanitizeSubjectCurriculumData, 120);
+    }
     function stripHtmlTags(value) {
         return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -3039,6 +3060,9 @@ if (overlay) overlay.classList.add('hidden');
     window.resolveSubjectType = resolveSubjectType;
 
     function getSubjectGradeRows() {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => getSubjectGradeRows());
+        }
         if (typeof syncStudentEnrolledClassrooms === 'function') {
             syncStudentEnrolledClassrooms();
         }
@@ -3473,9 +3497,7 @@ if (overlay) overlay.classList.add('hidden');
                                         </td>
                                         <td class="px-4 py-4 align-middle text-left font-['Inter'] border-r border-slate-100">
                                             <div class="flex items-center gap-2.5">
-                                                <span class="student-grade-teacher-avatar w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-100 text-black-fade inline-flex items-center justify-center shrink-0" aria-hidden="true">
-                                                    <i class="fa-solid fa-user text-xs md:text-sm"></i>
-                                                </span>
+                                                ${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(row.teacher, 'sm', 'student-grade-teacher-avatar')) || `<span class="student-grade-teacher-avatar sigma-user-avatar sigma-user-avatar--sm" aria-hidden="true"><i class="fa-solid fa-user text-xs md:text-sm"></i></span>`}
                                                 <span class="text-xs md:text-sm font-medium text-black font-['Inter'] block leading-normal">${row.teacher}</span>
                                             </div>
                                         </td>
@@ -6015,7 +6037,13 @@ if (overlay) overlay.classList.add('hidden');
     const clockValueToMinutes = (v, f) => window.SigmaPanels?.clockValueToMinutes ? window.SigmaPanels.clockValueToMinutes(v, f) : (window.clockValueToMinutes ? window.clockValueToMinutes(v, f) : 0);
     const parseClassSchedule = (s) => window.SigmaPanels?.parseClassSchedule ? window.SigmaPanels.parseClassSchedule(s) : (window.parseClassSchedule ? window.parseClassSchedule(s) : { label: s || 'Schedule TBA', startMinutes: 0, endMinutes: 0 });
 
-    function syncStudentEnrolledClassrooms() {
+    let _lastStudentClassroomsSyncTime = 0;
+    function syncStudentEnrolledClassrooms(force = false) {
+        const now = Date.now();
+        if (!force && _lastStudentClassroomsSyncTime && Object.keys(classroomData).length > 0 && (now - _lastStudentClassroomsSyncTime) < 2000) {
+            return Object.values(classroomData);
+        }
+        _lastStudentClassroomsSyncTime = now;
         const student = getLoggedInStudentUser();
         const studentId = String(student.uid || student.id || '').trim();
         const studentEmail = (student.email || '').toLowerCase().trim();
@@ -6248,14 +6276,18 @@ if (overlay) overlay.classList.add('hidden');
     function isStudentRowSubmitted(row) {
         if (!row) return false;
         const loggedStudent = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
-        if (row.submittedOn || row.gradedOn || row.isSubmitted) {
+        if (row.submittedOn || row.gradedOn || row.isSubmitted || row.status === 'submitted' || row.status === 'graded' || row.status === 'excuse' || row.status === 'excused') {
             if (row.studentId && loggedStudent && !window.isSubmissionMatchForStudent?.(row, loggedStudent)) {
                 return false;
             }
             return true;
         }
+        // Rows from AssessmentsPage.buildAssessmentRows('student') already have their status & submission resolved
+        if ('status' in row && 'unifiedIdx' in row) {
+            return false;
+        }
 
-        // Check window.getStudentAssessmentSubmission with loggedStudent
+        // Check window.getStudentAssessmentSubmission with loggedStudent for legacy raw rows
         if (typeof window.getStudentAssessmentSubmission === 'function') {
             const rowCat = String(row.category || row.type || (row.tab || '')).toLowerCase();
             const specificTab = rowCat.includes('quiz') ? 'quiz' : (rowCat.includes('assign') ? 'assignments' : (row.tab || 'assessments'));
@@ -6274,7 +6306,7 @@ if (overlay) overlay.classList.add('hidden');
     function getStudentOverdueSubmissionItems(limitOrRows = 20, maxLimit = 20) {
         let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
         const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
-        if (!rows.length) {
+        if (!Array.isArray(limitOrRows)) {
             if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
                 rows = window.AssessmentsPage.buildAssessmentRows('student');
             } else {
@@ -6302,7 +6334,7 @@ if (overlay) overlay.classList.add('hidden');
     function getStudentDueSubmissionItems(limitOrRows = 20, maxLimit = 20) {
         let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
         const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
-        if (!rows.length) {
+        if (!Array.isArray(limitOrRows)) {
             if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
                 rows = window.AssessmentsPage.buildAssessmentRows('student');
             } else {
@@ -6327,7 +6359,7 @@ if (overlay) overlay.classList.add('hidden');
     function getStudentUpcomingSubmissionItems(limitOrRows = 20, maxLimit = 20) {
         let rows = Array.isArray(limitOrRows) ? limitOrRows : [];
         const limit = typeof limitOrRows === 'number' ? limitOrRows : maxLimit;
-        if (!rows.length) {
+        if (!Array.isArray(limitOrRows)) {
             if (window.AssessmentsPage && typeof window.AssessmentsPage.buildAssessmentRows === 'function') {
                 rows = window.AssessmentsPage.buildAssessmentRows('student');
             } else {
@@ -6369,6 +6401,9 @@ if (overlay) overlay.classList.add('hidden');
     }
 
     function renderStudentHomeDashboardPanels() {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => renderStudentHomeDashboardPanels());
+        }
         const nextList = document.getElementById('student-home-next-class-list');
         let todoList = document.getElementById('student-home-todo-list');
         const dueList = document.getElementById('student-home-due-submission-list');
@@ -7584,6 +7619,9 @@ if (overlay) overlay.classList.add('hidden');
 
     // ─── Student Classroom Grades Modal (Desktop & In-Room Shortcut) ───────────
     window.openStudentClassroomGradesModal = function (classroomId, selectedSubjectName) {
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => window.openStudentClassroomGradesModal(classroomId, selectedSubjectName));
+        }
         const cId = classroomId || activeStudentClassroomId || '';
         const data = classroomData[cId] || {};
         const subjectName = selectedSubjectName || data.subject || data.name || window.currentClassroomSubject || 'Subject Grades';
@@ -7837,13 +7875,6 @@ if (overlay) overlay.classList.add('hidden');
         });
         refreshGradeInsight();
         const assessmentQuarterSelect = overlay.querySelector('.student-assessment-quarter-select');
-        if (assessmentQuarterSelect) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'student-view-grades-quarter-control';
-            assessmentQuarterSelect.before(wrapper);
-            wrapper.append(assessmentQuarterSelect);
-            wrapper.insertAdjacentHTML('beforeend','<i class="fa-solid fa-chevron-down" aria-hidden="true"></i>');
-        }
         assessmentQuarterSelect?.addEventListener('change', event => {
             refreshGradeInsight(event.target.value);
             let visible = 0;
@@ -7990,8 +8021,8 @@ if (overlay) overlay.classList.add('hidden');
         return home && !home.classList.contains('hidden') && home.style.display !== 'none';
     }
 
-    window.addEventListener('pageshow', () => {
-        if (isStudentHomeActive()) {
+    window.addEventListener('pageshow', (event) => {
+        if (event && event.persisted && isStudentHomeActive()) {
             if (typeof renderStudentHomeDashboardPanels === 'function') renderStudentHomeDashboardPanels();
             if (typeof renderInstitutionalAnnouncements === 'function') renderInstitutionalAnnouncements();
         }
@@ -8064,12 +8095,13 @@ if (overlay) overlay.classList.add('hidden');
         }
     }
 
-    syncStudentEnrolledClassrooms();
+    syncStudentEnrolledClassrooms(true);
     renderStudentSectionsNavChildren('');
 
     window.addEventListener('storage', (e) => {
         if (e.key === 'sigma-admin-sections' || e.key === 'sigma-admin-users') {
-            syncStudentEnrolledClassrooms();
+            _cachedLoggedInStudentUser = null;
+            syncStudentEnrolledClassrooms(true);
             renderStudentSectionsNavChildren(activeStudentClassroomId);
             if (typeof renderStudentHomeDashboardPanels === 'function') {
                 renderStudentHomeDashboardPanels();
@@ -8077,7 +8109,8 @@ if (overlay) overlay.classList.add('hidden');
         }
     });
     window.addEventListener('sigma:section-deployed', () => {
-        syncStudentEnrolledClassrooms();
+        _cachedLoggedInStudentUser = null;
+        syncStudentEnrolledClassrooms(true);
         renderStudentSectionsNavChildren(activeStudentClassroomId);
         if (typeof renderStudentHomeDashboardPanels === 'function') {
             renderStudentHomeDashboardPanels();
@@ -8129,6 +8162,10 @@ if (overlay) overlay.classList.add('hidden');
     const searchBtn = document.getElementById('globalSearchBtn');
     const triggerGlobalSearch = () => {
         const query = (searchBar?.value || '').trim();
+        if (query && typeof window.openSearchResultsView === 'function') {
+            window.openSearchResultsView(query);
+            return;
+        }
         const visibleSection = Array.from(document.querySelectorAll('.dynamic-section:not(.hidden)'))[0];
         if (!visibleSection) return;
         const sectionId = visibleSection.id;
@@ -8136,9 +8173,7 @@ if (overlay) overlay.classList.add('hidden');
 
         if (sectionId === 'section-home') {
             renderStudentHomeDashboardPanels();
-
         }
-
     };
     if (searchBar) {
 
@@ -8181,7 +8216,14 @@ if (overlay) overlay.classList.add('hidden');
         if (window.innerWidth < 1024) {
             const header = document.getElementById('student-header');
             const searchShell = document.querySelector('.header-search-shell');
-            if (header?.classList.contains('mobile-search-active') && !searchShell?.contains(e.target)) {
+            const mobileOverlay = document.getElementById('mobile-search-overlay');
+            const mobileDropdown = document.getElementById('mobile-search-dropdown');
+            const mobileBackdrop = document.getElementById('mobile-search-backdrop');
+            if (header?.classList.contains('mobile-search-active') &&
+                !searchShell?.contains(e.target) &&
+                !mobileOverlay?.contains(e.target) &&
+                !mobileDropdown?.contains(e.target) &&
+                !mobileBackdrop?.contains(e.target)) {
                 header?.classList.remove('mobile-search-active');
             }
         }

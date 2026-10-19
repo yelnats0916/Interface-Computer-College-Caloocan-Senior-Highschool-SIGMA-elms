@@ -25,7 +25,7 @@
     flex: 0 0 38px;
     border-radius: 50%;
     overflow: hidden;
-    background: #f1f5f9;
+    background: #e2e8f0;
     border: 1px solid #e2e8f0;
     color: #94a3b8;
     font-size: 15px;
@@ -260,26 +260,27 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: #000;
+    color: #000000;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 18px;
     transition: all 0.2s ease;
 }
 .ai-log-message-more i {
-    font-size: 14px;
-    color: #000000;
+    font-size: 18px;
+    color: inherit;
 }
 .ai-log-message-more:hover,
+.ai-log-message-more.active,
 .ai-log-message-more[aria-expanded="true"] {
-    color: #000000 !important;
-    background-color: #f1f5f9 !important;
+    color: #FFD000 !important;
+    background-color: transparent !important;
 }
 .ai-log-message-menu {
     position: absolute;
     right: 0;
     top: 100%;
     margin-top: 8px;
-    min-width: 155px;
+    min-width: 195px;
     width: max-content;
     max-width: 240px;
     padding: 6px !important;
@@ -287,10 +288,18 @@
     border-radius: 18px !important;
     background: #ffffff !important;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
-    z-index: 100;
+    z-index: 2000;
     box-sizing: border-box;
     transform-origin: top right;
     animation: action-slide-up 0.2s ease-out;
+}
+.ai-log-message-menu.dropup {
+    top: auto !important;
+    bottom: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+    transform-origin: bottom right !important;
+    animation: action-slide-down 0.2s ease-out;
 }
 .ai-log-message-menu[hidden] { display: none !important; }
 .ai-log-message-menu button {
@@ -312,7 +321,7 @@
 }
 .ai-log-message-menu button i {
     width: 16px !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
     text-align: center !important;
     color: #000000 !important;
     flex-shrink: 0 !important;
@@ -331,15 +340,15 @@
     top: 100%;
     margin-top: 8px;
     right: 0;
-    min-width: 155px;
+    min-width: 195px;
     width: max-content;
-    max-width: calc(100vw - 32px);
+    max-width: 240px;
     padding: 6px !important;
     border-radius: 18px !important;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
     border: 1px solid #e2e8f0 !important;
     background: #ffffff !important;
-    z-index: 1000 !important;
+    z-index: 2000 !important;
     animation: action-slide-up 0.2s ease-out;
 }
 .ai-log-insight-actions .ai-log-message-menu.dropup {
@@ -348,6 +357,7 @@
     margin-top: 0 !important;
     margin-bottom: 8px !important;
     transform-origin: bottom right !important;
+    animation: action-slide-down 0.2s ease-out;
 }
 .ai-log-insight-actions .ai-log-message-menu button {
     min-height: unset !important;
@@ -359,7 +369,7 @@
 }
 .ai-log-insight-actions .ai-log-message-menu button i {
     width: 16px !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
     flex-shrink: 0 !important;
 }
 .ai-log-insight-actions .ai-log-message-menu button:disabled:hover { background: transparent !important; }
@@ -386,7 +396,7 @@
 .ai-log-history-table td:last-child { text-align:center; }
 
 .ai-log-user-identity { display:flex; flex-direction:column; gap:4px; }
-#audit-ai-view .ai-log-user-button .ai-log-user-id { font-size:12px; line-height:1.5; font-weight:400; color:rgba(0,0,0,.55); text-decoration:none; }
+#audit-ai-view .ai-log-user-button .ai-log-user-id { font-size:12px; line-height:1.5; font-weight:400; color:rgba(0,0,0,.45) !important; text-decoration:none; }
 
 #audit-activity-view .ai-log-history-table { table-layout: fixed; width: 100%; }
 #audit-activity-view .ai-log-history-table th:first-child { width: 22%; }

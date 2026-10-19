@@ -2884,6 +2884,11 @@
         if (removedPost && currentRole === 'admin') {
             notifyModeratedRemoval(removedPost, 'Announcement Removed', `Your announcement${removedPost.title ? ` "${removedPost.title}"` : ''} was removed by an administrator.`);
         }
+        if (removedPost && window.SigmaAiDatabase?.change) {
+            window.SigmaAiDatabase.change('announcements', postToDeleteId, 'remove', JSON.stringify(removedPost)).catch(err => {
+                console.warn('Announcements lifecycle sync failed:', err);
+            });
+        }
         const updated = posts.filter(p => p.id !== postToDeleteId);
         saveStoredAnnouncements(updated);
 

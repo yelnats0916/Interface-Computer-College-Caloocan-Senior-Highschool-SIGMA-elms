@@ -25,6 +25,15 @@
         } catch (_) {}
     }
     function saveResult(fingerprint, text) {
+        if (!text || text.isDeleted) {
+            savedResults.delete(fingerprint);
+            try {
+                const latest = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+                delete latest[fingerprint];
+                localStorage.setItem(cacheKey, JSON.stringify(latest));
+            } catch (_) {}
+            return;
+        }
         savedResults.set(fingerprint, text);
         try {
             const latest = JSON.parse(localStorage.getItem(cacheKey) || '{}');
@@ -53,7 +62,7 @@
             label: overall ? 'Overall Grades — Published Grade Records' : 'Subject Grades — Grade and Assessment Records',
             records: records.map(row => ({ id: row.id, title: row.subject, subjectId: row.subjectId, sectionId: row.sectionId })) }];
         const recordLog = values => {
-            try { window.SigmaAiLogs?.record({ userId, feature: 'grade_insights', prompt: title,
+            try { return window.SigmaAiLogs?.record({ userId, feature: 'grade_insights', prompt: title,
                 actionDescription: title, evidenceSources, timestamp: new Date().toISOString(), ...values }); }
             catch (error) { console.warn('Grade insight log could not be saved.', error); }
         };
@@ -64,7 +73,17 @@
         const show = text => {
             if (element.dataset.insightFingerprint !== fingerprint || !element.isConnected) return;
             if (text && typeof text === 'object') {
-                element.innerHTML = window.SigmaInsightRules.renderInsightSections(text.analyses, location.href);
+                if (text?.isDeleted) {
+                    element.innerHTML = window.renderSigmaAiText('No insights recorded yet.');
+                    element.dataset.insightEmpty = 'true';
+                    element.dataset.insightState = 'empty';
+                    element.style.setProperty('color', 'rgba(0, 0, 0, 0.45)', 'important');
+                    return;
+                }
+                element.innerHTML = window.SigmaInsightRules.renderInsightSections(text.analyses, location.href) + (window.renderSigmaInsightTimestamp?.(text.createdAt) || '');
+                window.restoreSigmaInsightTimestamp?.(element, text, userId,
+                    () => element.dataset.insightFingerprint === fingerprint,
+                    restored => saveResult(fingerprint, restored));
                 element.dataset.insightCategory = text.analyses[0].category;
                 element.dataset.insightEmpty = 'false';
                 element.style.setProperty('color', '#000', 'important');
@@ -98,10 +117,12 @@
                         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'student', maxCards: 1, snapshot, language:window.getSigmaAiLanguage?.('insights')||'en' }) });
                     const result = await response.json();
                     if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'Subject insights unavailable.');
+                    if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Subject insight was returned without a generation ID.');
                     const cards = window.SigmaInsightRules.validateCards(result, snapshot);
-                    const card = cards[0];
+                    const logId = recordLog({ response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
+                    const card = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: new Date().toISOString(),
+                        ...(logId ? { insightSourceId: `${logId}:0` } : {}) } : null;
                     if (card) saveResult(fingerprint, card);
-                    recordLog({ response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, status: result.status || 'Success' });
                     return card || 'Not enough recorded evidence for a subject insight yet.';
                 } catch (error) {
                     recordLog({ response: error.message || 'Grade insights unavailable.', status: 'Failed' });

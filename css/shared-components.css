@@ -2250,9 +2250,12 @@ body.sorting-subject-topics * {
 }
 
 @media (max-width: 480px) {
-    #admin-grades-modal-tbody .classroom-grades-avatar-wrap,
-    #teacher-grades-modal-tbody .classroom-grades-avatar-wrap {
-        display: none !important;
+    #admin-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar,
+    #teacher-grades-modal-tbody .classroom-grades-avatar-wrap .sigma-user-avatar {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
     }
 }
 
@@ -3118,7 +3121,7 @@ td:has(.gradebook-dash) {
    Shared Analytics & Performance Trend Components (Shared by Student, Teacher, Admin)
    ========================================================================== */
 .shared-grades-top-panels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3.15fr);gap:24px;align-items:stretch}
-html body .shared-grades-top-panels > .gwa-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:32px!important;border-radius:32px!important}
+html body .shared-grades-top-panels > .gwa-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:32px!important;border-radius:32px!important;justify-content:center;min-width:0}
 html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:auto;min-height:154px;box-sizing:border-box;padding:24px!important;border-radius:32px!important;gap:16px}
 @media(max-width:767px){
  html body .shared-grades-top-panels{grid-template-columns:minmax(0,1fr);gap:24px}
@@ -3192,6 +3195,8 @@ html body .shared-grades-top-panels > .student-grades-insights-card{grid-column:
 /* Standalone AI actions are yellow; lightning inside yellow badges is black. */
 .fa-bolt{color:#ffd000!important;-webkit-text-fill-color:#ffd000!important}
 header .fa-bolt{color:inherit!important;-webkit-text-fill-color:currentColor!important}
+#sidebar .nav-link:not(.active) :is(i, i.fa-bolt){color:#ffffff!important;-webkit-text-fill-color:#ffffff!important}
+#sidebar .nav-link.active :is(i, i.fa-bolt){color:#ffd000!important;-webkit-text-fill-color:#ffd000!important}
 :is(.sigma-ai-shared-icon,[class*="bg-[#FFD000]"],[class*="bg-[#ffd000]"],[class*="bg-yellow-"]) .fa-bolt{color:#000!important;-webkit-text-fill-color:#000!important}
 @media(max-width:767px){.sigma-ai-shared-heading{font-size:12px;line-height:18px}.sigma-ai-shared-icon{width:24px;height:24px;flex-basis:24px;font-size:11px}}
 .gwa-card {
@@ -7389,7 +7394,7 @@ html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
     border: 1px solid #e2e8f0;
     border-radius: 18px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-    z-index: 100;
+    z-index: 9999;
     padding: 6px;
     display: none;
     transform-origin: top right;
@@ -7500,3 +7505,110 @@ html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
     html body #teacher-ai-assistance-panel #ai-review-action-btn { min-height: 36px; }
 }
 .sigma-rubric-summary { min-width: 0; overflow-wrap: anywhere; }
+
+/* Calendar reminder details: readable sizing and aligned actions. */
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder {
+    width: 100%; max-width: 560px !important; padding: 32px !important;
+    max-height: calc(100dvh - 32px); overflow-y: auto; color: #000;
+}
+html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-title {font-size: 24px !important; line-height: 1.35; margin-top: 16px; color: #000 !important;}
+html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-desc {font-size: 17px !important; line-height: 1.65; margin-top: 12px; padding: 0; color: #000 !important;}
+html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-actions {display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 24px !important;}
+html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-actions button {height: auto !important; min-height: 48px; padding: 12px 16px; font-size: 16px !important; color: #000 !important; display: flex; align-items: center; justify-content: center;}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-proceed-btn {background: #15803d !important; color: #fff !important; border-color: transparent !important;}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-proceed-btn:hover {background: #166534 !important;}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-cancel-btn {background: #fff !important; color: #000 !important; border: 1.5px solid #e2e8f0 !important; box-shadow: 0 1px 2px rgba(0,0,0,.05) !important;}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-cancel-btn:hover {background: #e2e8f0 !important;}
+@media (min-width: 481px) {
+    html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-actions {display: flex !important; flex-wrap: nowrap; justify-content: center; gap: 12px !important;}
+    html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #sigma-ask-actions button {flex: 0 0 auto !important; width: auto !important; min-width: 100px; max-width: none !important; height: 46px !important; min-height: 46px !important; max-height: 46px !important; padding: 0 24px !important; font-size: 14px !important; line-height: 1.2 !important; white-space: nowrap !important;}
+}
+@media (max-width: 480px) {
+    html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder {padding: 24px !important;}
+    html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-title {font-size: 21px !important;}
+    html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-desc {font-size: 16px !important;}
+    html body .sigma-universal-ask-card--quarter-reminder #sigma-ask-actions {grid-template-columns: 1fr;}
+}
+
+/* Keep SIGMA's shared Font Awesome glyph visible inside admin badges. */
+:is(.sigma-ai-badge, .sigma-ai-message__icon, .ai-log-sigma-icon) > i.fa-bolt {
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+    display: inline-block !important;
+    color: #000 !important;
+}
+:is(.sigma-ai-badge, .sigma-ai-message__icon, .ai-log-sigma-icon) > i.fa-bolt::before {
+    content: "\f0e7";
+}
+
+/* Attendance Student Profile Avatar - Exact Match to User Accounts Table (32px x 32px circle, never oval) */
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]):not(img),
+html body .attendance-student-avatar:not(img) {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    flex: 0 0 32px !important;
+    flex-shrink: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 9999px !important;
+    background-color: #e2e8f0 !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    pointer-events: none !important;
+    cursor: default !important;
+    user-select: none !important;
+}
+
+html body .attendance-month-table .student-name-col img:is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"], .rounded-full),
+html body img.attendance-student-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    flex: 0 0 32px !important;
+    flex-shrink: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+    display: inline-block !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-sizing: border-box !important;
+}
+
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]) > img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+    display: block !important;
+    border: none !important;
+    box-sizing: border-box !important;
+}
+
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]) i,
+html body .attendance-student-avatar i {
+    font-size: 12px !important;
+    color: #94a3b8 !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}

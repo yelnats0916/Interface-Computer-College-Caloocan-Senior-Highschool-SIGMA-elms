@@ -35,7 +35,7 @@ const resolverStart = source.indexOf('window.resolveRosterStudent = function');
 vm.runInNewContext(source.slice(resolverStart, source.indexOf('\n};', resolverStart) + 4), { window: identityWindow });
 vm.runInNewContext(source.slice(identityStart, identityEnd) + '\nwindow.selected = activeStudentObj;', {
     window: identityWindow, curStudentName: 'Dela Cruz, Juan Abad',
-    allStudents: [student], getStudentNameTokens: s => [s.name.toLowerCase()]
+    rosterStudents: [student], getStudentNameTokens: s => [s.name.toLowerCase()]
 });
 assert.equal(identityWindow.selected.id, '2222222', 'Display name order retains real student identity');
 console.log('PASS: submission panel reads saved score/status, uses explicit section and quarter, and retains student identity across name formats.');

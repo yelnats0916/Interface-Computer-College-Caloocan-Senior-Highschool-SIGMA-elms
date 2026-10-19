@@ -137,10 +137,47 @@ try {
                 jsonResponse(['success' => false, 'error' => 'Missing subject identifier for deletion'], 400);
             }
 
-            $stmt = $pdo->prepare("UPDATE `subjects` SET `is_deleted` = 1 WHERE `id` = :id OR `code` = :code_match");
-            $stmt->execute([':id' => $target, ':code_match' => $target]);
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $findStmt = $pdo->prepare("SELECT id FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
+            $findStmt->execute([':id' => $target, ':code_match' => $target]);
+            $foundId = $findStmt->fetchColumn() ?: $target;
+
+            $stmt = $pdo->prepare("UPDATE `subjects` SET `is_deleted` = 1, `deleted_at` = UTC_TIMESTAMP(), `deleted_by` = :actor WHERE `id` = :id OR `code` = :code_match");
+            $stmt->execute([':id' => $target, ':code_match' => $target, ':actor' => $actor]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('subjects', ?, 'remove', ?)");
+                $logStmt->execute([$foundId, $actor]);
+            } catch (Throwable $e) {}
 
             jsonResponse(['success' => true, 'message' => "Subject {$target} deleted successfully"]);
+        }
+
+        // ── Action: RESTORE ──────────────────────────────────────
+        if ($action === 'restore') {
+            $target = trim((string) ($payload['code'] ?? $payload['id'] ?? ''));
+            if (!$target) {
+                jsonResponse(['success' => false, 'error' => 'Missing subject identifier for restore'], 400);
+            }
+
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $findStmt = $pdo->prepare("SELECT id FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
+            $findStmt->execute([':id' => $target, ':code_match' => $target]);
+            $foundId = $findStmt->fetchColumn() ?: $target;
+
+            $stmt = $pdo->prepare("UPDATE `subjects` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id OR `code` = :code_match");
+            $stmt->execute([':id' => $target, ':code_match' => $target]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('subjects', ?, 'restore', ?)");
+                $logStmt->execute([$foundId, $actor]);
+            } catch (Throwable $e) {}
+
+            jsonResponse(['success' => true, 'message' => "Subject {$target} restored successfully"]);
         }
 
         // ── Action: SAVE (single subject) ────────────────────────

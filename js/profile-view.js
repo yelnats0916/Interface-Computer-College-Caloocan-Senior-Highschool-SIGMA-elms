@@ -818,7 +818,7 @@
                     <!-- Clearance below avatar & Tabs inside Top White Header Panel -->
                     <div id="user-profile-clearance-tabs-wrap" class="pt-3 pb-0">
                         <!-- Account Status Indicator (Positioned in white space below settings gear) -->
-                        <div id="user-profile-status-wrap" class="min-h-[76px] flex items-center justify-end px-6 md:px-10 pb-3">
+                        <div id="user-profile-status-wrap" class="min-h-[85px] flex items-center justify-end px-6 md:px-10 pb-3">
                             <div id="profile-account-status-box" class="hidden items-center gap-3.5 px-4 py-2.5 rounded-2xl border transition-all max-w-lg shadow-sm">
                                 <div id="profile-status-box-icon-wrap" class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
                                     <i id="profile-status-box-icon" class="text-sm"></i>
@@ -833,14 +833,23 @@
                             </div>
                         </div>
 
-                        <div id="user-profile-tabs-header-grid" class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-8 items-center border-t border-slate-200 pt-3 px-6 md:px-10">
-                            <div id="user-profile-about-title-col" class="flex items-center justify-center shrink-0">
-                                <h3 class="text-sm font-semibold text-black tracking-normal font-['Inter'] leading-5">About</h3>
+                        <div id="user-profile-tabs-header-grid" class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-8 items-center border-t border-black/[0.08] px-6 md:px-10 relative z-0 md:h-[48px]">
+                            <div id="user-profile-about-title-col" class="flex items-center justify-center shrink-0 h-full">
+                                <h3 class="text-[0.875rem] font-semibold text-black tracking-normal font-['Inter'] flex items-center gap-2 h-full">
+                                    <i class="fa-solid fa-circle-info text-[13px]"></i>
+                                    <span>About</span>
+                                </h3>
                             </div>
-                            <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-3">
+                            <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-2 h-full">
                                 <p id="profile-tab-achievements" class="hidden" style="display:none !important;" onclick="window.switchUserProfileTab('achievements')">Achievements</p>
-                                <p id="profile-tab-subjects" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('subjects')">Subjects</p>
-                                <p id="profile-tab-sections" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('sections')">Sections</p>
+                                <p id="profile-tab-subjects" class="px-3.5 md:px-4 border-b-[3.5px] border-[#15803d] text-[0.875rem] font-semibold text-[#15803d] font-['Inter'] cursor-pointer transition-colors whitespace-nowrap flex items-center gap-2 h-full" onclick="window.switchUserProfileTab('subjects')">
+                                    <i class="fa-solid fa-book text-[13px]"></i>
+                                    <span>Subjects</span>
+                                </p>
+                                <p id="profile-tab-sections" class="px-3.5 md:px-4 border-b-[3.5px] border-transparent text-[0.875rem] font-semibold text-black hover:bg-slate-100 hover:rounded-lg font-['Inter'] cursor-pointer transition-all whitespace-nowrap flex items-center gap-2 h-full" onclick="window.switchUserProfileTab('sections')">
+                                    <i class="fa-solid fa-users text-[13px]"></i>
+                                    <span>Sections</span>
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -854,7 +863,7 @@
                     <!-- Basic Details Card (Email, ID, Gender, Institutional Role with Colored Icons & Visible Divider Lines) -->
                     <div id="user-profile-basic-details-card" class="rounded-[28px] border border-slate-200 bg-white p-7 md:p-8 space-y-4 shadow-sm divide-y divide-slate-200">
                         <!-- Email -->
-                        <div class="space-y-1.5 pt-0">
+                        <div id="view-user-email-row" class="space-y-1.5 pt-0">
                             <div class="flex items-center gap-2.5">
                                 <i class="fa-solid fa-envelope text-sm md:text-base text-[#15803d]"></i>
                                 <p class="text-sm md:text-base font-semibold text-black font-['Inter']">Email</p>
@@ -863,7 +872,7 @@
                         </div>
 
                         <!-- ID -->
-                        <div class="space-y-1.5 pt-4">
+                        <div id="view-user-id-row" class="space-y-1.5 pt-4">
                             <div class="flex items-center gap-2.5">
                                 <i class="fa-solid fa-id-badge text-sm md:text-base text-[#15803d]"></i>
                                 <p class="text-sm md:text-base font-semibold text-black font-['Inter']">ID</p>
@@ -872,7 +881,7 @@
                         </div>
 
                         <!-- Gender -->
-                        <div class="space-y-1.5 pt-4">
+                        <div id="view-user-gender-row" class="space-y-1.5 pt-4">
                             <div class="flex items-center gap-2.5">
                                 <i class="fa-solid fa-venus-mars text-sm md:text-base text-[#15803d]"></i>
                                 <p class="text-sm md:text-base font-semibold text-black font-['Inter']">Gender</p>
@@ -881,7 +890,7 @@
                         </div>
 
                         <!-- Institutional Role -->
-                        <div class="space-y-1.5 pt-4">
+                        <div id="view-user-role-row" class="space-y-1.5 pt-4">
                             <div class="flex items-center gap-2.5">
                                 <i class="fa-solid fa-user-shield text-sm md:text-base text-[#15803d]"></i>
                                 <p class="text-sm md:text-base font-semibold text-black font-['Inter']">Institutional Role</p>
@@ -921,53 +930,65 @@
 
         const overlay = document.createElement('div');
         overlay.id = 'user-profile-picture-overlay';
-        overlay.className = 'fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[1500] hidden flex items-center justify-center p-4';
+        overlay.className = 'fixed inset-0 bg-black/20 backdrop-blur-[2px] z-[1500] hidden flex items-center justify-center p-0 sm:p-4';
         overlay.innerHTML = `
-            <div class="bg-white rounded-[32px] border border-slate-200 shadow-2xl w-full max-w-3xl p-6 sm:p-8 space-y-6 max-h-[90vh] flex flex-col">
-                <div class="flex items-center justify-between gap-4">
-                    <h3 class="text-2xl font-bold text-black tracking-tight font-['Inter']">Choose Profile Picture</h3>
+            <div class="bg-white rounded-none sm:rounded-[32px] border-0 sm:border border-slate-200 shadow-none sm:shadow-2xl w-full h-full sm:h-auto sm:max-w-3xl sm:max-h-[90vh] p-4 sm:p-8 space-y-4 sm:space-y-6 flex flex-col font-['Inter']">
+                <!-- Top Header & Close/Back Controls -->
+                <div class="flex items-center justify-between gap-3 shrink-0">
+                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <button type="button" onclick="window.toggleUserProfilePictureOverlay(false)"
+                            class="sm:hidden w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-black transition-colors shrink-0 active:scale-95 cursor-pointer"
+                            title="Back" aria-label="Back">
+                            <i class="fa-solid fa-chevron-left text-xs text-black"></i>
+                        </button>
+                        <h3 class="text-base sm:text-2xl font-bold text-black tracking-tight font-['Inter'] truncate">Choose Profile Picture</h3>
+                    </div>
                     <button type="button" onclick="window.toggleUserProfilePictureOverlay(false)"
-                        class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-black transition-colors"
+                        class="hidden sm:flex w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-100 hover:bg-slate-200 items-center justify-center text-black transition-colors shrink-0 cursor-pointer"
                         title="Close picture chooser">
                         <i class="fa-solid fa-xmark text-lg"></i>
                     </button>
                 </div>
-                <div class="flex items-center gap-3 flex-wrap">
+
+                <!-- Action Buttons: Upload Photo & Select / Remove Avatar -->
+                <div class="flex items-center gap-2 sm:gap-3 flex-wrap shrink-0">
                     <input type="file" id="user-profile-picture-input" accept="image/*" class="hidden">
                     <button type="button" id="user-profile-upload-btn"
                         onclick="document.getElementById('user-profile-picture-input').click()"
-                        class="px-5 py-2.5 bg-[#15803d] text-white text-xs font-semibold rounded-xl hover:bg-[#166534] transition-colors font-['Inter'] flex items-center gap-2 cursor-pointer shadow-sm">
-                        <i class="fa-solid fa-plus text-xs"></i>
+                        class="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-[#15803d] text-white text-[11px] sm:text-xs font-semibold rounded-lg sm:rounded-xl hover:bg-[#166534] transition-colors font-['Inter'] flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-sm">
+                        <i class="fa-solid fa-plus text-[10px] sm:text-xs"></i>
                         <span>Upload Photo</span>
                     </button>
                     <button type="button"
                         id="user-profile-select-avatar-btn"
                         disabled
                         onclick="window.confirmAndApplyAvatar()"
-                        class="px-5 py-2.5 bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed text-xs font-semibold rounded-xl transition-all font-['Inter'] flex items-center gap-2">
+                        class="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed text-[11px] sm:text-xs font-semibold rounded-lg sm:rounded-xl transition-all font-['Inter'] flex items-center gap-1.5 sm:gap-2">
                         <span>Select Avatar</span>
                     </button>
                     <button type="button"
                         id="user-profile-remove-avatar-btn"
                         onclick="window.confirmAndRemoveAvatar()"
-                        class="hidden px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold rounded-xl transition-colors font-['Inter'] flex items-center gap-2 cursor-pointer shadow-sm">
+                        class="hidden px-3.5 py-2 sm:px-5 sm:py-2.5 bg-red-50 text-red-600 hover:bg-red-100 text-[11px] sm:text-xs font-semibold rounded-lg sm:rounded-xl transition-colors font-['Inter'] flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-sm">
                         <span>Remove Avatar</span>
                     </button>
                 </div>
-                <div class="border-t border-slate-200 pt-5 space-y-6 overflow-y-auto pr-1 flex-1">
-                    <div class="space-y-3">
+
+                <!-- Content Area: Uploads + Generated Avatars -->
+                <div class="border-t border-slate-200 pt-3.5 sm:pt-5 space-y-4 sm:space-y-6 overflow-y-auto pr-1 flex-1 custom-scrollbar">
+                    <div class="space-y-2.5 sm:space-y-3">
                         <div class="flex items-center justify-between">
-                            <p class="text-sm font-bold text-black font-['Inter']">Uploads</p>
+                            <p class="text-xs sm:text-sm font-bold text-black font-['Inter']">Uploads</p>
                         </div>
                         <div id="user-profile-picture-uploads"
-                            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 min-h-[40px]"></div>
+                            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4 min-h-[30px]"></div>
                     </div>
-                    <div class="space-y-3 pt-4 border-t border-slate-200">
+                    <div class="space-y-2.5 sm:space-y-3 pt-3.5 sm:pt-4 border-t border-slate-200">
                         <div class="flex items-center justify-between">
-                            <p class="text-sm font-bold text-black font-['Inter']">Select An Avatar</p>
+                            <p class="text-xs sm:text-sm font-bold text-black font-['Inter']">Select An Avatar</p>
                         </div>
                         <div id="user-profile-generated-avatars"
-                            class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3 sm:gap-4 p-3 bg-slate-50/70 rounded-2xl border border-slate-200 max-h-[300px] overflow-y-auto"></div>
+                            class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 sm:gap-3.5 p-2 sm:p-3 bg-slate-50/70 rounded-xl sm:rounded-2xl border border-slate-200 max-h-[220px] sm:max-h-[300px] overflow-y-auto custom-scrollbar"></div>
                     </div>
                 </div>
             </div>
@@ -1063,11 +1084,59 @@
         // Render Bio Card in Left Column
         window.renderUserBioCard();
 
-        // Avatars
-        const currentAuthId = String(authUser.uid || authUser.id || authUser.accountId || authUser.userId || '');
-        const isSelf = currentAuthId
-            ? (String(userData.id) === currentAuthId)
-            : (portal === 'admin' && String(userData.id) === '0000000');
+        // Avatars and Identity Visibility
+        const loggedInUser = (typeof getLoggedInUserData === 'function') ? getLoggedInUserData() : {};
+        const loggedInAdminUser = (typeof window.getLoggedInAdminUser === 'function') ? window.getLoggedInAdminUser() : authUser;
+        const cleanAuthId = String(loggedInUser.id || loggedInAdminUser?.uid || loggedInAdminUser?.id || authUser?.uid || authUser?.id || authUser?.accountId || authUser?.userId || '').replace(/^#/, '').trim();
+        const cleanTargetId = String(userData.id || userData.uid || '').replace(/^#/, '').trim();
+
+        // Determine if viewing someone else
+        const isViewingSomeoneElse = Boolean(
+            (window.currentViewingUserId && String(window.currentViewingUserId).replace(/^#/, '').trim() !== cleanAuthId) ||
+            (userData.isReadOnly && cleanTargetId && cleanAuthId && cleanTargetId !== cleanAuthId)
+        );
+        const isSelf = !isViewingSomeoneElse;
+        const isSelfUser = isSelf || (cleanAuthId && cleanTargetId && cleanAuthId === cleanTargetId);
+
+        // Strictly hide ID number and Email when viewing someone else's profile
+        const emailRow = document.getElementById('view-user-email-row');
+        const idRow = document.getElementById('view-user-id-row');
+        const genderRow = document.getElementById('view-user-gender-row');
+        if (isViewingSomeoneElse) {
+            if (emailRow) {
+                emailRow.classList.add('hidden');
+                emailRow.style.display = 'none';
+            }
+            if (idRow) {
+                idRow.classList.add('hidden');
+                idRow.style.display = 'none';
+            }
+            if (idEl) {
+                idEl.classList.add('hidden');
+                idEl.style.display = 'none';
+            }
+            if (genderRow) {
+                genderRow.classList.remove('pt-4');
+                genderRow.classList.add('pt-0');
+            }
+        } else {
+            if (emailRow) {
+                emailRow.classList.remove('hidden');
+                emailRow.style.display = '';
+            }
+            if (idRow) {
+                idRow.classList.remove('hidden');
+                idRow.style.display = '';
+            }
+            if (idEl) {
+                idEl.classList.remove('hidden');
+                idEl.style.display = '';
+            }
+            if (genderRow) {
+                genderRow.classList.remove('pt-0');
+                genderRow.classList.add('pt-4');
+            }
+        }
 
         let userAvatar = userData.avatar || getCurrentUserAvatar(userData.id) || '';
         const hasAvatar = !!(userAvatar && typeof userAvatar === 'string' && userAvatar.trim() !== '' && userAvatar !== 'null' && userAvatar !== 'undefined');
@@ -1102,8 +1171,6 @@
         }
 
         // 1. Viewer & Target Permissions Authority
-        const loggedInAdminUser = (typeof window.getLoggedInAdminUser === 'function') ? window.getLoggedInAdminUser() : authUser;
-        const cleanAuthId = String(loggedInAdminUser?.uid || loggedInAdminUser?.id || authUser?.uid || authUser?.id || '').replace(/^#/, '').trim();
         const rawAuthRole = String(loggedInAdminUser?.role || loggedInAdminUser?.type || authUser?.role || authUser?.type || '').toLowerCase();
         const isViewerMaster = portal === 'admin' && (
             cleanAuthId === '0000000' ||
@@ -1112,9 +1179,7 @@
             rawAuthRole.includes('head')
         );
 
-        const cleanTargetId = String(userData.id || userData.uid || '').replace(/^#/, '').trim();
         const isTargetMaster = cleanTargetId === '0000000' || String(role).toLowerCase().includes('master');
-        const isSelfUser = isSelf || (cleanAuthId && cleanTargetId && cleanAuthId === cleanTargetId);
 
         const viewerPerms = loggedInAdminUser?.permissions || {};
         const canActionPassword = isViewerMaster || (viewerPerms.actionPassword === true || viewerPerms.actionPassword === undefined);
@@ -1170,7 +1235,9 @@
         const canDeleteThisUser = canDeactivateThisUser && !isTargetMaster && cleanDeleteId !== '1111111' && cleanDeleteId !== '2222222';
 
         if (settingsBtn) {
-            settingsBtn.classList.toggle('hidden', !(isViewProfileMode || isEditAccountMode) || isNavSelf);
+            const isTargetAdmin = isTargetMaster || isRowAdmin;
+            const isHidden = !(isViewProfileMode || isEditAccountMode) || isNavSelf || userData.fromSearch === true || isTargetAdmin;
+            settingsBtn.classList.toggle('hidden', isHidden);
             const backBtn = document.getElementById('profile-settings-back-btn');
             if (backBtn) {
                 backBtn.classList.toggle('hidden', portal !== 'admin' || (!window.currentViewingUserId && !window.currentEditingUserId));
@@ -1324,7 +1391,9 @@
         // Ensure container is visible if either button is active
         const bannerButtonsContainer = (settingsBtn || actionsBtn)?.closest('.relative');
         if (bannerButtonsContainer) {
-            bannerButtonsContainer.classList.toggle('hidden', isNavSelf || (!isEditAccountMode && !isViewProfileMode));
+            const isTargetAdmin = isTargetMaster || isRowAdmin;
+            const isContHidden = isNavSelf || (!isEditAccountMode && !isViewProfileMode) || userData.fromSearch === true || isTargetAdmin;
+            bannerButtonsContainer.classList.toggle('hidden', isContHidden);
         }
 
         // Target Profile Role Determination
@@ -1766,7 +1835,7 @@
             const isSelected = (pendingSelectedAvatarUrl === avatarUrl) || (!pendingSelectedAvatarUrl && currentAvatar && isSvgAvatar(currentAvatar) && avatarUrl === currentAvatar);
             return `
                 <button type="button"
-                    class="aspect-square rounded-full overflow-hidden bg-white hover:scale-105 transition-all shadow-sm cursor-pointer p-0 ${isSelected ? 'ring-4 ring-[#15803d] ring-offset-2 scale-105' : ''}"
+                    class="aspect-square rounded-full overflow-hidden bg-white hover:scale-105 active:scale-95 transition-all shadow-xs sm:shadow-sm cursor-pointer p-0 ${isSelected ? 'ring-2 sm:ring-4 ring-[#15803d] ring-offset-1 sm:ring-offset-2 scale-105' : ''}"
                     onclick="window.selectGeneratedProfileAvatar(${index})"
                     title="Avatar ${index + 1}">
                     <img src="${avatarUrl}" alt="Avatar ${index + 1}" class="w-full h-full object-cover select-none">
@@ -2133,7 +2202,7 @@
 
         if (uploads.length === 0) {
             container.innerHTML = `
-                <div class="col-span-full py-8 text-center text-black-fade text-xs font-medium font-['Inter']">
+                <div class="col-span-full py-4 sm:py-8 text-center text-black-fade text-[11px] sm:text-xs font-medium font-['Inter']">
                     No recent photo uploads
                 </div>
             `;
@@ -2145,18 +2214,18 @@
             const isLeftCol = (idx % 2 === 0);
             const menuAlignClass = isLeftCol ? 'left-0' : 'right-0';
             return `
-                <div class="photo-upload-card relative group aspect-square rounded-2xl overflow-visible bg-slate-100 shadow-sm transition-all">
+                <div class="photo-upload-card relative group aspect-square rounded-xl sm:rounded-2xl overflow-visible bg-slate-100 shadow-sm transition-all">
                     <!-- Clicking image opens lightbox -->
                     <img src="${imgUrl}" alt="Upload ${idx + 1}"
-                        class="w-full h-full object-cover rounded-2xl select-none cursor-pointer"
+                        class="w-full h-full object-cover rounded-xl sm:rounded-2xl select-none cursor-pointer"
                         onclick="window.openPhotoLightbox(${idx}, event)">
 
-                    <!-- Edit/dots button: only visible on hover -->
+                    <!-- Edit/dots button: visible on hover / touch -->
                     <button type="button"
-                        class="photo-options-trigger absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all shadow-md z-20 opacity-0 group-hover:opacity-100"
+                        class="photo-options-trigger absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all shadow-md z-20 opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
                         title="Photo options"
                         onclick="window.togglePhotoOptionsMenu(${idx}, event)">
-                        <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                        <i class="fa-solid fa-ellipsis-vertical text-[10px] sm:text-xs"></i>
                     </button>
 
                     ${buildPhotoOptionsMenuHtml(idx, isCurrentAvatar, menuAlignClass)}

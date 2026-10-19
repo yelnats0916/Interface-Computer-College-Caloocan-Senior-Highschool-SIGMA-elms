@@ -18,14 +18,14 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/admin.css">
-    <link rel="stylesheet" href="css/topbar.css?v=20261015quizHeader1275">
+    <link rel="stylesheet" href="css/topbar.css?v=20261018_suggested_black_text_v5">
     <link rel="stylesheet" href="css/announcements.css?v=20261015quizDialogs1276">
-    <link rel="stylesheet" href="css/forms.css?v=20261011footerCounter430">
+    <link rel="stylesheet" href="css/forms.css?v=20261018_search_fixed_v37">
     <link rel="stylesheet" href="css/shared-components.css?v=20261015blackAiBolt1277">
 
     <!-- TAILWIND: Compiled CSS -->
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="css/mobile.css?v=20261011attendancePicker352">
+    <link rel="stylesheet" href="css/mobile.css?v=20261018_search_panel_v45">
 
     <style>
         * {
@@ -1873,15 +1873,15 @@
             <!-- Center Search Bar -->
             <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] hidden md:block z-[10]">
                 <div
-                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all overflow-hidden">
-                    <span
-                        class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300">
-                        <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none outline-none focus:outline-none focus:ring-0 focus:shadow-none overflow-hidden"
+                    tabindex="-1">
+                    <span class="header-search-ext flex items-center justify-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-black text-[13px]"></i>
                     </span>
                     <input id="searchBar" type="text" placeholder="Search questions or keywords..." maxlength="100" autocomplete="off"
-                        class="block w-full h-[38px] pl-5 pr-4 bg-transparent border-0 text-[14.5px] placeholder-black-fade focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none transition-all group-focus-within:pl-10 font-medium text-black font-['Inter']"
-                        oninput="window.filterQuestions(this.value)">
-                    <button class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 text-black">
+                        class="block flex-1 min-w-0 h-[38px] bg-transparent border-none border-0 focus:border-0 focus:border-none focus:border-transparent text-[14.5px] placeholder-black-fade placeholder:font-normal focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none font-normal text-black font-['Inter']"
+                        onkeydown="if(event.key==='Enter'){}">
+                    <button class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 text-black focus:outline-none">
                         <i class="fa-solid fa-arrow-turn-down text-[10px] transform rotate-[-90deg] scale-y-[-1] text-black"></i>
                     </button>
                 </div>
@@ -2957,12 +2957,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- CORE JAVASCRIPT CONTROLLERS (Consistent with Teacher/Admin Pages) -->
-<script src="js/shared-components.js?v=20261012preserveUpload459"></script>
+<script src="js/shared-components.js?v=20261018_profile_lookup_v40"></script>
     <script src="js/quiz-components.js?v=20261004alignfix1"></script>
     <script src="js/ai-log-store.js?v=20261010featureStatus291"></script>
     <script src="js/quiz-creator.js?v=20261012singleLoading540"></script>
     <script src="js/notifications.js?v=20260916strictdef14"></script>
-    <script src="js/topbar.js?v=20261011outsideDismiss361"></script>
+    <script src="js/topbar.js?v=20261018_search_dedupe_v13"></script>
+    <script src="js/search-results.js?v=20261018_profile_noicons_v9"></script>
     <script src="js/sidebar.js?v=20260916strictdef14"></script>
     <script src="js/secure-input-guard.js?v=20260912sec1"></script>
     <script src="js/document-viewer.js?v=20260929mobiledl1"></script>

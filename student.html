@@ -11,26 +11,26 @@
     <!-- Optional remote typography must never block the student shell or startup scripts. -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="css/student.css?v=20261016gradeInsightAlign">
-    <link rel="stylesheet" href="css/topbar.css?v=20261012panelCorner478">
-    <link rel="stylesheet" href="css/forms.css?v=20261016yearFilterHover">
+    <link rel="stylesheet" href="css/student.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/topbar.css?v=20261018_suggested_black_text_v5">
+    <link rel="stylesheet" href="css/forms.css?v=20261018_cal_chevron_fix_v41">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261016gradeInsightAlign">
-    <link rel="stylesheet" href="css/log-pagination.css?v=20261016resourcesPagination">
-    <link rel="stylesheet" href="css/dashboard-layout.css?v=20261013initialGrid775">
+<link rel="stylesheet" href="css/shared-components.css?v=20261017_grade_autosize_v1">
+    <link rel="stylesheet" href="css/log-pagination.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/dashboard-layout.css?v=20261017_table_dropdowns_v2">
     <link rel="stylesheet" href="css/welcome-panel.css">
-    <link rel="stylesheet" href="css/announcements.css?v=20261014closedDialogs1089">
-    <link rel="stylesheet" href="css/announcement-cards.css?v=20261004badgenocut1">
-    <link rel="stylesheet" href="css/calendar.css?v=20261011calendarSmall357">
-    <link rel="stylesheet" href="css/notifications.css?v=20261015notificationSize1282">
-    <link rel="stylesheet" href="css/classroom-room.css?v=20261016removeButtonGlow">
-    <link rel="stylesheet" href="css/settings-view.css?v=20261015autoSwitch1265">
-    <link rel="stylesheet" href="css/profile.css?v=20261005mobileprofile2">
-    <link rel="stylesheet" href="css/topic-detail.css?v=20261004videoPreviewHover1">
-    <link rel="stylesheet" href="css/sidebar.css?v=20261012mobileAvatar34_512">
-    <link rel="stylesheet" href="css/right-panel.css?v=20261013restoreSubtitles745">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261014insightsFix1100">
-    <link rel="stylesheet" href="css/mobile.css?v=20261015threeTabs1271">
+    <link rel="stylesheet" href="css/announcements.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/announcement-cards.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/calendar.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/notifications.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/classroom-room.css?v=20261018_attendance_avatar_v39">
+    <link rel="stylesheet" href="css/settings-view.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/profile.css?v=20261018_modal_mobile_fullscreen_v12">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/sidebar.css?v=20261017_table_dropdowns_v2">
+    <link rel="stylesheet" href="css/right-panel.css?v=20261017_table_dropdowns_v2">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261018_insight_single_v11">
+    <link rel="stylesheet" href="css/mobile.css?v=20261018_search_panel_v45">
     <script>
         (function() {
             try {
@@ -53,14 +53,14 @@
             } catch(e) {}
         })();
     </script>
-    <link rel="stylesheet" href="css/page-skeleton.css?v=20261016fastLoading757">
-    <script src="js/tab-session.js?v=20261005noFakeClasses1"></script>
-    <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
-    <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
+    <link rel="stylesheet" href="css/page-skeleton.css?v=20261017_table_dropdowns_v2">
+    <script src="js/tab-session.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v2"></script>
+    <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v2">
 </head>
 
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
-    <script src="js/page-skeleton.js?v=20261015startupRecovery1279"></script>
+    <script src="js/page-skeleton.js?v=20261017_table_dropdowns_v2"></script>
 
     <header id="student-header"
         class="shrink-0 z-[250] fixed top-0 left-0 right-0 flex flex-col standard-panel-shadow">
@@ -97,14 +97,13 @@
 
             <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] md:block z-[10]">
                 <div
-                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none outline-none focus:outline-none focus:ring-0 focus:shadow-none transition-all overflow-hidden"
+                    class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none outline-none focus:outline-none focus:ring-0 focus:shadow-none overflow-hidden"
                     tabindex="-1">
-                    <span
-                        class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300">
-                        <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                    <span class="header-search-ext flex items-center justify-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-black text-[13px]"></i>
                     </span>
                     <input id="searchBar" type="text" placeholder="Search" aria-label="Global search" maxlength="100" autocomplete="off"
-                        class="block w-full h-[38px] pl-5 pr-4 bg-transparent border-0 text-[14.5px] placeholder-black-fade focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none transition-all group-focus-within:pl-10 font-medium text-black font-['Inter']"
+                        class="block flex-1 min-w-0 h-[38px] bg-transparent border-none border-0 focus:border-0 focus:border-none focus:border-transparent text-[14.5px] placeholder-black-fade placeholder:font-normal focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none font-normal text-black font-['Inter']"
                         onkeydown="if(event.key==='Enter'){}">
                     <button id="globalSearchBtn"
                         class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 text-black focus:outline-none" aria-label="Submit search">
@@ -124,12 +123,12 @@
             </div>
 
             <!-- Desktop Action Icons -->
-            <div class="admin-topbar__desktop-icons flex items-center gap-2 pr-4">
+            <div class="admin-topbar__desktop-icons flex items-center gap-2 pr-4 ml-auto">
                 <!-- SIGMA AI Toggle Button -->
                 <div class="relative">
                     <button id="sigma-toggle" type="button" title="SIGMA AI"
                         class="header-icon-btn relative w-[38px] h-[38px] rounded-full bg-slate-100 hover:bg-slate-200 focus:outline-none group flex items-center justify-center transition-colors no-underline cursor-pointer">
-                        <i class="fa-solid fa-bolt text-black text-sm transition-transform group-hover:scale-110"></i>
+                        <i class="fa-solid fa-bolt text-black text-sm"></i>
                     </button>
                 </div>
 
@@ -176,7 +175,7 @@
                     <i class="fa-solid fa-chevron-left text-black text-sm"></i>
                 </button>
                 <div class="mobile-search-overlay__field">
-                    <input id="mobileSearchInput" type="text" placeholder="Search announcements, subjects..." autocomplete="off" class="mobile-search-overlay__input">
+                    <input id="mobileSearchInput" type="text" placeholder="Search" autocomplete="off" class="mobile-search-overlay__input">
                     <button type="button" id="mobileSearchSubmitBtn" class="mobile-search-overlay__submit" aria-label="Search" title="Search">
                         <i class="fa-solid fa-magnifying-glass text-slate-700 text-sm"></i>
                     </button>
@@ -522,6 +521,54 @@
         <main id="main-content" class="flex-1 relative">
             <div id="content-sections" class="w-full min-h-full">
 
+                <!-- Global Full-Page Search Results View -->
+                <section id="search-results-view" class="dynamic-section hidden w-full min-h-screen bg-slate-50/60 font-['Inter']">
+                    <div class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-6">
+                        <!-- Top Header (Clean text style matching System Settings style) -->
+                        <div class="flex items-center justify-between px-1">
+                            <h1 class="text-[20px] sm:text-[22px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                                <i class="fa-solid fa-magnifying-glass text-slate-400 text-[18px]"></i>
+                                <span>Search Results for <span id="search-results-query-text" class="text-icc-yellow">""</span></span>
+                            </h1>
+                        </div>
+
+                        <!-- Main Integrated Layout (Integrated Sidebar style like Settings) -->
+                        <div class="search-results-layout bg-white rounded-[24px] border border-slate-200/90 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[650px]">
+                            <!-- Left Integrated Sidebar -->
+                            <aside class="search-results-sidebar w-full md:w-[280px] border-b md:border-b-0 md:border-r border-slate-200/90 p-5 bg-white flex-shrink-0">
+                                <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-2">Filter Results</h2>
+                                <nav class="search-filter-container flex flex-col gap-1.5" role="tablist" aria-label="Search Categories" id="search-results-filter-pills">
+                                    <!-- Hydrated dynamically -->
+                                </nav>
+                            </aside>
+
+                            <!-- Right Integrated Content -->
+                            <main class="search-results-main flex-1 bg-slate-50/40 p-5 sm:p-8 min-w-0">
+                                <div id="search-results-cards-container" class="space-y-4">
+                                    <!-- Hydrated dynamically -->
+                                </div>
+
+                                <!-- Sentinel for Infinite Scroll -->
+                                <div id="search-results-sentinel" class="py-8 flex justify-center opacity-0 pointer-events-none">
+                                    <div class="w-8 h-8 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin"></div>
+                                </div>
+
+                                <!-- Empty State -->
+                                <div id="search-results-empty-state" class="hidden py-16 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
+                                    <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 text-2xl mb-4">
+                                        <i class="fa-solid fa-magnifying-glass text-black"></i>
+                                    </div>
+                                    <h3 class="text-base font-bold text-slate-800 mb-1" id="search-results-empty-title">No matches found</h3>
+                                    <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">We couldn't find anything matching your search. Check for typos or try searching by name or subject.</p>
+                                    <button type="button" id="search-results-empty-return-btn" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary">
+                                        Return to Previous Page
+                                    </button>
+                                </div>
+                            </main>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- ══ HOME ════════════════════════════════════════ -->
                 <section id="section-home" class="dynamic-section">
                     <div class="dashboard-grid">
@@ -670,17 +717,19 @@
                 </div>
 
                 <!-- Hidden Selects for Backward-Compatibility -->
-                <select id="attendance-month-select" class="hidden" aria-hidden="true">
-                    <option value="0">January</option><option value="1">February</option><option value="2">March</option>
-                    <option value="3">April</option><option value="4">May</option><option value="5">June</option>
-                    <option value="6">July</option><option value="7">August</option><option value="8">September</option>
-                    <option value="9" selected>October</option><option value="10">November</option><option value="11">December</option>
-                </select>
-                <select id="attendance-year-select" class="hidden" aria-hidden="true">
-                    <option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option>
-                    <option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option>
-                    <option value="2026" selected>2026</option><option value="2027">2027</option><option value="2028">2028</option>
-                </select>
+                <div class="hidden" aria-hidden="true" style="display: none !important;">
+                    <select id="attendance-month-select" class="hidden" aria-hidden="true" style="display: none !important;">
+                        <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                        <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                        <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                        <option value="9" selected>October</option><option value="10">November</option><option value="11">December</option>
+                    </select>
+                    <select id="attendance-year-select" class="hidden" aria-hidden="true" style="display: none !important;">
+                        <option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option>
+                        <option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option>
+                        <option value="2026" selected>2026</option><option value="2027">2027</option><option value="2028">2028</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -934,40 +983,41 @@
             }, 0);
         }, { once: true });
     </script>
-    <script src="js/reset-confirmed-task.js?v=20261003reset3"></script>
-<script src="js/private-assessment-comments.js?v=20261012privateComments479"></script>
-<script src="js/shared-components.js?v=20261016feedbackStates"></script>
-<script src="js/offline-assessments.js?v=20261013pickerTypography859"></script>
-<script src="js/submission-ai-client.js?v=20261016feedbackStates"></script>
-    <script src="js/topbar.js?v=20261016fastLoading639"></script>
-    <script src="js/sigma-chat-client.js?v=20261015aiLanguage1253"></script>
-    <script src="js/sidebar.js?v=20261014gradebookLayout1089"></script>
-<script src="js/notifications.js?v=20261015assessmentUpdateNotices"></script>
-    <script src="js/sigma-unread.js?v=20261003sigmaunread2"></script>
-    <script src="js/analytics-unread.js?v=20261015studentStartup1278"></script>
-    <script src="js/announcements.js?v=20261013studentNoOptions749"></script>
-    <script src="js/calendar.js?v=20261011calendarDismiss346"></script>
-    <script src="js/panels.js?v=20260928panelpolish1"></script>
-    <script src="js/sigma-analytics.js?v=20261016realAiStates"></script>
-<script src="js/student-insight-view.js?v=20261013unread732"></script>
-    <script src="js/profile-view.js?v=20261016profileVisibility"></script>
-    <script src="js/dialog.js?v=20261012gradingDialog695"></script>
-    <script src="js/document-viewer.js?v=20261016viewerFix"></script>
-    <script src="js/settings-view.js?v=20261015languageFieldIds1269"></script>
-    <script src="js/user-profile-sync.js?v=20261003profilesync1"></script>
-    <script src="js/resources-view.js?v=20261016noScrollFix"></script>
-    <script src="js/classroom-room.js?v=20261016removeButtonGlow"></script>
-    <script src="js/assessments-page.js?v=20261016cacheBuild1196"></script>
-    <script src="js/subject-grade-insights.js?v=20261016sharedInsightTypes"></script>
-    <script src="js/student.js?v=20261016gradeInsightAlign"></script>
-    <script src="js/student-analytics.js?v=20261013midnightInsights834"></script>
-    <script src="js/student-submission-analytics.js?v=20261010insightSources267"></script>
-    <script src="js/ai-database-store.js?v=20261016realAiStates"></script>
-    <script src="js/analytics-ai-client.js?v=20261015aiLanguage1253"></script>
-    <script src="js/student-coursework-notifications.js?v=20261012courseworkSender469"></script>
-    <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
-    <link rel="stylesheet" href="css/sigma-conversations.css?v=20261010restorePanel239">
-    <script src="js/sigma-conversations.js?v=20261010sharedChat255"></script>
-    <script src="js/ai-log-store.js?v=20261011database303"></script>
+    <script src="js/reset-confirmed-task.js?v=20261017_table_dropdowns_v2"></script>
+<script src="js/private-assessment-comments.js?v=20261017_table_dropdowns_v2"></script>
+<script src="js/shared-components.js?v=20261018_cal_chevron_fix_v41"></script>
+<script src="js/offline-assessments.js?v=20261017_table_dropdowns_v2"></script>
+<script src="js/submission-ai-client.js?v=20261017_generation_timestamp_v1"></script>
+    <script src="js/topbar.js?v=20261018_search_dedupe_v13"></script>
+    <script src="js/search-results.js"></script>
+    <script src="js/sigma-chat-client.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/sidebar.js?v=20261017_table_dropdowns_v2"></script>
+<script src="js/notifications.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/sigma-unread.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/analytics-unread.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/announcements.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/calendar.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/panels.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/sigma-analytics.js?v=20261017_table_dropdowns_v2"></script>
+<script src="js/student-insight-view.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/profile-view.js?v=20261018_modal_mobile_fullscreen_v12"></script>
+    <script src="js/dialog.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/document-viewer.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/settings-view.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/user-profile-sync.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/resources-view.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/classroom-room.js?v=20261018_attendance_avatar_v39"></script>
+    <script src="js/assessments-page.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/subject-grade-insights.js?v=20261018_empty_state_insight_v30"></script>
+    <script src="js/student.js?v=20261018_search_first_click_fix_v11"></script>
+    <script src="js/student-analytics.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/student-submission-analytics.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/ai-database-store.js?v=20261017_insight_management_v22"></script>
+    <script src="js/analytics-ai-client.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/student-coursework-notifications.js?v=20261017_table_dropdowns_v2"></script>
+    <script src="js/institution-branding.js?v=20261017_table_dropdowns_v2"></script>
+    <link rel="stylesheet" href="css/sigma-conversations.css?v=20261017_prev_conv_v11">
+    <script src="js/sigma-conversations.js?v=20261017_prev_conv_v11"></script>
+    <script src="js/ai-log-store.js?v=20261017_table_dropdowns_v2"></script>
 </body>
 </html>

@@ -7211,21 +7211,75 @@ input:active,
     z-index: 25;
 }
 
-/* Connected student avatar inside sticky column */
-.attendance-month-table .student-name-col .sigma-user-avatar {
-    width: 28px !important;
-    height: 28px !important;
-    min-width: 28px !important;
-    min-height: 28px !important;
+/* Connected student avatar inside sticky column - Exact Match to User Accounts Table (32px x 32px circle) */
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]):not(img),
+html body .attendance-student-avatar:not(img) {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    flex: 0 0 32px !important;
+    flex-shrink: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 9999px !important;
+    background-color: #e2e8f0 !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
     pointer-events: none !important;
     cursor: default !important;
-    flex-shrink: 0 !important;
     user-select: none !important;
 }
 
-.attendance-month-table .student-name-col .sigma-user-avatar i {
-    font-size: 11px !important;
+html body .attendance-month-table .student-name-col img:is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"], .rounded-full),
+html body img.attendance-student-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    flex: 0 0 32px !important;
+    flex-shrink: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+    display: inline-block !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-sizing: border-box !important;
+}
+
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]) > img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+    display: block !important;
+    border: none !important;
+    box-sizing: border-box !important;
+}
+
+html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]) i,
+html body .attendance-student-avatar i {
+    font-size: 12px !important;
     color: #94a3b8 !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .attendance-student-name {
@@ -7536,16 +7590,26 @@ input:active,
         padding: 0 0.6rem !important;
     }
 
-    /* Hide Student Profile Avatars on Mobile in Attendance Grid */
-    .attendance-month-table .student-name-col .sigma-user-avatar,
-    .attendance-month-table .student-name-col [class*="sigma-user-avatar"],
-    .attendance-month-table .student-name-col .rounded-full {
-        display: none !important;
+    /* Compact Student Profile Avatars on Mobile in Attendance Grid */
+    .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"], .rounded-full, img) {
+        display: inline-flex !important;
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        flex: 0 0 24px !important;
+        flex-shrink: 0 !important;
+        aspect-ratio: 1 / 1 !important;
+        border-radius: 9999px !important;
+        overflow: hidden !important;
+        font-size: 10px !important;
     }
 
     .attendance-month-table .student-name-col > div,
     .attendance-month-table tbody td.student-name-col > div {
-        gap: 0 !important;
+        gap: 6px !important;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;

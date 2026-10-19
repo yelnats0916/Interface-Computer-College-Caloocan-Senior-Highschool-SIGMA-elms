@@ -1,6 +1,35 @@
 (function () {
     'use strict';
     const cache = new Map(), pending = new Map();
+    const storageKey = 'sigma-teacher-grade-insights-v1';
+    function readStoredInsight(key) {
+        if (cache.has(key)) return cache.get(key);
+        try {
+            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (stored[key]) {
+                cache.set(key, stored[key]);
+                return stored[key];
+            }
+        } catch (_) {}
+        return null;
+    }
+    function saveStoredInsight(key, text) {
+        if (!text || text.isDeleted) {
+            cache.delete(key);
+            try {
+                const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                delete stored[key];
+                localStorage.setItem(storageKey, JSON.stringify(stored));
+            } catch (_) {}
+            return;
+        }
+        cache.set(key, text);
+        try {
+            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            stored[key] = text;
+            localStorage.setItem(storageKey, JSON.stringify(stored));
+        } catch (_) {}
+    }
     window.refreshTeacherGradeInsight = async function (element, evidence) {
         if (!element) return;
         const teacher = window.getLoggedInTeacherUser?.();
@@ -21,28 +50,42 @@
         element.dataset.teacherInsightKey = key;
         const render = card => {
             if (!element.isConnected || element.dataset.teacherInsightKey !== key) return;
-            element.innerHTML = window.SigmaInsightRules.renderInsightSections(card.analyses, location.href);
+            if (card?.isDeleted) {
+                show('No insights recorded yet.', 'empty');
+                return;
+            }
+            element.innerHTML = window.SigmaInsightRules.renderInsightSections(card.analyses, location.href) + (window.renderSigmaInsightTimestamp?.(card.createdAt) || '');
+            window.restoreSigmaInsightTimestamp?.(element, card, id,
+                () => element.dataset.teacherInsightKey === key,
+                restored => saveStoredInsight(key, restored));
             element.dataset.insightCategory = card.analyses[0].category;
             element.dataset.insightEmpty = 'false'; element.dataset.insightState = 'ready';
             element.style.setProperty('color', '#000', 'important');
         };
-        if (cache.has(key)) { render(cache.get(key)); return; }
+        const cached = readStoredInsight(key);
+        if (cached) { render(cached); return; }
         show('Loading class insights…', 'loading');
         if (!pending.has(key)) pending.set(key, (async () => {
             const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/analytics_ai.php' : 'php/api/analytics_ai.php', location.href).href;
             const snapshot = { teacherId: id, scope: 'class', areas: [{ id: 'class-grades', records: [{ id: 'class-summary',
                 subjectId: evidence.subject, sectionId: evidence.section, ...evidence }] }] };
-            const response = await fetch(api, { method: 'POST', credentials: 'include', signal: AbortSignal.timeout(90000),
-                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'teacher', maxCards: 1, snapshot, language }) });
-            const result = await response.json();
-            if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error('Class insights unavailable.');
-            const cards = window.SigmaInsightRules.validateCards(result, snapshot);
-            const text = cards[0] || null;
-            if (text) cache.set(key, text);
-            window.SigmaAiLogs?.record({ userId: id, feature: 'grade_insights', timestamp: new Date().toISOString(), prompt: 'Class Grades: ' + evidence.subject,
-                response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, status: result.status || 'Success' });
-            return text;
+            try {
+                const response = await fetch(api, { method: 'POST', credentials: 'include', signal: AbortSignal.timeout(90000),
+                    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'teacher', maxCards: 1, snapshot, language }) });
+                const result = await response.json();
+                if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error('Class insights unavailable.');
+                if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Class insight was returned without a generation ID.');
+                const cards = window.SigmaInsightRules.validateCards(result, snapshot);
+                const logId = window.SigmaAiLogs?.record({ userId: id, feature: 'grade_insights', timestamp: new Date().toISOString(), prompt: 'Class Grades: ' + evidence.subject,
+                        response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
+                const text = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: new Date().toISOString(),
+                    ...(logId ? { insightSourceId: `${logId}:0` } : {}) } : null;
+                if (text) saveStoredInsight(key, text);
+                return text;
+            } catch (err) {
+                throw err;
+            }
         })());
         try {
             const text = await pending.get(key);

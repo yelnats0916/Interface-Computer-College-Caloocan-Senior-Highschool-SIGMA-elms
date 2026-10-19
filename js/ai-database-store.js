@@ -210,6 +210,11 @@
         initialize().catch(console.error);
     }
     window.addEventListener('online', () => { retryNotBefore = 0; initialize(); });
+    window.addEventListener('storage', event => {
+        if (event.key === 'sigma-insight-management-update') {
+            states.clear(); retryNotBefore = 0; initialize();
+        }
+    });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializePage); else initializePage();
     window.addEventListener('sigma:ai-database-error', event => {
         window.SigmaAnnouncements?.showToast({ title: 'AI Records Unavailable', message: event.detail, type: 'error' });

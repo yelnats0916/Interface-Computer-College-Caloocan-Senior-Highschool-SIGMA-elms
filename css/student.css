@@ -7013,8 +7013,17 @@ html body .student-performance-track .student-shared-quarter .sigma-quarter-drop
         margin: 0 !important;
         padding: 0 !important;
     }
-    html body #grades-layout .student-grade-teacher-avatar,
     html body #grades-layout .performance-subject-teacher-avatar {
         display: none !important;
+    }
+    html body #grades-layout .student-grade-teacher-avatar {
+        display: inline-flex !important;
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
+        flex: 0 0 28px !important;
     }
 }

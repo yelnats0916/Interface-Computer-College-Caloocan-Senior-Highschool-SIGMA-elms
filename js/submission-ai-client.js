@@ -8,17 +8,25 @@
     const feedbackRecordKey = context => 'sigma-ai-feedback:' + JSON.stringify([context.studentId, context.subjectId, context.section, context.assessmentId, context.identity]);
     const feedbackVersion = context => JSON.stringify([context.studentId, context.subjectId, context.section, context.assessmentId, context.identity, context.teacherScore, context.teacherFeedback, context.instructions,
         context.rubric.name, String(context.rubric.url || '').length, String(context.rubric.url || '').slice(-128)]);
-    function readFeedback(context, page = 1) {
+    function evaluationRequester(context) {
+        const user = context?.requestedBy || (context?.role === 'teacher' ? window.getLoggedInTeacherUser?.() : window.getLoggedInAdminUser?.());
+        const name = String(user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || '').trim();
+        const id = String(user?.id || user?.uid || '').trim();
+        return name ? { id, name } : null;
+    }
+    function readFeedbackRecord(context, page = 1) {
         try {
             const shared = JSON.parse(localStorage.getItem(feedbackRecordKey(context)) || 'null');
-            if (shared?.aiFeedbackEvaluation?.version === feedbackVersion(context) && Array.isArray(shared.aiFeedback)) return shared.aiFeedback;
+            if (shared?.aiFeedbackEvaluation?.version === feedbackVersion(context) && Array.isArray(shared.aiFeedback)) return shared;
             const record = JSON.parse(localStorage.getItem(context.key) || 'null');
             const history = historyOf(record);
             const attempt = history.length ? history[history.length - page] : record;
             const saved = attempt?.aiFeedbackEvaluation ? attempt : (page === 1 ? record : null);
-            return saved?.aiFeedbackEvaluation?.version === feedbackVersion(context) && Array.isArray(saved.aiFeedback) ? saved.aiFeedback : [];
-        } catch { return []; }
+            return saved?.aiFeedbackEvaluation?.version === feedbackVersion(context) && Array.isArray(saved.aiFeedback) ? saved : null;
+        } catch { return null; }
     }
+    const readFeedback = (context, page = 1) => readFeedbackRecord(context, page)?.aiFeedback || [];
+    const readFeedbackTimestamp = (context, page = 1) => readFeedbackRecord(context, page)?.aiFeedbackEvaluation?.evaluatedAt || '';
     function readEvaluation(key, page = 1) {
         try {
             const record = JSON.parse(localStorage.getItem(key) || 'null');
@@ -67,12 +75,13 @@
         const index = history.findIndex(attempt => identity(attempt) === context.identity);
         if (history.length && index < 0) throw new Error('The submission changed during evaluation. Open it again and retry.');
         if (!history.length && identity(record) !== context.identity) throw new Error('The submission changed during evaluation. Open it again and retry.');
+        const requester = context.mode === 'feedback' ? null : evaluationRequester(context);
         const patch = context.mode === 'feedback' ? {
             aiFeedback: result.feedback,
-            aiFeedbackEvaluation: { evaluatedAt: new Date().toISOString(), model: result.model, provider: result.provider, version: feedbackVersion(context) }
+            aiFeedbackEvaluation: { code: result.generationId, evaluatedAt: new Date().toISOString(), model: result.model, provider: result.provider, version: feedbackVersion(context) }
         } : {
             aiSuggestedScore: result.score, aiCommentary: result.commentary, aiEvaluatedCriteria: result.criteria,
-            aiEvaluation: { evaluatedAt: new Date().toISOString(), model: result.model, provider: result.provider, attemptIdentity: context.identity }
+            aiEvaluation: { code: result.generationId || result.evaluationId, evaluatedAt: new Date().toISOString(), model: result.model, provider: result.provider, attemptIdentity: context.identity, ...(requester ? { requestedBy: requester } : {}) }
         };
         for (const list of [record.history, record.attempts]) {
             if (!Array.isArray(list)) continue;
@@ -115,7 +124,7 @@
         localStorage.setItem(stateKey(context), JSON.stringify({ status: 'pending', startedAt: Date.now(), message: 'Evaluating submission...' }));
         setTimeout(() => window.evaluateSelectedSubmissionWithAi(null, context), 0);
     }
-    window.SigmaSubmissionAi = { readEvaluation, readFeedback, feedbackVersion, identity, save, readDocument, scheduleAutomatic, state,
+    window.SigmaSubmissionAi = { readEvaluation, readFeedback, readFeedbackTimestamp, feedbackVersion, identity, save, readDocument, scheduleAutomatic, state,
         queueAfterSubmission: (subjectId, topicIdx, tab, activeIdx) => queuedRoutes.add([subjectId, topicIdx, tab, activeIdx].join('_')) };
     window.evaluateSelectedSubmissionWithAi = async function (button, suppliedContext) {
         const context = suppliedContext || window._sigmaSubmissionAiContext;
@@ -161,12 +170,14 @@
             const response = await fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evidence) });
             const result = await response.json();
             if (!response.ok || !result.success || (feedback ? !Array.isArray(result.feedback) || result.feedback.length < 1 || result.feedback.length > 3 : !Number.isFinite(result.score) || result.score < 0 || result.score > context.maxScore || !Array.isArray(result.criteria) || !Array.isArray(result.commentary))) throw new Error(result.error || 'AI returned an invalid evaluation.');
+            const expectedId = feedback ? /^FDBK-\d{4}-\d{4,}$/ : /^EVAL-\d{4}-\d{4,}$/;
+            if (!expectedId.test(String(result.generationId || result.evaluationId || ''))) throw new Error('AI completed, but no generation ID was returned. Try again.');
             save(context, result);
             localStorage.setItem(stateKey(context), JSON.stringify({ status: 'complete', message: '' }));
             const user = context.role === 'student' ? window.getLoggedInStudentUser?.() : window.getLoggedInTeacherUser?.();
             if (user?.id || user?.uid) window.SigmaAiLogs?.record({ userId: String(user.id || user.uid), feature: feedback ? 'submission_feedback' : 'submission_evaluation', timestamp: new Date().toISOString(), prompt: context.title,
                 actionDescription: feedback ? 'Generate SIGMA AI Feedback after grading' : 'Evaluate submitted work against the grading rubric', response: JSON.stringify(feedback ? result.feedback : { score: result.score, criteria: result.criteria, commentary: result.commentary }),
-                model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, status: result.status });
+                model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId || result.evaluationId, status: result.status });
             if (isCurrent()) {
                 const previous = window._suppressSubmissionScrollToTop;
                 window._suppressSubmissionScrollToTop = true;

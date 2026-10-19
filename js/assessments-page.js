@@ -566,19 +566,25 @@
     };
 
     function buildUnifiedAssessmentRows(role, currentStudent, forceFresh = false) {
-        const cacheKey = `${role || ''}_${typeof currentStudent === 'string' ? currentStudent : (currentStudent?.id || currentStudent?.name || '')}`;
-        const now = Date.now();
-        if (!forceFresh && _cachedRows && _cachedKey === cacheKey && (now - _cachedTime) < 1500) {
-            return _cachedRows;
-        }
-
-        const rows = [];
         const isTeacher = (role === 'teacher' || (!role && typeof isTeacherPortal !== 'undefined' && isTeacherPortal));
         const loggedInStudent = (!isTeacher && typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
         const effectiveStudent = isTeacher 
             ? (currentStudent !== undefined ? currentStudent : (activeFilterStudent || (typeof currentTopicState !== 'undefined' ? currentTopicState.selectedStudent : 'All')))
             : (loggedInStudent || currentStudent || null);
         const isAllSelected = isTeacher && (!effectiveStudent || effectiveStudent === 'All');
+        const effectiveStudentCacheId = typeof effectiveStudent === 'string'
+            ? effectiveStudent
+            : (effectiveStudent?.id || effectiveStudent?.uid || effectiveStudent?.name || effectiveStudent?.fullName || '');
+        const cacheKey = `${isTeacher ? 'teacher' : (role || 'student')}_${effectiveStudentCacheId}`;
+        const now = Date.now();
+        if (!forceFresh && _cachedRows && _cachedKey === cacheKey && (now - _cachedTime) < 5000) {
+            return _cachedRows;
+        }
+        if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
+            return window.withGradebookReadCache(() => buildUnifiedAssessmentRows(role, currentStudent, forceFresh));
+        }
+
+        const rows = [];
 
         // Robust student matching helper
         function isStudentMatch(candidate, target) {
@@ -677,6 +683,47 @@
             return rawSub;
         }
 
+        // Pre-parse gradebook scores and lazy submission snapshot ONCE outside the inner assessment loops
+        let parsedGradebookScores = null;
+        if (!isAllSelected) {
+            try {
+                const rawGb = localStorage.getItem('sigma_gradebook_scores') || localStorage.getItem('sigma_gradebook_scores_v2');
+                parsedGradebookScores = rawGb ? JSON.parse(rawGb) : (typeof gradebookScores !== 'undefined' ? gradebookScores : {});
+            } catch (e) {
+                parsedGradebookScores = {};
+            }
+        }
+        let localSubmissionSnapshot = null;
+        function getLocalSubmissionSnapshot() {
+            if (localSubmissionSnapshot) return localSubmissionSnapshot;
+            localSubmissionSnapshot = [];
+            try {
+                for (let kIdx = 0; kIdx < localStorage.length; kIdx++) {
+                    const k = localStorage.key(kIdx);
+                    if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_') && !k.startsWith('sigma_quiz_result_'))) continue;
+                    const raw = localStorage.getItem(k);
+                    if (!raw) continue;
+                    try {
+                        const sub = JSON.parse(raw);
+                        if (sub && typeof sub === 'object') {
+                            localSubmissionSnapshot.push({ k, kLower: k.toLowerCase(), sub });
+                        }
+                    } catch (_) {}
+                }
+            } catch (e) {}
+            return localSubmissionSnapshot;
+        }
+
+        const topicDataBySubjectCache = new Map();
+        function getCachedTopicData(subjId) {
+            if (!subjId) return null;
+            if (topicDataBySubjectCache.has(subjId)) return topicDataBySubjectCache.get(subjId);
+            const getTopicDataFn = window.getTopicData || (typeof getTopicData === 'function' ? getTopicData : null);
+            const res = getTopicDataFn ? getTopicDataFn(subjId) : null;
+            topicDataBySubjectCache.set(subjId, res);
+            return res;
+        }
+
         const cards = getConnectedSectionsList(role);
         const seenKeys = new Set();
 
@@ -692,6 +739,18 @@
             const dedupeKey = `${cardId}:::${sectionName}:::${topicSubjectId}:::${rawSubjectName}`;
             if (seenKeys.has(dedupeKey)) return;
             seenKeys.add(dedupeKey);
+
+            const assessConfig = (typeof window.getAssessmentReleaseConfig === 'function')
+                ? window.getAssessmentReleaseConfig(topicSubjectId, sectionName)
+                : null;
+
+            let cardTopicData = getCachedTopicData(topicSubjectId);
+            if (!cardTopicData && rawSubjectName) {
+                const resolvedId = resolveSubjectTopicId(cardId, rawSubjectName);
+                if (resolvedId && resolvedId !== topicSubjectId) {
+                    cardTopicData = getCachedTopicData(resolvedId);
+                }
+            }
 
             const categories = ['assignment', 'quiz', 'activity', 'perf. task'];
             categories.forEach((cat, cIdx) => {
@@ -712,15 +771,7 @@
                     // Compute unified index in topic assessments array
                     let unifiedIdx = assItemIdx;
                     try {
-                        const getTopicDataFn = window.getTopicData || (typeof getTopicData === 'function' ? getTopicData : null);
-                        let topicData = getTopicDataFn ? getTopicDataFn(topicSubjectId) : null;
-                        if (!topicData && rawSubjectName) {
-                            const resolvedId = resolveSubjectTopicId(cardId, rawSubjectName);
-                            if (resolvedId && resolvedId !== topicSubjectId) {
-                                topicData = getTopicDataFn ? getTopicDataFn(resolvedId) : null;
-                            }
-                        }
-
+                        const topicData = cardTopicData;
                         const hasQuarterTopics = topicData && ((Array.isArray(topicData.q1Topics) && topicData.q1Topics.length > 0) || (Array.isArray(topicData.q2Topics) && topicData.q2Topics.length > 0));
                         const topicArrays = hasQuarterTopics ? [
                             ...(Array.isArray(topicData.q1Topics) ? topicData.q1Topics : []),
@@ -767,10 +818,6 @@
                             return;
                         }
                     }
-
-                    const assessConfig = (typeof window.getAssessmentReleaseConfig === 'function')
-                        ? window.getAssessmentReleaseConfig(topicSubjectId, sectionName)
-                        : null;
 
                     const findInConfig = (mapObj) => {
                         if (!mapObj || typeof mapObj !== 'object') return undefined;
@@ -938,140 +985,72 @@
                                 { tab: 'assessments', idx: unifiedIdx },
                                 { tab: currentTab, idx: assItemIdx }
                             ];
+                            const candidateSubjects = Array.from(new Set([topicSubjectId, cardId, cleanSubj].filter(Boolean)));
                             for (const cfg of candidateConfigs) {
-                                const found = window.getStudentAssessmentSubmission(topicSubjectId, cfg.tab, cfg.idx, assTopIdx, ass, targetStudentParam)
-                                    || window.getStudentAssessmentSubmission(cardId, cfg.tab, cfg.idx, assTopIdx, ass, targetStudentParam)
-                                    || window.getStudentAssessmentSubmission(cleanSubj, cfg.tab, cfg.idx, assTopIdx, ass, targetStudentParam);
-                                const match = isMatchingSub(found);
-                                if (match) {
+                                for (const subjCand of candidateSubjects) {
+                                    const found = window.getStudentAssessmentSubmission(subjCand, cfg.tab, cfg.idx, assTopIdx, ass, targetStudentParam);
+                                    const match = isMatchingSub(found);
+                                    if (match) {
+                                        subData = match;
+                                        break;
+                                    }
+                                }
+                                if (subData) break;
+                            }
+                        }
+
+                        // 2. Scan pre-built snapshot of sigma_sub_ / sigma_submission_ / sigma_quiz_result_ keys (if still not found)
+                        if (!subData) {
+                            const snapshot = getLocalSubmissionSnapshot();
+                            for (let sIdx = 0; sIdx < snapshot.length; sIdx++) {
+                                const { k, kLower, sub } = snapshot[sIdx];
+                                if (k.startsWith('sigma_quiz_result_') && cat !== 'quiz') continue;
+                                const match = isMatchingSub(sub);
+                                if (!match) continue;
+
+                                const subTitle = String(match.assessmentTitle || match.title || match.quizTitle || match.materialTitle || '').trim().toLowerCase();
+                                const subAct = Number(match.activeIdx !== undefined ? match.activeIdx : (match.itemIdx !== undefined ? match.itemIdx : -1));
+                                const subTab = String(match.tab || '').toLowerCase();
+                                const subTop = Number(match.topicIdx !== undefined ? match.topicIdx : 0);
+
+                                const matchesTitle = cleanTitle && subTitle && (cleanTitle === subTitle || cleanTitle.includes(subTitle) || subTitle.includes(cleanTitle));
+                                const matchesKeyIndex = (kLower.includes(`_assessments_${unifiedIdx}`) || kLower.includes(`_${currentTab}_${assItemIdx}`)) && (kLower.includes(cleanSubj) || kLower.includes('default'));
+                                const matchesSubIndex = (subTop === assTopIdx) && ((subTab === 'assessments' && subAct === unifiedIdx) || (subTab === currentTab && subAct === assItemIdx));
+
+                                const matchedIds = [match.id, match.materialId, match.quizId].filter(Boolean).map(value => String(value).trim().toLowerCase());
+                                const matchesId = [ass.id, ass.materialId, ass.quizId, ass.origId, ass.selectedQuizId]
+                                    .filter(Boolean).some(value => matchedIds.includes(String(value).trim().toLowerCase()));
+                                if (k.startsWith('sigma_quiz_result_') && matchedIds.length && !matchesId) continue;
+                                if (matchesId || matchesTitle || matchesKeyIndex || matchesSubIndex) {
                                     subData = match;
                                     break;
                                 }
                             }
                         }
-
-                        // 2. Direct key lookups in localStorage
-                        if (!subData) {
-                            const subjList = Array.from(new Set([cleanSubj, topicSubjectId, cardId, `card-${cleanSubj}`, 'default'])).filter(Boolean);
-                            const matList = Array.from(new Set([assIdStr, ass?.materialId, ass?.quizId, ass?.origId])).filter(Boolean);
-
-                            for (const s of subjList) {
-                                const directIndexKeys = [
-                                    ...(targetStudentId ? [
-                                        `sigma_sub_${targetStudentId}_${s}_top_${assTopIdx}_assessments_${unifiedIdx}`,
-                                        `sigma_sub_${targetStudentId}_${s}_top_${assTopIdx}_${currentTab}_${assItemIdx}`,
-                                        `sigma_sub_${targetStudentId}_${s}_assessments_${unifiedIdx}`,
-                                        `sigma_sub_${targetStudentId}_${s}_${currentTab}_${assItemIdx}`,
-                                        `sigma_submission_${targetStudentId}_${s}_top_${assTopIdx}_assessments_${unifiedIdx}`,
-                                        `sigma_submission_${targetStudentId}_${s}_top_${assTopIdx}_${currentTab}_${assItemIdx}`
-                                    ] : []),
-                                    `sigma_sub_${s}_top_${assTopIdx}_assessments_${unifiedIdx}`,
-                                    `sigma_sub_${s}_top_${assTopIdx}_${currentTab}_${assItemIdx}`,
-                                    `sigma_sub_${s}_assessments_${unifiedIdx}`,
-                                    `sigma_sub_${s}_${currentTab}_${assItemIdx}`,
-                                    `sigma_submission_${s}_top_${assTopIdx}_assessments_${unifiedIdx}`,
-                                    `sigma_submission_${s}_top_${assTopIdx}_${currentTab}_${assItemIdx}`
-                                ];
-                                for (const dk of directIndexKeys) {
-                                    const raw = localStorage.getItem(dk);
-                                    if (raw) {
-                                        try {
-                                            const parsed = JSON.parse(raw);
-                                            const match = isMatchingSub(parsed);
-                                            if (match) {
-                                                subData = match;
-                                                break;
-                                            }
-                                        } catch(e) {}
-                                    }
-                                }
-                                if (subData) break;
-
-                                for (const m of matList) {
-                                    const directKeys = [
-                                        ...(targetStudentId ? [
-                                            `sigma_sub_${targetStudentId}_${s}_top_${assTopIdx}_mat_${m}`,
-                                            `sigma_sub_${targetStudentId}_${s}_mat_${m}`,
-                                            `sigma_submission_${targetStudentId}_${s}_top_${assTopIdx}_mat_${m}`
-                                        ] : []),
-                                        `sigma_sub_${s}_top_${assTopIdx}_mat_${m}`,
-                                        `sigma_sub_${s}_mat_${m}`,
-                                        `sigma_submission_${s}_top_${assTopIdx}_mat_${m}`
-                                    ];
-                                    for (const dk of directKeys) {
-                                        const raw = localStorage.getItem(dk);
-                                        if (raw) {
-                                            try {
-                                                const parsed = JSON.parse(raw);
-                                                const match = isMatchingSub(parsed);
-                                                if (match) {
-                                                    subData = match;
-                                                    break;
-                                                }
-                                            } catch(e) {}
-                                        }
-                                    }
-                                    if (subData) break;
-                                }
-                                if (subData) break;
-                            }
-                        }
-
-                        // 3. Scan all localStorage keys starting with sigma_sub_, sigma_submission_
-                        if (!subData) {
-                            try {
-                                for (let kIdx = 0; kIdx < localStorage.length; kIdx++) {
-                                    const k = localStorage.key(kIdx);
-                                    if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_')
-                                        && !(cat === 'quiz' && k.startsWith('sigma_quiz_result_')))) continue;
-                                    const raw = localStorage.getItem(k);
-                                    if (!raw) continue;
-                                    const sub = JSON.parse(raw);
-                                    const match = isMatchingSub(sub);
-                                    if (!match) continue;
-
-                                    const kLower = k.toLowerCase();
-                                    const subTitle = String(match.assessmentTitle || match.title || match.quizTitle || match.materialTitle || '').trim().toLowerCase();
-                                    const subAct = Number(match.activeIdx !== undefined ? match.activeIdx : (match.itemIdx !== undefined ? match.itemIdx : -1));
-                                    const subTab = String(match.tab || '').toLowerCase();
-                                    const subTop = Number(match.topicIdx !== undefined ? match.topicIdx : 0);
-
-                                    const matchesTitle = cleanTitle && subTitle && (cleanTitle === subTitle || cleanTitle.includes(subTitle) || subTitle.includes(cleanTitle));
-                                    const matchesKeyIndex = (kLower.includes(`_assessments_${unifiedIdx}`) || kLower.includes(`_${currentTab}_${assItemIdx}`)) && (kLower.includes(cleanSubj) || kLower.includes('default'));
-                                    const matchesSubIndex = (subTop === assTopIdx) && ((subTab === 'assessments' && subAct === unifiedIdx) || (subTab === currentTab && subAct === assItemIdx));
-
-                                    const matchedIds = [match.id, match.materialId, match.quizId].filter(Boolean).map(value => String(value).trim().toLowerCase());
-                                    const matchesId = [ass.id, ass.materialId, ass.quizId, ass.origId, ass.selectedQuizId]
-                                        .filter(Boolean).some(value => matchedIds.includes(String(value).trim().toLowerCase()));
-                                    if (k.startsWith('sigma_quiz_result_') && matchedIds.length && !matchesId) continue;
-                                    if (matchesId || matchesTitle || matchesKeyIndex || matchesSubIndex) {
-                                        subData = match;
-                                        break;
-                                    }
-                                }
-                            } catch(e) {}
-                        }
                     }
 
-                    // Check persistent gradebook scores for this specific student
+                    // Check persistent gradebook scores for this specific student using hoisted parsedGradebookScores
                     let gbScore = null;
-                    if (!isAllSelected) {
+                    if (!isAllSelected && parsedGradebookScores) {
                         try {
-                            const rawGb = localStorage.getItem('sigma_gradebook_scores') || localStorage.getItem('sigma_gradebook_scores_v2');
-                            const gb = rawGb ? JSON.parse(rawGb) : (typeof gradebookScores !== 'undefined' ? gradebookScores : {});
+                            const gb = parsedGradebookScores;
                             const qList = ['q1', 'q2', 'q3', 'q4', 'Q1', 'Q2', 'Q3', 'Q4', '1', '2', '3', '4'];
                             const idList = [targetStudentId, targetStudentName, effectiveStudent].filter(Boolean);
-                            const subjKeys = [topicSubjectId, cardId, cleanSubj, 'default'].filter(Boolean);
-                            const catKeys = [cat, currentTab, 'assignment', 'quiz', 'activity', 'perf. task', 'performance'];
+                            const subjKeys = Array.from(new Set([topicSubjectId, cardId, cleanSubj, 'default'].filter(Boolean)));
+                            const catKeys = Array.from(new Set([cat, currentTab, 'assignment', 'quiz', 'activity', 'perf. task', 'performance']));
 
                             for (const sk of subjKeys) {
+                                const gbSubj = gb?.[sk];
                                 for (const q of qList) {
+                                    const gbQ = gbSubj?.[q] || gb?.[q];
+                                    if (!gbQ) continue;
                                     for (const sid of idList) {
+                                        const gbStudent = gbSubj?.[q]?.[sid] || gb?.[q]?.[sid];
+                                        if (!gbStudent) continue;
                                         for (const ck of catKeys) {
-                                            const val = gb?.[sk]?.[q]?.[sid]?.[ck]?.[assItemIdx] 
-                                                ?? gb?.[sk]?.[q]?.[sid]?.[ck]?.[unifiedIdx]
-                                                ?? gb?.[q]?.[sid]?.[ck]?.[assItemIdx]
-                                                ?? gb?.[q]?.[sid]?.[ck]?.[unifiedIdx];
+                                            const catMap = gbStudent[ck];
+                                            if (!catMap) continue;
+                                            const val = catMap[assItemIdx] ?? catMap[unifiedIdx];
                                             if (val !== undefined && val !== null && val !== '') {
                                                 gbScore = Number(val);
                                                 break;
@@ -1225,7 +1204,7 @@
         });
         _cachedRows = sorted;
         _cachedKey = cacheKey;
-        _cachedTime = now;
+        _cachedTime = Date.now();
         return sorted;
     }
 
@@ -1783,7 +1762,8 @@
     // Real-time synchronization when submissions are passed in workstation or other tabs
     window.addEventListener('storage', (e) => {
         if (!e.key) return;
-        if (e.key.startsWith('sigma_sub_') || e.key.startsWith('sigma_submission_') || e.key.includes('assessment') || e.key.includes('subject')) {
+        if (e.key.startsWith('sigma_sub_') || e.key.startsWith('sigma_submission_') || e.key.startsWith('sigma_quiz_result_') || e.key.includes('assessment') || e.key.includes('gradebook') || e.key.includes('subject')) {
+            if (typeof window.invalidateAssessmentRowsCache === 'function') window.invalidateAssessmentRowsCache();
             const tableBody = document.getElementById('assessments-body');
             if (tableBody) {
                 try {

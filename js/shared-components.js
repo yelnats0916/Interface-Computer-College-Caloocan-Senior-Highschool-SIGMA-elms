@@ -27,6 +27,13 @@ window.getSigmaWelcomeMessage = function () {
     return `Hello, <strong>${escaped}!</strong> I'm <span class="font-black">SIGMA</span>, your system AI. What do you need today?`;
 };
 
+window.createSigmaBoltIcon = function () {
+    const icon = document.createElement('i');
+    icon.className = 'fa-solid fa-bolt';
+    icon.setAttribute('aria-hidden', 'true');
+    return icon;
+};
+
 window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
     const user = role === 'user';
     const make = (tag, className, content) => {
@@ -41,7 +48,7 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
     if (!user) {
         const icon = make('div', 'sigma-ai-message__icon');
         icon.setAttribute('aria-hidden', 'true');
-        icon.append(make('i', 'fa-solid fa-bolt'));
+        icon.append(window.createSigmaBoltIcon());
         row.append(icon);
     }
     row.append(make('p', 'sigma-ai-message__bubble sigma-ai-message__bubble--' + (user ? 'user' : 'assistant'), text));
@@ -2651,6 +2658,17 @@ window.resolveUserAvatar = function (userOrName) {
     return photo || '';
 };
 
+window.handleAvatarImgError = function (img) {
+    if (!img) return;
+    try {
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-user text-xs text-[#94a3b8]';
+        img.replaceWith(icon);
+    } catch (e) {
+        img.style.display = 'none';
+    }
+};
+
 window.renderUserAvatarHtml = function (userOrName, sizeClass = 'md', extraClasses = '') {
     const photo = window.resolveUserAvatar(userOrName);
     let fullName = '';
@@ -2690,23 +2708,41 @@ window.openUserProfile = function (userOrName) {
 
     let user = null;
     let fullName = '';
-    const users = (typeof window.getStoredJson === 'function') ? window.getStoredJson('sigma-admin-users', []) : [];
+    const storageKeys = ['sigma-admin-users', 'sigma-student-users', 'sigma-teacher-users', 'sigma-users-list', 'sigma-users'];
+    let allUsers = [];
+    storageKeys.forEach(k => {
+        try {
+            const arr = (typeof window.getStoredJson === 'function') ? window.getStoredJson(k, []) : JSON.parse(localStorage.getItem(k) || '[]');
+            if (Array.isArray(arr)) allUsers.push(...arr);
+        } catch (e) {}
+    });
 
     if (typeof userOrName === 'string') {
         fullName = userOrName.trim();
         const cleanName = fullName.toLowerCase();
-        if (Array.isArray(users)) {
-            user = users.find(u => {
-                const fwd = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
-                const rev = `${u.lastName || ''}, ${u.firstName || ''}`.trim().toLowerCase();
-                const raw = String(u.name || u.fullName || '').trim().toLowerCase();
-                const uid = String(u.uid || u.id || '').replace(/^#/, '').trim().toLowerCase();
-                return fwd === cleanName || rev === cleanName || raw === cleanName || uid === cleanName;
-            });
-        }
+        user = allUsers.find(u => {
+            if (!u) return false;
+            const fwd = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+            const rev = `${u.lastName || ''}, ${u.firstName || ''}`.trim().toLowerCase();
+            const raw = String(u.name || u.fullName || '').trim().toLowerCase();
+            const uid = String(u.uid || u.id || u.lrn || u.studentNumber || u.employeeId || '').replace(/^#/, '').trim().toLowerCase();
+            return fwd === cleanName || rev === cleanName || raw === cleanName || uid === cleanName;
+        });
     } else if (userOrName && typeof userOrName === 'object') {
-        user = userOrName;
-        fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || user.name || '';
+        const targetId = String(userOrName.id || userOrName.uid || userOrName.lrn || '').replace(/^#/, '').trim().toLowerCase();
+        fullName = `${userOrName.firstName || ''} ${userOrName.lastName || ''}`.trim() || userOrName.fullName || userOrName.name || '';
+        const cleanName = fullName.toLowerCase();
+
+        const matched = allUsers.find(u => {
+            if (!u) return false;
+            const uid = String(u.uid || u.id || u.lrn || u.studentNumber || u.employeeId || '').replace(/^#/, '').trim().toLowerCase();
+            const fwd = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+            const rev = `${u.lastName || ''}, ${u.firstName || ''}`.trim().toLowerCase();
+            const raw = String(u.name || u.fullName || '').trim().toLowerCase();
+            return (targetId && uid === targetId) || (cleanName && (fwd === cleanName || rev === cleanName || raw === cleanName));
+        });
+
+        user = matched ? Object.assign({}, matched, userOrName) : userOrName;
     }
 
     if (!user) {
@@ -2730,6 +2766,19 @@ window.openUserProfile = function (userOrName) {
             role: 'Student',
             status: 'Active'
         };
+    } else if (!user.firstName && fullName) {
+        if (fullName.includes(',')) {
+            const pts = fullName.split(',');
+            user.lastName = user.lastName || pts[0].trim();
+            user.firstName = user.firstName || pts[1].trim();
+        } else if (fullName.includes(' ')) {
+            const pts = fullName.split(' ');
+            user.firstName = user.firstName || pts[0].trim();
+            user.lastName = user.lastName || pts.slice(1).join(' ').trim();
+        } else {
+            user.firstName = fullName;
+            user.lastName = '';
+        }
     }
 
     const userId = user.uid || user.id;
@@ -2757,7 +2806,8 @@ window.openUserProfile = function (userOrName) {
         bios: user.bios || [],
         avatar: photo,
         permissions: { bio: true, achievements: false, subjects: false, sections: false },
-        isReadOnly: true
+        isReadOnly: true,
+        fromSearch: user.fromSearch || false // Preserved from search flag
     };
 
     if (typeof window.closeMobileAccountPanel === 'function') {
@@ -2780,10 +2830,21 @@ window.openUserProfile = function (userOrName) {
     document.documentElement.style.removeProperty('touch-action');
 
     if (typeof window.switchTab === 'function') {
-        window.switchTab('nav-profile');
+        const isAdmin = window.location.pathname.includes('admin.html');
+        if (isAdmin && userId) {
+            window.switchTab(`profile-${userId}`);
+        } else {
+            window.switchTab('nav-profile');
+        }
     } else if (typeof window.editUser === 'function') {
         window.editUser(userId, true);
     }
+
+    setTimeout(() => {
+        if (typeof window.populateUserProfilePage === 'function') {
+            window.populateUserProfilePage();
+        }
+    }, 50);
 };
 
 // --- CANONICAL SHARED AUTO-EXPAND TEXTAREA UTILITY ---
@@ -3483,8 +3544,12 @@ window.saveQuizToServer = async function (quizData) {
 window.deleteQuizFromServer = async function (quizId) {
     if (!window.SIGMA_USE_SERVER_STORAGE) return;
     try {
+        const currentActor = (() => {
+            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
+        })();
         await fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: { 'X-Sigma-Actor': currentActor }
         });
         if (Array.isArray(window._quizLibraryServerData)) {
             window._quizLibraryServerData = window._quizLibraryServerData.filter(q => q.id !== quizId);
@@ -6318,6 +6383,9 @@ window.resolveStudentAssessmentSubmissionDetails = function (ass, subjectId, top
         statusName = normalizedTone === 'missing' ? 'Missing' : 'Absent';
     } else if (normalizedTone === 'incomplete') {
         isGraded = numericScore !== null;
+        // A saved teacher score completes grading even when Incomplete remains the status.
+        // Do not treat an automatic Missing/Absent zero as submitted work.
+        if (validEffScore || hasPanelTeacherScore || subTeacherScore !== null) turnedIn = true;
         statusName = 'Incomplete';
     } else if (normalizedTone === 'excuse') {
         // Excuse is exempt: score is unassigned/blank unless teacher explicitly entered a score
@@ -20186,26 +20254,28 @@ window.getEffectiveAssessmentStatusAndScore = function (student, cat, itemIdx, s
         }
     });
     try {
-        const rosterFns = [window.getStudentsForSection, window.getUnifiedSectionStudents].filter(fn => typeof fn === 'function');
-        rosterFns.forEach(fn => {
-            const list = fn(section) || [];
-            list.forEach(st => {
-                if (!st || typeof st !== 'object') return;
-                const sid = String(st.id || st.uid || st.lrn || '').trim();
-                const sameId = sid && (sid === String(sId || '') || sid === String(student?.id || ''));
-                const stLast = String(st.lastName || '').trim().toLowerCase();
-                const stFirst = String(st.firstName || '').trim().toLowerCase();
-                const sameName = lName && fName && stLast === String(lName).trim().toLowerCase() && stFirst === String(fName).trim().toLowerCase();
-                if (!sameId && !sameName) return;
-                if (st.name) aliasKeys.push(st.name);
-                if (st.fullName) aliasKeys.push(st.fullName);
-                if (st.lastName && st.firstName) {
-                    aliasKeys.push(`${st.lastName}, ${st.firstName}`);
-                    aliasKeys.push(`${st.lastName}, ${st.firstName}${st.middleName ? ' ' + st.middleName : ''}`.trim());
-                    aliasKeys.push(`${st.firstName} ${st.lastName}`);
-                }
+        if (!student || typeof student !== 'object' || !(student.id || student.uid || student.lrn) || !(student.name || student.fullName || (student.firstName && student.lastName))) {
+            const rosterFns = [window.getStudentsForSection, window.getUnifiedSectionStudents].filter(fn => typeof fn === 'function');
+            rosterFns.forEach(fn => {
+                const list = fn(section) || [];
+                list.forEach(st => {
+                    if (!st || typeof st !== 'object') return;
+                    const sid = String(st.id || st.uid || st.lrn || '').trim();
+                    const sameId = sid && (sid === String(sId || '') || sid === String(student?.id || ''));
+                    const stLast = String(st.lastName || '').trim().toLowerCase();
+                    const stFirst = String(st.firstName || '').trim().toLowerCase();
+                    const sameName = lName && fName && stLast === String(lName).trim().toLowerCase() && stFirst === String(fName).trim().toLowerCase();
+                    if (!sameId && !sameName) return;
+                    if (st.name) aliasKeys.push(st.name);
+                    if (st.fullName) aliasKeys.push(st.fullName);
+                    if (st.lastName && st.firstName) {
+                        aliasKeys.push(`${st.lastName}, ${st.firstName}`);
+                        aliasKeys.push(`${st.lastName}, ${st.firstName}${st.middleName ? ' ' + st.middleName : ''}`.trim());
+                        aliasKeys.push(`${st.firstName} ${st.lastName}`);
+                    }
+                });
             });
-        });
+        }
     } catch (e) {}
     const sKeys = Array.from(new Set(aliasKeys.filter(Boolean)));
 
@@ -21182,18 +21252,30 @@ window.readScorePanelPoints = function (student, item, subjectId) {
         const needles = ids.map(id => `_mat_${id}`);
         const studentTokens = studentIds.map(id => String(id).trim().toLowerCase().replace(/[^a-z0-9]/g, '_')).filter(Boolean);
         try {
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (!key || key.indexOf('sigma_sub_') !== 0) continue;
-                if (!needles.some(n => key.includes(n))) continue;
-                if (studentTokens.length && !studentTokens.some(tok => key.includes(`_std_${tok}`) || key.endsWith(tok))) continue;
-                const n = take(JSON.parse(localStorage.getItem(key) || '{}'));
-                if (n !== null) return n;
+            if (window._gradebookReadCacheActive && Array.isArray(window._gradebookLegacySubmissionSnapshot)) {
+                for (const [key, parsed] of window._gradebookLegacySubmissionSnapshot) {
+                    if (!key || key.indexOf('sigma_sub_') !== 0) continue;
+                    if (!needles.some(n => key.includes(n))) continue;
+                    if (studentTokens.length && !studentTokens.some(tok => key.includes(`_std_${tok}`) || key.endsWith(tok))) continue;
+                    const n = take(parsed);
+                    if (n !== null) return n;
+                }
+            } else {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (!key || key.indexOf('sigma_sub_') !== 0) continue;
+                    if (!needles.some(n => key.includes(n))) continue;
+                    if (studentTokens.length && !studentTokens.some(tok => key.includes(`_std_${tok}`) || key.endsWith(tok))) continue;
+                    const n = take(JSON.parse(localStorage.getItem(key) || '{}'));
+                    if (n !== null) return n;
+                }
             }
         } catch (e) {}
     }
     try {
-        const all = JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
+        const all = typeof window.getSharedAssessmentSubmissionsStorage === 'function'
+            ? window.getSharedAssessmentSubmissionsStorage()
+            : JSON.parse(localStorage.getItem('sigma_student_assessment_submissions') || '{}');
         for (const sid of studentIds) {
             const bucket = all[sid];
             if (!bucket || typeof bucket !== 'object') continue;
@@ -22423,17 +22505,25 @@ window.findAssessmentSubmittedWork = function (student, item, subjectId, section
                 records.push({ row, scoped });
             } catch (_) {}
         };
-        const stores = [localStorage];
-        if (typeof sessionStorage !== 'undefined') stores.push(sessionStorage);
-        for (const storage of stores) {
-            for (let i = 0; i < storage.length; i++) {
-                const key = storage.key(i);
-                appendStoredRecord(key, storage.getItem(key));
+        const readLegacySubmissions = () => {
+            const entries = [];
+            const stores = [localStorage];
+            if (typeof sessionStorage !== 'undefined') stores.push(sessionStorage);
+            for (const storage of stores) {
+                for (let i = 0; i < storage.length; i++) {
+                    const key = storage.key(i);
+                    if (!key?.startsWith('sigma_sub_') && !key?.startsWith('sigma_submission_')) continue;
+                    try { entries.push([key, JSON.parse(storage.getItem(key))]); } catch (_) {}
+                }
             }
-        }
-        for (const [key, row] of Object.entries(window._sharedAssessmentSubmissionsMemoryCache || {})) {
-            appendStoredRecord(key, row);
-        }
+            entries.push(...Object.entries(window._sharedAssessmentSubmissionsMemoryCache || {}));
+            return entries;
+        };
+        // Share one storage snapshot during a synchronous render, never across saves.
+        const entries = window._gradebookReadCacheActive
+            ? (window._gradebookLegacySubmissionSnapshot ||= readLegacySubmissions())
+            : readLegacySubmissions();
+        for (const [key, row] of entries) appendStoredRecord(key, row);
     } catch (_) {}
     let found = null;
     for (const { row, scoped } of records) {
@@ -22970,9 +23060,22 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
         const actualAttachedQuizId = identQuiz.quizId || '';
 
         if (isQuizCategory || actualAttachedQuizId) {
-            for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                if (!k || !k.startsWith('sigma_quiz_result_')) continue;
+            const readQuizResults = () => {
+                const entries = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (!k || !k.startsWith('sigma_quiz_result_')) continue;
+                    try {
+                        const raw = localStorage.getItem(k);
+                        if (raw) entries.push([k, JSON.parse(raw)]);
+                    } catch (_) {}
+                }
+                return entries;
+            };
+            const quizEntries = window._gradebookReadCacheActive
+                ? (window._gradebookQuizResultSnapshot ||= readQuizResults())
+                : readQuizResults();
+            for (const [k, qRes] of quizEntries) {
                 try {
                     // Enforce student isolation for quiz results
                     if (targetStudent) {
@@ -22980,9 +23083,6 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
                             continue;
                         }
                     }
-                    const raw = localStorage.getItem(k);
-                    if (!raw) continue;
-                    const qRes = JSON.parse(raw);
                     if (!qRes || typeof qRes !== 'object') continue;
 
                     if (targetStudent && typeof window.isSubmissionMatchForStudent === 'function' && !window.isSubmissionMatchForStudent(qRes, targetStudent)) {
@@ -23037,13 +23137,23 @@ window.getStudentAssessmentSubmission = function (subjectId, tabOrTopicIdx, acti
         }
 
         // Fallback: Scan canonical submission localStorage keys starting with sigma_sub_ or sigma_submission_
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_'))) continue;
+        const readSubEntries = () => {
+            const entries = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || (!k.startsWith('sigma_sub_') && !k.startsWith('sigma_submission_'))) continue;
+                try {
+                    const raw = localStorage.getItem(k);
+                    if (raw) entries.push([k, JSON.parse(raw)]);
+                } catch (_) {}
+            }
+            return entries;
+        };
+        const subEntries = window._gradebookReadCacheActive
+            ? (window._gradebookLegacySubmissionSnapshot ||= readSubEntries())
+            : readSubEntries();
+        for (const [k, sub] of subEntries) {
             try {
-                const raw = localStorage.getItem(k);
-                if (!raw) continue;
-                const sub = JSON.parse(raw);
                 if (!sub || typeof sub !== 'object') continue;
 
                 // Enforce student isolation
@@ -25909,41 +26019,45 @@ window.buildStudentDesktopAssessmentFactsHtml = function (ass, subjectId, topicI
         timeLimitText = 'No Limit';
     }
 
-    // Submitted (date only)
-    let subDateRaw = '';
-    if (turnedIn || isGraded) {
-        subDateRaw = sub?.submittedAt || sub?.submissionDate || sub?.completedAt || sub?.date || ass?.submittedAt || ass?.submissionDate || '';
-        if (!subDateRaw && Array.isArray(sub?.attempts) && sub.attempts.length > 0) {
-            const lastAtt = sub.attempts[sub.attempts.length - 1];
-            subDateRaw = lastAtt?.submittedAt || lastAtt?.completedAt || lastAtt?.date || '';
-        }
-    }
-
-    let submittedDateStr = '-';
-    let isSubDateDash = true;
-    if (subDateRaw) {
-        const parsedSub = (typeof window.parseAssessmentFactDateTime === 'function')
-            ? window.parseAssessmentFactDateTime(subDateRaw)
-            : null;
-        if (parsedSub && parsedSub.dateStr) {
-            submittedDateStr = parsedSub.dateStr;
-            isSubDateDash = false;
-        } else {
-            const d = new Date(subDateRaw);
-            if (!isNaN(d.getTime())) {
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                submittedDateStr = `${months[d.getMonth()]} ${d.getDate()}`;
-                isSubDateDash = false;
-            }
-        }
-    }
-
-    const studentSubmittedDesktop = isSubDateDash
-        ? `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
-        : `<span class="text-black font-normal text-[13px] select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(submittedDateStr) : submittedDateStr}</span>`;
-    const studentSubmittedMobile = isSubDateDash
-        ? `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`
-        : `<span class="text-black font-normal text-xs select-none font-['Inter']" style="color: #000000 !important;">${window.escapeHtml ? window.escapeHtml(submittedDateStr) : submittedDateStr}</span>`;
+    // Submitted: retain the exact timestamp so the desktop and mobile cards both show its time.
+    const lastAttempt = Array.isArray(sub?.attempts) && sub.attempts.length > 0
+        ? sub.attempts[sub.attempts.length - 1]
+        : null;
+    const submittedCandidates = (turnedIn || isGraded) ? [
+        { date: sub?.submittedAt, time: sub?.submittedTime || sub?.submissionTime || sub?.time },
+        { date: sub?.completedAt, time: sub?.completedTime || sub?.time },
+        { date: sub?.submissionDate, time: sub?.submittedTime || sub?.submissionTime || sub?.time },
+        { date: sub?.submittedDate, time: sub?.submittedTime || sub?.submissionTime || sub?.time },
+        { date: lastAttempt?.submittedAt, time: lastAttempt?.submittedTime || lastAttempt?.submissionTime || lastAttempt?.time },
+        { date: lastAttempt?.completedAt, time: lastAttempt?.completedTime || lastAttempt?.time },
+        { date: lastAttempt?.submissionDate || lastAttempt?.submittedDate || lastAttempt?.date, time: lastAttempt?.submittedTime || lastAttempt?.submissionTime || lastAttempt?.time },
+        { date: sub?.date, time: sub?.submittedTime || sub?.submissionTime || sub?.time },
+        { date: ass?.submittedAt, time: ass?.submittedTime || ass?.submissionTime },
+        { date: ass?.completedAt, time: ass?.completedTime },
+        { date: ass?.submissionDate || ass?.submittedDate, time: ass?.submittedTime || ass?.submissionTime }
+    ].filter(entry => entry.date) : [];
+    const hasRecordedClockTime = (value) => {
+        if (value instanceof Date || typeof value === 'number') return true;
+        const text = String(value || '').trim();
+        return /(?:T\d{2}:\d{2}|\d{1,2}:\d{2}\s*(?:AM|PM)?|[+-]\d{2}:?\d{2}|Z)$/i.test(text);
+    };
+    const submittedEntry = submittedCandidates.find(entry => hasRecordedClockTime(entry.date) || entry.time)
+        || submittedCandidates[0]
+        || null;
+    const submittedFallbackTime = submittedEntry?.time || '';
+    const parsedSubmission = submittedEntry && typeof window.parseAssessmentFactDateTime === 'function'
+        ? window.parseAssessmentFactDateTime(submittedEntry.date, submittedFallbackTime)
+        : null;
+    const hasSubmissionDate = Boolean(parsedSubmission?.dateStr);
+    const submissionDisplayTime = hasSubmissionDate
+        ? (parsedSubmission.timeStr || 'Time not recorded')
+        : '';
+    const studentSubmittedDesktop = hasSubmissionDate
+        ? window.renderAssessmentDateCell(submittedEntry.date, submissionDisplayTime)
+        : `<span class="text-black-fade font-normal text-[13px] select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`;
+    const studentSubmittedMobile = hasSubmissionDate
+        ? window.renderAssessmentDateMobileCell(submittedEntry.date, submissionDisplayTime)
+        : `<span class="text-black-fade font-normal text-xs select-none font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>`;
 
     // Status
     let studentStatusText = detailStatusName || '';
@@ -26566,6 +26680,55 @@ window.relocateAssessmentPrimaryAction = function (root = document) {
     }
 };
 
+window.renderSigmaInsightTimestamp = function (value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const label = date.toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `<time class="sigma-ai-generation-time" datetime="${date.toISOString()}" style="display:block;margin-top:12px;padding-top:8px;border-top:1px solid rgba(187,247,208,.6);color:rgba(0,0,0,.5);font-family:Inter,sans-serif;font-size:10.5px;font-weight:500;line-height:1.5">${label}</time>`;
+};
+window.restoreSigmaInsightTimestamp = async function (element, card, userId, isCurrent, persist) {
+    if (!window.SigmaAiDatabase?.request) return;
+    element.dataset.sigmaManagedInsight = 'true';
+    element._refreshSigmaManagedInsight = () => window.restoreSigmaInsightTimestamp(element, card, userId, isCurrent, persist);
+    try {
+        const result = await window.SigmaAiDatabase.request('ai_records', { action: 'insight_timestamp', userId, generationId: card.generationId || '', sourceId: card.insightSourceId || '', analyses: card.analyses || [] });
+        if (element.isConnected && isCurrent()) {
+            const panel = element.closest('.sigma-ai-panel');
+            if (panel) {
+                if (!panel.dataset.sigmaOriginalDisplay) panel.dataset.sigmaOriginalDisplay = panel.style.display || '';
+                panel.style.display = panel.dataset.sigmaOriginalDisplay;
+            }
+            if (result.hidden || result.deleted) {
+                element.innerHTML = 'No insights recorded yet.';
+                element.dataset.insightEmpty = 'true';
+                element.dataset.insightState = 'empty';
+                element.style.setProperty('color', 'rgba(0, 0, 0, 0.45)', 'important');
+                const timeEl = element.querySelector('.sigma-ai-generation-time');
+                if (timeEl) timeEl.remove();
+                card.isDeleted = true;
+                persist?.(card);
+                return;
+            }
+        }
+        if (!result.timestamp || Number.isNaN(new Date(result.timestamp).getTime())) return;
+        card.createdAt = result.timestamp;
+        persist?.(card);
+        if (element.isConnected && isCurrent() && !element.querySelector('.sigma-ai-generation-time')) {
+            element.insertAdjacentHTML('beforeend', window.renderSigmaInsightTimestamp(card.createdAt));
+        }
+    } catch (error) { console.warn('Unable to restore insight timestamp.', error); }
+};
+window.addEventListener('storage', event => {
+    if (event.key !== 'sigma-insight-management-update') return;
+    document.querySelectorAll('[data-sigma-managed-insight]').forEach(element => element._refreshSigmaManagedInsight?.());
+});
+window.addEventListener('sigma-insight-management-update', () => {
+    document.querySelectorAll('[data-sigma-managed-insight]').forEach(element => element._refreshSigmaManagedInsight?.());
+});
+setInterval(() => {
+    if (document.visibilityState === 'visible') document.querySelectorAll('[data-sigma-managed-insight]').forEach(element => element._refreshSigmaManagedInsight?.());
+}, 30000);
 window.renderSigmaAiFeedbackPanelHtml = function ({ context, graded, restricted, submitted = false }) {
     if (restricted) return '';
     const escape = window.escapeHtml;
@@ -26577,7 +26740,7 @@ window.renderSigmaAiFeedbackPanelHtml = function ({ context, graded, restricted,
         : status?.status === 'pending' ? 'Generating feedback…' : 'No feedback yet.';
     return `<div id="sigma-ai-feedback-panel" class="sigma-ai-feedback-panel sigma-ai-panel">
             ${window.renderSigmaAiHeading('SIGMA AI Feedback')}
-            <div class="sigma-ai-panel-body">${items.length ? window.renderSigmaAiEntries(items)
+            <div class="sigma-ai-panel-body">${items.length ? window.renderSigmaAiEntries(items) + window.renderSigmaInsightTimestamp(window.SigmaSubmissionAi?.readFeedbackTimestamp(context, context.attemptPage))
                 : `<div class="sigma-ai-feedback-empty sigma-ai-empty flex flex-col items-center justify-center text-center gap-3 py-5 sm:py-8">
                     <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100/70 shrink-0" aria-hidden="true">
                         <i class="fa-solid ${status?.status === 'pending' ? 'fa-spinner fa-spin' : status?.status === 'failed' ? 'fa-circle-exclamation' : 'fa-comment-dots'} text-base" style="color: rgba(0, 0, 0, 0.45);"></i>
@@ -28051,6 +28214,8 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         const aiCalculatedScore = aiEvaluationReady ? savedAiEvaluation.aiSuggestedScore : null;
         const aiScoreLabel = aiCalculatedScore !== null ? String(aiCalculatedScore) : '-';
         const aiScorePercentage = (aiCalculatedScore !== null && assMaxScore > 0) ? Math.round((aiCalculatedScore / assMaxScore) * 100) : null;
+        const aiEvaluationCode = String(savedAiEvaluation?.aiEvaluation?.code || '').match(/^EVAL-\d{4}-\d{4,}$/)
+            ? savedAiEvaluation.aiEvaluation.code : '';
 
         // Character limits for Assessment Criteria / Categories & Commentary
         // Category Title: FIXED/IMMUTABLE standard dimension (max 40 chars)
@@ -29169,7 +29334,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             <div class="ai-panel-header-grid border-b border-black/10 pb-3 sm:pb-4">
                                 <div class="ai-header-title-area flex items-center gap-2 sm:gap-2.5 min-w-0" style="grid-area: title;">
                                     <span class="inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#FFD000] text-white shadow-2xs leading-none shrink-0"><i class="fa-solid fa-bolt text-[11px] sm:text-xs text-white"></i></span>
-                                    <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Grading Assistance</h3>
+                                    <div class="min-w-0">
+                                        <h3 class="text-sm sm:text-base md:text-lg font-bold text-black font-['Inter'] tracking-tight truncate m-0">SIGMA AI Grading Assistance</h3>
+                                        ${aiEvaluationCode ? `<p class="mt-0.5 text-[10px] sm:text-[11px] font-medium text-black-fade">Evaluation ID: ${window.escapeHtml(aiEvaluationCode)}</p>` : ''}
+                                    </div>
                                 </div>
                                 ${isViewSubmissionMode ? `
                                 <div class="ai-header-score-area flex items-center justify-end shrink-0" style="grid-area: badge;">
@@ -29227,7 +29395,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                         </div>
                                     `}
                                 </div>
-                            </div>` : ''}
+                            </div>${window.renderSigmaInsightTimestamp(savedAiEvaluation.aiEvaluation?.evaluatedAt)}` : ''}
 
 
                         </div>
@@ -35518,7 +35686,7 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
                 <div class="flex-grow pr-1 min-w-0">
                     ${options.openGrades ? `<button type="button" class="flex items-center gap-2 text-left text-sm font-bold text-black hover:text-yellow-400 transition-colors cursor-pointer bg-transparent border-0 p-0" style="cursor:pointer;" title="View grades" onclick="window.openSubjectPerformanceGrades(this)"><i class="fa-solid fa-chart-column shrink-0" aria-hidden="true"></i><span>${escTitle}</span></button>` : `<h4 class="text-sm font-bold text-slate-900 leading-snug font-['Inter'] truncate">${escTitle}</h4>`}
                     <p class="text-[11px] font-medium text-black-fade font-['Inter'] mt-0.5" style="color: rgba(0, 0, 0, 0.45);">${escSub}</p>
-                    ${options.teacherName ? `<div class="performance-subject-teacher"><span class="performance-subject-teacher-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></span><span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></div>` : ''}
+                    ${options.teacherName ? `<div class="performance-subject-teacher">${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(options.teacherName, 'xs', 'performance-subject-teacher-avatar')) || '<span class="performance-subject-teacher-avatar sigma-user-avatar sigma-user-avatar--xs" aria-hidden="true"><i class="fa-solid fa-user"></i></span>'}<span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></div>` : ''}
                 </div>
                 <div class="flex items-start gap-2 flex-shrink-0">
                     <select aria-label="Quarter for ${escTitle}" class="bg-transparent text-black text-xs border border-slate-200 rounded px-2 py-1 cursor-pointer" style="cursor:pointer !important;" onchange="window.selectSubjectPerformanceQuarter(this)">
@@ -35625,6 +35793,39 @@ window.renderSigmaAiEntries = function(items) {
 window.renderSigmaAiText = function(text) {
     return window.escapeHtml(String(text || '')).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 };
+// Fit grade summary typography to the actual card, including a stretched insight row.
+(function () {
+    if (typeof ResizeObserver !== 'function') return;
+    const observed = new WeakSet();
+    const resize = new ResizeObserver(entries => {
+        for (const { target: card } of entries) {
+            const label = card.querySelector('.gwa-label');
+            const value = card.querySelector('.gwa-value');
+            if (!label || !value) continue;
+            const style = getComputedStyle(card);
+            const width = card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const height = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+            if (width <= 0 || height <= 0) continue;
+            const labelSize = Math.max(12, Math.min(22, height * .12, width / Math.max(1, label.textContent.length * .52)));
+            const valueSize = Math.max(32, Math.min(104, height * .48, width / Math.max(1, value.textContent.trim().length * .66)));
+            label.style.setProperty('font-size', `${labelSize.toFixed(1)}px`, 'important');
+            label.style.setProperty('line-height', '1.35', 'important');
+            value.style.setProperty('font-size', `${valueSize.toFixed(1)}px`, 'important');
+            value.style.setProperty('line-height', '1.1', 'important');
+        }
+    });
+    let frame;
+    const scan = () => {
+        frame = null;
+        document.querySelectorAll('.shared-grades-top-panels > .gwa-card').forEach(card => {
+            if (!observed.has(card)) { observed.add(card); resize.observe(card); }
+        });
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(scan); };
+    const init = () => { scan(); new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true }); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
 window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
     const {
         gwa = null,
@@ -35641,7 +35842,7 @@ window.renderSharedAnalyticsTopSectionHtml = function (options = {}) {
         <div class="shared-grades-top-panels grid grid-cols-1 lg:grid-cols-4 gap-6 font-['Inter']">
             <div class="lg:col-span-1 gwa-card rounded-[32px] p-8 flex flex-col justify-between shadow-lg font-['Inter']">
                 <div class="font-['Inter']">
-                    <p class="text-xs font-semibold text-white/90 font-['Inter']">${title}</p>
+                    <p class="gwa-label text-xs font-semibold text-white/90 font-['Inter']">${title}</p>
                     <h2 class="gwa-value mt-4 font-['Inter'] text-white">${displayGwa}</h2>
                 </div>
             </div>
@@ -36115,14 +36316,27 @@ window.withGradebookReadCache = function (render) {
     let nextId = 0;
     const keyPart = value => {
         if (value && typeof value === 'object') {
+            if (!Array.isArray(value)) {
+                const studentKey = value.uid || value.id || value.lrn || value.studentNumber || value.fullName || value.name;
+                const isAssessmentLike = value.itemIdx !== undefined || value.topicIdx !== undefined || value.rawItem !== undefined || value.quizId !== undefined || value.materialId !== undefined;
+                if (studentKey && !isAssessmentLike) {
+                    return `student:${String(studentKey)}:${String(value.section || value.sectionName || value.gradeSection || '')}`;
+                }
+                if (isAssessmentLike) {
+                    const itemKey = value.id || value.materialId || value.quizId || value.origId || value.rawItem?.id || value.title || value.name || '';
+                    return `item:${String(itemKey)}:${String(value.topicIdx ?? '')}:${String(value.itemIdx ?? '')}:${String(value.section ?? '')}:${String(value.quarter ?? '')}`;
+                }
+            }
             if (!objectIds.has(value)) objectIds.set(value, ++nextId);
             return `object:${objectIds.get(value)}`;
         }
         return `${typeof value}:${String(value)}`;
     };
     window._gradebookReadCacheActive = true;
+    window._gradebookLegacySubmissionSnapshot = null;
+    window._gradebookQuizResultSnapshot = null;
     try {
-        for (const name of ['findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', '_getTeacherGradebookCached', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore', 'getGradebookStudentItemScore', 'calculateGradebookCategoryPercentage', 'resolveGradebookScoreColumn', 'readScorePanelPoints', 'readStudentVisibleGradebookScore']) {
+        for (const name of ['getStoredJson', 'getLoggedInStudentUser', 'getStudentSectionClassItems', 'getTopicData', 'getAssessmentReleaseConfig', 'getStudentAssessmentReleaseStatus', 'resolveStudentAssessmentSubmissionDetails', 'getPublishedSubjectGrade', 'getStudentsForSection', 'getUnifiedSectionStudents', 'getTeacherAssignedSubjectsAndSections', 'findAssessmentSubmittedWork', 'getUnifiedSubjectAliases', 'getSharedAssessmentSubmissionsStorage', '_getTeacherGradebookCached', 'getStudentAssessmentSubmission', 'studentHasAssessmentSubmission', 'getEffectiveAssessmentStatusAndScore', 'getGradebookStudentItemScore', 'calculateGradebookCategoryPercentage', 'resolveGradebookScoreColumn', 'readScorePanelPoints', 'readStudentVisibleGradebookScore']) {
             const original = window[name];
             if (typeof original !== 'function') continue;
             originals.set(name, original);
@@ -36147,6 +36361,8 @@ window.withGradebookReadCache = function (render) {
     } finally {
         for (const [name, original] of originals) window[name] = original;
         window._gradebookReadCacheActive = false;
+        window._gradebookLegacySubmissionSnapshot = null;
+        window._gradebookQuizResultSnapshot = null;
     }
 };
 
@@ -37305,3 +37521,66 @@ window.flushTeacherReleaseToastQueue = function () {
         }, idx * 220);
     });
 };
+
+/* Shared search controls and native-select chevrons across portals. */
+(function () {
+    const enhanced = new WeakSet();
+    function enhance(root) {
+        const selects = root.matches?.('select') ? [root] : root.querySelectorAll?.('select') || [];
+        for (const select of selects) {
+            if (enhanced.has(select) || select.multiple || select.size > 1) continue;
+            // Never wrap hidden, aria-hidden, or attendance backward-compatibility selects
+            if (select.matches('.hidden, [hidden], [aria-hidden="true"], #attendance-month-select, #attendance-year-select, #ai-gen-type')
+                || select.closest('.hidden, [hidden], [aria-hidden="true"]')) continue;
+            // Quarter controls provide their own disclosure and animated chevron.
+            if (select.matches('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select')
+                || select.closest('.sigma-quarter-dropdown')) continue;
+            enhanced.add(select);
+            select.classList.add('sigma-select');
+            let wrapper = select.parentElement;
+            if (!wrapper.classList.contains('sigma-select-wrapper')) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'sigma-select-wrapper sigma-standard-select-wrap';
+                select.before(wrapper); wrapper.append(select);
+                if (select.style.width) wrapper.style.width = select.style.width;
+            }
+            let icon = wrapper.querySelector('.sigma-select-icon');
+            if (!icon) {
+                icon = document.createElement('i'); icon.className = 'fa-solid fa-chevron-down sigma-select-icon';
+                icon.setAttribute('aria-hidden', 'true'); wrapper.append(icon);
+            }
+            const setOpen = open => { wrapper.classList.toggle('sigma-select-open', open); };
+            select.addEventListener('pointerdown', () => { if (!select.disabled) setOpen(!wrapper.classList.contains('sigma-select-open')); });
+            select.addEventListener('keydown', event => {
+                if (['ArrowDown','ArrowUp',' ','Enter'].includes(event.key)) setOpen(true);
+                if (['Escape','Tab'].includes(event.key)) setOpen(false);
+            });
+            select.addEventListener('change', () => setOpen(false));
+            select.addEventListener('blur', () => setOpen(false));
+        }
+        const searches = root.matches?.('input') ? [root] : root.querySelectorAll?.('input') || [];
+        for (const input of searches) {
+            if (!['text','search'].includes(input.type) || !/search/i.test(input.id+' '+input.placeholder+' '+input.getAttribute('aria-label'))) continue;
+            if (input.closest('#sigmaAiPanel')) continue;
+            input.classList.add('sigma-input');
+            const restrictedSearch = input.closest('#audit-ai-view, #audit-activity-view, #audit-auth-view, #audit-notifications-view, #resources-view') || /resource|audit|log-search/i.test(input.id);
+            if (restrictedSearch) { input.maxLength=50; input.dataset.accountSearchRules='true'; }
+            else if (!input.hasAttribute('maxlength')) input.maxLength=100;
+            input.autocomplete='off';input.spellcheck=false;
+        }
+    }
+    document.addEventListener('input', event => {
+        const input=event.target;
+        if (!(input instanceof HTMLInputElement) || input.isComposing || !['text','search'].includes(input.type) || !/search/i.test(input.id+' '+input.placeholder+' '+input.getAttribute('aria-label'))) return;
+        // Allow real names, accented text, subject punctuation and IDs; remove only control characters.
+        const clean=input.dataset.accountSearchRules==='true'
+            ? input.value.replace(/^\s+/,'').replace(/[^a-zA-Z0-9\s.\-']/g,'').replace(/\s{2,}/g,' ').slice(0,50)
+            : input.value.replace(/[\u0000-\u001f\u007f]/g,'').replace(/^\s+/,'').replace(/ {2,}/g,' ');
+        if(clean!==input.value){const position=input.selectionStart;input.value=clean;try{input.setSelectionRange(Math.min(position,clean.length),Math.min(position,clean.length));}catch(_){}}
+    },true);
+    document.addEventListener('pointerdown', event => {
+        document.querySelectorAll('.sigma-select-open').forEach(wrapper=>{if(!wrapper.contains(event.target))wrapper.classList.remove('sigma-select-open');});
+    });
+    function start(){enhance(document);new MutationObserver(changes=>{for(const change of changes)for(const node of change.addedNodes)if(node.nodeType===1)enhance(node);}).observe(document.body,{childList:true,subtree:true});}
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();

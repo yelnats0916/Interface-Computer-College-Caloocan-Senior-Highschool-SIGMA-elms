@@ -664,35 +664,732 @@ function initSharedTopbarInteractions() {
         });
     }
 
-    // Global Search Key Handler
+    // Global Search Key Handler & Universal Search Dropdown
     const searchBar = document.getElementById('searchBar');
     const globalSearchBtn = document.getElementById('globalSearchBtn');
 
-    if (searchBar && !searchBar.dataset.searchBound) {
-        searchBar.dataset.searchBound = 'true';
-        searchBar.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                executeGlobalSearch(searchBar.value.trim());
+    // One-time cleanup of legacy shared search history key so it does not bleed into accounts
+    try {
+        if (localStorage.getItem('sigma_universal_search_history')) {
+            localStorage.removeItem('sigma_universal_search_history');
+        }
+    } catch (_) {}
+
+    function getCurrentUserAccountInfo() {
+        let user = null;
+        // 1. Check window.getActiveUserData or window.getLoggedInUserData
+        if (typeof window.getActiveUserData === 'function') {
+            try { user = window.getActiveUserData(); } catch (_) {}
+        }
+        if (!user && typeof window.getLoggedInUserData === 'function') {
+            try { user = window.getLoggedInUserData(); } catch (_) {}
+        }
+        // 2. Check window.currentUser or window.currentUserProfileData
+        if (!user && window.currentUser && typeof window.currentUser === 'object') {
+            user = window.currentUser;
+        }
+        if (!user && window.currentUserProfileData && typeof window.currentUserProfileData === 'object') {
+            user = window.currentUserProfileData;
+        }
+        // 3. Check sessionStorage and localStorage for authenticated user session
+        if (!user) {
+            const candidateKeys = ['sigma-authenticated-user', 'currentUser', 'sigma-logged-in-user', 'sigma_active_user'];
+            for (const k of candidateKeys) {
+                try {
+                    const raw = sessionStorage.getItem(k) || localStorage.getItem(k);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                            user = parsed;
+                            break;
+                        }
+                    }
+                } catch (_) {}
+            }
+        }
+
+        // 4. Determine portal role
+        const path = (window.location.pathname || '').toLowerCase();
+        let role = 'admin';
+        if (path.includes('teacher') || document.body.classList.contains('teacher-portal') || document.querySelector('[data-portal="teacher"]')) {
+            role = 'teacher';
+        } else if (path.includes('student') || document.body.classList.contains('student-portal') || document.querySelector('[data-portal="student"]')) {
+            role = 'student';
+        } else if (user && (user.role || user.type)) {
+            const r = String(user.role || user.type).toLowerCase();
+            if (r.includes('teacher')) role = 'teacher';
+            else if (r.includes('student')) role = 'student';
+            else role = 'admin';
+        }
+
+        // 5. Extract unique user ID
+        let rawId = '';
+        if (user) {
+            rawId = String(user.uid || user.id || user.accountId || user.userId || user.employeeId || user.lrn || user.username || '').replace(/^#/, '').trim();
+            if (!rawId && user.email) {
+                rawId = String(user.email).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            }
+        }
+
+        if (!rawId) {
+            rawId = role === 'teacher' ? '1111111' : (role === 'student' ? '2222222' : '0000000');
+        }
+
+        return {
+            role,
+            userId: rawId,
+            accountKey: `${role}_${rawId}`,
+            rawUser: user
+        };
+    }
+
+    function getSearchHistoryKey() {
+        const info = getCurrentUserAccountInfo();
+        return `sigma_search_history_${info.role}_${info.userId}`;
+    }
+
+    const MAX_HISTORY = 5;
+
+    function getSearchHistory() {
+        try {
+            const key = getSearchHistoryKey();
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function saveSearchHistory(list) {
+        try {
+            const key = getSearchHistoryKey();
+            localStorage.setItem(key, JSON.stringify(list.slice(0, MAX_HISTORY)));
+        } catch (e) {
+            console.warn('Failed to save search history', e);
+        }
+    }
+
+    function addSearchHistory(query) {
+        const trimmed = (query || '').trim();
+        if (!trimmed) return;
+        let list = getSearchHistory();
+        list = list.filter(item => item.toLowerCase() !== trimmed.toLowerCase());
+        list.unshift(trimmed);
+        saveSearchHistory(list);
+    }
+
+    function removeSearchHistoryItem(query) {
+        let list = getSearchHistory();
+        list = list.filter(item => item.toLowerCase() !== (query || '').toLowerCase());
+        saveSearchHistory(list);
+        renderSearchDropdown();
+        renderMobileSearchDropdown();
+    }
+
+    function clearSearchHistory() {
+        saveSearchHistory([]);
+        renderSearchDropdown();
+        renderMobileSearchDropdown();
+    }
+
+    let searchDropdown = null;
+
+    function ensureSearchDropdown() {
+        if (searchDropdown && document.body.contains(searchDropdown)) return searchDropdown;
+        const container = document.querySelector('.header-search-container');
+        if (!container) return null;
+
+        searchDropdown = document.createElement('div');
+        searchDropdown.id = 'universal-search-dropdown';
+        searchDropdown.hidden = true;
+        container.appendChild(searchDropdown);
+
+        // Outside click dismiss
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                hideSearchDropdown();
             }
         });
+
+        return searchDropdown;
+    }
+
+    function showSearchDropdown() {
+        const dd = ensureSearchDropdown();
+        if (!dd) return;
+        renderSearchDropdown();
+        alignSearchDropdown();
+    }
+
+    function hideSearchDropdown() {
+        if (searchDropdown) {
+            searchDropdown.hidden = true;
+        }
+    }
+
+    // Strict word start matching helper
+    function strictWordMatch(text, query) {
+        if (!text || !query) return false;
+        const lowerText = text.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+
+        if (lowerQuery.length === 1) {
+            const words = lowerText.split(/[\s\-_.:#@/()]+/);
+            return words.some(w => w.startsWith(lowerQuery));
+        }
+
+        const words = lowerText.split(/[\s\-_.:#@/()]+/);
+        const matchesWordStart = words.some(w => w.startsWith(lowerQuery));
+        const exactSubstring = lowerText.includes(lowerQuery);
+        return matchesWordStart || exactSubstring;
+    }
+
+    function getSearchScopeData() {
+        const items = [];
+        // Extract navigation links visible in sidebar
+        document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink').forEach(link => {
+            const label = link.querySelector('span')?.textContent?.trim() || link.textContent?.trim();
+            if (label && !items.some(i => i.title.toLowerCase() === label.toLowerCase())) {
+                items.push({
+                    title: label,
+                    category: 'Page',
+                    action: () => link.click()
+                });
+            }
+        });
+        return items;
+    }
+
+    function isEmailAddress(str) {
+        if (!str || typeof str !== 'string') return false;
+        return str.includes('@') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str.trim());
+    }
+
+    function isFirstLetterMatch(text, query) {
+        if (!text || !query) return false;
+        const lowerText = text.toLowerCase().trim();
+        const lowerQuery = query.toLowerCase().trim();
+        if (!lowerQuery) return false;
+
+        // Strictly reject emails
+        if (isEmailAddress(lowerText)) return false;
+
+        // Result MUST start with query (first letter match)
+        return lowerText.startsWith(lowerQuery);
+    }
+
+    function alignSearchDropdown() {
+        const dd = searchDropdown;
+        if (!dd || dd.hidden || !searchBar) return;
+        const container = searchBar.closest('.header-search-container');
+        const shell = searchBar.closest('.header-search-shell');
+        if (!container || !shell) return;
+
+        // Clear any inline left/width/right styles so CSS left: -20px !important; right: 72px !important; width: auto !important
+        // automatically aligns the dropdown with 100% precision from shell left edge to enter button divider line
+        dd.style.removeProperty('left');
+        dd.style.removeProperty('width');
+        dd.style.removeProperty('right');
+    }
+
+    function highlightSuggestion(text, query) {
+        if (!text) return '';
+        const cleanQuery = (query || '').trim();
+        if (!cleanQuery) return escapeSearchText(text);
+
+        const lowerText = text.toLowerCase();
+        const lowerQuery = cleanQuery.toLowerCase();
+
+        // The text starts with the query: typed prefix is normal weight, rest is bold
+        if (lowerText.startsWith(lowerQuery)) {
+            const match = escapeSearchText(text.slice(0, cleanQuery.length));
+            const after = escapeSearchText(text.slice(cleanQuery.length));
+            return `${match}<b>${after}</b>`;
+        }
+
+        return escapeSearchText(text);
+    }
+
+    function getSearchSuggestions(query) {
+        const rawQuery = (query || '').trim();
+        if (!rawQuery) return [];
+
+        const lowerQuery = rawQuery.toLowerCase();
+        const suggestions = [];
+        const seen = new Set();
+
+        const userInfo = getCurrentUserAccountInfo();
+        const userRole = userInfo.role;
+        const currentUserObj = userInfo.rawUser || {};
+
+        // Prepare current user's names for exclusion
+        const authUid = String(currentUserObj.uid || currentUserObj.id || '').replace(/^#/, '').trim().toLowerCase();
+        let authFirstName = String(currentUserObj.firstName || '').trim();
+        let authLastName = String(currentUserObj.lastName || '').trim();
+        let authFullName = String(currentUserObj.fullName || currentUserObj.name || '').trim();
+        
+        if (!authFirstName && !authLastName && authFullName) {
+            const tokens = authFullName.split(/\s+/).filter(Boolean);
+            if (tokens.length >= 2) {
+                authFirstName = tokens[0];
+                authLastName = tokens[tokens.length - 1];
+            }
+        }
+        const authFirstLast = [authFirstName, authLastName].filter(Boolean).join(' ').trim().toLowerCase();
+        const authFullLower = authFullName.toLowerCase();
+
+        function addCandidate(text, isHistory = false) {
+            if (!text || typeof text !== 'string') return;
+            let clean = text.trim();
+            // Strictly strip out any "ID: ..." or concatenated ID tags
+            clean = clean.replace(/ID:\s*[\w\d-]+/gi, '')
+                         .replace(/\(ID:.*?\)/gi, '')
+                         .replace(/\[ID:.*?\]/gi, '')
+                         .replace(/\s*ID:\s*$/gi, '')
+                         .replace(/\bID[:#]?\s*[\w\d-]+/gi, '')
+                         .trim();
+            if (!clean || clean.length < 2 || clean.length > 60) return;
+            
+            // Exclude current user by name or partial name
+            const cleanLower = clean.toLowerCase();
+            const authFirstLower = authFirstName.toLowerCase();
+            const authLastLower = authLastName.toLowerCase();
+            
+            if (authFirstLast && cleanLower === authFirstLast) return;
+            if (authFullLower && cleanLower === authFullLower) return;
+            if (authFirstLower && cleanLower === authFirstLower) return;
+            if (authLastLower && cleanLower === authLastLower) return;
+            
+            // Strictly exclude any emails from suggestions
+            if (isEmailAddress(clean)) return;
+
+            // Strictly reject pure numbers/dates/IDs
+            if (/^[\d\s\-_.:#@/()]+$/.test(clean) || /^id[:\s]/i.test(clean)) return;
+            // Strictly ensure first letter of result starts with query
+            if (!isFirstLetterMatch(clean, rawQuery)) return;
+            // Never mirror the exact typed query in the suggestions panel
+            if (clean.toLowerCase() === lowerQuery) return;
+
+            const key = clean.toLowerCase();
+            const tokenKey = clean.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join('_');
+            if (!seen.has(key) && !seen.has(tokenKey)) {
+                seen.add(key);
+                if (tokenKey) seen.add(tokenKey);
+                suggestions.push({ text: clean, isHistory });
+            }
+        }
+
+        // 1. Current Account's Search History matches (excluding emails)
+        const history = getSearchHistory();
+        history.forEach(item => {
+            if (!isEmailAddress(item) && isFirstLetterMatch(item, rawQuery)) {
+                addCandidate(item, true);
+            }
+        });
+
+        // 2. Scan The Users (Primary: sigma-admin-users) then secondary fallbacks
+        const primaryUsers = (typeof window.getStoredJson === 'function')
+            ? window.getStoredJson('sigma-admin-users', [])
+            : JSON.parse(localStorage.getItem('sigma-admin-users') || '[]');
+
+        const secondaryUserKeys = userRole === 'admin'
+            ? ['sigma-users-list', 'sigma-teacher-users', 'sigma-student-users']
+            : (userRole === 'teacher'
+                ? ['sigma-student-users', 'sigma-teacher-users', 'sigma-users-list']
+                : ['sigma-teacher-users', 'sigma-student-users', 'sigma-users-list']);
+
+        const seenUserIds = new Set();
+
+        const processUserCandidate = (u) => {
+            if (!u) return;
+            const uid = String(u.uid || u.id || u.lrn || u.studentNumber || u.employeeId || '').replace(/^#/, '').trim().toLowerCase();
+            
+            // Exclude current logged in user from suggestions
+            const authUserId = String(currentUserObj.uid || currentUserObj.id || '').replace(/^#/, '').trim().toLowerCase();
+            if (uid && authUserId && uid === authUserId) return;
+
+            const uRole = (u.role || u.type || '').toLowerCase();
+            if (userRole === 'student' && (uRole.includes('admin') || uRole.includes('master'))) return;
+            if (userRole === 'teacher' && uRole.includes('admin') && !uRole.includes('teacher') && !uRole.includes('faculty')) return;
+
+            let fullName = '';
+            if (u.firstName || u.lastName) {
+                // Only First and Last name
+                fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+            }
+            if (!fullName) {
+                fullName = (u.fullName || u.name || '').trim();
+                // If full name contains middle names, try to extract first and last
+                const tokens = fullName.split(/\s+/).filter(Boolean);
+                if (tokens.length > 2) {
+                    fullName = `${tokens[0]} ${tokens[tokens.length - 1]}`;
+                }
+            }
+            if (fullName.includes(',') && !u.firstName && !u.lastName) {
+                const [last, first] = fullName.split(',').map(s => s.trim());
+                if (first && last) fullName = `${first} ${last}`;
+            }
+
+            const normKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (uid && seenUserIds.has(uid)) return;
+            if (normKey && seenUserIds.has(normKey)) return;
+
+            if (uid) seenUserIds.add(uid);
+            if (normKey) seenUserIds.add(normKey);
+
+            if (fullName) {
+                addCandidate(fullName);
+            }
+        };
+
+        if (Array.isArray(primaryUsers)) {
+            primaryUsers.forEach(processUserCandidate);
+        }
+        for (const key of secondaryUserKeys) {
+            try {
+                const list = JSON.parse(localStorage.getItem(key) || '[]');
+                if (Array.isArray(list)) list.forEach(processUserCandidate);
+            } catch (_) {}
+        }
+
+        // 3. Scan LocalStorage for Subjects (scoped to role)
+        const subjectKeys = userRole === 'student'
+            ? ['sigma_classroom_materials', 'sigma_subjects_v2', 'sigma-subjects-list']
+            : ['sigma-admin-subjects', 'sigma-subjects-list', 'sigma_subjects_v2', 'sigma_classroom_materials'];
+
+        for (const key of subjectKeys) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    const list = JSON.parse(raw);
+                    if (Array.isArray(list)) {
+                        list.forEach(s => {
+                            if (!s) return;
+                            const name = s.name || s.title || s.subjectName || s.code;
+                            if (name) {
+                                addCandidate(name);
+                            }
+                        });
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // 4. Scan LocalStorage for Sections (scoped to role)
+        const sectionKeys = userRole === 'student'
+            ? []
+            : ['sigma-sections-list', 'sigma_sections', 'sigma-admin-sections'];
+
+        for (const key of sectionKeys) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    const list = JSON.parse(raw);
+                    if (Array.isArray(list)) {
+                        list.forEach(sec => {
+                            if (!sec) return;
+                            const name = typeof sec === 'string' ? sec : (sec.name || sec.sectionName);
+                            if (name) {
+                                addCandidate(name);
+                            }
+                        });
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // 5. Sidebar Navigation Links
+        document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink').forEach(link => {
+            const label = link.querySelector('span')?.textContent?.trim() || link.textContent?.trim();
+            if (label) {
+                addCandidate(label);
+            }
+        });
+
+        // 6. Page Table rows (names/titles only, strictly ignore emails and IDs)
+        document.querySelectorAll('table tbody tr').forEach(row => {
+            row.querySelectorAll('td').forEach(cell => {
+                // If cell contains sub-elements, prioritize name elements to avoid concatenating with "ID: 2222222"
+                const nameNode = cell.querySelector('.user-name, .student-name, .font-bold, .font-semibold, h3, h4, span:first-child');
+                const raw = nameNode ? nameNode.textContent : (cell.childNodes[0]?.textContent || cell.textContent);
+                let text = (raw || '').trim().replace(/ID:\s*[\w\d-]+/gi, '').replace(/\(ID:.*?\)/gi, '').trim();
+                if (text && text.length > 2 && text.length < 50 && !isEmailAddress(text)) {
+                    if (!text.includes('\n') && !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text) && !/^id[:\s]/i.test(text)) {
+                        addCandidate(text);
+                    }
+                }
+            });
+        });
+
+        // Sort: items starting with query first, then alphabetical (no mirroring of the typed text)
+        suggestions.sort((a, b) => {
+            const aLower = a.text.toLowerCase();
+            const bLower = b.text.toLowerCase();
+            const aStarts = aLower.startsWith(lowerQuery);
+            const bStarts = bLower.startsWith(lowerQuery);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+
+            return aLower.localeCompare(bLower);
+        });
+
+        return suggestions.slice(0, 8);
+    }
+
+    function selectSuggestion(queryText) {
+        if (!queryText) return;
+        if (searchBar) searchBar.value = queryText;
+        const mobileInput = document.getElementById('mobileSearchInput');
+        if (mobileInput) mobileInput.value = queryText;
+        hideSearchDropdown();
+        closeMobileSearch();
+        executeGlobalSearch(queryText);
+    }
+
+    function renderSearchDropdown() {
+        const dd = ensureSearchDropdown();
+        if (!dd || !searchBar) return;
+
+        const query = searchBar.value.trim();
+
+        // If query is empty: Render History Panel (if any exist)
+        if (!query) {
+            const history = getSearchHistory().filter(item => !isEmailAddress(item));
+            if (history.length === 0) {
+                dd.innerHTML = '';
+                dd.hidden = true;
+                return;
+            }
+
+            dd.hidden = false;
+            alignSearchDropdown();
+            dd.innerHTML = `
+                <div class="universal-search-history-header">
+                    <span class="universal-search-history-title">Your Recent Searched</span>
+                    <button type="button" class="universal-search-clear-all-btn">Clear All</button>
+                </div>
+                <div class="universal-search-history-list"></div>
+            `;
+
+            const clearBtn = dd.querySelector('.universal-search-clear-all-btn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clearSearchHistory();
+                });
+            }
+
+            const listContainer = dd.querySelector('.universal-search-history-list');
+            history.forEach(itemText => {
+                const row = document.createElement('div');
+                row.className = 'universal-search-item';
+                row.dataset.query = itemText;
+                row.innerHTML = `
+                    <div class="universal-search-item-left">
+                        <i class="fa-solid fa-magnifying-glass universal-search-item-icon"></i>
+                        <span class="universal-search-item-text">${escapeSearchText(itemText)}</span>
+                    </div>
+                    <button type="button" class="universal-search-item-delete" title="Remove from history" aria-label="Remove from history">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+
+                const handleSelect = (e) => {
+                    if (e.target.closest('.universal-search-item-delete')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectSuggestion(itemText);
+                };
+
+                row.addEventListener('mousedown', (e) => {
+                    if (!e.target.closest('.universal-search-item-delete')) {
+                        e.preventDefault(); // Prevents input blur from preempting or interfering with click
+                    }
+                });
+                row.addEventListener('click', handleSelect);
+
+                row.querySelector('.universal-search-item-delete').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeSearchHistoryItem(itemText);
+                });
+
+                listContainer.appendChild(row);
+            });
+            return;
+        }
+
+        // If query is present: Render Suggestions Autocomplete Dropdown
+        const suggestions = getSearchSuggestions(query);
+        if (suggestions.length === 0) {
+            dd.innerHTML = '';
+            dd.hidden = true;
+            return;
+        }
+
+        dd.hidden = false;
+        alignSearchDropdown();
+        dd.innerHTML = `<div class="universal-search-suggestions-list"></div>`;
+        const listContainer = dd.querySelector('.universal-search-suggestions-list');
+
+        suggestions.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'universal-search-item';
+            row.dataset.query = item.text;
+            row.innerHTML = `
+                <div class="universal-search-item-left">
+                    <i class="fa-solid fa-magnifying-glass universal-search-item-icon"></i>
+                    <span class="universal-search-item-text">${highlightSuggestion(item.text, query)}</span>
+                </div>
+                ${item.isHistory ? `
+                    <button type="button" class="universal-search-item-delete" title="Remove from history" aria-label="Remove from history">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                ` : ''}
+            `;
+
+            const handleSelect = (e) => {
+                if (e.target.closest('.universal-search-item-delete')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                selectSuggestion(item.text);
+            };
+
+            row.addEventListener('mousedown', (e) => {
+                if (!e.target.closest('.universal-search-item-delete')) {
+                    e.preventDefault(); // Prevents input blur from preempting or interfering with click
+                }
+            });
+            row.addEventListener('click', handleSelect);
+
+            if (item.isHistory) {
+                const delBtn = row.querySelector('.universal-search-item-delete');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeSearchHistoryItem(item.text);
+                    });
+                }
+            }
+
+            listContainer.appendChild(row);
+        });
+    }
+
+    function escapeSearchText(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    const searchShell = searchBar ? searchBar.closest('.header-search-shell') : null;
+    if (searchShell && !searchShell.dataset.shellBound) {
+        searchShell.dataset.shellBound = 'true';
+        searchShell.addEventListener('click', (e) => {
+            if (e.target !== searchBar && !globalSearchBtn?.contains(e.target)) {
+                searchBar.focus();
+            }
+        });
+    }
+
+    if (searchBar && !searchBar.dataset.searchBound) {
+        searchBar.dataset.searchBound = 'true';
+
+        searchBar.addEventListener('focus', () => {
+            showSearchDropdown();
+        });
+
+        searchBar.addEventListener('input', () => {
+            // Displays suggestions autocomplete without triggering background page search
+            showSearchDropdown();
+        });
+
+        searchBar.addEventListener('keydown', (e) => {
+            const dd = ensureSearchDropdown();
+            const isVisible = dd && !dd.hidden;
+            const items = isVisible ? Array.from(dd.querySelectorAll('.universal-search-item')) : [];
+            const currentIndex = items.findIndex(el => el.classList.contains('active'));
+
+            if (e.key === 'ArrowDown') {
+                if (isVisible && items.length > 0) {
+                    e.preventDefault();
+                    const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                    items.forEach(el => el.classList.remove('active'));
+                    items[nextIndex].classList.add('active');
+                    items[nextIndex].scrollIntoView({ block: 'nearest' });
+                    const val = items[nextIndex].dataset.query;
+                    if (val) searchBar.value = val;
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (isVisible && items.length > 0) {
+                    e.preventDefault();
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                    items.forEach(el => el.classList.remove('active'));
+                    items[prevIndex].classList.add('active');
+                    items[prevIndex].scrollIntoView({ block: 'nearest' });
+                    const val = items[prevIndex].dataset.query;
+                    if (val) searchBar.value = val;
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isVisible && currentIndex >= 0 && items[currentIndex]) {
+                    const selectedQuery = items[currentIndex].dataset.query;
+                    selectSuggestion(selectedQuery);
+                } else {
+                    const q = searchBar.value.trim();
+                    if (q) {
+                        selectSuggestion(q);
+                    } else {
+                        hideSearchDropdown();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                hideSearchDropdown();
+                searchBar.blur();
+            }
+        });
+
+        window.addEventListener('resize', alignSearchDropdown);
+        window.addEventListener('scroll', alignSearchDropdown, true);
     }
 
     if (globalSearchBtn && searchBar && !globalSearchBtn.dataset.searchBound) {
         globalSearchBtn.dataset.searchBound = 'true';
         globalSearchBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            executeGlobalSearch(searchBar.value.trim());
+            e.stopPropagation();
+            const q = searchBar.value.trim();
+            if (q) {
+                addSearchHistory(q);
+                executeGlobalSearch(q);
+            }
+            hideSearchDropdown();
         });
     }
 
+    let lastGlobalSearchTime = 0;
     function executeGlobalSearch(query) {
         if (!query) return;
+        const now = Date.now();
+        if (now - lastGlobalSearchTime < 300) return;
+        lastGlobalSearchTime = now;
+        addSearchHistory(query);
         console.log(`[SIGMA Search] Executing search for: ${query}`);
         window.dispatchEvent(new CustomEvent('sigma:search', { detail: { query } }));
+        if (typeof window.openSearchResultsView === 'function') {
+            window.openSearchResultsView(query);
+        }
     }
 
-    // 6. Mobile Search Toggle & Overlay
+
+    // 6. Mobile Search Toggle, Overlay, Backdrop & Dropdown (History + Suggestions)
     const mobileSearchToggleBtn = document.getElementById('mobileSearchToggleBtn');
     const mobileSearchOverlay = document.getElementById('mobile-search-overlay');
     const mobileSearchBackdrop = document.getElementById('mobile-search-backdrop');
@@ -701,17 +1398,290 @@ function initSharedTopbarInteractions() {
     const mobileSearchSubmitBtn = document.getElementById('mobileSearchSubmitBtn');
     const mobileSearchInput = document.getElementById('mobileSearchInput');
 
+    let mobileSearchDropdown = null;
+
+    function ensureMobileSearchBackdrop() {
+        let bd = document.getElementById('mobile-search-backdrop');
+        if (!bd) {
+            bd = document.createElement('div');
+            bd.id = 'mobile-search-backdrop';
+            bd.className = 'mobile-search-backdrop hidden';
+            document.body.appendChild(bd);
+        } else if (bd.parentElement !== document.body) {
+            // Move backdrop directly to document.body so it isn't trapped in header's stacking context
+            document.body.appendChild(bd);
+        }
+
+        if (!bd.dataset.topbarBound) {
+            bd.dataset.topbarBound = 'true';
+            bd.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMobileSearch();
+            });
+            bd.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMobileSearch();
+            }, { passive: false });
+        }
+        return bd;
+    }
+
+    function alignMobileSearchBackdrop() {
+        const overlay = document.getElementById('mobile-search-overlay');
+        const bd = document.getElementById('mobile-search-backdrop');
+        if (!overlay) return;
+        const rect = overlay.getBoundingClientRect();
+        const bottom = rect.bottom > 0 ? rect.bottom : (overlay.offsetHeight || 60);
+        document.documentElement.style.setProperty('--mobile-search-bar-bottom', `${bottom}px`);
+        if (bd) {
+            bd.style.top = `${bottom}px`;
+        }
+        if (mobileSearchDropdown && !mobileSearchDropdown.hidden) {
+            mobileSearchDropdown.style.top = `${bottom}px`;
+        }
+    }
+
+    function ensureMobileSearchDropdown() {
+        if (mobileSearchDropdown && document.body.contains(mobileSearchDropdown)) return mobileSearchDropdown;
+        mobileSearchDropdown = document.createElement('div');
+        mobileSearchDropdown.id = 'mobile-search-dropdown';
+        mobileSearchDropdown.className = 'mobile-search-dropdown';
+        mobileSearchDropdown.hidden = true;
+        document.body.appendChild(mobileSearchDropdown);
+        return mobileSearchDropdown;
+    }
+
+    function hideMobileSearchDropdown() {
+        if (mobileSearchDropdown) {
+            mobileSearchDropdown.hidden = true;
+            mobileSearchDropdown.classList.add('hidden');
+        }
+    }
+
+    function renderMobileSearchDropdown() {
+        const dd = ensureMobileSearchDropdown();
+        if (!dd) return;
+        if (!mobileSearchInput) return;
+
+        alignMobileSearchBackdrop();
+
+        const query = mobileSearchInput.value.trim();
+
+        // If query is empty: Render History Panel (if any exist)
+        if (!query) {
+            const history = getSearchHistory().filter(item => !isEmailAddress(item));
+            if (history.length === 0) {
+                dd.innerHTML = '';
+                dd.hidden = true;
+                dd.classList.add('hidden');
+                return;
+            }
+
+            dd.hidden = false;
+            dd.classList.remove('hidden');
+            alignMobileSearchBackdrop();
+            dd.innerHTML = `
+                <div class="universal-search-history-header">
+                    <span class="universal-search-history-title">Your Recent Searched</span>
+                    <button type="button" class="universal-search-clear-all-btn">Clear All</button>
+                </div>
+                <div class="universal-search-history-list"></div>
+            `;
+
+            const clearBtn = dd.querySelector('.universal-search-clear-all-btn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clearSearchHistory();
+                    renderMobileSearchDropdown();
+                    renderSearchDropdown();
+                });
+            }
+
+            const listContainer = dd.querySelector('.universal-search-history-list');
+            history.forEach(itemText => {
+                const row = document.createElement('div');
+                row.className = 'universal-search-item';
+                row.dataset.query = itemText;
+                row.innerHTML = `
+                    <div class="universal-search-item-left">
+                        <i class="fa-solid fa-magnifying-glass universal-search-item-icon"></i>
+                        <span class="universal-search-item-text">${escapeSearchText(itemText)}</span>
+                    </div>
+                    <button type="button" class="universal-search-item-delete" title="Remove from history" aria-label="Remove from history">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+
+                let touchStartY = 0;
+                let isScrolling = false;
+
+                row.addEventListener('touchstart', (e) => {
+                    if (e.touches && e.touches[0]) {
+                        touchStartY = e.touches[0].clientY;
+                    }
+                    isScrolling = false;
+                }, { passive: true });
+
+                row.addEventListener('touchmove', (e) => {
+                    if (e.touches && e.touches[0]) {
+                        const delta = Math.abs(e.touches[0].clientY - touchStartY);
+                        if (delta > 8) isScrolling = true;
+                    }
+                }, { passive: true });
+
+                const handleMobileSelect = (e) => {
+                    if (e.target.closest('.universal-search-item-delete')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectSuggestion(itemText);
+                };
+
+                row.addEventListener('touchend', (e) => {
+                    if (isScrolling) return;
+                    handleMobileSelect(e);
+                });
+
+                row.addEventListener('mousedown', (e) => {
+                    if (!e.target.closest('.universal-search-item-delete')) {
+                        e.preventDefault(); // Prevents input blur/keyboard dismissal from canceling click
+                    }
+                });
+
+                row.addEventListener('click', handleMobileSelect);
+
+                const delBtn = row.querySelector('.universal-search-item-delete');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeSearchHistoryItem(itemText);
+                        renderMobileSearchDropdown();
+                        renderSearchDropdown();
+                    });
+                }
+
+                listContainer.appendChild(row);
+            });
+            return;
+        }
+
+        // If query is present: Render Suggestions Autocomplete Dropdown
+        const suggestions = getSearchSuggestions(query);
+        if (suggestions.length === 0) {
+            dd.innerHTML = '';
+            dd.hidden = true;
+            dd.classList.add('hidden');
+            return;
+        }
+
+        dd.hidden = false;
+        dd.classList.remove('hidden');
+        alignMobileSearchBackdrop();
+        dd.innerHTML = `<div class="universal-search-suggestions-list"></div>`;
+        const listContainer = dd.querySelector('.universal-search-suggestions-list');
+
+        suggestions.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'universal-search-item';
+            row.dataset.query = item.text;
+            row.innerHTML = `
+                <div class="universal-search-item-left">
+                    <i class="fa-solid fa-magnifying-glass universal-search-item-icon"></i>
+                    <span class="universal-search-item-text">${highlightSuggestion(item.text, query)}</span>
+                </div>
+                ${item.isHistory ? `
+                    <button type="button" class="universal-search-item-delete" title="Remove from history" aria-label="Remove from history">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                ` : ''}
+            `;
+
+            let touchStartY = 0;
+            let isScrolling = false;
+
+            row.addEventListener('touchstart', (e) => {
+                if (e.touches && e.touches[0]) {
+                    touchStartY = e.touches[0].clientY;
+                }
+                isScrolling = false;
+            }, { passive: true });
+
+            row.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches[0]) {
+                    const delta = Math.abs(e.touches[0].clientY - touchStartY);
+                    if (delta > 8) isScrolling = true;
+                }
+            }, { passive: true });
+
+            const handleMobileSelect = (e) => {
+                if (e.target.closest('.universal-search-item-delete')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                selectSuggestion(item.text);
+            };
+
+            row.addEventListener('touchend', (e) => {
+                if (isScrolling) return;
+                handleMobileSelect(e);
+            });
+
+            row.addEventListener('mousedown', (e) => {
+                if (!e.target.closest('.universal-search-item-delete')) {
+                    e.preventDefault(); // Prevents input blur/keyboard dismissal from canceling click
+                }
+            });
+
+            row.addEventListener('click', handleMobileSelect);
+
+            if (item.isHistory) {
+                const delBtn = row.querySelector('.universal-search-item-delete');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeSearchHistoryItem(item.text);
+                        renderMobileSearchDropdown();
+                        renderSearchDropdown();
+                    });
+                }
+            }
+
+            listContainer.appendChild(row);
+        });
+    }
+
     function openMobileSearch() {
-        if (mobileSearchOverlay) mobileSearchOverlay.classList.remove('hidden');
-        if (mobileSearchBackdrop) mobileSearchBackdrop.classList.remove('hidden');
+        document.body.classList.add('mobile-search-active');
+        const overlay = document.getElementById('mobile-search-overlay');
+        const bd = ensureMobileSearchBackdrop();
+        if (overlay) overlay.classList.remove('hidden');
+        if (bd) {
+            bd.classList.remove('hidden');
+            bd.removeAttribute('hidden');
+        }
+        alignMobileSearchBackdrop();
         if (mobileSearchInput) {
             mobileSearchInput.focus();
+            renderMobileSearchDropdown();
         }
     }
 
     function closeMobileSearch() {
-        if (mobileSearchOverlay) mobileSearchOverlay.classList.add('hidden');
-        if (mobileSearchBackdrop) mobileSearchBackdrop.classList.add('hidden');
+        document.body.classList.remove('mobile-search-active');
+        document.getElementById('teacher-header')?.classList.remove('mobile-search-active');
+        document.getElementById('student-header')?.classList.remove('mobile-search-active');
+        const overlay = document.getElementById('mobile-search-overlay');
+        const bd = document.getElementById('mobile-search-backdrop');
+        if (overlay) overlay.classList.add('hidden');
+        if (bd) {
+            bd.classList.add('hidden');
+            bd.setAttribute('hidden', '');
+        }
+        hideMobileSearchDropdown();
     }
 
     if (mobileSearchToggleBtn && !mobileSearchToggleBtn.dataset.topbarBound) {
@@ -742,20 +1712,8 @@ function initSharedTopbarInteractions() {
         });
     }
 
-    // 2. Dim Light Backdrop (Touching outside returns to page)
-    if (mobileSearchBackdrop && !mobileSearchBackdrop.dataset.topbarBound) {
-        mobileSearchBackdrop.dataset.topbarBound = 'true';
-        mobileSearchBackdrop.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeMobileSearch();
-        });
-        mobileSearchBackdrop.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeMobileSearch();
-        }, { passive: false });
-    }
+    // Initialize backdrop if present in DOM
+    ensureMobileSearchBackdrop();
 
     // 3. Magnifying Glass Enter Button
     if (mobileSearchSubmitBtn && !mobileSearchSubmitBtn.dataset.topbarBound) {
@@ -764,23 +1722,45 @@ function initSharedTopbarInteractions() {
             e.preventDefault();
             e.stopPropagation();
             const q = mobileSearchInput ? mobileSearchInput.value.trim() : '';
-            if (q) executeGlobalSearch(q);
+            if (q) {
+                addSearchHistory(q);
+                executeGlobalSearch(q);
+            }
             closeMobileSearch();
         });
     }
 
     if (mobileSearchInput && !mobileSearchInput.dataset.topbarBound) {
         mobileSearchInput.dataset.topbarBound = 'true';
+        mobileSearchInput.addEventListener('focus', () => {
+            renderMobileSearchDropdown();
+        });
+        mobileSearchInput.addEventListener('click', () => {
+            renderMobileSearchDropdown();
+        });
+        mobileSearchInput.addEventListener('input', () => {
+            renderMobileSearchDropdown();
+        });
         mobileSearchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                executeGlobalSearch(mobileSearchInput.value.trim());
+                const q = mobileSearchInput.value.trim();
+                if (q) {
+                    addSearchHistory(q);
+                    executeGlobalSearch(q);
+                }
                 closeMobileSearch();
             } else if (e.key === 'Escape') {
                 closeMobileSearch();
             }
         });
     }
+
+    window.addEventListener('resize', alignMobileSearchBackdrop);
+    window.addEventListener('scroll', alignMobileSearchBackdrop, true);
+    window.addEventListener('orientationchange', () => {
+        setTimeout(alignMobileSearchBackdrop, 120);
+    });
 
     const mobileSidebarToggleBtn = document.getElementById('mobileSidebarToggleBtn');
     if (mobileSidebarToggleBtn && !mobileSidebarToggleBtn.dataset.topbarBound) {
@@ -1181,8 +2161,15 @@ function initSharedTopbarInteractions() {
     const isMobileViewport = () => window.innerWidth <= 768;
     const mobilePanelViewport = window.matchMedia('(max-width: 768px)');
     const dismissResponsivePanels = () => {
-        window.closeMobileTopPanel();
-        window.closeMobileAccountPanel();
+        if (typeof window.closeMobileTopPanel === 'function') window.closeMobileTopPanel();
+        if (typeof window.closeMobileAccountPanel === 'function') window.closeMobileAccountPanel();
+        // Cleanly dismiss mobile search overlay, backdrop and dropdown
+        const mobileSearchOverlay = document.getElementById('mobile-search-overlay');
+        const mobileSearchBackdrop = document.getElementById('mobile-search-backdrop');
+        if (mobileSearchOverlay) mobileSearchOverlay.classList.add('hidden');
+        if (mobileSearchBackdrop) mobileSearchBackdrop.classList.add('hidden');
+        hideMobileSearchDropdown();
+
         document.querySelectorAll('.mobile-pull-up-panel, .mobile-sigma-sheet, .mobile-sigma-sheet-backdrop')
             .forEach(panel => panel.classList.remove('open'));
         const isCalendarActive = (typeof window.isActuallyCalendarPage === 'function')
@@ -1202,9 +2189,19 @@ function initSharedTopbarInteractions() {
         window.updateMobileAppBarActiveState?.();
     };
     mobilePanelViewport.addEventListener('change', dismissResponsivePanels);
-    // DevTools can restore desktop width while a mobile panel still owns the page.
+    // DevTools can restore desktop width while a mobile panel or search overlay still owns the page.
     const dismissStaleMobilePanels = () => {
         if (mobilePanelViewport.matches) return;
+        // Cleanly dismiss mobile search overlay, backdrop or dropdown upon returning to desktop viewport
+        const mobileSearchOverlay = document.getElementById('mobile-search-overlay');
+        const mobileSearchBackdrop = document.getElementById('mobile-search-backdrop');
+        if (mobileSearchOverlay && !mobileSearchOverlay.classList.contains('hidden')) {
+            mobileSearchOverlay.classList.add('hidden');
+        }
+        if (mobileSearchBackdrop && !mobileSearchBackdrop.classList.contains('hidden')) {
+            mobileSearchBackdrop.classList.add('hidden');
+        }
+        hideMobileSearchDropdown();
         const mobileState = document.querySelector(
             '.mobile-panel-open, .mobile-account-fullscreen, .mobile-pull-up-panel.open, .mobile-sigma-sheet.open, .mobile-sigma-sheet-backdrop.open'
         );

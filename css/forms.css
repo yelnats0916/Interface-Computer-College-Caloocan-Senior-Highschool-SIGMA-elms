@@ -377,6 +377,14 @@ input[type="date"].sigma-input,
     width: 100%;
 }
 
+.sigma-select-wrapper:has(select.hidden),
+.sigma-select-wrapper:has(select[hidden]),
+.sigma-select-wrapper:has(select[aria-hidden="true"]),
+.sigma-select-wrapper:has(#attendance-month-select),
+.sigma-select-wrapper:has(#attendance-year-select) {
+    display: none !important;
+}
+
 .sigma-select {
     width: 100%;
     height: 48px;
@@ -1300,9 +1308,9 @@ button.teacher-save-grade-btn:not(:disabled):hover {
 }
 
 /* White / Bordered Button (e.g. Save as Draft, Cancel) */
-#btn-resource-sy-toggle .resource-sy-chevron { display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; flex:0 0 12px; margin-left:2px; font-size:10px; line-height:1; color:#000; transition:transform .15s ease; }
-#btn-resource-sy-toggle[aria-expanded="true"] .resource-sy-chevron { transform:rotate(180deg); }
-#btn-resource-sy-toggle[aria-expanded="true"] { background-color:#e2e8f0 !important; }
+:is(#btn-resource-sy-toggle, #btn-perf-sy-toggle, #btn-perf-quarter-toggle) .resource-sy-chevron { display:inline-flex; align-items:center; justify-content:center; width:12px; height:12px; flex:0 0 12px; margin-left:2px; font-size:10px; line-height:1; color:#000; transition:transform .15s ease; }
+:is(#btn-resource-sy-toggle, #btn-perf-sy-toggle, #btn-perf-quarter-toggle)[aria-expanded="true"] .resource-sy-chevron { transform:rotate(180deg); }
+:is(#btn-resource-sy-toggle, #btn-perf-sy-toggle, #btn-perf-quarter-toggle)[aria-expanded="true"] { background-color:#e2e8f0 !important; }
 
 .sigma-btn-white {
     background-color: #ffffff !important;
@@ -2100,7 +2108,7 @@ table tbody tr:last-child td,
     min-width: 0;
 }
 
-.sigma-dialog-close-btn {
+.sigma-dialog-close-btn { display: none !important;
     position: absolute;
     top: 12px;
     right: 12px;
@@ -2314,12 +2322,12 @@ table tbody tr:last-child td,
 }
 
 .sigma-dialog-btn-danger {
-    background-color: #dc2626 !important;
+    background-color: #15803d !important;
     box-shadow: none !important;
 }
 
 .sigma-dialog-btn-danger:hover {
-    background-color: #b91c1c !important;
+    background-color: #166534 !important;
     box-shadow: none !important;
 }
 
@@ -2909,8 +2917,7 @@ textarea[class*="sigma-underline"]:focus,
     border-bottom-color: #FFD000 !important;
 }
 
-/* Boxed text fields & description boxes: flat 1px yellow border when selected (#FFD000) */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):not([name="insight-search"]):not(#searchBar):not(:disabled):not([readonly]):focus,
 select:not(.sigma-subject-select):not(.sigma-form-select):not(.sigma-underline-select):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
 textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(.border-b):not(.border-b-2):not(.input-error):not(:disabled):not([readonly]):focus,
 .sigma-composer-editor-box:focus-within,
@@ -3152,20 +3159,50 @@ textarea:hover:not(:disabled):not([readonly]),
 .sigma-underline-input:hover:not(:disabled):not([readonly]),
 .sigma-underline-field:hover:not(:disabled):not([readonly]),
 .sigma-one-border-textarea:hover:not(:disabled):not([readonly]),
-input[id*="search"]:not([type="button"]):not([type="submit"]):not([type="reset"]):hover:not(:disabled):not([readonly]),
-input[class*="search"]:not([type="button"]):not([type="submit"]):not([type="reset"]):hover:not(:disabled):not([readonly]) {
+input[id*="search"]:not(#searchBar):not([type="button"]):not([type="submit"]):not([type="reset"]):hover:not(:disabled):not([readonly]),
+input[class*="search"]:not(#searchBar):not([type="button"]):not([type="submit"]):not([type="reset"]):hover:not(:disabled):not([readonly]) {
     background-color: #ffffff !important;
 }
 
-/* Maintain transparency for inputs designed to sit in transparent inner shells */
+/* Maintain transparency and zero borders for inputs designed to sit in transparent inner shells */
 input.bg-transparent:hover:not(:disabled):not([readonly]),
 .bg-transparent > input:hover:not(:disabled):not([readonly]),
-.relative.flex.items-center.w-full > input.bg-transparent:hover:not(:disabled):not([readonly]) {
+.relative.flex.items-center.w-full > input.bg-transparent:hover:not(:disabled):not([readonly]),
+.sigma-insight-search input:hover:not(:disabled):not([readonly]),
+#searchBar,
+#searchBar:hover,
+#searchBar:focus,
+#searchBar:active,
+.header-search-shell input,
+.header-search-shell input:hover,
+.header-search-shell input:focus,
+.header-search-shell .header-search-ext {
     background-color: transparent !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+#searchBar::placeholder,
+#searchBar:hover::placeholder,
+.header-search-shell input::placeholder,
+.header-search-shell input:hover::placeholder {
+    font-weight: 400 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    opacity: 1 !important;
 }
 
 /* Also eliminate grey focus highlight inside text boxes */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):not(#searchBar):focus,
 textarea:not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):focus,
 .sigma-input:focus,
 .sigma-textarea:focus,
@@ -3173,13 +3210,14 @@ textarea:not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):focus,
 .sigma-form-input:focus,
 .sigma-underline-input:focus,
 .sigma-underline-field:focus,
-input[id*="search"]:not([type="button"]):not([type="submit"]):not([type="reset"]):focus {
+input[id*="search"]:not(#searchBar):not([type="button"]):not([type="submit"]):not([type="reset"]):focus {
     background-color: #ffffff !important;
 }
 
 input.bg-transparent:focus,
 .bg-transparent > input:focus,
-.relative.flex.items-center.w-full > input.bg-transparent:focus {
+.relative.flex.items-center.w-full > input.bg-transparent:focus,
+.sigma-insight-search input:focus {
     background-color: transparent !important;
 }
 
@@ -3770,3 +3808,11 @@ body #uqp-footer-counter {
 @media (max-width: 639px) {
     body #uqp-footer-counter { font-size: 11px !important; line-height: 16px !important; }
 }
+/* Consistent animated chevrons for shared selects. */
+.sigma-select-wrapper > .sigma-select-icon {pointer-events:none;position:absolute;right:18px;top:50%;margin-top:-6px;font-size:12px;line-height:12px;color:#64748b;transform:rotate(0deg);transition:transform .18s ease}
+.sigma-select-wrapper.sigma-select-open > .sigma-select-icon {transform:rotate(180deg)}
+.sigma-standard-select-wrap {min-width:0;flex:0 1 auto}
+.sigma-standard-select-wrap > select {max-width:100%;padding-right:42px !important;background-image:none !important}
+#reports-performance-view .performance-records-toolbar .sigma-standard-select-wrap {width:225px;flex:0 1 225px}
+#reports-performance-view .performance-records-toolbar .sigma-standard-select-wrap > select {width:100% !important}
+@media(prefers-reduced-motion:reduce){.sigma-select-wrapper > .sigma-select-icon {transition:none}}

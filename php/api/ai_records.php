@@ -25,16 +25,115 @@ try{
         $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR);
     }elseif($method!=='GET')throw new InvalidArgumentException('Unsupported request method.');
     $action=$input['action']??'';
+    aiInsightControls($db);
+    if($action==='manage_insights'&&$method==='POST'){
+        if(!$admin)throw new RuntimeException('Only administrators can manage insights.');
+        $operation=$input['operation']??'';$items=$input['items']??[];
+        if(!in_array($operation,['hide','show','delete'],true)||!is_array($items)||count($items)<1||count($items)>100)throw new InvalidArgumentException('Invalid insight selection.');
+        $db->beginTransaction();
+        try{
+            foreach($items as $item){
+                $type=$item['sourceType']??'';$id=$item['sourceId']??'';
+                if(!is_string($id)||strlen($id)>191)throw new InvalidArgumentException('Invalid insight.');
+                if($type==='dashboard'){
+                    $q=$db->prepare('SELECT user_id FROM ai_insight_cards WHERE id=? AND is_deleted=0');$q->execute([$id]);$owner=$q->fetchColumn();
+                }elseif($type==='grade'){
+                    $parts=explode(':',$id);$index=array_pop($parts);$logId=implode(':',$parts);
+                    if(!ctype_digit($index))throw new InvalidArgumentException('Invalid insight index.');
+                    $q=$db->prepare("SELECT user_id,payload FROM ai_logs WHERE id=? AND feature='grade_insights' AND is_deleted=0");$q->execute([$logId]);$logRow=$q->fetch();
+                    $log=$logRow?json_decode($logRow['payload'],true):null;$cards=$log?json_decode($log['response']??'',true):null;
+                    $owner=isset($cards[(int)$index]['analyses'])?$logRow['user_id']:false;
+                }else throw new InvalidArgumentException('Invalid insight type.');
+                if(!$owner)throw new RuntimeException('Insight no longer available. Reload and try again.');
+                $q=$db->prepare('INSERT INTO ai_insight_controls(source_type,source_id,user_id,hidden,is_deleted,changed_by) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hidden=VALUES(hidden),is_deleted=GREATEST(is_deleted,VALUES(is_deleted)),changed_by=VALUES(changed_by)');
+                $q->execute([$type,$id,$owner,$operation==='show'?0:1,$operation==='delete'?1:0,$actor]);
+            }
+            $db->commit();
+        }catch(Throwable $error){if($db->inTransaction())$db->rollBack();throw $error;}
+        echo json_encode(['success'=>true]);exit;
+    }
     if($action==='report' && $method==='GET'){
         if(!$admin)throw new RuntimeException('Only administrators can read insight reports.');
-        $users=$db->query("SELECT id,full_name,first_name,last_name,role FROM users WHERE is_deleted=0 AND LOWER(REPLACE(role,' ','')) IN ('student','teacher') ORDER BY full_name,id")->fetchAll();
+        $users=$db->query("SELECT id,full_name,first_name,last_name,role,avatar FROM users WHERE is_deleted=0 AND LOWER(REPLACE(role,' ','')) IN ('student','teacher') ORDER BY full_name,id")->fetchAll();
         $owners=[];
+        $controls=[];
+        foreach($db->query('SELECT source_type,source_id,hidden,is_deleted FROM ai_insight_controls')->fetchAll() as $control)$controls[$control['source_type'].':'.$control['source_id']]=$control;
+        $gradeCards=[];
+        foreach($db->query("SELECT id,user_id,payload FROM ai_logs WHERE feature='grade_insights' AND is_deleted=0 ORDER BY created_at DESC,id DESC")->fetchAll() as $record){
+            $log=json_decode($record['payload'],true);
+            if(!is_array($log)||!in_array($log['status']??'', ['Success','Fallback Used'],true))continue;
+            $cards=json_decode($log['response']??'',true);
+            if(!is_array($cards))continue;
+            foreach($cards as $index=>$card){
+                if(!is_array($card)||!is_array($card['analyses']??null))continue;
+                $control=$controls['grade:'.$record['id'].':'.$index]??[];
+                if(!empty($control['is_deleted']))continue;
+                $card['sourceType']='grade';$card['sourceId']=$record['id'].':'.$index;$card['hidden']=!empty($control['hidden']);
+                $card['id']=($log['generationId']??$log['id']).'-'.$index;
+                $card['generationId']=$log['generationId']??null;
+                $card['createdAt']=$log['timestamp']??null;
+                $card['reportCategory']=str_starts_with($log['prompt']??'', 'Subject Grades:')?'subject':'grade';
+                $card['reportSource']=$card['reportCategory']==='subject'?'subject-grades-view':'grades-page';
+                $card['sourceLabel']=$log['prompt']??'';
+                $sourceRecords=$log['evidenceSources'][0]['records']??[];
+                $card['subject']=implode(', ',array_unique(array_filter(array_column($sourceRecords,'title'))));
+                if($card['subject']===''&&preg_match('/^(?:Subject Grades:|Class Grades:)\s*(.+?)(?:\s*\(|$)/',$log['prompt']??'', $match))$card['subject']=$match[1];
+                $gradeCards[$record['user_id']][$card['id']]=$card;
+            }
+        }
         foreach($users as $user){
             $kind=strtolower($user['role']);
             $result=aiAnalyticsState($db,$user['id'],$kind);
-            $owners[]=['id'=>$user['id'],'name'=>$user['full_name']?:trim($user['first_name'].' '.$user['last_name']),'role'=>$kind,'cards'=>$result['state']['cards'],'lastAnalyzed'=>$result['state']['lastAnalyzed']??null];
+            $q=$db->prepare('SELECT id,payload FROM ai_insight_cards WHERE user_id=? AND kind=? AND is_deleted=0 ORDER BY created_at DESC,id DESC');$q->execute([$user['id'],$kind]);
+            $cards=[];
+            foreach($q->fetchAll() as $stored){
+                $card=json_decode($stored['payload'],true);$control=$controls['dashboard:'.$stored['id']]??[];
+                if(!is_array($card)||!empty($control['is_deleted']))continue;
+                $card['sourceType']='dashboard';$card['sourceId']=$stored['id'];$card['hidden']=!empty($control['hidden']);$cards[]=$card;
+            }
+            // Dashboard cards are a different source from View Grades and GWA insights.
+            foreach($cards as &$dashboardCard){$dashboardCard['reportCategory']='analytics';$dashboardCard['reportSource']='dashboard';}
+            unset($dashboardCard);
+            $generationIds=array_filter(array_column($cards,'generationId'));
+            foreach($gradeCards[$user['id']]??[] as $card){
+                if(!empty($card['generationId'])&&in_array($card['generationId'],$generationIds,true))continue;
+                $cards[]=$card;
+            }
+            $owners[]=['id'=>$user['id'],'name'=>$user['full_name']?:trim($user['first_name'].' '.$user['last_name']),'role'=>$kind,'avatar'=>$user['avatar']??null,'cards'=>$cards,'lastAnalyzed'=>$result['state']['lastAnalyzed']??null];
         }
         echo json_encode(['success'=>true,'users'=>$owners]);
+    }elseif($action==='insight_timestamp' && in_array($method,['GET','POST'],true)){
+        $owner=$input['userId']??$actor;
+        if(!$admin&&$owner!==$actor)throw new RuntimeException('This insight belongs to another account.');
+        $generation=$input['generationId']??'';
+        $sourceId=$input['sourceId']??'';
+        $analyses=$input['analyses']??null;
+        if(!is_string($generation)||strlen($generation)>128)throw new InvalidArgumentException('Invalid generation ID.');
+        if(!is_string($sourceId)||strlen($sourceId)>191)throw new InvalidArgumentException('Invalid insight source.');
+        $q=$db->prepare("SELECT id,payload FROM ai_logs WHERE user_id=? AND feature='grade_insights' AND is_deleted=0 ORDER BY created_at ASC,id ASC");
+        $q->execute([$owner]);$timestamp=null;$hidden=false;$deleted=false;
+        foreach($q->fetchAll() as $row){
+            $log=json_decode($row['payload'],true);
+            if(!in_array($log['status']??'', ['Success','Fallback Used'],true))continue;
+            $matches=$generation!==''&&($log['generationId']??'')===$generation;
+            if(!$matches&&is_array($analyses)&&count($analyses)>0){
+                $cards=json_decode($log['response']??'',true);
+                foreach(is_array($cards)?$cards:[] as $card){
+                    if(is_array($card)&&($card['analyses']??null)==$analyses){$matches=true;break;}
+                }
+            }
+            if($matches){
+                $timestamp=$log['timestamp']??null;
+                $exactSource=str_starts_with($sourceId,$row['id'].':');
+                $qControl=$db->prepare($exactSource
+                    ? "SELECT hidden,is_deleted FROM ai_insight_controls WHERE source_type='grade' AND source_id=?"
+                    : "SELECT hidden,is_deleted FROM ai_insight_controls WHERE source_type='grade' AND source_id LIKE ?");
+                $qControl->execute([$exactSource?$sourceId:$row['id'].':%']);
+                foreach($qControl->fetchAll() as $control){$hidden=$hidden||!empty($control['hidden']);$deleted=$deleted||!empty($control['is_deleted']);}
+                break;
+            }
+        }
+        echo json_encode(['success'=>true,'timestamp'=>$timestamp,'hidden'=>$hidden,'deleted'=>$deleted]);
     }elseif($action==='logs'){
         if(!$admin)throw new RuntimeException('Only administrators can read all AI logs.');
         echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]);

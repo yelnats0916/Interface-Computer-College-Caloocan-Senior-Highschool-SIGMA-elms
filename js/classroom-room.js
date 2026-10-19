@@ -2877,9 +2877,12 @@
         } else {
             students.forEach(student => {
                 let displayName = student.name || student.displayName || student.fullName || '';
-                const studentAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
-                    ? window.renderUserAvatarHtml(displayName, 'sm')
-                    : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`;
+                const sPhoto = (typeof window.resolveUserAvatar === 'function')
+                    ? window.resolveUserAvatar(student)
+                    : (student.profilePicture || student.avatar || student.photo || '');
+                const studentAvatarHtml = (sPhoto && typeof sPhoto === 'string' && sPhoto.trim())
+                    ? `<div class="attendance-student-avatar w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden aspect-square"><img src="${escapeHtml(sPhoto.trim())}" alt="${escapeHtml(displayName)}" class="w-full h-full object-cover rounded-full block" onerror="window.handleAvatarImgError(this);"></div>`
+                    : `<div class="attendance-student-avatar w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden aspect-square"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>`;
                 const sKey = student.id || student.uid || student.name;
                 const totals = studentTotals[sKey] || { P: 0, A: 0, L: 0 };
 

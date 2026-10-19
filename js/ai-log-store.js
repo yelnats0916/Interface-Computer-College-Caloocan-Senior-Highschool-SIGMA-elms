@@ -27,10 +27,13 @@
     function normalize(log) {
         const timestamp = new Date(log?.timestamp);
         if (!log || !log.userId || !features.includes(log.feature) || Number.isNaN(timestamp.getTime())) throw new TypeError('Invalid recorded AI log');
+        const generationId = String(log.generationId || '').trim();
+        if (generationId && !/^[A-Z]{3,8}-\d{4}-\d{4,}$/.test(generationId)) throw new TypeError('Invalid AI generation ID');
         return { id: String(log.id || crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-')),
             userId: String(log.userId), feature: log.feature, timestamp: timestamp.toISOString(),
             prompt: String(log.prompt || ''), response: String(log.response || ''), actionDescription: String(log.actionDescription || ''),
             model: String(log.model || 'Not recorded'), status: ['Success', 'Failed', 'Fallback Used'].includes(log.status) ? log.status : 'Not recorded',
+            ...(generationId ? { generationId } : {}),
             ...(log.provider && ['gemini', 'groq'].includes(log.provider) ? { provider: log.provider } : {}),
             ...(log.keyId ? { keyId: String(log.keyId), keyLabel: String(log.keyLabel || 'API Key') } : {}),
             evidenceSources: normalizeEvidenceSources(log.evidenceSources),
@@ -71,8 +74,8 @@
             });
             return entry.id;
         },
-        recordInsight({ userId, kind, card, snapshot, timestamp, model, provider, keyId, keyLabel, status = 'Success' }) {
-            return this.record({ userId, feature: 'analytics', timestamp, model, provider, keyId, keyLabel, status,
+        recordInsight({ userId, kind, card, snapshot, timestamp, model, provider, keyId, keyLabel, generationId, status = 'Success' }) {
+            return this.record({ userId, feature: 'analytics', timestamp, model, provider, keyId, keyLabel, generationId, status,
                 prompt: card.title, actionDescription: card.title,
                 evidenceSources: insightEvidenceSources(card, snapshot, userId, kind),
                 response: card.analyses.map(item => [item.context, item.actionLabel + ': ' + item.text].filter(Boolean).join('\n\n')).join('\n\n'),

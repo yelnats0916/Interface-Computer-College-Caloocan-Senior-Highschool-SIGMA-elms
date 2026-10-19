@@ -154,6 +154,18 @@
     transition: none !important;
 }
 
+.nav-link:not(.active) .sidebar-rail-icon i,
+.nav-link:not(.active) i.fa-bolt {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+.nav-link.active .sidebar-rail-icon i,
+.nav-link.active i.fa-bolt {
+    color: var(--sidebar-active-yellow, #FFD000) !important;
+    -webkit-text-fill-color: var(--sidebar-active-yellow, #FFD000) !important;
+}
+
 .nav-link.active span,
 .nav-link.active .full-label,
 .nav-link.active .rail-label {
@@ -403,8 +415,10 @@ body.sidebar-collapsed .nav-link.active {
     transition: none !important;
 }
 
-body.sidebar-collapsed .nav-link.active i:not(.sidebar-group-chevron) {
-    color: var(--sidebar-active-yellow) !important;
+body.sidebar-collapsed .nav-link.active i:not(.sidebar-group-chevron),
+body.sidebar-collapsed .nav-link.active i.fa-bolt {
+    color: var(--sidebar-active-yellow, #FFD000) !important;
+    -webkit-text-fill-color: var(--sidebar-active-yellow, #FFD000) !important;
     transition: none !important;
 }
 
@@ -615,6 +629,13 @@ html.sidebar-viewport-reset body #sidebar-overlay {
     overflow: hidden !important;
     transform-origin: top left !important;
 }
+
+#sub-sidebar.flyout-up {
+    border-radius: 18px 18px 18px 0 !important;
+    transform-origin: bottom left !important;
+}
+
+
 
 /* Invisible hit bridge between icon rail and sub-sidebar floating card */
 #sub-sidebar::before {

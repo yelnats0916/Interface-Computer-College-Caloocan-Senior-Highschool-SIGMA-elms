@@ -3017,9 +3017,12 @@ function initTeacherPortal() {
                 if (student.middleName && !student.name.includes(student.middleName)) {
                     displayName = `${student.name} ${student.middleName}`;
                 }
-                const studentAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
-                    ? window.renderUserAvatarHtml(student.name, 'sm')
-                    : `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`;
+                const sPhoto = (typeof window.resolveUserAvatar === 'function')
+                    ? window.resolveUserAvatar(student)
+                    : (student.profilePicture || student.avatar || student.photo || '');
+                const studentAvatarHtml = (sPhoto && typeof sPhoto === 'string' && sPhoto.trim())
+                    ? `<div class="attendance-student-avatar w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden aspect-square"><img src="${escapeHtml(sPhoto.trim())}" alt="${escapeHtml(displayName)}" class="w-full h-full object-cover rounded-full block" onerror="window.handleAvatarImgError(this);"></div>`
+                    : `<div class="attendance-student-avatar w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden aspect-square"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>`;
                 const sKey = student.id || student.name;
                 const totals = studentTotals[sKey] || { P: 0, A: 0, L: 0 };
 
@@ -3030,7 +3033,7 @@ function initTeacherPortal() {
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}">${displayName}</span>
+                                      title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -19463,7 +19466,15 @@ function initTeacherPortal() {
         };
         const titleText = navContextMap[navId] || 'Interface Computer College';
         if (typeof window.setNavContext === 'function') {
-            window.setNavContext(titleText);
+            const grades = window.sigmaGradesState;
+            const subject = grades?.selectedSubjectSection?.subject;
+            if (navId === 'nav-grades' && grades?.activeTab === 'analytics' && grades.teacherAnalyticsDetail && subject) {
+                window.setNavContext('Grades', subject);
+            } else if (navId === 'nav-grades' && grades?.activeTab === 'analytics' && grades.teacherAdvisoryView) {
+                window.setNavContext('Grades', 'Advisory Class');
+            } else {
+                window.setNavContext(titleText);
+            }
         } else {
             const navContextText = document.getElementById('nav-context-text');
             if (navContextText) navContextText.textContent = titleText;
@@ -21679,7 +21690,7 @@ function initTeacherPortal() {
                                                     </div>
                                                     <div class="min-w-0 flex-1">
                                                         <p class="font-bold text-slate-900 text-[11.5px] sm:text-xs truncate leading-snug font-['Inter']">${escapeHtml(std.name)}</p>
-                                                        <p class="text-[9.5px] sm:text-[10px] text-black-fade font-medium mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">${escapeHtml(std.id)}</p>
+                                                        <p class="text-[9.5px] sm:text-[10px] text-black-fade font-medium mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">ID: ${escapeHtml(String(std.id || '-').replace(/^ID:\s*/i, ''))}</p>
                                                     </div>
                                                 </div>
                                             </td>
@@ -27954,8 +27965,13 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
                                         return `
                                             <tr class="hover:bg-slate-50/80 transition-colors">
                                                 <td class="py-2.5 px-4">
-                                                    <p class="font-bold text-black text-xs leading-snug">${s.name}</p>
-                                                    <p class="text-[10px] text-slate-400 font-normal leading-normal mt-0.5">ID: ${s.id}</p>
+                                                    <div class="flex items-center gap-2.5">
+                                                        ${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(s, 'sm')) || `<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user text-xs"></i></div>`}
+                                                        <div class="min-w-0">
+                                                            <p class="font-bold text-black text-xs leading-snug truncate">${s.name}</p>
+                                                            <p class="text-[10px] text-black-fade font-normal leading-normal mt-0.5" style="color: rgba(0, 0, 0, 0.45) !important;">ID: ${String(s.id || '-').replace(/^ID:\s*/i, '')}</p>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td class="py-2.5 px-3 text-center font-medium text-slate-700">${wwStr}</td>
                                                 <td class="py-2.5 px-3 text-center font-medium text-slate-700">${ptStr}</td>
@@ -28926,6 +28942,10 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
 
     const triggerGlobalSearch = () => {
         const query = (searchBar?.value || '').trim();
+        if (query && typeof window.openSearchResultsView === 'function') {
+            window.openSearchResultsView(query);
+            return;
+        }
         const visibleSection = Array.from(document.querySelectorAll('.dynamic-section:not(.hidden)'))[0];
         if (!visibleSection) return;
         const sectionId = visibleSection.id;
@@ -28969,12 +28989,19 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
         if (searchBar) searchBar.value = '';
     });
 
-    // Re-render announcements ONLY when switching between mobile and desktop layouts
+    // Close mobile search if clicking outside
     document.addEventListener('mousedown', (e) => {
         if (window.innerWidth < 1024) {
             const header = document.getElementById('teacher-header');
             const searchShell = document.querySelector('.header-search-shell');
-            if (header?.classList.contains('mobile-search-active') && !searchShell?.contains(e.target)) {
+            const mobileOverlay = document.getElementById('mobile-search-overlay');
+            const mobileDropdown = document.getElementById('mobile-search-dropdown');
+            const mobileBackdrop = document.getElementById('mobile-search-backdrop');
+            if (header?.classList.contains('mobile-search-active') &&
+                !searchShell?.contains(e.target) &&
+                !mobileOverlay?.contains(e.target) &&
+                !mobileDropdown?.contains(e.target) &&
+                !mobileBackdrop?.contains(e.target)) {
                 header?.classList.remove('mobile-search-active');
             }
         }

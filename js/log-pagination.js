@@ -26,7 +26,7 @@
         const storageKey = 'sigma-log-page:' + owner + ':' + (table.getAttribute('aria-label') || table.className);
         let page = 1;
         try { page = Math.max(1, Number(sessionStorage.getItem(storageKey)) || 1); } catch {}
-        const pageSize = 20;
+        let pageSize = Number(table.dataset.pageSize) || 20;
         const body = table.tBodies[0];
         let rows = Array.from(body.rows), items = null, renderRow = null, searchText = null, query = '';
         let currentRows = new Map();
@@ -40,6 +40,7 @@
         });
         const observe = () => observer.observe(body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-log-search-match'] });
         function paint() {
+            pageSize = Number(table.dataset.pageSize) || 20;
             const records = items ? query ? items.filter(item => String(searchText ? searchText(item) : JSON.stringify(item)).toLowerCase().includes(query)) : items
                 : rows.filter(row => row.cells.length > 1 && row.dataset.logSearchMatch !== 'false' && (!query || row.textContent.toLowerCase().includes(query)));
             const pages = Math.max(1, Math.ceil(records.length / pageSize));
@@ -63,11 +64,11 @@
             observer.disconnect();
             if (nodes.length !== body.rows.length || nodes.some((row, index) => body.rows[index] !== row)) body.replaceChildren(...nodes);
             observe();
-            footer.replaceChildren(); footer.hidden = pages === 1;
+            footer.replaceChildren(); footer.hidden = pages === 1 && !table.dataset.pageSizeOptions;
             try { sessionStorage.setItem(storageKey, String(page)); } catch {}
             if (footer.hidden) return;
             const count = document.createElement('span'); count.className = 'sigma-log-page-count text-black-fade';
-            count.textContent = ((page - 1) * pageSize + 1) + '-' + Math.min(page * pageSize, records.length) + ' of ' + records.length;
+            count.textContent = (records.length ? (page - 1) * pageSize + 1 : 0) + '-' + Math.min(page * pageSize, records.length) + ' of ' + records.length;
             const controls = document.createElement('div'); controls.className = 'sigma-log-page-controls';
             function button(label, target, icon = '') {
                 const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', label); button.title = label;
@@ -90,7 +91,15 @@
                 if (index && number > numbers[index - 1] + 1) { const gap = document.createElement('span'); gap.textContent = '...'; controls.append(gap); }
                 button('Page ' + number, number);
             });
-            button('Next page', page + 1, 'fa-chevron-right'); footer.append(count, controls);
+            button('Next page', page + 1, 'fa-chevron-right');
+            if(table.dataset.pageSizeOptions){
+                const group=document.createElement('div');group.style.cssText='display:flex;align-items:center;gap:16px';
+                const label=document.createElement('label');label.textContent='Rows per page ';
+                const size=document.createElement('select');size.setAttribute('aria-label','Rows per page');
+                for(const value of table.dataset.pageSizeOptions.split(',')){const option=document.createElement('option');option.value=value;option.textContent=value;size.append(option);}
+                size.value=String(pageSize);size.onchange=()=>{table.dataset.pageSize=size.value;page=1;paint();};
+                label.append(size);group.append(count,label);footer.append(group,controls);
+            }else footer.append(count, controls);
         }
         const controller = {
             refresh: paint,

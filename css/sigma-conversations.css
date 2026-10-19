@@ -24,9 +24,77 @@
 #sigmaAiPanel .sigma-conversation-item > i { flex: 0 0 16px; color: var(--sigma-black-fade, rgba(0,0,0,.45)); }
 #sigmaAiPanel .sigma-conversation-title { display: block; font-size: 14px; overflow-wrap: anywhere; }
 #sigmaAiPanel .sigma-conversation-date { display: block; margin-top: 4px; font-size: 12px; color: var(--sigma-black-fade, rgba(0,0,0,.45)); }
-#sigmaAiPanel .sigma-conversation-previous { display: block; margin: 20px auto 0; }
+#sigmaAiPanel .notif-prev-btn-wrapper { padding: 0; background-color: #ffffff; flex-shrink: 0 !important; border-top: 1px solid #f1f5f9; }
+#sigmaAiPanel .notif-prev-btn { width: 100%; min-height: 52px; padding: 14px 16px; background-color: #ffffff; border: 0; border-radius: 0; font-size: 12px; font-weight: 700; color: #0f172a; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.18s ease, border-color 0.18s ease; }
+#sigmaAiPanel .notif-prev-btn:hover { background-color: #e2e8f0; border-color: #cbd5e1; }
+#sigmaAiPanel .sigma-conversation-previous { display: flex; margin: 16px auto 0; }
 #sigmaAiPanel .sigma-conversation-empty { padding: 60px 0; }
 #sigmaAiPanel .sigma-conversation-notice { padding: 8px 20px; margin: 0; color: #b91c1c; font-size: 12px; }
 #sigmaAiPanel .sigma-ai-message__bubble { white-space: pre-wrap; }
 
 #sigmaAiPanel .sigma-conversation-history:has(.sigma-conversation-menu:not([hidden])) { padding-bottom: 80px; }
+
+/* SIGMA Bot Conversations 3-Column Card Layout (Left: Identity, Middle: Body text, Right: Date & Msgs) */
+.sigma-bot-card-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr) 140px;
+    gap: 24px;
+    align-items: center;
+    width: 100%;
+}
+.sigma-bot-card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.sigma-bot-card-middle {
+    min-width: 0;
+    padding: 0 16px;
+}
+.sigma-bot-card-right {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 6px;
+    text-align: right;
+}
+@media (max-width: 768px) {
+    .sigma-bot-card-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    .sigma-bot-card-middle {
+        padding: 0;
+    }
+    .sigma-bot-card-right {
+        align-items: flex-start;
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+/* Card Selection Tint and Styles */
+.sigma-bot-card-item {
+    width: 100%;
+    text-align: left;
+    padding: 16px 24px;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    background-color: #ffffff;
+    box-sizing: border-box;
+}
+.sigma-bot-card-item:hover {
+    background-color: #f8fafc;
+}
+.sigma-bot-card-item.is-active,
+.sigma-bot-card-item.sigma-bot-card-active {
+    background-color: #f0fdf4 !important;
+    border-left: 4px solid #15803d !important;
+}
+

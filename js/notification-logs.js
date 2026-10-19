@@ -191,7 +191,7 @@
                     icon.className = 'fa-solid ' + ({sigma:'fa-bolt',school:'fa-school',group:'fa-users'}[kind] || 'fa-user');
                     avatar.replaceChildren(icon);
                 };
-                const src = kind === 'school' ? schoolLogo : kind === 'person' && window.resolveUserAvatar?.(user || {});
+                const src = kind === 'school' ? schoolLogo : kind === 'person' && window.resolveUserAvatar?.(user || { id: detail, name });
                 if (src && /^(https?:|data:image\/|blob:|\.?\.?\/|image\/|uploads\/)/i.test(src)) {
                     const image = document.createElement('img'); image.src = src; image.alt = ''; image.onerror = fallback; avatar.append(image);
                 } else fallback();
@@ -199,7 +199,8 @@
                 const primary = document.createElement(target ? 'button' : 'div'); primary.textContent = name;
                 if (target) { primary.type='button';primary.className='notification-log-name-link';primary.onclick=()=>openDetails({...target,name,avatar}); }
                 text.append(primary);
-                if (detail) { const secondary = document.createElement('div'); secondary.className = 'text-sm text-black-fade'; secondary.textContent = detail; text.append(secondary); }
+                const cleanDetailId = String(detail || '').replace(/^ID:\s*/i, '').trim();
+                if (cleanDetailId) { const secondary = document.createElement('div'); secondary.className = 'text-sm text-black-fade'; secondary.textContent = 'ID: ' + cleanDetailId; text.append(secondary); }
                 wrap.append(avatar, text); td.append(wrap); row.append(td);
             };
             const sender = accountFor(log.senderId);
@@ -243,12 +244,24 @@
             toggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const willShow = menu.hidden;
+                window.closeAllTableActionDropdowns?.(menu);
                 document.querySelectorAll('.notification-log-action-menu, .ai-log-message-menu').forEach(m => {
-                    m.hidden = true;
-                    m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+                    if (m !== menu) {
+                        m.hidden = true;
+                        m.classList.remove('dropup');
+                        window.resetActionDropdownPosition?.(m);
+                        m.previousElementSibling?.classList.remove('active');
+                        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+                    }
                 });
                 menu.hidden = !willShow;
+                toggle.classList.toggle('active', willShow);
                 toggle.setAttribute('aria-expanded', String(willShow));
+                if (willShow) {
+                    window.positionActionDropdown?.(menu, toggle);
+                } else {
+                    window.resetActionDropdownPosition?.(menu);
+                }
             });
 
             menu.append(deleteBtn);

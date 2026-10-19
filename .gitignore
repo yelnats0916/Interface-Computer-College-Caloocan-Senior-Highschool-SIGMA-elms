@@ -31,3 +31,7 @@ scratch/
 # ─── Database Backups / Dumps ─────────────────────────────
 database/backups/*.sql
 !database/backups/.gitkeep
+
+# Debug dumps / test screenshots
+dump_*.html
+*_profile_mobile.png

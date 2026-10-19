@@ -23,21 +23,29 @@
         window.invalidateSharedAssessmentSubmissionsStorage?.();
         window.dispatchEvent(new Event('sigma:submission-files-updated'));
     };
-    const names = { users: 'Accounts', school_years: 'School Years', sections: 'Sections', subjects: 'Subjects', quizzes: 'Quizzes', announcements: 'Announcements', audit_logs: 'Audit Records', ai_logs: 'AI Logs', ai_insight_cards: 'AI Cards' };
-    function sampleRecords(table) {
-        const labels = {
-            users: ['Alex Reyes - Student', 'Sam Cruz - Teacher'],
-            school_years: ['School Year 2025-2026', 'School Year 2024-2025'],
-            sections: ['Grade 11 - Sample Section A', 'Grade 12 - Sample Section B'],
-            subjects: ['Computer Programming 1', 'General Mathematics'],
-            quizzes: ['Quiz 1 - Basic Syntax', 'Quiz 2 - Variables'],
-            ai_logs: ['Analytics Insights - Complete Pending Tasks', 'Sigma Bot - Programming Question'],
-            ai_insight_cards: ['Complete Pending Tasks', 'Review Your Quiz Results']
-        }[table] || ['Recorded Activity', 'Recorded Update'];
-        return labels.map((label, index) => ({ id: 'sample-' + table + '-' + index, label: label + ' (sample)',
-            deletedByName: 'Sample Administrator', deletedByUser: { name: 'Sample Administrator', role: index ? 'Admin' : 'Master Admin' },
-            deletedAt: index ? '2026-10-11 00:05:00' : '2026-10-11 00:15:00', sample: true }));
-    }
+    const names = {
+        users: 'User Accounts',
+        school_years: 'School Years',
+        sections: 'Sections',
+        subjects: 'Subjects',
+        quizzes: 'Quizzes',
+        announcements: 'Announcements',
+        ai_logs: 'AI Logs',
+        ai_insight_cards: 'AI Insights',
+        submission_files: 'Submission Files'
+    };
+    const featureOrder = [
+        'users',
+        'school_years',
+        'sections',
+        'subjects',
+        'quizzes',
+        'announcements',
+        'ai_logs',
+        'ai_insight_cards',
+        'submission_files'
+    ];
+    
     function removerIdentity(record) {
         const user = record.deletedByUser || {};
         const identity = document.createElement('div'); identity.className = 'removed-records-identity';
@@ -58,37 +66,78 @@
         if (source && !document.getElementById('settings-recovery-view')) {
             const page = document.createElement('section');
             page.id = 'settings-recovery-view'; page.className = 'dynamic-section hidden';
-            page.innerHTML = '<div class="record-recovery-layout"><div class="removed-records-content"><div class="record-recovery-toolbar"><label>Record Type<select></select></label><form class="record-recovery-search ai-log-search" role="search"><div class="ai-log-search-input-wrap"><input type="search" class="sigma-input sigma-search-input" maxlength="100" autocomplete="off" placeholder="Search records" aria-label="Search recovery records"><button type="button" class="ai-log-search-clear" title="Clear search" aria-label="Clear search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><button type="submit" class="sigma-btn sigma-btn-primary" aria-label="Search records">Search</button></form></div><p role="status"></p><div class="sigma-table-container overflow-x-auto"><table class="sigma-table sigma-audit-table"><thead><tr><th>Record</th><th>Removed By</th><th>Removed At</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div></div>';
-            const select = page.querySelector('select');
-            select.className = 'sigma-select';
-            select.setAttribute('aria-label', 'Filter recovery records by type');
-            const selectWrapper = document.createElement('div'); selectWrapper.className = 'sigma-select-wrapper';
-            select.before(selectWrapper);
-            selectWrapper.append(select);
-            const chevron = document.createElement('i'); chevron.className = 'fa-solid fa-chevron-down sigma-select-icon'; chevron.setAttribute('aria-hidden', 'true');
-            selectWrapper.append(chevron);
+            page.innerHTML = '<div class="record-recovery-layout"><div class="removed-records-content"><div class="record-recovery-toolbar"><form class="record-recovery-search ai-log-search" role="search"><div class="ai-log-search-input-wrap"><input type="search" class="sigma-input sigma-search-input" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Search records" aria-label="Search recovery records"><button type="button" class="ai-log-search-clear" title="Clear search" aria-label="Clear search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div></form><div class="record-recovery-filter"><div class="sigma-select-wrapper"><select class="sigma-select" aria-label="Filter recovery records by feature"></select><i class="fa-solid fa-chevron-down sigma-select-icon" aria-hidden="true"></i></div></div><button type="button" class="sigma-btn sigma-btn-primary record-recovery-search-btn" aria-label="Search records">Search</button></div><p role="status"></p><div class="sigma-table-container overflow-x-auto"><table class="sigma-table sigma-audit-table"><thead><tr><th>Record</th><th>Removed By</th><th>Removed At</th><th>Actions</th></tr></thead><tbody></tbody></table></div></div></div>';
             document.getElementById('audit-ai-view').after(page);
-            const preview = document.createElement('label'); preview.className = 'removed-records-preview';
-            preview.innerHTML = '<input type="checkbox" checked data-removed-preview><span>Sample Records</span>';
-            page.querySelector('.record-recovery-toolbar').after(preview);
         }
     }
     async function open() {
         const page = document.getElementById('settings-recovery-view');
         if (!page) return;
         const select = page.querySelector('select'), notice = page.querySelector('[role=status]'), body = page.querySelector('tbody');
-        const preview = page.querySelector('[data-removed-preview]');
         const search = page.querySelector('.record-recovery-search');
         const input = search.querySelector('input'), clear = search.querySelector('.ai-log-search-clear');
+        
+        const sanitizeSearch = value => {
+            if (typeof value !== 'string') return '';
+            return value
+                .replace(/[\u0000-\u001f\u007f]/g, '')
+                .replace(/<[^>]*>/g, '')
+                .replace(/[^a-zA-Z0-9\s\-_.:#@/()]/g, '')
+                .replace(/^\s+/, '')
+                .slice(0, 60);
+        };
         const cleanSearch = () => {
-            input.value = input.value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 100);
+            const cleaned = sanitizeSearch(input.value);
+            if (input.value !== cleaned) input.value = cleaned;
             clear.hidden = !input.value;
         };
-        const applySearch = () => { cleanSearch(); window.SigmaLogPagination?.filter(page.querySelector('table'), input.value.trim()); };
-        input.oninput = cleanSearch;
-        input.onsearch = () => { if (!input.value) applySearch(); };
-        clear.onclick = () => { input.value = ''; cleanSearch(); input.focus({ preventScroll: true }); };
-        search.onsubmit = event => { event.preventDefault(); applySearch(); };
+        const applySearch = () => {
+            cleanSearch();
+            window.SigmaLogPagination?.filter(page.querySelector('table'), input.value.trim());
+        };
+        
+        if (!search.dataset.initialized) {
+            search.dataset.initialized = 'true';
+            input.addEventListener('beforeinput', event => {
+                if (event.data && /[^a-zA-Z0-9\s\-_.:#@/()]/.test(event.data)) {
+                    event.preventDefault();
+                }
+            });
+            input.addEventListener('input', () => {
+                cleanSearch();
+                applySearch();
+            });
+            input.addEventListener('paste', () => {
+                setTimeout(() => {
+                    cleanSearch();
+                    applySearch();
+                }, 0);
+            });
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    input.value = '';
+                    clear.hidden = true;
+                    applySearch();
+                    input.blur();
+                }
+            });
+            input.onsearch = () => { applySearch(); };
+            clear.onclick = () => {
+                input.value = '';
+                clear.hidden = true;
+                applySearch();
+                input.focus({ preventScroll: true });
+            };
+            search.onsubmit = event => {
+                event.preventDefault();
+                applySearch();
+            };
+            const searchBtn = page.querySelector('.record-recovery-search-btn');
+            if (searchBtn) {
+                searchBtn.onclick = () => { applySearch(); };
+            }
+        }
+
         async function load() {
             notice.hidden = false; notice.textContent = 'Loading...'; select.disabled = true;
             try {
@@ -99,25 +148,14 @@
                 body.replaceChildren();
                 if (!select.options.length) {
                     select.add(new Option('All', 'all'));
-                    result.tables.forEach(table => select.add(new Option(table === 'submission_files' ? 'Submission Files' : names[table] || table, table)));
+                    featureOrder.forEach(table => {
+                        select.add(new Option(names[table], table));
+                    });
                     select.value = 'all'; select.disabled = false; return load();
                 }
-                const sampleTypes = select.value === 'all' ? Array.from(select.options).map(option => option.value).filter(value => value !== 'all') : [select.value];
-                let samples = [];
-                if (preview.checked && sampleTypes.length) {
-                    if (select.value === 'all') {
-                        samples = Array.from({ length: 25 }, (_, index) => {
-                            const type = sampleTypes[index % sampleTypes.length];
-                            const sample = sampleRecords(type)[Math.floor(index / sampleTypes.length) % 2];
-                            return { ...sample, id: sample.id + '-' + index,
-                                label: sample.label.replace(' (sample)', ' #' + (index + 1) + ' (sample)'), recordType: type };
-                        });
-                    } else if (!result.records.length) samples = sampleRecords(select.value).map(record => ({ ...record, recordType: select.value }));
-                }
-                const records = [...result.records, ...samples, ...(['all','submission_files'].includes(select.value) ? localFiles() : [])];
+                const records = [...(result.records || []), ...(['all','submission_files'].includes(select.value) ? localFiles() : [])];
                 const renderRow = record => {
                     const row = document.createElement('tr');
-                    if (record.sample) row.dataset.sampleRecord = 'true';
                     const date = record.deletedAt ? new Date(record.deletedAt.includes('T') ? record.deletedAt : record.deletedAt.replace(' ', 'T') + 'Z').toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : 'Not recorded';
                     [record.label, record.deletedByName || record.deletedBy || 'Not recorded', date].forEach((text, index) => {
                         const cell = document.createElement('td'); cell.dataset.label = ['Record', 'Removed By', 'Removed At'][index];
@@ -135,33 +173,127 @@
                     trigger.innerHTML = '<i class="fa-solid fa-ellipsis" aria-hidden="true"></i>';
                     const menu = document.createElement('div'); menu.className = 'removed-records-menu'; menu.setAttribute('popover', 'auto');
                     menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', 'Record actions');
-                    trigger.onclick = () => {
+                    trigger.onclick = (e) => {
+                        e.stopPropagation();
                         if (menu.matches(':popover-open')) { menu.hidePopover(); return; }
+                        window.closeAllTableActionDropdowns?.(menu);
                         menu.showPopover();
-                        const rect = trigger.getBoundingClientRect(), height = menu.getBoundingClientRect().height, width = menu.getBoundingClientRect().width;
-                        menu.style.left = Math.max(16, Math.min(rect.right - width, innerWidth - width - 16)) + 'px';
-                        menu.style.top = Math.max(8, rect.bottom + height + 6 > innerHeight ? rect.top - height - 6 : rect.bottom + 6) + 'px';
+                        const rect = trigger.getBoundingClientRect(), height = menu.getBoundingClientRect().height || 96, width = menu.getBoundingClientRect().width || 195;
+                        menu.style.left = Math.max(12, Math.min(rect.right - width, innerWidth - width - 12)) + 'px';
+                        menu.style.top = Math.max(12, rect.bottom + height + 8 > innerHeight && rect.top > innerHeight - rect.bottom ? rect.top - height - 6 : rect.bottom + 6) + 'px';
                     };
-                    menu.addEventListener('toggle', event => trigger.setAttribute('aria-expanded', String(event.newState === 'open')));
+                    menu.addEventListener('toggle', event => {
+                        const isOpen = event.newState === 'open';
+                        trigger.classList.toggle('active', isOpen);
+                        trigger.setAttribute('aria-expanded', String(isOpen));
+                    });
                     for (const [action, icon, label] of [['restore', 'fa-rotate-left', 'Restore'], ['purge', 'fa-trash-can', 'Permanently Delete']]) {
                         const control = document.createElement('button'); control.type = 'button'; control.title = label; control.setAttribute('aria-label', label + ' ' + record.label);
                         const symbol = document.createElement('i'); symbol.className = 'fa-solid ' + icon;
                         const text = document.createElement('span'); text.textContent = label; control.append(symbol, text);
-                        if (record.sample) { control.disabled = true; control.title = label + ' (sample only)'; }
-                        control.onclick = async () => {
-                            if (record.sample) return;
+                        
+                        control.onclick = () => {
                             menu.hidePopover(); trigger.focus();
-                            const confirmation = action === 'purge' ? window.prompt('This cannot be undone. Type DELETE ' + record.id + ' to permanently delete this record.') : '';
-                            if (action === 'purge' && confirmation !== 'DELETE ' + record.id) return;
-                            if (action === 'restore' && !window.confirm('Restore ' + record.label + '?')) return;
-                            actions.querySelectorAll('button').forEach(button => { button.disabled = true; });
-                            try {
-                                if (record.recordType === 'submission_files' && record.edits) {
-                                    if (action === 'restore') restoreLocalFile(record);
-                                    localStorage.setItem('sigma-deleted-submission-files',JSON.stringify(localFiles().filter(item => item.id !== record.id)));
-                                } else await window.SigmaAiDatabase.change(record.recordType || select.value, record.id, action, confirmation);
-                                await load();
-                            } catch (error) { notice.hidden = false; notice.textContent = error.message; actions.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
+                            const executeAction = async (confirmation = '') => {
+                                actions.querySelectorAll('button').forEach(button => { button.disabled = true; });
+                                try {
+                                    if (record.recordType === 'submission_files' && record.edits) {
+                                        if (action === 'restore') restoreLocalFile(record);
+                                        localStorage.setItem('sigma-deleted-submission-files', JSON.stringify(localFiles().filter(item => item.id !== record.id)));
+                                    } else {
+                                        await window.SigmaAiDatabase.change(record.recordType || select.value, record.id, action, confirmation);
+                                    }
+
+                                    // If restored, sync back to active components across the system
+                                    if (action === 'restore') {
+                                        const rType = record.recordType || select.value;
+                                        try {
+                                            if (rType === 'users') {
+                                                if (typeof window.fetchUsersFromDB === 'function') await window.fetchUsersFromDB();
+                                                if (typeof window.renderUserAccountsTable === 'function') window.renderUserAccountsTable();
+                                                if (typeof window.updateUserMetricCards === 'function') window.updateUserMetricCards();
+                                                window.dispatchEvent(new Event('sigma:users-updated'));
+                                            } else if (rType === 'sections') {
+                                                if (typeof window.fetchSectionsFromDB === 'function') await window.fetchSectionsFromDB();
+                                                if (typeof window.renderSectionsTable === 'function') window.renderSectionsTable();
+                                                if (typeof window.updateSectionMetricCards === 'function') window.updateSectionMetricCards();
+                                                window.dispatchEvent(new Event('sigma:sections-updated'));
+                                            } else if (rType === 'subjects') {
+                                                if (typeof window.fetchSubjectsFromDB === 'function') await window.fetchSubjectsFromDB();
+                                                if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
+                                                if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
+                                                window.dispatchEvent(new Event('sigma:subjects-updated'));
+                                            } else if (rType === 'school_years') {
+                                                if (typeof window.fetchSchoolYearsFromDB === 'function') await window.fetchSchoolYearsFromDB();
+                                                if (Array.isArray(window.schoolYearRecords)) {
+                                                    const r = window.schoolYearRecords.find(x => String(x.id) === String(record.id));
+                                                    if (r) { r.isDeleted = false; r.deletedAt = null; }
+                                                }
+                                                if (typeof window.saveSYToStorage === 'function') window.saveSYToStorage();
+                                                if (typeof window.renderSchoolYearTable === 'function') window.renderSchoolYearTable();
+                                                if (typeof window.renderSchoolYearSummaryBar === 'function') window.renderSchoolYearSummaryBar();
+                                                if (typeof window.updateGlobalSYDisplay === 'function') window.updateGlobalSYDisplay();
+                                                if (typeof window.renderSYManagerList === 'function') window.renderSYManagerList();
+                                                window.dispatchEvent(new Event('sigma:school-years-updated'));
+                                            } else if (rType === 'quizzes') {
+                                                if (typeof window.fetchQuizLibraryFromServer === 'function') await window.fetchQuizLibraryFromServer();
+                                                if (typeof window.renderQuizLibraryFeed === 'function') window.renderQuizLibraryFeed();
+                                                window.dispatchEvent(new Event('sigma:quizzes-updated'));
+                                            } else if (rType === 'announcements') {
+                                                if (window.SigmaAnnouncements?.refreshAllFeeds) window.SigmaAnnouncements.refreshAllFeeds();
+                                                window.dispatchEvent(new Event('sigma:announcements-updated'));
+                                            } else if (rType === 'ai_insight_cards' || rType === 'ai_logs') {
+                                                window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+                                                window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+                                            }
+                                        } catch (syncErr) {
+                                            console.warn('Post-restore module refresh warning:', syncErr);
+                                        }
+                                        window.dispatchEvent(new CustomEvent('sigma:record-restored', { detail: record }));
+                                        if (typeof window.showToastNotification === 'function') {
+                                            window.showToastNotification(`"${record.label}" has been restored successfully.`, 'success');
+                                        }
+                                    } else if (action === 'purge') {
+                                        if (typeof window.showToastNotification === 'function') {
+                                            window.showToastNotification(`"${record.label}" was permanently removed.`, 'success');
+                                        }
+                                    }
+
+                                    await load();
+                                } catch (error) {
+                                    notice.hidden = false;
+                                    notice.textContent = error.message;
+                                    actions.querySelectorAll('button').forEach(button => { button.disabled = false; });
+                                }
+                            };
+
+                            if (action === 'restore') {
+                                if (typeof window.openAskingPanel === 'function') {
+                                    window.openAskingPanel({
+                                        title: 'Restore Record?',
+                                        message: `Are you sure you want to restore "${record.label}"? It will be returned to its original place across the system.`,
+                                        type: 'primary',
+                                        confirmText: 'Restore Record',
+                                        cancelText: 'Cancel',
+                                        onConfirm: () => executeAction()
+                                    });
+                                } else if (window.confirm(`Restore "${record.label}"?`)) {
+                                    executeAction();
+                                }
+                            } else if (action === 'purge') {
+                                if (typeof window.openAskingPanel === 'function') {
+                                    window.openAskingPanel({
+                                        title: 'Permanently Delete Record?',
+                                        message: `Are you sure you want to permanently erase "${record.label}"? This action cannot be undone.`,
+                                        type: 'danger',
+                                        confirmText: 'Permanently Delete',
+                                        cancelText: 'Cancel',
+                                        onConfirm: () => executeAction('confirm')
+                                    });
+                                } else if (window.confirm(`This cannot be undone. Permanently delete "${record.label}"?`)) {
+                                    executeAction('confirm');
+                                }
+                            }
                         };
                         menu.append(control);
                     }
@@ -171,9 +303,9 @@
                 if (!records.length) {
                     const row = document.createElement('tr'); row.dataset.removedEmpty = 'true';
                     const cell = document.createElement('td'); cell.colSpan = 4; cell.className = 'removed-records-empty-cell';
-                    const options = { icon: 'fa-solid fa-box-archive', title: 'No removed records', subtitle: 'No deleted records for this type.' };
+                    const options = { icon: 'fa-solid fa-box-archive', title: 'No removed records', subtitle: 'No deleted records found. Any items removed across the website will appear here for recovery.' };
                     cell.innerHTML = window.renderSigmaEmptyState ? window.renderSigmaEmptyState(options)
-                        : '<div class="sigma-empty-state"><i class="fa-solid fa-box-archive sigma-empty-icon" aria-hidden="true"></i><p class="sigma-empty-title">No removed records</p><p class="sigma-empty-subtitle">No deleted records for this type.</p></div>';
+                        : '<div class="sigma-empty-state"><i class="fa-solid fa-box-archive sigma-empty-icon" aria-hidden="true"></i><p class="sigma-empty-title">No removed records</p><p class="sigma-empty-subtitle">No deleted records found. Any items removed across the website will appear here for recovery.</p></div>';
                     cell.setAttribute('role', 'status'); row.append(cell); body.append(row);
                 }
                 if (window.SigmaLogPagination) window.SigmaLogPagination.setRecords(page.querySelector('table'), records, renderRow,
@@ -184,7 +316,7 @@
             finally { select.disabled = false; }
         }
         const reloadFirstPage = async () => { await load(); window.SigmaLogPagination?.reset(page.querySelector('table')); };
-        select.onchange = reloadFirstPage; preview.onchange = reloadFirstPage; await load();
+        select.onchange = reloadFirstPage; await load();
     }
     window.renderRecordRecovery = open;
     window.renderRecordLifecycleEvents = async () => {

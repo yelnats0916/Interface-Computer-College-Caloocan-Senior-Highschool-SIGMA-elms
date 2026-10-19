@@ -340,7 +340,7 @@
                     evidenceIds: input.areas.find(area => area.id === 'submissions').records.map(record => record.id),
                     analyses: [{ category: 'descriptive', actionLabel: 'Try', context: summary.context, text: summary.actionText }] }] : [] };
                 generatedWith = result;
-                return validateCards(result, input);
+                return validateCards(result, input).map(card => ({ ...card, generationId: result.generationId || null }));
             };
             cards = provider ? await guardedProviderCall(localStorage, key(id), policy.fingerprint, generate, { automatic }) : await generate();
             if (studentId() !== id) throw new Error('The signed-in student changed.');
@@ -352,7 +352,7 @@
             if (root.SigmaAiDatabase) await root.SigmaAiDatabase.saveState('student', id, persisted);
             else localStorage.setItem(key(id), JSON.stringify(persisted));
             if (provider) newCards.forEach(card => {
-                try { root.SigmaAiLogs?.recordInsight({ userId: id, kind: 'student', card, snapshot: input, timestamp: new Date(now).toISOString(), model: generatedWith.model, provider: generatedWith.provider, keyId: generatedWith.keyId, keyLabel: generatedWith.keyLabel, status: generatedWith.status }); }
+                try { root.SigmaAiLogs?.recordInsight({ userId: id, kind: 'student', card, snapshot: input, timestamp: new Date(now).toISOString(), model: generatedWith.model, provider: generatedWith.provider, keyId: generatedWith.keyId, keyLabel: generatedWith.keyLabel, generationId: card.generationId || generatedWith.generationId, status: generatedWith.status }); }
                 catch (error) { console.warn('The generated insight could not be logged:', error); }
             });
             newCards.forEach(card => root.dispatchEvent(new CustomEvent('sigma:analytics-insight', { detail: { id: card.id } })));

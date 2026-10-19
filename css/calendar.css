@@ -224,7 +224,7 @@ body.calendar-page-mode #calendar-toggle #calendar-date-number {
     font-size: 11px !important;
     font-weight: 600 !important;
     color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
-    text-transform: uppercase !important;
+    text-transform: capitalize !important;
     letter-spacing: 0.05em !important;
     padding-bottom: 6px !important;
 }

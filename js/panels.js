@@ -1333,9 +1333,7 @@
             overlay.className = 'sigma-dialog-overlay hidden';
             overlay.innerHTML = `
                 <div class="sigma-dialog-card">
-                    <button type="button" id="sigma-dialog-close" class="sigma-dialog-close-btn" title="Close / Cancel">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <!-- close x icon removed -->
                     <div class="sigma-dialog-icon-wrap">
                         <i id="sigma-dialog-icon" class="fa-solid fa-user-shield"></i>
                     </div>
@@ -1404,11 +1402,7 @@
 
         if (confirmBtn) {
             confirmBtn.textContent = confirmText;
-            if (isDanger) {
-                confirmBtn.classList.add('sigma-dialog-btn-danger');
-            } else {
-                confirmBtn.classList.remove('sigma-dialog-btn-danger');
-            }
+            confirmBtn.classList.remove('sigma-dialog-btn-danger');
         }
 
         if (cancelBtn) {

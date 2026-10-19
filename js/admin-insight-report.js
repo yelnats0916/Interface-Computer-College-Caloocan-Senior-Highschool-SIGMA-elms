@@ -1,75 +1,256 @@
 (function () {
     'use strict';
-    const host = document.getElementById('ai-insight-report');
-    if (!host) return;
-    let users = [], tab = 'school', selected = '', role = '', query = '', loading = false;
+
+    const schoolHost = document.getElementById('ai-insight-report');
+    const generatesHost = document.getElementById('ai-generates-user-insights');
+    if (!schoolHost && !generatesHost) return;
+
+    let cachedUsers = [];
+    let isLoading = false;
+    let hasLoadedUsers = false;
+    let selectedUserId = '';
+    let searchQuery = '';
+    let selectedRole = '';
+    let insightPages = {};
+    let directoryPage = 1;
+    const railDisplayCounts = new Map();
+    let editingCards = false;
+    let editingGradeInsights = false;
+    let editingOwner = '';
+    let managementBusy = false;
+    const selectedCards = new Set();
+    const selectedGradeInsights = new Set();
+    const insightKey = card => `${card.sourceType}:${card.sourceId}`;
+    const canManageInsights = () => location.pathname.toLowerCase().includes('admin');
+    const isDashboardCard = card => card?.sourceType === 'dashboard' || insightCategory(card) === 'analytics';
+    const selectionFor = card => isDashboardCard(card) ? selectedCards : selectedGradeInsights;
+    const editingFor = card => isDashboardCard(card) ? editingCards : editingGradeInsights;
+    function managedInsight(node, card) {
+        const wrapper = el('div', undefined, 'insight-managed-card');
+        wrapper.classList.toggle('is-hidden-insight', Boolean(card.hidden));
+        if (card.hidden) wrapper.append(el('span', 'Removed from user view', 'insight-hidden-label'));
+        if (editingFor(card) && card.sourceType && card.sourceId) {
+            const label = el('label', undefined, 'insight-selection');
+            const checkbox = el('input'); checkbox.type = 'checkbox';
+            checkbox.checked = selectionFor(card).has(insightKey(card));
+            checkbox.setAttribute('aria-label', `Select ${card.title || 'insight'}`);
+            checkbox.disabled = managementBusy;
+            label.append(checkbox);
+            label.addEventListener('click', event => event.stopPropagation());
+            checkbox.onchange = () => {
+                const selection = selectionFor(card);
+                if (checkbox.checked) selection.add(insightKey(card)); else selection.delete(insightKey(card));
+                updateInsightManagement();
+            };
+            const panelTimestamp = node.querySelector?.('.insight-user-panel-date');
+            const cardTimestamp = node.querySelector?.('.sigma-card-date');
+            if (panelTimestamp) {
+                const footer = el('div', undefined, 'insight-selection-footer');
+                panelTimestamp.replaceWith(footer);
+                footer.append(panelTimestamp, label);
+            } else if (cardTimestamp) {
+                cardTimestamp.classList.add('has-insight-selection');
+                cardTimestamp.append(label);
+            } else {
+                node.prepend(label);
+            }
+            wrapper.classList.add('is-selectable');
+        }
+        wrapper.append(node);
+        return wrapper;
+    }
+    function updateInsightManagement() {
+        const user = cachedUsers.find(user => String(user.id) === selectedUserId);
+        if (!user) return;
+        const renderToolbar = (toolbar, cardsOnly) => {
+            if (!toolbar) return;
+            const editing = cardsOnly ? editingCards : editingGradeInsights;
+            const anyEditing = editingCards || editingGradeInsights;
+            const selection = cardsOnly ? selectedCards : selectedGradeInsights;
+            const relevant = (user.cards || []).filter(card => cardsOnly ? isDashboardCard(card) : !isDashboardCard(card));
+            const selected = relevant.filter(card => selection.has(insightKey(card)));
+            toolbar.replaceChildren();
+            toolbar.classList.toggle('is-editing', Boolean(editing));
+
+            if (editing) {
+                const infoText = selected.length
+                    ? `${selected.length} selected`
+                    : (cardsOnly ? 'Select a dashboard card.' : 'Select a subject or grade insight.');
+                const info = el('span', infoText, 'insight-user-page-info');
+
+                const btnGroup = el('div', undefined, 'insight-management-btn-group');
+
+                const cancel = el('button', 'Cancel', 'sigma-btn sigma-btn-white sigma-btn-md insight-management-cancel');
+                cancel.type = 'button';
+                cancel.disabled = managementBusy;
+                cancel.onclick = () => {
+                    if (cardsOnly) { editingCards = false; selectedCards.clear(); }
+                    else { editingGradeInsights = false; selectedGradeInsights.clear(); }
+                    renderGenerates();
+                };
+                btnGroup.append(cancel);
+
+                const action = (title, operation) => {
+                    const button = el('button', title, 'sigma-btn sigma-btn-white sigma-btn-md');
+                    button.type = 'button';
+                    button.disabled = managementBusy;
+                    button.onclick = async () => {
+                        const execute = async () => {
+                            managementBusy = true;
+                            updateInsightManagement();
+                            try {
+                                const items = selected.filter(card => operation === 'delete' || (operation === 'show' ? card.hidden : !card.hidden))
+                                    .map(card => ({ sourceType: card.sourceType, sourceId: card.sourceId }));
+                                await window.SigmaAiDatabase.request('ai_records', { action: 'manage_insights', operation, items });
+                                try {
+                                    const teacherInsights = JSON.parse(localStorage.getItem('sigma-teacher-grade-insights-v1') || '{}');
+                                    let tModified = false;
+                                    for (const [k, val] of Object.entries(teacherInsights)) {
+                                        if (val && items.some(it => it.sourceId === val.insightSourceId || (val.generationId && it.sourceId && it.sourceId.includes(val.generationId)))) {
+                                            if (operation === 'delete' || operation === 'hide') val.isDeleted = true;
+                                            else delete val.isDeleted;
+                                            tModified = true;
+                                        }
+                                    }
+                                    if (tModified) localStorage.setItem('sigma-teacher-grade-insights-v1', JSON.stringify(teacherInsights));
+
+                                    const subjectInsights = JSON.parse(localStorage.getItem('sigma-subject-grade-insights-v3') || '{}');
+                                    let sModified = false;
+                                    for (const [k, val] of Object.entries(subjectInsights)) {
+                                        if (val && items.some(it => it.sourceId === val.insightSourceId || (val.generationId && it.sourceId && it.sourceId.includes(val.generationId)))) {
+                                            if (operation === 'delete' || operation === 'hide') val.isDeleted = true;
+                                            else delete val.isDeleted;
+                                            sModified = true;
+                                        }
+                                    }
+                                    if (sModified) localStorage.setItem('sigma-subject-grade-insights-v3', JSON.stringify(subjectInsights));
+                                } catch (_) {}
+                                localStorage.setItem('sigma-insight-management-update', `${Date.now()}:${operation}`);
+                                window.dispatchEvent(new CustomEvent('sigma-insight-management-update', { detail: { operation, items } }));
+                                selection.clear();
+                                await loadData(true);
+                            } catch (error) {
+                                window.alert(error.message || 'Unable to update insights.');
+                            } finally {
+                                managementBusy = false;
+                                renderGenerates();
+                            }
+                        };
+
+                        if (operation === 'delete') {
+                            const count = selected.length;
+                            const noun = cardsOnly ? (count === 1 ? 'card' : 'cards') : (count === 1 ? 'insight' : 'insights');
+                            const ask = window.openAskingPanel || window.showConfirmDialog || window.showSigmaDialog;
+                            if (typeof ask === 'function') {
+                                ask({
+                                    title: `Delete ${cardsOnly ? (count === 1 ? 'Card' : 'Cards') : (count === 1 ? 'Insight' : 'Insights')}`,
+                                    message: `Are you sure you want to delete ${count === 1 ? 'this ' + noun : `these ${count} ${noun}`}? This action cannot be undone.`,
+                                    desc: `Are you sure you want to delete ${count === 1 ? 'this ' + noun : `these ${count} ${noun}`}? This action cannot be undone.`,
+                                    icon: 'fa-solid fa-trash-can text-red-600',
+                                    confirmText: 'Delete',
+                                    confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+                                    cancelText: 'Cancel',
+                                    showCancel: true,
+                                    isDanger: true,
+                                    type: 'danger',
+                                    onConfirm: execute
+                                });
+                                return;
+                            }
+                            if (!window.confirm(`Are you sure you want to delete ${count === 1 ? 'this ' + noun : `these ${count} ${noun}`}? This action cannot be undone.`)) {
+                                return;
+                            }
+                        }
+
+                        execute();
+                    };
+                    return button;
+                };
+
+                if (selected.length) {
+                    btnGroup.append(action(cardsOnly ? 'Delete Card' : 'Delete Insight', 'delete'));
+                    if (cardsOnly && selected.some(card => !card.hidden)) btnGroup.append(action('Remove Card', 'hide'));
+                    if (cardsOnly && selected.some(card => card.hidden)) btnGroup.append(action('Show Card', 'show'));
+                }
+
+                toolbar.append(info, btnGroup);
+            }
+
+            if (!editing && !anyEditing) {
+                const edit = el('button', cardsOnly ? 'Edit cards' : 'Edit insights', 'sigma-btn sigma-btn-white sigma-btn-md');
+                edit.type = 'button';
+                edit.disabled = managementBusy;
+                edit.setAttribute('aria-pressed', 'false');
+                edit.onclick = () => {
+                    if (cardsOnly) {
+                        editingCards = true; selectedCards.clear();
+                        editingGradeInsights = false; selectedGradeInsights.clear();
+                    } else {
+                        editingGradeInsights = true; selectedGradeInsights.clear();
+                        editingCards = false; selectedCards.clear();
+                    }
+                    renderGenerates();
+                };
+                toolbar.append(edit);
+            }
+        };
+        renderToolbar(generatesHost?.querySelector('.insight-card-management'), true);
+        renderToolbar(generatesHost?.querySelector('.insight-detail-management'), false);
+    }
+    const isInsightsRoute = () => /^#(?:nav-ai-insights|ai-insights)(?:$|[?:])/.test(location.hash);
+    const historySnapshot = () => ({ selectedUserId, searchQuery, selectedRole, directoryPage, insightPages: { ...insightPages } });
+    function animateInsightPageChange(before) {
+        if (before.selectedUserId !== selectedUserId || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        generatesHost?.querySelectorAll('.insight-user-panel-grid[data-page-key]').forEach(grid => {
+            const key = grid.dataset.pageKey;
+            const previous = Number(before.insightPages[key]) || 1;
+            const current = Number(insightPages[key]) || 1;
+            if (current === previous || typeof grid.animate !== 'function') return;
+            grid.animate([
+                { opacity: 0, transform: `translateX(${current > previous ? 48 : -48}px)` },
+                { opacity: 1, transform: 'translateX(0)' }
+            ], { duration: 280, easing: 'cubic-bezier(.22,.61,.36,1)' });
+        });
+    }
+    function navigateInsights(change) {
+        const before = historySnapshot();
+        if (isInsightsRoute()) history.replaceState({ ...history.state, sigmaUserInsights: before }, '', location.href);
+        change();
+        const after = historySnapshot();
+        if (isInsightsRoute() && JSON.stringify(before) !== JSON.stringify(after)) {
+            history.pushState({ ...history.state, sigmaUserInsights: after }, '', location.href);
+        }
+        renderGenerates();
+        animateInsightPageChange(before);
+    }
+    function restoreInsightsHistory() {
+        if (!isInsightsRoute()) return;
+        const before = historySnapshot();
+        const saved = history.state?.sigmaUserInsights;
+        selectedUserId = typeof saved?.selectedUserId === 'string' ? saved.selectedUserId : '';
+        searchQuery = typeof saved?.searchQuery === 'string' ? saved.searchQuery : '';
+        selectedRole = ['student', 'teacher'].includes(saved?.selectedRole) ? saved.selectedRole : '';
+        directoryPage = Math.max(1, Number(saved?.directoryPage) || 1);
+        insightPages = saved?.insightPages && typeof saved.insightPages === 'object' ? { ...saved.insightPages } : {};
+        renderGenerates();
+        animateInsightPageChange(before);
+    }
+    window.addEventListener('popstate', restoreInsightsHistory);
+    window.addEventListener('hashchange', restoreInsightsHistory);
+
     const el = (tag, text, className) => {
         const node = document.createElement(tag);
         if (text !== undefined) node.textContent = text;
         if (className) node.className = className;
         return node;
     };
-    const tabs = el('div', undefined, 'insight-report-tabs ai-engine-tabs');
-    tabs.setAttribute('role', 'tablist');
-    for (const [id, title] of [['school', 'AI Analytics Overview'], ['users', 'User Insights']]) {
-        const button = el('button', title, 'ai-engine-tab');
-        button.type = 'button'; button.setAttribute('role', 'tab');
-        button.onclick = () => { tab = id; render(); };
-        button.dataset.tab = id; tabs.append(button);
-    }
-    const toolbar = el('div', undefined, 'insight-report-toolbar'); toolbar.append(tabs);
-    const filters = el('div', undefined, 'insight-report-filters');
-    const search = el('input'); search.type = 'search'; search.placeholder = 'Search users'; search.setAttribute('aria-label', 'Search users'); search.maxLength = 100;
-    const roles = el('select'); roles.setAttribute('aria-label', 'Filter by role');
-    for (const [value, title] of [['', 'All Roles'], ['student', 'Students'], ['teacher', 'Teachers']]) {
-        const option = el('option', title); option.value = value; roles.append(option);
-    }
-    const picker = el('select'); picker.setAttribute('aria-label', 'Select user');
-    filters.append(search, roles, picker);
-    const content = el('div'); host.append(toolbar, filters, content);
-    const matching = () => users.filter(user => (!role || user.role === role) && `${user.name} ${user.id}`.toLowerCase().includes(query));
-    function updatePicker() {
-        const matches = matching();
-        if (!matches.some(user => user.id === selected)) selected = matches[0]?.id || '';
-        picker.replaceChildren();
-        if (!matches.length) picker.append(el('option', 'No matching users'));
-        for (const user of matches) {
-            const option = el('option', `${user.name} (${user.role})`); option.value = user.id; picker.append(option);
-        }
-        picker.value = selected; picker.disabled = !matches.length;
-    }
-    search.oninput = () => { query = search.value.trim().toLowerCase(); updatePicker(); render(); };
-    roles.onchange = () => { role = roles.value; updatePicker(); render(); };
-    picker.onchange = () => { selected = picker.value; render(); };
-    function empty(message) { content.append(el('p', message, 'insight-report-empty')); }
-    function metricCard(label, value, iconClass) {
-        const card = el('div', undefined, 'sigma-interactive-metric-card rounded-xl p-5 group flex items-center justify-between');
-        const text = el('div', undefined, 'metric-text-content');
-        
-        const base = el('div', undefined, 'metric-text-base');
-        base.append(
-            el('span', label, "text-xs font-bold text-black tracking-normal block font-['Inter']"),
-            el('span', String(value), "text-3xl md:text-[34px] font-extrabold text-slate-900 block mt-1.5 font-['Inter'] tracking-tight")
-        );
-        
-        const spotlight = el('div', undefined, 'metric-text-spotlight');
-        spotlight.setAttribute('aria-hidden', 'true');
-        spotlight.append(
-            el('span', label, "text-xs font-bold tracking-normal block font-['Inter']"),
-            el('span', String(value), "text-3xl md:text-[34px] font-extrabold block mt-1.5 font-['Inter'] tracking-tight")
-        );
-        
-        text.append(base, spotlight);
 
-        const iconBox = el('div', undefined, 'metric-icon-box w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0');
-        const glyphBase = el('i', undefined, iconClass + ' metric-icon-base');
-        const glyphSpotlight = el('i', undefined, iconClass + ' metric-icon-spotlight');
-        glyphSpotlight.setAttribute('aria-hidden', 'true');
-        iconBox.append(glyphBase, glyphSpotlight);
+    const sanitizeSearch = value => String(value || '')
+        .replace(/^\s+/, '')
+        .replace(/[^a-zA-Z0-9\s.\-']/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .slice(0, 50);
 
-        card.append(text, iconBox);
-        return card;
-    }
     const TYPE_CONFIGS = [
         {
             key: 'descriptive',
@@ -152,7 +333,7 @@
                 </div>
             </div>
 
-            <!-- Bottom: White Panel (Intact directly underneath) -->
+            <!-- Bottom: White Panel -->
             <div class="p-5 bg-white flex-1 flex flex-col justify-between space-y-4">
                 <!-- Badge & Progress Bar Section -->
                 <div>
@@ -221,73 +402,661 @@
         return card;
     }
 
-    function render() {
-        for (const button of tabs.children) {
-            const isSelected = button.dataset.tab === tab;
-            button.setAttribute('aria-selected', String(isSelected));
-            button.setAttribute('aria-pressed', String(isSelected));
-        }
-        filters.hidden = tab !== 'users'; content.replaceChildren();
-        if (loading) { empty('Loading saved insights...'); return; }
-        if (tab === 'school') {
-            const cards = users.flatMap(user => user.cards || []);
-            const metrics = el('div', undefined, 'grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6');
-            for (const [label, value, icon] of [['Saved Insights', cards.length, 'fa-solid fa-brain'], ['Students with Insights', users.filter(user => user.role === 'student' && user.cards?.length > 0).length, 'fa-solid fa-user-graduate'], ['Teachers with Insights', users.filter(user => user.role === 'teacher' && user.cards?.length > 0).length, 'fa-solid fa-chalkboard-user']]) {
-                metrics.append(metricCard(label, value, icon));
-            }
-            content.append(metrics, el('h3', 'AI Analytics Types', "text-sm font-bold text-black font-['Inter'] mt-6 mb-3"));
-            
-            const planGrid = el('div', undefined, 'insight-plan-grid');
-            for (const config of TYPE_CONFIGS) {
-                planGrid.append(createTypePlanCard(config, cards, users));
-            }
-            content.append(planGrid);
+    const roleLabel = user => String(user?.role || '').toLowerCase() === 'teacher' ? 'Teacher' : 'Student';
+    const insightText = card => (card?.analyses || [])
+        .flatMap(analysis => [analysis?.context, analysis?.actionLabel, analysis?.text])
+        .filter(Boolean)
+        .map(value => String(value).replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' ') || 'No additional insight details were saved.';
+    const insightTimestamp = (card, user) => {
+        const value = card?.createdAt || card?.timestamp || user?.lastAnalyzed;
+        const time = value ? new Date(value).getTime() : 0;
+        return Number.isFinite(time) ? time : 0;
+    };
+    const newestInsights = user => [...(user.cards || [])].sort((a, b) => insightTimestamp(b, user) - insightTimestamp(a, user));
+    const latestInsightTimestamp = user => Math.max(0, ...(user.cards || []).map(card => insightTimestamp(card, user)));
+    const insightDate = (card, user) => {
+        const value = card?.createdAt || card?.timestamp || user?.lastAnalyzed;
+        if (!value) return '';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    };
+    const insightCategory = card => {
+        if (card?.reportCategory === 'grade') return 'grade';
+        if (card?.reportCategory === 'subject') return 'subject';
+        return 'analytics';
+    };
 
-            if (!cards.length) empty('No saved AI insights available yet.');
-            setTimeout(() => window.bindInteractiveMetricCards?.(), 10);
+    function createGeneratedInsightCard(card, user) {
+        if (window.renderSigmaReadOnlyInsightCard) {
+            const escape = value => { const node = document.createElement('span'); node.textContent = String(value || ''); return node.innerHTML; };
+            const paragraphs = (card.analyses || []).map(analysis => {
+                const context = analysis.context ? `<p>${escape(analysis.context)}</p>` : '';
+                const advice = analysis.text ? `<p>${analysis.actionLabel ? `<strong>${escape(analysis.actionLabel)}:</strong> ` : ''}${escape(analysis.text)}</p>` : '';
+                return context + advice;
+            }).join('') || `<p>${escape(insightText(card))}</p>`;
+            return window.renderSigmaReadOnlyInsightCard({
+                id: escape(card.id || `${user.id}-${(user.cards || []).indexOf(card)}`),
+                concernTitle: escape(card.title || 'AI Insight'),
+                categoryIcon: 'fa-circle-info', headerIconColor: 'text-[#FFD000]',
+                datePlacement: 'footer', date: escape(insightDate(card, user)),
+                concernText: paragraphs, previewText: escape(insightText(card))
+            }, true);
+        }
+        const article = el('article', undefined, 'insight-generated-card');
+        const header = el('header', undefined, 'insight-generated-card-header');
+        const icon = el('i', undefined, 'fa-solid fa-bolt'); icon.setAttribute('aria-hidden', 'true');
+        header.append(icon, el('h4', card?.title || 'AI Insight'));
+        const body = el('div', undefined, 'insight-generated-card-body');
+        body.append(el('p', insightText(card)));
+        const date = insightDate(card, user);
+        if (date) body.append(el('time', date, 'insight-generated-card-date'));
+        article.append(header, body);
+        return article;
+    }
+
+    function createInsightPanel(card, user) {
+        const article = el('article', undefined, 'insight-user-panel sigma-ai-panel');
+        
+        // Header with Yellow Bolt badge and Subject / Context badge
+        const header = el('header', undefined, 'insight-user-panel-header');
+        const headingWrap = el('div', undefined, 'sigma-ai-shared-heading');
+        const iconWrap = el('span', undefined, 'sigma-ai-shared-icon');
+        iconWrap.setAttribute('aria-hidden', 'true');
+        const boltIcon = el('i', undefined, 'fa-solid fa-bolt');
+        iconWrap.append(boltIcon);
+        
+        const titleSpan = el('span', card?.title || 'SIGMA AI Insights', 'insight-user-panel-title');
+        headingWrap.append(iconWrap, titleSpan);
+
+        const overallGrade = card?.reportCategory === 'grade' && String(user.role).toLowerCase() !== 'teacher';
+        const subjectContext = overallGrade ? 'Overall Grades' : (card?.subject || card?.subjectTitle || card?.area || 'Subject Coursework');
+        const contextBadge = el('span', String(subjectContext), 'insight-user-panel-subject-badge');
+        header.append(headingWrap, contextBadge);
+
+        // Body with canonical light green tint & bold action advice
+        const body = el('div', undefined, 'insight-user-panel-body sigma-ai-panel-body');
+        const analyses = Array.isArray(card?.analyses) && card.analyses.length ? card.analyses : null;
+        if (analyses) {
+            analyses.forEach(analysis => {
+                const section = el('div', undefined, 'insight-user-analysis-block');
+                if (analysis?.context) {
+                    const ctx = el('p', analysis.context, 'insight-user-analysis-context');
+                    section.append(ctx);
+                }
+                if (analysis?.text) {
+                    const adv = el('p', undefined, 'insight-user-analysis-advice');
+                    if (analysis?.actionLabel) {
+                        const strong = el('strong', `${analysis.actionLabel}: `);
+                        adv.append(strong);
+                    }
+                    adv.append(document.createTextNode(String(analysis.text).replace(/^[\t ]*(?:\*\*)?(?:Advice|Recommend(?:ation)?|Try|Suggested Action|Next step)(?:\*\*)?[\t ]*:[\t ]*(?:\*\*)?[\t ]*/i, '')));
+                    section.append(adv);
+                }
+                body.append(section);
+            });
+        } else {
+            const fallbackP = el('p', insightText(card));
+            body.append(fallbackP);
+        }
+
+        const date = insightDate(card, user);
+        if (date) {
+            const timeTag = el('time', date, 'insight-user-panel-date');
+            body.append(timeTag);
+        }
+
+        article.append(header, body);
+        return article;
+    }
+
+    function createInsightCategory(title, cards, user) {
+        const section = el('section', undefined, 'insight-user-category');
+        const headerRow = el('div', undefined, 'insight-user-category-header');
+        headerRow.append(el('h3', title));
+        const countBadge = el('span', `${cards.length} ${cards.length === 1 ? 'insight' : 'insights'}`, 'insight-user-category-count');
+        headerRow.append(countBadge);
+        section.append(headerRow);
+
+        const panels = el('div', undefined, 'insight-user-panel-grid');
+        panels.dataset.pageKey = `${user.id}:${title}`;
+        if (!cards.length) {
+            panels.append(el('p', `No ${title.toLowerCase()} have been generated for this user yet.`, 'insight-user-empty-panel'));
+            section.append(panels);
+            return section;
+        }
+
+        const pageSize = 4;
+        let currentPage = 1;
+        const totalPages = Math.ceil(cards.length / pageSize);
+
+        const paginationWrap = el('nav', undefined, 'insight-user-pagination');
+        paginationWrap.setAttribute('aria-label', `${title} pagination`);
+
+        function renderPage(page) {
+            currentPage = page;
+            panels.replaceChildren();
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageCards = cards.slice(start, end);
+            pageCards.forEach(card => panels.append(managedInsight(createInsightPanel(card, user), card)));
+
+            if (totalPages > 1) {
+                paginationWrap.replaceChildren();
+                
+                const prevBtn = el('button', 'Previous', 'insight-user-page-btn');
+                prevBtn.type = 'button';
+                prevBtn.disabled = currentPage <= 1;
+                prevBtn.onclick = () => navigateInsights(() => { insightPages[`${user.id}:${title}`] = currentPage - 1; });
+
+                const pageInfo = el('span', `Page ${currentPage} of ${totalPages}`, 'insight-user-page-info');
+
+                const nextBtn = el('button', 'Next', 'insight-user-page-btn');
+                nextBtn.type = 'button';
+                nextBtn.disabled = currentPage >= totalPages;
+                nextBtn.onclick = () => navigateInsights(() => { insightPages[`${user.id}:${title}`] = currentPage + 1; });
+
+                paginationWrap.append(prevBtn, pageInfo, nextBtn);
+            }
+        }
+
+        renderPage(Math.max(1, Math.min(totalPages, Number(insightPages[`${user.id}:${title}`]) || 1)));
+        const viewport = el('div', undefined, 'insight-page-viewport');
+        viewport.append(panels);
+        section.append(viewport);
+        if (totalPages > 1) {
+            section.append(paginationWrap);
+        }
+        return section;
+    }
+
+    function renderUserDirectory(users, query, role, onSelectUser) {
+        const directory = el('section', undefined, 'insight-user-directory');
+        const cleanQuery = String(query || '').trim().toLowerCase();
+        const cleanRole = String(role || '').trim().toLowerCase();
+
+        let matchingUsers = cleanQuery
+            ? users.filter(user => 
+                String(user.name || '').toLowerCase().includes(cleanQuery) || 
+                String(user.id || '').toLowerCase().includes(cleanQuery)
+              )
+            : users.filter(user => (user.cards || []).length > 0);
+
+        if (cleanRole) {
+            matchingUsers = matchingUsers.filter(user => String(user.role || '').toLowerCase() === cleanRole);
+        }
+        matchingUsers.sort((a, b) => latestInsightTimestamp(b) - latestInsightTimestamp(a)
+            || String(a.name || '').localeCompare(String(b.name || '')));
+
+        if (!cleanQuery && !cleanRole && !matchingUsers.length) {
+            const emptyState = el('section', undefined, 'insight-user-search-empty');
+            emptyState.setAttribute('role', 'status');
+            const iconWrap = el('div', undefined, 'insight-user-search-empty-icon');
+            const icon = el('i', undefined, 'fa-solid fa-users');
+            icon.setAttribute('aria-hidden', 'true');
+            iconWrap.append(icon);
+            emptyState.append(
+                iconWrap,
+                el('h3', 'Find a user'),
+                el('p', 'Use the search field above to view their generated AI insights.')
+            );
+            directory.append(emptyState);
+            return directory;
+        }
+
+        if (cleanQuery || cleanRole) {
+            const roleFilterText = cleanRole ? ` in ${cleanRole === 'teacher' ? 'Teachers' : 'Students'}` : '';
+            directory.append(el('p', `${matchingUsers.length} ${matchingUsers.length === 1 ? 'user' : 'users'} found${roleFilterText}`, 'insight-report-owner'));
+        }
+
+        if (!matchingUsers.length) {
+            directory.append(el('p', 'No users found matching that criteria.', 'insight-report-empty'));
+            return directory;
+        }
+
+        const results = el('div', undefined, 'insight-user-results');
+        const directoryLimit = 6;
+        const totalPages = Math.max(1, Math.ceil(matchingUsers.length / directoryLimit));
+        directoryPage = Math.min(directoryPage, totalPages);
+        matchingUsers.slice((directoryPage - 1) * directoryLimit, directoryPage * directoryLimit).forEach(user => {
+            const result = el('button', undefined, 'insight-user-result-card');
+            result.type = 'button';
+            result.setAttribute('aria-label', `View insights for ${user.name}`);
+
+            // 1. Header (Avatar, Name, ID, Section/Dept, Role Badge)
+            const header = el('div', undefined, 'insight-user-card-header');
+            const avatar = el('span', undefined, 'insight-user-result-avatar');
+            const icon = el('i', undefined, 'fa-solid fa-user');
+            icon.setAttribute('aria-hidden', 'true'); avatar.append(icon);
+            const photo = window.resolveUserAvatar?.(user) || user.avatar;
+            if (typeof photo === 'string' && photo.trim()) {
+                const image = el('img');
+                image.src = photo.trim();
+                image.alt = '';
+                image.loading = 'lazy';
+                image.onerror = () => image.remove();
+                avatar.append(image);
+            }
+
+            const identity = el('div', undefined, 'insight-user-result-identity');
+            const nameEl = el('strong', user.name || 'Unnamed user');
+            const metaEl = el('span', undefined, 'insight-user-result-meta');
+            metaEl.append(el('span', `ID: ${user.id || '—'}`));
+            if (user.section || user.grade) {
+                const sectionTag = [user.grade ? `Grade ${user.grade}` : '', user.section].filter(Boolean).join(' - ');
+                metaEl.append(el('span', '•', 'insight-user-meta-dot'), el('span', sectionTag));
+            } else if (user.department) {
+                metaEl.append(el('span', '•', 'insight-user-meta-dot'), el('span', user.department));
+            }
+            identity.append(nameEl, metaEl);
+
+            const isTeacher = String(user?.role || '').toLowerCase() === 'teacher';
+            const role = el('span', roleLabel(user), `insight-user-result-role ${isTeacher ? 'is-teacher' : 'is-student'}`);
+            header.append(avatar, identity, role);
+
+            // 2. Latest Insight Preview Snippet
+            const cards = newestInsights(user);
+            const latestCard = cards[0] || null;
+            const snippetBox = el('div', undefined, 'insight-user-card-snippet');
+
+            if (latestCard) {
+                const snippetHead = el('div', undefined, 'insight-user-snippet-head');
+                const bolt = el('i', undefined, 'fa-solid fa-bolt insight-user-bolt');
+                bolt.setAttribute('aria-hidden', 'true');
+                const cardTitle = el('span', latestCard.title || 'Latest AI Insight', 'insight-user-snippet-title');
+                snippetHead.append(bolt, cardTitle);
+
+                const snippetText = el('p', insightText(latestCard), 'insight-user-snippet-body');
+                snippetBox.append(snippetHead, snippetText);
+            } else {
+                const emptySnippet = el('div', undefined, 'insight-user-snippet-empty');
+                const infoIcon = el('i', undefined, 'fa-regular fa-circle-info');
+                infoIcon.setAttribute('aria-hidden', 'true');
+                emptySnippet.append(infoIcon, el('span', 'No insights recorded for this profile yet'));
+                snippetBox.append(emptySnippet);
+            }
+
+            // 3. Category Tags Breakdown
+            const tagsRow = el('div', undefined, 'insight-user-card-tags');
+            const subjectCardsCount = cards.filter(c => insightCategory(c) === 'subject').length;
+            const gradeCardsCount = cards.filter(c => insightCategory(c) === 'grade').length;
+
+            const totalTag = el('span', `${cards.length} ${cards.length === 1 ? 'Insight' : 'Insights'}`, 'insight-user-pill insight-user-pill-total');
+            if (!cards.length) totalTag.classList.add('is-empty');
+            tagsRow.append(totalTag);
+
+            if (subjectCardsCount > 0) {
+                tagsRow.append(el('span', `${subjectCardsCount} Subject`, 'insight-user-pill insight-user-pill-sub'));
+            }
+            if (gradeCardsCount > 0) {
+                tagsRow.append(el('span', `${gradeCardsCount} Grade`, 'insight-user-pill insight-user-pill-sub'));
+            }
+
+            // 4. Footer Row
+            const footer = el('div', undefined, 'insight-user-result-footer');
+            const lastUpdated = latestCard ? insightDate(latestCard, user) : '';
+            const dateSpan = el('span', lastUpdated ? `Updated ${lastUpdated}` : 'Active Profile', 'insight-user-card-date');
+
+            const action = el('span', 'View Insights', 'insight-user-result-action');
+            const arrow = el('i', undefined, 'fa-solid fa-arrow-right insight-user-result-arrow');
+            arrow.setAttribute('aria-hidden', 'true');
+            action.append(arrow);
+            footer.append(dateSpan, action);
+
+            result.append(header, snippetBox, tagsRow, footer);
+            result.onclick = () => onSelectUser(user);
+            results.append(result);
+        });
+        directory.append(results);
+        if (totalPages > 1) {
+            const pagination = el('nav', undefined, 'insight-user-pagination');
+            pagination.setAttribute('aria-label', 'User directory pagination');
+            const previous = el('button', 'Previous', 'insight-user-page-btn');
+            previous.type = 'button'; previous.disabled = directoryPage === 1;
+            previous.onclick = () => navigateInsights(() => { directoryPage--; });
+            const next = el('button', 'Next', 'insight-user-page-btn');
+            next.type = 'button'; next.disabled = directoryPage === totalPages;
+            next.onclick = () => navigateInsights(() => { directoryPage++; });
+            pagination.append(previous, el('span', `Page ${directoryPage} of ${totalPages} · ${matchingUsers.length} users`, 'insight-user-page-info'), next);
+            directory.append(pagination);
+        }
+        return directory;
+    }
+
+    function renderUserDetail(user) {
+        const page = el('section', undefined, 'insight-user-page');
+        const pageHeader = el('header', undefined, 'insight-user-page-header');
+        const profile = el('div', undefined, 'insight-user-profile');
+        const avatar = el('span', undefined, 'header-profile-btn insight-user-profile-avatar');
+        const fallback = el('i', undefined, 'fa-solid fa-user header-avatar-placeholder');
+        fallback.setAttribute('aria-hidden', 'true');
+        avatar.append(fallback);
+        const photo = window.resolveUserAvatar?.(user) || user.avatar;
+        if (typeof photo === 'string' && photo.trim()) {
+            const image = el('img');
+            image.src = photo.trim();
+            image.alt = '';
+            image.onerror = () => image.remove();
+            avatar.append(image);
+        }
+        const identity = el('div', undefined, 'insight-user-page-identity');
+        identity.append(el('h2', user.name || 'Unnamed user'), el('p', `ID: ${user.id || '—'}`));
+        profile.append(avatar, identity);
+        pageHeader.append(profile);
+
+        const layout = el('div', undefined, 'insight-user-detail-layout');
+        const rail = el('aside', undefined, 'insight-user-insights-rail');
+        const railHeader = el('div', undefined, 'insight-user-insights-rail-header');
+        railHeader.append(el('h3', 'SIGMA AI Insights'));
+        if (canManageInsights()) railHeader.append(el('div', undefined, 'insight-card-management insight-management'));
+        const railCards = el('div', undefined, 'insight-user-insights-rail-cards');
+        const cards = newestInsights(user);
+        const railCardsList = cards.filter(card => insightCategory(card) === 'analytics');
+        rail.append(railHeader, railCards);
+        if (railCardsList.length) {
+            const controls = el('div', undefined, 'insight-rail-controls');
+            const drawRail = () => {
+                const expanded = railDisplayCounts.get(user.id) === Infinity;
+                const limit = expanded ? railCardsList.length : Math.min(4, railCardsList.length);
+                railCards.replaceChildren(...railCardsList.slice(0, limit).map(card => managedInsight(createGeneratedInsightCard(card, user), card)));
+                controls.replaceChildren();
+                if (railCardsList.length > 4) {
+                    const more = el('button', undefined, 'sigma-rail-more-btn pocket-rail-more-btn');
+                    more.type = 'button';
+                    more.classList.toggle('is-expanded', expanded);
+                    more.setAttribute('aria-expanded', String(expanded));
+                    const label = el('span', expanded ? 'Show Less' : 'Show More', 'more-label');
+                    const chevron = el('i', undefined, 'fa-solid fa-chevron-down');
+                    chevron.setAttribute('aria-hidden', 'true');
+                    more.append(label, chevron);
+                    more.onclick = () => {
+                        railDisplayCounts.set(user.id, expanded ? 4 : Infinity);
+                        drawRail();
+                        if (expanded) railCards.scrollTop = 0;
+                    };
+                    controls.append(more);
+                }
+            };
+            rail.append(controls);
+            drawRail();
+        } else railCards.append(el('p', 'No generated AI insight cards for this user yet.', 'insight-report-empty'));
+        
+        const main = el('main', undefined, 'insight-user-detail-main');
+        const grouped = { subject: [], grade: [] };
+        cards.forEach(card => {
+            // Only true subject/grade report cards belong in Subject and Grade Insights
+            if (card.reportCategory === 'subject') {
+                grouped.subject.push(card);
+            } else if (card.reportCategory === 'grade') {
+                grouped.grade.push(card);
+            }
+        });
+        const attachInsightManagement = category => {
+            if (canManageInsights()) category.querySelector('.insight-user-category-header')?.append(el('div', undefined, 'insight-detail-management insight-management'));
+            main.append(category);
+        };
+        if (String(user.role).toLowerCase() !== 'teacher') {
+            attachInsightManagement(createInsightCategory('Subject Insights', grouped.subject, user));
+        }
+        else attachInsightManagement(createInsightCategory('Grade Insights', grouped.grade, user));
+        if (String(user.role).toLowerCase() !== 'teacher') main.append(createInsightCategory('Grade Insights', grouped.grade, user));
+        layout.append(rail, main);
+        page.append(pageHeader, layout);
+        return page;
+    }
+
+    // 1. RENDER REPORTS > AI ANALYTICS OVERVIEW (No selection panel, pure school metrics)
+    function renderSchoolOverview() {
+        if (!schoolHost) return;
+        schoolHost.replaceChildren();
+
+        if (isLoading) {
+            schoolHost.append(el('p', 'Loading AI analytics overview...', 'insight-report-empty'));
             return;
         }
-        const user = users.find(item => item.id === selected);
-        if (!user) { empty('No matching users.'); return; }
-        content.append(el('h2', user.name), el('p', `${user.role === 'teacher' ? 'Teacher' : 'Student'} - ${user.id}`, 'insight-report-owner'));
-        if (!user.cards?.length) { empty('No saved AI insights for this user yet.'); return; }
-        const grid = el('div', undefined, 'insight-report-grid');
-        for (const card of [...user.cards].reverse()) {
-            const article = el('article', undefined, 'insight-report-card');
-            const heading = el('header'); const bolt = el('i'); bolt.className = 'fa-solid fa-bolt'; heading.append(bolt, el('h3', card.title || 'AI Insight')); article.append(heading);
-            const body = el('div', undefined, 'insight-report-card-body');
-            for (const analysis of card.analyses || []) {
-                if (analysis.context) body.append(el('p', analysis.context));
-                if (analysis.actionLabel) body.append(el('strong', analysis.actionLabel));
-                if (analysis.text) body.append(el('p', analysis.text));
+
+        const cards = cachedUsers.flatMap(user => user.cards || []);
+        const planGrid = el('div', undefined, 'insight-plan-grid');
+        for (const config of TYPE_CONFIGS) {
+            planGrid.append(createTypePlanCard(config, cards, cachedUsers));
+        }
+        schoolHost.append(planGrid);
+
+        // Centered Action Pill Button (Navigates to Insights Directory)
+        const actionWrap = el('div', undefined, 'flex justify-center my-6');
+        const pillBtn = el('a', undefined, 'ai-analytics-pill-btn');
+        pillBtn.href = '#nav-ai-insights';
+        pillBtn.innerHTML = `
+            <i class="fa-solid fa-chart-pie text-[#15803d]"></i>
+            <span>Explore User Insights Directory</span>
+            <i class="fa-solid fa-arrow-right text-xs opacity-70"></i>
+        `;
+        actionWrap.append(pillBtn);
+        schoolHost.append(actionWrap);
+
+        // Black Fade Division Line
+        const divider = el('div', undefined, 'ai-analytics-divider');
+        schoolHost.append(divider);
+
+        // Methodological Footnotes / Model Disclaimers
+        const footnotes = el('div', undefined, 'ai-analytics-footnotes max-w-4xl mx-auto text-xs text-black/60 leading-relaxed space-y-2');
+        footnotes.innerHTML = `
+            <p><sup>1</sup> <strong>Descriptive Analytics:</strong> Evaluates historical scores, task completions, and quarterly submissions to summarize learning baseline across classes.</p>
+            <p><sup>2</sup> <strong>Predictive Analytics:</strong> Models learning trajectories and risk patterns to forecast academic outcomes and flag students needing proactive support.</p>
+            <p><sup>3</sup> <strong>Prescriptive Analytics:</strong> Formulates targeted remedial practice plans, personalized study directions, and instructional recommendations for educators.</p>
+            <p class="pt-2 text-[11px] text-black/40 border-t border-slate-100">All analytics insights and recommendations are grounded in authenticated LMS institutional records for Interface Computer College.</p>
+        `;
+        schoolHost.append(footnotes);
+
+        if (!cards.length) {
+            schoolHost.append(el('p', 'No saved AI insights available yet.', 'insight-report-empty'));
+        }
+        setTimeout(() => window.bindInteractiveMetricCards?.(), 20);
+    }
+
+    // 2. RENDER SIGMA AI > GENERATES (User Insights Directory & Detail View)
+    function renderGenerates() {
+        if (!generatesHost) return;
+        generatesHost.replaceChildren();
+        const visibleUsers = cachedUsers;
+        if (editingOwner !== selectedUserId) {
+            editingOwner = selectedUserId;
+            editingCards = false;
+            editingGradeInsights = false;
+            selectedCards.clear();
+            selectedGradeInsights.clear();
+        }
+
+        if (isLoading) {
+            generatesHost.append(el('p', 'Loading user insights...', 'insight-report-empty'));
+            return;
+        }
+
+        if (hasLoadedUsers && selectedUserId && !visibleUsers.some(u => String(u.id || '') === selectedUserId)) {
+            selectedUserId = '';
+        }
+
+        // Detail view
+        if (selectedUserId) {
+            const user = visibleUsers.find(u => String(u.id || '') === selectedUserId);
+            if (user) {
+                generatesHost.append(renderUserDetail(user));
+                updateInsightManagement();
+                return;
             }
-            const date = card.createdAt || card.timestamp || user.lastAnalyzed;
-            const parsed = date ? new Date(date) : null;
-            body.append(el('small', [card.area, parsed && !Number.isNaN(parsed.getTime()) ? `${card.createdAt || card.timestamp ? 'Generated' : 'Last analysis'}: ${parsed.toLocaleString('en-PH', {timeZone: 'Asia/Manila'})}` : ''].filter(Boolean).join(' - ')));
-            article.append(body);
-            if (window.renderSigmaReadOnlyInsightCard) {
-                grid.append(window.renderSigmaReadOnlyInsightCard({
-                    id: '', datePlacement: 'footer', categoryIcon: 'fa-bolt',
-                    concernTitle: heading.querySelector('h3').innerHTML,
-                    concernText: body.innerHTML, previewText: body.innerHTML, date: ''
-                }));
-            } else grid.append(article);
+            if (!hasLoadedUsers) return;
+            selectedUserId = '';
         }
-        content.append(grid);
+
+        // Toolbar / Search for Generates
+        const filters = el('div', undefined, 'insight-report-filters');
+        const searchControl = el('div', undefined, 'insight-report-control insight-report-search-control');
+        const searchInput = el('input', undefined, 'sigma-input insight-report-search-input');
+        searchInput.type = 'search';
+        searchInput.placeholder = 'Search by name or ID';
+        searchInput.setAttribute('aria-label', 'Search user insights by name or ID');
+        searchInput.maxLength = 50;
+        searchInput.autocomplete = 'off';
+        searchInput.value = searchQuery;
+
+        const searchWrap = el('div', undefined, 'ai-log-search-input-wrap insight-report-search-input-wrap');
+        const clearSearch = el('button', undefined, 'ai-log-search-clear insight-report-search-clear');
+        clearSearch.type = 'button';
+        clearSearch.title = 'Clear search';
+        clearSearch.setAttribute('aria-label', 'Clear search');
+        const clearIcon = el('i', undefined, 'fa-solid fa-xmark');
+        clearIcon.setAttribute('aria-hidden', 'true');
+        clearSearch.append(clearIcon);
+        clearSearch.hidden = !searchQuery;
+
+        searchWrap.append(searchInput, clearSearch);
+        searchControl.append(searchWrap);
+
+        // Role Filter Dropdown
+        const roleControl = el('div', undefined, 'insight-report-control insight-report-role-control');
+        const selectWrapper = el('div', undefined, 'sigma-select-wrapper');
+        const roleSelect = el('select', undefined, 'sigma-select');
+        roleSelect.setAttribute('aria-label', 'Filter role');
+
+        const optAll = el('option', 'All Roles');
+        optAll.value = '';
+        const optStudent = el('option', 'Students');
+        optStudent.value = 'student';
+        const optTeacher = el('option', 'Teachers');
+        optTeacher.value = 'teacher';
+
+        roleSelect.append(optAll, optStudent, optTeacher);
+        roleSelect.value = selectedRole;
+
+        const chevron = el('i', undefined, 'fa-solid fa-chevron-down sigma-select-icon');
+        selectWrapper.append(roleSelect, chevron);
+        roleControl.append(selectWrapper);
+
+        roleSelect.onchange = () => {
+            navigateInsights(() => { selectedRole = roleSelect.value; directoryPage = 1; });
+        };
+
+        const searchButton = el('button', 'Search', 'sigma-btn sigma-btn-primary insight-report-search-button');
+        searchButton.type = 'button';
+        searchButton.title = 'Search user insights';
+
+        filters.append(searchControl, roleControl, searchButton);
+
+        const applySearch = () => {
+            const clean = sanitizeSearch(searchInput.value);
+            if (searchInput.value !== clean) searchInput.value = clean;
+            clearSearch.hidden = !clean;
+            navigateInsights(() => { searchQuery = clean.trim().toLowerCase(); directoryPage = 1; });
+        };
+
+        searchInput.oninput = () => {
+            const clean = sanitizeSearch(searchInput.value);
+            if (searchInput.value !== clean) searchInput.value = clean;
+            clearSearch.hidden = !clean;
+        };
+        searchInput.onkeydown = event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applySearch();
+            }
+        };
+        searchButton.onclick = applySearch;
+        clearSearch.onclick = () => {
+            searchInput.value = '';
+            clearSearch.hidden = true;
+            navigateInsights(() => { searchQuery = ''; directoryPage = 1; });
+            generatesHost.querySelector('input[type="search"]')?.focus({ preventScroll: true });
+        };
+
+        const content = el('div', undefined, 'insight-generates-content');
+        content.append(renderUserDirectory(visibleUsers, searchQuery, selectedRole, (user) => {
+            navigateInsights(() => { selectedUserId = String(user.id || ''); });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }));
+
+        generatesHost.append(filters, content);
     }
-    async function load() {
-        if (loading) return;
-        loading = true; render();
+
+    async function loadData(background = false) {
+        if (isLoading) return;
+        isLoading = true;
+        if (!background) {
+            renderSchoolOverview();
+            renderGenerates();
+        }
         try {
-            const result = await window.SigmaAiDatabase.loadInsightReport(); users = result.users || []; updatePicker();
-            loading = false; render();
+            const result = await window.SigmaAiDatabase?.loadInsightReport();
+            cachedUsers = result?.users || [];
+            hasLoadedUsers = true;
+            isLoading = false;
+            renderSchoolOverview();
+            renderGenerates();
         } catch (error) {
-            loading = false; content.replaceChildren(); empty(`Unable to load saved insights. ${error.message}`);
+            isLoading = false;
+            if (!background) {
+                renderSchoolOverview();
+                renderGenerates();
+            }
         }
     }
-    const section = document.getElementById('reports-ai-view');
-    new MutationObserver(() => { if (!section.classList.contains('hidden')) { load(); setTimeout(() => window.bindInteractiveMetricCards?.(), 30); } }).observe(section, {attributes: true, attributeFilter: ['class']});
-    window.addEventListener('sigma:refresh-analytics-cards', () => { if (!section.classList.contains('hidden')) { load(); setTimeout(() => window.bindInteractiveMetricCards?.(), 30); } });
-    render();
-    if (!section.classList.contains('hidden')) load();
+
+    const schoolSection = document.getElementById('reports-ai-view');
+    const generatesSection = document.getElementById('ai-insights-view');
+
+    const refreshActiveViews = () => {
+        const schoolActive = schoolSection && !schoolSection.classList.contains('hidden');
+        const generatesActive = generatesSection && !generatesSection.classList.contains('hidden');
+        if (document.visibilityState === 'visible' && (schoolActive || generatesActive)) {
+            loadData(true);
+        }
+    };
+
+    window.addEventListener('focus', refreshActiveViews);
+    document.addEventListener('visibilitychange', refreshActiveViews);
+    window.addEventListener('storage', event => {
+        if (event.key && /^sigma-(student|teacher)-analytics-v1:|^sigma-subject-grade-insights/.test(event.key)) {
+            refreshActiveViews();
+        }
+    });
+    setInterval(refreshActiveViews, 30000);
+
+    if (schoolSection) {
+        new MutationObserver(() => {
+            if (!schoolSection.classList.contains('hidden')) {
+                loadData();
+                setTimeout(() => window.bindInteractiveMetricCards?.(), 30);
+            }
+        }).observe(schoolSection, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    if (generatesSection) {
+        new MutationObserver(() => {
+            if (!generatesSection.classList.contains('hidden')) {
+                loadData();
+            }
+        }).observe(generatesSection, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    window.addEventListener('sigma:refresh-analytics-cards', () => {
+        loadData();
+        setTimeout(() => window.bindInteractiveMetricCards?.(), 30);
+    });
+
+    window.refreshAiAnalyticsOverview = () => {
+        renderSchoolOverview();
+    };
+
+    window.renderGeneratesUserInsights = (resetSelection = false) => {
+        if (resetSelection) selectedUserId = '';
+        renderGenerates();
+    };
+
+    document.getElementById('nav-ai-insights')?.addEventListener('click', () => {
+        navigateInsights(() => { selectedUserId = ''; });
+    });
+
+    // Initial load
+    restoreInsightsHistory();
+    loadData();
 })();

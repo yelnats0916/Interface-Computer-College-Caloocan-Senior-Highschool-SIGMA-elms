@@ -40,16 +40,16 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
         <!-- Center Search Bar (Shared Length) -->
         <div class="header-search-container absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] md:block z-[10]">
             <div
-                class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none transition-all overflow-hidden">
-                <span
-                    class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-300">
-                    <i class="fa-solid fa-magnifying-glass text-black text-sm"></i>
+                class="header-search-shell relative flex items-center group bg-white border border-slate-300 rounded-full focus-within:border-[#FFD000] focus-within:bg-white hover:bg-white focus-within:ring-0 focus-within:outline-none focus-within:shadow-none outline-none focus:outline-none focus:ring-0 focus:shadow-none overflow-hidden"
+                tabindex="-1">
+                <span class="header-search-ext flex items-center justify-center pointer-events-none">
+                    <i class="fa-solid fa-magnifying-glass text-black text-[13px]"></i>
                 </span>
                 <input id="searchBar" type="text" placeholder="Search" aria-label="Global search" maxlength="100" autocomplete="off"
-                    class="block w-full h-[38px] pl-5 pr-4 bg-transparent border-0 text-[14.5px] placeholder-black-fade focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none transition-all group-focus-within:pl-10 font-medium text-black font-['Inter']"
+                    class="block flex-1 min-w-0 h-[38px] bg-transparent border-none border-0 focus:border-0 focus:border-none focus:border-transparent text-[14.5px] placeholder-black-fade placeholder:font-normal focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none font-normal text-black font-['Inter']"
                     onkeydown="if(event.key==='Enter'){}">
                 <button id="globalSearchBtn" type="button" aria-label="Search"
-                    class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 cursor-pointer text-black">
+                    class="header-search-enter w-[72px] h-[38px] flex items-center justify-center border-l border-black/10 bg-black/[0.035] hover:bg-black/[0.08] transition-all flex-shrink-0 cursor-pointer text-black focus:outline-none">
                     <i class="fa-solid fa-arrow-turn-down text-[10px] transform rotate-[-90deg] scale-y-[-1] text-black"></i>
                 </button>
             </div>
@@ -120,7 +120,7 @@ $topbarHeaderId = $topbarHeaderId ?? 'admin-header';
         <!-- Mobile Search Overlay -->
         <div id="mobile-search-overlay" class="mobile-search-overlay hidden">
             <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm ml-2"></i>
-            <input id="mobileSearchInput" type="text" placeholder="Search announcements, subjects..." autocomplete="off" class="mobile-search-overlay__input">
+            <input id="mobileSearchInput" type="text" placeholder="Search" autocomplete="off" class="mobile-search-overlay__input">
             <button type="button" id="mobileSearchCloseBtn" class="mobile-search-overlay__close" aria-label="Close search">
                 <i class="fa-solid fa-xmark"></i>
             </button>

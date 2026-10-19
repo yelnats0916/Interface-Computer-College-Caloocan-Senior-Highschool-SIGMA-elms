@@ -80,7 +80,8 @@
         button.dataset.userId = idOf(user);
         button.setAttribute('aria-label', 'View AI usage for ' + nameOf(user));
         const identity = node('span', undefined, 'ai-log-user-identity');
-        identity.append(node('span', nameOf(user), 'sigma-table-primary-text'), node('span', idOf(user), 'ai-log-user-id'));
+        const rawUserId = String(idOf(user) || '').replace(/^ID:\s*/i, '').trim();
+        identity.append(node('span', nameOf(user), 'sigma-table-primary-text'), node('span', rawUserId ? 'ID: ' + rawUserId : '', 'ai-log-user-id text-black-fade'));
         button.append(avatar(user), identity);
         button.addEventListener('click', () => open(user, button));
         return button;
@@ -171,7 +172,7 @@
             metadata.append(item);
         });
         interaction.append(heading, identity, metadata);
-        if (!['analytics', 'submission_feedback', 'grade_insights'].includes(record.feature)) {
+        if (!['sigmabot', 'analytics', 'submission_feedback', 'grade_insights'].includes(record.feature)) {
             const deleteLog = node('button', undefined, 'sigma-btn sigma-btn-white sigma-btn-sm');
             deleteLog.type = 'button'; deleteLog.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
             const notice = node('p'); notice.setAttribute('role', 'status');
@@ -296,8 +297,16 @@
         toggle.append(node('i', undefined, 'fa-solid fa-ellipsis'));
         const menu = node('div', undefined, 'ai-log-message-menu'); menu.hidden = true;
         const notice = node('div', undefined, 'ai-log-message-notice'); notice.setAttribute('role', 'status');
-        toggle.addEventListener('click', () => {
-            const show = menu.hidden; closeMessageMenus(); menu.hidden = !show; toggle.setAttribute('aria-expanded', String(show));
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const show = menu.hidden;
+            window.closeAllTableActionDropdowns?.(menu);
+            closeMessageMenus();
+            menu.hidden = !show;
+            toggle.classList.toggle('active', show);
+            toggle.setAttribute('aria-expanded', String(show));
+            if (show) window.positionActionDropdown?.(menu, toggle);
+            else window.resetActionDropdownPosition?.(menu);
         });
         const deleteLog = node('button'); deleteLog.type = 'button';
         deleteLog.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
@@ -462,7 +471,7 @@
         const chatHeader = node('div', undefined, 'sigma-ai-header');
         const headerLeft = node('div', undefined, 'mobile-panel-header-left');
         const badge = node('span', undefined, 'sigma-ai-badge'); badge.setAttribute('aria-hidden', 'true');
-        badge.append(node('i', undefined, 'fa-solid fa-bolt'));
+        badge.append(window.createSigmaBoltIcon());
         headerLeft.append(badge, node('h3', 'SIGMA', 'sigma-ai-title'));
         chatHeader.append(headerLeft); chat.append(chatHeader, transcript);
         bubblePanel.append(sidebar, chat);
@@ -492,7 +501,7 @@
                 const label = node('div');
                 label.append(node('p', message.role === 'user' ? nameOf(user) : 'SIGMA Bot'));
                 if (message.role === 'user') identity.append(avatar(user));
-                else { const icon = node('span', undefined, 'ai-log-avatar ai-log-sigma-icon'); icon.setAttribute('aria-hidden', 'true'); icon.append(node('i', undefined, 'fa-solid fa-bolt')); identity.append(icon); }
+                else { const icon = node('span', undefined, 'ai-log-avatar ai-log-sigma-icon'); icon.setAttribute('aria-hidden', 'true'); icon.append(window.createSigmaBoltIcon()); identity.append(icon); }
                 identity.append(label); sender.append(identity);
                 const text = node('td', message.text || 'Not recorded', 'ai-log-message-content');
                 const timestamp = node('td');
@@ -502,12 +511,19 @@
                 toggle.type = 'button'; toggle.title = 'Message actions'; toggle.setAttribute('aria-label', 'Actions for message ' + (index + 1)); toggle.setAttribute('aria-expanded', 'false');
                 toggle.append(node('i', undefined, 'fa-solid fa-ellipsis'));
                 const menu = node('div', undefined, 'ai-log-message-menu'); menu.hidden = true;
-                const remove = node('button', undefined); remove.type = 'button'; remove.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete'));
+                const remove = node('button', undefined); remove.type = 'button'; remove.append(node('i', undefined, 'fa-solid fa-trash-can'), node('span', 'Delete Log'));
                 const full = node('button', undefined); full.type = 'button'; full.append(node('i', undefined, 'fa-solid fa-comments'), node('span', 'View Full Conversation'));
-                toggle.addEventListener('click', () => {
-                    const show = menu.hidden;
-                    closeMessageMenus(); menu.hidden = !show; toggle.setAttribute('aria-expanded', String(show));
-                });
+                toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const show = menu.hidden;
+            window.closeAllTableActionDropdowns?.(menu);
+            closeMessageMenus();
+            menu.hidden = !show;
+            toggle.classList.toggle('active', show);
+            toggle.setAttribute('aria-expanded', String(show));
+            if (show) window.positionActionDropdown?.(menu, toggle);
+            else window.resetActionDropdownPosition?.(menu);
+        });
                 full.addEventListener('click', () => {
                     closeMessageMenus(); bubbleOpener = toggle;
                     window.pushModalHistoryState?.('ai-conversation-bubbles-panel', () => interaction.querySelector('.ai-log-message-menu button:last-child')?.click());
@@ -517,20 +533,25 @@
                     if (!sentinel.hidden) observer.observe(sentinel);
                     bubblePanel.tabIndex = -1; bubblePanel.focus({ preventScroll: true });
                 });
-                remove.addEventListener('click', () => {
-                    const next = { ...deleted, [index]: Date.now() };
-                    try { localStorage.setItem(storageKey, JSON.stringify(next)); }
-                    catch { state.textContent = 'The message could not be hidden in this browser.'; return; }
-                    deleted = next; paint();
-                    const undo = node('button', 'Undo'); undo.type = 'button';
-                    state.replaceChildren(node('span', 'Message deleted from this view. '), undo);
-                    undo.addEventListener('click', () => {
-                        const next = { ...deleted }; delete next[index];
-                        try { localStorage.setItem(storageKey, JSON.stringify(next)); }
-                        catch { state.textContent = 'The message could not be restored.'; return; }
-                        deleted = next; state.replaceChildren(); paint();
-                    });
-                    undo.focus({ preventScroll: true });
+                remove.addEventListener('click', async () => {
+                    closeMessageMenus();
+                    if (!window.confirm('Delete this message row from the log? The original conversation will not be deleted.')) return;
+                    remove.disabled = true;
+                    try {
+                        deleted[index] = true;
+                        try { localStorage.setItem(storageKey, JSON.stringify(deleted)); } catch {}
+                        const remaining = messages.filter((_, i) => !deleted[i]);
+                        if (!remaining.length) {
+                            await window.SigmaAiLogs.deleteLog(record.id);
+                            closeInteraction();
+                            refresh();
+                        } else {
+                            paint();
+                        }
+                    } catch (error) {
+                        remove.disabled = false;
+                        state.textContent = error.message || 'The row could not be deleted.';
+                    }
                 });
                 menu.append(remove, full); action.append(toggle, menu);
                 row.append(sender, text, timestamp, action); return row;
@@ -546,8 +567,15 @@
         paint(); interaction.append(state, frame, bubblePanel);
     }
     function closeMessageMenus() {
-        host.querySelectorAll('.ai-log-message-menu').forEach(menu => { menu.hidden = true; });
-        host.querySelectorAll('.ai-log-message-more').forEach(button => button.setAttribute('aria-expanded', 'false'));
+        host.querySelectorAll('.ai-log-message-menu').forEach(menu => {
+            menu.hidden = true;
+            menu.classList.remove('dropup');
+            window.resetActionDropdownPosition?.(menu);
+        });
+        host.querySelectorAll('.ai-log-message-more').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-expanded', 'false');
+        });
     }
     document.addEventListener('pointerdown', event => {
         const menu = host.querySelector('.ai-log-message-menu:not([hidden])');

@@ -128,12 +128,44 @@ window.positionSubSidebarBeside = function (parentEl) {
 
     const rect = parentEl.getBoundingClientRect();
     const sidebarTopOffset = 82;
+    const paddingBottom = 16;
+    const viewportHeight = window.innerHeight;
 
-    // Anchor top flush with parent button so the white active rail tab connects seamlessly to the white panel
-    const targetTop = Math.max(sidebarTopOffset, Math.round(rect.top));
+    // Temporarily ensure subSidebar is measurable
+    const prevDisplay = subSidebar.style.display;
+    const prevHidden = subSidebar.classList.contains('hidden');
+    if (prevHidden) {
+        subSidebar.classList.remove('hidden');
+        subSidebar.style.visibility = 'hidden';
+        subSidebar.style.display = 'flex';
+    }
+
+    const flyoutHeight = subSidebar.offsetHeight || 220;
+
+    if (prevHidden) {
+        subSidebar.classList.add('hidden');
+        subSidebar.style.visibility = '';
+        subSidebar.style.display = prevDisplay;
+    }
+
+    let targetTop = Math.round(rect.top);
+
+    // If card extends beyond bottom of viewport, shift it upwards
+    if (targetTop + flyoutHeight > viewportHeight - paddingBottom) {
+        // Align card bottom with parentEl bottom so it flows upwards
+        targetTop = Math.round(rect.bottom - flyoutHeight);
+        // Ensure it doesn't go above the top navigation bar
+        targetTop = Math.max(sidebarTopOffset, targetTop);
+        subSidebar.classList.add('flyout-up');
+    } else {
+        targetTop = Math.max(sidebarTopOffset, targetTop);
+        subSidebar.classList.remove('flyout-up');
+    }
+
     subSidebar.style.setProperty('top', `${targetTop}px`, 'important');
     subSidebar.style.setProperty('max-height', `calc(100vh - ${targetTop}px - 16px)`, 'important');
 };
+
 
 window.updateLayout = function () {
     if (window._deferPortalLayout) {

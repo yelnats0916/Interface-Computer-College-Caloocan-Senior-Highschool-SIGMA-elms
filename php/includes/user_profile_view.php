@@ -21,7 +21,7 @@
                     <div class="relative z-10 flex flex-row items-center gap-3 md:gap-8 w-full">
                         <button type="button" id="user-profile-picture-trigger"
                             onclick="window.toggleUserProfilePictureOverlay(true)"
-                            class="w-40 h-40 md:w-48 md:h-48 rounded-full bg-[#e2e8f0] flex items-center justify-center focus:outline-none shrink-0 mb-[-74px] overflow-hidden cursor-pointer border-4 border-white shadow-md"
+                            class="w-40 h-40 md:w-48 md:h-48 rounded-full bg-[#e2e8f0] flex items-center justify-center focus:outline-none shrink-0 mb-[-74px] overflow-hidden cursor-pointer border-4 border-white shadow-md z-10"
                             title="Change profile picture">
                             <img id="user-avatar-img" src="" alt="User Avatar" class="absolute inset-0 w-full h-full object-cover hidden rounded-full">
                             <i id="user-avatar-placeholder" class="fa-solid fa-user text-6xl md:text-7xl text-[#94a3b8]"></i>
@@ -118,15 +118,24 @@
             </div>
 
             <!-- Clearance below avatar & Tabs inside Top White Header Panel -->
-            <div class="pt-24 pb-0">
-                <div id="user-profile-tabs-header-grid" class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-8 items-center border-t border-slate-200 pt-3 px-6 md:px-10">
-                    <div class="flex items-center justify-center shrink-0">
-                        <h3 class="text-sm font-semibold text-black tracking-normal font-['Inter'] leading-5">About</h3>
+            <div class="pt-28 pb-0">
+                <div id="user-profile-tabs-header-grid" class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 md:gap-8 items-center border-t border-black/[0.08] px-6 md:px-10 relative z-0 md:h-[48px]">
+                    <div class="flex items-center justify-center shrink-0 h-full">
+                        <h3 class="text-[0.875rem] font-semibold text-black tracking-normal font-['Inter'] flex items-center gap-2 h-full">
+                            <i class="fa-solid fa-circle-info text-[13px]"></i>
+                            <span>About</span>
+                        </h3>
                     </div>
-                    <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-3">
+                    <div id="user-profile-tabs-container" class="flex justify-between w-full md:w-auto md:justify-start md:gap-2 h-full">
                         <p id="profile-tab-achievements" class="hidden" style="display:none !important;" onclick="window.switchUserProfileTab('achievements')">Achievements</p>
-                        <p id="profile-tab-subjects" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-[#15803d] text-sm font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('subjects')">Subjects</p>
-                        <p id="profile-tab-sections" class="px-3.5 md:px-4 py-2 border-b-[3.5px] border-transparent text-sm font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap leading-5" onclick="window.switchUserProfileTab('sections')">Sections</p>
+                        <p id="profile-tab-subjects" class="px-3.5 md:px-4 border-b-[3.5px] border-[#15803d] text-[0.875rem] font-semibold text-[#15803d] tracking-normal font-['Inter'] cursor-pointer transition-colors whitespace-nowrap flex items-center gap-2 h-full" onclick="window.switchUserProfileTab('subjects')">
+                            <i class="fa-solid fa-book text-[13px]"></i>
+                            <span>Subjects</span>
+                        </p>
+                        <p id="profile-tab-sections" class="px-3.5 md:px-4 border-b-[3.5px] border-transparent text-[0.875rem] font-semibold text-black hover:bg-slate-100 hover:rounded-lg tracking-normal font-['Inter'] cursor-pointer transition-all whitespace-nowrap flex items-center gap-2 h-full" onclick="window.switchUserProfileTab('sections')">
+                            <i class="fa-solid fa-users text-[13px]"></i>
+                            <span>Sections</span>
+                        </p>
                     </div>
                 </div>
             </div>

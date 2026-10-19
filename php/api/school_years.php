@@ -135,9 +135,60 @@ try {
                 jsonResponse(['success' => false, 'error' => 'Missing record ID to delete'], 400);
             }
 
-            $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 1 WHERE id = ?");
-            $stmt->execute([$recordId]);
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 1, deleted_at = UTC_TIMESTAMP(), deleted_by = ? WHERE id = ?");
+            $stmt->execute([$actor, $recordId]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('school_years', ?, 'remove', ?)");
+                $logStmt->execute([$recordId, $actor]);
+            } catch (Throwable $e) {}
+
             jsonResponse(['success' => true, 'message' => 'School year deleted successfully']);
+        }
+
+        // ── Action: RESTORE ────────────────────────────────────────
+        if ($action === 'restore') {
+            $recordId = (string) ($payload['id'] ?? '');
+            if (!$recordId) {
+                jsonResponse(['success' => false, 'error' => 'Missing record ID to restore'], 400);
+            }
+
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL WHERE id = ?");
+            $stmt->execute([$recordId]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('school_years', ?, 'restore', ?)");
+                $logStmt->execute([$recordId, $actor]);
+            } catch (Throwable $e) {}
+
+            jsonResponse(['success' => true, 'message' => 'School year restored successfully']);
+        }
+
+        // ── Action: PURGE ──────────────────────────────────────────
+        if ($action === 'purge') {
+            $recordId = (string) ($payload['id'] ?? '');
+            if (!$recordId) {
+                jsonResponse(['success' => false, 'error' => 'Missing record ID to permanently delete'], 400);
+            }
+
+            $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+
+            $stmt = $pdo->prepare("DELETE FROM school_years WHERE id = ?");
+            $stmt->execute([$recordId]);
+
+            try {
+                $logStmt = $pdo->prepare("INSERT INTO `record_lifecycle_events` (`table_name`, `record_id`, `action`, `actor_id`) VALUES ('school_years', ?, 'purge', ?)");
+                $logStmt->execute([$recordId, $actor]);
+            } catch (Throwable $e) {}
+
+            jsonResponse(['success' => true, 'message' => 'School year permanently deleted']);
         }
 
         // ── Action: SAVE / CREATE / UPDATE ─────────────────────────

@@ -957,13 +957,19 @@
         `;
     }
 
-    window.renderSigmaReadOnlyInsightCard = function (data) {
+    window.renderSigmaReadOnlyInsightCard = function (data, interactive = false) {
         const wrapper = document.createElement('div');
         wrapper.innerHTML = renderSigmaGradeMonitoringCardHtml(data);
         const card = wrapper.firstElementChild;
-        card.classList.add('sigma-card--report');
+        if (!interactive) card.classList.add('sigma-card--report');
+        else card.dataset.reportInsight = 'true';
         card.querySelectorAll('[onclick]').forEach(node => node.removeAttribute('onclick'));
         card.querySelectorAll('.sigma-card-pin-btn').forEach(node => node.remove());
+        if (interactive) {
+            const opener = card.querySelector('.sigma-insight-open');
+            card.addEventListener('click', () => window.openStudentInsight?.(opener));
+            return card;
+        }
         card.querySelectorAll('.sigma-insight-open').forEach(button => {
             const title = document.createElement('span');
             title.className = 'sigma-insight-open';
@@ -2977,11 +2983,19 @@
             if(status)status.textContent=completed.length?completed.map(item=>names[item.quarter-1]).join(', '):'Incomplete';
         });
         body.querySelectorAll('button[onclick^="window.openAdvisorySubjectReview"] i').forEach(icon=>icon.remove());
-        body.querySelectorAll('.teacher-class-grade-list .teacher-student-grade-entry').forEach(entry=>{
+        body.querySelectorAll('.teacher-class-grade-list .teacher-student-grade-entry').forEach((entry, idx)=>{
             const info=entry.firstElementChild;
             const status=info.querySelector('p');
+            const nameText = info.querySelector('strong')?.textContent || info.textContent || '';
+            const studentObj = advisoryStudents[idx]?.student || nameText;
             const avatar=document.createElement('span');avatar.className='advisory-student-avatar';avatar.setAttribute('aria-hidden','true');
-            avatar.innerHTML='<i class="fa-solid fa-user"></i>';
+            const photo = window.resolveUserAvatar?.(studentObj);
+            if (photo) {
+                const escPhoto = (typeof window.escapeHtml === 'function') ? window.escapeHtml(photo) : photo;
+                avatar.innerHTML=`<img src="${escPhoto}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.outerHTML='<i class=\\'fa-solid fa-user\\'></i>'">`;
+            } else {
+                avatar.innerHTML='<i class="fa-solid fa-user"></i>';
+            }
             info.classList.add('advisory-student-identity');
             const text=document.createElement('div');text.append(...info.childNodes);
             info.append(avatar,text);
@@ -3034,7 +3048,7 @@
             if (getAdvisorySectionRecords().length) { window.openTeacherAdvisoryClass(); return; }
             window.sigmaGradesState.teacherAdvisoryView=false;
         }
-        window.setPortalHeader?.('Grades', isTeacher ? 'Subject Classes' : 'Analytics');
+        window.setPortalHeader?.('Grades', isTeacher && window.sigmaGradesState.teacherAnalyticsDetail && subSec ? subSec.subject : (isTeacher ? 'Subject Classes' : 'Analytics'));
         if (isTeacher && (!window.sigmaGradesState.teacherAnalyticsDetail || !subSec)) {
             const assignments = window.getTeacherAssignedSubjectsAndSections(teacher) || [];
             workspaceContainer.innerHTML = `<div class="teacher-class-overview">
@@ -3189,13 +3203,14 @@
         const studentQuarterGrades=new Map(students.map(student=>[student,[null,null,null,null]]));
         // Compute metrics for each quarter (1 to 4)
         const quarterMetrics = [1, 2, 3, 4].map(qNum => {
-            // Draft gradebook scores are not published quarterly reports.
-            if (isTeacher || !isCurrentPageTeacherPortal()) {
-                const published=students.map(student=>{
-                    const grade=window.getPublishedSubjectGrade?.(student,subSec.subject,subSec.sectionName,qNum)??null;
-                    studentQuarterGrades.get(student)[qNum-1]=grade;return grade;
-                }).filter(Number.isFinite);
-                return {quarter:qNum,avgWw:null,avgPt:null,avgQa:null,avgOverall:published.length?published.reduce((sum,value)=>sum+value,0)/published.length:null,studentFinalGrades:published};
+            // First check published quarterly reports
+            const published=students.map(student=>{
+                const grade=window.getPublishedSubjectGrade?.(student,subSec.subject,subSec.sectionName,qNum)??null;
+                if (grade !== null) studentQuarterGrades.get(student)[qNum-1]=grade;
+                return grade;
+            }).filter(Number.isFinite);
+            if (published.length > 0) {
+                return {quarter:qNum,avgWw:null,avgPt:null,avgQa:null,avgOverall:published.reduce((sum,value)=>sum+value,0)/published.length,studentFinalGrades:published};
             }
             const wwItems = getAdminGradebookAssessmentItems('ww', qNum, subSec.subject, subSec.sectionName);
             const ptItems = getAdminGradebookAssessmentItems('pt', qNum, subSec.subject, subSec.sectionName);
@@ -3311,7 +3326,7 @@
             ? window.renderSharedAnalyticsTopSectionHtml({
                 gwa: classGwa,
                 title: 'Class Average',
-                aiMessage: 'No grades recorded yet.',
+                aiMessage: aiMessage,
                 role: isTeacher ? 'teacher' : 'admin'
             })
             : '';
@@ -3520,18 +3535,33 @@
             label.replaceChildren(document.createTextNode(text.slice(0,start).trimEnd()),document.createTextNode(' '),detail);
         });
         if (isTeacher || !isCurrentPageTeacherPortal()) {
+            if (isTeacher) {
+                workspaceContainer.querySelector('.teacher-analytics-detail-tools')?.remove();
+                window.setPortalHeader?.('Grades', subSec.subject);
+            }
             workspaceContainer.querySelector('.teacher-analytics-detail-tools > button[onclick="window.backToTeacherGradeClasses()"]')?.remove();
             workspaceContainer.querySelector('.teacher-analytics-detail-tools > button[title="Advisory Class is not connected yet"]')?.remove();
             const table = workspaceContainer.querySelector('.teacher-quarter-grade-table');
             const quarterNames=['1st Quarter','2nd Quarter','3rd Quarter','4th Quarter'];
-            if(students.length)table?.querySelectorAll('tbody tr td:first-child').forEach(cell=>{
-                const name=document.createElement('span');name.textContent=cell.textContent;
+            if(students.length)table?.querySelectorAll('tbody tr td:first-child').forEach((cell, rowIndex)=>{
+                const studentObj = students[rowIndex] || cell.textContent;
+                const nameText = cell.textContent;
+                const rawIdText = String(cell.nextElementSibling?.textContent || '').replace(/^ID:\s*/i, '').trim();
+                const name=document.createElement('span');name.textContent=nameText;
+                const studentId=document.createElement('span');studentId.className='teacher-quarter-mobile-id';
+                studentId.textContent=rawIdText ? `ID: ${rawIdText}` : '';
+                const nameStack=document.createElement('div');nameStack.className='teacher-quarter-student-details';
+                nameStack.append(name, studentId);
                 const avatar=document.createElement('span');avatar.className='teacher-quarter-student-avatar';avatar.setAttribute('aria-hidden','true');
-                avatar.innerHTML='<i class="fa-solid fa-user"></i>';
-                const identity=document.createElement('div');identity.className='teacher-quarter-student-name';identity.append(avatar,name);
+                const photo = window.resolveUserAvatar?.(studentObj);
+                if (photo) {
+                    const escPhoto = (typeof window.escapeHtml === 'function') ? window.escapeHtml(photo) : photo;
+                    avatar.innerHTML=`<img src="${escPhoto}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.outerHTML='<i class=\\'fa-solid fa-user\\'></i>'">`;
+                } else {
+                    avatar.innerHTML='<i class="fa-solid fa-user"></i>';
+                }
+                const identity=document.createElement('div');identity.className='teacher-quarter-student-name';identity.append(avatar,nameStack);
                 cell.replaceChildren(identity);
-                const studentId=document.createElement('span');studentId.className='teacher-quarter-mobile-id';studentId.textContent=cell.nextElementSibling?.textContent||'';
-                cell.append(studentId);
             });
             table?.querySelectorAll('thead th').forEach((heading,index)=>{
                 if(index>=2&&index<=5)heading.innerHTML=`<span class="teacher-quarter-heading-full">${quarterNames[index-2]}</span><span class="teacher-quarter-heading-short">Q${index-1}</span>`;
@@ -4867,8 +4897,8 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <!-- VIEW 1: ANALYTICS CONTENT -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="admin-grades-analytics-view" class="${state.activeTab === 'analytics' ? '' : 'hidden'} flex-1 flex flex-col w-full h-full min-h-0 bg-white overflow-y-auto font-['Inter']">
-                    <div id="admin-analytics-workspace-content" class="flex-1 flex flex-col w-full h-full min-h-0 p-0 bg-white font-['Inter']">
+                <div id="admin-grades-analytics-view" class="${state.activeTab === 'analytics' ? '' : 'hidden'} flex-1 flex flex-col w-full h-auto min-h-0 bg-white overflow-visible font-['Inter']">
+                    <div id="admin-analytics-workspace-content" class="flex-1 flex flex-col w-full h-auto min-h-0 p-0 bg-white overflow-visible font-['Inter']">
                         <!-- Rendered via window.renderAdminAnalyticsWorkspace() -->
                     </div>
                 </div>
@@ -4971,6 +5001,24 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
         return typeof window.withGradebookReadCache === 'function'
             ? window.withGradebookReadCache(run) : run();
     };
+
+    const renderGradebookWorkspaceRaw = window.renderAdminGradebookWorkspace;
+    if (typeof renderGradebookWorkspaceRaw === 'function') {
+        window.renderAdminGradebookWorkspace = function (...args) {
+            const run = () => renderGradebookWorkspaceRaw.apply(this, args);
+            return typeof window.withGradebookReadCache === 'function'
+                ? window.withGradebookReadCache(run) : run();
+        };
+    }
+
+    const renderAnalyticsWorkspaceRaw = window.renderAdminAnalyticsWorkspace;
+    if (typeof renderAnalyticsWorkspaceRaw === 'function') {
+        window.renderAdminAnalyticsWorkspace = function (...args) {
+            const run = () => renderAnalyticsWorkspaceRaw.apply(this, args);
+            return typeof window.withGradebookReadCache === 'function'
+                ? window.withGradebookReadCache(run) : run();
+        };
+    }
 
     window.renderTeacherGradesView = function (targetContainerId = 'section-grades', options = {}) {
         return window.renderSigmaGradesView(targetContainerId, { ...options, isTeacherPage: true, role: 'teacher' });

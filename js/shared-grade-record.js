@@ -177,8 +177,9 @@
                 const nameDetails = document.createElement('span');
                 nameDetails.className = 'record-student-details';
                 const mobileId = document.createElement('span');
-                mobileId.className = 'record-student-mobile-id';
-                mobileId.textContent = String(student.id || student.uid || student.lrn || '');
+                mobileId.className = 'record-student-mobile-id text-black-fade';
+                const rawStudentId = String(student.id || student.uid || student.lrn || '').replace(/^ID:\s*/i, '').trim();
+                mobileId.textContent = rawStudentId ? `ID: ${rawStudentId}` : '';
                 nameDetails.append(name, mobileId);
                 const identity = document.createElement('div');
                 identity.className = 'record-student-identity';

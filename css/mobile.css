@@ -495,19 +495,59 @@
         display: none !important;
     }
 
-    /* Mobile Search Dim Backdrop (Dim light everything below, touching outside returns to page) */
+    /* Mobile Search Dim Backdrop (Dim light everything below the search bar) */
     .mobile-search-backdrop {
         position: fixed !important;
         inset: 0 !important;
-        top: clamp(40px, 10.5vw, 46px) !important;
+        top: var(--mobile-search-bar-bottom, clamp(57px, 15vw, 67px)) !important;
         background: rgba(0, 0, 0, 0.45) !important;
-        backdrop-filter: blur(2px) !important;
-        -webkit-backdrop-filter: blur(2px) !important;
-        z-index: 95 !important;
+        backdrop-filter: blur(3px) !important;
+        -webkit-backdrop-filter: blur(3px) !important;
+        z-index: 9998 !important;
+        display: block !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
         transition: opacity 0.2s ease !important;
     }
 
-    .mobile-search-backdrop.hidden {
+    .mobile-search-backdrop.hidden,
+    .mobile-search-backdrop[hidden] {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* When mobile search is active, hide subbar so no icons or white strips poke through */
+    body.mobile-search-active .mobile-header-subbar,
+    header.mobile-search-active .mobile-header-subbar {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    /* Mobile Search Dropdown: History & Suggestions Panel (Full width, seamless gap) */
+    .mobile-search-dropdown {
+        position: fixed !important;
+        top: var(--mobile-search-bar-bottom, clamp(57px, 15vw, 67px)) !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-height: calc(100vh - var(--mobile-search-bar-bottom, 60px) - 20px) !important;
+        max-height: calc(100dvh - var(--mobile-search-bar-bottom, 60px) - 20px) !important;
+        background: #ffffff !important;
+        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+        border-radius: 0 0 18px 18px !important;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+        z-index: 9999 !important;
+        padding: 8px 0 14px 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        box-sizing: border-box !important;
+        display: block !important;
+    }
+
+    .mobile-search-dropdown.hidden,
+    .mobile-search-dropdown[hidden] {
         display: none !important;
     }
 
@@ -4212,15 +4252,25 @@
         font-size: 11.5px !important;
     }
 
-    /* Hide Student Profile Avatars on Mobile in Attendance Grid */
-    .attendance-month-table .student-name-col .sigma-user-avatar,
-    .attendance-month-table .student-name-col [class*="sigma-user-avatar"],
-    .attendance-month-table .student-name-col .rounded-full {
-        display: none !important;
+    /* Compact Student Profile Avatars on Mobile in Attendance Grid */
+    .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"], .rounded-full, img) {
+        display: inline-flex !important;
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        flex: 0 0 24px !important;
+        flex-shrink: 0 !important;
+        aspect-ratio: 1 / 1 !important;
+        border-radius: 9999px !important;
+        overflow: hidden !important;
+        font-size: 10px !important;
     }
 
     .attendance-month-table tbody td.student-name-col > div {
-        gap: 0 !important;
+        gap: 6px !important;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
@@ -10243,6 +10293,7 @@
         box-shadow: 0 0 0 3px #ffffff, 0 4px 14px rgba(0, 0, 0, 0.14) !important;
         border-radius: 9999px !important;
         flex-shrink: 0 !important;
+        z-index: 10 !important;
     }
 
     #user-profile-picture-trigger #user-avatar-placeholder {
@@ -10306,7 +10357,7 @@
     }
 
     #user-profile-status-wrap {
-        min-height: 44px !important;
+        min-height: 52px !important;
         padding: 6px clamp(12px, 3.5vw, 16px) 6px !important;
         display: flex !important;
         align-items: center !important;
@@ -10320,8 +10371,10 @@
         max-width: 100% !important;
         margin: 0 !important;
         padding: 0 clamp(12px, 3.5vw, 16px) !important;
-        border-top: 1px solid #e2e8f0 !important;
+        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
         box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 0 !important;
     }
 
     #user-profile-about-title-col {
@@ -10689,5 +10742,74 @@
         font-size: 16px !important;
         line-height: 20px !important;
         transform: rotate(90deg) !important;
+    }
+}
+
+/* ─── Search Results Filter Styles ─── */
+.search-filter-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.search-filter-item:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.search-filter-item.active {
+    background-color: #0f5132 !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(15, 81, 50, 0.25);
+}
+
+.search-filter-item.active .search-filter-count {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.search-filter-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background-color: #f1f5f9;
+    color: #64748b;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+    .search-filter-container {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        gap: 8px !important;
+        padding-bottom: 2px !important;
+    }
+    .search-filter-item {
+        width: auto !important;
+        white-space: nowrap !important;
+        padding: 6px 14px !important;
+        border-radius: 9999px !important;
+        border: 1px solid #e2e8f0 !important;
+        font-size: 12px !important;
+        flex-shrink: 0 !important;
+    }
+    .search-filter-item.active {
+        border-color: #0f5132 !important;
     }
 }

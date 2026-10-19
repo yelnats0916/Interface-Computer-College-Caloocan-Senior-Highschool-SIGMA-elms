@@ -726,7 +726,8 @@
             // Navigate if notification points to a material / coursework
             if (currentRole === 'admin' && (notif.type === 'quarter-reminder' || String(notif.id || '').startsWith('sy-quarter-reminder-'))) {
                 window.openAskingPanel?.({
-                    title: notif.title || 'Quarter Reminder',
+                    variant: 'quarter-reminder',
+                    title: notif.dialogTitle || notif.title || 'Quarter Reminder',
                     message: notif.body || 'Review the quarter dates in School Year settings.',
                     icon: 'fa-solid fa-calendar-days text-[#15803d]',
                     confirmText: 'View School Year',
@@ -798,9 +799,17 @@
 
         // Filter based on selected tab
         const selectedTab = window.matchMedia('(max-width: 768px)').matches ? 'all' : currentTab;
-        const filtered = selectedTab === 'unread'
+        const filtered = (selectedTab === 'unread'
             ? notifs.filter(n => !n.read)
-            : notifs;
+            : [...notifs]);
+        // Catch-up delivery time must not place older quarter milestones above today's.
+        const notificationOrderTime = notification => {
+            if (notification.type === 'quarter-reminder' && /^\d{4}-\d{2}-\d{2}$/.test(notification.scheduledFor || '')) {
+                return Date.parse(`${notification.scheduledFor}T00:00:00+08:00`);
+            }
+            return Date.parse(notification.timestamp) || 0;
+        };
+        filtered.sort((a, b) => notificationOrderTime(b) - notificationOrderTime(a));
 
         feedContainer.innerHTML = '';
 
@@ -816,48 +825,40 @@
             return;
         }
 
-        // Measure a real row so the collapsed list fills the available screen height.
-        const sample = buildNotificationItem(filtered[0]);
-        feedContainer.appendChild(sample);
-        if (prevBtnWrap) prevBtnWrap.style.display = 'block';
-        const rowHeight = sample.getBoundingClientRect().height || 80;
-        const availableHeight = scrollArea?.clientHeight || 0;
-        feedContainer.innerHTML = '';
-
-        // Check if items exceed INITIAL_LIMIT or exceed uncompressed panel capacity
-        const totalHeightNeeded = filtered.length * rowHeight;
-        const exceedsCapacity = availableHeight > 0 && totalHeightNeeded > availableHeight;
-        const hasMany = filtered.length > INITIAL_LIMIT || exceedsCapacity;
-
-        // How many items fit in the collapsed view
-        const maxCompressedCount = availableHeight > 0
-            ? Math.max(1, Math.min(filtered.length, Math.floor(availableHeight / 60)))
-            : INITIAL_LIMIT;
-        const initialLimit = Math.max(INITIAL_LIMIT, maxCompressedCount);
-
-        batchSize = initialLimit;
-        visibleLimit = isExpanded ? Math.max(visibleLimit, filtered.length) : initialLimit;
-        hasOlder = filtered.length > visibleLimit;
-        const visibleItems = filtered.slice(0, visibleLimit);
-
-        visibleItems.forEach(notif => {
-            const item = buildNotificationItem(notif);
-            if (!isExpanded && hasMany && availableHeight > 0 && visibleItems.length > 0) {
-                const height = `${availableHeight / visibleItems.length}px`;
-                ['height', 'min-height', 'max-height'].forEach(property => item.style.setProperty(property, height, 'important'));
+        // Measure natural row heights with the footer hidden first.
+        if (prevBtnWrap) prevBtnWrap.style.display = 'none';
+        const items = filtered.map(buildNotificationItem);
+        items.forEach(item => feedContainer.appendChild(item));
+        let availableHeight = scrollArea?.clientHeight || 0;
+        const heights = items.map(item => item.getBoundingClientRect().height || 100);
+        const totalHeight = heights.reduce((sum, height) => sum + height, 0);
+        let initialLimit = filtered.length;
+        if (!isExpanded && availableHeight > 0 && totalHeight > availableHeight + 1) {
+            if (prevBtnWrap) prevBtnWrap.style.display = 'block';
+            availableHeight = scrollArea?.clientHeight || availableHeight;
+            let used = 0;
+            initialLimit = 0;
+            for (const height of heights) {
+                if (used + height > availableHeight + 1) break;
+                used += height;
+                initialLimit++;
             }
-            feedContainer.appendChild(item);
-        });
+            initialLimit = Math.max(1, initialLimit);
+        } else if (!availableHeight) initialLimit = INITIAL_LIMIT;
+        batchSize = initialLimit;
+        visibleLimit = isExpanded ? filtered.length : initialLimit;
+        hasOlder = filtered.length > visibleLimit;
+        items.forEach((item, index) => { if (index >= visibleLimit) item.remove(); });
 
         // "Previous Notifications" button logic:
-        // Always display at the bottom when there are multiple notifications or items exceed capacity
+        // A crowded panel alone does not mean older notifications are hidden.
         if (prevBtnWrap) {
-            if ((hasMany || hasOlder) && !isExpanded) {
+            if (hasOlder && !isExpanded) {
                 prevBtnWrap.style.display = 'block';
                 if (scrollArea) scrollArea.classList.remove('can-scroll');
             } else {
                 prevBtnWrap.style.display = 'none';
-                if (scrollArea && isExpanded) {
+                if (scrollArea) {
                     scrollArea.classList.add('can-scroll');
                 }
             }

@@ -53,14 +53,16 @@
                 headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, language:window.getSigmaAiLanguage?.('bot')||'auto' }) });
             const result = await response.json();
             if (!response.ok || !result.success || typeof result.text !== 'string' || !result.text.trim()) throw new Error(result.error || 'SIGMA could not get an answer. Try again.');
+            if (!/^CHAT-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('SIGMA replied without a generation ID. Try again.');
             const answer = window.renderSigmaChatMessage({ role: 'assistant', text: result.text, stamp });
             answer.dataset.sigmaModel = result.model;
+            answer.dataset.generationId = result.generationId;
             if (messages.contains(userMessage)) messages.append(answer);
             try {
                 const account = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
                 if (account.uid || account.id) window.SigmaAiLogs?.record({ userId: String(account.uid || account.id), feature: 'sigmabot',
                     prompt: text, response: result.text, model: result.model, provider: result.provider,
-                    keyId: result.keyId, keyLabel: result.keyLabel, status: result.status, timestamp: new Date().toISOString(),
+                    keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status, timestamp: new Date().toISOString(),
                     messages: [...history, { role: 'user', text, timestamp: userTime }, { role: 'assistant', text: result.text, model: result.model, timestamp: new Date().toISOString() }] });
             } catch (error) { console.warn('SIGMA reply received, but its audit log could not be saved.', error); }
             messages.scrollTop = messages.scrollHeight;

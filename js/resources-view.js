@@ -1371,9 +1371,13 @@
                                 ${hideAuthorCol ? '' : `
                                 <td class="px-4 py-3.5 text-left" style="border-right: 1px solid rgba(0, 0, 0, 0.08) !important;">
                                     <button type="button" class="btn-filter-author flex items-center justify-start gap-2.5 text-left group cursor-pointer max-w-full" data-author="${escapeHtml(item.author || item.uploadedBy || 'Prof. Carlos Santos')}" title="See all files uploaded by ${escapeHtml(item.author || item.uploadedBy || 'Prof. Carlos Santos')}">
-                                        <div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden">
-                                            <i class="fa-solid fa-user text-xs text-[#94a3b8]"></i>
-                                        </div>
+                                        ${(() => {
+                                            const aName = item.author || item.uploadedBy || 'Prof. Carlos Santos';
+                                            const aPhoto = resolveAuthorAvatar(aName) || (typeof window.resolveUserAvatar === 'function' ? window.resolveUserAvatar(aName) : '');
+                                            return aPhoto
+                                                ? `<img src="${escapeHtml(aPhoto)}" alt="${escapeHtml(aName)}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0 select-none" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden\\'><i class=\\'fa-solid fa-user text-xs text-[#94a3b8]\\'></i></div>'">`
+                                                : `<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>`;
+                                        })()}
                                         <span class="author-name-text text-[13px] font-normal text-black font-['Inter'] leading-snug truncate text-left" style="text-underline-offset: 3px;">
                                             ${escapeHtml(item.author || item.uploadedBy || 'Prof. Carlos Santos')}
                                         </span>
@@ -1398,7 +1402,7 @@
                                                 title="Actions">
                                                 <i class="fa-solid fa-ellipsis"></i>
                                             </button>
-                                            <div id="res-action-menu-${item.id}" class="action-dropdown-menu" style="min-width: 150px !important;">
+                                            <div id="res-action-menu-${item.id}" class="action-dropdown-menu">
                                                 <button onclick="window.downloadResourceItem('${item.id}', event)" class="action-dropdown-item">
                                                     <i class="fa-solid fa-cloud-arrow-down" style="color: #000000 !important; font-size: 13px; width: 16px; text-align: center;"></i>
                                                     <span style="color: #000000 !important;">Download</span>
@@ -3007,25 +3011,45 @@
         if (menu && btn) {
             const isShowing = menu.classList.contains('show');
             if (!isShowing) {
+                if (typeof window.closeAllTableActionDropdowns === 'function') {
+                    window.closeAllTableActionDropdowns(menu);
+                }
                 menu.classList.add('show');
                 btn.classList.add('active');
                 if (typeof window.positionActionDropdown === 'function') {
                     window.positionActionDropdown(menu, btn);
                 } else {
-                    menu.classList.remove('dropup');
+                    menu.style.position = 'fixed';
+                    menu.style.right = 'auto';
+                    menu.style.bottom = 'auto';
+                    menu.style.marginTop = '0';
+                    menu.style.marginBottom = '0';
+                    menu.style.zIndex = '9999';
                     const btnRect = btn.getBoundingClientRect();
-                    const menuHeight = (menu.offsetHeight > 0) ? menu.offsetHeight : 180;
-                    const spaceBelow = window.innerHeight - btnRect.bottom;
+                    const menuRect = menu.getBoundingClientRect();
+                    const menuWidth = menuRect.width || menu.offsetWidth || 195;
+                    const menuHeight = menuRect.height || menu.offsetHeight || 160;
+                    const viewportW = window.innerWidth || document.documentElement.clientWidth;
+                    const viewportH = window.innerHeight || document.documentElement.clientHeight;
+                    let left = btnRect.right - menuWidth;
+                    if (left < 12) left = 12;
+                    if (left + menuWidth > viewportW - 12) left = Math.max(12, viewportW - menuWidth - 12);
+                    const spaceBelow = viewportH - btnRect.bottom;
                     const spaceAbove = btnRect.top;
+                    let top;
                     if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
+                        top = Math.max(12, btnRect.top - menuHeight - 6);
                         menu.classList.add('dropup');
                     } else {
+                        top = Math.min(viewportH - menuHeight - 12, btnRect.bottom + 6);
                         menu.classList.remove('dropup');
                     }
+                    menu.style.left = Math.round(left) + 'px';
+                    menu.style.top = Math.round(top) + 'px';
                 }
             } else {
-                menu.classList.remove('show');
-                menu.classList.remove('dropup');
+                menu.classList.remove('show', 'dropup');
+                window.resetActionDropdownPosition?.(menu);
                 btn.classList.remove('active');
             }
         }
@@ -3104,17 +3128,40 @@
     // Global outside click listener to close action dropdown
     if (!window._resourceDropdownClickAttached) {
         window._resourceDropdownClickAttached = true;
-        document.addEventListener('click', (e) => {
+        document.addEventListener('pointerdown', (e) => {
             if (!e.target.closest('.action-dropdown-container')) {
                 document.querySelectorAll('.action-dropdown-menu.show').forEach(m => {
-                    m.classList.remove('show');
-                    m.classList.remove('dropup');
+                    m.classList.remove('show', 'dropup');
+                    window.resetActionDropdownPosition?.(m);
+                });
+                document.querySelectorAll('.action-dots-btn.active').forEach(b => {
+                    b.classList.remove('active');
+                });
+            }
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.action-dropdown-menu.show').forEach(m => {
+                    m.classList.remove('show', 'dropup');
+                    window.resetActionDropdownPosition?.(m);
                 });
                 document.querySelectorAll('.action-dots-btn.active').forEach(b => {
                     b.classList.remove('active');
                 });
             }
         });
+        window.addEventListener('scroll', () => {
+            if (typeof window.repositionActiveAdminDropdowns === 'function') {
+                window.repositionActiveAdminDropdowns();
+            } else {
+                document.querySelectorAll('.action-dropdown-menu.show').forEach(m => {
+                    m.classList.remove('show', 'dropup');
+                });
+                document.querySelectorAll('.action-dots-btn.active').forEach(b => {
+                    b.classList.remove('active');
+                });
+            }
+        }, { passive: true, capture: true });
     }
 
     // Re-render content when crossing mobile breakpoint (768px) so mobile is always Card View

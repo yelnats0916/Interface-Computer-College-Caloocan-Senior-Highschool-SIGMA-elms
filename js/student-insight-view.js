@@ -136,7 +136,7 @@
         const content = card?.querySelector('.sigma-insight-full-content');
         if (!content) return;
         activeCard = card;
-        window.markInsightRead?.(card.dataset.id);
+        if (card.dataset.reportInsight !== 'true') window.markInsightRead?.(card.dataset.id);
         dialog.querySelector('h2').textContent = button.querySelector('span')?.textContent.trim() || button.textContent.trim();
         const iconSlot = dialog.querySelector('.sigma-insight-detail-icon');
         if (iconSlot) {
@@ -167,7 +167,7 @@
         returnPanel = button.closest('#analytics-dropdown');
         returnPanelScroll = returnPanel?.querySelector('#analytics-dropdown-cards')?.scrollTop || 0;
         returnMobilePanel = Boolean(returnPanel && document.body.classList.contains('mobile-panel-open'));
-        const feed = card.closest('#analytics-dropdown-cards') || card.parentElement;
+        const feed = card.closest('#analytics-dropdown-cards, .insight-user-insights-rail-cards') || card.parentElement;
         insightCards = Array.from(feed.querySelectorAll('.sigma-card--insight')).filter(item =>
             item.querySelector('.sigma-insight-full-content') && item.querySelector('.sigma-insight-open') && item.getClientRects().length);
         if (!insightCards.includes(card)) insightCards = [card];

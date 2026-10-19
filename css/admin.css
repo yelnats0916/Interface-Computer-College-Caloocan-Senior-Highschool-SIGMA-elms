@@ -2,7 +2,11 @@
     display: none !important;
 }
 
-.text-black-fade {
+.text-black-fade,
+table .text-black-fade,
+#sectionTableBody .text-black-fade,
+#userAccountsTableBody .text-black-fade,
+#sigma-ai-results-table .text-black-fade {
     color: rgba(0, 0, 0, 0.45) !important;
 }
 
@@ -278,11 +282,34 @@ table:has(#subjectTableBody) thead th:nth-child(3) {
 }
 
 /* Section teacher rows use the same 32px profile size as the accounts Name column. */
-#sectionTableBody .section-teacher-avatar.sigma-user-avatar {
+/* Section teacher avatar circular shape parity with User Accounts table */
+#sectionTableBody .section-teacher-avatar.sigma-user-avatar,
+#sectionTableBody .sigma-user-avatar,
+.section-teacher-avatar {
     width: 32px !important;
     height: 32px !important;
     min-width: 32px !important;
     min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 9999px !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+#sectionTableBody .section-teacher-avatar.sigma-user-avatar img,
+#sectionTableBody .sigma-user-avatar img,
+.section-teacher-avatar img {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+    border-radius: 9999px !important;
+    display: block !important;
 }
 
 #sectionTableBody .section-teacher-avatar.sigma-user-avatar i {
@@ -1361,23 +1388,43 @@ body.sorting-subject-topics * {
     display: inline-block;
 }
 
-.action-dots-btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    color: #000;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    font-size: 18px;
+.action-dots-btn,
+.ai-log-message-more,
+.notification-log-more,
+.removed-records-more {
+    width: 32px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    color: #000000 !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: 18px !important;
+}
+
+.action-dots-btn i,
+.ai-log-message-more i,
+.notification-log-more i,
+.removed-records-more i {
+    color: inherit !important;
+    font-size: 18px !important;
 }
 
 .action-dots-btn:hover,
-.action-dots-btn.active {
+.action-dots-btn.active,
+.ai-log-message-more:hover,
+.ai-log-message-more.active,
+.ai-log-message-more[aria-expanded="true"],
+.notification-log-more:hover,
+.notification-log-more.active,
+.notification-log-more[aria-expanded="true"],
+.removed-records-more:hover,
+.removed-records-more.active,
+.removed-records-more[aria-expanded="true"] {
     color: #FFD000 !important;
     background-color: transparent !important;
 }
@@ -1394,7 +1441,7 @@ body.sorting-subject-topics * {
     border: 1px solid #e2e8f0;
     border-radius: 18px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
-    z-index: 100;
+    z-index: 9999;
     padding: 6px;
     display: none;
     transform-origin: top right;
@@ -1439,7 +1486,7 @@ body.sorting-subject-topics * {
     font-size: 13px;
     font-weight: 500;
     text-transform: none;
-    color: #000;
+    color: #000000 !important;
     text-align: left;
     display: flex;
     align-items: center;
@@ -1452,49 +1499,25 @@ body.sorting-subject-topics * {
 }
 
 .action-dropdown-item:hover {
-    background-color: #f1f5f9;
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
 }
 
-.action-dropdown-item.danger,
-.action-dropdown-item.text-red-600 {
-    color: #dc2626 !important;
+.action-dropdown-item i,
+.action-dropdown-item span {
+    color: #000000 !important;
 }
 
-.action-dropdown-item.danger:hover,
-.action-dropdown-item.text-red-600:hover {
-    background-color: #fef2f2 !important;
-    color: #b91c1c !important;
-}
-
-.action-dropdown-item.danger i,
-.action-dropdown-item.text-red-600 i,
-.action-dropdown-item.danger span,
-.action-dropdown-item.text-red-600 span {
-    color: inherit !important;
-}
-
-.action-dropdown-item.text-\[\#15803d\],
-.action-dropdown-item.success {
-    color: #15803d !important;
-}
-
-.action-dropdown-item.text-\[\#15803d\]:hover,
-.action-dropdown-item.success:hover {
-    background-color: #f0fdf4 !important;
-    color: #166534 !important;
-}
-
-.action-dropdown-item.text-\[\#15803d\] i,
-.action-dropdown-item.text-\[\#15803d\] span,
-.action-dropdown-item.success i,
-.action-dropdown-item.success span {
-    color: inherit !important;
+.action-dropdown-item:hover i,
+.action-dropdown-item:hover span {
+    color: #000000 !important;
 }
 
 .action-dropdown-item i {
     font-size: 14px;
     width: 16px;
     text-align: center;
+    flex-shrink: 0;
 }
 
 .action-dropdown-item.is-locked,
@@ -2462,7 +2485,7 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 #audit-notifications-view table[aria-label="Notification logs"] td:nth-child(4) { white-space:nowrap; }
 #audit-notifications-view table[aria-label="Notification logs"] td:nth-child(-n+3) { text-align:left; }
 #audit-notifications-view .notification-log-person { display:flex; align-items:center; gap:12px; text-align:left; }
-#audit-notifications-view .notification-log-avatar { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; flex:0 0 38px; border-radius:50%; overflow:hidden; background:#f1f5f9; color:#94a3b8; font-size:15px; }
+#audit-notifications-view .notification-log-avatar { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; flex:0 0 38px; border-radius:50%; overflow:hidden; background:#e2e8f0; color:#94a3b8; font-size:15px; }
 #audit-notifications-view .notification-log-avatar img { width:100%; height:100%; object-fit:cover; }
 #audit-notifications-view .notification-log-avatar--school { background:#fff; }
 #audit-notifications-view .notification-log-avatar--school img { object-fit:contain; padding:4px; box-sizing:border-box; }
@@ -2512,7 +2535,7 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 #audit-activity-view .ai-log-interaction-button:is(:hover, :focus-visible) { text-decoration:underline !important; text-underline-offset:3px; color:#000000 !important; }
 #audit-activity-view .ai-log-user-identity { display:flex; flex-direction:column; gap:2px; }
 #audit-activity-view .sigma-table-primary-text { font-size:13px !important; font-weight:500 !important; color:#000000 !important; line-height:1.4 !important; }
-#audit-activity-view .ai-log-user-id { font-size:12px !important; line-height:1.5 !important; font-weight:400 !important; color:rgba(0,0,0,.55) !important; text-decoration:none !important; }
+#audit-activity-view .ai-log-user-id { font-size:12px !important; line-height:1.5 !important; font-weight:400 !important; color:rgba(0,0,0,.45) !important; text-decoration:none !important; }
 #audit-activity-view table .text-black-fade { font-size:12px !important; line-height:1.5 !important; color:rgba(0,0,0,.55) !important; }
 
 #audit-notifications-view table.notification-log-overview th:nth-child(1),
@@ -2541,15 +2564,16 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 #audit-auth-view table[aria-label="Authentication logs"] th:last-child { width:76px; text-align:center; }
 #audit-auth-view table[aria-label="Authentication logs"] td:last-child { text-align:center; }
 .notification-log-actions-wrap { position: relative; display: inline-flex; }
-.notification-log-more { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:0; border-radius:50%; background:transparent; cursor:pointer; color:#000000 !important; font-size:14px; transition:all .2s ease; }
-.notification-log-more i { font-size:14px; color:#000000; }
+.notification-log-more { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:0; border-radius:50%; background:transparent; cursor:pointer; color:#000000 !important; font-size:18px; transition:all .2s ease; }
+.notification-log-more i { font-size:18px; color:inherit; }
 .notification-log-more:hover,
-.notification-log-more[aria-expanded="true"] { color:#000000 !important; background-color:#f1f5f9 !important; }
-.notification-log-action-menu { position:absolute; right:0; top:100%; margin-top:8px; min-width:185px; width:max-content; max-width:calc(100vw - 32px); padding:6px !important; border:1px solid #e2e8f0 !important; border-radius:18px !important; background:#ffffff !important; box-shadow:0 12px 32px rgba(0,0,0,.12) !important; z-index:1000; box-sizing:border-box; transform-origin:top right; animation:action-slide-up 0.2s ease-out; }
-.notification-log-action-menu.dropup { top:auto !important; bottom:100% !important; margin-top:0 !important; margin-bottom:8px !important; transform-origin:bottom right !important; }
+.notification-log-more.active,
+.notification-log-more[aria-expanded="true"] { color:#FFD000 !important; background-color:transparent !important; }
+.notification-log-action-menu { position:absolute; right:0; top:100%; margin-top:8px; min-width:195px; width:max-content; max-width:240px; padding:6px !important; border:1px solid #e2e8f0 !important; border-radius:18px !important; background:#ffffff !important; box-shadow:0 12px 32px rgba(0,0,0,.12) !important; z-index:9999; box-sizing:border-box; transform-origin:top right; animation:action-slide-up 0.2s ease-out; }
+.notification-log-action-menu.dropup { top:auto !important; bottom:100% !important; margin-top:0 !important; margin-bottom:8px !important; transform-origin:bottom right !important; animation:slide-down 0.2s ease-out; }
 .notification-log-action-menu[hidden] { display:none !important; }
 .notification-log-action-menu button { display:flex !important; align-items:center !important; gap:10px !important; width:100% !important; padding:9px 12px !important; border:0 !important; border-radius:10px !important; background:transparent !important; color:#000000 !important; font-family:'Inter', sans-serif !important; font-size:13px !important; font-weight:500 !important; line-height:normal !important; text-align:left !important; cursor:pointer !important; transition:all 0.15s ease !important; }
-.notification-log-action-menu button i { width:16px !important; font-size:13px !important; text-align:center !important; color:#000000 !important; flex-shrink:0 !important; }
+.notification-log-action-menu button i { width:16px !important; font-size:14px !important; text-align:center !important; color:#000000 !important; flex-shrink:0 !important; }
 .notification-log-action-menu button span { color:#000000 !important; }
 .notification-log-action-menu button:hover { background-color:#f1f5f9 !important; color:#000000 !important; }
 .notification-log-action-menu button:hover i,
@@ -2573,4 +2597,75 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 .notification-log-dialog > button { margin-top:20px; }
 
 /* Match notification subtitles to AI log request context. */
-#audit-notifications-view table .text-black-fade { font-size:12px !important; line-height:1.5; color:rgba(0,0,0,.55); margin-top:4px; }
+#audit-notifications-view table .text-black-fade { font-size:12px !important; line-height:1.5; color:rgba(0,0,0,.45) !important; margin-top:4px; }
+
+/* Canonical Font Awesome bolt */
+
+/* Match the User Accounts list layout in Academic Performance. */
+#reports-performance-view .performance-records-toolbar {display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+#reports-performance-view .performance-record-search {width:350px;max-width:100%}
+#reports-performance-view .performance-record-filter {width:225px;max-width:100%}
+#reports-performance-view .performance-records-toolbar .sigma-input {height:48px;padding:0 18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;font-size:14px}
+#reports-performance-view .performance-records-toolbar button {height:46px;min-width:100px}
+#reports-performance-view .performance-records-table-wrap {border-radius:0;overflow-y:visible}
+#reports-performance-view .performance-records-section table th {padding:16px 20px;font-size:14px;text-align:center;border-radius:0}
+#reports-performance-view .performance-records-section table td {padding:20px;font-size:14px;vertical-align:middle;border-color:#e5e7eb}
+#reports-performance-view .performance-records-section table td span:not([class*="rounded-full"]) {font-size:14px}
+#reports-performance-view .performance-records-section table tbody tr:nth-child(odd) {background:#fff}
+#reports-performance-view .performance-records-section table tbody tr:nth-child(even) {background:#f8fafc}
+@media(max-width:767px){#reports-performance-view .performance-records-toolbar {justify-content:flex-start}#reports-performance-view .performance-record-search {width:100%}#reports-performance-view .performance-record-filter{flex:1;min-width:150px}#reports-performance-view .performance-records-section table{min-width:950px}}
+@media(min-width:1024px){
+    #reports-performance-view .performance-records-toolbar {flex-wrap:nowrap}
+    #reports-performance-view .performance-records-toolbar .performance-record-search {width:350px !important;flex:0 1 350px;min-width:180px}
+    #reports-performance-view .performance-records-toolbar .performance-record-filter {width:225px !important;flex:0 1 225px;min-width:160px}
+    #reports-performance-view .performance-records-toolbar .sigma-btn {flex:0 0 auto}
+}
+#reports-performance-view #performanceReportTableBody td:first-child {padding:14px 16px;text-align:left}
+#reports-performance-view #performanceReportTableBody td:first-child > div {gap:12px;justify-content:flex-start;text-align:left}
+#reports-performance-view #performanceReportTableBody td:first-child > div > div {width:32px;height:32px;min-width:32px;background:#e2e8f0;border:1px solid rgb(226 232 240 / .7)}
+#reports-performance-view #performanceReportTableBody td:first-child i {font-size:12px !important;color:#94a3b8 !important}
+#reports-performance-view #performanceReportTableBody td:first-child span {font-size:13px !important;font-weight:400 !important;line-height:1.375;color:#000;text-align:left}
+#reports-performance-view #performanceReportTableBody td:nth-child(2) {text-align:center;vertical-align:middle}
+#reports-performance-view .performance-section-name {font-size:13px;font-weight:400;line-height:1.5;color:#000}
+#reports-performance-view .performance-section-grade {font-size:11px;font-weight:400;line-height:1.5;color:#94a3b8;margin-top:2px}
+#reports-performance-view #performanceReportTableBody td:nth-child(3) {padding:16px;text-align:center;vertical-align:middle}
+#reports-performance-view #performanceReportTableBody td:nth-child(3) > div {font-size:14px;font-weight:400;color:#000;text-align:center;letter-spacing:-.025em;font-family:Inter,sans-serif}
+#reports-performance-view #performanceReportTableBody td:nth-child(2) {background:transparent !important}
+#reports-performance-view #performanceReportTableBody td:nth-child(2) > div:first-child {font-size:13px !important;font-weight:400 !important;color:#000 !important;line-height:1.5;letter-spacing:normal}
+#reports-performance-view #performanceReportTableBody td:nth-child(2) > div:last-child {font-size:11px !important;font-weight:400 !important;color:rgba(0,0,0,.45) !important;line-height:1.5;letter-spacing:normal}
+#reports-performance-view #performanceReportTableBody td:nth-child(4),
+#reports-performance-view #performanceReportTableBody td:nth-child(4) span {font-family:Inter,sans-serif;font-size:14px !important;font-weight:400 !important;color:#000 !important;text-align:center;letter-spacing:normal;line-height:1.5}
+#reports-performance-view #performanceReportTableBody td:nth-child(5),
+#reports-performance-view #performanceReportTableBody td:nth-child(5) span {font-family:Inter,sans-serif;font-size:14px !important;font-weight:400 !important;color:#000 !important;line-height:1.5;letter-spacing:normal;text-align:center}
+#reports-performance-view #performanceReportTableBody td:nth-child(6) .performance-assessment-status {font-family:Inter,sans-serif;font-size:14px !important;font-weight:400 !important;line-height:1.5;letter-spacing:normal;text-transform:none;background:transparent;border:0;border-radius:0;padding:0;display:inline}
+#reports-performance-view .performance-assessment-status[data-status="graded"] {color:#15803d}
+#reports-performance-view .performance-assessment-status:is([data-status="missing"],[data-status="absent"]) {color:#b91c1c}
+#reports-performance-view .performance-assessment-status[data-status="incomplete"] {color:#b45309}
+#reports-performance-view .performance-assessment-status:is([data-status="excused"],[data-status="excuse"]) {color:#1d4ed8}
+#reports-performance-view #performanceReportTableBody td:nth-child(6) {text-align:center !important;vertical-align:middle}
+#reports-performance-view #performanceReportTableBody td:nth-child(6) .performance-assessment-status {text-align:center !important;white-space:nowrap}
+#reports-performance-view .performance-summary-panel {padding:24px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;margin-bottom:0}
+#reports-performance-view .performance-summary-panel h3 {font-size:16px;font-weight:700;color:#000;margin:0}
+#reports-performance-view .performance-summary-panel p {font-size:12px;line-height:1.5}
+#reports-performance-view .performance-summary-note {color:rgba(0,0,0,.45);margin-bottom:16px}
+#reports-performance-view .performance-summary-panel th {padding:12px 14px;font-size:12px;font-weight:600}
+#reports-performance-view .performance-summary-panel td {padding:12px 14px;font-size:13px}
+#reports-performance-view .performance-summary-panel thead {background:#15803d;color:#fff}
+#reports-performance-view .performance-tabs-toolbar {padding:32px 40px 0}
+#reports-performance-view [role="tabpanel"][hidden] {display:none !important}
+#reports-performance-view #performance-live-overview {padding-top:24px}
+#reports-performance-view #performance-live-overview .performance-summary-panel,
+#reports-performance-view #performance-live-overview .performance-grades-panel {padding:24px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;margin-bottom:0;box-sizing:border-box}
+#reports-performance-view #performance-live-overview .performance-summary-panel h3,
+#reports-performance-view #performance-live-overview .performance-grades-panel h3 {font-size:16px;font-weight:700;color:#000;margin:0;line-height:1.25}
+#reports-performance-view #performance-live-overview .performance-summary-panel h4,
+#reports-performance-view #performance-live-overview .performance-grades-panel h4 {font-size:12px;font-weight:700;color:#1e293b;margin:0;line-height:1.4}
+#reports-performance-view #performance-live-overview .sigma-quarter-dropdown {width:var(--quarter-control-width,150px) !important;min-width:var(--quarter-control-width,150px) !important;max-width:none !important;flex:0 0 auto !important}
+#reports-performance-view #performance-live-overview .sigma-quarter-dropdown .sigma-quarter-dropdown-menu {width:max-content !important;min-width:calc(100% + 2px) !important;max-width:260px !important;right:0;left:auto}
+@media(max-width:767px){
+ #reports-performance-view .performance-tabs-toolbar {padding:24px 16px 0}
+ #reports-performance-view #performance-live-overview .sigma-quarter-dropdown {width:auto !important;min-width:128px !important;max-width:180px !important}
+ #reports-performance-view #performance-live-overview .sigma-quarter-dropdown .sigma-quarter-full-label {display:inline !important}
+ #reports-performance-view #performance-live-overview .sigma-quarter-dropdown .sigma-quarter-mobile-label {display:none !important}
+}
+

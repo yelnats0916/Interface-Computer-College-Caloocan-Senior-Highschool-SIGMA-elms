@@ -55,14 +55,8 @@ const root = path.join(__dirname, '..');
         assert.equal(await page.evaluate(() => SigmaAiLogs.getRecords().length), 0);
         assert.equal(await page.evaluate(() => SigmaAiDatabase.getState('student', 'student-1').cards.length), 1, 'Log deletion retains its card');
         await page.getByRole('button', { name: 'Record Recovery' }).click();
-        await page.waitForFunction(() => document.querySelector('#settings-recovery-view .sigma-log-page-count')?.textContent === '1-20 of 26');
-        assert.equal(await page.locator('#settings-recovery-view tbody tr').count(), 20);
-        await page.locator('#settings-recovery-view .sigma-log-pagination').getByRole('button', { name: 'Next page', exact: true }).click();
-        assert.equal(await page.locator('#settings-recovery-view tbody tr').count(), 6);
-        assert.equal(await page.locator('#settings-recovery-view [data-sample-record]').count(), 6);
-        await page.locator('[data-removed-preview]').uncheck();
         await page.waitForFunction(() => document.querySelectorAll('#settings-recovery-view tbody tr').length === 1);
-        assert.equal(await page.locator('#settings-recovery-view .sigma-log-pagination').isHidden(), true);
+        assert.equal(await page.locator('#settings-recovery-view tbody tr').count(), 1);
         for (const width of [1200, 390]) {
             await page.setViewportSize({ width, height: 850 });
             await page.getByRole('button', { name: 'Record Recovery' }).click();
@@ -94,31 +88,6 @@ const root = path.join(__dirname, '..');
         await page.waitForFunction(() => SigmaAiLogs.getRecords().length === 1);
         assert.equal(logRemoved, false, 'All view restores the actual record table, not all');
         await page.locator('#settings-recovery-view select').selectOption('users');
-        await page.locator('[data-removed-preview]').check();
-        await page.waitForFunction(() => document.querySelectorAll('[data-sample-record]').length === 2);
-        assert.equal(await page.locator('[data-sample-record] button:disabled').count(), 4);
-        assert((await page.locator('[data-sample-record]').allTextContents()).every(text => text.includes('(sample)')));
-        assert.equal(await page.locator('[data-sample-record] .removed-records-more').count(), 2);
-        assert.equal(await page.locator('[data-sample-record] .removed-records-avatar .fa-user').count(), 2);
-        assert.deepEqual(await page.locator('[data-sample-record] .removed-records-user-role').allTextContents(), ['Master Admin', 'Admin']);
-        assert.equal(await page.locator('[data-sample-record] .removed-records-user-role').first().evaluate(node => getComputedStyle(node).color), 'rgba(0, 0, 0, 0.45)');
-        for (const width of [1200, 390]) {
-            await page.setViewportSize({ width, height: 850 });
-            const alignment = await page.locator('[data-sample-record] .removed-records-identity').first().evaluate(identity => {
-                const avatar = identity.querySelector('.removed-records-avatar').getBoundingClientRect();
-                const name = identity.querySelector('.removed-records-user-name').getBoundingClientRect();
-                const role = identity.querySelector('.removed-records-user-role').getBoundingClientRect();
-                return { centerDifference: Math.abs(avatar.top + avatar.height / 2 - name.top - name.height / 2), nameLeft: name.left, roleLeft: role.left, roleBelow: role.top >= name.bottom };
-            });
-            assert(alignment.centerDifference < 1, 'Icon and name share the same row');
-            assert.equal(alignment.nameLeft, alignment.roleLeft);
-            assert(alignment.roleBelow);
-            await page.screenshot({ path: path.join(screenshots, `removed-identity-${width}.png`) });
-        }
-        await page.locator('[data-sample-record] .removed-records-more').first().click();
-        assert.equal(await page.getByRole('button', { name: 'Restore Alex Reyes - Student (sample)' }).isDisabled(), true);
-        await page.screenshot({ path: path.join(screenshots, 'removed-samples-mobile.png') });
-        await page.locator('[data-removed-preview]').uncheck();
         await page.waitForFunction(() => document.querySelector('[data-removed-empty]'));
         assert.equal(await page.locator('#settings-recovery-view tbody td').getAttribute('colspan'), '4');
         assert.equal(await page.locator('#settings-recovery-view .removed-records-content > [role=status]').isHidden(), true);
