@@ -1756,3 +1756,14 @@ textarea::placeholder {
 #entryHelpCenterBtnSmall:is(:hover, :focus-visible) :is(i, span) {
     color: var(--icc-yellow, #FFD000) !important;
 }
+/* Override text-fill and icon opacity as well as color for Chromium/Edge. */
+body #mainNav #entryHelpCenterBtn:is(:hover, :focus-visible),
+body #mainNav #entryHelpCenterBtn:is(:hover, :focus-visible) :is(i, span),
+body #mainNav #entryHelpCenterBtn:is(:hover, :focus-visible) i::before,
+body #entryHelpCenterBtnSmall:is(:hover, :focus-visible),
+body #entryHelpCenterBtnSmall:is(:hover, :focus-visible) :is(i, span),
+body #entryHelpCenterBtnSmall:is(:hover, :focus-visible) i::before {
+    color: #FFD000 !important;
+    -webkit-text-fill-color: #FFD000 !important;
+    opacity: 1 !important;
+}
