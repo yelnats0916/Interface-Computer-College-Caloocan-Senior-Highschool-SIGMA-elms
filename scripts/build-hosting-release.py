@@ -32,6 +32,14 @@ def build(destination: Path, runtime_path: str):
     files['public/config/database.php'] = (loader + connection.removeprefix('<?php')).encode()
     files['public/.htaccess'] = b'''Options -Indexes
 DirectoryIndex index.html
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript text/javascript image/svg+xml
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\\.html$">
+        Header always set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
 <FilesMatch "(?i)(^\\.|\\.(sql|bak|log|key|env|zip|sqlite|db)$)">
     Require all denied
 </FilesMatch>
