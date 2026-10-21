@@ -3723,7 +3723,7 @@ window.closeUserEditView = function () {
 
 // Add listener for the top Edit button to open edit view
 document.addEventListener('DOMContentLoaded', () => {
-    window.loadAiPageData?.(); // init AI badges
+    // Protected API settings load when their settings page is opened.
     const editBtn = document.getElementById('top-edit-btn');
     if (editBtn) {
         editBtn.addEventListener('click', () => {
