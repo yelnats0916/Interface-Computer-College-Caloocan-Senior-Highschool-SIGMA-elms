@@ -913,6 +913,12 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             localStorage.setItem('sigma-login-explicit', 'true');
             recordAuthenticationEvent('Login successful', userSessionObj, 'success');
+            // Presentation-only handoff after the server issued the full login session.
+            // API requests continue to validate this token on the server.
+            const loginSession = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session'));
+            sessionStorage.setItem('sigma-login-handoff', JSON.stringify({
+                token: loginSession.token, userId: loginSession.userId, issuedAt: Date.now()
+            }));
             window.location.replace(account.redirect);
         }
 

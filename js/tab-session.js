@@ -123,7 +123,7 @@
     }
     document.addEventListener('DOMContentLoaded', renderGate);
     function clearIdentity() {
-        [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge'].forEach(key => sessionStorage.removeItem(key));
+        [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge', 'sigma-login-handoff'].forEach(key => sessionStorage.removeItem(key));
         SHARED_KEYS.forEach(key => localStorage.removeItem(key));
     }
     function portalForRole(role) {
@@ -186,7 +186,19 @@
         })();
         return verification;
     }
-    verifyDatabaseSession();
+    // Consume the immediate post-login handoff once. It only suppresses the
+    // redundant loading screen; the session request and API authorization still run.
+    const handoff = readJson(sessionStorage, 'sigma-login-handoff');
+    sessionStorage.removeItem('sigma-login-handoff');
+    const arrivingUser = getTabSessionUser();
+    const arrivingToken = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
+    const handoffAge = Date.now() - Number(handoff?.issuedAt);
+    const immediateLogin = !isLoginPage && arrivingUser && handoff?.token === arrivingToken
+        && String(handoff.userId) === String(arrivingUser.id || arrivingUser.uid)
+        && handoffAge >= 0 && handoffAge < 30000
+        && location.pathname.endsWith('/' + portalForRole(arrivingUser.role));
+    if (immediateLogin) verifiedToken = arrivingToken;
+    verifyDatabaseSession({ background: !!immediateLogin });
 
     let wasHidden = false;
     document.addEventListener('visibilitychange', () => {
@@ -207,5 +219,5 @@
         }
     });
     window.addEventListener('pagehide', () => { setGate('Checking your session...'); });
-    window.addEventListener('pageshow', () => { verifyDatabaseSession(); });
+    window.addEventListener('pageshow', event => { verifyDatabaseSession({ background: !event.persisted }); });
 })();
