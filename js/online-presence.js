@@ -5,7 +5,8 @@
     const expiryMs = 180000;
     let serverUsers = [], presenceError = '', clockOffset = 0, heartbeatPending = false;
     let lastHeartbeat = 0;
-    let fingerprint = '';
+    let fingerprint = null;
+    let presenceSettled = false;
     let loggedOut = false;
     let allRows = '';
     let onlineCount = 0;
@@ -71,10 +72,11 @@
             serverUsers = [];
             presenceError = 'Online status unavailable.';
         }
+        presenceSettled = true;
         renderPanel();
     }
     function renderPanel() {
-        if (document.hidden || getUser()?.role !== 'admin') return;
+        if (document.hidden || getUser()?.role !== 'admin' || !presenceSettled) return;
         const card = document.getElementById('admin-online-now-card');
         if (!card) return;
         const users = getCleanOnlineUsers().map(user => {

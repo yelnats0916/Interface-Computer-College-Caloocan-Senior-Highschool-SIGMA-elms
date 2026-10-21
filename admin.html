@@ -250,8 +250,8 @@
     </script>
     <link rel="stylesheet" href="css/dashboard-layout.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261017_table_dropdowns_v10">
-    <link rel="stylesheet" href="css/content-loading.css?v=20261021_dots_v1">
-    <script src="js/content-loading.js?v=20261021_dots_v1"></script>
+    <link rel="stylesheet" href="css/content-loading.css?v=20261021_pending_panels_v2">
+    <script src="js/content-loading.js?v=20261021_pending_panels_v2"></script>
     <script src="js/tab-session.js?v=20261021_dotted_content_v9"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v10">
@@ -1007,6 +1007,7 @@
                         <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
                             <div id="dashboard-metrics-container" data-sigma-loading="exclude"
                                 class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
+                                    <div class="sigma-pending-content" role="status" aria-label="Loading dashboard cards"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                 <!-- Dynamic live templates rendered via pocket-card.js -->
                             </div>
                         </div>
@@ -1046,6 +1047,7 @@
 
                             <!-- Feed Area (Outside the panel) -->
                             <div id="admin-announcements-feed" class="space-y-3.5">
+                                <div class="sigma-pending-content" role="status" aria-label="Loading announcements"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                 <!-- Injected by JS -->
                             </div>
                         </div>
@@ -1098,7 +1100,8 @@
                                 </div>
 
                                 <!-- Content Area (Multi-page Support) -->
-                                <div id="overview-pages-container" class="relative flex flex-col">
+                                <div id="overview-pages-container" class="relative flex flex-col sigma-pending-chart">
+                                    <div data-sigma-overview-loader class="sigma-pending-content sigma-overview-loader" role="status" aria-label="Loading users overview"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                     <!-- Page 1: Distribution Chart -->
                                     <div id="overview-page-1" class="flex flex-col items-center p-4 pb-0">
                                         <div class="relative w-36 h-36 mx-auto my-1 flex items-center justify-center">
@@ -1212,6 +1215,7 @@
                                     </div>
                                 </div>
                                 <div id="admin-pinned-milestones-list" class="flex flex-col">
+                                    <div class="sigma-pending-content sigma-pending-content--compact" role="status" aria-label="Loading academic events"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                     <!-- Injected dynamically by JS -->
                                 </div>
                             </div>
@@ -1220,7 +1224,7 @@
                                     <h3 id="admin-online-now-title" class="text-xs font-bold text-black">Online Now</h3>
                                     <span id="admin-online-now-total" class="text-xs font-bold text-[#15803d]">—</span>
                                 </div>
-                                <ul id="admin-online-now-list" class="px-4 py-3 text-xs text-black" style="max-height:320px;overflow-y:auto;list-style:none;margin:0;" aria-label="Online users"></ul>
+                                <ul id="admin-online-now-list" class="px-4 py-3 text-xs text-black" style="max-height:320px;overflow-y:auto;list-style:none;margin:0;" aria-label="Online users"><li class="sigma-pending-content sigma-pending-content--compact" role="status" aria-label="Loading online users"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></li></ul>
                                 <div class="px-4 pb-4 text-center"><button type="button" id="admin-online-view-all" class="online-now-view-all" hidden>View All</button></div>
                             </section>
                         </div>
@@ -6725,7 +6729,7 @@
 <script src="js/private-assessment-comments.js?v=20261017_table_dropdowns_v10"></script>
 <script src="js/grade-sync.js?v=20261021_database_foundation_v5"></script>
 <script src="js/shared-components.js?v=20261021_database_foundation_v5"></script>
-<script src="js/online-presence.js?v=20261021_database_foundation_v5"></script>
+<script src="js/online-presence.js?v=20261021_pending_panels_v2"></script>
 <script src="js/offline-assessments.js?v=20261021_topic_assessment_picker_v28"></script>
 <script src="js/submission-ai-client.js?v=20261021_database_foundation_v5"></script>
     <script src="js/topbar.js?v=20261018_search_dedupe_v13"></script>
@@ -6766,7 +6770,7 @@
     <script src="js/recaptcha-client.js?v=20261021_database_foundation_v5"></script>
     <script src="js/system-settings-history.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/ai-routing-settings.js?v=20261021_database_foundation_v5"></script>
-    <script src="js/admin.js?v=20261021_unmeasured_metrics_v6"></script>
+    <script src="js/admin.js?v=20261021_pending_panels_v2"></script>
     <script src="js/section-subject-lock.js?v=20261020_subject_activity_lock_v84"></script>
     <script src="js/section-teacher-picker.js?v=20261020_teacher_two_pages_v82"></script>
     <script src="js/performance-report.js?v=20261020_assessment_student_id_v117"></script>

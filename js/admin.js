@@ -7220,6 +7220,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderUserChart(countsArray) {
         if (!userChartCtx) return;
+        const overview = document.getElementById('overview-pages-container');
+        const finishLoading = () => {
+            overview?.querySelector('[data-sigma-overview-loader]')?.remove();
+            overview?.classList.remove('sigma-pending-chart');
+        };
 
         const total = countsArray.reduce((a, b) => a + b, 0);
         const isEmpty = total === 0;
@@ -7234,7 +7239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentData.every((v, i) => v === chartData[i]) &&
                 currentLabels.length === labels.length &&
                 currentLabels.every((v, i) => v === labels[i]);
-            if (isSame) return;
+            if (isSame) { finishLoading(); return; }
 
             userChart.data.labels = labels;
             userChart.data.datasets[0].data = chartData;
@@ -7242,31 +7247,39 @@ document.addEventListener('DOMContentLoaded', () => {
             userChart.data.datasets[0].hoverOffset = isEmpty ? 0 : 6;
             userChart.options.plugins.tooltip.enabled = !isEmpty;
             userChart.update('none');
+            finishLoading();
             return;
         }
 
-        userChart = new Chart(userChartCtx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: chartData,
-                    backgroundColor: bgColors,
-                    borderWidth: 0,
-                    hoverOffset: isEmpty ? 0 : 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 300 },
-                layout: { padding: 4 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: !isEmpty }
+        try {
+            userChart = new Chart(userChartCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: bgColors,
+                        borderWidth: 0,
+                        hoverOffset: isEmpty ? 0 : 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    layout: { padding: 4 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: !isEmpty }
+                    }
                 }
-            }
-        });
+            });
+            finishLoading();
+        } catch (error) {
+            const loading = overview?.querySelector('[data-sigma-overview-loader]');
+            if (loading) loading.innerHTML = '<p class="text-xs text-black-fade text-center">Users overview is unavailable. Refresh to try again.</p>';
+            console.error('Unable to render users overview', error);
+        }
     }
 
     const subjectChartCtx = document.getElementById('subjectDistributionChart');

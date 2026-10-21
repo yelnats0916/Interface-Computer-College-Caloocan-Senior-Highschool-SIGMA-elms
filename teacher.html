@@ -68,8 +68,8 @@
     </style>
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261017_table_dropdowns_v2">
     <script src="js/database-client.js?v=20261021_database_foundation_v5"></script>
-<link rel="stylesheet" href="css/content-loading.css?v=20261021_dots_v1">
-<script src="js/content-loading.js?v=20261021_dots_v1"></script>
+<link rel="stylesheet" href="css/content-loading.css?v=20261021_pending_panels_v2">
+<script src="js/content-loading.js?v=20261021_pending_panels_v2"></script>
 <script src="js/tab-session.js?v=20261021_dotted_content_v9"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v2"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v2">
@@ -580,6 +580,7 @@
                         <!-- 1. Left Section (3/12) - Sticky Metrics Rail -->
                         <div class="lg:col-span-3 mt-2 home-sticky-rail home-sticky-rail--left">
                             <div id="sigma-panels-container" class="max-h-[calc(100vh-106px)] overflow-y-auto pr-2 pb-8">
+                                <div class="sigma-pending-content" role="status" aria-label="Loading dashboard cards"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                 <!-- Populated dynamically by js/pocket-card.js with 4 initial cards and More expansion -->
                             </div>
                         </div>
@@ -617,6 +618,7 @@
 
                             <!-- Feed Area -->
                             <div id="admin-announcements-feed" class="space-y-3.5">
+                                <div class="sigma-pending-content" role="status" aria-label="Loading announcements"><span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span></div>
                                 <!-- Injected by JS -->
                             </div>
                         </div>
@@ -1478,7 +1480,7 @@
 <script src="js/private-assessment-comments.js?v=20261017_table_dropdowns_v2"></script>
 <script src="js/grade-sync.js?v=20261021_database_foundation_v5"></script>
 <script src="js/shared-components.js?v=20261021_database_foundation_v5"></script>
-<script src="js/online-presence.js?v=20261021_database_foundation_v5"></script>
+<script src="js/online-presence.js?v=20261021_pending_panels_v2"></script>
 <script src="js/offline-assessments.js?v=20261021_topic_assessment_picker_v28"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

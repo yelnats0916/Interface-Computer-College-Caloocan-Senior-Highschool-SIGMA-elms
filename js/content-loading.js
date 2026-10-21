@@ -39,7 +39,7 @@
     }
     // Existing asynchronous panels already render loading icons inside their
     // content regions. Size those icons from that region; keep button icons inline.
-    const iconSelector = 'i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin';
+    const iconSelector = 'i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin,[data-sigma-auto-spinner]';
     const iconRegions = new Set();
     const iconSizes = new ResizeObserver(entries => entries.forEach(({target, contentRect}) => {
         target.querySelectorAll(iconSelector).forEach(icon => {

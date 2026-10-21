@@ -12,3 +12,11 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
 .sigma-content-loading-overlay { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; background:var(--sigma-loading-background,#fff); border-radius:inherit; }
 @keyframes sigma-dots-turn { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .sigma-dot-spinner,i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin { animation-duration:2.4s; } }
+
+/* Paint before panel scripts execute; renderers replace these pending slots. */
+.sigma-pending-content { display:flex; align-items:center; justify-content:center; width:100%; min-height:220px; box-sizing:border-box; }
+.sigma-pending-content--compact { min-height:80px; }
+.sigma-pending-content .sigma-dot-spinner { --sigma-loader-size:40px; }
+.sigma-pending-content--compact .sigma-dot-spinner { --sigma-loader-size:24px; }
+.sigma-pending-chart > :not([data-sigma-overview-loader]) { visibility:hidden; }
+.sigma-overview-loader { position:absolute; inset:0; z-index:2; min-height:0; background:#fff; }
