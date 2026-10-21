@@ -7,10 +7,8 @@ header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Sigma-Actor');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 if(($_SERVER['REQUEST_METHOD']??'')==='OPTIONS')exit;
-// Like analytics generation, browser-owned evidence is development-only until server login is connected.
-if(!in_array($_SERVER['REMOTE_ADDR']??'', ['127.0.0.1','::1'],true) || !in_array(strtolower(parse_url('http://'.($_SERVER['HTTP_HOST']??''),PHP_URL_HOST)?:''),['localhost','127.0.0.1','[::1]'],true)){
-    http_response_code(403); echo json_encode(['success'=>false,'error'=>'Database-backed account authentication is required before remote AI record access.']);exit;
-}
+$localRecords = in_array($_SERVER['REMOTE_ADDR']??'', ['127.0.0.1','::1'],true)
+    && in_array(strtolower(parse_url('http://'.($_SERVER['HTTP_HOST']??''),PHP_URL_HOST)?:''),['localhost','127.0.0.1','[::1]'],true);
 try{
     $db=serviceSettingsPdo(); $actor=lifecycleActor();
     $q=$db->prepare('SELECT role FROM users WHERE id=? AND is_deleted=0 AND LOWER(status)=\'active\'');$q->execute([$actor]);$role=strtolower(preg_replace('/[\s_-]+/','',$q->fetchColumn()?:''));
@@ -26,6 +24,14 @@ try{
         $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR); sigmaRequireRealRecords($input);
     }elseif($method!=='GET')throw new InvalidArgumentException('Unsupported request method.');
     $action=$input['action']??'';
+    // Usage is a read-only view of server records for a verified administrator.
+    if ($action === 'logs' && $method === 'GET') {
+        if (!$admin) { http_response_code(403); echo json_encode(['success'=>false,'error'=>'Only administrators can read AI activity.']); exit; }
+        echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]); exit;
+    }
+    if (!$localRecords) {
+        http_response_code(403); echo json_encode(['success'=>false,'error'=>'This AI record feature is not available on the hosted site yet.']); exit;
+    }
     aiInsightControls($db);
     if($action==='latest_grade_insight'&&$method==='POST'){
         $owner=$input['userId']??$actor;

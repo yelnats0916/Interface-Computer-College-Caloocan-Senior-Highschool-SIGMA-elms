@@ -3090,3 +3090,39 @@ html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-o
         text-overflow: ellipsis;
     }
 }
+/* Dashboard metrics must grow with their contents, including error/retry states.
+   Fixed maximum heights clipped footers and allowed adjacent cards to cover them. */
+html body #dashboard-metrics-container > .pocket-card,
+html body #dashboard-metrics-container > .sigma-card {
+    height: auto !important;
+    min-height: 250px !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+    overflow: hidden !important;
+    gap: 12px;
+}
+html body #dashboard-metrics-container [data-live-system-metric] {
+    height: auto !important;
+    min-height: 218px;
+    flex: 1 0 auto;
+}
+html body #dashboard-metrics-container .sigma-metric-header,
+html body #dashboard-metrics-container .pocket-metric-header {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+html body #dashboard-metrics-container .metric-body-centered {
+    min-height: 64px;
+    flex-shrink: 0;
+}
+html body #dashboard-metrics-container button,
+html body #dashboard-metrics-container p {
+    overflow-wrap: anywhere;
+}
+html body #dashboard-metrics-container #ai-usage-retry {
+    position: static !important;
+    margin-top: 8px;
+    align-self: flex-start;
+    flex-shrink: 0;
+}
