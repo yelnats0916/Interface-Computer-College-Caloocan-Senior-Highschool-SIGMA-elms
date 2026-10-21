@@ -162,17 +162,80 @@
         return null;
     }
     window.SigmaSessionNavigation = Object.freeze({ portalForRole });
+    // Recover into a fresh tab without putting bearer tokens in shared localStorage.
+    let sessionChannel = null;
+    let lastActiveAt = Date.now();
+    let pendingRecovery = null;
+    try { sessionChannel = new BroadcastChannel('sigma-verified-tab-session-v1'); } catch (_) {}
+    window.addEventListener('focus', () => { lastActiveAt = Date.now(); });
+    sessionChannel?.addEventListener('message', event => {
+        const message = event.data;
+        if (message?.type === 'request-session' && typeof message.nonce === 'string') {
+            const user = getTabSessionUser();
+            const session = readJson(sessionStorage, 'sigma-grade-sync-session');
+            if (!signingOut && user && session?.token === verifiedToken) {
+                sessionChannel.postMessage({type: 'session-candidate', nonce: message.nonce,
+                    user, session, lastActiveAt});
+            }
+        } else if (message?.type === 'session-candidate' && pendingRecovery?.nonce === message.nonce) {
+            const userId = idOf(message.user);
+            if (userId && typeof message.session?.token === 'string'
+                && userId === String(message.session.userId || '').toLowerCase()) {
+                pendingRecovery.candidates.push(message);
+            }
+        }
+    });
+    async function recoverFromOpenTab() {
+        if (!sessionChannel) return false;
+        const nonce = crypto.randomUUID();
+        const recovery = {nonce, candidates: []};
+        pendingRecovery = recovery;
+        sessionChannel.postMessage({type: 'request-session', nonce});
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        pendingRecovery = null;
+        // Prefer the requested portal when several roles are signed in in separate tabs.
+        recovery.candidates.sort((a, b) => {
+            const matches = candidate => location.pathname.endsWith('/' + portalForRole(candidate.user.role));
+            return Number(matches(b)) - Number(matches(a)) || Number(b.lastActiveAt) - Number(a.lastActiveAt);
+        });
+        for (const candidate of recovery.candidates) {
+            if (signingOut) return false;
+            // Do not trust a browser user object as authentication or authorization.
+            const response = await window.SigmaDatabase.fetch(window.SigmaDatabase.url('session'), {
+                cache: 'no-store', credentials: 'omit',
+                headers: {Authorization: `Bearer ${candidate.session.token}`},
+                signal: AbortSignal.timeout(15000)
+            });
+            if (response.status === 401 || response.status === 403) continue;
+            if (!response.ok) throw new Error('Session verification unavailable.');
+            const result = await response.json();
+            if (!result.success || idOf(result.user) !== idOf(candidate.user)) continue;
+            if (signingOut) return false;
+            sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify(candidate.session));
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
+            sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+            // Reload with identity available before role scripts initialize; preserve the URL/hash.
+            window.location.reload();
+            return true;
+        }
+        return false;
+    }
     function verifyDatabaseSession({ background = false } = {}) {
         if (signingOut) return Promise.resolve();
         if (verification) return verification;
         const user = getTabSessionUser();
         if (!user) {
-            if (!isLoginPage) {
-                setGate('Checking your session...');
-                clearIdentity();
-                window.location.replace(new URL('index.html', document.baseURI).href);
-            }
-            return Promise.resolve();
+            if (isLoginPage) return Promise.resolve();
+            setGate('Checking your session...');
+            verification = recoverFromOpenTab().then(recovered => {
+                if (!recovered && !signingOut) {
+                    clearIdentity();
+                    window.location.replace(new URL('index.html', document.baseURI).href);
+                }
+            }).catch(() => {
+                setGate('Your session could not be verified. Check your connection and retry.');
+            }).finally(() => { verification = null; });
+            return verification;
         }
         const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
         // Keep an already verified dashboard visible during routine focus checks.
