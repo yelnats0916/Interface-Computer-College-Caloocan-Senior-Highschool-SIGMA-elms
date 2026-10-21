@@ -879,7 +879,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 setLoading(formType, false);
                 showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Database sign-in failed.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
-                return;
+                return { success: false, error: error.message || 'Database sign-in failed.' };
             }
             setLoading(formType, false);
             sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
@@ -918,12 +918,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const targetUserId = String(matchedUser.uid || matchedUser.id || '').trim();
 
-        function proceedAfterAuth(isTermsAccepted) {
+        async function proceedAfterAuth(isTermsAccepted) {
             setLoading(formType, false);
             if (!isTermsAccepted) {
                 openTermsAgreementModal(targetUserId, finalizeLogin);
             } else {
-                finalizeLogin();
+                return await finalizeLogin();
             }
         }
 
@@ -1262,58 +1262,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (err) err.classList.add('hidden');
         if (input) input.classList.remove('input-error');
 
-        let verified = false;
-        let serverRejected = false;
-        const verifyApiUrl = resolveAuthApiUrl();
-
         try {
-            if (verifyApiUrl) {
-                try {
-                    const res = await window.SigmaDatabase.fetch(verifyApiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'verify_login_2fa',
-                            id: current2faUserId,
-                            code: code
-                        })
-                    });
-                    const data = await res.json();
-                    if (data && data.success) {
-                        verified = true;
-                    } else if (res.status === 401) {
-                        // Server checked this user's secret and the code is wrong — final answer.
-                        serverRejected = true;
-                    }
-                } catch (error) {
-                    // Backend offline or unreachable
-                }
+            await window.SigmaDatabase.request('auth', { data: {
+                action: 'verify_login_2fa', id: current2faUserId, code
+            } });
+            gradeSyncOtp = code;
+            recordAuthenticationEvent('Google Authenticator 2FA verified', findManagedAccount(current2faUserId), 'success');
+            if (typeof current2faSuccessCallback === 'function') {
+                if (label) label.textContent = 'Signing in...';
+                const outcome = await current2faSuccessCallback();
+                if (outcome?.success === false) throw new Error(outcome.error);
             }
-
-
-            if (verified) {
-                gradeSyncOtp = code;
-                recordAuthenticationEvent('Google Authenticator 2FA verified', findManagedAccount(current2faUserId), 'success');
-                if (typeof current2faSuccessCallback === 'function') {
-                    current2faSuccessCallback();
-                }
-            } else {
-                recordAuthenticationEvent('Google Authenticator 2FA failed', findManagedAccount(current2faUserId), 'failed');
-                if (err) {
-                    err.textContent = 'Invalid 6-digit code. Please check Google Authenticator on your phone.';
-                    err.classList.remove('hidden');
-                }
-                if (input) {
-                    input.classList.add('input-error');
-                    input.focus();
-                }
-            }
-        } catch (e) {
-            console.error('2FA verification error:', e);
+        } catch (error) {
+            const connectionFailure = ['AbortError', 'TimeoutError', 'TypeError'].includes(error.name);
             if (err) {
-                err.textContent = 'An unexpected error occurred. Please try again.';
+                err.textContent = connectionFailure
+                    ? 'The login server did not respond. Check your connection, then retry with a fresh authenticator code.'
+                    : (error.code === 'authentication_required'
+                        ? 'This sign-in attempt expired. Go back to Login and sign in again.'
+                        : error.message || 'Verification could not be completed. Please retry.');
                 err.classList.remove('hidden');
             }
+            if (input) input.focus();
         } finally {
             if (btn) btn.disabled = false;
             if (spinner) spinner.classList.add('hidden');
