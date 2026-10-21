@@ -254,8 +254,20 @@
     function liveMetricHtml(id) {
         const health = id === 'metric-health';
         const title = health ? 'System Health' : 'Database Load';
-        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4><span class="text-xs font-semibold text-black-fade">${liveMetrics ? (health ? 'Responding' : 'Connected') : liveMetricsError ? 'Unavailable' : 'Checking'}</span></div>`;
-        if (!liveMetrics) return header + `<p class="text-xs text-black-fade py-5">${escapeHtml(liveMetricsError || 'Reading live measurements…')}</p><button type="button" class="text-xs underline" onclick="window.refreshLiveSystemMetrics()">Retry</button>`;
+        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4>${liveMetrics ? `<span class="text-xs font-semibold text-black-fade">${health ? 'Responding' : 'Connected'}</span>` : ''}</div>`;
+        if (!liveMetrics) {
+            const loading = liveMetricsPending;
+            const heading = loading ? 'Loading measurements' : health ? 'No health data yet' : 'No database metrics yet';
+            const message = loading ? 'Please wait while we check the server.'
+                : liveMetricsError ? 'We couldn’t retrieve the latest measurements. Please try again.'
+                : 'Live measurements will appear here when available.';
+            return header + `<div class="flex flex-col items-center justify-center text-center gap-3 py-6" role="status" aria-live="polite" aria-busy="${loading}">
+                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center"><i class="fa-solid ${loading ? 'fa-spinner fa-spin' : health ? 'fa-heart-pulse' : 'fa-database'} text-lg text-black-fade" aria-hidden="true"></i></div>
+                <p class="text-sm font-semibold text-black">${heading}</p>
+                <p class="text-xs text-black-fade leading-relaxed">${message}</p>
+                ${loading ? '' : '<button type="button" class="text-xs font-semibold underline cursor-pointer" onclick="window.refreshLiveSystemMetrics()">Retry</button>'}
+            </div>`;
+        }
         const data = liveMetrics;
         const rows = health
             ? [['API round trip', data.roundTripMs + ' ms'], ['PHP processing', data.application.processingMs + ' ms'], ['Database check', 'Passed']]
@@ -270,6 +282,7 @@
     window.refreshLiveSystemMetrics = async function () {
         if (liveMetricsPending || !document.getElementById('dashboard-metrics-container') || !window.SigmaDatabase?.currentUser()?.id) return;
         liveMetricsPending = true;
+        if (!liveMetrics) paintLiveMetrics();
         try {
             const started = performance.now();
             const result = await window.SigmaDatabase.request('system_metrics');
