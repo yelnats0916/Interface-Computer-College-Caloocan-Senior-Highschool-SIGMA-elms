@@ -35,7 +35,19 @@
             const form = dialog.querySelector('form');
             let submitting = false;
             const close = () => { form.reset(); dialog.close(); dialog.remove(); };
-            const cancel = () => { if (submitting) return; close(); reject(new Error('Credential verification canceled.')); };
+            const cancel = () => {
+                if (submitting) return;
+                close();
+                const failure = Object.assign(new Error('Credential verification canceled.'), { code: 'VAULT_AUTH_CANCELED' });
+                reject(failure);
+                // Cancel leaves protected settings rather than exposing their
+                // unloaded default values as if they were the saved configuration.
+                if (typeof window.switchTab === 'function') {
+                    window.switchTab('nav-dashboard');
+                } else {
+                    window.location.replace(new URL('admin.html#nav-dashboard', location.href).href);
+                }
+            };
             dialog.querySelector('[data-cancel]').onclick = cancel;
             dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
             form.onsubmit = async event => {
