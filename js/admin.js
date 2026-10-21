@@ -165,6 +165,17 @@ window.renderPaginationControls = function (containerId, totalItems, state, onPa
 
     let pagesHtml = '';
 
+    // First page button
+    const firstDisabled = currentPage <= 1;
+    const firstAction = typeof onPageChange === 'function' ? 'data-page="1"' : `onclick="window.${onPageChange}(1)"`;
+    pagesHtml += `
+        <button type="button" ${firstAction} ${firstDisabled ? 'disabled' : ''}
+            class="sigma-pagination-btn sigma-pagination-btn--nav sigma-pagination-btn--first ${firstDisabled ? 'is-disabled' : ''}"
+            aria-label="First page" title="First page">
+            <i class="fa-solid fa-angles-left text-[11px]" aria-hidden="true"></i>
+        </button>
+    `;
+
     // Previous Button
     const prevDisabled = currentPage <= 1;
     const prevAction = typeof onPageChange === 'function' ? `data-page="${currentPage - 1}"` : `onclick="window.${onPageChange}(${currentPage - 1})"`;
@@ -177,12 +188,13 @@ window.renderPaginationControls = function (containerId, totalItems, state, onPa
         </button>
     `;
 
-    // Dynamic Page Numbers (Window of 5)
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, startPage + 4);
+    // Keep all navigation buttons in one row on narrow screens.
+    const pageWindow = window.matchMedia('(max-width: 480px)').matches ? 3 : 5;
+    let startPage = Math.max(1, currentPage - Math.floor(pageWindow / 2));
+    let endPage = Math.min(totalPages, startPage + pageWindow - 1);
 
-    if (endPage - startPage < 4) {
-        startPage = Math.max(1, endPage - 4);
+    if (endPage - startPage < pageWindow - 1) {
+        startPage = Math.max(1, endPage - pageWindow + 1);
     }
     startPage = Math.max(1, startPage);
 
@@ -208,6 +220,17 @@ window.renderPaginationControls = function (containerId, totalItems, state, onPa
             class="sigma-pagination-btn sigma-pagination-btn--nav sigma-pagination-btn--next ${nextDisabled ? 'is-disabled' : ''}"
             aria-label="Next page">
             <i class="fa-solid fa-chevron-right text-[11px]"></i>
+        </button>
+    `;
+
+    // Last page button
+    const lastDisabled = currentPage >= totalPages;
+    const lastAction = typeof onPageChange === 'function' ? `data-page="${totalPages}"` : `onclick="window.${onPageChange}(${totalPages})"`;
+    pagesHtml += `
+        <button type="button" ${lastAction} ${lastDisabled ? 'disabled' : ''}
+            class="sigma-pagination-btn sigma-pagination-btn--nav sigma-pagination-btn--last ${lastDisabled ? 'is-disabled' : ''}"
+            aria-label="Last page" title="Last page">
+            <i class="fa-solid fa-angles-right text-[11px]" aria-hidden="true"></i>
         </button>
     `;
 
