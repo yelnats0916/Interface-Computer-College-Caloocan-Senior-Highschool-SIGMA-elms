@@ -71,7 +71,7 @@ function sigmaPublicUser(array $user): array {
         'firstName' => $user['first_name'] ?? '', 'middleName' => $user['middle_name'] ?? '', 'lastName' => $user['last_name'] ?? '',
         'fullName' => $user['full_name'] ?: trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')),
         'email' => $user['email'] ?? '', 'role' => $user['role'], 'type' => $user['role'], 'status' => $user['status'],
-        'avatar' => $user['avatar'] ?? '', 'gender' => $user['gender'] ?? '', 'branch' => $user['branch'] ?? '',
+        'avatarHistory' => empty($user['avatar']) ? [] : [$user['avatar']], 'avatar' => $user['avatar'] ?? '', 'gender' => $user['gender'] ?? '', 'branch' => $user['branch'] ?? '',
         'department' => $user['department'] ?? '', 'gradeLevel' => $user['grade_level'] ?? '', 'gradeSection' => $user['grade_section'] ?? '',
         'strand' => $user['strand'] ?? '', 'permissions' => json_decode($user['permissions'] ?? '{}', true) ?: [],
         'totpEnabled' => !empty($user['totp_enabled']), 'termsAccepted' => !empty($user['terms_accepted'])

@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS user_id_sequences (
+    prefix CHAR(6) NOT NULL PRIMARY KEY,
+    last_number INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

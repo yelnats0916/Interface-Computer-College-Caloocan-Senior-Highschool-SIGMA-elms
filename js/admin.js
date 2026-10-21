@@ -678,16 +678,11 @@ function renderUserAccountsTable() {
     tableBody.innerHTML = paginatedUsers.map((user, rowIdx) => {
         const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : '';
         const isThisUserMaster = String(user.uid || user.id || '').replace(/^#/, '').trim() === '0000000' || String(user.role || user.type || '').toLowerCase().includes('master');
-        const rowNumber = isThisUserMaster ? 0 : (user.seq !== undefined && user.seq !== null && Number(user.seq) > 0 ? Number(user.seq) : (totalItems - startIndex - rowIdx - 1));
+        const rowNumber = startIndex + rowIdx + 1;
         const fullName = user.fullName || `${user.firstName || ''} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName || ''}`.trim() || 'N/A';
         const initials = getUserInitials(fullName);
         const photo = resolveUserAvatar(user, rowIdx);
-        let email = (user.email && !user.email.includes('@icc') && user.email.includes('@gmail.com')) ? user.email : '';
-        if (!email) {
-            const cleanFn = (user.firstName || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const cleanLn = (user.lastName || 'account').toLowerCase().replace(/[^a-z0-9]/g, '');
-            email = (cleanFn && cleanLn) ? `${cleanFn}.${cleanLn}@gmail.com` : `${cleanFn || 'user'}@gmail.com`;
-        }
+        const email = user.email || 'Not provided';
         const id = user.uid || user.id || 'N/A';
         const role = normalizeUserRole(user.type || user.role || 'Student');
         const status = user.status || 'Active';
@@ -2809,7 +2804,8 @@ window.saveUserPermissions = function () {
     if (label) label.classList.add('hidden');
     if (saveBtn) saveBtn.disabled = true;
 
-    setTimeout(() => {
+    setTimeout(async () => {
+        try {
         const currentLoggedIn = typeof window.getLoggedInAdminUser === 'function' ? window.getLoggedInAdminUser() : {};
         const loggedInRoleStr = String(currentLoggedIn.role || currentLoggedIn.type || 'Master Admin').toLowerCase();
         const isEditorMaster = loggedInRoleStr.includes('master') || loggedInRoleStr.includes('super') || loggedInRoleStr.includes('head') || String(currentLoggedIn.uid || currentLoggedIn.id || '') === '0000000';
@@ -2823,16 +2819,18 @@ window.saveUserPermissions = function () {
         users[userIndex].permissions = perms;
 
         const masterToggle = document.getElementById('perm-role-master');
-        if (masterToggle && !masterToggle.disabled) {
+        if (masterToggle && !masterToggle.disabled && ['Admin','Master Admin'].includes(users[userIndex].role)) {
             const newRole = masterToggle.checked ? 'Master Admin' : 'Admin';
             users[userIndex].role = newRole;
             users[userIndex].type = newRole;
         }
 
+        const permissionPayload = { ...users[userIndex] };
+        delete permissionPayload.password;
+        const saved = await window.SigmaDatabase.request('users', {data:{action:'save',user:permissionPayload}});
+        users[userIndex] = saved.record;
         saveStoredJson(USER_STORAGE_KEY, users);
-        if (typeof syncUserToDB === 'function') {
-            syncUserToDB(users[userIndex], 'save');
-        }
+        saveStoredJson('sigma-users-list', users);
 
         // Update auth user in sessionStorage if editing self
         const authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
@@ -2859,7 +2857,14 @@ window.saveUserPermissions = function () {
         if (typeof window.applyCurrentAdminPermissions === 'function') window.applyCurrentAdminPermissions();
 
         window.showUserConfirm('Success', 'Permissions updated successfully.', null, true);
-    }, 400);
+        } catch (error) {
+            window.showUserConfirm('Not Saved', error.message || 'Permissions were not saved. Please try again.', null, true);
+        } finally {
+            if (loading) loading.classList.add('hidden');
+            if (label) label.classList.remove('hidden');
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    }, 0);
 };
 
 window.toggleProfileSettingsMenu = function (event, forceClose = false) {
@@ -17647,7 +17652,12 @@ window.toggleUserOverlay = function (show, userData = null) {
             const brEl = document.getElementById('edit-user-school-branch');
             if (brEl) brEl.value = userData.branch || '';
             const emEl = document.getElementById('edit-user-email');
-            if (emEl) emEl.value = (userData.email || '').replace(/@gmail\.com$/i, '').replace(/@.*$/i, '');
+            if (emEl) {
+                emEl.value = (userData.email || '').split('@')[0];
+                emEl.dataset.emailDomain = (userData.email || '').split('@')[1] || 'gmail.com';
+                const domain = document.getElementById('edit-user-email-domain');
+                if (domain) domain.textContent = '@' + emEl.dataset.emailDomain;
+            }
             if (idEl) {
                 idEl.value = userData.id || userData.uid || '';
                 idEl.readOnly = true;
@@ -17664,6 +17674,10 @@ window.toggleUserOverlay = function (show, userData = null) {
             if (previewRole) previewRole.textContent = userData.role || '—';
         } else {
             window.originalEditingUserState = null;
+            const mail = document.getElementById('edit-user-email');
+            if (mail) mail.dataset.emailDomain = 'gmail.com';
+            const domain = document.getElementById('edit-user-email-domain');
+            if (domain) domain.textContent = '@gmail.com';
             if (titleEl) titleEl.textContent = 'Create User Account';
             if (saveLabel) saveLabel.textContent = 'Create Account';
             const emailGenBtn = document.getElementById('edit-user-email-generate-btn');
@@ -17990,11 +18004,8 @@ window.commitUserSeq = function (role) {
     localStorage.setItem(key, String(next));
 };
 
-window.generateUserId = function (role) {
+window.generateUserId = async function (role) {
     if (!role) return;
-
-    // YY — last 2 digits of current year
-    const year = String(new Date().getFullYear()).slice(-2);
 
     // BB — branch code from selected branch dropdown
     const branchSelect = document.getElementById('edit-user-school-branch');
@@ -18003,18 +18014,28 @@ window.generateUserId = function (role) {
         ? window.getSchoolBranchCode(selectedBranch)
         : '01';
 
-    // RR — role code
-    const roleCode = role === 'Master Admin' ? '00' : role === 'Admin' ? '01' : role === 'Teacher' ? '02' : '03';
-
-    // S — sequential (peek: what the NEXT number will be, without committing yet)
-    const seq = window.peekUserSeq(role);
-
-    const id = `${year}${branchCode}${roleCode}${seq}`;
+    // The server previews the next ID and atomically reserves it when saving.
+    let id;
+    try {
+        const result = await window.SigmaDatabase.request('users', {query:{action:'next_id',role,branchCode}});
+        if (document.getElementById('edit-user-role')?.value !== role) return;
+        id = result.id;
+    } catch (error) {
+        const field = document.getElementById('edit-user-id');
+        if (field) field.value = '';
+        window.showToast?.('Could not allocate an account ID. Please retry.', 'error');
+        return;
+    }
 
     const idInput = document.getElementById('edit-user-id');
     if (idInput) idInput.value = id;
 
     window.updateUserPreview();
+};
+
+window.resolveUserFormEmail = function (prefix) {
+    const domain = document.getElementById('edit-user-email')?.dataset.emailDomain || 'gmail.com';
+    return prefix ? `${String(prefix).trim()}@${domain}` : '';
 };
 
 window.updateUserPreview = function () {
@@ -18042,7 +18063,7 @@ window.updateUserPreview = function () {
     if (prevId) prevId.textContent = id;
     if (prevPass) prevPass.textContent = password || 'Waiting for last name';
     if (passInput) passInput.value = password || '';
-    if (instEmail) instEmail.textContent = email ? `${email}@gmail.com` : 'the provided Gmail';
+    if (instEmail) instEmail.textContent = email ? window.resolveUserFormEmail(email) : 'the provided email';
     if (finalId) finalId.textContent = id;
     if (finalPass) finalPass.textContent = password || '-';
     if (instCopy) instCopy.innerHTML = `Login ID: ${id}<br>Password: ${password || '-'}`;
@@ -18100,7 +18121,7 @@ window.validateUserStep2 = function () {
         return false;
     }
 
-    const fullEmail = `${emailPrefix}@gmail.com`;
+    const fullEmail = window.resolveUserFormEmail(emailPrefix);
     const users = getStoredJson(USER_STORAGE_KEY, []);
     const currentId = window.isEditingUser ? (window.currentEditingUserId || document.getElementById('edit-user-id')?.value) : null;
 
@@ -18164,6 +18185,7 @@ window.validateUserStep2 = function () {
 };
 
 window.handleUserSave = function () {
+    if (window._userSavePending) return;
     if (!window.validateUserStep2()) {
         const emailInput = document.getElementById('edit-user-email');
         emailInput?.focus();
@@ -18176,7 +18198,8 @@ window.handleUserSave = function () {
     if (loadingIcon) loadingIcon.classList.remove('hidden');
     if (saveLabel) saveLabel.textContent = 'Creating...';
 
-    setTimeout(() => {
+    window._userSavePending = true;
+    setTimeout(async () => {
         try {
             const users = getStoredJson(USER_STORAGE_KEY, []);
 
@@ -18199,49 +18222,9 @@ window.handleUserSave = function () {
             const branch = branchEl ? branchEl.value : 'Main Campus';
 
             const isNewMaster = role === 'Master Admin';
-            let defaultPerms = {
-                masterAdmin: isNewMaster,
-                schoolMain: true,
-                schoolProfile: isNewMaster, // Default false for all created Admins, only Master Admin defaults to true
-                schoolYear: true,
-                syAuthority: true,
-                syManage: true,
-                syCreateEdit: true,
-                syDelete: isNewMaster,
-                schoolSections: true,
-                schoolSectionsDelete: isNewMaster,
-                schoolSubjects: true,
-                subjectAuthority: true,
-                subjectManage: true,
-                subjectCreateEdit: true,
-                subjectDelete: isNewMaster,
-                manageAdmins: isNewMaster,
-                manageTeachers: true,
-                manageStudents: true,
-                actionPassword: true,
-                actionLock: true,
-                actionDeactivate: isNewMaster,
-                actionDelete: isNewMaster,
-                reportsMain: true,
-                reportsDescriptive: true,
-                reportsPredictive: true,
-                reportsPrescriptive: true,
-                resourcesMain: true,
-                resourcesMaterials: true,
-                resourcesStorage: true,
-                auditMain: true,
-                auditAi: true,
-                auditActivity: true,
-                auditAuth: true,
-                settingsMain: true,
-                settingsBranding: true,
-                settingsApi: true,
-                settingsSecurity: true,
-                bio: true,
-                achievements: isNewMaster || role === 'Student',
-                subjects: isNewMaster || role === 'Teacher' || role === 'Student',
-                sections: isNewMaster || role === 'Teacher' || role === 'Student'
-            };
+            const defaults = await window.SigmaDatabase.request('users', {query:{action:'permission_defaults'}});
+            const defaultPerms = defaults.roles[role];
+            if (!defaultPerms) throw new Error('Choose a supported institutional role.');
 
             const userFullName = [fname, mname, lname].filter(Boolean).join(' ');
 
@@ -18254,7 +18237,7 @@ window.handleUserSave = function () {
                 fullName: userFullName,
                 gender: gender,
                 branch: branch,
-                email: email ? `${email}@gmail.com` : '',
+                email: window.resolveUserFormEmail(email),
                 role: role,
                 type: role.toUpperCase(),
                 status: 'Active',
@@ -18285,18 +18268,27 @@ window.handleUserSave = function () {
                 
                 users.unshift(userData);
 
-                // Commit the sequential counter for this role (only for new users)
-                if (typeof window.commitUserSeq === 'function') {
-                    window.commitUserSeq(role);
-                }
             }
 
-            saveStoredJson(USER_STORAGE_KEY, users);
-            syncUserToDB(existingIndex !== -1 ? users[existingIndex] : userData, 'save');
+            const branchCode = window.getSchoolBranchCode?.(branch) || '01';
+            const accountPayload = window.isEditingUser && existingIndex !== -1 ? { ...users[existingIndex] } : userData;
+            if (window.isEditingUser) delete accountPayload.password;
+            const saved = await window.SigmaDatabase.request('users', {data:{action:window.isEditingUser ? 'save' : 'create', branchCode, passwordAutoGenerated:!window.isEditingUser, user:accountPayload}});
+            const canonical = saved.record;
+            if (!canonical?.id) throw new Error('The server did not confirm the saved account.');
+            userData.id = canonical.id; userData.uid = canonical.id;
+            if (idEl) idEl.value = canonical.id;
+            window.updateUserPreview();
+            const latestUsers = getStoredJson(USER_STORAGE_KEY, []);
+            const savedIndex = latestUsers.findIndex(user => String(user.id || user.uid) === String(canonical.id));
+            if (savedIndex < 0) latestUsers.unshift(canonical); else latestUsers[savedIndex] = canonical;
+            saveStoredJson(USER_STORAGE_KEY, latestUsers);
+            saveStoredJson('sigma-users-list', latestUsers);
+            if (existingIndex === -1) window.commitUserSeq?.(role);
 
             // Propagate user changes to all connected sections, subjects, rosters, and session
             if (typeof window.propagateUserUpdateToAllConnected === 'function') {
-                window.propagateUserUpdateToAllConnected(existingIndex !== -1 ? users[existingIndex] : userData, previousUser);
+                window.propagateUserUpdateToAllConnected(canonical, previousUser);
             }
 
             // Save info for the notification bar (only for new users)
@@ -18313,7 +18305,7 @@ window.handleUserSave = function () {
                 if (typeof window.showToastNotification === 'function') {
                     window.showToastNotification(`User #${userData.id} updated successfully.`, 'success');
                 }
-                const updatedUser = users[existingIndex];
+                const updatedUser = canonical;
                 if (window.currentUserProfileData && String(window.currentUserProfileData.id || window.currentUserProfileData.uid) === String(userData.id)) {
                     window.currentUserProfileData = { ...updatedUser };
                     if (typeof window.populateUserProfilePage === 'function') {
@@ -18335,12 +18327,13 @@ window.handleUserSave = function () {
             }
         } catch (error) {
             console.error('Error saving user:', error);
-            window.showUserConfirm('Error', 'An error occurred while saving the account. Please try again.', null, true);
+            window.showUserConfirm('Error', error.message || 'The account was not saved. Please try again.', null, true);
         } finally {
+            window._userSavePending = false;
             if (loadingIcon) loadingIcon.classList.add('hidden');
             if (saveLabel) saveLabel.textContent = window.isEditingUser ? 'Save Changes' : 'Create Account';
         }
-    }, 1000);
+    }, 0);
 };
 
 window.openEditUserInformation = function (userId) {
@@ -18355,7 +18348,7 @@ window.openEditUserInformation = function (userId) {
 
 window.sendCredentialsViaGmail = function () {
     const email = document.getElementById('edit-user-email')?.value;
-    const fullEmail = email ? `${email}@gmail.com` : '';
+    const fullEmail = window.resolveUserFormEmail(email);
     const id = document.getElementById('user-final-id')?.textContent || '';
     const pass = document.getElementById('user-final-password')?.textContent || '';
 
@@ -18429,12 +18422,7 @@ Please keep this file secure. You can use these credentials to log in at the ind
 };
 
 window.sendUserCredentialsEmail = function () {
-    const email = document.getElementById('edit-user-email')?.value || '';
-    if (email) {
-        window.showUserConfirm('Success', `Account credentials have been sent to ${email}@gmail.com successfully.`, null, true);
-    } else {
-        window.showUserConfirm('Sent', 'Account credentials have been sent to the user\'s email.', null, true);
-    }
+    window.showUserConfirm('Email Not Sent', 'Email delivery is not configured. Use Download Credentials to save and share the login details yourself.', null, true);
 };
 
 window.viewUserProfile = function (userId) {

@@ -193,6 +193,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $uploadActor = sigmaRequireApplicationActor(serviceSettingsPdo());
+require_once dirname(__DIR__) . '/includes/role_permissions.php';
+$uploadRole = preg_replace('/[\s_-]+/', '', strtolower($uploadActor['role']));
+if ($uploadRole === 'teacher' && !sigmaActorPermission($uploadActor,'teacherMaterials')) jsonOut(['success'=>false,'error'=>'Material uploads are disabled for this account.'],403);
 
 // Check for JSON or POST payload actions
 $rawInput = file_get_contents('php://input');

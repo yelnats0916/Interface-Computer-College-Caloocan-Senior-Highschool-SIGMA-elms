@@ -250,13 +250,13 @@
 
     function getCurrentUserAvatarHistory(userId) {
         const id = resolveTargetUserId(userId);
-        
-        if (id) {
-            const userHistory = getStoredJson(`sigma_avatar_history_${id}`, null);
-            if (Array.isArray(userHistory)) return userHistory;
-        }
-
-        return [];
+        if (!id) return [];
+        const saved = getStoredJson(`sigma_avatar_history_${id}`, null);
+        if (Array.isArray(saved) && saved.length) return saved;
+        const users = getStoredJson(USER_STORAGE_KEY, []);
+        const record = Array.isArray(users) ? users.find(user => String(user.id || user.uid) === String(id)) : null;
+        const avatar = record?.avatar || getCurrentUserAvatar(id);
+        return avatar ? [avatar] : [];
     }
 
     function saveCurrentUserAvatarHistory(history, userId) {
@@ -1452,6 +1452,7 @@
     };
 
     window.toggleEditUserBio = function (shouldSave, index = null) {
+        if (getPortalRoleKey() === 'student' && window.SigmaRoleAccess?.allowed('studentBio') === false) return;
         const container = getUserBioActiveContainer();
         if (!container) return;
         const isEditing = container.querySelector('#edit-user-bio-form') !== null;
@@ -1561,6 +1562,7 @@
     }
 
     window.toggleUserProfilePictureOverlay = function (show) {
+        if (show && getPortalRoleKey() === 'student' && window.SigmaRoleAccess?.allowed('studentBio') === false) return;
         ensureSharedProfilePictureOverlay();
         const overlay = document.getElementById('user-profile-picture-overlay');
         if (!overlay) return;
@@ -1572,6 +1574,12 @@
             window.updateAvatarActionButtons();
             window.renderUserProfilePictureUploads();
             window.renderGeneratedProfileAvatars();
+            const portal = getPortalRoleKey();
+            const editing = portal === 'admin' && (window.currentViewingUserId || window.currentEditingUserId);
+            const userId = editing || getActiveUserData().id;
+            if (userId && window.SigmaDatabase) window.SigmaDatabase.request('profile_photos', {query:{userId}})
+                .then(result => { saveCurrentUserAvatarHistory(result.photos, userId); window.renderUserProfilePictureUploads(); })
+                .catch(() => { /* Retain the account's saved photo if history is temporarily unavailable. */ });
         } else {
             pendingSelectedAvatarUrl = null;
             overlay.classList.add('hidden');
@@ -2173,12 +2181,33 @@
         window.confirmAndRemoveAvatar();
     };
 
-    window.selectUserProfilePicture = function (avatarBase64, trackUpload = true) {
+    async function compressProfilePhoto(source) {
+        const image = new Image();
+        image.src = source;
+        await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+        const context = canvas.getContext('2d');
+        const edge = Math.min(image.naturalWidth, image.naturalHeight);
+        context.drawImage(image, (image.naturalWidth-edge)/2, (image.naturalHeight-edge)/2, edge, edge, 0, 0, 256, 256);
+        return canvas.toDataURL('image/webp', .8);
+    }
+
+    window.selectUserProfilePicture = async function (avatarBase64, trackUpload = true) {
         if (!avatarBase64) return;
         const portal = getPortalRoleKey();
         const isEditingOtherUser = portal === 'admin' && (!!window.currentViewingUserId || !!window.currentEditingUserId);
         const targetId = isEditingOtherUser ? (window.currentViewingUserId || window.currentEditingUserId) : (getActiveUserData().id);
 
+        if (window._sigmaProfilePhotoSaving) return;
+        window._sigmaProfilePhotoSaving = true;
+        try {
+            avatarBase64 = await compressProfilePhoto(avatarBase64);
+            const result = await window.SigmaDatabase.request('profile_photos', {data:{userId:targetId,photo:avatarBase64}});
+            saveCurrentUserAvatarHistory(result.photos, targetId);
+        } catch (error) {
+            window.showToast?.(error.message || 'The profile photo was not saved.', 'error');
+            return;
+        } finally { window._sigmaProfilePhotoSaving = false; }
         setCurrentUserAvatar(avatarBase64, targetId);
 
         // Update local history list for targetId across all roles (Admin, Master Admin, Teacher, Student)
