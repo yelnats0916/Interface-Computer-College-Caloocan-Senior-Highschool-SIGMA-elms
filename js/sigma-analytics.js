@@ -3,12 +3,12 @@
  * Standardized across Admin, Teacher, and Student portals.
  * 
  * Features:
- *   1. Full 8-Card Catalog of Admin System Metrics.
+ *   1. Admin system metrics catalog with four default cards.
  *   2. Dynamic JSON-driven templates for all cards.
  *   3. Zero-State Fallback: Displays a clean standby state when metricsData is empty [].
  *   4. Unified 4-Card Initial Limit with inside-container "More" dynamic expansion across all portals.
  *   5. Interactive "Configure Metrics" Modal allowing Admin to toggle/customize which cards appear.
- *   6. Pin-to-top feature with localStorage persistence.
+ *   6. Per-administrator card selection and pin-to-top preferences on this browser.
  *   7. Strict cursor management (pointer cursor exclusively on interactive switches & buttons).
  */
 
@@ -131,47 +131,44 @@
         }
     ];
 
-    // Default enabled card IDs (clean state for new install)
-    const DEFAULT_ACTIVE_METRIC_IDS = [];
-
-    function getActiveMetricIds() {
-        try {
-            const authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-            const authId = String(authUser.uid || authUser.id || '');
-            if (authId) {
-                const users = getStoredJson('sigma-admin-users', []);
-                const foundUser = users.find(u => String(u.uid || u.id || '') === authId);
-                if (foundUser && foundUser.permissions) {
-                    if (foundUser.permissions.metricsMain === false) {
-                        return [];
-                    }
-                    const mapping = [
-                        { key: 'metricHealth', id: 'metric-health' },
-                        { key: 'metricAi', id: 'metric-ai' },
-                        { key: 'metricStorage', id: 'metric-storage' },
-                        { key: 'metricSecurity', id: 'metric-security' },
-                        { key: 'metricDatabase', id: 'metric-database' },
-                        { key: 'metricGrading', id: 'metric-grading' }
-                    ];
-                    const perms = foundUser.permissions;
-                    const permittedIds = mapping.filter(m => perms[m.key] !== false).map(m => m.id);
-                    return permittedIds;
-                }
-            }
-            const raw = localStorage.getItem(STORAGE_KEY_ACTIVE_METRICS);
-            if (raw !== null) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) return parsed.filter(id => id !== 'metric-classrooms');
-            }
-        } catch {}
-        return DEFAULT_ACTIVE_METRIC_IDS;
+    // Permissions limit available cards; each administrator chooses which to show.
+    const DEFAULT_ACTIVE_METRIC_IDS = ['metric-health', 'metric-ai', 'metric-storage', 'metric-security'];
+    const METRIC_PERMISSION_KEYS = {
+        'metric-health': 'metricHealth', 'metric-ai': 'metricAi',
+        'metric-storage': 'metricStorage', 'metric-security': 'metricSecurity',
+        'metric-database': 'metricDatabase', 'metric-grading': 'metricGrading'
+    };
+    function metricPreferenceContext() {
+        let user = {};
+        try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
+        const id = String(user.uid || user.id || '').trim().toLowerCase();
+        const users = getStoredJson('sigma-admin-users', []);
+        const storedUser = Array.isArray(users) ? users.find(item => String(item.uid || item.id || '').trim().toLowerCase() === id) : null;
+        const permissions = storedUser?.permissions || user.permissions || {};
+        const allowed = permissions.metricsMain === false ? [] : ADMIN_METRICS_CATALOG
+            .filter(metric => permissions[METRIC_PERMISSION_KEYS[metric.id]] !== false).map(metric => metric.id);
+        return { key: id ? `${STORAGE_KEY_ACTIVE_METRICS}:${id}` : null, allowed };
     }
-
-    function saveActiveMetricIds(ids) {
+    function getActiveMetricIds() {
+        const {key, allowed} = metricPreferenceContext();
         try {
-            localStorage.setItem(STORAGE_KEY_ACTIVE_METRICS, JSON.stringify(ids));
-        } catch (e) {
-            console.error('Failed to save active metrics', e);
+            const raw = key ? localStorage.getItem(key) : null;
+            if (raw !== null) {
+                const ids = JSON.parse(raw);
+                if (Array.isArray(ids)) return [...new Set(ids)].filter(id => allowed.includes(id));
+            }
+        } catch (_) {}
+        return DEFAULT_ACTIVE_METRIC_IDS.filter(id => allowed.includes(id));
+    }
+    function saveActiveMetricIds(ids) {
+        const {key, allowed} = metricPreferenceContext();
+        if (!key) return false;
+        try {
+            localStorage.setItem(key, JSON.stringify([...new Set(ids)].filter(id => allowed.includes(id))));
+            return true;
+        } catch (error) {
+            console.error('Failed to save active metrics', error);
+            return false;
         }
     }
 
@@ -538,254 +535,93 @@
     // 3. CONFIGURE METRICS MODAL
     // ═════════════════════════════════════════════════════════════════════════
     function createMetricsConfigModal() {
-        let backdrop = document.getElementById('metrics-config-modal-backdrop');
-        if (backdrop) backdrop.remove();
-
-        backdrop = document.createElement('div');
+        document.getElementById('metrics-config-modal-backdrop')?.remove();
+        const backdrop = document.createElement('div');
         backdrop.id = 'metrics-config-modal-backdrop';
         backdrop.className = 'metrics-config-backdrop';
         backdrop.innerHTML = `
-            <div class="metrics-config-modal relative">
-                <!-- Dynamic Confirmation Prompt Overlay -->
-                <div id="metrics-config-confirm-prompt" class="hidden absolute inset-0 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center z-20 rounded-3xl font-['Inter']">
-                    <div id="prompt-icon-container" class="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center mb-3 text-black border border-slate-100">
-                        <i id="prompt-icon" class="fa-solid fa-rotate-left text-base"></i>
-                    </div>
-                    <h4 id="prompt-title" class="text-sm font-black text-black uppercase tracking-wider mb-1">Confirm Action</h4>
-                    <p id="prompt-desc" class="text-[11px] text-black-fade max-w-xs mb-4 leading-relaxed font-medium" style="color: var(--sigma-black-fade, rgba(0, 0, 0, 0.55)) !important;">
-                        Are you sure you want to proceed?
-                    </p>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="btn-prompt-cancel" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-black hover:bg-slate-100 transition-colors cursor-pointer font-['Inter']">
-                            Cancel
-                        </button>
-                        <button type="button" id="btn-prompt-confirm" class="px-4 py-2 bg-[#15803d] hover:bg-[#166534] text-white rounded-xl text-[11px] font-bold transition-colors shadow-xs cursor-pointer font-['Inter']">
-                            Confirm
-                        </button>
-                    </div>
+            <div class="metrics-config-modal relative" role="dialog" aria-modal="true" aria-labelledby="metrics-config-title">
+                <div class="px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 shrink-0">
+                    <h2 id="metrics-config-title" class="text-base sm:text-xl font-bold text-black">Configure System Metrics</h2>
+                    <p class="text-xs text-black-fade mt-1">Choose the cards shown on your dashboard.</p>
                 </div>
-
-                <div class="px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
-                    <div>
-                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Configure System Metrics</h2>
-                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Select which metric cards to display on your dashboard rail</p>
-                    </div>
+                <div class="p-6 sm:p-8 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="metrics-config-options-list" style="flex:1 1 0%;min-height:0"></div>
+                <div class="px-6 sm:px-8 pb-3 text-xs text-black-fade" id="metrics-config-save-status" role="status" aria-live="polite">Changes save automatically on this browser.</div>
+                <div class="sigma-modal-footer flex items-center justify-between shrink-0 bg-slate-50 border-t border-slate-100">
+                    <button type="button" id="btn-reset-metrics-config" class="sigma-btn sigma-btn-white sigma-modal-btn">Reset to Default</button>
+                    <button type="button" id="btn-done-metrics-config" class="sigma-btn sigma-btn-primary sigma-modal-btn">Done</button>
                 </div>
-
-                <div class="p-6 sm:p-8 overflow-y-auto flex-1 space-y-3 custom-scrollbar" id="metrics-config-options-list" style="flex: 1 1 0%; min-height: 0;">
-                    <!-- Populated dynamically -->
-                </div>
-
-                <div class="sigma-modal-footer flex items-center justify-between shrink-0 bg-slate-50 border-t border-slate-100 font-['Inter']">
-                    <button type="button" id="btn-cancel-metrics-config" class="sigma-btn sigma-btn-white sigma-modal-btn">
-                        Cancel
-                    </button>
-                    <div class="flex items-center gap-2.5 sm:gap-3">
-                        <button type="button" id="btn-reset-metrics-config" class="sigma-modal-btn" style="background: transparent; border: none;">
-                            Reset
-                        </button>
-                        <button type="button" id="btn-save-metrics-config" disabled class="sigma-btn sigma-btn-primary sigma-modal-btn opacity-40 cursor-not-allowed pointer-events-none">
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
+            </div>`;
         document.body.appendChild(backdrop);
-
-        let initialSnapshot = [...getActiveMetricIds()];
-        const btnSave = backdrop.querySelector('#btn-save-metrics-config');
-
-        function getCurrentSelectedIds() {
-            const checkboxes = backdrop.querySelectorAll('#metrics-config-options-list input[type="checkbox"]');
-            return Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.metricId);
-        }
-
-        function hasUnsavedChanges() {
-            const current = getCurrentSelectedIds();
-            if (current.length !== initialSnapshot.length) return true;
-            return current.some(id => !initialSnapshot.includes(id));
-        }
-
-        function updateSaveButtonState() {
-            if (!btnSave) return;
-            const changed = hasUnsavedChanges();
-            btnSave.disabled = !changed;
-            if (changed) {
-                btnSave.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                btnSave.classList.add('cursor-pointer', 'hover:bg-[#166534]');
-            } else {
-                btnSave.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                btnSave.classList.remove('cursor-pointer', 'hover:bg-[#166534]');
-            }
-        }
-
-        const promptOverlay = backdrop.querySelector('#metrics-config-confirm-prompt');
-        const promptIcon = backdrop.querySelector('#prompt-icon');
-        const promptTitle = backdrop.querySelector('#prompt-title');
-        const promptDesc = backdrop.querySelector('#prompt-desc');
-        const btnPromptCancel = backdrop.querySelector('#btn-prompt-cancel');
-        const btnPromptConfirm = backdrop.querySelector('#btn-prompt-confirm');
-
-        let activeConfirmCallback = null;
-
-        function showConfirmation({ icon, title, desc, cancelText, confirmText, confirmClass, onConfirm }) {
-            if (!promptOverlay) return;
-            if (promptIcon) promptIcon.className = `fa-solid ${icon} text-base`;
-            if (promptTitle) promptTitle.textContent = title;
-            if (promptDesc) promptDesc.textContent = desc;
-            if (btnPromptCancel) btnPromptCancel.textContent = cancelText || 'Cancel';
-            if (btnPromptConfirm) {
-                btnPromptConfirm.textContent = confirmText || 'Confirm';
-                btnPromptConfirm.className = `px-4 py-2 text-white rounded-xl text-[11px] font-bold transition-colors shadow-xs cursor-pointer ${confirmClass || 'bg-[#15803d] hover:bg-[#166534]'}`;
-            }
-            activeConfirmCallback = onConfirm;
-            promptOverlay.classList.remove('hidden');
-        }
-
-        function hideConfirmation() {
-            if (promptOverlay) promptOverlay.classList.add('hidden');
-            activeConfirmCallback = null;
-        }
-
-        btnPromptCancel?.addEventListener('click', hideConfirmation);
-        btnPromptConfirm?.addEventListener('click', () => {
-            if (typeof activeConfirmCallback === 'function') {
-                activeConfirmCallback();
-            }
-            hideConfirmation();
+        const close = () => closeMetricsConfigModal();
+        backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
+        backdrop.addEventListener('keydown', event => {
+            if (event.key === 'Escape') { event.preventDefault(); close(); }
         });
-
-        function handleCancelOrClose() {
-            if (hasUnsavedChanges()) {
-                showConfirmation({
-                    icon: 'fa-triangle-exclamation text-amber-500',
-                    title: 'Discard Changes?',
-                    desc: 'You have unsaved changes to your metric cards selection. Do you want to discard them?',
-                    cancelText: 'Keep Editing',
-                    confirmText: 'Discard Changes',
-                    confirmClass: 'bg-[#15803d] hover:bg-[#166534]',
-                    onConfirm: () => closeMetricsConfigModal()
-                });
-            } else {
-                closeMetricsConfigModal();
-            }
-        }
-
-        backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop) handleCancelOrClose();
+        backdrop.querySelector('#btn-done-metrics-config').addEventListener('click', close);
+        backdrop.querySelector('#btn-reset-metrics-config').addEventListener('click', () => {
+            applyMetricSelection(DEFAULT_ACTIVE_METRIC_IDS);
         });
-        backdrop.querySelector('#btn-close-metrics-config')?.addEventListener('click', handleCancelOrClose);
-        backdrop.querySelector('#btn-cancel-metrics-config')?.addEventListener('click', handleCancelOrClose);
-
-        // 1. Reset Action Prompt
-        backdrop.querySelector('#btn-reset-metrics-config')?.addEventListener('click', () => {
-            showConfirmation({
-                icon: 'fa-rotate-left text-slate-800',
-                title: 'Reset to Default?',
-                desc: 'Are you sure you want to restore the default top 4 system metric cards?',
-                cancelText: 'Cancel',
-                confirmText: 'Yes, Reset',
-                confirmClass: 'bg-[#15803d] hover:bg-[#166534]',
-                onConfirm: () => {
-                    const checkboxes = backdrop.querySelectorAll('#metrics-config-options-list input[type="checkbox"]');
-                    checkboxes.forEach(cb => {
-                        cb.checked = DEFAULT_ACTIVE_METRIC_IDS.includes(cb.dataset.metricId);
-                        cb.closest('.metrics-config-option')?.classList.toggle('is-active', cb.checked);
-                    });
-                    updateSaveButtonState();
-                }
-            });
-        });
-
-        // 2. Save Action Prompt
-        btnSave?.addEventListener('click', () => {
-            if (!hasUnsavedChanges()) return;
-            showConfirmation({
-                icon: 'fa-check text-emerald-600',
-                title: 'Save Changes?',
-                desc: 'Are you sure you want to save and apply your customized system metrics?',
-                cancelText: 'Cancel',
-                confirmText: 'Save & Apply',
-                confirmClass: 'bg-[#15803d] hover:bg-[#166534]',
-                onConfirm: () => {
-                    const selectedIds = getCurrentSelectedIds();
-                    saveActiveMetricIds(selectedIds);
-                    closeMetricsConfigModal();
-                    renderAdminPocketCards();
-                }
-            });
-        });
-
         return backdrop;
     }
-
+    function applyMetricSelection(ids) {
+        const status = document.getElementById('metrics-config-save-status');
+        if (!saveActiveMetricIds(ids)) {
+            if (status) status.textContent = 'Could not save your selection. Please try again.';
+            populateConfigOptions();
+            return;
+        }
+        renderAdminPocketCards();
+        populateConfigOptions();
+        if (status) status.textContent = 'Saved automatically on this browser.';
+    }
     function populateConfigOptions() {
-        const backdrop = document.getElementById('metrics-config-modal-backdrop');
         const list = document.getElementById('metrics-config-options-list');
         if (!list) return;
-
-        const activeIds = getActiveMetricIds();
-
+        const active = getActiveMetricIds();
+        const {allowed} = metricPreferenceContext();
         list.innerHTML = ADMIN_METRICS_CATALOG.map(metric => {
-            const isChecked = activeIds.includes(metric.id);
-            return `
-                <label class="metrics-config-option ${isChecked ? 'is-active' : ''}">
-                    <div class="pr-4">
-                        <p class="text-sm font-bold text-black font-['Inter']">${metric.title}</p>
-                        <p class="text-xs text-black-fade font-medium font-['Inter'] mt-0.5 leading-snug">${metric.desc}</p>
-                    </div>
-                    <div class="metrics-toggle-switch shrink-0">
-                        <input type="checkbox" data-metric-id="${metric.id}" ${isChecked ? 'checked' : ''}>
-                        <span class="metrics-toggle-slider"></span>
-                    </div>
-                </label>
-            `;
+            const checked = active.includes(metric.id);
+            const enabled = allowed.includes(metric.id);
+            return `<label class="metrics-config-option ${checked ? 'is-active' : ''}${enabled ? '' : ' opacity-50'}">
+                <div class="pr-4"><p class="text-sm font-bold text-black">${metric.title}</p>
+                    <p class="text-xs text-black-fade mt-0.5">${enabled ? metric.desc : 'Unavailable with your current permissions.'}</p></div>
+                <div class="metrics-toggle-switch shrink-0"><input type="checkbox" data-metric-id="${metric.id}" aria-label="Show ${metric.title}" ${checked ? 'checked' : ''} ${enabled ? '' : 'disabled'}><span class="metrics-toggle-slider"></span></div>
+            </label>`;
         }).join('');
-
-        const btnSave = backdrop?.querySelector('#btn-save-metrics-config');
-
-        function checkChanges() {
-            const checkboxes = list.querySelectorAll('input[type="checkbox"]');
-            const currentSelected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.metricId);
-            const initial = getActiveMetricIds();
-            const changed = (currentSelected.length !== initial.length) || currentSelected.some(id => !initial.includes(id));
-
-            if (btnSave) {
-                btnSave.disabled = !changed;
-                if (changed) {
-                    btnSave.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                    btnSave.classList.add('cursor-pointer', 'hover:bg-[#166534]');
-                } else {
-                    btnSave.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                    btnSave.classList.remove('cursor-pointer', 'hover:bg-[#166534]');
-                }
-            }
-        }
-
-        list.querySelectorAll('.metrics-config-option').forEach(row => {
-            const cb = row.querySelector('input[type="checkbox"]');
-            cb.addEventListener('change', () => {
-                row.classList.toggle('is-active', cb.checked);
-                checkChanges();
+        list.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', () => {
+                const id = input.dataset.metricId;
+                const selected = Array.from(list.querySelectorAll('input:checked')).map(item => item.dataset.metricId);
+                applyMetricSelection(selected);
+                // Preserve keyboard focus after rebuilding the toggle rows.
+                list.querySelector(`[data-metric-id="${id}"]`)?.focus({preventScroll:true});
             });
         });
-
-        checkChanges();
     }
 
     function openMetricsConfigModal() {
         createMetricsConfigModal();
         populateConfigOptions();
         const backdrop = document.getElementById('metrics-config-modal-backdrop');
-        if (backdrop) backdrop.classList.add('is-open');
+        if (backdrop) {
+            backdrop.classList.add('is-open');
+            backdrop.querySelector('input:not(:disabled), #btn-done-metrics-config')?.focus({preventScroll:true});
+        }
     }
 
     function closeMetricsConfigModal() {
         const backdrop = document.getElementById('metrics-config-modal-backdrop');
         if (backdrop) backdrop.classList.remove('is-open');
+        document.querySelector('#dashboard-metrics-container')?.previousElementSibling?.querySelector('button')?.focus({preventScroll:true});
     }
+
+    window.addEventListener('storage', event => {
+        if (event.key === metricPreferenceContext().key && document.getElementById('dashboard-metrics-container')) {
+            renderAdminPocketCards();
+            populateConfigOptions();
+        }
+    });
 
     window.openMetricsConfigModal = openMetricsConfigModal;
     window.closeMetricsConfigModal = closeMetricsConfigModal;
