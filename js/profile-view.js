@@ -968,6 +968,16 @@
             }
         }
 
+        // Hidden email/ID rows must not leave a divider above the first visible detail.
+        const detailRows = Array.from(document.querySelectorAll('#user-profile-basic-details-card > div'));
+        detailRows.forEach(row => {
+            ['border-top-width', 'margin-top', 'padding-top'].forEach(property => row.style.removeProperty(property));
+        });
+        const firstVisibleDetail = detailRows.find(row => !row.classList.contains('hidden') && row.style.display !== 'none');
+        if (firstVisibleDetail) {
+            ['border-top-width', 'margin-top', 'padding-top'].forEach(property => firstVisibleDetail.style.setProperty(property, '0', 'important'));
+        }
+
         let userAvatar = userData.avatar || getCurrentUserAvatar(userData.id) || '';
         const hasAvatar = !!(userAvatar && typeof userAvatar === 'string' && userAvatar.trim() !== '' && userAvatar !== 'null' && userAvatar !== 'undefined');
         const bannerImg = document.getElementById('user-avatar-img');
