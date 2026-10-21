@@ -391,9 +391,8 @@
 
         container.innerHTML = html;
         if(currentTab==='ai'){
-            const key=`sigma-ai-preferences:${userId}`;
-            let prefs={bot:'auto',insights:'en'};
-            try{prefs={...prefs,...JSON.parse(localStorage.getItem(key)||'{}')};}catch(_){}
+            const key=window.getSigmaAiPreferencesKey(user);
+            let prefs=window.getSigmaAiPreferences(user);
             const settings=[{id:'auto',label:'Automatic Bot Language',description:'Match the language of your message.'},{id:'bot',label:'SIGMA Bot Language',description:'English when off, Filipino when on.'}];
             if(getActivePortal()!=='admin')settings.push({id:'insights',label:'AI Insights Language',description:'English when off, Filipino when on.'});
             container.querySelector('.sigma-settings-inner').innerHTML=`<div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6"><div><h2 class="text-lg font-bold text-black">AI Preferences</h2><p class="text-xs text-black-fade font-medium mt-1">Choose the language for your AI responses.</p></div><div class="divide-y divide-slate-100 pt-2">${settings.map(setting=>`<div class="flex items-center justify-between py-4 gap-4"><div><h3 class="text-sm font-bold text-black">${setting.label}</h3><p class="text-xs text-black-fade font-medium mt-0.5">${setting.description}</p></div><label class="sigma-toggle-switch shrink-0 ml-4"><input type="checkbox" data-ai-setting="${setting.id}" aria-label="${setting.label}"><span class="sigma-toggle-slider"></span></label></div>`).join('')}</div></div>`;

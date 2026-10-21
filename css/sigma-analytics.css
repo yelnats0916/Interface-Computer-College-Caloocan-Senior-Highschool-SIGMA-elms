@@ -609,7 +609,7 @@ body .sigma-insight-search input::-webkit-search-cancel-button { display: none !
     -webkit-line-clamp: var(--sigma-preview-lines, unset) !important;
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
-    max-height: 100%;
+    max-height:calc(var(--sigma-preview-lines, 4) * 1lh);
     font-weight: 400 !important;
     line-height: 1.5 !important;
     overflow-wrap: anywhere;
@@ -635,8 +635,6 @@ body .sigma-insight-search input::-webkit-search-cancel-button { display: none !
 .sigma-insight-open > span { min-width: 0; overflow-wrap: anywhere; }
 .sigma-card--insight .sigma-insight-open { color: #ffffff !important; font-weight: 700; }
 .sigma-insight-open > i { flex: 0 0 auto; font-size: 12px; align-self: flex-start; margin-top: 4px; }
-.sigma-insight-header:hover:not(:has(.sigma-card-pin-btn:hover)),
-.sigma-insight-header:has(.sigma-insight-open:focus-visible) { background-color: #166534 !important; }
 .sigma-insight-open:hover { background: transparent; }
 .sigma-insight-open:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
 .sigma-card--insight .sigma-insight-actions .sigma-card-pin-btn {
@@ -830,14 +828,18 @@ body .sigma-insight-detail-text p {
         padding-left: env(safe-area-inset-left, 0px);
         padding-right: env(safe-area-inset-right, 0px);
     }
-    .sigma-insight-detail-header { padding: 8px 10px; gap: 6px; min-height: 44px; box-sizing: border-box; border-radius: 0; }
-    .sigma-insight-detail-title-wrap { gap: 6px; }
-    .sigma-insight-detail-header h2 { font-size: 12px; line-height: 16px; letter-spacing: 0; }
+    .sigma-insight-detail-header { padding: 8px 10px; gap: 6px; min-height: 44px; box-sizing: border-box; border-radius: 0; align-items: flex-start; }
+    .sigma-insight-detail-title-wrap { gap: 6px; align-items: flex-start; }
+    .sigma-insight-detail-header h2 { font-size: 12px; line-height: 16px; letter-spacing: 0; padding-top: 6px; }
+    .sigma-insight-detail-icon { height: 28px; }
+    .sigma-insight-detail-actions { align-self: flex-start; }
     .sigma-insight-detail-icon, .sigma-insight-detail-icon i { font-size: 10px; line-height: 1; }
     .sigma-insight-detail-header button i { font-size: 10px; line-height: 1; }
     .sigma-insight-detail-back,
     .sigma-insight-detail-header .sigma-insight-detail-back,
-    .sigma-insight-detail-header button.sigma-insight-detail-back { display: inline-flex !important; width: 28px; height: 28px; flex: 0 0 28px; }
+    .sigma-insight-detail-header button.sigma-insight-detail-back { display: inline-flex !important; width: 28px; height: 28px; flex: 0 0 28px; background: transparent; border-radius: 0; }
+    .sigma-insight-detail-header button.sigma-insight-detail-back:hover,
+    .sigma-insight-detail-header button.sigma-insight-detail-back:active { background: transparent; }
     .sigma-insight-detail-header button.sigma-insight-detail-pin { width: 28px; height: 28px; flex: 0 0 28px; font-size: 10px; }
     .sigma-insight-detail-close,
     .sigma-insight-detail-header .sigma-insight-detail-close,
@@ -889,19 +891,20 @@ body.mobile-panel-open .sigma-insight-detail-close,
     }
     body #analytics-dropdown-cards .sigma-card--insight .sigma-insight-header h4,
     body .sigma-card--insight .sigma-insight-header h4 { line-height: 24px !important; }
-    body .sigma-card--insight .sigma-insight-open {
+    body .sigma-card--insight .sigma-insight-title-label {
         display: grid !important;
         grid-template-columns: 16px minmax(0, 1fr);
+        column-gap:8px;
         align-items: start !important;
         height: auto !important;
         min-height: 24px !important;
         padding: 0 !important;
         line-height: 24px !important;
     }
-    body .sigma-card--insight .sigma-insight-open > span {
+    body .sigma-card--insight .sigma-insight-title-label > span {
         line-height: 24px !important;
     }
-    body .sigma-card--insight .sigma-insight-open > i {
+    body .sigma-card--insight .sigma-insight-title-label > i {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -939,6 +942,33 @@ body.mobile-panel-open .sigma-insight-detail-close,
         justify-content: center;
         padding: 0;
     }
+
+/* Shared explicit opening action for teacher, student, and admin insight cards. */
+body .sigma-card--insight .sigma-insight-header,
+body .sigma-card--insight .sigma-insight-title-label { cursor:default!important; }
+body .sigma-card--insight .sigma-insight-header:hover { background-color:#15803d!important; }
+body .sigma-card--insight .sigma-insight-read-more {
+    display:inline-flex!important;
+    align-self:flex-start;
+    flex:0 0 auto;
+    width:auto;
+    height:auto;
+    min-height:18px;
+    padding:0;
+    margin:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    color:#15803d!important;
+    font:500 12px/18px Inter,sans-serif;
+    text-decoration:none!important;
+    cursor:pointer!important;
+}
+body .sigma-card--insight .sigma-insight-read-more:hover,
+body .sigma-card--insight .sigma-insight-read-more:focus-visible { text-decoration:underline!important; }
+@media(max-width:768px){
+    body .sigma-card--insight .sigma-insight-read-more { text-decoration:underline!important; }
+}
 
 /* Admin System Metric Cards */
 
@@ -1631,7 +1661,7 @@ body.mobile-panel-open .sigma-insight-detail-close,
 
     .sigma-grades-page #admin-gradebook-spreadsheet th {
         padding: 8px 16px !important;
-        border-bottom: 1px solid #166534 !important;
+        border-bottom: 0 !important;
         box-sizing: border-box;
     }
 
@@ -2592,6 +2622,38 @@ html body .teacher-grades-analytics .subject-performance-card {min-height:130px!
 html body .teacher-grades-analytics .grade-mini-chart {display:none!important}
 @media(max-width:767px){
     html body .teacher-grades-analytics {padding-left:16px!important;padding-right:16px!important}
+    html body .teacher-grades-analytics:has(.teacher-mobile-grade-cards) {padding-top:0!important}
+    html body .teacher-grades-analytics:has(.teacher-mobile-grade-cards) > .shared-grades-top-panels {
+        margin-top:0!important;
+        margin-block-start:0!important;
+        gap:0!important;
+    }
+    html body .teacher-grades-analytics:has(.teacher-mobile-grade-cards) > .shared-grades-top-panels > .gwa-card {
+        width:100%!important;
+        max-width:100%!important;
+        margin:0!important;
+        border-radius:0!important;
+        box-shadow:none!important;
+    }
+    html body .teacher-grades-analytics:has(.teacher-mobile-grade-cards) .shared-grades-top-panels > .student-grades-insights-card {
+        padding-bottom:0!important;
+    }
+    html body .teacher-grades-analytics:has(.teacher-mobile-grade-cards) .shared-grades-top-panels .sigma-ai-panel-body {
+        width:calc(100% + 32px)!important;
+        max-width:none!important;
+        margin-left:-16px!important;
+        margin-right:-16px!important;
+        border-left:0!important;
+        border-right:0!important;
+        border-radius:0!important;
+        box-sizing:border-box;
+        padding-left:16px!important;
+        padding-right:16px!important;
+    }
+    html body #section-grades:has(.teacher-mobile-grade-cards) :is(#admin-grades-analytics-view,#admin-analytics-workspace-content) {
+        padding-top:0!important;
+        margin-top:0!important;
+    }
 }
 #admin-gradebook-open-section[hidden]{display:none!important}
 html body #section-grades .sigma-grades-page:not(.sigma-grades-page--admin):has(> #admin-grades-analytics-view:not(.hidden)) #admin-grades-shared-navbar {
@@ -2599,7 +2661,7 @@ html body #section-grades .sigma-grades-page:not(.sigma-grades-page--admin):has(
 }
 .teacher-class-panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:20px}
 html body .grade-distribution-panel{padding:24px;border-radius:8px;min-width:0;overflow:visible!important}
-html body .grade-distribution-panel .sigma-quarter-dropdown-menu{top:auto!important;bottom:calc(100% + 4px)!important;right:0!important;left:auto!important}
+html body .grade-distribution-panel .sigma-quarter-dropdown-menu{top:calc(100% + 4px)!important;bottom:auto!important;right:0!important;left:auto!important}
 @media(max-width:767px){.grade-distribution-parenthesis{display:none}}
 html body .grade-distribution-panel > div:first-child{gap:16px;margin-bottom:20px;padding-bottom:16px}
 html body .grade-distribution-panel h3{font-size:14px;font-weight:600;line-height:20px;letter-spacing:0}
@@ -2615,6 +2677,8 @@ html body .grade-distribution-panel > div:last-child > div:last-child > div:last
 @media(max-width:767px){
  html body .grade-distribution-panel{padding:16px;border-radius:0!important;box-shadow:none!important;border-left:0!important;border-right:0!important}
  html body .teacher-grades-analytics > .grade-distribution-panel{width:calc(100% + 32px)!important;margin-left:-16px!important;margin-right:-16px!important;box-sizing:border-box}
+ html body .teacher-grades-analytics > .teacher-quarter-grade-table{margin-bottom:0!important;padding-bottom:0!important}
+ html body .teacher-grades-analytics > .teacher-quarter-grade-table ~ .grade-distribution-panel{margin-top:0!important;margin-block-start:0!important}
  html body .grade-distribution-panel > div:first-child{gap:12px;align-items:center}
  html body .grade-distribution-panel h3{font-size:13px;line-height:18px}
  html body .grade-distribution-panel > div:last-child{gap:16px}
@@ -2665,6 +2729,81 @@ html body .teacher-quarter-grade-table tbody td:nth-child(6){border-right:1px so
 html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px solid rgba(0,0,0,.18)!important}
 .teacher-quarter-heading-short{display:none}
 .teacher-quarter-mobile-id,.teacher-quarter-mobile-toggle{display:none}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards {
+    --teacher-grade-row-tint: #fff;
+}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr > td[data-grade-label] {
+    background:#fff!important;
+    padding:0 0 12px!important;
+    gap:12px!important;
+    border-top:0!important;
+    border-right:0!important;
+    border-bottom:1px solid rgba(0,0,0,.08)!important;
+}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr > td[data-grade-label]::before {
+    align-self:stretch;
+    padding:10px 4px!important;
+    background:var(--icc-green,#15803d);
+    color:#fff!important;
+    font-weight:600!important;
+    border-bottom:0;
+    box-shadow:inset -1px 0 0 #137638;
+}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr > td[data-grade-label]:last-child {
+    border-right:0!important;
+}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr > td[data-grade-label]:last-child::before {
+    box-shadow:none;
+}
+html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr > td[data-grade-label]:last-child::after {
+    content:'';
+    display:block!important;
+    position:absolute;
+    left:0;
+    top:40px;
+    bottom:0;
+    border-left:1px solid rgba(0,0,0,.08);
+}
+@media(max-width:767px){
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table tbody tr {column-gap:0!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr:has([data-mobile-grade-label])::before {display:none!important}
+}
+@media(min-width:768px){
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards{overflow:visible;width:calc(50% - 10px);margin-right:auto}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table{display:block;width:100%;min-width:0!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards thead{display:none}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr{display:grid;grid-template-columns:repeat(var(--teacher-grade-columns,5),minmax(0,1fr));min-width:0;gap:0;margin:0;padding:20px;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:first-child{display:block;grid-column:1/-1;height:auto;width:auto;padding:0 0 18px;border:0!important;background:#fff!important;text-align:left;font-weight:600}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr:hover{background:#fff!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:nth-child(2){display:none}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:nth-child(n+3){display:flex;position:relative;flex-direction:column;align-items:center;gap:8px;min-width:0;width:auto;height:auto;padding:16px 4px;margin:0;border:0!important;border-top:1px solid rgba(0,0,0,.12)!important;background:rgba(0,0,0,.03);font-size:16px;line-height:24px;font-weight:500;text-align:center}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td[data-grade-label]::before{content:attr(data-grade-label);font-size:12px;line-height:18px;font-weight:400;color:#000}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td[data-grade-label]:last-child::after{content:'';position:absolute;left:0;top:16px;bottom:16px;border-left:1px solid rgba(0,0,0,.12)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-mobile-id{display:block;font-size:12px;font-weight:400;line-height:18px;margin-top:4px;color:rgba(0,0,0,.45)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-mobile-toggle{display:none}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-grade-empty{font-weight:400;color:rgba(0,0,0,.45)}
+}
+@media(max-width:767px){
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards{overflow:visible!important;border-radius:0!important;box-shadow:none!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards table,
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody{display:block!important;width:100%!important;min-width:0!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards thead{display:none!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr{display:grid!important;grid-template-columns:repeat(var(--teacher-grade-columns,5),minmax(0,1fr));column-gap:8px!important;row-gap:0!important;margin:0!important;padding:16px!important;background:#fff!important;border-bottom:1px solid rgba(0,0,0,.12)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:first-child{display:block!important;grid-column:1/-1;width:auto!important;height:auto!important;padding:0 0 18px!important;border:0!important;background:#fff!important;font-size:14px!important;line-height:21px!important;font-weight:600}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:nth-child(2){display:none!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:nth-child(n+3){display:flex!important;position:relative;flex-direction:column;align-items:center;gap:8px;width:auto!important;height:auto!important;min-width:0;padding:16px 0!important;margin:0!important;border:0!important;border-top:1px solid rgba(0,0,0,.12)!important;background:rgba(0,0,0,.03);font-size:16px!important;line-height:24px!important;font-weight:500;text-align:center}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:nth-child(n+3)::before{content:attr(data-mobile-grade-label);display:block;padding:0;font-size:12px;line-height:18px;font-weight:400;color:#000}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:last-child:not(:first-child){border-left:0!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td:last-child:not(:first-child)::after{content:'';position:absolute;top:16px;bottom:16px;left:0;border-left:1px solid rgba(0,0,0,.12)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-student-details{font-size:14px!important;line-height:21px!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-mobile-id{font-size:12px!important;line-height:18px!important;font-weight:400;margin-top:4px}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-grade-empty{font-weight:400;color:rgba(0,0,0,.45)}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr:has([data-mobile-grade-label]){position:relative;isolation:isolate}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr:has([data-mobile-grade-label])::before{content:'';position:absolute;left:16px;right:16px;bottom:16px;height:83px;background:var(--teacher-grade-row-tint);border-top:1px solid rgba(0,0,0,.12);box-sizing:border-box;z-index:-1}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards tbody tr > td[data-mobile-grade-label]{background:transparent!important;border-top-color:transparent!important}
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-mobile-toggle{display:none!important}
+}
 @media(max-width:767px){
     html body .teacher-quarter-grade-table table{min-width:0!important;width:100%!important;table-layout:fixed}
     html body .teacher-quarter-grade-table :is(th,td):nth-child(2){display:none}
@@ -2683,6 +2822,25 @@ html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px soli
 }
 .teacher-quarter-student-name{display:flex;align-items:center;gap:12px}
 .teacher-quarter-student-details{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.teacher-quarter-student-number{color:#000000;font:400 12px/18px Inter,sans-serif;font-variant-numeric:tabular-nums}
+.gb-roster-inline{display:none}
+html body #admin-gradebook-spreadsheet.gb-overview-table :is(th,td).gb-roster-number{width:48px;min-width:48px;padding:8px!important;text-align:center;position:sticky;left:0;z-index:11;border-right:1px solid rgba(0,0,0,.08)!important;font-size:12px;font-variant-numeric:tabular-nums}
+html body #admin-gradebook-spreadsheet.gb-overview-table td.gb-roster-number{background:#fff;color:#000000}
+html body #admin-gradebook-spreadsheet.gb-overview-table th.gb-roster-number{background:var(--icc-green,#15803d);color:#fff;z-index:41;border-right:1px solid #137638!important}
+@media(min-width:768px){
+ html body #admin-gradebook-spreadsheet.gb-overview-table .gb-student-cell,
+ html body #admin-gradebook-spreadsheet.gb-overview-table thead th:nth-child(2){left:48px}
+}
+@media(max-width:767px){
+ html body #admin-gradebook-spreadsheet.gb-overview-table .gb-roster-number{display:none!important}
+ html body #admin-gradebook-spreadsheet .gb-roster-inline{display:inline;color:#000000;font-weight:400}
+ html body #admin-gradebook-spreadsheet.gb-overview-table :is(.gb-roster-name-col,.gb-student-cell),
+ html body #admin-gradebook-spreadsheet.gb-overview-table thead th:nth-child(2){width:46%!important;min-width:0!important;max-width:none!important;left:0!important}
+ html body #admin-gradebook-spreadsheet .gb-student-cell p.gradebook-student-name{white-space:normal!important;overflow-wrap:anywhere;line-height:16px!important}
+ html body #admin-gradebook-spreadsheet.gb-overview-table.gb-totals-expanded :is(col,th,td):nth-child(7){display:none!important}
+ html body #admin-gradebook-spreadsheet.gb-overview-table.gb-totals-expanded :is(th,td).gb-mobile-total{display:table-cell!important}
+ html body #admin-gradebook-spreadsheet.gb-overview-table.gb-totals-expanded col.gb-mobile-total{display:table-column!important}
+}
 .teacher-quarter-student-name > span:last-child{min-width:0;overflow-wrap:anywhere}
 .teacher-quarter-student-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#e2e8f0;color:#94a3b8;font-size:12px;overflow:hidden;border:1px solid rgba(226,232,240,.7)}
 .teacher-quarter-student-avatar i{color:#94a3b8!important}
@@ -2693,6 +2851,9 @@ html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px soli
 @media(max-width:767px){html body .teacher-quarter-student-avatar{display:inline-flex!important;width:28px!important;height:28px!important;min-width:28px!important;max-width:28px!important;min-height:28px!important;max-height:28px!important;flex:0 0 28px!important}.teacher-quarter-student-name{gap:8px}}
 @media(max-width:767px){.teacher-quarter-heading-full{display:none}.teacher-quarter-heading-short{display:inline}}
 .teacher-class-grade-list{border-left:1px solid #e2e8f0;padding-left:20px;min-width:0}
+@media(min-width:1001px){
+ .teacher-class-overview-body>.teacher-class-grade-list{position:sticky;top:calc(var(--header-total-height,82px) + 24px);align-self:start;max-height:calc(100dvh - var(--header-total-height,82px) - 48px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+}
 .teacher-class-grade-list header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
 .teacher-class-grade-list h3{font-size:14px;font-weight:600;margin:0}
 .advisory-student-identity{display:flex;align-items:center;gap:12px}
@@ -2729,14 +2890,15 @@ html body .teacher-quarter-grade-table th:not(:last-child){border-right:1px soli
 .teacher-class-panel-quarters .is-incomplete{background:#fef9c3!important;color:#854d0e!important;border-color:#fde047!important;box-shadow:none!important}
 .teacher-class-panel .teacher-student-grade-empty{background:#fffbeb;border:1px dashed #fde68a;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:8px;color:#92400e;font-size:12px;font-weight:600;text-align:center;margin:0 0 18px 0}
 .teacher-class-panel .teacher-student-grade-empty::before{content:"\f017";font-family:"Font Awesome 6 Free";font-weight:400;color:#d97706}
-.teacher-class-panel > button{width:100%;height:40px;justify-content:center;border-radius:10px;font-size:13px;font-weight:600;background:#ffffff!important;border:1px solid #e2e8f0!important;color:#000000!important;box-shadow:none!important;transform:none!important;transition:background-color 0.15s ease,border-color 0.15s ease;display:flex;align-items:center;gap:8px;cursor:pointer}
-.teacher-class-panel > button:hover{background:#f1f5f9!important;color:#000000!important;border-color:#cbd5e1!important;box-shadow:none!important;transform:none!important}
-.teacher-class-panel > button:active{background:#e2e8f0!important;box-shadow:none!important;transform:none!important}
+.teacher-class-panel > button{width:100%;height:40px;justify-content:center;border-radius:10px;font-size:13px;font-weight:600;box-shadow:none!important;transform:none!important;transition:background-color 0.15s ease,border-color 0.15s ease;display:flex;align-items:center;gap:8px;cursor:pointer}
+.teacher-class-panel > button:hover{box-shadow:none!important;transform:none!important}
+.teacher-class-panel > button:active{box-shadow:none!important;transform:none!important}
 .teacher-class-panel > button::after{content:"\f061";font-family:"Font Awesome 6 Free";font-weight:900;font-size:11px;color:rgba(0,0,0,.6);transition:transform 0.15s ease}
 .teacher-class-panel > button:hover::after{transform:translateX(3px)}
 html body .teacher-class-panel [data-grade-status="pending"]{background:#fffbeb;border-color:#fde68a;color:#92400e}
 html body .teacher-class-panel [data-grade-status="ready"]{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
 html body .teacher-class-panel [data-grade-status="published"]{background:#ecfdf5;border-color:#bbf7d0;color:#15803d}
+html body .teacher-class-panel .teacher-student-grade-empty[data-grade-status]{display:inline-flex;align-self:flex-start;justify-content:flex-start;width:fit-content;max-width:100%;padding:6px 10px;border:0;border-radius:6px;line-height:18px;margin-bottom:18px}
 html body .teacher-class-panel .teacher-class-panel-icon,
 html body .teacher-class-panel i{display:none!important}
 html body .teacher-class-panel-students::before,
@@ -2801,4 +2963,130 @@ html body .teacher-class-panel-students span{margin-left:0}
 [data-id="metric-empty-state"],
 [data-id="pocket-card-empty-state"] {
     border: 1.5px dashed rgba(0, 0, 0, 0.22) !important;
+}
+
+/* Each teacher/admin student card has its own assessment breakdown. */
+.teacher-student-performance-list{display:flex;flex-direction:column;gap:20px;min-width:0}
+.teacher-student-performance-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;min-width:0}
+html body .teacher-student-performance-layout > .teacher-quarter-grade-table.teacher-mobile-grade-cards{width:100%;min-width:0;margin:0}
+.student-assessment-breakdown{min-width:0;color:#000;font-family:Inter,sans-serif}
+.student-assessment-breakdown-surface{display:flex;flex-direction:column;padding:16px;border:1px solid rgba(0,0,0,.12);border-radius:16px;background:#fff;box-sizing:border-box}
+.student-assessment-breakdown-surface > header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;flex-shrink:0}
+.student-assessment-breakdown-surface h3{margin:0;font-size:14px;line-height:20px;font-weight:600;color:#000}
+.student-assessment-breakdown-surface h3.student-breakdown-heading-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#eef8f1;color:var(--icc-green,#15803d);font-size:16px}
+.student-assessment-breakdown-surface header p{margin:4px 0 0;font-size:12px;line-height:18px;color:rgba(0,0,0,.55);overflow-wrap:anywhere}
+.student-breakdown-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+html body .student-breakdown-actions .sigma-quarter-dropdown{width:150px;min-width:150px}
+html body .student-breakdown-actions .sigma-quarter-dropdown-menu{top:calc(100% + 4px)!important;bottom:auto!important;right:-1px;left:auto}
+.student-breakdown-close{display:none}
+.student-assessment-breakdown [data-breakdown-content]{display:flex;flex-direction:column;flex:1;min-height:0}
+.student-breakdown-chart{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;flex:1;min-height:0}
+.student-breakdown-component{display:flex;flex-direction:column;align-items:center;gap:5px;min-height:0;min-width:0}
+.student-breakdown-label{display:flex;align-items:center;justify-content:center;gap:5px;min-height:18px;font-size:12px;line-height:18px;white-space:nowrap;flex-shrink:0}
+.student-breakdown-label small{font-size:11px;color:rgba(0,0,0,.55)}
+.student-breakdown-percent{position:absolute;left:0;transform:translateY(50%);width:100%;padding:0;background:transparent;color:#000;text-align:center;white-space:nowrap;font:600 12px/16px Inter,sans-serif;font-variant-numeric:tabular-nums}
+.student-breakdown-percent.on-fill{color:#fff}
+.student-breakdown-percent.student-breakdown-missing{color:rgba(0,0,0,.45);font-weight:400}
+.student-breakdown-track{position:relative;display:flex;align-items:flex-end;flex:1;min-height:32px;width:56px;max-width:100%;background:#f1f5f9;border-radius:4px;overflow:hidden}
+.student-breakdown-track > div{width:100%;background:var(--icc-green,#15803d);border-radius:inherit}
+.student-breakdown-component p{margin:3px 0 0;color:rgba(0,0,0,.55);font-size:11px;line-height:16px}
+.student-assessment-breakdown footer{display:flex;flex-direction:column;gap:3px;flex-shrink:0;margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);font-size:12px;line-height:18px;color:#000}
+.student-assessment-breakdown footer strong{font-weight:500;color:#000}
+.student-assessment-breakdown footer .student-breakdown-missing{color:rgba(0,0,0,.45);font-weight:400}
+html body .teacher-student-performance-layout .student-breakdown-trigger{display:none;margin-left:auto;padding:6px;background:#fff;color:var(--icc-green,#15803d);border:1px solid rgba(0,0,0,.12);border-radius:7px;font:500 16px/20px Inter,sans-serif;cursor:pointer;flex-shrink:0}
+.teacher-student-performance-layout .teacher-quarter-student-details{min-width:0;overflow-wrap:anywhere}
+@media(min-width:768px){
+    .teacher-student-performance-layout .teacher-quarter-student-name{flex-wrap:wrap}
+    .teacher-student-performance-layout > .student-assessment-breakdown{position:relative;align-self:stretch}
+    .teacher-student-performance-layout > .student-assessment-breakdown > .student-assessment-breakdown-surface{position:absolute;inset:0}
+    .student-breakdown-chart{width:100%;max-width:360px;align-self:center;gap:12px}
+}
+@media(max-width:767px){
+    .teacher-student-performance-list{gap:0}
+    .teacher-student-performance-layout{display:block}
+    .student-assessment-breakdown{display:none}
+    .student-assessment-breakdown.is-open{display:flex;position:fixed;inset:0;z-index:100001;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45);padding-top:24px;overscroll-behavior:contain}
+    .student-assessment-breakdown-surface{width:100%;max-height:85dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:16px 16px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.12)}
+    .student-breakdown-chart{flex:none;height:190px;gap:16px}
+    .student-breakdown-close{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:8px;background:#f1f5f9;color:#000;cursor:pointer}
+    .teacher-student-performance-layout .teacher-quarter-student-name{flex-wrap:wrap}
+    html body .teacher-student-performance-layout .student-breakdown-trigger{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;margin-left:auto}
+    html body .teacher-grades-analytics > .teacher-student-performance-list ~ .grade-distribution-panel{margin-top:0!important;margin-block-start:0!important}
+}
+
+.gb-empty-table th.gb-empty-roster-number{border-right:1px solid #137638!important}
+@media(max-width:767px){.gb-empty-table .gb-empty-roster-number{display:none!important}}
+
+html body #admin-teacher-modal-list .faculty-directory-row{display:grid!important;grid-template-columns:minmax(240px,1fr) minmax(0,1fr);align-items:center;gap:24px!important;padding:16px!important}
+html body #admin-teacher-modal-list .faculty-directory-subjects{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;min-width:0;color:#000!important;font-size:13px!important;line-height:20px!important;text-align:left!important;overflow-wrap:anywhere}
+html body #admin-teacher-modal-list .faculty-directory-subjects>span{display:block!important;color:#000!important;font-size:13px!important;line-height:20px!important;font-weight:400!important}
+@media(max-width:767px){
+ html body #admin-teacher-modal-list .faculty-directory-row{grid-template-columns:minmax(0,1fr);gap:10px!important}
+ html body #admin-teacher-modal-list .faculty-directory-subjects{padding-left:54px;box-sizing:border-box}
+}
+
+/* Keep class navigation actions identical across teacher and admin portals. */
+html body :is(.teacher-class-advisory-tools>.sigma-btn,.grade-class-nav-button){height:46px!important;min-height:46px!important;padding:0 24px!important;border-radius:12px!important;font-family:Inter,sans-serif!important;font-size:14px!important;font-weight:600!important;line-height:20px!important;gap:8px!important;box-sizing:border-box!important}
+html body #admin-teacher-modal-list .faculty-directory-subjects{gap:12px!important}
+html body #admin-teacher-modal-list .faculty-directory-assignment{display:flex!important;flex-direction:column!important;gap:2px!important;min-width:0;width:100%;text-align:left!important;color:#000!important}
+html body #admin-teacher-modal-list .faculty-directory-assignment>span{display:block!important;color:#000!important;font-size:13px!important;line-height:20px!important;font-weight:400!important}
+html body #admin-teacher-modal-list .faculty-directory-assignment>small{display:block!important;color:#000!important;font-size:11px!important;line-height:18px!important;font-weight:400!important;overflow-wrap:anywhere}
+html body #teacher-gradebook-advisory-mobile{display:none!important}
+@media(min-width:768px){
+ html body #section-grades .sigma-grades-page #teacher-gradebook-advisory-desktop{
+  grid-column:3!important;
+  grid-row:2!important;
+  justify-self:end;
+  white-space:nowrap;
+ }
+ html body #section-grades .sigma-grades-page:has(.classroom-gradebook-navigation) #teacher-gradebook-advisory-desktop{
+  grid-row:1!important;
+ }
+}
+@media(max-width:767px){
+ html body #teacher-gradebook-advisory-desktop{display:none!important}
+ html body #grades-submit-export-menu #teacher-gradebook-advisory-mobile{display:flex!important}
+}
+html body #admin-gradebook-advisory-mobile{display:none!important}
+@media(max-width:767px){
+ html body #admin-analytics-advisory-navigation.admin-gradebook-advisory-navigation{display:none!important}
+ html body #grades-submit-export-menu #admin-gradebook-advisory-mobile{display:flex!important}
+}
+
+/* Gradebook numbers share a size; only calculated summaries carry emphasis. */
+html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) {
+    --gb-number-size: 14px;
+}
+html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) tbody :is(td.gb-data-cell, td.gradebook-task-cell, td.gb-mobile-total, td.gb-roster-number, .gradebook-score-value, .gradebook-dash, input.gb-open-score-counter) {
+    font-size: var(--gb-number-size) !important;
+    font-weight: 400 !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: normal !important;
+}
+html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) tbody :is(td.gb-summary-green, td.gb-summary-yellow, td.gb-desktop-total, td.gb-mobile-total),
+html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) tbody :is(td.gb-summary-green, td.gb-summary-yellow, td.gb-desktop-total, td.gb-mobile-total) :is(.gradebook-score-value, .gradebook-dash) {
+    font-weight: 700 !important;
+}
+@media (max-width: 767px) {
+    html body :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) {
+        --gb-number-size: 10px;
+    }
+    html body .sigma-grades-page :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) tbody :is(td.gb-data-cell, td.gradebook-task-cell, td.gb-mobile-total, .gradebook-score-value, .gradebook-dash, input.gb-open-score-counter) {
+        font-size: var(--gb-number-size) !important;
+        line-height: 14px !important;
+        letter-spacing: normal !important;
+    }
+    html body .sigma-grades-page :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) .gb-student-cell {
+        overflow: hidden;
+    }
+    html body .sigma-grades-page :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) .gb-student-cell > div {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    html body .sigma-grades-page :is(#admin-gradebook-spreadsheet, #gradebook-spreadsheet, #gradebook-outer-spreadsheet) .gb-student-cell p.gradebook-student-name {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis;
+    }
 }

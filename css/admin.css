@@ -187,7 +187,7 @@ table thead th,
 #school-subjects-view thead tr,
 #school-subjects-view thead th {
     background-color: #15803d !important;
-    border-bottom: 2px solid #0d652d !important;
+    border-bottom: 0 !important;
     color: #ffffff !important;
 }
 
@@ -224,7 +224,7 @@ table:not(.attendance-month-table) th,
     padding-top: 14px !important;
     padding-bottom: 14px !important;
     border-right: none !important;
-    border-bottom: 2px solid #0d652d !important;
+    border-bottom: 0 !important;
     border-left: none !important;
     border-top: none !important;
     box-sizing: border-box !important;
@@ -342,7 +342,7 @@ table:has(#subjectTableBody) thead,
 .admin-table thead,
 table thead.bg-\[\#15803d\],
 thead.bg-\[\#15803d\] {
-    border-bottom: 1px solid #137638 !important;
+    border-bottom: 0 !important;
 }
 
 #users-view thead th:last-child,
@@ -1452,9 +1452,9 @@ body.sorting-subject-topics * {
     animation: slide-up 0.2s ease-out;
 }
 
-.action-dropdown-menu.dropup,
-.teacher-dropdown-menu.dropup,
-.sy-action-dropdown.dropup {
+.action-dropdown-menu.dropup:not([style*="fixed"]),
+.teacher-dropdown-menu.dropup:not([style*="fixed"]),
+.sy-action-dropdown.dropup:not([style*="fixed"]) {
     top: auto !important;
     bottom: 100% !important;
     margin-top: 0 !important;
@@ -1466,6 +1466,24 @@ body.sorting-subject-topics * {
 .teacher-dropdown-menu.dropup:not(.hidden),
 .sy-action-dropdown.dropup:not(.hidden) {
     animation: slide-down 0.2s ease-out;
+}
+
+.action-dropdown-menu[style*="fixed"],
+.teacher-dropdown-menu[style*="fixed"],
+.sy-action-dropdown[style*="fixed"] {
+    bottom: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    transform-origin: top right;
+}
+
+.action-dropdown-menu[style*="fixed"].dropup,
+.teacher-dropdown-menu[style*="fixed"].dropup,
+.sy-action-dropdown[style*="fixed"].dropup {
+    bottom: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    transform-origin: bottom right !important;
 }
 
 @keyframes slide-down {
@@ -2570,7 +2588,9 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 .notification-log-more.active,
 .notification-log-more[aria-expanded="true"] { color:#FFD000 !important; background-color:transparent !important; }
 .notification-log-action-menu { position:absolute; right:0; top:100%; margin-top:8px; min-width:195px; width:max-content; max-width:240px; padding:6px !important; border:1px solid #e2e8f0 !important; border-radius:18px !important; background:#ffffff !important; box-shadow:0 12px 32px rgba(0,0,0,.12) !important; z-index:9999; box-sizing:border-box; transform-origin:top right; animation:action-slide-up 0.2s ease-out; }
-.notification-log-action-menu.dropup { top:auto !important; bottom:100% !important; margin-top:0 !important; margin-bottom:8px !important; transform-origin:bottom right !important; animation:slide-down 0.2s ease-out; }
+.notification-log-action-menu.dropup:not([style*="fixed"]) { top:auto !important; bottom:100% !important; margin-top:0 !important; margin-bottom:8px !important; transform-origin:bottom right !important; animation:slide-down 0.2s ease-out; }
+.notification-log-action-menu[style*="fixed"] { bottom:auto !important; margin-top:0 !important; margin-bottom:0 !important; transform-origin:top right; }
+.notification-log-action-menu[style*="fixed"].dropup { bottom:auto !important; margin-top:0 !important; margin-bottom:0 !important; transform-origin:bottom right !important; }
 .notification-log-action-menu[hidden] { display:none !important; }
 .notification-log-action-menu button { display:flex !important; align-items:center !important; gap:10px !important; width:100% !important; padding:9px 12px !important; border:0 !important; border-radius:10px !important; background:transparent !important; color:#000000 !important; font-family:'Inter', sans-serif !important; font-size:13px !important; font-weight:500 !important; line-height:normal !important; text-align:left !important; cursor:pointer !important; transition:all 0.15s ease !important; }
 .notification-log-action-menu button i { width:16px !important; font-size:14px !important; text-align:center !important; color:#000000 !important; flex-shrink:0 !important; }
@@ -2603,6 +2623,17 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
 
 /* Match the User Accounts list layout in Academic Performance. */
 #reports-performance-view .performance-records-toolbar {display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+#reports-performance-view .performance-metric-unavailable{font-size:22px!important;line-height:1.4!important;font-weight:600!important;color:rgba(0,0,0,.45)!important;letter-spacing:normal!important}
+#reports-performance-view .performance-quarter-label{display:block;margin-top:4px;font-size:12px;color:rgba(0,0,0,.45)}
+#reports-performance-view .performance-records-toolbar select[hidden]{display:none!important}
+#reports-performance-view .performance-records-toolbar > .sigma-select-wrapper:has(> select[hidden]){display:contents!important}
+#reports-performance-view .performance-records-toolbar .performance-filter-dropdown{flex:0 1 210px;min-width:160px;width:210px;background:#fff;color:#000;font-weight:400}
+html body #reports-performance-view .performance-filter-dropdown summary{height:48px!important;min-height:48px!important;font-weight:400!important;gap:16px}
+#reports-performance-view .performance-filter-dropdown summary > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#reports-performance-view .performance-filter-dropdown .sigma-quarter-dropdown-menu{max-height:280px;overflow-y:auto;z-index:60}
+html body #reports-performance-view .performance-filter-dropdown .sigma-quarter-dropdown-menu button{width:100%;height:auto;min-height:40px;font-weight:400!important;text-align:left}
+#reports-performance-view .performance-records-section > .sigma-log-pagination{border-top:1px solid #e2e8f0;background:#fff}
+@media(max-width:1100px){#reports-performance-view .performance-records-toolbar{flex-wrap:wrap!important}#reports-performance-view .performance-records-toolbar .performance-record-search{flex:1 1 100%;width:100%!important}#reports-performance-view .performance-records-toolbar .performance-filter-dropdown{flex:1 1 160px;width:auto}}
 #reports-performance-view .performance-record-search {width:350px;max-width:100%}
 #reports-performance-view .performance-record-filter {width:225px;max-width:100%}
 #reports-performance-view .performance-records-toolbar .sigma-input {height:48px;padding:0 18px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;font-size:14px}
@@ -2669,3 +2700,61 @@ body:has(.audit-log-layout) :is(#layout-wrapper, #admin-main, .dynamic-section, 
  #reports-performance-view #performance-live-overview .sigma-quarter-dropdown .sigma-quarter-mobile-label {display:none !important}
 }
 
+
+/* School year action icons stay plain on hover. */
+html body .sy-dots-btn,
+html body .sy-dots-btn:hover,
+html body .sy-dots-btn:active{background:transparent!important;color:#000!important;box-shadow:none!important;border-color:transparent!important}
+html body .sy-dots-btn i,
+html body .sy-dots-btn:hover i{color:#000!important}
+/* Admin Review Grades semester totals match teacher Reports. */
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr>td:last-child:not([colspan]){
+ background:rgba(16,185,129,.08)!important;
+}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main table tbody tr:hover>td:last-child:not([colspan]){
+ background:rgba(16,185,129,.16)!important;
+}
+html body #admin-gradebook-workspace-content .record-mobile-grade-card dl>div:last-child dd{
+ background:rgba(16,185,129,.08)!important;
+}
+html body #admin-gradebook-workspace-content .record-mobile-grade-card:hover dl>div:last-child dd{
+ background:rgba(16,185,129,.16)!important;
+}
+
+/* Assessment filters keep their complete labels and responsive menu widths. */
+html body #reports-performance-view #performanceReportTableBody td:first-child .performance-student-identity{display:flex;flex-direction:column;gap:4px;width:auto;height:auto;min-width:0;background:transparent;border:0;text-align:left}
+html body #reports-performance-view #performanceReportTableBody .performance-student-id{display:block;color:rgba(0,0,0,.45);font:400 12px/18px Inter,sans-serif}
+html body #reports-performance-view .performance-records-toolbar{
+ display:grid!important;
+ grid-template-columns:minmax(200px,1fr) 160px minmax(230px,260px) 230px 100px;
+ align-items:center;
+ gap:12px;
+}
+html body #reports-performance-view .performance-records-toolbar .performance-record-search{
+ width:100%!important;min-width:0!important;height:48px;box-sizing:border-box;
+}
+html body #reports-performance-view .performance-records-toolbar .performance-filter-dropdown{
+ width:100%!important;min-width:0!important;box-sizing:border-box;
+}
+html body #reports-performance-view .performance-filter-dropdown summary>span{
+ white-space:nowrap;overflow:visible;text-overflow:clip;
+}
+html body #reports-performance-view .performance-filter-dropdown summary>i{flex-shrink:0}
+html body #reports-performance-view .performance-filter-dropdown .sigma-quarter-dropdown-menu{
+ width:max-content!important;min-width:100%!important;max-width:min(420px,calc(100vw - 32px))!important;
+ left:0!important;right:auto!important;overflow-x:hidden;box-sizing:border-box;
+}
+html body #reports-performance-view .performance-filter-dropdown .sigma-quarter-dropdown-menu button{
+ white-space:normal!important;overflow-wrap:anywhere;line-height:20px;min-width:0!important;
+}
+html body #reports-performance-view .performance-records-toolbar>.sigma-btn{height:48px!important;width:100%;min-width:0}
+@media(max-width:1350px){
+ html body #reports-performance-view .performance-records-toolbar{grid-template-columns:160px minmax(220px,1fr) 230px 100px}
+ html body #reports-performance-view .performance-records-toolbar .performance-record-search{grid-column:1/-1}
+}
+@media(max-width:800px){
+ html body #reports-performance-view .performance-records-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+ html body #reports-performance-view .performance-records-toolbar .performance-filter-dropdown summary>span{white-space:normal;line-height:18px}
+ html body #reports-performance-view .performance-records-toolbar .performance-filter-dropdown summary{min-height:48px!important;height:auto!important;padding-block:10px!important}
+ html body #reports-performance-view .performance-filter-dropdown .sigma-quarter-dropdown-menu{width:100%!important}
+}

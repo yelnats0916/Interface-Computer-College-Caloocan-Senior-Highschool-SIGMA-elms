@@ -26,7 +26,41 @@ try{
     }elseif($method!=='GET')throw new InvalidArgumentException('Unsupported request method.');
     $action=$input['action']??'';
     aiInsightControls($db);
-    if($action==='manage_insights'&&$method==='POST'){
+    if($action==='latest_grade_insight'&&$method==='POST'){
+        $owner=$input['userId']??$actor;
+        if(!$admin && $owner!==$actor)throw new RuntimeException('This insight belongs to another account.');
+        $evidence=$input['evidenceKey']??'';$candidates=$input['candidateGenerationIds']??[];
+        $legacyPrompt=$input['legacyPrompt']??'';
+        if(!is_string($legacyPrompt)||strlen($legacyPrompt)>2000)throw new InvalidArgumentException('Invalid insight scope.');
+        if(!is_string($evidence)||strlen($evidence)>32000||!is_array($candidates)||count($candidates)>20)throw new InvalidArgumentException('Invalid insight evidence.');
+        $q=$db->prepare("SELECT id,payload FROM ai_logs WHERE user_id=? AND feature='grade_insights' AND is_deleted=0 ORDER BY created_at DESC,id DESC");$q->execute([$owner]);$latest=null;
+        foreach($q->fetchAll() as $row){
+            $log=json_decode($row['payload'],true);
+            if(!in_array($log['status']??'',['Success','Fallback Used'],true))continue;
+            $exact=isset($log['gradeEvidenceKey'])&&hash_equals($log['gradeEvidenceKey'],$evidence);
+            $legacy=!isset($log['gradeEvidenceKey'])&&(in_array($log['generationId']??'',$candidates,true)||($legacyPrompt!==''&&($log['prompt']??'')===$legacyPrompt));
+            if(!$exact&&!$legacy)continue;
+            $cards=json_decode($log['response']??'',true);
+            foreach(is_array($cards)?$cards:[] as $index=>$card){
+                if(!is_array($card['analyses']??null)||!$card['analyses'])continue;
+                $control=$db->prepare("SELECT hidden,is_deleted FROM ai_insight_controls WHERE source_type='grade' AND source_id=?");$control->execute([$row['id'].':'.$index]);$flags=$control->fetch();
+                if(!empty($flags['hidden'])||!empty($flags['is_deleted']))continue;
+                $card['generationId']=$log['generationId']??null;$card['createdAt']=$log['timestamp']??null;$card['insightSourceId']=$row['id'].':'.$index;
+                if(!$latest||strtotime($card['createdAt']??'')>strtotime($latest['createdAt']??''))$latest=$card;
+            }
+        }
+        echo json_encode(['success'=>true,'card'=>$latest]);
+    }elseif($action==='grade_insight_view'&&$method==='POST'){
+        $owner=$input['userId']??$actor;
+        if($owner!==$actor || $role!=='student')throw new RuntimeException('Only the student can identify their displayed insight.');
+        $generation=$input['generationId']??'';$view=$input['viewKey']??'';
+        if(!is_string($view)||strlen($view)>1000||!is_string($generation)||!preg_match('/^[A-Z]{3,8}-\d{4}-\d{4,}$/',$generation))throw new InvalidArgumentException('Invalid displayed insight.');
+        $q=$db->prepare("SELECT payload FROM ai_logs WHERE user_id=? AND feature='grade_insights' AND is_deleted=0 ORDER BY created_at DESC");$q->execute([$owner]);$found=false;
+        foreach($q->fetchAll() as $row){$log=json_decode($row['payload'],true);if(($log['generationId']??'')===$generation&&in_array($log['status']??'',['Success','Fallback Used'],true)){$found=true;break;}}
+        if(!$found)throw new RuntimeException('The displayed insight must be saved before it can be synced.');
+        $db->prepare('INSERT INTO ai_grade_insight_views(user_id,view_key,generation_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE generation_id=VALUES(generation_id)')->execute([$owner,hash('sha256',$view),$generation]);
+        echo json_encode(['success'=>true]);
+    }elseif($action==='manage_insights'&&$method==='POST'){
         if(!$admin)throw new RuntimeException('Only administrators can manage insights.');
         $operation=$input['operation']??'';$items=$input['items']??[];
         if(!in_array($operation,['hide','show','delete'],true)||!is_array($items)||count($items)<1||count($items)>100)throw new InvalidArgumentException('Invalid insight selection.');
@@ -58,6 +92,8 @@ try{
         $owners=[];
         $controls=[];
         foreach($db->query('SELECT source_type,source_id,hidden,is_deleted FROM ai_insight_controls')->fetchAll() as $control)$controls[$control['source_type'].':'.$control['source_id']]=$control;
+        $currentGradeViews=[];
+        foreach($db->query('SELECT user_id,generation_id FROM ai_grade_insight_views')->fetchAll() as $view)$currentGradeViews[$view['user_id']][$view['generation_id']]=true;
         $gradeCards=[];
         foreach($db->query("SELECT id,user_id,payload FROM ai_logs WHERE feature='grade_insights' AND is_deleted=0 ORDER BY created_at DESC,id DESC")->fetchAll() as $record){
             $log=json_decode($record['payload'],true);
@@ -71,6 +107,7 @@ try{
                 $card['sourceType']='grade';$card['sourceId']=$record['id'].':'.$index;$card['hidden']=!empty($control['hidden']);
                 $card['id']=($log['generationId']??$log['id']).'-'.$index;
                 $card['generationId']=$log['generationId']??null;
+                $card['isCurrentStudentView']=!empty($currentGradeViews[$record['user_id']][$card['generationId']??'']);
                 $card['createdAt']=$log['timestamp']??null;
                 $card['reportCategory']=str_starts_with($log['prompt']??'', 'Subject Grades:')?'subject':'grade';
                 $card['reportSource']=$card['reportCategory']==='subject'?'subject-grades-view':'grades-page';
@@ -116,7 +153,7 @@ try{
             $log=json_decode($row['payload'],true);
             if(!in_array($log['status']??'', ['Success','Fallback Used'],true))continue;
             $matches=$generation!==''&&($log['generationId']??'')===$generation;
-            if(!$matches&&is_array($analyses)&&count($analyses)>0){
+            if(!$matches&&$generation===''&&is_array($analyses)&&count($analyses)>0){
                 $cards=json_decode($log['response']??'',true);
                 foreach(is_array($cards)?$cards:[] as $card){
                     if(is_array($card)&&($card['analyses']??null)==$analyses){$matches=true;break;}

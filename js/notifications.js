@@ -723,6 +723,10 @@
                 window.hideHeaderOverlays();
             }
 
+            if (notif.type === 'academic-event' && notif.target?.academicDate) {
+                window.openAcademicCalendarDate?.(notif.target.academicDate);
+                return;
+            }
             // Navigate if notification points to a material / coursework
             if (currentRole === 'admin' && (notif.type === 'quarter-reminder' || String(notif.id || '').startsWith('sy-quarter-reminder-'))) {
                 window.openAskingPanel?.({

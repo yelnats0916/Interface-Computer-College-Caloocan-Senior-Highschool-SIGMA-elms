@@ -61,7 +61,7 @@
     };
     let currentActiveTab = 'all'; // 'all', 'important', 'posts'
     let activeAudience = 'everyone';
-    let activeAudienceLabel = 'Public';
+    let activeAudienceLabel = 'Everyone';
     let activeAudienceIcon = 'fa-users';
     let activeSubject = '';
     let activeClassroomKey = '';
@@ -366,6 +366,21 @@
         });
     }
 
+    function renderPostAudienceBadge(post) {
+        const faculty = ['teachers_only', 'faculty'].includes(post.audience) || post.audienceLabel === 'Faculty';
+        const students = post.audience === 'all_students' || post.audienceLabel === 'All Students';
+        const label = faculty ? 'Faculty' : students ? 'All Students' : 'Everyone';
+        const icon = faculty ? 'fa-chalkboard-user text-indigo-500' : students ? 'fa-user-graduate text-emerald-600' : 'fa-earth-americas text-blue-500';
+        return `<span class="sigma-card-audience-badge inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-[10px] shrink-0"><i class="fa-solid ${icon} text-[9.5px] shrink-0" aria-hidden="true"></i><span>${label}</span></span>`;
+    }
+
+    function renderAcademicPostBadge(post) {
+        if (!post.academicEvent) return '';
+        const event = post.academicEvent;
+        const schedule = [event.title, event.startDate, event.endDate !== event.startDate ? event.endDate : '', event.startTime, event.location].filter(Boolean).join(' · ');
+        return `<span class="sigma-card-audience-badge sigma-academic-post-badge inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-[10px]" title="${escapeHtml(schedule)} · Calendar visible to all users"><i class="fa-solid fa-calendar-days text-[9.5px] text-emerald-600 shrink-0" aria-hidden="true"></i><span>Event: ${escapeHtml(event.title || '')}</span></span>`;
+    }
+
     let editingPostId = null;
     let originalEditingPostState = null;
     let postToDeleteId = null;
@@ -380,6 +395,7 @@
             priority: activePriority || 'normal',
             images: (attachedImages || []).map(img => img.dataUrl || img.name),
             file: attachedFile ? (attachedFile.dataUrl || attachedFile.name) : null,
+            academicEvent: [...document.querySelectorAll('.academic-event-fields input')].map(input => input.type === 'checkbox' ? input.checked : input.value),
             students: (selectedStudentIds || []).slice().sort()
         });
     }
@@ -399,7 +415,15 @@
         const isTooLarge = attachedFile && attachedFile.type === 'video' && attachedFile.isExceeded;
         const isTitleWithinLimit = titleText.length <= MAX_TITLE_CHARS;
         const isBodyWithinLimit = bodyText.length <= MAX_BODY_CHARS;
-        let isValid = (hasText || hasAttachment) && !isTooLarge && isTitleWithinLimit && isBodyWithinLimit;
+        let academicEvent = null, academicValid = true;
+        try {
+            academicEvent = window.readAcademicEventFields?.();
+            window.showAcademicEventValidationError?.(null);
+        } catch (error) {
+            academicValid = false;
+            window.showAcademicEventValidationError?.(error);
+        }
+        let isValid = (hasText || hasAttachment) && academicValid && !isTooLarge && isTitleWithinLimit && isBodyWithinLimit;
 
         if (editingPostId && originalEditingPostState) {
             const currentState = getComposerStateSnapshot();
@@ -534,7 +558,7 @@
                 avatar: aAvatar
             };
             activeAudience = 'everyone';
-            activeAudienceLabel = 'Public';
+            activeAudienceLabel = 'Everyone';
             activeAudienceIcon = 'fa-users';
         }
     }
@@ -576,8 +600,8 @@
                     post.authorRole = 'teacher';
                     migrated = true;
                 }
-                if (post.audienceLabel && post.audienceLabel.includes('School-Wide')) {
-                    post.audienceLabel = 'Public';
+                if (post.audienceLabel && (post.audienceLabel.includes('School-Wide') || post.audienceLabel === 'Public')) {
+                    post.audienceLabel = 'Everyone';
                     migrated = true;
                 }
                 if (post.audienceLabel && (post.audienceLabel.includes('Faculty Only') || post.audienceLabel.includes('Faculty / Teachers'))) {
@@ -978,9 +1002,12 @@
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(minimal));
             } catch (err2) {
-                console.error('[Announcements] Critical storage failure, retaining in memory', err2);
+                window._sigmaAnnouncementsMemoryStore = previous;
+                throw new Error('Unable to save the announcement. Browser storage is full.');
             }
         }
+        window.notifyAcademicEventChanges?.(sanitized, previous);
+        window.dispatchEvent(new CustomEvent('sigma:academic-calendar-changed'));
     }
 
     function getExpandedPosts() {
@@ -1062,7 +1089,7 @@
                 {
                     group: 'Audience',
                     options: [
-                        { key: 'everyone', label: 'Public', icon: 'fa-earth-americas' },
+                        { key: 'everyone', label: 'Everyone', icon: 'fa-earth-americas' },
                         { key: 'teachers_only', label: 'Faculty', icon: 'fa-chalkboard-user' },
                         { key: 'all_students', label: 'All Students', icon: 'fa-user-graduate' }
                     ]
@@ -1143,7 +1170,7 @@
             <div class="sigma-composer-modal">
                 <!-- Header -->
                 <div class="sigma-composer-header">
-                    <button type="button" class="sigma-composer-back-btn" id="sigma-composer-back-btn" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.closeComposer() : (window.closeClassroomComposer && window.closeClassroomComposer())" title="Back">
+                    <button type="button" class="sigma-composer-back-btn" id="sigma-composer-back-btn" onclick="if (window.leaveAcademicEventEditor?.()) return; window.SigmaAnnouncements ? window.SigmaAnnouncements.closeComposer() : (window.closeClassroomComposer && window.closeClassroomComposer())" title="Back">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
                     <h3 class="sigma-composer-title">Create Post</h3>
@@ -1209,6 +1236,8 @@
                         <div id="sigma-composer-input-body" class="sigma-composer-textarea" contenteditable="true" data-placeholder="Share updates, announcements, or materials with your class..."></div>
                     </div>
 
+                    ${window.renderAcademicEventFields?.(currentRole) || ""}
+
                     <!-- Attachments Preview Area -->
                     <div id="sigma-composer-attachments-container" class="sigma-composer-attachments-preview" style="display: none;"></div>
                 </div>
@@ -1219,6 +1248,7 @@
                     <div class="sigma-composer-add-to-post-card">
                         <span class="sigma-add-to-post-label">Attach to Announcement</span>
                         <div class="sigma-add-to-post-actions">
+                            ${currentRole === 'admin' ? `<button type="button" class="sigma-action-icon-btn sigma-icon-calendar" id="sigma-composer-btn-calendar" title="Add to Academic Calendar" aria-label="Add to Academic Calendar" aria-pressed="false" aria-expanded="false" aria-controls="announcement-academic-details"><span class="sigma-composer-calendar-symbol" aria-hidden="true"><i class="fa-solid fa-calendar"></i><span>${new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', day: 'numeric' }).format(new Date())}</span></span></button>` : ''}
                             <button type="button" class="sigma-action-icon-btn sigma-icon-photo" id="sigma-composer-btn-add-photo" title="Attach Photo (Max ${MAX_ATTACHED_PHOTOS})">
                                 <i class="fa-solid fa-image"></i>
                             </button>
@@ -1393,6 +1423,9 @@
         const submitBtn = document.getElementById('sigma-composer-btn-submit');
         const titleInput = document.getElementById('sigma-composer-input-title');
         const bodyInput = document.getElementById('sigma-composer-input-body');
+
+        document.querySelector('.academic-event-fields')?.addEventListener('input', validateInputs);
+        document.querySelector('.academic-event-fields')?.addEventListener('change', validateInputs);
 
         const pillAudience = document.getElementById('sigma-composer-pill-audience');
         const menuAudience = document.getElementById('sigma-composer-audience-menu');
@@ -2088,6 +2121,9 @@
             const plainText = bodyInput ? bodyInput.innerText.trim() : '';
             const body = plainText.length > 0 ? rawHtml : '';
             const hasMedia = attachedImages.length > 0 || attachedFile !== null;
+            let academicEvent = null;
+            try { if (currentRole === 'admin') academicEvent = window.readAcademicEventFields?.() || null; }
+            catch (error) { window.showAcademicEventValidationError?.(error, true); return; }
             if (!title && !body && !hasMedia) return;
 
             // Enforce Section & Subject selection for teachers
@@ -2169,7 +2205,8 @@
                     if (editingPostId) {
                         const existingIndex = posts.findIndex(p => String(p.id) === String(editingPostId));
                         if (existingIndex !== -1) {
-                            posts[existingIndex].title = title || '';
+                            posts[existingIndex].academicEvent = academicEvent;
+                            posts[existingIndex].title = title;
                             posts[existingIndex].body = body;
                             posts[existingIndex].audience = activeAudience;
                             posts[existingIndex].audienceLabel = stripRoomFromLabel(activeAudienceLabel, postSectionRoom);
@@ -2198,7 +2235,8 @@
                         const resolvedClassroomKey = activeClassroomKey || (activeAudience && activeSubject ? `${activeAudience}::${activeSubject}` : '');
                         const newPost = {
                             id: activePostId,
-                            title: title || '',
+                            academicEvent,
+                            title,
                             body: body,
                             authorId: currentUser.id || currentUser.uid || '',
                             authorName: currentUser.name,
@@ -2489,6 +2527,7 @@
         const submitBtn = document.getElementById('sigma-composer-btn-submit');
         const modalTitle = document.querySelector('#sigma-composer-modal-backdrop .sigma-composer-title');
 
+        window.setAcademicEventFields?.(null);
         const insideRoom = isCurrentlyInsideClassroomRoom();
         const hasRoomPreselection = Boolean(preselectedAudience && (preselectedSubject || insideRoom));
 
@@ -2502,10 +2541,11 @@
                 if (submitBtn) submitBtn.textContent = 'Save Changes';
                 if (titleInput) titleInput.value = post.title || '';
                 if (bodyInput) bodyInput.innerHTML = post.body || '';
+                window.setAcademicEventFields?.(post.academicEvent || null);
                 activeAudience = post.audience || 'everyone';
                 activeSubject = post.subject || (post.classroomKey ? post.classroomKey.split('::')[1] : '');
                 activeClassroomKey = post.classroomKey || (activeAudience && activeSubject ? `${activeAudience}::${activeSubject}` : '');
-                activeAudienceLabel = post.audienceLabel || (activeSubject ? `${activeAudience} • ${activeSubject}` : 'Public');
+                activeAudienceLabel = post.audienceLabel || (activeSubject ? `${activeAudience} • ${activeSubject}` : 'Everyone');
                 activeAudienceIcon = post.audienceIcon || 'fa-users';
                 const isPostImp = post.priority === 'important' || post.priorityLabel === 'Important' || post.type === 'urgent' || Boolean(post.isImportant);
                 activePriority = isPostImp ? 'important' : (post.priority || 'normal');
@@ -2624,7 +2664,7 @@
                 activeAudience = 'everyone';
                 activeSubject = '';
                 activeClassroomKey = '';
-                activeAudienceLabel = 'Public';
+                activeAudienceLabel = 'Everyone';
                 activeAudienceIcon = 'fa-users';
             }
             activePriority = 'normal';
@@ -3583,26 +3623,7 @@
                 <span>${escapeHtml(targetedStudentNames.length === 1 ? targetedStudentNames[0] : `${targetedStudentNames.length} students`)}</span>
             </button>`;
         } else if (!hasSection) {
-            // If not a section and not targeted to students, render Public / Faculty / All Students badge
-            if (post.audience === 'teachers_only' || post.audienceLabel === 'Faculty' || post.audience === 'faculty') {
-                audienceBadgeHTML += `
-                <span class="sigma-card-audience-badge inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-[10px] transition-all shrink-0" title="Visible only to Faculty &amp; Teachers">
-                    <i class="fa-solid fa-chalkboard-user text-[9.5px] text-indigo-500 shrink-0"></i>
-                    <span>Faculty</span>
-                </span>`;
-            } else if (post.audience === 'all_students' || post.audienceLabel === 'All Students') {
-                audienceBadgeHTML += `
-                <span class="sigma-card-audience-badge inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-[10px] transition-all shrink-0" title="Visible to all students">
-                    <i class="fa-solid fa-user-graduate text-[9.5px] text-emerald-600 shrink-0"></i>
-                    <span>All Students</span>
-                </span>`;
-            } else {
-                audienceBadgeHTML += `
-                <span class="sigma-card-audience-badge inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-[10px] transition-all shrink-0" title="Public Announcement (Visible to everyone)">
-                    <i class="fa-solid fa-earth-americas text-[9.5px] text-blue-500 shrink-0"></i>
-                    <span>Public</span>
-                </span>`;
-            }
+            audienceBadgeHTML += renderPostAudienceBadge(post);
         }
 
         // 3. Important badge if isImportant (rendered next to author name)
@@ -3630,6 +3651,7 @@
                         <div class="sigma-card-author-subrow flex items-center gap-1.5 flex-nowrap">
                             <span class="sigma-card-author-role-subtitle">${authorRoleText}</span>
                             ${audienceBadgeHTML}
+                            ${renderAcademicPostBadge(post)}
                         </div>
                     </div>
                 </div>
@@ -4098,7 +4120,7 @@
                 if (rect.bottom + 4 + dropdownHeight > window.innerHeight && rect.top > dropdownHeight) {
                     dropdown.style.top = Math.max(8, rect.top - dropdownHeight - 4) + 'px';
                 } else {
-                    dropdown.style.top = (rect.bottom + 4) + 'px';
+                    dropdown.style.top = Math.min(window.innerHeight - dropdownHeight - 8, rect.bottom + 4) + 'px';
                 }
                 const rightOffset = window.innerWidth - rect.right;
                 dropdown.style.right = Math.max(8, rightOffset) + 'px';
@@ -5001,7 +5023,9 @@
                     <div class="sigma-card-author-subrow flex items-center gap-1.5 flex-wrap">
                         <span class="sigma-card-author-role-subtitle">${post.authorRole === 'admin' ? 'Administrator' : (post.authorRole === 'student' ? 'Student' : 'Teacher')}</span>
                         ${sectionBadgeHtml}
+                        ${!sectionBadgeHtml && !targetedBadgeHtml ? renderPostAudienceBadge(post) : ""}
                         ${targetedBadgeHtml}
+                        ${renderAcademicPostBadge(post)}
                     </div>
                 </div>
               </div>
@@ -5598,7 +5622,7 @@
                     authorRole: 'teacher',
                     authorAvatar: '',
                     audience: 'everyone',
-                    audienceLabel: 'Public',
+                    audienceLabel: 'Everyone',
                     priority: 'important',
                     priorityLabel: 'Important',
                     mediaType: 'image',

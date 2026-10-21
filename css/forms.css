@@ -3816,3 +3816,9 @@ body #uqp-footer-counter {
 #reports-performance-view .performance-records-toolbar .sigma-standard-select-wrap {width:225px;flex:0 1 225px}
 #reports-performance-view .performance-records-toolbar .sigma-standard-select-wrap > select {width:100% !important}
 @media(prefers-reduced-motion:reduce){.sigma-select-wrapper > .sigma-select-icon {transition:none}}
+
+/* Editing subject details is separate from Topics & Materials. */
+html body #subject-edit-overlay.subject-details-only :is(#subject-segmented-header,.subject-next-btn,#subject-next-btn,#subject-step1-next-btn,#subject-step2-next-btn){display:none!important}
+/* A fixed classroom quarter is context, not a selectable pill. */
+html body #subject-edit-overlay :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills):has(>span),
+html body #subject-edit-overlay :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills)>span{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;cursor:default!important}

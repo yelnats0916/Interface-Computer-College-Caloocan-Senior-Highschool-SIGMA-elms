@@ -1966,6 +1966,8 @@ if (overlay) overlay.classList.add('hidden');
 
             if (link.id === 'nav-grades') {
                 window.activeStudentGradeSubjectFilter = null;
+                comparingSubjectIds = null;
+                selectingComparisonSubjects = false;
             }
 
             switchTab(link.id);
@@ -3297,6 +3299,19 @@ if (overlay) overlay.classList.add('hidden');
 
         return rows;
     }
+    function formatGradeTeacherName(value) {
+        const name = String(value || '').trim();
+        const account = window.findMatchedUserAccount?.('', name);
+        if (account?.firstName && account?.lastName) return `${account.firstName} ${account.lastName}`;
+        if (name.includes(',')) {
+            const [last, first] = name.split(',');
+            return `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
+        }
+        const parts = name.split(/\s+/);
+        if (parts.length <= 2) return name;
+        const last = name.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
+        return `${parts[0]} ${last}`;
+    }
     function renderGradesAnalytics(rows, filteredSubjectName = '') {
         rows = Array.isArray(rows) ? rows : [];
 
@@ -3314,21 +3329,35 @@ if (overlay) overlay.classList.add('hidden');
         } catch (_) {}
         rows.forEach(function (row, index) {
             if (typeof window.renderSharedSubjectPerformanceCardHtml === 'function') {
-                const demo = String(row.subject).trim().toLowerCase() === 'oral communication'
-                    && ![row.term1Val,row.term2Val,row.term3Val,row.term4Val].some(Number.isFinite);
+                const fullTeacherName = String(row.teacher || '').trim();
+                const teacherAccount = window.findMatchedUserAccount?.('', fullTeacherName);
+                let teacherDisplayName = fullTeacherName;
+                if (teacherAccount?.firstName && teacherAccount?.lastName) {
+                    teacherDisplayName = `${teacherAccount.firstName} ${teacherAccount.lastName}`;
+                } else if (fullTeacherName.includes(',')) {
+                    const [last, first] = fullTeacherName.split(',');
+                    teacherDisplayName = `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
+                } else {
+                    const parts = fullTeacherName.split(/\s+/);
+                    if (parts.length > 2) {
+                        const surname = fullTeacherName.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
+                        teacherDisplayName = `${parts[0]} ${surname}`;
+                    }
+                }
                 subjectCards += window.renderSharedSubjectPerformanceCardHtml({
                     id: row.id,
                     title: row.subject,
-                    teacherName: row.teacher,
-                    subtitle: demo ? `${row.track} · Demo grades` : row.track,
-                    omitMissingPoints: demo,
+                    teacherName: teacherDisplayName,
+                    subtitle: row.track,
+                    omitMissingPoints: true,
                     scoreTint: true,
                     fitConfiguredQuarters: true,
+                    fullQuarterLabels: true,
                     selectedQuarter: savedPerformanceQuarter,
                     activeQuarters: row.activeQuarters,
                     openGrades: true,
                     overallScore: row.overallVal,
-                    quarterValues: demo ? [85,90,null,null] : [row.term1Val, row.term2Val, row.term3Val, row.term4Val],
+                    quarterValues: [row.term1Val, row.term2Val, row.term3Val, row.term4Val],
                     strokeColor: '#15803d'
                 });
             }
@@ -3397,6 +3426,132 @@ if (overlay) overlay.classList.add('hidden');
         },6000);
     }
     let selectingComparisonSubjects = false;
+    function mountStudentTopicPerformance(cardsPanel, rows, studentUser) {
+        [...cardsPanel.querySelectorAll('.student-grade-card')].forEach((card, index) => {
+            const subjectRow = rows[index];
+            if (!subjectRow) return;
+            const quarters = [...new Set((subjectRow.activeQuarters || ['q1','q2']).map(q => Number(String(q).replace(/^q/i,''))))].filter(q => q >= 1 && q <= 4);
+            const quarterPanelKey = JSON.stringify(['student-topic', subjectRow.id, subjectRow.subject, currentStudentSection]);
+            let quarter = window.restorePerformanceQuarter(quarterPanelKey, quarters, studentUser);
+            const subjectId = subjectRow.id;
+            const section = classroomData[subjectId]?.section || currentStudentSection;
+            const pair = document.createElement('div');
+            pair.className = 'student-grade-pair';
+            card.before(pair);
+            pair.append(card);
+            const panel = document.createElement('aside');
+            panel.className = 'student-topic-performance';
+            panel.id = `student-topic-performance-${index}`;
+            panel.setAttribute('aria-label', `${subjectRow.subject} assessment performance`);
+            panel.innerHTML = `<section class="student-topic-performance-surface" aria-labelledby="student-topic-performance-title-${index}"><header><h3 id="student-topic-performance-title-${index}" class="student-topic-performance-heading-icon" aria-label="Assessment Performance"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i></h3><div class="student-topic-performance-actions"><div data-topic-quarter></div></div></header><div class="student-topic-performance-chart" aria-live="polite"></div><p class="student-topic-name-detail" data-topic-detail hidden aria-live="polite"></p><footer data-topic-task-progress aria-live="polite"></footer></section>`;
+            pair.append(panel);
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'student-topic-performance-trigger';
+            trigger.innerHTML = '<i class="fa-solid fa-chart-simple" aria-hidden="true"></i>';
+            trigger.setAttribute('aria-label', `View assessment performance for ${subjectRow.subject}`);
+            trigger.setAttribute('aria-controls', panel.id);
+            trigger.setAttribute('aria-expanded', 'false');
+            card.querySelector('header').append(trigger);
+            const close = () => {
+                panel.classList.remove('is-open');
+                panel.querySelector('section').removeAttribute('role');
+                panel.querySelector('section').removeAttribute('aria-modal');
+                const menu = panel.querySelector('details');
+                if (menu) menu.open = false;
+                trigger.setAttribute('aria-expanded', 'false');
+                trigger.focus();
+            };
+            trigger.addEventListener('click', () => {
+                render();
+                panel.classList.add('is-open');
+                panel.querySelector('section').setAttribute('role', 'dialog');
+                panel.querySelector('section').setAttribute('aria-modal', 'true');
+                trigger.setAttribute('aria-expanded', 'true');
+                panel.querySelector('summary').focus();
+            });
+
+            panel.addEventListener('click', event => { if (event.target === panel) close(); });
+            for (const eventName of ['touchmove', 'wheel']) {
+                panel.addEventListener(eventName, event => {
+                    if (panel.classList.contains('is-open') && event.target === panel) event.preventDefault();
+                }, { passive: false });
+            }
+            panel.addEventListener('keydown', event => {
+                if (!panel.classList.contains('is-open')) return;
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    const menu = panel.querySelector('details[open]');
+                    if (menu) { menu.open = false; menu.querySelector('summary').focus(); } else close();
+                }
+                if (event.key === 'Tab') {
+                    const controls = [...panel.querySelectorAll('summary, button, [data-topic-name]')].filter(el => el.getClientRects().length);
+                    const first = controls[0], last = controls[controls.length - 1];
+                    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+                }
+            });
+            const render = () => {
+                const slot = panel.querySelector('[data-topic-quarter]');
+                slot.innerHTML = window.renderSharedQuarterDropdown(quarters, quarter, () => '');
+                slot.querySelector('summary').setAttribute('aria-label', 'Topic performance quarter');
+                slot.querySelectorAll('button').forEach((button, qIndex) => button.addEventListener('click', () => { quarter = quarters[qIndex]; window.rememberPerformanceQuarter(quarterPanelKey, quarter, studentUser); render(); slot.querySelector('summary').focus(); }));
+                const data = getTopicData(subjectId) || {};
+                const topics = [];
+                const progressTopics = [];
+                const seen = new Set();
+                [1,2,3,4].forEach(sourceQuarter => {
+                    const source = Array.isArray(data[`q${sourceQuarter}Topics`]) ? data[`q${sourceQuarter}Topics`] : (sourceQuarter === 1 && Array.isArray(data.topics) ? data.topics : []);
+                    source.forEach((topic, topicIndex) => {
+                        if (!topic || typeof topic !== 'object') return;
+                        const topicQuarter = Number(String(topic.quarter || topic.term || sourceQuarter).replace(/^q/i,''));
+                        if (topicQuarter !== quarter) return;
+                        const key = String(topic.id || topic.title || topic.name || `${sourceQuarter}:${topicIndex}`);
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        const release = window.getStudentTopicReleaseStatus?.(subjectId, topic, topicIndex, section);
+                        if (release && (release.isLocked || release.isHidden || release.isUnreleased)) return;
+                        progressTopics.push(topic);
+                        const assessments = getAccessibleStudentTopicAssessments(subjectId, topicIndex, topic, section);
+                        let earned = 0, possible = 0;
+                        assessments.forEach((assessment, assessmentIndex) => {
+                            const assessmentQuarter = Number(String(assessment.quarter || topicQuarter).replace(/^q/i,''));
+                            if (assessmentQuarter !== quarter) return;
+                            const scoped = { ...assessment, quarter, section: assessment.section || section };
+                            const details = window.resolveStudentAssessmentSubmissionDetails?.(scoped, subjectId, topicIndex, assessmentIndex, section, studentUser);
+                            if (!details?.isGraded || details.numericScore === null || details.numericScore === undefined || !Number.isFinite(Number(details.numericScore))) return;
+                            const maximum = Number(details.maxScore || assessment.max || assessment.points || assessment.totalPoints || assessment.maxScore);
+                            if (!(maximum > 0)) return;
+                            earned += Number(details.numericScore);
+                            possible += maximum;
+                        });
+                        topics.push({ name: topic.title || topic.name || `Topic ${topicIndex + 1}`, percentage: possible > 0 ? earned / possible * 100 : null });
+                    });
+                });
+                const progress = window.getStudentTaskProgress?.({ subjectId, section, currentQuarter: quarter, topics: progressTopics, data, studentUser });
+                panel.querySelector('[data-topic-task-progress]').innerHTML = `<span>Task Progress</span><span>${progress?.total ? `${progress.submitted} / ${progress.total} submitted` : 'No released assessments'}</span>`;
+                const chart = panel.querySelector('.student-topic-performance-chart');
+                const topicDetail = panel.querySelector('[data-topic-detail]');
+                topicDetail.hidden = true;
+                chart.style.setProperty('--topic-count', String(Math.max(1, topics.length)));
+                chart.innerHTML = topics.map((topic, topicIndex) => {
+                    const percent = topic.percentage === null ? null : Math.max(0, Math.min(100, topic.percentage));
+                    const label = percent === null ? '' : `${Number(percent.toFixed(1))}%`;
+                    const onFill = percent !== null && percent >= 60;
+                    return `<div class="student-topic-performance-column"><div class="student-topic-performance-track" role="img" aria-label="${escapeHtml(`${topic.name}: ${percent === null ? 'No released grades yet' : label}`)}"><div style="height:${percent || 0}%;background-color:${window.getTaskProgressColor?.(percent || 0) || '#15803d'}"></div><strong class="student-topic-performance-value${percent === null ? ' is-empty' : onFill ? ' on-fill' : ''}" style="bottom:${onFill ? percent / 2 : 50}%;${percent === null ? '' : `color:${onFill ? (window.getTaskProgressTextColor?.(percent) || '#fff') : '#000'};`}" aria-hidden="true">${label}</strong></div><button type="button" data-topic-name aria-expanded="false" title="${escapeHtml(topic.name)}">Topic ${topicIndex + 1}</button></div>`;
+                }).join('') || '<p class="student-topic-performance-empty">No released topics for this quarter.</p>';
+                chart.querySelectorAll('[data-topic-name]').forEach(button => button.addEventListener('click', () => {
+                    const expanded = button.getAttribute('aria-expanded') === 'true';
+                    chart.querySelectorAll('[data-topic-name]').forEach(other => other.setAttribute('aria-expanded', 'false'));
+                    button.setAttribute('aria-expanded', String(!expanded));
+                    topicDetail.textContent = button.title;
+                    topicDetail.hidden = expanded;
+                }));
+            };
+            panel._refreshTaskProgress = render;
+            render();
+        });
+    }
     function renderGradesPage(filterSubject = null) {
         if (!window._gradebookReadCacheActive && typeof window.withGradebookReadCache === 'function') {
             return window.withGradebookReadCache(() => renderGradesPage(filterSubject));
@@ -3478,7 +3633,7 @@ if (overlay) overlay.classList.add('hidden');
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">2nd Quarter</span><span class="student-quarter-short">Q2</span></th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">3rd Quarter</span><span class="student-quarter-short">Q3</span></th>
                                     <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-quarter-full">4th Quarter</span><span class="student-quarter-short">Q4</span></th>
-                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Final Grade</th>
+                                    <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']"><span class="student-final-label-desktop">Final Grade</span><span class="student-final-label-mobile">Final</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-['Inter']">
@@ -3542,16 +3697,75 @@ if (overlay) overlay.classList.add('hidden');
 
 
 
+            const semesterTable = layout.querySelector('.student-grades-summary-table');
+            const tableQuarters = new Set(rows.flatMap(row => (row.activeQuarters || ['q1', 'q2'])
+                .map(value => Number(String(value).replace(/^q/i, ''))).filter(value => value >= 1 && value <= 4)));
+            if (!tableQuarters.size) { tableQuarters.add(1); tableQuarters.add(2); }
+            const firstTableQuarter = Math.min(...tableQuarters);
+            semesterTable.querySelector('.student-final-label-desktop').textContent = window.getGradeSemesterLabel([...tableQuarters]);
+            semesterTable.querySelector('.student-final-label-mobile').textContent = window.getGradeSemesterLabel([...tableQuarters], true);
+            const previousColumnsButton = semesterTable.querySelector('.student-grades-column-prev');
+            const firstQuarterHeading = semesterTable.tHead.rows[0].cells[firstTableQuarter + 1];
+            if (firstTableQuarter !== 1 && previousColumnsButton && firstQuarterHeading) {
+                const heading = document.createElement('div');
+                heading.className = 'student-grades-quarter-heading';
+                heading.append(previousColumnsButton, ...firstQuarterHeading.childNodes);
+                firstQuarterHeading.append(heading);
+            }
+            [...semesterTable.rows].forEach((tableRow, rowIndex) => {
+                const cells = [...tableRow.cells];
+                if (rowIndex > 0) {
+                    const row = rows[rowIndex - 1];
+                    const configured = (row.activeQuarters || ['q1', 'q2']).map(value => Number(String(value).replace(/^q/i, '')));
+                    const values = configured.map(quarter => row[`term${quarter}Val`]);
+                    const final = values.length && values.every(Number.isFinite)
+                        ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+                    cells[6].textContent = final === null ? '-' : String(final);
+                }
+                [1, 2, 3, 4].forEach(quarter => { if (!tableQuarters.has(quarter)) cells[quarter + 1].remove(); });
+            });
             const control = document.createElement('div');
             control.className = 'student-grades-view-control';
-            control.innerHTML = '<div class="student-grades-view-segments" role="group" aria-label="Grades view"><button type="button" data-view="table">Table</button><button type="button" data-view="graph">Graph</button></div><div class="student-grades-view-mobile"><i class="fa-solid fa-table-cells" aria-hidden="true"></i><i class="fa-solid fa-chevron-down" aria-hidden="true"></i><select aria-label="Grades view"><option value="table">Table</option><option value="graph">Graph</option></select></div>';
+            control.innerHTML = '<div class="student-grades-view-segments" role="group" aria-label="Grades view"><button type="button" data-view="table">Table</button><button type="button" data-view="graph">Graph</button></div><div class="student-grades-view-mobile"><button type="button" class="student-grades-view-toggle" aria-label="Grades view: Table" aria-expanded="false"><i class="fa-solid fa-table-cells" aria-hidden="true"></i><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><div class="student-grades-view-menu" role="group" aria-label="Grades view" hidden><button type="button" data-view="table">Table</button><button type="button" data-view="graph">Graph</button><button type="button" data-view="bar">Bar</button></div></div>';
             layout.querySelector('.student-performance-filter')?.append(control);
             const user = window.getLoggedInStudentUser?.();
-            const key = user?.uid || user?.id ? `sigma-student-grades-view:${user.uid || user.id}` : null;
+            const key = user?.uid || user?.id ? `sigma-student-grades-view-v2:${user.uid || user.id}` : null;
             const barButton = document.createElement('button');
             barButton.type='button';barButton.dataset.view='bar';barButton.textContent='Bar';
             control.querySelector('.student-grades-view-segments').append(barButton);
-            control.querySelector('select').add(new Option('Bar','bar'));
+            const gradeViewLabels = {cards:'Cards',table:'Table',graph:'Line Chart',bar:'Bar Chart'};
+            control.querySelectorAll('[data-view]').forEach(button => {
+                button.textContent = gradeViewLabels[button.dataset.view];
+            });
+            for (const host of [control.querySelector('.student-grades-view-segments'), control.querySelector('.student-grades-view-menu')]) {
+                const cardsButton = document.createElement('button');
+                cardsButton.type='button';cardsButton.dataset.view='cards';cardsButton.textContent='Cards';
+                host.prepend(cardsButton);
+            }
+            const cardsPanel = document.createElement('section');
+            cardsPanel.className='student-grade-cards';
+            cardsPanel.setAttribute('aria-label','Subject grade cards');
+            cardsPanel.innerHTML=analyticsRows.map(row=>{
+                const values=[row.term1Val,row.term2Val,row.term3Val,row.term4Val,row.overallVal];
+                const active = new Set((row.activeQuarters || ['q1','q2']).map(q => Number(String(q).replace(/^q/i,''))).filter(q => q >= 1 && q <= 4));
+                const columns = values.map((value,index) => ({value,index})).filter(({index}) => index === 4 || active.has(index + 1));
+                return `<article class="student-grade-card"><header><div class="student-grade-card-subject"><div>${escapeHtml(row.subject)}</div><span>${escapeHtml(row.track || '')}</span></div><div class="student-grade-card-teacher"><span class="student-grade-card-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></span><span>${escapeHtml(formatGradeTeacherName(row.teacher))}</span></div></header><dl style="grid-template-columns:repeat(${columns.length},minmax(0,1fr))">${columns.map(({value,index})=>`<div><dt>${index===4?`<span class="student-quarter-full">${window.getGradeSemesterLabel([...active])}</span><span class="student-quarter-short">${window.getGradeSemesterLabel([...active], true)}</span>`:`<span class="student-quarter-full">${['1st','2nd','3rd','4th'][index]} Quarter</span><span class="student-quarter-short">Q${index+1}</span>`}</dt><dd${Number.isFinite(value)?'':' class="student-grade-missing"'}>${Number.isFinite(value)?escapeHtml(String(value)):'-'}</dd></div>`).join('')}</dl></article>`;
+            }).join('') || '<p class="student-grade-cards-empty">No subjects available.</p>';
+            layout.querySelector('.student-grades-summary-panel').after(cardsPanel);
+            mountStudentTopicPerformance(cardsPanel, analyticsRows, user);
+            const mobileViewToggle = control.querySelector('.student-grades-view-toggle');
+            const mobileViewMenu = control.querySelector('.student-grades-view-menu');
+            const closeViewMenu = () => { mobileViewMenu.hidden=true;mobileViewToggle.setAttribute('aria-expanded','false'); };
+            mobileViewToggle.onclick=()=>{const open=mobileViewMenu.hidden;mobileViewMenu.hidden=!open;mobileViewToggle.setAttribute('aria-expanded',String(open));};
+            control.addEventListener('keydown',event=>{
+                if(event.key==='Escape'){closeViewMenu();mobileViewToggle.focus();}
+                if(event.target===mobileViewToggle&&event.key==='ArrowDown'){event.preventDefault();mobileViewMenu.hidden=false;mobileViewToggle.setAttribute('aria-expanded','true');mobileViewMenu.querySelector('button').focus();}
+            });
+            window.studentGradesViewMenuCleanup?.();
+            const dismissViewMenu=event=>{if(!control.contains(event.target))closeViewMenu();};
+            document.addEventListener('pointerdown',dismissViewMenu);
+            window.studentGradesViewMenuCleanup=()=>document.removeEventListener('pointerdown',dismissViewMenu);
+            control.addEventListener('focusout',event=>{if(!control.contains(event.relatedTarget))closeViewMenu();});
             const barPanel = document.createElement('section');
             barPanel.className='student-grade-bars';
             barPanel.innerHTML='<div class="student-grade-bars-heading"><select class="sigma-grade-quarter-select" aria-label="Subject performance quarter"></select></div><div data-grade-bars></div>';
@@ -3559,8 +3773,8 @@ if (overlay) overlay.classList.add('hidden');
             const quarters=[...new Set(analyticsRows.flatMap(row=>(row.activeQuarters || ['q1','q2','q3','q4']).map(q=>Number(String(q).replace(/^q/i,'')))))].filter(q=>q>=1&&q<=4).sort();
             const quarterSelect=barPanel.querySelector('select');
             quarters.forEach(q=>quarterSelect.add(new Option(`${['1st','2nd','3rd','4th'][q-1]} Quarter`,String(q))));
-            const quarterKey=user?.uid || user?.id ? `sigma-student-performance-quarter:${user.uid || user.id}` : null;
-            try { const saved=quarterKey&&localStorage.getItem(quarterKey);if(quarters.includes(Number(saved)))quarterSelect.value=saved; } catch (_) {}
+            const quarterKey = 'student-subject-bars';
+            quarterSelect.value = String(window.restorePerformanceQuarter(quarterKey, quarters, user));
             let assessmentSubject=null;
             const assessmentHeading=document.createElement('div');
             assessmentHeading.className='student-grade-bar-detail-heading';
@@ -3605,13 +3819,23 @@ if (overlay) overlay.classList.add('hidden');
                     subjectInfo.className='student-grade-bar-subject-info';
                     subjectInfo.append(...heading.childNodes);
                     heading.classList.add('student-grade-bar-heading');
-                    heading.append(subjectInfo,icon);
+                    const teacher = document.createElement('div');
+                    teacher.className='student-grade-bar-teacher';
+                    const subjectRow=analyticsRows.find(row=>String(row.id)===title.dataset.subjectId);
+                    const teacherIcon=document.createElement('span');
+                    teacherIcon.className='student-grade-card-avatar';
+                    teacherIcon.setAttribute('aria-hidden','true');
+                    teacherIcon.innerHTML='<i class="fa-solid fa-user"></i>';
+                    const teacherText=document.createElement('span');
+                    teacherText.textContent=formatGradeTeacherName(subjectRow?.teacher);
+                    teacher.append(teacherIcon,teacherText);
+                    heading.append(subjectInfo,teacher,icon);
                     const track=element.querySelector('.student-grade-bar-track');
                     track.dataset.subjectId=title.dataset.subjectId;
                     track.tabIndex=0;track.title='View assessment performance';
                 });
             };
-            quarterSelect.onchange=()=>{if(quarterKey){try{localStorage.setItem(quarterKey,quarterSelect.value)}catch(_){}}renderBars();};
+            quarterSelect.onchange=()=>{window.rememberPerformanceQuarter(quarterKey, Number(quarterSelect.value), user);renderBars();};
             renderBars();
             const openBarAssessments=target=>{
                 const row=analyticsRows.find(row=>String(row.id)===target.dataset.subjectId);
@@ -3637,18 +3861,20 @@ if (overlay) overlay.classList.add('hidden');
                 const classroomId=resolveStudentClassroomId({id:row.id,name:row.subject});
                 if(classroomId){window.collapseSidebar?.();showClassroomDetail(classroomId,true,'room');}
             });
-            let view = 'table';
-            try { const saved=key&&localStorage.getItem(key);if(['graph','bar'].includes(saved))view=saved; } catch (_) {}
+            let view = 'cards';
+            try { const saved=key&&localStorage.getItem(key);if(['table','graph','bar','cards'].includes(saved))view=saved; } catch (_) {}
             const setView = (next, save = false) => {
                 layout.querySelector('.student-grades-summary-panel').hidden = next !== 'table';
                 layout.querySelector('.student-performance-section').hidden = next !== 'graph';
                 barPanel.hidden=next!=='bar';
+                cardsPanel.hidden=next!=='cards';
                 control.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.view === next)));
-                control.querySelector('select').value = next;
+                mobileViewToggle.setAttribute('aria-label',`Grades view: ${gradeViewLabels[next]}`);
+                mobileViewToggle.querySelector('i').className=`fa-solid ${{table:'fa-table-cells',graph:'fa-chart-line',bar:'fa-chart-bar',cards:'fa-table-cells-large'}[next]}`;
+                closeViewMenu();
                 if (save && key) { try { localStorage.setItem(key,next); } catch (_) {} }
             };
             control.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view,true));
-            control.querySelector('select').onchange = event => setView(event.target.value,true);
             setView(view);
             window.refreshOverallGradeInsight?.(layout.querySelector('[data-ai-insight-body]'), analyticsRows);
             initStudentPerformanceSlider(layout);
@@ -3679,7 +3905,7 @@ if (overlay) overlay.classList.add('hidden');
 
             layout.querySelector('#student-subject-filter-toggle')?.addEventListener('click', () => {
                 document.getElementById('student-subject-filter-panel')?.remove();
-                const chosen = new Set(comparingSubjectIds ?? allRows.map(row => String(row.id)));
+                const chosen = new Set(comparingSubjectIds ?? analyticsRows.map(row => String(row.id)));
                 const mobile = innerWidth < 768;
                 const overlay = document.createElement('div');
                 overlay.id = 'student-subject-filter-panel';
@@ -4357,21 +4583,12 @@ if (overlay) overlay.classList.add('hidden');
             .replace(/'/g, '&#39;');
     }
     function addAiMessage(content, isUser = false) {
-        const msg = document.createElement('div');
+        if (!sigmaAiMessages) return;
+        const msg = window.renderSigmaChatMessage({ role: isUser ? 'user' : 'assistant', text: '', stamp: getSigmaAiTimestamp() });
+        msg.querySelector('.sigma-ai-message__bubble').innerHTML = content;
         if (!isUser && content === WELCOME_MSG) msg.dataset.sigmaGreeting = 'true';
-        msg.className = `sigma-ai-message ${isUser ? 'sigma-ai-message--user' : 'sigma-ai-message--assistant'}`;
-        const stamp = getSigmaAiTimestamp();
-        msg.innerHTML = `
-            <div class="sigma-ai-message__meta">${stamp}</div>
-            <div class="sigma-ai-message__row">
-                ${!isUser ? `<div class="sigma-ai-message__icon"><i class="fa-solid fa-bolt"></i></div>` : ''}
-                <div class="sigma-ai-message__bubble ${isUser ? 'sigma-ai-message__bubble--user' : 'sigma-ai-message__bubble--assistant'}">${content}</div>
-            </div>
-        `;
-        if (sigmaAiMessages) {
-            sigmaAiMessages.appendChild(msg);
-            sigmaAiMessages.scrollTop = sigmaAiMessages.scrollHeight;
-        }
+        sigmaAiMessages.appendChild(msg);
+        sigmaAiMessages.scrollTop = sigmaAiMessages.scrollHeight;
         return msg;
     }
     function setSigmaAiWaiting(waiting) {
@@ -4719,7 +4936,17 @@ if (overlay) overlay.classList.add('hidden');
             : program.subjects
 
                 ? items.map(item => {
-                    const progress = Math.floor(Math.random() * 80) + 10;
+                    const progressData = window.getTopicData?.(item.id) || {};
+                    const studentUser = window.getLoggedInStudentUser?.() || {};
+                    const section = window.findStudentSubjectSections?.(item.id)?.[0] || studentUser.section || studentUser.sectionName || '';
+                    let completed = 0, total = 0;
+                    for (const quarter of [1, 2, 3, 4]) {
+                        const topics = progressData[`q${quarter}Topics`] || (quarter === 1 ? progressData.topics || [] : []);
+                        const result = window.getStudentTaskProgress?.({subjectId:item.id,section,data:progressData,topics,currentQuarter:quarter,studentUser});
+                        completed += result?.submitted || 0;
+                        total += result?.total || 0;
+                    }
+                    const progress = total ? Math.round(completed / total * 100) : 0;
                     return `
 
                     <article class="curriculum-subject-card curriculum-core-card horizontal-panel" data-subject-id="${item.id}">
@@ -4734,7 +4961,7 @@ if (overlay) overlay.classList.add('hidden');
 
                         </div>
 
-                        <div class="subject-progress-bar">
+                        <div class="subject-progress-bar" role="progressbar" aria-label="Assessment completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}" title="${total ? `${completed} of ${total} released assessments submitted` : 'No released assessments yet'}">
 
                             <div class="subject-progress-fill" style="width:${progress}%"></div>
 
@@ -7408,7 +7635,7 @@ if (overlay) overlay.classList.add('hidden');
                                             class="w-full py-2.5 px-3.5 rounded-xl flex items-center justify-between text-left bg-transparent hover:bg-slate-100 active:bg-slate-200 cursor-pointer font-['Inter'] transition-all">
                                             <div class="flex items-center gap-2.5">
                                                 <i class="fa-solid fa-chart-simple text-[#15803d] text-sm w-4 text-center shrink-0"></i>
-                                                <span class="text-xs sm:text-[13px] font-semibold text-black">View Grades</span>
+                                                <span class="text-xs sm:text-[13px] font-semibold text-black">View Reports</span>
                                             </div>
                                             <i class="fa-solid fa-arrow-right text-xs text-[#15803d]"></i>
                                         </button>
@@ -7641,6 +7868,12 @@ if (overlay) overlay.classList.add('hidden');
             overallVal: null
         };
 
+        const reportStudent = window.getLoggedInStudentUser?.() || {};
+        for (const quarter of [1, 2, 3, 4]) {
+            match = { ...match, [`term${quarter}Val`]: window.getPublishedSubjectGrade?.(reportStudent, subjectName, sectionName, quarter) ?? null };
+        }
+        match.overallVal = null;
+
         let existingModal = document.getElementById('student-classroom-grades-modal-overlay');
         if (existingModal) {
             existingModal.cleanupViewport?.();
@@ -7658,17 +7891,7 @@ if (overlay) overlay.classList.add('hidden');
             return '<span class="text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
         };
 
-        const quarterNumVals = [match.term1Val, match.term2Val, match.term3Val, match.term4Val]
-            .map(v => (typeof v === 'number' ? v : parseFloat(v)))
-            .filter(v => !isNaN(v) && v > 0);
-
-        let finalGradeDisplay = '<span class="text-white/80">-</span>';
-        if (typeof match.overallVal === 'number' && match.overallVal > 0) {
-            finalGradeDisplay = match.overallVal % 1 === 0 ? String(match.overallVal) : match.overallVal.toFixed(1);
-        } else if (quarterNumVals.length > 0) {
-            const avg = quarterNumVals.reduce((a, b) => a + b, 0) / quarterNumVals.length;
-            finalGradeDisplay = (avg % 1 === 0) ? String(Math.round(avg)) : avg.toFixed(1);
-        }
+        let finalGradeDisplay = '<span class="text-black-fade">-</span>';
 
         const qTerms = [
             { label: '1st Quarter', short: 'Q1', val: (typeof match.term1Val === 'number' ? match.term1Val : parseFloat(match.term1Val)) },
@@ -7731,6 +7954,10 @@ if (overlay) overlay.classList.add('hidden');
             Number(String(quarter).trim().toLowerCase().replace(/^q/, ''))
         ).filter(quarter => Number.isInteger(quarter) && quarter >= 1 && quarter <= 4))].sort((a, b) => a - b);
 
+        const semesterGrades = availableAssessmentQuarters.map(q => match[`term${q}Val`]);
+        if (semesterGrades.length && semesterGrades.every(Number.isFinite)) {
+            finalGradeDisplay = String(Math.round(semesterGrades.reduce((sum, grade) => sum + grade, 0) / semesterGrades.length));
+        }
         overlay.innerHTML = `
             <div class="curriculum-hub-panel curriculum-release-panel-fixed w-full !max-w-[860px] flex flex-col overflow-hidden font-['Inter'] rounded-2xl sm:rounded-3xl shadow-2xl" style="height: auto; max-height: min(740px, calc(100dvh - 24px)); max-width: 860px;" onclick="event.stopPropagation()">
                 <!-- Modal Header -->
@@ -7738,41 +7965,37 @@ if (overlay) overlay.classList.add('hidden');
                     <div class="flex items-center gap-2 min-w-0">
                         <button type="button" class="student-grades-modal-back" aria-label="Back" title="Back" onclick="window.closeStudentClassroomGradesModal()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                     <div class="min-w-0">
-                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Grades</h2>
+                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Reports</h2>
                     </div>
                     </div>
                 </div>
 
                 <!-- Modal Body (Scrollable) -->
                 <div class="student-grades-modal-body p-3.5 sm:p-8 overflow-y-auto space-y-3.5 sm:space-y-5 flex-1 custom-scrollbar font-['Inter']">
-                    <!-- Final Grade Summary Card (Shared Green Background & White Text) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 font-['Inter']">
-                        <div class="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-[#15803d] text-white flex flex-col shadow-xs font-['Inter']">
-                            <span class="text-[11px] sm:text-xs font-semibold text-white/90 font-['Inter']">Final Grade</span>
-                            <span class="text-xl sm:text-3xl font-black text-white mt-0.5 sm:mt-1 font-['Inter'] leading-tight">${finalGradeDisplay}</span>
-                        </div>
-                    </div>
-
                     <!-- Quarterly Grades Table -->
-                    <div class="border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs font-['Inter']">
+                    <div class="student-report-grades-table overflow-hidden bg-white font-['Inter']">
                         <table class="w-full text-left border-collapse text-xs font-['Inter'] table-fixed">
                             <thead>
                                 <tr class="bg-[#15803d] text-white select-none">
-                                    <th class="w-1/4 px-2 py-3 sm:py-3.5 font-semibold text-white tracking-normal font-['Inter'] text-center border-r border-[#166534] text-xs sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="sigma-mobile-only">Q1</span><span class="sigma-desktop-only">1st Quarter</span></th>
-                                    <th class="w-1/4 px-2 py-3 sm:py-3.5 font-semibold text-white tracking-normal font-['Inter'] text-center border-r border-[#166534] text-xs sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="sigma-mobile-only">Q2</span><span class="sigma-desktop-only">2nd Quarter</span></th>
-                                    <th class="w-1/4 px-2 py-3 sm:py-3.5 font-semibold text-white tracking-normal font-['Inter'] text-center border-r border-[#166534] text-xs sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="sigma-mobile-only">Q3</span><span class="sigma-desktop-only">3rd Quarter</span></th>
-                                    <th class="w-1/4 px-2 py-3 sm:py-3.5 font-semibold text-white tracking-normal font-['Inter'] text-center text-xs sm:text-xs" style="border-right: none !important;"><span class="sigma-mobile-only">Q4</span><span class="sigma-desktop-only">4th Quarter</span></th>
+                                    ${availableAssessmentQuarters.map((quarter, index) => `<th class="px-2 py-3 sm:py-3.5 font-semibold text-white text-center text-xs" style="width:${100 / (availableAssessmentQuarters.length + 1)}%;border-right:${index < availableAssessmentQuarters.length - 1 ? '1px solid #166534' : 'none'}"><span class="sigma-mobile-only">Q${quarter}</span><span class="sigma-desktop-only">${qTerms[quarter - 1].label}</span></th>`).join('')}
+                                    <th class="px-2 py-3 sm:py-3.5 font-semibold text-white text-center text-xs"><span class="sigma-mobile-only">${window.getGradeSemesterLabel(configuredQuarters, true)}</span><span class="sigma-desktop-only">${window.getGradeSemesterLabel(configuredQuarters)}</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-['Inter']">
                                 <tr class="hover:bg-slate-50/80 transition-colors">
-                                    <td class="w-1/4 px-2 py-4 sm:py-5 text-center font-bold text-slate-900 border-none text-sm sm:text-base align-middle" style="border-right: none !important; border-left: none !important;">${fmtGrade(match.term1Val)}</td>
-                                    <td class="w-1/4 px-2 py-4 sm:py-5 text-center font-bold text-slate-900 border-none text-sm sm:text-base align-middle" style="border-right: none !important; border-left: none !important;">${fmtGrade(match.term2Val)}</td>
-                                    <td class="w-1/4 px-2 py-4 sm:py-5 text-center font-bold text-slate-900 border-none text-sm sm:text-base align-middle" style="border-right: none !important; border-left: none !important;">${fmtGrade(match.term3Val)}</td>
-                                    <td class="w-1/4 px-2 py-4 sm:py-5 text-center font-bold text-slate-900 border-none text-sm sm:text-base align-middle" style="border-right: none !important; border-left: none !important;">${fmtGrade(match.term4Val)}</td>
+                                    ${availableAssessmentQuarters.map(quarter => `<td class="px-2 py-4 sm:py-5 text-center font-bold text-slate-900 border-none text-sm sm:text-base align-middle" style="width:${100 / (availableAssessmentQuarters.length + 1)}%">${fmtGrade(match[`term${quarter}Val`])}</td>`).join('')}
+                                    <td class="px-2 py-4 sm:py-5 text-center font-bold text-slate-900 text-sm sm:text-base align-middle gb-summary-green">${finalGradeDisplay.replace('text-white/80', 'text-black-fade')}</td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- AI Subject Insights Box -->
+                    <div class="sigma-ai-panel">
+                        ${window.renderSigmaAiHeading()}
+                        <div data-subject-grade-insight class="sigma-ai-panel-body" data-insight-empty="${!hasQData}">
+                            ${aiInsightMessage}
+                        </div>
                     </div>
 
                     <!-- Full Width Subject Performance Analytics (Quarterly Horizontal Bar Chart) -->
@@ -7831,13 +8054,7 @@ if (overlay) overlay.classList.add('hidden');
                         </div>
                     </div>
 
-                    <!-- AI Subject Insights Box -->
-                    <div class="sigma-ai-panel">
-                        ${window.renderSigmaAiHeading()}
-                        <div data-subject-grade-insight class="sigma-ai-panel-body" data-insight-empty="${!hasQData}">
-                            ${aiInsightMessage}
-                        </div>
-                    </div>
+
                 </div>
 
                 <!-- Modal Footer -->
@@ -7866,26 +8083,37 @@ if (overlay) overlay.classList.add('hidden');
             if (e.target === overlay) window.closeStudentClassroomGradesModal();
         });
 
+        overlay.refreshPublishedReport = () => {
+            const scroll = overlay.querySelector('.student-grades-modal-body').scrollTop;
+            const selected = overlay.querySelector('.student-assessment-quarter-select')?.value;
+            window.openStudentClassroomGradesModal(cId, subjectName);
+            const next = document.getElementById('student-classroom-grades-modal-overlay');
+            const select = next?.querySelector('.student-assessment-quarter-select');
+            if (select && [...select.options].some(option => option.value === selected)) {
+                select.value = selected; select.dispatchEvent(new Event('change'));
+            }
+            if (next) next.querySelector('.student-grades-modal-body').scrollTop = scroll;
+        };
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
         const refreshGradeInsight = (quarter = 'all') => window.refreshSubjectGradeInsight?.(overlay.querySelector('[data-subject-grade-insight]'), {
             subject: subjectName, subjectId: subjectName, sectionId: sectionName, quarter,
-            grades: qTerms.filter((_, index) => quarter === 'all' || String(index + 1) === quarter).map(term => Number.isFinite(term.val) ? term.val : null),
-            assessments: assessmentBars.filter(row => quarter === 'all' || row.quarter === quarter)
+            grades: qTerms.filter((_, index) => availableAssessmentQuarters.includes(index + 1) && (quarter === 'all' || String(index + 1) === quarter)).map(term => Number.isFinite(term.val) ? term.val : null),
+            assessments: assessmentBars.filter(row => availableAssessmentQuarters.includes(Number(row.quarter)) && (quarter === 'all' || row.quarter === quarter))
         });
-        refreshGradeInsight();
         const assessmentQuarterSelect = overlay.querySelector('.student-assessment-quarter-select');
         assessmentQuarterSelect?.addEventListener('change', event => {
             refreshGradeInsight(event.target.value);
             let visible = 0;
             overlay.querySelectorAll('.student-assessment-quarter-row').forEach(row => {
-                const included = event.target.value === 'all' || row.dataset.quarter === event.target.value;
+                const included = availableAssessmentQuarters.includes(Number(row.dataset.quarter)) && (event.target.value === 'all' || row.dataset.quarter === event.target.value);
                 row.hidden = !included;
                 row.style.display = included ? '' : 'none';
                 if (included) visible++;
             });
             overlay.querySelector('.student-assessment-quarter-empty').hidden = visible > 0 || event.target.value === 'all';
         });
+        assessmentQuarterSelect?.dispatchEvent(new Event('change'));
         const viewport = window.visualViewport;
         const syncViewport = () => {
             overlay.style.setProperty('--grades-viewport-height', `${viewport ? viewport.height : window.innerHeight}px`);
@@ -7914,15 +8142,17 @@ if (overlay) overlay.classList.add('hidden');
     window.activeStudentGradeSubjectFilter = null;
 
     window.viewSubjectGrades = function (classroomId, subjectName) {
-        comparingSubjectIds = null;
+        const normalize = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        const available = getSubjectGradeRows() || [];
+        const matching = available.filter(row =>
+            (classroomId && normalize(row.id) === normalize(classroomId))
+            || (subjectName && normalize(row.subject) === normalize(subjectName)));
+        comparingSubjectIds = new Set(matching.map(row => String(row.id)));
         selectingComparisonSubjects = false;
         if (typeof window.closeStudentClassroomGradesModal === 'function') {
             window.closeStudentClassroomGradesModal();
         }
-        window.activeStudentGradeSubjectFilter = {
-            id: classroomId || '',
-            name: subjectName || ''
-        };
+        window.activeStudentGradeSubjectFilter = null;
         if (typeof switchTab === 'function') {
             switchTab('nav-grades');
         } else if (typeof renderGradesPage === 'function') {
@@ -7942,6 +8172,7 @@ if (overlay) overlay.classList.add('hidden');
         }
     };
     const refreshPublishedGrades = () => {
+        document.getElementById('student-classroom-grades-modal-overlay')?.refreshPublishedReport?.();
         const section = document.getElementById('section-grades');
         if (section && !section.classList.contains('hidden')) renderGradesPage();
     };

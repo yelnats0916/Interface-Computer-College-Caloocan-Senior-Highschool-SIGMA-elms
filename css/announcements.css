@@ -2744,3 +2744,80 @@ button.sigma-card-video-expand-btn {
     opacity: 1;
     pointer-events: auto;
 }
+/* Academic events share the announcement record across all portal calendars. */
+.academic-event-fields { margin-top: 18px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; }
+.academic-event-fields[hidden] { display: none; }
+.sigma-action-icon-btn.sigma-icon-calendar { color: #15803d; }
+.sigma-action-icon-btn.sigma-icon-calendar[aria-pressed="true"] { background: #e7f5ec; }
+.academic-event-toggle { display: flex; align-items: center; gap: 10px; color: #000; font-weight: 600; cursor: pointer; }
+.academic-event-toggle input { width: 18px; height: 18px; accent-color: #15803d; }
+.academic-event-toggle i { color: #15803d; margin-right: 6px; }
+#announcement-academic-details[hidden] { display: none; }
+#announcement-academic-details p { font-size: 13px; color: rgba(0,0,0,.55); margin: 12px 0; }
+#announcement-academic-details [role="alert"] { color: #b91c1c; }
+.academic-event-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.academic-event-grid label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: #000; }
+.academic-event-grid input { min-width: 0; width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px 12px; font: inherit; background: #fff; color: #000; }
+html body .academic-event-grid input::placeholder { color: rgba(0,0,0,.45) !important; -webkit-text-fill-color: rgba(0,0,0,.45) !important; font-weight: 400 !important; opacity: 1 !important; }
+.academic-event-grid small { color: rgba(0,0,0,.55); font-size: 12px; font-weight: 400; }
+#announcement-academic-error:empty { display: none; }
+/* Use the same calendar silhouette and day number as the navigation icon. */
+html body #sigma-composer-btn-calendar .sigma-composer-calendar-symbol { position: relative !important; display: inline-flex !important; align-items: center; justify-content: center; width: 1em !important; height: 1em !important; flex: 0 0 1em; font-size: inherit !important; padding: 0 !important; pointer-events: none; }
+html body #sigma-composer-btn-calendar .sigma-composer-calendar-symbol > i { font-size: inherit !important; color: var(--icc-green, #15803d) !important; -webkit-text-fill-color: var(--icc-green, #15803d) !important; }
+html body #sigma-composer-btn-calendar .sigma-composer-calendar-symbol > span { position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important; margin: 0 !important; padding: 4px 0 0 !important; box-sizing: border-box !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 7px !important; font-weight: 900 !important; line-height: 1 !important; z-index: 1; }
+.sigma-composer-modal.sigma-composer-calendar-mode .sigma-composer-body > :not(.academic-event-fields),
+.sigma-composer-modal.sigma-composer-calendar-mode .sigma-composer-footer { display: none !important; }
+.sigma-composer-modal.sigma-composer-calendar-mode .academic-event-fields { margin: 0; border: 0; border-radius: 0; padding: 0; }
+.academic-event-editor-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.sigma-composer-academic-badge { display: inline-flex; align-items: center; padding: 4px 10px; border: 1px solid #bbdfc8; border-radius: 9999px; background: #e7f5ec; color: var(--icc-green, #15803d); font-size: 12px; font-weight: 600; line-height: 18px; cursor: default; }
+.sigma-composer-academic-badge[hidden] { display: none !important; }
+.sigma-composer-academic-badge, .sigma-academic-post-badge { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+#admin-online-now-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 16px 10px; }
+#admin-online-now-list .online-now-profile { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; padding: 6px 0; text-align: center; }
+#admin-online-now-list .online-now-profile-name { max-width: 100%; font-size: 10px; line-height: 14px; font-weight: 400; color: #000; overflow-wrap: anywhere; }
+#admin-online-now-list .online-now-empty { grid-column: 1 / -1; }
+.online-now-view-all { display: inline-block; border: 0; border-radius: 6px; padding: 6px 12px; background: transparent; color: var(--icc-green, #15803d); font: inherit; font-size: 12px; font-weight: 400; cursor: pointer; transition: background-color .15s ease; }
+.online-now-view-all:is(:hover, :focus-visible) { background: #f1f5f9; }
+html body #admin-home-right-rail h3,
+html body #admin-home-right-rail h3 .academic-calendar-heading {
+    color: var(--icc-green, #15803d) !important;
+    -webkit-text-fill-color: var(--icc-green, #15803d) !important;
+}
+.online-now-view-all[hidden] { display: none !important; }
+html body #online-now-modal { position: fixed !important; inset: 0 !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 16px !important; background: rgba(0,0,0,.45) !important; box-sizing: border-box; }
+html body #online-now-modal .sigma-modal-shell { width: 560px !important; max-width: 100% !important; height: 460px !important; max-height: calc(100dvh - 32px) !important; margin: 0 !important; min-height: 0 !important; }
+html body #online-now-modal .sigma-modal-panel { display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important; min-height: 0 !important; background: #fff !important; border: 1px solid #e2e8f0; border-radius: 22px !important; overflow: hidden !important; box-shadow: 0 16px 48px #0002; }
+html body #online-now-modal .sigma-modal-header { display: flex !important; align-items: center !important; justify-content: space-between !important; flex: 0 0 64px !important; padding: 0 24px !important; border-bottom: 1px solid #e2e8f0; }
+html body #online-now-modal .sigma-modal-title { font-size: 16px !important; font-weight: 700 !important; margin: 0 !important; color: var(--icc-green, #15803d) !important; }
+html body #online-now-modal .online-now-close { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #000; font-size: 18px; cursor: pointer; }
+html body #online-now-modal .online-now-close:hover { background: #f1f5f9; }
+html body #online-now-modal .sigma-modal-body { flex: 1 1 auto !important; min-height: 0 !important; max-height: none !important; overflow-y: auto !important; padding: 24px 20px !important; scrollbar-gutter: stable both-edges; }
+.online-now-profile-link { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 100%; min-width: 0; padding: 6px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font: inherit; }
+.online-now-profile-link:is(:hover, :focus-visible) { background: transparent; }
+.online-now-profile-link > span:first-child { border-radius: 50%; box-shadow: none !important; }
+html body .online-now-profile-link,
+html body .online-now-profile-link:is(:hover, :focus-visible, :active),
+html body .online-now-profile-link .sigma-user-avatar,
+html body .online-now-profile-link .sigma-user-avatar :is(img, i) { transform: none !important; scale: none !important; box-shadow: none !important; }
+html body .online-now-profile-link .sigma-user-avatar { width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; border: 0 !important; border-radius: 50% !important; background-color: #f1f5f9 !important; transition: background-color .2s ease; }
+html body .online-now-profile-link .sigma-user-avatar i { font-size: 15px !important; color: #94a3b8 !important; -webkit-text-fill-color: #94a3b8 !important; opacity: 1 !important; }
+html body .online-now-profile-link:is(:hover, :focus-visible) .sigma-user-avatar { background-color: #e2e8f0 !important; }
+.online-now-all-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 104px)); grid-auto-rows: 96px; justify-content: start; align-content: start; align-items: start; gap: 16px 12px; list-style: none; padding: 0; margin: 0; width: 100%; }
+.online-now-all-list .online-now-profile { display: flex; flex-direction: column; align-items: center; min-width: 0; margin: 0; padding: 0; text-align: center; }
+.online-now-all-list .online-now-profile-link { gap: 9px; padding: 6px 4px; }
+.online-now-all-list .online-now-profile-name { display: block; width: 100%; min-height: 28px; font-size: 10px; line-height: 14px; font-weight: 400; overflow-wrap: anywhere; color: #000; }
+.academic-calendar-preview-card { background: white; border: 1px solid #dce4ed; border-radius: 22px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 4px #00000008; }
+.academic-calendar-preview-card h3 { margin: 0; padding: 18px 20px; border-bottom: 1px solid #e2e8f0; color: #000; font-size: 14px; font-weight: 700; }
+.academic-calendar-preview-card h3 i { color: #15803d; margin-right: 8px; }
+.academic-calendar-preview-event { display: grid; gap: 5px; width: 100%; text-align: left; padding: 14px 18px; border: 0; border-bottom: 1px solid #e2e8f0; background: white; cursor: pointer; }
+.academic-calendar-preview-event:hover { background: #f1f8f4; }
+.academic-calendar-preview-event strong { font-size: 13px; color: #000; overflow-wrap: anywhere; }
+.academic-calendar-preview-event span { font-size: 12px; color: rgba(0,0,0,.5); }
+.academic-calendar-empty { padding: 16px; margin: 0; text-align: center; color: rgba(0,0,0,.45); font-size: 13px; }
+.academic-calendar-heading { background: transparent; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.academic-calendar-heading:is(:hover, :focus-visible) { color: #15803d; text-decoration: underline; text-underline-offset: 3px; }
+.academic-calendar-day-events { display: grid; gap: 3px; margin-top: 4px; overflow: hidden; }
+.academic-calendar-day-events span { display: block; padding: 3px 5px; border-radius: 5px; background: #e7f5ec; color: #166534; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calendar-day-cell.academic-calendar-has-events { position: relative; }
+.calendar-day-cell.academic-calendar-has-events::after { content: ''; position: absolute; bottom: 1px; left: calc(50% - 3px); width: 6px; height: 6px; border-radius: 50%; background: #15803d; }
+@media (max-width: 639px) { .academic-event-grid { grid-template-columns: 1fr; } .academic-calendar-day-events span { font-size: 9px; padding: 2px; } }

@@ -264,6 +264,11 @@
     function getActiveSubjectQuarters() {
         const sem1 = document.getElementById('edit-subject-sem1');
         const sem2 = document.getElementById('edit-subject-sem2');
+        if (sem1 || sem2) {
+            if (sem1?.checked) return ['q1', 'q2'];
+            if (sem2?.checked) return ['q3', 'q4'];
+            return [];
+        }
         const quarters = [];
         if (sem1 && sem1.checked) {
             quarters.push('q1', 'q2');
@@ -305,6 +310,20 @@
         const activeQuarters = getActiveSubjectQuarters();
         const topicPills = document.getElementById('subject-topics-quarter-pills');
         const matPills = document.getElementById('subject-materials-quarter-pills');
+        const classroomQuarter = location.pathname.endsWith('/teacher.html') && String(window.currentSelectedTopicQuarter || window.currentTopicState?.currentQuarter || '').toLowerCase();
+        if (classroomQuarter && activeQuarters.includes(classroomQuarter)) {
+            window.currentSubjectTopicQuarter = classroomQuarter;
+            window.currentSubjectMaterialQuarter = classroomQuarter;
+            [topicPills, matPills].forEach(host => {
+                if (host) {
+                    host.style.setProperty('background', 'transparent', 'important');
+                    host.style.setProperty('padding', '0', 'important');
+                    host.style.setProperty('border-radius', '0', 'important');
+                    host.innerHTML = `<span class="subject-quarter-context-label">${QUARTER_LABELS[classroomQuarter]}</span>`;
+                }
+            });
+            return;
+        }
 
         if (!activeQuarters.includes(window.currentSubjectTopicQuarter)) {
             window.currentSubjectTopicQuarter = activeQuarters[0] || 'q1';
@@ -1672,15 +1691,15 @@
                                 </div>
                             </div>
 
-                            <!-- Active Semester & Quarters Checkboxes -->
+                            <!-- Active Semester Radio Buttons -->
                             <div class="space-y-3">
                                 <div class="flex items-center justify-between ml-1">
                                     <span class="text-base font-bold text-black capitalize tracking-normal">Active Semester & Quarters <span class="text-red-500">*</span></span>
-                                    <span class="text-xs font-medium text-black-fade">Select the active semesters for this subject</span>
+                                    <span class="text-xs font-medium text-black-fade">Select one semester for this subject</span>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all select-none">
-                                        <input type="checkbox" name="edit-subject-semester" id="edit-subject-sem1" value="sem1"
+                                        <input type="radio" name="edit-subject-semester" id="edit-subject-sem1" value="sem1"
                                             onchange="window.handleActiveQuartersChange?.(); window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-[#15803d] cursor-pointer accent-[#15803d]" />
                                         <div class="flex flex-col">
@@ -1689,7 +1708,7 @@
                                         </div>
                                     </label>
                                     <label class="flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all select-none">
-                                        <input type="checkbox" name="edit-subject-semester" id="edit-subject-sem2" value="sem2"
+                                        <input type="radio" name="edit-subject-semester" id="edit-subject-sem2" value="sem2"
                                             onchange="window.handleActiveQuartersChange?.(); window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-[#15803d] cursor-pointer accent-[#15803d]" />
                                         <div class="flex flex-col">
@@ -1795,11 +1814,12 @@
                                     </div>
                                     <!-- Add Material Dropdown on the Right of Quarter Bar -->
                                     <div class="relative shrink-0 flex items-center justify-start sm:justify-end gap-1.5 sm:gap-2 flex-wrap">
-                                        <button type="button" id="subject-content-reorder-btn" onclick="window.openTopicOrderPanel()"
+                                        <button type="button" id="subject-content-reorder-btn" aria-label="Reorder topics" title="Reorder topics" onclick="window.openTopicOrderPanel()"
                                             class="hidden h-8 sm:h-9 px-2.5 sm:px-3.5 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-semibold sm:font-bold text-black flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer font-['Inter'] shadow-2xs whitespace-nowrap">
-                                            <i class="fa-solid fa-arrow-down-up text-xs text-black"></i>
+                                            <i class="fa-solid fa-arrow-down-wide-short text-xs text-black"></i>
                                             <span>Reorder</span>
                                         </button>
+                                        <button type="button" id="subject-content-release-btn" onclick="window.openReleaseFromSubjectContent()" class="hidden sigma-btn sigma-btn-white sigma-btn-md">Release &amp; Schedule</button>
                                         <button type="button" id="subject-content-add-topic-btn" onclick="window.addSubjectTopic()"
                                             class="hidden h-8 sm:h-9 px-2.5 sm:px-3.5 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-semibold sm:font-bold text-black flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer font-['Inter'] shadow-2xs whitespace-nowrap">
                                             <i class="fa-solid fa-plus text-xs text-black"></i>
@@ -2125,7 +2145,10 @@
         const isContentFocus = window.subjectEditorOptions?.focus === 'content';
         const isStandalone = Boolean(window.subjectEditorOptions?.standalone);
         const hideBars = Boolean(window.subjectEditorOptions?.hideBars) || isContentFocus || isStandalone || isTeacherEditor;
+        const detailsOnly = Boolean(subjectData) && Number(initialStep || 1) === 1 && !hideBars;
+        window.subjectDetailsOnly = show && detailsOnly;
         if (overlay) {
+            overlay.classList.toggle('subject-details-only', window.subjectDetailsOnly);
             overlay.classList.toggle('teacher-mode', isTeacherEditor);
             overlay.classList.toggle('standalone-mode', isStandalone);
             overlay.classList.toggle('content-mode', isContentFocus);
@@ -2230,7 +2253,7 @@
                     : ['q1', 'q2'];
                 
                 const hasSem1 = activeQuarters.includes('q1') || activeQuarters.includes('q2');
-                const hasSem2 = activeQuarters.includes('q3') || activeQuarters.includes('q4');
+                const hasSem2 = !hasSem1 && (activeQuarters.includes('q3') || activeQuarters.includes('q4'));
                 const sem1Checkbox = document.getElementById('edit-subject-sem1');
                 const sem2Checkbox = document.getElementById('edit-subject-sem2');
                 if (sem1Checkbox) sem1Checkbox.checked = hasSem1;
@@ -2692,6 +2715,7 @@
      */
     window.handleSubjectStep = function (step) {
         window.stopAllVideos?.();
+        if (window.subjectDetailsOnly) step = 1;
         if (step < 1 || step > 3) return;
         ensureSubjectStepBottomButtonsInDom();
         const isStandalone = Boolean(window.subjectEditorOptions?.standalone);
@@ -2742,7 +2766,7 @@
 
         const segmentedHeader = document.getElementById('subject-segmented-header');
         if (segmentedHeader) {
-            const showBars = !isTeacher && !isStandalone && !hideBars && !isViewOnlyScope;
+            const showBars = !window.subjectDetailsOnly && !isTeacher && !isStandalone && !hideBars && !isViewOnlyScope;
             if (showBars) {
                 segmentedHeader.classList.remove('hidden');
                 segmentedHeader.style.removeProperty('display');
@@ -2906,6 +2930,30 @@
         });
         const contentAddTopicBtn = document.getElementById('subject-content-add-topic-btn');
         const contentReorderBtn = document.getElementById('subject-content-reorder-btn');
+        const contentQuarterBar = document.getElementById('subject-materials-quarter-bar');
+        let reorderRow = document.getElementById('subject-content-reorder-row');
+        if (contentReorderBtn && contentQuarterBar) {
+            if (!reorderRow) {
+                reorderRow = document.createElement('div');
+                reorderRow.id = 'subject-content-reorder-row';
+                contentQuarterBar.after(reorderRow);
+            }
+            const quarterPills = document.getElementById('subject-materials-quarter-pills');
+            if (quarterPills && !reorderRow.contains(quarterPills)) {
+                const quarterGroup = quarterPills.parentElement;
+                if (quarterGroup?.parentElement === contentQuarterBar) {
+                    reorderRow.prepend(quarterGroup);
+                }
+            }
+            reorderRow.appendChild(contentReorderBtn);
+            reorderRow.classList.toggle('hidden', !(window.usesCombinedSubjectContent?.() && step === 3));
+        }
+        const contentReleaseBtn = document.getElementById('subject-content-release-btn');
+        if (contentReleaseBtn) {
+            const showRelease = window.subjectEditorOptions?.focus === 'content' && step === 3;
+            contentReleaseBtn.classList.toggle('hidden', !showRelease);
+            contentReleaseBtn.style.display = showRelease ? 'flex' : 'none';
+        }
         if (contentAddTopicBtn || contentReorderBtn) {
             const showAddTopic = window.usesCombinedSubjectContent && window.usesCombinedSubjectContent() && step === 3;
             [contentAddTopicBtn, contentReorderBtn].forEach(function (btn) {

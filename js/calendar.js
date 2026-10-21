@@ -203,6 +203,13 @@
                 dayCell.style.cssText = 'background-color: #15803d !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: none !important; cursor: pointer;';
             }
 
+            const academicDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const academicEvents = window.getAcademicCalendarEventsForDate?.(academicDate) || [];
+            if (academicEvents.length) {
+                dayCell.classList.add('academic-calendar-has-events');
+                dayCell.title = `${academicEvents.length} academic event${academicEvents.length === 1 ? '' : 's'}`;
+                dayCell.setAttribute('aria-label', `${day} · ${dayCell.title}`);
+            }
             dayCell.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (isToday) {
@@ -1005,13 +1012,25 @@
             if (Array.isArray(customEvents) && customEvents.length > 0) {
                 events = [...events, ...customEvents];
             }
+            events.push(...(window.getAcademicCalendarEventsForDate?.(dateKey) || []));
         }
 
         return events;
     }
     window.getCalendarEventsForDate = getCalendarEventsForDate;
+    window.addEventListener('sigma:academic-calendar-changed', () => {
+        renderCalendarGrid();
+        renderDropdownAgenda(selectedDate);
+        window.renderCalendar?.();
+        const date = selectedCalendarDate;
+        renderCalendarRightPanel(date?.year, date?.month, date?.day);
+    });
 
     function handleCalendarItemClick(ev, role) {
+        if (ev?.academicEvent) {
+            window.openAcademicCalendarDate?.(ev.dateKey);
+            return;
+        }
         if (role === 'teacher') {
             if (typeof window.switchTab === 'function') window.switchTab('nav-assessments');
         } else if (role === 'student') {
@@ -1182,6 +1201,9 @@
                     timeLeftStr = ev.isAssessment ? 'Past due' : 'Completed';
                 }
 
+                if (ev.academicEvent && ev.duration === 'All day') timeLeftStr = 'All day';
+                else if (ev.academicEvent && ev.timeRange) timeLeftStr = ev.timeRange;
+
                 if (isRoleAssessment) {
                     cardsHtml += `
                         <div class="calendar-timeline-card card-has-role card-deadline">
@@ -1200,6 +1222,8 @@
                     cardsHtml += `
                         <div class="calendar-timeline-card card-no-role card-not-clickable cursor-default ${ev.cardClass || ''}">
                             <h4 class="calendar-timeline-title cursor-default select-text">${ev.title}</h4>
+                            ${ev.academicEvent ? `<p class="calendar-timeline-subtitle">${ev.eventStartDate}${ev.eventEndDate !== ev.eventStartDate ? ' – ' + ev.eventEndDate : ''}</p>` : ''}
+                            ${ev.academicEvent && ev.postId ? `<button type="button" class="calendar-view-announcement" data-calendar-post-id="${encodeURIComponent(ev.postId)}">View Announcement</button>` : ''}
                             ${ev.subtitle ? `<p class="calendar-timeline-subtitle select-text">${ev.subtitle}</p>` : ''}
                             <div class="calendar-timeline-footer select-text">
                                 <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-[#15803d] text-xs"></i> ${timeLeftStr}</span>
@@ -1492,6 +1516,30 @@
                     <span class="calendar-grid-date-num w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs sm:text-sm font-bold ${dateNumColor}">${day}</span>
                 </div>
             `;
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const academicEvents = getCalendarEventsForDate(getPortalRoleKey(), new Date(year, month, day), year, month, day);
+            if (academicEvents.length) {
+                const preview = document.createElement('div');
+                preview.className = 'academic-calendar-day-events';
+                academicEvents.slice(0, 2).forEach(event => {
+                    const label = document.createElement('span');
+                    label.innerHTML = event.title;
+                    label.title = label.textContent;
+                    label.className = 'calendar-cell-event-title';
+                    preview.appendChild(label);
+                });
+                if (academicEvents.length > 2) {
+                    const more = document.createElement('span');
+                    more.className = 'calendar-cell-event-more';
+                    more.textContent = `+${academicEvents.length - 2} more`;
+                    preview.appendChild(more);
+                }
+                const count = document.createElement('span');
+                count.className = 'calendar-cell-event-count';
+                count.textContent = `${academicEvents.length} ${academicEvents.length === 1 ? 'event' : 'events'}`;
+                preview.appendChild(count);
+                cell.appendChild(preview);
+            }
 
             cell.onclick = () => {
                 selectCalendarDate(year, month, day);

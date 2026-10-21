@@ -1991,7 +1991,9 @@ body.calendar-page-mode #mobile-calendar-panel {
     .topic-page-tabs-header,
     .classroom-room-container,
     #classroom-detail-content,
-    #classroom-detail-view {
+    #classroom-detail-view,
+    #search-results-view,
+    .search-results-layout {
         margin-top: 0 !important;
         padding-top: 0 !important;
     }
@@ -2836,31 +2838,118 @@ body.calendar-page-mode #mobile-calendar-panel {
 }
 
 .search-cat-pill.active {
-    background-color: #0f5132;
-    color: #ffffff;
-    border-color: #0f5132;
-    box-shadow: 0 1px 3px rgba(15, 81, 50, 0.2);
+    background-color: #FFD000 !important;
+    color: #ffffff !important;
+    border: 1px solid #FFD000 !important;
+    border-color: #FFD000 !important;
+    box-shadow: none !important;
 }
 
-/* Global Search Results Page - Help Center / Settings Sidebar Architecture */
+/* Global Search Results Page - Seamless Full-Height Architecture (Matching System Settings Style) */
+#search-results-view {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+#search-results-view,
+#search-results-view *,
+.search-results-layout,
+.search-results-main,
+.search-results-inner,
+.search-results-sidebar,
+.search-result-card,
+.search-result-title,
+.search-result-subtitle,
+.search-result-actions {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#search-results-view input,
+#search-results-view textarea {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+}
+
+#search-results-view ::selection {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+#search-results-view ::-moz-selection {
+    background: transparent !important;
+    color: inherit !important;
+}
+
 .search-results-layout {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
+    height: calc(100vh - var(--sidebar-top-offset, 82px));
+    max-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    min-height: calc(100vh - var(--sidebar-top-offset, 82px));
+    background-color: var(--admin-bg, var(--student-bg, #f8fafc)) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #000000;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .search-results-sidebar {
-    width: 280px;
-    min-width: 260px;
-    max-width: 300px;
+    width: 320px;
+    min-width: 280px;
+    max-width: 340px;
     flex-shrink: 0;
     background-color: #ffffff !important;
     border: none !important;
+    border-right: 1px solid #e5e7eb !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    padding: 1.25rem !important;
+    padding: 2rem 1.5rem !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
     box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.search-results-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.search-results-header h1 i {
+    color: #000000 !important;
+}
+
+#search-results-query-text {
+    color: #000000 !important;
+}
+
+.search-results-filter-title {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    margin-bottom: 0.75rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
 }
 
 .search-filter-container {
@@ -2873,12 +2962,30 @@ body.calendar-page-mode #mobile-calendar-panel {
 .search-results-main {
     flex: 1 1 0%;
     min-width: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--admin-bg, var(--student-bg, #f8fafc)) !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 2.25rem 2.5rem !important;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    box-sizing: border-box;
+    scrollbar-width: auto;
+}
+
+.search-results-inner {
+    width: 100%;
+    max-width: 60rem;
+    margin: 0;
+    padding-bottom: 4rem;
 }
 
 .search-filter-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     width: 100%;
     gap: 0.875rem;
     padding: 0.75rem 1rem;
@@ -2897,7 +3004,22 @@ body.calendar-page-mode #mobile-calendar-panel {
 }
 
 .search-filter-item .search-filter-icon,
-.search-filter-item i,
+.search-filter-item i {
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+    font-size: 15px !important;
+    line-height: 1 !important;
+    color: #000000;
+    transition: color 0.18s ease;
+}
+
 .search-filter-item span {
     color: #000000;
     transition: color 0.18s ease;
@@ -2935,45 +3057,317 @@ button.search-filter-item.active span {
 }
 
 @media (max-width: 1023px) {
+    #search-results-view {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
     .search-results-layout {
         flex-direction: column !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: calc(100dvh - var(--shell-offset, 105px)) !important;
+        overflow: visible !important;
         gap: 0 !important;
-        border-radius: 1rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     .search-results-sidebar {
         width: 100% !important;
         max-width: 100% !important;
-        position: static !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 30 !important;
         background-color: #ffffff !important;
         border: none !important;
-        border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+        border-bottom: 1px solid #e5e7eb !important;
         border-radius: 0 !important;
-        box-shadow: none !important;
-        padding: 1rem !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+        padding: 0.625rem 0.75rem 0.5rem 0.75rem !important;
+        margin: 0 !important;
+        margin-top: 0 !important;
+        height: auto !important;
+    }
+    .search-results-header {
+        margin-bottom: 0.35rem !important;
+        padding-bottom: 0.35rem !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+    }
+    .search-results-header h1 {
+        font-size: 13px !important;
+        gap: 0.35rem !important;
+        line-height: 1.25 !important;
+    }
+    .search-results-header h1 i {
+        font-size: 12px !important;
+    }
+    .search-results-filter-title {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.3rem !important;
+        padding: 0 2px !important;
     }
     .search-filter-container {
         display: flex !important;
         flex-direction: row !important;
         overflow-x: auto !important;
-        gap: 8px !important;
-        padding-bottom: 4px !important;
+        gap: 6px !important;
+        padding-bottom: 2px !important;
         -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
     }
-    .search-filter-item {
-        width: auto !important;
+    .search-filter-container::-webkit-scrollbar {
+        display: none !important;
+    }
+    .search-filter-item,
+    button.search-filter-item {
         white-space: nowrap !important;
-        padding: 6px 14px !important;
-        border-radius: 9999px !important;
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
         flex-shrink: 0 !important;
+        width: auto !important;
+        padding: 3px 8px !important;
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        border-radius: 9999px !important;
+        border: 1px solid #e2e8f0 !important;
+        gap: 4px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        line-height: 1 !important;
+        background-color: transparent !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
-    .search-filter-item.active {
+    .search-filter-item i,
+    .search-filter-item .search-filter-icon {
+        width: 12px !important;
+        min-width: 12px !important;
+        max-width: 12px !important;
+        height: 12px !important;
+        font-size: 10px !important;
+        color: #000000 !important;
+    }
+    .search-filter-item.active,
+    button.search-filter-item.active {
         background-color: #FFD000 !important;
+        border: 1px solid #FFD000 !important;
         border-color: #FFD000 !important;
         color: #ffffff !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    .search-filter-item.active *,
+    button.search-filter-item.active *,
+    .search-filter-item.active i,
+    button.search-filter-item.active i,
+    .search-filter-item.active span,
+    button.search-filter-item.active span {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+    }
+    .search-results-main {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0.625rem 0.625rem 3rem !important;
+    }
+    .search-results-inner {
+        max-width: 100% !important;
+        padding-bottom: 2rem !important;
+    }
+    #search-results-cards-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    #search-results-cards-container.space-y-4 > :not([hidden]) ~ :not([hidden]),
+    #search-results-cards-container > :not([hidden]) ~ :not([hidden]),
+    #search-results-cards-container > * {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    .search-category-panel {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        overflow: hidden !important;
+        margin-bottom: 12px !important;
+        width: 100% !important;
+    }
+    .search-category-panel:last-child {
+        margin-bottom: 0 !important;
+    }
+    .search-category-panel-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 8px 12px !important;
+        background-color: #f8fafc !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+    }
+    .search-category-panel-header-left {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+    .search-category-panel-header-title {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+        letter-spacing: 0.02em !important;
+    }
+    .search-category-panel-header-left i,
+    .search-category-panel-header i,
+    .search-category-panel-header-icon {
+        color: rgba(0, 0, 0, 0.45) !important;
+    }
+    .search-category-panel-header-count {
+        display: none !important;
+    }
+    .search-category-panel-body {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    .search-result-card {
+        padding: 0.65rem 0.85rem !important;
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        background-color: #ffffff !important;
+        transition: background-color 0.15s ease !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .search-result-card:last-child {
+        border-bottom: none !important;
+    }
+    .search-result-card:hover {
+        background-color: #f8fafc !important;
+    }
+    .search-result-card-info {
+        gap: 0.65rem !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+    .search-result-avatar,
+    .search-result-card img,
+    .search-result-card .search-result-avatar,
+    #search-results-cards-container img,
+    #search-results-cards-container .search-result-avatar,
+    .search-result-card .w-11.h-11 {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        border-radius: 9999px !important;
+        object-fit: cover !important;
+        flex-shrink: 0 !important;
+    }
+    .search-result-avatar i,
+    .search-result-card .search-result-avatar i {
+        font-size: 14px !important;
+    }
+    .search-result-avatar--class,
+    .search-result-avatar--page {
+        border-radius: 10px !important;
+    }
+    .search-result-card-title-row,
+    #search-results-cards-container > div > div:first-child > div:last-child > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.45rem !important;
+        flex-wrap: nowrap !important;
+        min-width: 0 !important;
+    }
+    .search-result-title,
+    #search-results-cards-container h3,
+    .search-result-card h3 {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 12.5px !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+        letter-spacing: -0.01em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        min-width: 0 !important;
+        flex: 0 1 auto !important;
+    }
+    .search-role-badge,
+    .search-result-card span.search-role-badge,
+    .search-result-card span.rounded-full,
+    #search-results-cards-container span.rounded-full {
+        font-size: 10px !important;
+        padding: 2px 7px !important;
+        line-height: 1 !important;
+        flex-shrink: 0 !important;
+        border-radius: 9999px !important;
+    }
+    .search-result-subtitle,
+    .search-result-card .search-result-subtitle,
+    .search-result-card .search-result-subtitle.text-black-fade,
+    #search-results-cards-container .search-result-subtitle {
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+        margin-top: 2px !important;
+    }
+    .search-result-subtitle *,
+    .search-result-card .search-result-subtitle.text-black-fade * {
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+    }
+    .search-result-actions,
+    #search-results-cards-container > div > div.search-result-actions,
+    #search-results-cards-container > div > div:last-child:not(:first-child) {
+        margin-top: 0 !important;
+        flex-shrink: 0 !important;
+        gap: 6px !important;
+    }
+    .search-action-btn {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 11px !important;
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    .search-action-btn i {
+        font-size: 11px !important;
+    }
+    #search-results-empty-state {
+        padding: 1.5rem 1rem !important;
+        border-radius: 16px !important;
+    }
+    #search-results-empty-state .w-16.h-16 {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    #search-results-empty-state .w-16.h-16 i {
+        font-size: 1.1rem !important;
+    }
+    #search-results-empty-title {
+        font-size: 13.5px !important;
+    }
+    #search-results-empty-state p {
+        font-size: 11px !important;
+        margin-bottom: 0.875rem !important;
     }
 }
 
@@ -3058,6 +3452,278 @@ button.search-filter-item.active span {
         font-size: 12px;
     }
 }
+
+/* Search Result Class Subtitle (Section & Grade Level in Black Fade) */
+.search-result-card .search-result-subtitle.text-black-fade,
+.search-result-subtitle.text-black-fade,
+.search-result-subtitle.text-black-fade * {
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+@media (min-width: 1024px) {
+    .search-category-panel {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        overflow: hidden !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }
+    .search-category-panel:last-child {
+        margin-bottom: 0 !important;
+    }
+    .search-category-panel-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 10px 18px !important;
+        background-color: #f8fafc !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+    }
+    .search-category-panel-header-left {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+    .search-category-panel-header-title {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+        letter-spacing: 0.02em !important;
+    }
+    .search-category-panel-header-left i,
+    .search-category-panel-header i,
+    .search-category-panel-header-icon {
+        color: rgba(0, 0, 0, 0.45) !important;
+    }
+    .search-category-panel-header-count {
+        display: none !important;
+    }
+    .search-category-panel-body {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    .search-result-card {
+        padding: 0.85rem 1.25rem !important;
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.9rem !important;
+        background-color: #ffffff !important;
+        transition: background-color 0.15s ease !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .search-result-card:last-child {
+        border-bottom: none !important;
+    }
+    .search-result-card:hover {
+        background-color: #f8fafc !important;
+    }
+    .search-result-card-info {
+        gap: 0.9rem !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+    .search-result-avatar,
+    .search-result-card img,
+    .search-result-card .search-result-avatar,
+    #search-results-cards-container img,
+    #search-results-cards-container .search-result-avatar {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        max-width: 40px !important;
+        max-height: 40px !important;
+        border-radius: 9999px !important;
+        object-fit: cover !important;
+        flex-shrink: 0 !important;
+    }
+    .search-result-avatar i,
+    .search-result-card .search-result-avatar i {
+        font-size: 16px !important;
+    }
+    .search-result-avatar--class,
+    .search-result-avatar--page {
+        border-radius: 12px !important;
+    }
+    .search-result-card-title-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.55rem !important;
+        flex-wrap: nowrap !important;
+        min-width: 0 !important;
+    }
+    .search-result-title,
+    #search-results-cards-container h3,
+    .search-result-card h3 {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 14.5px !important;
+        font-weight: 700 !important;
+        line-height: 1.3 !important;
+        letter-spacing: -0.01em !important;
+    }
+    .search-role-badge,
+    .search-result-card span.search-role-badge {
+        font-size: 11px !important;
+        padding: 2.5px 8.5px !important;
+        line-height: 1 !important;
+        flex-shrink: 0 !important;
+    }
+    .search-result-subtitle,
+    .search-result-card .search-result-subtitle,
+    .search-result-card .search-result-subtitle.text-black-fade {
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+        margin-top: 3px !important;
+    }
+    .search-result-subtitle *,
+    .search-result-card .search-result-subtitle.text-black-fade * {
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+    }
+    .search-action-btn {
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 16px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        border-radius: 9px !important;
+        flex-shrink: 0 !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .search-result-card .search-result-subtitle.text-black-fade,
+    .search-result-subtitle.text-black-fade,
+    .search-result-card .search-result-subtitle.text-black-fade * {
+        font-size: 9.5px !important;
+        line-height: 1.25 !important;
+        margin-top: 1.5px !important;
+    }
+}
+
+/* Search Result Role Badges (Student, Teacher, Admin, Subject, Page) */
+.search-role-badge,
+.search-result-card span.search-role-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    padding: 2.5px 8.5px !important;
+    border-radius: 9999px !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+    user-select: none !important;
+}
+
+.search-role-badge--student,
+.search-role-badge--teacher,
+.search-role-badge--admin {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+.search-role-badge--subject,
+.search-role-badge--class {
+    background-color: #7c3aed !important;
+    color: #ffffff !important;
+}
+
+.search-role-badge--page {
+    background-color: #64748b !important;
+    color: #ffffff !important;
+}
+
+@media (max-width: 1023px) {
+    .search-role-badge,
+    .search-result-card span.search-role-badge {
+        font-size: 9px !important;
+        padding: 1.5px 6px !important;
+        line-height: 1.2 !important;
+    }
+}
+
+/* Search Results Empty State Alignment & Blackfade Styling */
+#search-results-empty-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 3.5rem 1.5rem !important;
+    border-radius: 1.5rem !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#search-results-empty-state.hidden {
+    display: none !important;
+}
+
+#search-results-empty-state .search-empty-icon-wrap,
+#search-results-empty-state .w-16.h-16 {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: 1rem !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+}
+
+#search-results-empty-state .search-empty-icon-wrap i,
+#search-results-empty-state i {
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-size: 1.5rem !important;
+}
+
+#search-results-empty-title {
+    text-align: center !important;
+    margin: 0 auto 0.5rem auto !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+}
+
+#search-results-empty-state p,
+#search-results-empty-subtitle {
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: 0 !important;
+    color: rgba(0, 0, 0, 0.45) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.5 !important;
+    max-width: 440px !important;
+}
+
+#search-results-empty-return-btn,
+.search-results-empty-return-btn,
+#search-results-empty-state button {
+    display: none !important;
+}
+
+
+
 
 
 

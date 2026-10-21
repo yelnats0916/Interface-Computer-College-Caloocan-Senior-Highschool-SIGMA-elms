@@ -4,6 +4,41 @@
     const normalizeTitle = value => String(value || '').trim().replace(/^Topic:\s*/i, '').trim().toLowerCase();
     const topicTitle = card => normalizeTitle(card.querySelector('.topic-picker-header span.whitespace-normal, .topic-group-block > div:first-child span.text-black')?.textContent);
 
+    window.syncReleaseWorkspaceSelectionSummary = function () {
+        const workspace = document.getElementById('topics-materials-release-workspace');
+        if (!workspace) return;
+        const inputs = Array.from(workspace.querySelectorAll('input[name="picker-unified-item"]:not(:disabled)'));
+        const summary = workspace.querySelector('.release-selection-summary');
+        const availableOnly = workspace.dataset.releaseFilter === 'draft';
+        if (summary) {
+            summary.textContent = inputs.length
+                ? (availableOnly ? 'Show all' : `${inputs.length} available to release`)
+                : 'All items released';
+            summary.disabled = !inputs.length;
+            summary.setAttribute('aria-pressed', String(availableOnly));
+            summary.setAttribute('aria-label', availableOnly ? 'Show all topics and materials' : `${inputs.length} available to release. Show available items only`);
+        }
+        const actions = workspace.querySelector('.release-workspace-selection-actions');
+        if (actions) actions.style.setProperty('display', inputs.length ? 'flex' : 'none', 'important');
+        const selectedCount = inputs.filter(input => input.checked).length;
+        const selectAll = workspace.querySelector('.release-select-all-input');
+        if (selectAll) {
+            selectAll.checked = inputs.length > 0 && selectedCount === inputs.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < inputs.length;
+            selectAll.disabled = !inputs.length;
+        }
+        const selectionCount = workspace.querySelector('.release-select-all-count');
+        if (selectionCount) selectionCount.textContent = `${selectedCount} selected`;
+        workspace.querySelectorAll('.topic-picker-card').forEach(card => {
+            const count = card.querySelectorAll('input[name="picker-unified-item"]:not(:disabled)').length;
+            const badge = card.querySelector('.release-unreleased-count');
+            if (badge) {
+                badge.textContent = count ? `${count} unreleased` : '';
+                badge.hidden = !count;
+            }
+        });
+    };
+
     // Move the existing picker controls into the release panel; their handlers and
     // selection map remain the source of truth for the schedule flow.
     window.mountTopicsAndMaterialsReleasePicker = function (releaseOverlay) {
@@ -106,7 +141,7 @@
                 group.append(body);
                 const collapsed = window._topicReleaseCollapsedState?.[safeId] === true;
                 body.classList.toggle('hidden', collapsed);
-                chevron.firstElementChild.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                chevron.firstElementChild.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
                 selection?.addEventListener('click', event => event.stopPropagation());
             }
             group.firstElementChild.style.minHeight = '56px';
@@ -125,13 +160,45 @@
             const chevron = header.querySelector('[id^="topic-chevron-"]');
             const collapsed = savedCollapse[topicId] === true;
             topicBody.classList.toggle('hidden', collapsed);
-            if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+            const syncChevron = () => {
+                if (!chevron) return;
+                const isCollapsed = topicBody.classList.contains('hidden');
+                chevron.classList.remove('fa-chevron-up', 'rotate-180');
+                chevron.classList.add('fa-chevron-down');
+                chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+                chevron.style.rotate = 'none';
+                chevron.closest('button')?.setAttribute('aria-expanded', String(!isCollapsed));
+            };
+            if (chevron) {
+                if (chevron.parentElement.tagName !== 'BUTTON') {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'release-topic-chevron';
+                    chevron.parentElement.replaceWith(button);
+                    button.appendChild(chevron);
+                }
+                chevron.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+                const toggle = chevron.closest('button');
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', String(!collapsed));
+                    toggle.setAttribute('aria-controls', topicBody.id);
+                    toggle.setAttribute('aria-label', 'Toggle topic materials');
+                }
+            }
             header.removeAttribute('onclick');
             header.addEventListener('click', event => {
-                window.toggleReleaseTopicCollapse?.(safeId, event);
+                if (event.target.closest('.topic-release-row, input, button[id^="released-topic-btn-"]')) return;
+                event.preventDefault();
+                event.stopPropagation();
+                window.closeAllReleasedTopicActionMenus?.();
+                topicBody.classList.toggle('hidden');
+                window._topicReleaseCollapsedState = window._topicReleaseCollapsedState || {};
+                window._topicReleaseCollapsedState[safeId] = topicBody.classList.contains('hidden');
+                syncChevron();
                 savedCollapse[topicId] = topicBody.classList.contains('hidden');
                 try { localStorage.setItem(collapseKey, JSON.stringify(savedCollapse)); } catch (_) {}
             });
+            syncChevron();
             for (const category of ['learning', 'assessments']) {
                 const className = category === 'learning' ? 'topic-division-learning' : 'topic-division-assessments';
                 let division = topicBody.querySelector('.' + className);
@@ -202,42 +269,101 @@
         }
 
         const toolbar = chips.parentElement;
-        toolbar.classList.add('release-workspace-toolbar');
-        toolbar.lastElementChild.classList.add('release-workspace-selection-actions');
-        chips.style.flexWrap = 'wrap';
-        chips.style.minWidth = '0';
-        chips.style.overflow = 'visible';
-        chips.replaceChildren();
-        for (const filter of ['all', 'draft', 'released']) {
-            const chip = document.createElement('button');
-            chip.type = 'button';
-            chip.dataset.filter = filter;
-            chip.className = 'quiz-storage-filter-chip';
-            chip.style.whiteSpace = 'nowrap';
-            const count = list.querySelectorAll(filter === 'all'
-                ? '[data-release-state="draft"], [data-release-state="released"]'
-                : '[data-release-state="' + filter + '"]').length;
-            chip.textContent = (filter === 'all' ? 'All' : filter === 'draft' ? 'Draft' : 'Released') + ' (' + count + ')';
-            chip.addEventListener('click', () => window.setTopicsAndMaterialsPickerFilter(filter));
-            chips.append(chip);
+        toolbar.className = 'release-workspace-toolbar';
+        toolbar.lastElementChild.className = 'release-workspace-selection-actions';
+        chips.remove();
+        const quarterRow = section.previousElementSibling;
+        if (quarterRow && !quarterRow.classList.contains('release-context-strip')) {
+            quarterRow.classList.add('release-workspace-quarter');
         }
 
         const workspace = document.createElement('div');
         workspace.id = 'topics-materials-release-workspace';
         workspace.className = 'release-workspace';
         list.classList.remove('space-y-3');
-        workspace.append(toolbar, list);
+        workspace.append(toolbar);
+        const quarterSummaryRow = document.createElement('div');
+        quarterSummaryRow.className = 'release-quarter-summary-row';
+        if (quarterRow?.classList.contains('release-workspace-quarter')) quarterSummaryRow.append(quarterRow);
+        const summary = document.createElement('button');
+        summary.type = 'button';
+        summary.className = 'release-selection-summary';
+        summary.onclick = () => {
+            window.filterTopicsAndMaterialsReleaseWorkspace(workspace.dataset.releaseFilter === 'draft' ? 'all' : 'draft');
+        };
+        quarterSummaryRow.append(summary);
+        workspace.append(quarterSummaryRow);
+        workspace.append(list);
+        list.querySelectorAll('.topic-picker-card').forEach(card => {
+            const title = card.firstElementChild.querySelector('span.whitespace-normal, span.text-black');
+            if (!title) return;
+            const badge = document.createElement('span');
+            badge.className = 'release-unreleased-count';
+            title.append(badge);
+        });
         section.replaceChildren(workspace);
         footer.style.justifyContent = 'space-between';
         footer.append(submit);
+        footer.querySelector('.release-footer-selected')?.remove();
+        const selectionActions = toolbar.querySelector('.release-workspace-selection-actions');
+        if (selectionActions) {
+            const selectAllLabel = document.createElement('label');
+            selectAllLabel.className = 'release-select-all-control';
+            selectAllLabel.innerHTML = '<input type="checkbox" class="release-select-all-input" aria-label="Select all available items"><span>Select all</span><span aria-hidden="true">·</span><span class="release-select-all-count" aria-live="polite">0 selected</span>';
+            selectAllLabel.querySelector('input').addEventListener('change', event => {
+                if (event.target.checked) window.selectAllTopicsAndMaterialsPickerItems?.();
+                else window.deselectAllTopicsAndMaterialsPickerItems?.();
+            });
+            selectionActions.replaceChildren(selectAllLabel);
+        }
+        const editButton = footer.querySelector('button:not(#topics-materials-picker-submit-btn)');
+        if (editButton) {
+            editButton.textContent = 'Add / Edit';
+            editButton.classList.remove('release-modal-close');
+            editButton.classList.add('release-edit-content');
+            editButton.removeAttribute('onclick');
+            editButton.onclick = () => {
+                const subjectId = state.subjectId;
+                const section = state.selectedSection;
+                const quarter = window.getActiveReleaseQuarter?.() || 'q1';
+                const openEditor = () => {
+                    window.closeTeacherReleaseAssessmentsModal?.(false);
+                    window.openSharedTopicsAndMaterials?.({ subjectId, section });
+                    window.setSubjectMaterialQuarter?.(quarter);
+                };
+                if (list.querySelector('input[type="checkbox"]:checked')) {
+                    window.openAskingPanel?.({
+                        title: 'Unsaved Release Selections',
+                        desc: 'Your selected items have not been scheduled. Discard these selections and open Add / Edit?',
+                        confirmText: 'Discard & Continue', cancelText: 'Stay', showCancel: true,
+                        type: 'warning', onConfirm: openEditor
+                    });
+                } else openEditor();
+            };
+        }
         picker.remove();
         window.filterTopicsAndMaterialsReleaseWorkspace('all');
         window.syncTopicsAndMaterialsPickerSubmitBtn?.();
+        window.syncReleaseWorkspaceSelectionSummary();
+        // Match the shared Add/Edit form's exit affordance without replacing controls.
+        if (!releaseOverlay.querySelector('.release-form-exit')) {
+            const exit = document.createElement('button');
+            exit.type = 'button';
+            exit.className = 'release-form-exit';
+            exit.setAttribute('aria-label', 'Close Release Topics & Materials');
+            exit.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+            exit.onclick = event => {
+                event.stopPropagation();
+                window.closeTeacherReleaseAssessmentsModal?.(false);
+            };
+            releaseOverlay.appendChild(exit);
+        }
     };
 
     window.filterTopicsAndMaterialsReleaseWorkspace = function (filter) {
         const workspace = document.querySelector('#teacher-release-assessments-overlay .release-workspace');
         if (!workspace) return false;
+        workspace.dataset.releaseFilter = filter;
         workspace.querySelectorAll('.quiz-storage-filter-chip').forEach(chip => {
             chip.className = chip.dataset.filter === filter
                 ? 'quiz-storage-filter-chip px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer bg-[#15803d] text-white shadow-2xs'
@@ -258,10 +384,28 @@
                 if (show && row.dataset.releaseState !== 'context') visible = true;
             });
             card.querySelectorAll('.topic-division-learning, .topic-division-assessments').forEach(division => {
-                division.style.display = '';
+                division.style.display = filter === 'draft' && !division.querySelector('input[name="picker-unified-item"]:not(:disabled)') ? 'none' : '';
             });
+            if (filter === 'draft') visible = Boolean(card.querySelector('input[name="picker-unified-item"]:not(:disabled)'));
+            const body = card.querySelector('[id^="topic-collapse-body-"]');
+            if (body) {
+                if (filter === 'draft') {
+                    if (!('collapsedBeforeFilter' in body.dataset)) body.dataset.collapsedBeforeFilter = String(body.classList.contains('hidden'));
+                    body.classList.remove('hidden');
+                } else if ('collapsedBeforeFilter' in body.dataset) {
+                    body.classList.toggle('hidden', body.dataset.collapsedBeforeFilter === 'true');
+                    delete body.dataset.collapsedBeforeFilter;
+                }
+                const collapsed = body.classList.contains('hidden');
+                const chevron = card.querySelector('[id^="topic-chevron-"]');
+                if (chevron) {
+                    chevron.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+                    chevron.closest('button')?.setAttribute('aria-expanded', String(!collapsed));
+                }
+            }
             card.style.display = visible ? '' : 'none';
         });
+        window.syncReleaseWorkspaceSelectionSummary();
         return true;
     };
 })();

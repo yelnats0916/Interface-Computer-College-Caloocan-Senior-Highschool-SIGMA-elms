@@ -249,7 +249,9 @@
     .topic-page-shell,
     .student-topic-page-shell,
     .teacher-topic-page-shell,
-    .topic-page-tabs-header {
+    .topic-page-tabs-header,
+    #search-results-view,
+    .search-results-layout {
         margin-top: 0 !important;
         padding-top: 0 !important;
         width: 100% !important;
@@ -3959,7 +3961,7 @@
         margin: 0 !important;
         font-size: 10px !important;
         line-height: 1.35 !important;
-        color: rgba(0, 0, 0, 0.45) !important;
+        color: #000 !important;
         width: 100% !important;
     }
 
@@ -5456,7 +5458,7 @@
         font-size: 13px !important;
         line-height: 1.45 !important;
         -webkit-line-clamp: 2 !important;
-        color: rgba(0, 0, 0, 0.45) !important;
+        color: #000 !important;
     }
 
     /* Scale up Task Progress Card for Tablets */
@@ -10622,7 +10624,7 @@
         border-radius: 10px !important;
 }
 
-/* ─── Universal Topic Card / Topic Panel Subtitle Black Fade (Desktop & Mobile) ─── */
+/* ─── Universal Topic Card / Topic Panel Body Text (Desktop & Mobile) ─── */
 .topic-card__body p,
 .student-topic-card__body p,
 .teacher-topic-card__body p,
@@ -10632,7 +10634,7 @@
 .topic-card p,
 .student-topic-card p,
 .teacher-topic-card p {
-    color: rgba(0, 0, 0, 0.45) !important;
+    color: #000 !important;
 }
 
 /* Shared editor material shapes retain their desktop appearance. */
@@ -10749,13 +10751,13 @@
 .search-filter-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     width: 100%;
-    padding: 9px 12px;
+    padding: 8px 12px;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 600;
-    color: #334155;
+    color: #000000;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -10767,29 +10769,27 @@
 
 .search-filter-item:hover {
     background-color: #f1f5f9;
-    color: #0f172a;
+    color: #000000;
 }
 
-.search-filter-item.active {
-    background-color: #0f5132 !important;
+.search-filter-item.active,
+button.search-filter-item.active {
+    background-color: #FFD000 !important;
+    border: 1px solid #FFD000 !important;
+    border-color: #FFD000 !important;
     color: #ffffff !important;
-    box-shadow: 0 1px 3px rgba(15, 81, 50, 0.25);
+    box-shadow: none !important;
+    outline: none !important;
 }
 
-.search-filter-item.active .search-filter-count {
-    background-color: rgba(255, 255, 255, 0.22);
-    color: #ffffff;
+.search-filter-item.active *,
+button.search-filter-item.active * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
 }
 
 .search-filter-count {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    background-color: #f1f5f9;
-    color: #64748b;
-    transition: all 0.15s ease;
-    flex-shrink: 0;
+    display: none !important;
 }
 
 @media (max-width: 1023px) {
@@ -10797,19 +10797,471 @@
         display: flex !important;
         flex-direction: row !important;
         overflow-x: auto !important;
-        gap: 8px !important;
+        gap: 5px !important;
         padding-bottom: 2px !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
     }
-    .search-filter-item {
+    .search-filter-container::-webkit-scrollbar {
+        display: none !important;
+    }
+    .search-filter-item,
+    button.search-filter-item {
         width: auto !important;
         white-space: nowrap !important;
-        padding: 6px 14px !important;
+        padding: 3px 8px !important;
+        height: 24px !important;
+        min-height: 24px !important;
         border-radius: 9999px !important;
         border: 1px solid #e2e8f0 !important;
-        font-size: 12px !important;
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
+        background-color: transparent !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    .search-filter-item i,
+    .search-filter-item .search-filter-icon {
+        width: 12px !important;
+        min-width: 12px !important;
+        max-width: 12px !important;
+        height: 12px !important;
+        font-size: 10px !important;
+        color: #000000 !important;
+    }
+    .search-filter-item span {
+        font-size: 10.5px !important;
+        color: #000000 !important;
+    }
+    .search-filter-item.active,
+    button.search-filter-item.active {
+        background-color: #FFD000 !important;
+        border: 1px solid #FFD000 !important;
+        border-color: #FFD000 !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    .search-filter-item.active *,
+    button.search-filter-item.active *,
+    .search-filter-item.active i,
+    button.search-filter-item.active i,
+    .search-filter-item.active span,
+    button.search-filter-item.active span {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+    }
+
+    /* Scaled down subject and section text in mobile search results */
+    .search-category-panel {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 14px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        overflow: hidden !important;
+        margin-bottom: 12px !important;
+        width: 100% !important;
+    }
+    .search-category-panel:last-child {
+        margin-bottom: 0 !important;
+    }
+    .search-category-panel-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 8px 12px !important;
+        background-color: #f8fafc !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+    }
+    .search-category-panel-header-left {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+    .search-category-panel-header-title {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+        letter-spacing: 0.02em !important;
+    }
+    .search-category-panel-header-left i,
+    .search-category-panel-header i,
+    .search-category-panel-header-icon {
+        color: rgba(0, 0, 0, 0.45) !important;
+    }
+    .search-category-panel-header-count {
+        display: none !important;
+    }
+    .search-category-panel-body {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    .search-result-card {
+        padding: 0.65rem 0.85rem !important;
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        background-color: #ffffff !important;
+        transition: background-color 0.15s ease !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .search-result-card:last-child {
+        border-bottom: none !important;
+    }
+    .search-result-card:hover {
+        background-color: #f8fafc !important;
+    }
+    .search-result-card-info {
+        gap: 0.65rem !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    .search-result-avatar,
+    .search-result-card img,
+    .search-result-card .search-result-avatar,
+    #search-results-cards-container img,
+    #search-results-cards-container .search-result-avatar,
+    .search-result-card .w-11.h-11 {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        max-width: 34px !important;
+        max-height: 34px !important;
+        border-radius: 9999px !important;
+        object-fit: cover !important;
         flex-shrink: 0 !important;
     }
-    .search-filter-item.active {
-        border-color: #0f5132 !important;
+
+    .search-result-avatar i,
+    .search-result-card .search-result-avatar i {
+        font-size: 14px !important;
     }
+
+    .search-result-avatar--class,
+    .search-result-avatar--page {
+        border-radius: 10px !important;
+    }
+
+    .search-result-card-title-row,
+    #search-results-cards-container > div > div:first-child > div:last-child > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.45rem !important;
+        flex-wrap: nowrap !important;
+        min-width: 0 !important;
+    }
+
+    .search-result-title,
+    #search-results-cards-container h3,
+    .search-result-card h3 {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 12.5px !important;
+        font-weight: 700 !important;
+        line-height: 1.25 !important;
+        letter-spacing: -0.01em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        min-width: 0 !important;
+        flex: 0 1 auto !important;
+    }
+
+    .search-role-badge,
+    .search-result-card span.search-role-badge,
+    .search-result-card span.rounded-full,
+    #search-results-cards-container span.rounded-full {
+        font-size: 10px !important;
+        padding: 2px 7px !important;
+        line-height: 1 !important;
+        flex-shrink: 0 !important;
+        border-radius: 9999px !important;
+    }
+
+    .search-result-subtitle,
+    .search-result-card .search-result-subtitle,
+    .search-result-card .search-result-subtitle.text-black-fade,
+    #search-results-cards-container .search-result-subtitle {
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+        margin-top: 2px !important;
+    }
+
+    .search-result-subtitle *,
+    .search-result-card .search-result-subtitle.text-black-fade *,
+    .search-result-card .search-result-subtitle.text-black-fade div,
+    .search-result-card .search-result-subtitle.text-black-fade span {
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+    }
+
+    .search-result-actions,
+    #search-results-cards-container > div > div.search-result-actions,
+    #search-results-cards-container > div > div:last-child:not(:first-child) {
+        margin-top: 0 !important;
+        flex-shrink: 0 !important;
+        gap: 6px !important;
+    }
+
+    .search-action-btn {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 11px !important;
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    .search-action-btn i {
+        font-size: 11px !important;
+    }
+
+    #search-results-empty-state {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding: 2rem 1rem !important;
+        border-radius: 16px !important;
+    }
+    #search-results-empty-state .search-empty-icon-wrap,
+    #search-results-empty-state .w-16.h-16 {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    #search-results-empty-state .search-empty-icon-wrap i,
+    #search-results-empty-state i {
+        font-size: 1.1rem !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+    }
+    #search-results-empty-title {
+        font-size: 13.5px !important;
+        text-align: center !important;
+    }
+    #search-results-empty-state p {
+        font-size: 11px !important;
+        text-align: center !important;
+        color: rgba(0, 0, 0, 0.45) !important;
+        margin: 0 auto !important;
+        max-width: 280px !important;
+    }
+    #search-results-empty-return-btn,
+    .search-results-empty-return-btn,
+    #search-results-empty-state button {
+        display: none !important;
+    }
+}
+
+/* Mobile classroom topics form one continuous, full-width list. */
+@media (max-width: 767px) {
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-student-name > .teacher-quarter-student-avatar {
+        display: none !important;
+    }
+    html body #subject-edit-overlay #subject-edit-form-body :is(#subject-materials-grid, #subject-topics-list) {
+        display: flex !important;
+        flex-direction: column !important;
+        width: calc(100% + 28px) !important;
+        max-width: none !important;
+        margin-left: -14px !important;
+        margin-right: -14px !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+    html body #subject-edit-overlay :is(#subject-materials-grid, #subject-topics-list) > [id^="subject-topic-panel-"] {
+        width: 100% !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(0, 0, 0, .12) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    html body #subject-edit-overlay [id^="subject-topic-panel-"] > div:first-child,
+    html body #subject-edit-overlay [id^="subject-topic-panel-"] > [id^="topic-dropdown-"] {
+        border-radius: 0 !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child {
+        min-height: 56px !important;
+        padding: 10px 12px !important;
+        align-items: flex-start !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child > div:first-child {
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child > div:first-child > div:first-child {
+        width: 20px !important;
+        min-width: 20px !important;
+        height: 20px !important;
+        margin-top: 0 !important;
+        font-size: 10px !important;
+        line-height: 20px !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child h4 {
+        font-size: 12px !important;
+        line-height: 20px !important;
+        font-weight: 400 !important;
+        margin: 0 !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child h4 + span,
+    html body #subject-edit-overlay #subject-materials-grid [id^="subject-topic-panel-"] > div:first-child > div:first-child > div:last-child > span {
+        font-size: 10px !important;
+        line-height: 14px !important;
+        margin-top: 0 !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="topic-dropdown-"] {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="topic-dropdown-"] > div:has(> .sigma-attached-file-panel) {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="topic-dropdown-"] .sigma-attached-file-panel.sigma-black-fade-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 12px 16px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(0, 0, 0, .12) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background-color: #fff !important;
+    }
+    html body #subject-edit-overlay #subject-materials-grid [id^="topic-dropdown-"] .sigma-attached-file-panel:last-child {
+        border-bottom: 0 !important;
+    }
+    html body #section-topic-content #topic-content-main:has(.topic-material-list-shell),
+    html body #section-topic-content .topic-material-list-shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    html body #section-topic-content :is(#handout-list, #assessment-list) {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }
+    html body #section-topic-content :is(#handout-list, #assessment-list) > .sigma-black-fade-panel {
+        width: 100% !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(0, 0, 0, .12) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 12px 16px !important;
+    }
+    html body .classroom-detail-shell #room-topics-mount .room-embedded-topics :is(.topic-main-shell, .student-topic-main-shell, .teacher-topic-main-shell) {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin: 0 !important;
+    }
+    html body .room-embedded-topics :is(.topic-list, .student-topic-list, .teacher-topic-list) {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+    html body .room-embedded-topics :is(.topic-card, .student-topic-card, .teacher-topic-card) {
+        grid-template-columns: 80px minmax(0, 1fr) !important;
+        min-height: 120px !important;
+        margin: 0 !important;
+        padding: 12px 16px !important;
+        gap: 12px !important;
+        border: 0 !important;
+        border-left: 6px solid var(--icc-green, #15803d) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, .12) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    html body .room-embedded-topics :is(.topic-card__image-container, .student-topic-card__image-container, .teacher-topic-card__image-container) {
+        width: 80px !important;
+        min-width: 80px !important;
+        border: 0 !important;
+    }
+    html body .room-embedded-topics :is(.topic-card__body, .student-topic-card__body, .teacher-topic-card__body) {
+        padding: 4px 0 !important;
+    }
+}
+
+.subject-quarter-context-label{font-size:14px;font-weight:600;color:#000;background:transparent}
+@media(max-width:767px){
+ html body #subject-edit-overlay :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills):has(>.subject-quarter-context-label){background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+ html body #subject-edit-overlay .subject-quarter-context-label{font-size:12px!important;line-height:18px!important;font-weight:600!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+}
+
+/* Mobile Task Progress sits in a padded card on topic and material pages. */
+@media(max-width:767px){
+ html body .room-embedded-topics :is(.student-topic-progress-rail,.teacher-topic-progress-rail),
+ html body #section-topic-content :is(#topic-right-section,.student-topic-progress-rail,.teacher-topic-progress-rail):has(#topic-task-progress-card){
+  width:100%!important;max-width:100%!important;margin:0!important;padding:20px 16px!important;box-sizing:border-box;gap:16px!important;
+ }
+ html body .room-embedded-topics #topic-task-progress-card,
+ html body #section-topic-content :is(#topic-right-section,.student-topic-progress-rail,.teacher-topic-progress-rail) #topic-task-progress-card{
+  width:100%!important;max-width:100%!important;margin:0!important;padding:16px!important;
+  border:1px solid #e2e8f0!important;border-radius:20px!important;
+  background:#fff!important;box-shadow:0 4px 16px rgba(0,0,0,.04)!important;box-sizing:border-box;
+ }
+}
+
+/* Use the same 16px mobile gutter as the Score and Submission Details cards. */
+@media(max-width:767px){
+ html body .room-embedded-topics :is(.student-topic-progress-rail,.teacher-topic-progress-rail):has(#topic-task-progress-card),
+ html body #section-topic-content :is(#topic-right-section,.student-topic-progress-rail,.teacher-topic-progress-rail):has(#topic-task-progress-card){
+  padding-left:0!important;padding-right:0!important;
+ }
+ html body .room-embedded-topics #topic-task-progress-card,
+ html body #section-topic-content :is(#topic-right-section,.student-topic-progress-rail,.teacher-topic-progress-rail) #topic-task-progress-card{
+  width:calc(100% - 32px)!important;max-width:calc(100% - 32px)!important;
+  margin-left:16px!important;margin-right:16px!important;align-self:center;
+ }
+}
+
+/* Lesson details share the assessment main panel's mobile layout. */
+@media(max-width:767px){
+ html body #section-topic-content :is(.topic-detail-grid,.teacher-topic-page-grid):has(.lesson-material-main-card){
+  margin-top:0!important;padding-top:0!important;gap:0!important;
+ }
+ html body #section-topic-content #topic-content-main:has(.lesson-material-main-card){
+  width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;
+ }
+ html body #section-topic-content .lesson-material-main-card{
+  width:100%!important;max-width:100%!important;margin:0!important;
+  border-radius:0!important;border:0!important;border-bottom:1px solid #e2e8f0!important;
+  box-shadow:none!important;padding:16px 14px 20px!important;box-sizing:border-box;
+ }
+ html body #section-topic-content .lesson-material-main-card h2{
+  font-size:16px!important;line-height:1.35!important;
+ }
 }

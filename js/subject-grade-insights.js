@@ -1,7 +1,9 @@
 (function () {
     const pending = new Map();
     const savedResults = new Map();
+    const displayedInsights = new Map();
     const cacheKey = 'sigma-subject-grade-insights-v3';
+    const insightPolicyVersion = 'student-grade-wording-v5';
     // Object/record order is presentation, not new grade evidence.
     function stableValue(value) {
         if (Array.isArray(value)) return value.map(stableValue);
@@ -18,11 +20,24 @@
         return stableValue(result);
     }
     function readSaved(fingerprint) {
-        if (savedResults.has(fingerprint)) return savedResults.get(fingerprint);
+        const equivalent = key => {
+            try {
+                const value = JSON.parse(key);
+                delete value.insightPolicyVersion;
+                const requested = JSON.parse(fingerprint);
+                delete requested.insightPolicyVersion;
+                return JSON.stringify(canonicalEvidence(value)) === JSON.stringify(canonicalEvidence(requested));
+            } catch (_) { return false; }
+        };
+        let newest = savedResults.get(fingerprint);
         try {
-            const text = JSON.parse(localStorage.getItem(cacheKey) || '{}')?.[fingerprint];
-            if (text && Array.isArray(text.analyses)) { savedResults.set(fingerprint, text); return text; }
+            for (const [key, text] of Object.entries(JSON.parse(localStorage.getItem(cacheKey) || '{}'))) {
+                if (!equivalent(key) || !Array.isArray(text?.analyses) || text.isDeleted) continue;
+                if (!newest || Date.parse(text.createdAt) > Date.parse(newest.createdAt)) newest = text;
+            }
         } catch (_) {}
+        if (newest) savedResults.set(fingerprint, newest);
+        return newest;
     }
     function saveResult(fingerprint, text) {
         if (!text || text.isDeleted) {
@@ -51,6 +66,7 @@
     };
     window.refreshSubjectGradeInsight = async function (element, evidence) {
         if (!element) return;
+        displayedInsights.set(element, evidence);
         const user = window.getLoggedInStudentUser?.();
         const userId = String(user?.uid || user?.id || '');
         if (!userId) { element.textContent = 'Sign in to view subject insights.'; return; }
@@ -63,12 +79,13 @@
             records: records.map(row => ({ id: row.id, title: row.subject, subjectId: row.subjectId, sectionId: row.sectionId })) }];
         const recordLog = values => {
             try { return window.SigmaAiLogs?.record({ userId, feature: 'grade_insights', prompt: title,
-                actionDescription: title, evidenceSources, timestamp: new Date().toISOString(), ...values }); }
+                actionDescription: title, evidenceSources, gradeEvidenceKey: evidenceKey, gradeViewKey: viewKey, timestamp: new Date().toISOString(), ...values }); }
             catch (error) { console.warn('Grade insight log could not be saved.', error); }
         };
         const language = window.getSigmaAiLanguage?.('insights') || 'en';
-        const legacyFingerprint = JSON.stringify({ userId, ...evidence, language });
-        const fingerprint = JSON.stringify(stableValue({ userId, ...canonicalEvidence(evidence), language }));
+        const fingerprint = JSON.stringify(stableValue({ userId, ...canonicalEvidence(evidence), language, insightPolicyVersion }));
+        const evidenceKey = JSON.stringify(stableValue({ userId, ...canonicalEvidence(evidence), language }));
+        const viewKey = JSON.stringify([overall ? 'overall' : 'subject', overall ? '' : evidence.subjectId || evidence.subject, evidence.sectionId || '', evidence.quarter, language]);
         element.dataset.insightFingerprint = fingerprint;
         const show = text => {
             if (element.dataset.insightFingerprint !== fingerprint || !element.isConnected) return;
@@ -81,6 +98,22 @@
                     return;
                 }
                 element.innerHTML = window.SigmaInsightRules.renderInsightSections(text.analyses, location.href) + (window.renderSigmaInsightTimestamp?.(text.createdAt) || '');
+                if (text.generationId) {
+                    try {
+                        const activeKey = 'sigma-student-grade-insight-views-v1';
+                        const active = JSON.parse(localStorage.getItem(activeKey) || '{}');
+                        const ownerViews = active[userId] || {};
+                        if (ownerViews[viewKey] !== text.generationId) {
+                            active[userId] = { ...ownerViews, [viewKey]: text.generationId };
+                            localStorage.setItem(activeKey, JSON.stringify(active));
+                            window.dispatchEvent(new Event('sigma:grade-insight-view-updated'));
+                        }
+                    } catch (_) {}
+                    const sourceLogId = text.insightSourceId?.replace(/:\d+$/, '');
+                    Promise.resolve(window.SigmaAiLogs?.whenSaved?.(sourceLogId)).then(() =>
+                        window.SigmaAiDatabase?.request('ai_records', { action: 'grade_insight_view', userId, viewKey, generationId: text.generationId })
+                    ).catch(() => {});
+                }
                 window.restoreSigmaInsightTimestamp?.(element, text, userId,
                     () => element.dataset.insightFingerprint === fingerprint,
                     restored => saveResult(fingerprint, restored));
@@ -94,7 +127,35 @@
             element.dataset.insightEmpty = String(empty);
             element.style.setProperty('color', empty ? 'rgba(0,0,0,0.45)' : '#000', 'important');
         };
-        const saved = readSaved(fingerprint) || readSaved(legacyFingerprint);
+        let saved = readSaved(fingerprint);
+        // Logs created before evidence keys were introduced still belong to their
+        // exact original Grades/Subject view. Reuse their saved response, never regenerate it.
+        try {
+            const logs = JSON.parse(localStorage.getItem('sigma-ai-recorded-logs') || '[]');
+            for (const log of Array.isArray(logs) ? logs : []) {
+                if (String(log.userId) !== userId || log.feature !== 'grade_insights' || log.isDeleted
+                    || !['Success', 'Fallback Used'].includes(log.status)) continue;
+                if (log.gradeEvidenceKey ? log.gradeEvidenceKey !== evidenceKey : log.prompt !== title) continue;
+                if (saved && Date.parse(log.timestamp) <= Date.parse(saved.createdAt)) continue;
+                const cards = JSON.parse(log.response || '[]');
+                const card = cards.find(item => Array.isArray(item?.analyses) && item.analyses.length);
+                if (!card || !log.generationId) continue;
+                saved = { ...card, generationId: log.generationId, createdAt: log.timestamp, insightSourceId: `${log.id}:${cards.indexOf(card)}` };
+            }
+            if (saved) saveResult(fingerprint, saved);
+        } catch (_) {}
+        if (saved) show(saved);
+        try {
+            const result = await window.SigmaAiDatabase?.request('ai_records', {
+                action: 'latest_grade_insight', userId, evidenceKey,
+                legacyPrompt: title,
+                candidateGenerationIds: saved?.generationId ? [saved.generationId] : []
+            });
+            if (result?.card && (!saved || Date.parse(result.card.createdAt) >= Date.parse(saved.createdAt))) {
+                saved = result.card;
+                saveResult(fingerprint, saved);
+            }
+        } catch (_) { /* Keep the saved copy when the database is unavailable. */ }
         if (saved) { savedResults.set(fingerprint, saved); show(saved); return; }
         if (!evidence.assessments.some(row => row.score != null) && !evidence.grades.some(value => typeof value === 'number')) {
             show(overall ? 'No grades recorded yet.' : 'No grades recorded yet for this subject.'); return;
@@ -119,8 +180,9 @@
                     if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'Subject insights unavailable.');
                     if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Subject insight was returned without a generation ID.');
                     const cards = window.SigmaInsightRules.validateCards(result, snapshot);
-                    const logId = recordLog({ response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
-                    const card = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: new Date().toISOString(),
+                    const createdAt = new Date().toISOString();
+                    const logId = recordLog({ timestamp: createdAt, response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
+                    const card = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt,
                         ...(logId ? { insightSourceId: `${logId}:0` } : {}) } : null;
                     if (card) saveResult(fingerprint, card);
                     return card || 'Not enough recorded evidence for a subject insight yet.';
@@ -138,4 +200,19 @@
         try { show(await request); }
         finally { if (pending.get(fingerprint) === request) pending.delete(fingerprint); }
     };
+    const syncDisplayedInsights = () => {
+        if (document.hidden) return;
+        for (const [element, evidence] of displayedInsights) {
+            if (!element.isConnected) { displayedInsights.delete(element); continue; }
+            if (element.getClientRects().length && element.dataset.insightFingerprint && readSaved(element.dataset.insightFingerprint)) {
+                window.refreshSubjectGradeInsight(element, evidence);
+            }
+        }
+    };
+    window.addEventListener('focus', syncDisplayedInsights);
+    window.addEventListener('storage', event => {
+        if (event.key === cacheKey || event.key === 'sigma-ai-recorded-logs') syncDisplayedInsights();
+    });
+    document.addEventListener('visibilitychange', syncDisplayedInsights);
+    setInterval(syncDisplayedInsights, 30000);
 })();

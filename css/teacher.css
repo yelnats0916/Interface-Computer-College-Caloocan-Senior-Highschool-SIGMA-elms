@@ -636,7 +636,7 @@ body.calendar-page-mode #mobile-calendar-panel {
 .attendance-weekdays-header {
     display: grid !important;
     grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
-    border-bottom: 1px solid #166534 !important;
+    border-bottom: 0 !important;
     background-color: #15803d !important;
     flex-shrink: 0 !important;
     user-select: none !important;
@@ -9867,7 +9867,7 @@ aside#sub-sidebar.sub-sidebar-visible {
 #table-focus-view thead th,
 #table-all-assessments-view thead th {
     border-right: none !important;
-    border-bottom: 2px solid #0d652d !important;
+    border-bottom: 0 !important;
     border-left: none !important;
     border-top: none !important;
 }
@@ -9875,7 +9875,7 @@ aside#sub-sidebar.sub-sidebar-visible {
 #table-focus-view thead th:first-child,
 #table-all-assessments-view thead th:first-child {
     border-right: 1px solid #137638 !important;
-    border-bottom: 2px solid #0d652d !important;
+    border-bottom: 0 !important;
 }
 
 #table-focus-view thead th:last-child,
@@ -10529,7 +10529,7 @@ aside#sub-sidebar.sub-sidebar-visible {
     top: 0 !important;
     z-index: 30 !important;
     background-color: #15803d !important;
-    border-bottom: 1px solid #166534 !important;
+    border-bottom: 0 !important;
     border-right: 1px solid #137638 !important;
     box-shadow: 0 1px 0 #166534 !important;
     color: #ffffff !important;
@@ -10643,7 +10643,7 @@ aside#sub-sidebar.sub-sidebar-visible {
 #table-focus-view thead tr,
 #table-all-assessments-view thead tr {
     background-color: #137333 !important;
-    border-bottom: 2px solid #0d652d !important;
+    border-bottom: 0 !important;
     color: #ffffff !important;
 }
 #table-focus-view thead th,
@@ -12975,3 +12975,38 @@ body.sigma-modal-open {
     touch-action: pan-y !important;
 }
 
+
+/* Report tables follow the flat Grades table and keep numeric columns equal. */
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table {
+ border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table table {
+ table-layout:fixed;width:100%;border-collapse:collapse;border-radius:0!important;
+}
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table :is(th,td) {
+ border-radius:0!important;border-left:0!important;border-right:1px solid rgba(0,0,0,.08)!important;
+}
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table th {
+ border-right-color:#137638!important;line-height:1.4;
+}
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table :is(th,td):last-child {
+ border-right:0!important;
+}
+html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table td {
+ border-bottom:1px solid rgba(0,0,0,.08)!important;
+}
+@media(min-width:768px){
+ html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table :is(th,td):first-child {
+  width:46%!important;min-width:0!important;max-width:none!important;
+ }
+ html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table :is(th,td):not(:first-child) {
+  width:calc(54% / var(--report-grade-columns))!important;white-space:normal;
+ }
+ html body #teacher-classroom-grades-modal-overlay .teacher-grades-modal-table .classroom-grades-avatar-wrap {
+  width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;flex:0 0 38px!important;
+ }
+ html body #teacher-classroom-grades-modal-overlay .classroom-grades-avatar-wrap :is(.sigma-user-avatar,img) {
+  width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;min-height:38px!important;max-height:38px!important;
+  padding:0!important;aspect-ratio:1!important;flex:0 0 38px!important;border-radius:50%!important;object-fit:cover;overflow:hidden;
+ }
+}

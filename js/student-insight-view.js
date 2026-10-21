@@ -88,7 +88,10 @@
             if (next < 0 || next >= insightCards.length) return;
             const card = insightCards[next];
             const opener = card.querySelector('.sigma-insight-open');
-            if (opener && card.isConnected) renderInsight(opener, card);
+            // Admin refreshes the underlying rail while this dialog remains open.
+            // Retain navigation through its original report cards after that refresh.
+            const retainedAdminInsight = location.pathname.toLowerCase().includes('admin') && card.dataset.reportInsight === 'true';
+            if (opener && (card.isConnected || retainedAdminInsight)) renderInsight(opener, card);
         }));
         dialog.appendChild(footer);
         document.body.appendChild(dialog);
@@ -137,7 +140,7 @@
         if (!content) return;
         activeCard = card;
         if (card.dataset.reportInsight !== 'true') window.markInsightRead?.(card.dataset.id);
-        dialog.querySelector('h2').textContent = button.querySelector('span')?.textContent.trim() || button.textContent.trim();
+        dialog.querySelector('h2').textContent = card.querySelector('.sigma-insight-title')?.textContent.trim() || button.textContent.trim();
         const iconSlot = dialog.querySelector('.sigma-insight-detail-icon');
         if (iconSlot) {
             const cardIcon = button.querySelector('i') || card?.querySelector('.sigma-insight-open i, .sigma-insight-title i, .sigma-insight-header i');

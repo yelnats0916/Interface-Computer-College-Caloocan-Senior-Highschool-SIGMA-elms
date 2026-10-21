@@ -912,11 +912,11 @@
         return `
             <div data-id="${data.id}" class="sigma-card pocket-card sigma-card--student pocket-card--student${compactInsight ? ' sigma-card--insight' : ''}">
                 <!-- Card Header: Category Icon + Concern Title (Title Case) + Date + Pin Button -->
-                <div class="bg-[#15803d] px-4 py-2 flex items-center justify-between flex-shrink-0 h-[38px] leading-none${compactInsight ? ' sigma-insight-header' : ''}"${compactInsight ? ` onclick="if (!event.target.closest('.sigma-card-pin-btn, .pocket-card-pin-btn')) window.openStudentInsight?.(this.querySelector('.sigma-insight-open'));"` : ''}>
-                    ${compactInsight ? `<h4 class="sigma-insight-title"><button type="button" class="sigma-insight-open" aria-haspopup="dialog" onclick="event.stopPropagation(); window.openStudentInsight?.(this)"><i class="fa-solid ${data.categoryIcon} ${data.headerIconColor || 'text-[#FFD000]'}" aria-hidden="true"></i><span>${data.concernTitle}</span></button></h4>` : `
+                <div class="bg-[#15803d] px-4 py-2 flex items-center justify-between flex-shrink-0 h-[38px] leading-none${compactInsight ? ' sigma-insight-header' : ''}">
+                    ${compactInsight ? `<h4 class="sigma-insight-title"><span class="sigma-insight-title-label"><i class="fa-solid ${data.categoryIcon} ${data.headerIconColor || 'text-[#FFD000]'}" aria-hidden="true"></i><span>${data.concernTitle}</span></span></h4>` : `
                     <div class="flex items-center gap-2 min-w-0">
                         <i class="fa-solid ${data.categoryIcon} ${data.headerIconColor || 'text-[#FFD000]'} text-[12.5px] flex-shrink-0"></i>
-                        <h4 class="text-[13px] font-bold text-white tracking-normal truncate leading-none">${compactInsight ? `<button type="button" class="sigma-insight-open" aria-haspopup="dialog" onclick="window.openStudentInsight?.(this)">${data.concernTitle}</button>` : data.concernTitle}</h4>
+                        <h4 class="text-[13px] font-bold text-white tracking-normal truncate leading-none">${data.concernTitle}</h4>
                     </div>`}
                     <div class="flex items-center gap-2 flex-shrink-0 leading-none${compactInsight ? ' sigma-insight-actions' : ''}">
                         ${data.datePlacement !== 'footer' ? `<span class="text-[10px] text-white/85 font-medium tracking-tight leading-none">${data.date || ''}</span>` : ''}
@@ -947,6 +947,7 @@
                         ${compactInsight ? (data.previewText || data.concernText.replace(/<br\s*\/?>/gi, ' ')) : data.concernText}
                     </p>
                     ${compactInsight ? '</div>' : ''}
+                    ${compactInsight ? '<button type="button" class="sigma-insight-open sigma-insight-read-more" aria-haspopup="dialog" onclick="event.stopPropagation(); window.openStudentInsight?.(this)">Read more</button>' : ''}
                     ${compactInsight ? `<template class="sigma-insight-full-content">${data.concernText}</template>` : ''}
                 </div>
 
@@ -967,15 +968,13 @@
         card.querySelectorAll('.sigma-card-pin-btn').forEach(node => node.remove());
         if (interactive) {
             const opener = card.querySelector('.sigma-insight-open');
-            card.addEventListener('click', () => window.openStudentInsight?.(opener));
+            opener?.addEventListener('click', event => {
+                event.stopPropagation();
+                window.openStudentInsight?.(opener);
+            });
             return card;
         }
-        card.querySelectorAll('.sigma-insight-open').forEach(button => {
-            const title = document.createElement('span');
-            title.className = 'sigma-insight-open';
-            while (button.firstChild) title.append(button.firstChild);
-            button.replaceWith(title);
-        });
+        card.querySelectorAll('.sigma-insight-open').forEach(button => button.remove());
         const preview = card.querySelector('.sigma-insight-preview');
         const full = card.querySelector('.sigma-insight-full-content');
         if (preview && full) { preview.replaceChildren(full.content.cloneNode(true)); full.remove(); }
@@ -2378,6 +2377,7 @@
     window.confirmAdminTeacherSelection = function () {
         if (window._pendingAdminTeacher) {
             window.sigmaGradesState.selectedTeacher = window._pendingAdminTeacher;
+            window.sigmaGradesState.teacherAdvisoryView = false;
             window.sigmaGradesState.selectedSubjectSection = null; // Reset subject & section
             saveSigmaGradesState();
             window.closeAdminTeacherModal();
@@ -2468,22 +2468,29 @@
             const avatarHtml = (typeof window.renderUserAvatarHtml === 'function')
                 ? window.renderUserAvatarHtml(teacher, 'w-10 h-10', 'text-sm')
                 : `<div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-xs shrink-0 text-slate-700">${escapeHtml(name.charAt(0))}</div>`;
+            const assignedSubjects = new Map();
+            (window.getTeacherAssignedSubjectsAndSections?.(teacher) || []).forEach(assignment => {
+                if (!assignment.subject) return;
+                if (!assignedSubjects.has(assignment.subject)) assignedSubjects.set(assignment.subject, new Set());
+                if (assignment.sectionName) assignedSubjects.get(assignment.subject).add(formatGradeSectionDisplay(assignment.sectionName, assignment.grade));
+            });
 
             return `
                 <div onclick="window.setPendingAdminTeacherByIndex(${idx})" 
-                    style="${isSelected ? 'background-color: #e7f6ec !important;' : 'background-color: #ffffff;'}"
-                    class="group p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between relative font-['Inter'] cursor-pointer ${isSelected ? 'sigma-selected-teacher-row' : ''}">
-                    ${isSelected ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-[#15803d]"></div>` : ''}
-                    <div class="flex items-center gap-3.5 min-w-0 flex-1 ${isSelected ? 'pl-1' : ''}">
+                    aria-selected="${isSelected}"
+                    class="faculty-directory-row group p-3.5 hover:bg-black/[0.03] transition-colors flex items-center justify-between relative font-['Inter'] cursor-pointer ${isSelected ? 'sigma-row-selected' : ''}">
+                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
                         ${avatarHtml}
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2.5 truncate">
                                 <p class="text-sm font-bold text-black tracking-tight truncate">${escapeHtml(name)}</p>
-                                ${isSelected ? `<span class="text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-['Inter'] shrink-0">Selected</span>` : ''}
                             </div>
                             <p class="text-xs text-black/40 font-medium font-['Inter'] mt-0.5">ID: ${escapeHtml(idDisplay)}</p>
                         </div>
                     </div>
+                    <div class="faculty-directory-subjects" aria-label="Assigned subjects">${assignedSubjects.size
+                        ? [...assignedSubjects].map(([subject, sections]) => `<div class="faculty-directory-assignment"><span>${escapeHtml(subject)}</span><small>${escapeHtml([...sections].join(' · '))}</small></div>`).join('')
+                        : '<span>No subjects assigned</span>'}</div>
                 </div>
             `;
         }).join('');
@@ -2509,6 +2516,7 @@
 
         if (teacher) {
             window.sigmaGradesState.selectedTeacher = teacher;
+            window.sigmaGradesState.teacherAdvisoryView = false;
             window.sigmaGradesState.selectedSubjectSection = null; // Reset subject & section
             window._pendingAdminTeacher = teacher;
             window._pendingAdminTeacherId = String(teacher.uid || teacher.id || teacher.employeeId || teacher.email || '');
@@ -2596,6 +2604,7 @@
         if (!item) return;
 
         window.sigmaGradesState.selectedSubjectSection = item;
+        window.sigmaGradesState.teacherAdvisoryView = false;
         window.sigmaGradesState.selectedSection = item.sectionName;
         window.sigmaGradesState.selectedSubject = item.subject;
         window.sigmaGradesState.weights = loadAdminGradebookWeights(item.subject);
@@ -2618,6 +2627,14 @@
         window.renderAdminAnalyticsWorkspace();
     };
 
+    window.selectDistributionQuarter = function (quarter) {
+        const subject = window.sigmaGradesState.selectedSubjectSection;
+        if (!subject || !window.getSubjectAvailableQuarters(subject.subject).includes(Number(quarter))) return;
+        const key = JSON.stringify(['grade-distribution', getEffectiveTeacher()?.id || getEffectiveTeacher()?.uid || getEffectiveTeacher()?.name, subject.subject, subject.sectionName]);
+        window.rememberPerformanceQuarter(key, Number(quarter));
+        window.renderAdminAnalyticsWorkspace();
+    };
+
     window.switchAdminQuarter = function (quarter) {
         const subject = window.sigmaGradesState.selectedSubjectSection;
         const available = subject && window.getSubjectAvailableQuarters(subject.subject);
@@ -2635,7 +2652,7 @@
         if (!quartersContainer) return;
 
         const subSec = window.sigmaGradesState.selectedSubjectSection;
-        if (!subSec) {
+        if (!subSec || (window.sigmaGradesState.activeTab === 'analytics' && window.sigmaGradesState.teacherAdvisoryView)) {
             quartersContainer.classList.add('hidden');
             quartersContainer.innerHTML = '';
             return;
@@ -2656,17 +2673,9 @@
             4: '4th Quarter'
         };
         if (window.renderSharedQuarterDropdown) {
-            quartersContainer.innerHTML = window.renderSharedQuarterDropdown(quarters, Number(window.sigmaGradesState.activeQuarter), q => `window.switchAdminQuarter(${q})`);
-            if(!isCurrentPageTeacherPortal()&&window.sigmaGradesState.activeTab==='analytics'){
-                const selectedSection=window.sigmaGradesState.selectedSubjectSection?.sectionName;
-                const normalize=value=>String(value||'').trim().toLowerCase();
-                if(selectedSection&&getAdvisorySectionRecords().some(section=>normalize(section.name||section.sectionName)===normalize(selectedSection))){
-                    const advisory=document.createElement('button');advisory.type='button';advisory.className='sigma-btn sigma-btn-primary sigma-btn-md';
-                    advisory.innerHTML='<i class="fa-solid fa-users" aria-hidden="true"></i><span>Advisory Class</span>';
-                    advisory.onclick=()=>window.openTeacherAdvisoryClass();
-                    quartersContainer.prepend(advisory);
-                }
-            }
+            const hideAdminAnalyticsQuarter = !isCurrentPageTeacherPortal() && window.sigmaGradesState.activeTab === 'analytics';
+            quartersContainer.innerHTML = hideAdminAnalyticsQuarter ? '' : window.renderSharedQuarterDropdown(quarters, Number(window.sigmaGradesState.activeQuarter), q => `window.switchAdminQuarter(${q})`);
+            if (!quartersContainer.children.length) quartersContainer.classList.add('hidden');
             return;
         }
 
@@ -2698,7 +2707,11 @@
         const teacher = getEffectiveTeacher();
         const subSec = window.sigmaGradesState.selectedSubjectSection;
         const openSection = document.getElementById('admin-gradebook-open-section');
-        if (openSection) openSection.hidden = isTeacher || !subSec || window.sigmaGradesState.activeTab !== 'gradebook';
+        if (openSection) {
+            const visible = !isTeacher && !!teacher && !!subSec && !window.sigmaGradesState.teacherAdvisoryView;
+            openSection.hidden = !visible;
+            openSection.style.setProperty('display', visible ? 'inline-flex' : 'none', 'important');
+        }
 
         // 1. Teacher Picker UI
         const teacherLabel = document.getElementById('admin-gradebook-picker-teacher-label');
@@ -2738,6 +2751,29 @@
             } else {
                 subWrapper.classList.add('hidden');
             }
+            let advisoryNavigation = document.getElementById('admin-analytics-advisory-navigation');
+            if (!isTeacher && !advisoryNavigation) {
+                advisoryNavigation = document.createElement('button');
+                advisoryNavigation.id = 'admin-analytics-advisory-navigation';
+                advisoryNavigation.type = 'button';
+                advisoryNavigation.className = 'sigma-btn sigma-btn-primary sigma-btn-md grade-class-nav-button';
+                const sectionAction = document.getElementById('admin-gradebook-open-section');
+                if (sectionAction) sectionAction.after(advisoryNavigation);
+                else subWrapper.after(advisoryNavigation);
+            }
+            if (advisoryNavigation) {
+                const available = !isTeacher && !!teacher && getAdvisorySectionRecords().length > 0;
+                advisoryNavigation.classList.toggle('admin-gradebook-advisory-navigation', window.sigmaGradesState.activeTab === 'gradebook');
+                advisoryNavigation.hidden = !available;
+                advisoryNavigation.style.setProperty('display', available ? 'inline-flex' : 'none', 'important');
+                const advisoryView = available && window.sigmaGradesState.teacherAdvisoryView;
+                advisoryNavigation.innerHTML = advisoryView
+                    ? '<i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i><span>Subject Classes</span>'
+                    : '<i class="fa-solid fa-users" aria-hidden="true"></i><span>Advisory Class</span>';
+                advisoryNavigation.onclick = () => advisoryView ? window.backToTeacherGradeClasses() : window.openGradebookAdvisoryClass();
+                if (advisoryView) { subWrapper.classList.add('hidden'); subWrapper.style.setProperty('display','none','important'); }
+                else subWrapper.style.removeProperty('display');
+            }
         }
 
         if (subLabel) {
@@ -2766,6 +2802,34 @@
 
         // 3. Quarters Tabs UI
         window.renderAdminQuartersTabs();
+        const shareControl = document.getElementById('grades-submit-export');
+        if (shareControl) {
+            document.getElementById('teacher-gradebook-advisory-desktop')?.remove();
+            document.getElementById('teacher-gradebook-advisory-mobile')?.remove();
+            document.getElementById('admin-gradebook-advisory-mobile')?.remove();
+            if (!isTeacher && teacher && window.sigmaGradesState.activeTab === 'gradebook' && getAdvisorySectionRecords().length) {
+                const action = document.createElement('button');
+                action.id = 'admin-gradebook-advisory-mobile';
+                action.type = 'button';
+                action.innerHTML = '<i class="fa-solid fa-users" aria-hidden="true"></i><span>Advisory Class</span>';
+                action.onclick = () => window.openGradebookAdvisoryClass();
+                document.getElementById('grades-submit-export-menu')?.append(action);
+            }
+            if (isTeacher && window.sigmaGradesState.activeTab === 'gradebook' && getAdvisorySectionRecords().length) {
+                const desktopAction = document.createElement('button');
+                desktopAction.id = 'teacher-gradebook-advisory-desktop';
+                desktopAction.type = 'button';
+                desktopAction.className = 'sigma-btn sigma-btn-primary sigma-btn-md grade-class-nav-button';
+                desktopAction.innerHTML = '<i class="fa-solid fa-users" aria-hidden="true"></i><span>Advisory Class</span>';
+                desktopAction.onclick = () => window.openGradebookAdvisoryClass();
+                shareControl.before(desktopAction);
+                const mobileAction = desktopAction.cloneNode(true);
+                mobileAction.id = 'teacher-gradebook-advisory-mobile';
+                mobileAction.className = '';
+                mobileAction.onclick = () => window.openGradebookAdvisoryClass();
+                document.getElementById('grades-submit-export-menu')?.append(mobileAction);
+            }
+        }
 
         const advisoryButton = document.getElementById('grades-advisory-class-btn');
         if (advisoryButton) {
@@ -2889,6 +2953,13 @@
         if (s.includes('pe') || s.includes('physical') || s.includes('health') || s.includes('sports')) return 'fa-solid fa-heart-pulse';
         return 'fa-solid fa-book-open';
     }
+    window.openGradebookAdvisoryClass = function () {
+        if (!getAdvisorySectionRecords().length) return;
+        window.closeGradesSubmitExportMenu();
+        if (isCurrentPageTeacherPortal()) window.switchTab?.('nav-grades', true, 'analytics');
+        window.switchAdminGradesTab('analytics');
+        window.openTeacherAdvisoryClass();
+    };
     window.openTeacherAdvisoryClass = function () {
         if (!isCurrentPageTeacherPortal() && window.sigmaGradesState.activeTab !== 'analytics') return;
         const assignments=window.getTeacherAssignedSubjectsAndSections(getEffectiveTeacher())||[];
@@ -2901,6 +2972,7 @@
             history.pushState({...history.state,teacherGradesView:'advisory'},'',isCurrentPageTeacherPortal()?'#grades:analytics':'#school-grades:analytics');
         }
         window.sigmaGradesState.teacherAdvisoryView=true;
+        window.renderAdminQuartersTabs();
         saveSigmaGradesState();
         const header=document.getElementById('nav-context-text');
         if(header){header.classList.add('advisory-header-title');header.innerHTML='<span class="advisory-header-parent">Grades</span><span class="advisory-header-main">Advisory Class</span>';}
@@ -2928,20 +3000,33 @@
             return [...new Set(names.map(value=>typeof value==='object'?value.subject||value.name:value).filter(Boolean))].map(subject=>({subject,sectionName:section.name||section.sectionName,grade:section.grade||section.gradeLevel}));
         });
         window._advisoryReviewSubjects=subjects;
-        const body=document.createElement('div');body.className='teacher-class-overview-body';body.style.marginTop='24px';
-        body.innerHTML=`<div class="teacher-class-panels">${subjects.map((item,index)=>`<article class="teacher-class-panel"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.sectionName)}</p></div></header><div class="teacher-class-panel-students"><strong>${(window.getStudentsForSection?.(item.sectionName)||[]).length}</strong><span>Students</span></div><p class="teacher-student-grade-empty">Awaiting Submitted Grades</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openAdvisorySubjectReview(${index})"><span>Review Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')||'<div class="teacher-grades-empty"><h3>No Subjects Assigned Yet</h3></div>'}</div><aside class="teacher-class-grade-list"><header><h3>General Average</h3>${window.renderSharedQuarterDropdown([1,2,3,4],window.sigmaGradesState.activeQuarter||1,q=>`window.sigmaGradesState.activeQuarter=${q};window.openTeacherAdvisoryClass()`)}</header>${sections.map(section=>(window.getStudentsForSection?.(section)||[]).map(student=>`<div class="teacher-student-grade-entry"><div><strong>${escapeHtml(student.fullName||student.name||'Student')}</strong><p>${escapeHtml(section)} · Incomplete</p></div><span class="teacher-quarter-grade-empty">-</span></div>`).join('')).join('')||'<p class="teacher-student-grade-empty">No Students Assigned Yet</p>'}</aside>`;
+        const body=document.createElement('div');body.className='teacher-class-overview-body';
+        body.innerHTML=`<div class="teacher-class-panels">${subjects.map((item,index)=>`<article class="teacher-class-panel"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(item.sectionName)}</p></div></header><div class="teacher-class-panel-students"><strong>${(window.getStudentsForSection?.(item.sectionName)||[]).length}</strong><span>Students</span></div><p class="teacher-student-grade-empty">Awaiting Submitted Grades</p><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md" onclick="window.openAdvisorySubjectReview(${index})"><span>Review Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')||'<div class="teacher-grades-empty"><h3>No Subjects Assigned Yet</h3></div>'}</div><aside class="teacher-class-grade-list"><header><h3>General Average</h3>${window.renderSharedQuarterDropdown([1,2,3,4],window.sigmaGradesState.activeQuarter||1,q=>`window.sigmaGradesState.activeQuarter=${q};window.openTeacherAdvisoryClass()`)}</header>${sections.map(section=>(window.getStudentsForSection?.(section)||[]).map(student=>`<div class="teacher-student-grade-entry"><div><strong>${escapeHtml(student.fullName||student.name||'Student')}</strong><p>${escapeHtml(section)} · Incomplete</p></div><span class="teacher-quarter-grade-empty">-</span></div>`).join('')).join('')||'<p class="teacher-student-grade-empty">No Students Assigned Yet</p>'}</aside>`;
         page.append(body);
+        const subjectClassTools = page.querySelector(':scope > .teacher-class-advisory-tools');
+        if (subjectClassTools) body.querySelector('.teacher-class-grade-list').prepend(subjectClassTools);
+        if (!isCurrentPageTeacherPortal()) {
+            subjectClassTools?.remove();
+            window.updateAdminSharedNavbarUI();
+        }
+        syncGradeOverviewTools();
         body.querySelectorAll('.teacher-class-panel').forEach((panel,index)=>{
             const item=subjects[index];
             const students=window.getStudentsForSection?.(item.sectionName)||[];
             const quarter=Number(window.sigmaGradesState.activeQuarter)||1;
             let submitted=0;
+            let revised=false;
             try{
                 const year=window.getActiveSchoolYearRecord?.()||{};
                 const schoolYear=year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified';
                 const normalize=value=>String(value||'').trim().toLowerCase();
                 const key=JSON.stringify([schoolYear,normalize(item.sectionName),normalize(item.subject),quarter]);
-                const record=JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1')||'{}')[key];
+                const sharedState=window.SigmaGradeSync?.getSharedRecords();
+                const record=sharedState?.ready?sharedState.records[key]:JSON.parse(localStorage.getItem('sigma-submitted-quarter-grades-v1')||'{}')[key];
+                const remotePublished=window.SigmaGradeSync?.getPublished(key);
+                const publishedRecord=remotePublished?.ready?remotePublished.record:JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}')[key];
+                const values=rows=>JSON.stringify((rows||[]).map(row=>[String(row.id),row.grade]).sort());
+                revised=Boolean(record&&publishedRecord&&values(record.rows)!==values(publishedRecord.rows));
                 submitted=students.filter(student=>record?.rows?.some(row=>[student.id,student.uid,student.lrn,student.studentNumber].filter(Boolean).map(String).includes(String(row.id))&&Number.isFinite(row.grade))).length;
             }catch(_){}
             const summary=panel.querySelector('.teacher-class-panel-students');
@@ -2953,8 +3038,8 @@
             const ready=students.length>0&&submitted===students.length;
             const status=panel.querySelector('.teacher-student-grade-empty');
             if(status){
-                status.textContent=published?'Published':ready?'Ready for Review':'Pending';
-                status.dataset.gradeStatus=published?'published':ready?'ready':'pending';
+                status.textContent=revised?'Updated — Review Required':published?'Published':ready?'Ready for Review':'Pending';
+                status.dataset.gradeStatus=revised?'ready':published?'published':ready?'ready':'pending';
                 status.setAttribute('role','status');
                 status.title=`Quarter ${quarter}: ${status.textContent}`;
             }
@@ -3010,22 +3095,33 @@
         window.openSharedGradeRecord?.({mode:'review'});
         const host=document.getElementById('admin-gradebook-workspace-content');
         host?.querySelector('.record-update')?.remove();
-        const publish=host?.querySelector('.record-share');
-        if(publish)publish.textContent='Publish to Students';
         const header=document.getElementById('nav-context-text');
         if(header)header.innerHTML='<span class="advisory-header-parent">Grades</span><span class="advisory-header-main">Review Grades</span>';
     };
+    function syncGradeOverviewTools() {
+        document.querySelectorAll('.teacher-class-overview-body').forEach(body => {
+            const page = body.parentElement;
+            const sidebar = body.querySelector(':scope > .teacher-class-grade-list');
+            const tools = sidebar?.querySelector(':scope > .teacher-class-advisory-tools') || page.querySelector(':scope > .teacher-class-advisory-tools');
+            if (!tools || !sidebar) return;
+            if (window.matchMedia('(max-width:1000px)').matches) body.before(tools);
+            else sidebar.prepend(tools);
+        });
+    }
+    window.matchMedia('(max-width:1000px)').addEventListener('change', syncGradeOverviewTools);
     const refreshVisibleAdvisoryGrades=()=>{
         const state=window.sigmaGradesState;
         const host=document.getElementById('admin-analytics-workspace-content');
         if(state?.teacherAdvisoryView&&state.activeTab==='analytics'&&host?.querySelector('.teacher-class-overview-body')&&!host.closest('.hidden')){
             window.openTeacherAdvisoryClass();
+        } else if(state?.activeTab==='analytics'&&host?.querySelector('.teacher-student-performance-list')&&!host.closest('.hidden')){
+            window.renderAdminAnalyticsWorkspace();
         }
     };
     window.addEventListener('sigma:grades-submitted',refreshVisibleAdvisoryGrades);
     window.addEventListener('sigma:grades-published',refreshVisibleAdvisoryGrades);
     window.addEventListener('storage',event=>{
-        if(['sigma-submitted-quarter-grades-v1','sigma-published-quarter-grades-v1'].includes(event.key))refreshVisibleAdvisoryGrades();
+        if(['sigma-submitted-quarter-grades-v1','sigma-published-quarter-grades-v1','sigma-admin-sections','sigma-sections-list','sigma-admin-sections-v1','sigma-sections'].includes(event.key))refreshVisibleAdvisoryGrades();
     });
     window.backToTeacherGradeClasses = function () {
         window.sigmaGradesState.teacherAdvisoryView=false;
@@ -3033,7 +3129,11 @@
         if(header){header.classList.remove('advisory-header-title');}
         window.setPortalHeader?.('Grades', 'Subject Classes');
         window.sigmaGradesState.teacherAnalyticsDetail=false;
+        if (!isCurrentPageTeacherPortal()) {
+            Object.assign(window.sigmaGradesState, { selectedSubjectSection:null, selectedSubject:'', selectedSection:'' });
+        }
         saveSigmaGradesState();
+        window.updateAdminSharedNavbarUI();
         window.renderAdminAnalyticsWorkspace();
     };
     window.renderAdminAnalyticsWorkspace = function () {
@@ -3062,15 +3162,20 @@
                             })
                         )
                     ));
-                    return `<article class="teacher-class-panel" data-subject="${escapeHtml(item.subject)}"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(formatGradeSectionDisplay(item.sectionName,item.grade))}</p></div></header><div class="teacher-class-panel-students"><strong>${students.length}</strong><span>Students</span></div><div class="teacher-class-panel-quarters"><span>Quarters Graded</span><div>${[1,2,3,4].map(q=>`<span class="${gradedQuarters.includes(q)?'is-graded':''}" aria-label="Quarter ${q}${gradedQuarters.includes(q)?' graded':' not graded'}">Q${q}</span>`).join('')}</div></div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="window.openTeacherOverviewClass(${index})"><span>View Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`;
+                    return `<article class="teacher-class-panel" data-subject="${escapeHtml(item.subject)}"><header><span class="teacher-class-panel-icon"><i class="${getAnalyticsSubjectIcon(item.subject)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(item.subject)}</h3><p>${escapeHtml(formatGradeSectionDisplay(item.sectionName,item.grade))}</p></div></header><div class="teacher-class-panel-students"><strong>${students.length}</strong><span>Students</span></div><div class="teacher-class-panel-quarters"><span>Quarters Graded</span><div>${[1,2,3,4].map(q=>`<span class="${gradedQuarters.includes(q)?'is-graded':''}" aria-label="Quarter ${q}${gradedQuarters.includes(q)?' graded':' not graded'}">Q${q}</span>`).join('')}</div></div><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md" onclick="window.openTeacherOverviewClass(${index})"><span>View Grades</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></article>`;
                 }).join('') || '<div class="teacher-grades-empty" role="status"><i class="fa-solid fa-book-open" aria-hidden="true"></i><h3>No Assigned Classes Yet</h3><p>Your subjects and sections will appear here once assigned.</p></div>'}</div></div>`;
             const panels=workspaceContainer.querySelector('.teacher-class-panels');
             panels.querySelectorAll('button[onclick^="window.openTeacherOverviewClass"] i').forEach(icon=>icon.remove());
             panels.querySelectorAll('.teacher-class-panel').forEach((panel,index)=>{
                 const item=assignments[index];
                 const students=window.getStudentsForSection?.(item.sectionName,item.subject)||[];
-                panel.querySelectorAll('.teacher-class-panel-quarters > div > span').forEach((badge,quarterIndex)=>{
-                    const quarter=quarterIndex+1;
+                const activeQuarters = (window.getSubjectActiveQuarters?.(item.subject) || ['q1','q2'])
+                    .map(q => Number(String(q).replace(/^q/i,''))).filter(q => q >= 1 && q <= 4);
+                const quarterGrid = panel.querySelector('.teacher-class-panel-quarters > div');
+                if (quarterGrid) quarterGrid.style.gridTemplateColumns = `repeat(${activeQuarters.length},minmax(0,1fr))`;
+                panel.querySelectorAll('.teacher-class-panel-quarters > div > span').forEach(badge=>{
+                    const quarter=Number(badge.textContent.replace(/^Q/i,''));
+                    if (!activeQuarters.includes(quarter)) { badge.remove(); return; }
                     const assessments=['ww','pt','qa'].flatMap(category=>(getAdminGradebookAssessmentItems(category,quarter,item.subject,item.sectionName)||[]).map((assessment,itemIndex)=>({category,assessment,itemIndex})));
                     const remaining=students.filter(student=>assessments.some(({category,assessment,itemIndex})=>{
                         const score=getAdminGradebookStudentItemScore({...student,section:item.sectionName},category,itemIndex,assessment,item.subject,quarter);
@@ -3094,6 +3199,9 @@
             const sidebar=document.createElement('aside');sidebar.className='teacher-class-grade-list';
             sidebar.innerHTML='<header><h3>Student Grades</h3><div data-student-grades-quarter></div></header><div data-student-grade-list></div>';
             body.append(sidebar);
+            const advisoryTools = body.parentElement.querySelector(':scope > .teacher-class-advisory-tools');
+            if (advisoryTools) sidebar.prepend(advisoryTools);
+            syncGradeOverviewTools();
             let studentGradesQuarter=Number(window.sigmaGradesState.activeQuarter)||1;
             const renderStudentQuarter=()=>{
                 sidebar.querySelector('[data-student-grades-quarter]').innerHTML=window.renderSharedQuarterDropdown(
@@ -3175,7 +3283,11 @@
         const wwWeight = Number(weights.ww ?? 25) / 100;
         const ptWeight = Number(weights.pt ?? 50) / 100;
         const qaWeight = Number(weights.qa ?? 25) / 100;
-        const activeQuarter = window.sigmaGradesState.activeQuarter || 1;
+        const subjectQuarters = (window.getSubjectActiveQuarters?.(subSec.subject) || ['q1','q2'])
+            .map(q => Number(String(q).replace(/^q/i,''))).filter(q => q >= 1 && q <= 4);
+        const distributionPanelKey = JSON.stringify(['grade-distribution', getEffectiveTeacher()?.id || getEffectiveTeacher()?.uid || getEffectiveTeacher()?.name, subSec.subject, subSec.sectionName]);
+        const activeQuarter = window.restorePerformanceQuarter(distributionPanelKey, subjectQuarters);
+        window.sigmaGradesState.activeQuarter = activeQuarter;
         const quarterLabels = { 1: '1st Quarter', 2: '2nd Quarter', 3: '3rd Quarter', 4: '4th Quarter' };
         const activeQuarterLabel = quarterLabels[activeQuarter] || `Quarter ${activeQuarter}`;
 
@@ -3252,17 +3364,8 @@
                 if (sPtPct !== null) ptPercentages.push(sPtPct);
                 if (sQaPct !== null) qaPercentages.push(sQaPct);
 
-                if (sWwHas || sPtHas || sQaHas) {
-                    const effWw = sWwPct ?? 0;
-                    const effPt = sPtPct ?? 0;
-                    const effQa = sQaPct ?? 0;
-                    const initial = (effWw * wwWeight) + (effPt * ptWeight) + (effQa * qaWeight);
-                    const transmuted = (typeof SigmaGradeEngine !== 'undefined' && typeof SigmaGradeEngine.transmute === 'function')
-                        ? SigmaGradeEngine.transmute(initial)
-                        : Math.round(initial);
-                    studentFinalGrades.push(transmuted);
-                    studentQuarterGrades.get(s)[qNum-1]=transmuted;
-                }
+                // Official quarter grades come only from advisory publication.
+                // Assessment component percentages remain available while grades are being prepared.
             });
 
             const average = values => values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
@@ -3452,7 +3555,7 @@
                         <div>
                             <h3 class="text-sm font-bold text-black tracking-tight">DepEd Grade Distribution</h3>
                         </div>
-                        ${window.renderSharedQuarterDropdown([1,2,3,4],activeQuarter,q=>`window.switchAdminQuarter(${q})`)}
+                        ${window.renderSharedQuarterDropdown(subjectQuarters,activeQuarter,q=>`window.selectDistributionQuarter(${q})`)}
                     </div>
 
                     <div class="space-y-4">
@@ -3542,12 +3645,25 @@
             workspaceContainer.querySelector('.teacher-analytics-detail-tools > button[onclick="window.backToTeacherGradeClasses()"]')?.remove();
             workspaceContainer.querySelector('.teacher-analytics-detail-tools > button[title="Advisory Class is not connected yet"]')?.remove();
             const table = workspaceContainer.querySelector('.teacher-quarter-grade-table');
+            if (table) {
+                table.classList.add('teacher-mobile-grade-cards');
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    Array.from(row.cells).slice(2).forEach((cell, index) => {
+                        cell.dataset.mobileGradeLabel = ['Q1', 'Q2', 'Q3', 'Q4', 'Final'][index];
+                        cell.dataset.gradeLabel = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter', 'Final'][index];
+                    });
+                });
+            }
             const quarterNames=['1st Quarter','2nd Quarter','3rd Quarter','4th Quarter'];
             if(students.length)table?.querySelectorAll('tbody tr td:first-child').forEach((cell, rowIndex)=>{
                 const studentObj = students[rowIndex] || cell.textContent;
                 const nameText = cell.textContent;
                 const rawIdText = String(cell.nextElementSibling?.textContent || '').replace(/^ID:\s*/i, '').trim();
                 const name=document.createElement('span');name.textContent=nameText;
+                const number=document.createElement('span');
+                number.className='teacher-quarter-student-number';
+                number.textContent=`${rowIndex + 1}. `;
+                name.prepend(number);
                 const studentId=document.createElement('span');studentId.className='teacher-quarter-mobile-id';
                 studentId.textContent=rawIdText ? `ID: ${rawIdText}` : '';
                 const nameStack=document.createElement('div');nameStack.className='teacher-quarter-student-details';
@@ -3566,6 +3682,15 @@
             table?.querySelectorAll('thead th').forEach((heading,index)=>{
                 if(index>=2&&index<=5)heading.innerHTML=`<span class="teacher-quarter-heading-full">${quarterNames[index-2]}</span><span class="teacher-quarter-heading-short">Q${index-1}</span>`;
             });
+            if (table) {
+                const semesterLabel = window.getGradeSemesterLabel(subjectQuarters);
+                const compactSemesterLabel = window.getGradeSemesterLabel(subjectQuarters, true);
+                table.querySelector('thead tr').lastElementChild.innerHTML = `<span class="teacher-quarter-heading-full">${semesterLabel}</span><span class="teacher-quarter-heading-short">${compactSemesterLabel}</span>`;
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    row.lastElementChild.dataset.gradeLabel = semesterLabel;
+                    row.lastElementChild.dataset.mobileGradeLabel = compactSemesterLabel;
+                });
+            }
             const averagePanel = table?.nextElementSibling;
             if (averagePanel) averagePanel.after(table);
             if(table){
@@ -3580,8 +3705,179 @@
                 toggle.onclick=()=>{table.classList.toggle('show-final-grade');updateToggle();};
                 table.querySelector('thead th:first-child').append(toggle);updateToggle();
             }
+            if (table) {
+                table.style.setProperty('--teacher-grade-columns', String(subjectQuarters.length + 1));
+                const allRows = [table.querySelector('thead tr'), ...table.querySelectorAll('tbody tr')].filter(Boolean);
+                allRows.forEach(row => {
+                    const cells = Array.from(row.children);
+                    if (cells.length < 7) { cells[0]?.setAttribute('colspan', String(subjectQuarters.length + 3)); return; }
+                    [1,2,3,4].forEach(q => { if (!subjectQuarters.includes(q)) cells[q + 1].remove(); });
+                });
+                table.querySelectorAll('tbody tr').forEach((row, index) => {
+                    const grades = studentQuarterGrades.get(students[index]);
+                    if (!grades || row.cells.length < 4) return;
+                    const configuredGrades = subjectQuarters.map(q => grades[q - 1]);
+                    const final = configuredGrades.every(Number.isFinite)
+                        ? Math.round(configuredGrades.reduce((sum, grade) => sum + grade, 0) / configuredGrades.length) : null;
+                    row.lastElementChild.innerHTML = final === null ? '<span class="teacher-quarter-grade-empty">-</span>' : escapeHtml(String(final));
+                });
+                mountStudentAssessmentBreakdown(table, {
+                    students, subSec, subjectQuarters, activeQuarter, weights,
+                    studentQuarterGrades
+                });
+            }
         }
     };
+
+    // Both teacher and admin analytics use the same scoped gradebook breakdown.
+    function mountStudentAssessmentBreakdown(table, context) {
+        if (!context.students.length) return;
+        const list = document.createElement('div');
+        list.className = 'teacher-student-performance-list';
+        const rows = [...table.querySelectorAll('tbody tr')];
+        const sourceTable = table.querySelector('table');
+        table.before(list);
+        rows.forEach((row, index) => {
+            const student = context.students[index];
+            if (!student) return;
+            const card = table.cloneNode(false);
+            const cardTable = sourceTable.cloneNode(false);
+            cardTable.append(sourceTable.querySelector('thead').cloneNode(true));
+            const body = document.createElement('tbody');
+            body.append(row);
+            cardTable.append(body);
+            card.append(cardTable);
+            list.append(card);
+            mountIndividualStudentAssessmentBreakdown(card, { ...context, students: [student], breakdownId: `student-assessment-breakdown-${index}` });
+        });
+        table.remove();
+    }
+
+    function mountIndividualStudentAssessmentBreakdown(table, context) {
+        const { students, subSec, subjectQuarters, activeQuarter, weights, studentQuarterGrades, breakdownId } = context;
+        if (!students.length) return;
+        const quarterPanelKey = JSON.stringify(['student-breakdown', getEffectiveTeacher()?.id || getEffectiveTeacher()?.uid || getEffectiveTeacher()?.name, subSec.sectionName, subSec.subject, students[0].id || students[0].uid || students[0].lrn || students[0].fullName || students[0].name]);
+        let panelQuarter = window.restorePerformanceQuarter(quarterPanelKey, subjectQuarters);
+
+        const layout = document.createElement('div');
+        layout.className = 'teacher-student-performance-layout';
+        table.before(layout);
+        layout.append(table);
+        const panel = document.createElement('aside');
+        panel.className = 'student-assessment-breakdown';
+        panel.id = breakdownId;
+        panel.setAttribute('aria-label', 'Student assessment breakdown');
+        panel.innerHTML = `<section class="student-assessment-breakdown-surface" aria-labelledby="${breakdownId}-title">
+            <header><h3 id="${breakdownId}-title" class="student-breakdown-heading-icon" aria-label="Assessment Breakdown"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i></h3>
+                <div class="student-breakdown-actions"><div data-breakdown-quarter></div></div>
+            </header>
+            <div data-breakdown-content aria-live="polite"></div>
+        </section>`;
+        layout.append(panel);
+        const rows = [...table.querySelectorAll('tbody tr')];
+        const number = value => Number(value.toFixed(1)).toString();
+        const hasScore = value => value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim() !== '-' && Number.isFinite(Number(value));
+        let returnFocus = null;
+        const close = () => {
+            panel.classList.remove('is-open');
+            const dropdown = panel.querySelector('details');
+            if (dropdown) dropdown.open = false;
+            panel.querySelector('section').removeAttribute('role');
+            panel.querySelector('section').removeAttribute('aria-modal');
+            rows.forEach(row => row.querySelector('.student-breakdown-trigger')?.setAttribute('aria-expanded', 'false'));
+            returnFocus?.focus();
+        };
+        const open = trigger => {
+            returnFocus = trigger;
+            if (!window.matchMedia('(max-width: 767px)').matches) return;
+            panel.classList.add('is-open');
+            panel.querySelector('section').setAttribute('role', 'dialog');
+            panel.querySelector('section').setAttribute('aria-modal', 'true');
+            trigger?.setAttribute('aria-expanded', 'true');
+            panel.querySelector('summary').focus();
+        };
+        const render = () => {
+            const student = { ...students[0], section: subSec.sectionName };
+            const categories = [{ key: 'ww', label: 'Written Work' }, { key: 'pt', label: 'Performance Tasks' }, { key: 'qa', label: 'Quarterly Assessment' }];
+            const html = categories.map(({ key, label }) => {
+                const items = getAdminGradebookAssessmentItems(key, panelQuarter, subSec.subject, subSec.sectionName);
+                let scoreSum = 0, maximum = 0, scored = 0;
+                items.forEach((item, index) => {
+                    const category = item._category || item.category || key;
+                    const itemIndex = item.itemIdx ?? index;
+                    const score = getAdminGradebookStudentItemScore(student, category, itemIndex, item, subSec.subject, panelQuarter);
+                    if (!hasScore(score)) return;
+                    scoreSum += Number(score);
+                    maximum += Number(item.max) || 100;
+                    scored++;
+                });
+                const percentage = scored && maximum > 0 ? scoreSum / maximum * 100 : null;
+                const weight = Number(weights[key] ?? 0);
+                const percentText = percentage === null ? '' : `${number(percentage)}%`;
+                const detail = percentage === null ? (items.length ? 'Not yet graded' : 'No assessments') : `${number(scoreSum)} / ${number(maximum)} points · ${number(percentage * weight / 100)} weighted points`;
+                const barPercent = percentage === null ? 0 : Math.max(0, Math.min(100, percentage));
+                const onFill = percentage !== null && barPercent >= 60;
+                return `<div class="student-breakdown-component" title="${escapeHtml(`${label}: ${detail}`)}"><div class="student-breakdown-track" role="img" aria-label="${escapeHtml(`${label}: ${percentage === null ? detail : percentText}`)}"><div style="height:${barPercent}%;background-color:${window.getTaskProgressColor?.(barPercent) || '#15803d'}"></div><strong class="student-breakdown-percent${percentage === null ? ' student-breakdown-missing' : onFill ? ' on-fill' : ''}" style="bottom:${onFill ? barPercent / 2 : 50}%;${percentage === null ? '' : `color:${onFill ? (window.getTaskProgressTextColor?.(barPercent) || '#fff') : '#000'};`}" aria-hidden="true">${percentText}</strong></div><div class="student-breakdown-label"><span>${key.toUpperCase()}%</span></div></div>`;
+            }).join('');
+            const grade = studentQuarterGrades.get(students[0])?.[panelQuarter - 1];
+            const displayGrade = value => Number.isFinite(value)
+                ? `<strong>${number(value)}</strong>`
+                : '<span class="student-breakdown-missing">-</span>';
+            panel.querySelector('[data-breakdown-content]').innerHTML = `<div class="student-breakdown-chart">${html}</div><footer><span>Quarter Grade: ${displayGrade(grade)}</span></footer>`;
+        };
+        rows.forEach((row, index) => {
+            if (!students[index]) return;
+            const identity = row.querySelector('.teacher-quarter-student-name');
+            if (!identity) return;
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'student-breakdown-trigger';
+            trigger.innerHTML = '<i class="fa-solid fa-chart-simple" aria-hidden="true"></i>';
+            trigger.setAttribute('aria-label', `View assessment breakdown for ${students[index].fullName || students[index].name || 'student'}`);
+            trigger.setAttribute('aria-controls', breakdownId);
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.addEventListener('click', () => open(trigger));
+            identity.append(trigger);
+        });
+        const renderQuarterMenu = () => {
+            const slot = panel.querySelector('[data-breakdown-quarter]');
+            slot.innerHTML = window.renderSharedQuarterDropdown(subjectQuarters, panelQuarter, () => '');
+            slot.querySelector('summary').setAttribute('aria-label', 'Assessment breakdown quarter');
+            slot.querySelectorAll('button').forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    panelQuarter = subjectQuarters[index];
+                    window.rememberPerformanceQuarter(quarterPanelKey, panelQuarter);
+                    render();
+                    renderQuarterMenu();
+                    slot.querySelector('summary').focus();
+                });
+            });
+        };
+
+        panel.addEventListener('click', event => { if (event.target === panel) close(); });
+        for (const eventName of ['touchmove', 'wheel']) {
+            panel.addEventListener(eventName, event => {
+                if (panel.classList.contains('is-open') && event.target === panel) event.preventDefault();
+            }, { passive: false });
+        }
+        panel.addEventListener('keydown', event => {
+            if (!panel.classList.contains('is-open')) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                const dropdown = panel.querySelector('details[open]');
+                if (dropdown) { dropdown.open = false; dropdown.querySelector('summary').focus(); }
+                else close();
+            }
+            if (event.key === 'Tab') {
+                const controls = [...panel.querySelectorAll('summary, button')].filter(el => el.getClientRects().length);
+                const first = controls[0], last = controls[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+            }
+        });
+        renderQuarterMenu();
+        render();
+    }
 
     window.openAdminGradebookWeightModal = function () {
         if (isCurrentPageTeacherPortal()) return;
@@ -3889,8 +4185,16 @@
     };
     window.setGradebookView = window.setSigmaGradebookView;
 
+    window.syncClassroomGradebookHeader = function () {
+        if (!isCurrentPageTeacherPortal() || window.sigmaGradesState?.activeTab !== 'gradebook' || window.location.hash.endsWith(':share-record')) return false;
+        const subject = window.sigmaGradesState.selectedSubjectSection?.subject || window._classroomGradebookContext?.subject;
+        window.setPortalHeader?.('My Classes', subject || 'Classrooms');
+        return true;
+    };
+
     window.renderAdminGradebookWorkspace = function () {
         if (window.sigmaGradesState.activeTab !== 'gradebook') return;
+        window.syncClassroomGradebookHeader();
         const workspaceContainer = document.getElementById('admin-gradebook-workspace-content');
         if (!workspaceContainer) return;
 
@@ -3910,11 +4214,11 @@
                         <span><i class="gb-key-swatch gb-key-excuse"></i>Excuse</span>
                     </div>
                     <table class="gb-empty-table w-full min-w-[700px] border-collapse table-fixed font-['Inter']" aria-label="Gradebook" data-empty-state="true">
-                        <colgroup><col style="width:25%">${Array(5).fill('<col style="width:15%">').join('')}</colgroup>
+                        <colgroup><col class="gb-empty-roster-number" style="width:48px"><col style="width:calc(25% - 48px)">${Array(5).fill('<col style="width:15%">').join('')}</colgroup>
                         <thead class="bg-[#15803d] text-white">
-                            <tr>${['Students', 'Written Works', 'Performance Task', 'Quarterly Assessment', 'Initial Grade', 'Quarterly Grade'].map(label => `<th scope="col" class="px-4 py-4 text-center text-sm font-semibold">${label}</th>`).join('')}</tr>
+                            <tr><th scope="col" class="gb-empty-roster-number px-4 py-4 text-center text-sm font-semibold">No.</th>${['Students', 'Written Works', 'Performance Task', 'Quarterly Assessment', 'Initial Grade', 'Quarterly Grade'].map(label => `<th scope="col" class="px-4 py-4 text-center text-sm font-semibold">${label}</th>`).join('')}</tr>
                         </thead>
-                        <tbody><tr><td colspan="6" class="px-6 py-16 text-center">
+                        <tbody><tr><td colspan="7" class="px-6 py-16 text-center">
                             <i class="fa-solid fa-table-cells text-3xl mb-4" style="color:rgba(0,0,0,0.45)" aria-hidden="true"></i>
                             <h3 class="text-base font-semibold text-black">${title}</h3>
                             <p class="text-sm mt-2" style="color:rgba(0,0,0,0.45)">${message}</p>
@@ -3986,6 +4290,7 @@
             students = getDemoGradebookStudents(subSec.sectionName);
         }
 
+        const rosterNumbers = new Map(students.map((student, index) => [student, index + 1]));
         const sortOrder = window.sigmaGradesState.studentSortOrder || 'name-asc';
         students = [...students].sort((a, b) => {
             const nameA = String(a.name || a.fullName || '').trim();
@@ -4036,7 +4341,7 @@
                             ${avatarHtml}
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="text-xs md:text-sm font-semibold text-slate-900 truncate leading-snug font-['Inter']">${escapeHtml(s.name || s.fullName || 'Student')}</p>
+                            <p class="gradebook-student-name text-xs md:text-sm font-semibold text-slate-900 truncate leading-snug font-['Inter']"><span class="gb-roster-inline">${rosterNumbers.get(s)}. </span>${escapeHtml(s.name || s.fullName || 'Student')}</p>
                             <p class="gradebook-student-id text-[11px] text-black/45 font-normal leading-normal mt-0.5 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">ID: ${escapeHtml(s.id || s.lrn || '—')}</p>
                         </div>
                     </div>
@@ -4132,6 +4437,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
 
                 return `
                     <tr class="bg-white border-b border-black/[0.08] font-['Inter'] cursor-default select-none">
+                        <td class="gb-roster-number">${rosterNumbers.get(s)}</td>
                         ${renderStudentCell(s)}
                         <td class="gb-mobile-total gb-summary-green text-center" title="Initial Grade">${initialDisplay}</td>
                         <td class="gb-mobile-total gb-summary-green text-center" title="Quarterly Grade">${finalDisplay}</td>
@@ -4159,7 +4465,8 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                     <div class="gb-mobile-view-switch">${mobileGradeStatusLegend()}<button type="button" aria-label="Grade summary" aria-pressed="${Boolean(window.sigmaGradesState.mobileGradesExpanded)}" onclick="window.toggleMobileGradebookSummary(this)"><span>Summary</span><span class="gb-summary-icon" aria-hidden="true"><i class="fa-solid fa-table"></i><i class="fa-solid fa-chevron-down"></i></span></button></div>
                     <table id="admin-gradebook-spreadsheet" class="gb-overview-table ${window.sigmaGradesState.mobileGradesExpanded ? 'gb-totals-expanded' : ''} w-full min-w-[700px] border-collapse table-fixed font-['Inter'] rounded-none shadow-none">
                         <colgroup>
-                            <col style="width: 25%; min-width: 240px;">
+                            <col class="gb-roster-number" style="width:48px;">
+                            <col class="gb-roster-name-col" style="width:calc(25% - 48px); min-width:192px;">
                             <col class="gb-mobile-total">
                             <col class="gb-mobile-total">
                             <col style="width: 15%; min-width: 120px;">
@@ -4170,6 +4477,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
                         </colgroup>
                         <thead class="sticky top-0 z-30 bg-[#15803d] shadow-xs rounded-none border-b border-[#166534]">
                             <tr class="border-b border-[#166534] bg-[#15803d] rounded-none h-[52px]">
+                                <th class="gb-roster-number" scope="col">No.</th>
                                 <th class="px-4 py-3 text-center bg-[#15803d] sticky left-0 z-40 select-none rounded-none align-middle">
                                     <div class="flex items-center justify-center gap-2 leading-none">
                                         <span class="text-xs md:text-sm font-semibold text-white tracking-normal font-['Inter'] leading-none">Students</span>
@@ -4541,12 +4849,13 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
         if (!window.sigmaGradesState) window.sigmaGradesState = {};
         const previousTab = window.sigmaGradesState.activeTab;
         window.sigmaGradesState.activeTab = tabId;
+        if (!isCurrentPageTeacherPortal() && tabId === 'gradebook') window.sigmaGradesState.teacherAdvisoryView = false;
         saveSigmaGradesState();
 
         // Update URL hash if currently on a grades section so refresh keeps the exact sub-tab
         const isTeacher = (window.sigmaGradesState && window.sigmaGradesState.isTeacherPage) || isCurrentPageTeacherPortal();
         if (isTeacher && !window.location.hash.endsWith(':share-record')) {
-            window.setNavContext?.(tabId === 'gradebook' ? 'My Classes' : 'Grades');
+            if (!window.syncClassroomGradebookHeader()) window.setNavContext?.('Grades');
         }
         const currentHash = window.location.hash || '';
         if (currentHash.startsWith('#grades') || currentHash.startsWith('#school-grades') || currentHash === '#nav-school-grades' || currentHash === '#analytics' || currentHash === '#gradebooks' || currentHash === '#gradebook') {
@@ -4611,6 +4920,7 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
         if (typeof window.syncTeacherGradesNavState === 'function') {
             window.syncTeacherGradesNavState(tabId);
         }
+        window.updateAdminSharedNavbarUI();
     };
 
     window.switchTeacherGradesTab = window.switchAdminGradesTab;
@@ -4788,7 +5098,9 @@ const wwDisplay = (wwVal !== null && wwVal !== undefined) ? `${(Number(wwVal) * 
 
         saveSigmaGradesState();
 
-        window.setPortalHeader?.('Grades', state.activeTab === 'gradebook' ? 'Gradebooks' : (isTeacherPage ? 'Subject Classes' : 'Analytics'));
+        if (!window.syncClassroomGradebookHeader()) {
+            window.setPortalHeader?.('Grades', state.activeTab === 'gradebook' ? 'Gradebooks' : (isTeacherPage ? 'Subject Classes' : 'Analytics'));
+        }
         container.innerHTML = `
             <div class="sigma-grades-page ${isTeacherPage ? '' : 'sigma-grades-page--admin'} flex flex-col flex-1 w-full h-full bg-white min-h-0 border-b border-slate-200">
                 ${isTeacherPage && state.activeTab === 'gradebook' && window.ClassroomRoom?.renderTabBar ? `<div class="classroom-gradebook-navigation">${window.ClassroomRoom.renderTabBar({ role: 'teacher', activeTab: 'gradebook' })}</div>` : ''}

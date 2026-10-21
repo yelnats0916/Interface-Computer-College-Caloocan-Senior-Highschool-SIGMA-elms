@@ -1,17 +1,86 @@
 (function () {
     'use strict';
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    window.styleAttendanceExcelHeading = function (ws, XLSX, subject, section, period) {
+    // Use the same subject configuration as the Topics and Gradebook quarter pickers.
+    const subjectExportQuarters = subject => [...new Set((window.getSubjectAvailableQuarters?.(subject) || [])
+        .map(Number).filter(quarter => [1, 2, 3, 4].includes(quarter)))].sort((a, b) => a - b);
+    const subjectExportPeriodAllowed = (period, subject) => {
+        const quarters = subjectExportQuarters(subject);
+        if (period.key.startsWith('q')) return quarters.includes(Number(period.key.slice(1)));
+        const required = period.key === 'sem1' ? [1, 2] : [3, 4];
+        return required.every(quarter => quarters.includes(quarter));
+    };
+    window.getAttendanceAcademicPeriods = function () {
+        const year = window.getActiveSchoolYearRecord?.() || {};
+        const ordinals = ['1st', '2nd', '3rd', '4th'];
+        const valid = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+        const quarters = ordinals.map((ordinal, index) => {
+            const key = 'q' + (index + 1);
+            const start = year[key + 'Start'], end = year[key + 'End'];
+            return { key, label: ordinal + ' Quarter', quarter: ordinal + ' Quarter',
+                semester: index < 2 ? '1st Semester' : '2nd Semester', start, end,
+                available: valid(start) && valid(end) && start <= end };
+        });
+        const semesters = [0, 2].map((index, semester) => ({
+            key: 'sem' + (semester + 1), label: ordinals[semester] + ' Semester',
+            quarter: quarters[index].label + ' / ' + quarters[index + 1].label,
+            semester: ordinals[semester] + ' Semester', start: quarters[index].start, end: quarters[index + 1].end,
+            available: quarters[index].available && quarters[index + 1].available && quarters[index].end < quarters[index + 1].start
+        }));
+        return [...quarters, ...semesters];
+    };
+    const attendancePeriodReady = (period, section, subject) => {
+        if (!period.available || !subjectExportPeriodAllowed(period, subject)) return false;
+        if (period.key.startsWith('sem')) {
+            const keys = period.key === 'sem1' ? ['q1', 'q2'] : ['q3', 'q4'];
+            return window.getAttendanceAcademicPeriods().filter(quarter => keys.includes(quarter.key))
+                .every(quarter => attendancePeriodReady(quarter, section, subject));
+        }
+        const data = window.findAttendanceClassroomRecord?.(section, subject)?.data || {};
+        const recorded = Object.entries(data).some(([date, entry]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= period.start && date <= period.end &&
+            Object.values(entry?.statuses || {}).some(status => ['P', 'A', 'L', 'E'].includes(String(status).trim().toUpperCase())));
+        return recorded || (data.date >= period.start && data.date <= period.end && Object.values(data.statuses || {}).some(status => ['P', 'A', 'L', 'E'].includes(String(status).trim().toUpperCase())));
+    };
+    window.isAttendanceAcademicPeriodReady = attendancePeriodReady;
+    window.attendanceAcademicExportOptions = function (section, subject) {
+        return `<div id="attendance-academic-options" data-section="${escape(section)}" data-subject="${escape(subject)}" style="display:contents">` + window.getAttendanceAcademicPeriods().filter(period => subjectExportPeriodAllowed(period, subject)).map(period => {
+            const ready = attendancePeriodReady(period, section, subject);
+            return `<label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" ${ready ? '' : 'style="opacity:.55;cursor:not-allowed"'}>
+            <input type="radio" name="attendance-export-scope" value="${period.key}" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" ${ready ? '' : 'disabled'} onchange="window.updateAttendanceExportOptionUI()">
+            <div class="flex-1 min-w-0"><span class="export-scope-title text-base font-bold text-black">${period.label}${ready ? '' : ' · Locked'}</span>
+            <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed">${!period.available ? 'Configure this period’s dates in School Year settings to enable export.' : !ready ? (period.key.startsWith('sem') ? 'Available when attendance is recorded in both quarters.' : 'Available when attendance is recorded for this period.') : `Exports recorded attendance from ${escape(period.start)} to ${escape(period.end)}, grouped by month.`}</p></div></label>`;
+        }).join('') + '</div>';
+    };
+    const refreshAttendancePeriods = () => {
+        const container = document.getElementById('attendance-academic-options');
+        if (!container) return;
+        const selected = container.querySelector('input:checked')?.value;
+        container.outerHTML = window.attendanceAcademicExportOptions(container.dataset.section, container.dataset.subject);
+        const replacement = document.getElementById('attendance-academic-options');
+        const radio = [...replacement.querySelectorAll('input')].find(input => input.value === selected && !input.disabled);
+        if (radio) radio.checked = true;
+        else if (selected) document.querySelector('input[name="attendance-export-scope"][value="day"]').checked = true;
+        window.updateAttendanceExportOptionUI?.();
+    };
+    ['storage', 'focus', 'sigma:attendance-changed'].forEach(event => window.addEventListener(event, refreshAttendancePeriods));
+    window.getAttendanceAcademicContext = function (dates) {
+        const values = dates.map(date => date.dateStr || date);
+        const quarters = window.getAttendanceAcademicPeriods().filter(period => period.key.startsWith('q') && period.available && values.some(date => date >= period.start && date <= period.end));
+        const outside = values.some(date => !quarters.some(period => date >= period.start && date <= period.end));
+        return { quarter: [...quarters.map(period => period.quarter), ...(outside ? ['Outside configured quarter dates'] : [])].join(' / ') || 'Not configured',
+            semester: [...new Set(quarters.map(period => period.semester)), ...(outside ? ['Outside configured semester dates'] : [])].join(' / ') || 'Not configured' };
+    };
+    window.styleAttendanceExcelHeading = function (ws, XLSX, subject, section, period, academic = {}) {
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let r = range.e.r; r >= 3; r--) {
             for (let c = 0; c <= range.e.c; c++) {
                 const from = XLSX.utils.encode_cell({ r, c });
-                const to = XLSX.utils.encode_cell({ r: r + 2, c });
+                const to = XLSX.utils.encode_cell({ r: r + 4, c });
                 if (ws[from]) ws[to] = ws[from]; else delete ws[to];
                 delete ws[from];
             }
         }
-        for (let r = 0; r < 5; r++) for (let c = 0; c <= range.e.c; c++) delete ws[XLSX.utils.encode_cell({ r, c })];
+        for (let r = 0; r < 7; r++) for (let c = 0; c <= range.e.c; c++) delete ws[XLSX.utils.encode_cell({ r, c })];
         const merges = [];
         for (const [r, title] of [[0, 'Interface Computer College'], [1, 'Attendance Sheet']]) {
             for (let c = 0; c <= range.e.c; c++) ws[XLSX.utils.encode_cell({ r, c })] = {
@@ -21,8 +90,8 @@
             merges.push({ s: { r, c: 0 }, e: { r, c: range.e.c } });
         }
         const sy = window.getActiveSchoolYearRecord?.() || {};
-        const year = sy.yearStart && sy.yearEnd ? `${sy.yearStart}-${sy.yearEnd}` : sy.name || sy.schoolYear || '2026-2027';
-        for (const [r, label, value] of [[2, 'Period:', period], [3, 'School Year:', year], [4, 'Section:', section]]) {
+        const year = sy.yearStart && sy.yearEnd ? `${sy.yearStart}-${sy.yearEnd}` : sy.name || sy.schoolYear || 'Not configured';
+        for (const [r, label, value] of [[2, 'Period:', period], [3, 'School Year:', year], [4, 'Section:', section], [5, 'Quarter:', academic.quarter || 'Not configured'], [6, 'Semester:', academic.semester || 'Not configured']]) {
             ws[XLSX.utils.encode_cell({ r, c: 0 })] = { t: 's', v: label, s: { font: { name: 'Calibri', sz: 11, bold: true }, alignment: { vertical: 'center' } } };
             merges.push({ s: { r, c: 0 }, e: { r, c: 1 } });
             ws[XLSX.utils.encode_cell({ r, c: 2 })] = { t: 's', v: value || '', s: { font: { name: 'Calibri', sz: 11, bold: false }, alignment: { vertical: 'center' } } };
@@ -33,11 +102,11 @@
         ws.G5 = { t: 's', v: subject || '', s: { font: { name: 'Calibri', sz: 11, bold: false }, alignment: { horizontal: 'left', vertical: 'center' } } };
         merges.push({ s: { r: 4, c: 6 }, e: { r: 4, c: range.e.c } });
         ws['!merges'] = merges;
-        ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r + 2, c: range.e.c } });
-        ws['!rows'] = Array.from({ length: range.e.r + 3 }, (_, r) => ({ hpt: r < 2 ? 28 : 24 }));
+        ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r + 4, c: range.e.c } });
+        ws['!rows'] = Array.from({ length: range.e.r + 5 }, (_, r) => ({ hpt: r < 2 ? 28 : 24 }));
         return ws;
     };
-    window.openSharedExcelExportForm = function ({ id, title, options, onDownload, context = '' }) {
+    window.openSharedExcelExportForm = function ({ id, title, options, onDownload, context = '', periods = [], selectedPeriod = '', refreshPeriods }) {
         document.getElementById(id)?.remove();
         const modal = document.createElement('div');
         modal.id = id;
@@ -45,16 +114,34 @@
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-label', title);
+        const periodOptions = (items, selected) => items.map(period => `<label class="shared-export-period"><input type="radio" name="${id}-period" value="${escape(period.value)}" ${period.disabled ? 'disabled' : ''} ${period.value === selected && !period.disabled ? 'checked' : ''}><span>${escape(period.label)}<small>${escape(period.subtitle || '')}</small></span></label>`).join('');
         modal.innerHTML = `<button type="button" class="shared-export-exit" aria-label="Close export"><i class="fa-solid fa-xmark"></i></button>
             <div class="sigma-modal-shell"><div class="sigma-modal-panel">
             <div class="sigma-modal-header"><div class="sigma-modal-header-top"><h1 class="sigma-modal-title">${escape(title)}</h1></div></div>
-            <div class="sigma-modal-body">${context ? `<p class="shared-export-intro">${escape(context)}</p>` : ''}<fieldset class="shared-export-options"><legend class="sr-only">Export content</legend>
+            <div class="sigma-modal-body">${context ? `<p class="shared-export-intro">${escape(context)}</p>` : ''}${periods.length ? `<fieldset class="shared-export-periods"><legend>Export period</legend>${periodOptions(periods, selectedPeriod)}</fieldset>` : ''}<fieldset class="shared-export-options"><legend class="sr-only">Export content</legend>
             ${options.map((o, i) => `<label class="shared-export-option"><input type="radio" name="${id}-scope" value="${escape(o.value)}" ${i === 0 ? 'checked' : ''}><span class="shared-export-copy"><span class="shared-export-title">${escape(o.label)}</span>${o.subtitle ? `<span class="shared-export-subtitle">${escape(o.subtitle)}</span>` : ''}</span></label>`).join('')}
             </fieldset><p class="shared-export-error" role="alert"></p></div>
             <div class="sigma-modal-footer"><button type="button" class="sigma-btn sigma-btn-primary sigma-btn-md" data-download>Download Excel</button></div>
             </div></div>`;
+        const refreshEvents = ['storage', 'focus', 'sigma-gradebook-updated', 'sigma:assessment-scored', 'sigma:grades-published'];
+        const updatePeriods = () => {
+            if (!refreshPeriods || !modal.isConnected) return;
+            let latest;
+            try { latest = refreshPeriods(); }
+            catch (error) {
+                modal.querySelector('[role="alert"]').textContent = error.message;
+                modal.querySelector('[data-download]').disabled = true;
+                return;
+            }
+            const selected = modal.querySelector('input[name="' + id + '-period"]:checked')?.value;
+            modal.querySelector('.shared-export-periods').innerHTML = '<legend>Export period</legend>' + periodOptions(latest, selected);
+            modal.querySelector('[data-download]').disabled = !modal.querySelector('input[name="' + id + '-period"]:checked');
+        };
+        if (refreshPeriods) refreshEvents.forEach(event => window.addEventListener(event, updatePeriods));
+        modal.addEventListener('change', () => { modal.querySelector('[data-download]').disabled = periods.length && !modal.querySelector('input[name="' + id + '-period"]:checked'); });
         const previousFocus = document.activeElement;
         const close = () => {
+            refreshEvents.forEach(event => window.removeEventListener(event, updatePeriods));
             modal.remove();
             document.documentElement.classList.remove('has-modal-open');
             document.removeEventListener('keydown', keys);
@@ -72,14 +159,20 @@
         modal.querySelector('.shared-export-exit').onclick = close;
         modal.querySelector('[data-download]').onclick = async function () {
             this.disabled = true;
-            try { await onDownload(modal.querySelector('input:checked').value); close(); }
+            try {
+                const mode = modal.querySelector('input[name="' + id + '-scope"]:checked')?.value;
+                const period = modal.querySelector('input[name="' + id + '-period"]:checked')?.value;
+                if (periods.length && !period) throw Error('No recorded grades are available for export.');
+                await onDownload(mode, period); close();
+            }
             catch (error) { modal.querySelector('[role="alert"]').textContent = error.message || 'Export failed. Please retry.'; }
             finally { this.disabled = false; }
         };
         document.body.appendChild(modal);
         document.documentElement.classList.add('has-modal-open');
         document.addEventListener('keydown', keys);
-        modal.querySelector('input').focus();
+        modal.querySelector('[data-download]').disabled = periods.length && !modal.querySelector('input[name="' + id + '-period"]:checked');
+        modal.querySelector('input:not(:disabled)')?.focus();
         modal._closeExport = close;
         return close;
     };
@@ -143,7 +236,7 @@
         metadata(2, 'School Year:', data.schoolYear || 'Not specified', 'Quarter:', String(data.quarter));
         metadata(3, 'Subject Code:', data.subjectCode || 'Not specified');
         metadata(4, 'Section:', data.section, 'Subject:', data.subject);
-        metadata(5, 'Teacher:', data.teacher || 'Not specified');
+        metadata(5, 'Teacher:', data.teacher || 'Not specified', 'Semester:', Number(data.quarter) <= 2 ? '1st Semester' : '2nd Semester');
         // Row 7 is deliberately blank between metadata and table.
         ['No.', 'Name', 'Student ID'].forEach((label, c) => put(8, c, label, null, header));
         groups.forEach((group, gi) => {
@@ -312,31 +405,93 @@
         return wb;
     };
 
-    window.openGradebookExportForm = function () {
-        if (!window.sigmaGradesState?.selectedSubjectSection) return window.showToast?.('Select a subject and section first.', 'warning');
-        const selected = window.sigmaGradesState.selectedSubjectSection;
-        return window.openSharedExcelExportForm({ id: 'gradebook-export-modal', title: 'Export Class Record',
-            context: 'Choose the class record details to include in your export (.xlsx):',
-            options: [
-                { value: 'full', label: 'Full Class Record', subtitle: 'All assessment scores, component totals, Initial Grade, and Quarterly Grade.' },
-                { value: 'summary', label: 'Grade Summary', subtitle: 'Component weighted scores, Initial Grade, and Quarterly Grade.' },
-                { value: 'qa', label: 'Quarterly Assessment', subtitle: 'QA scores and component totals, with Initial Grade and Quarterly Grade.' },
-                { value: 'ww-pt', label: 'Written Works & Performance Tasks', subtitle: 'WW and PT scores and component totals, with Initial Grade and Quarterly Grade.' },
-                { value: 'ww', label: 'Written Works', subtitle: 'WW scores and component totals, with Initial Grade and Quarterly Grade.' },
-                { value: 'pt', label: 'Performance Tasks', subtitle: 'PT scores and component totals, with Initial Grade and Quarterly Grade.' }
-            ],
-            onDownload: mode => {
-                if (!window.XLSX) throw Error('Excel export library is unavailable. Check your connection and retry.');
-                const state = window.sigmaGradesState;
-                const previous = state.currentView;
-                try { state.currentView = 'overview'; window.renderAdminGradebookWorkspace(); }
-                finally { state.currentView = previous; window.renderAdminGradebookWorkspace(); }
-                const snapshot = window._gradebookExportSnapshot;
-                if (!snapshot || snapshot.subject !== state.selectedSubjectSection.subject || snapshot.section !== state.selectedSubjectSection.sectionName || snapshot.quarter !== (state.activeQuarter || 1)) throw Error('Unable to read the selected gradebook.');
-                const selectedTeacher = window.getEffectiveTeacher?.();
-                const teacherKey = teacher => String(teacher?.id || teacher?.uid || teacher?.email || teacher?.fullName || teacher?.name || '');
-                if (!selectedTeacher || teacherKey(snapshot.teacher) !== teacherKey(selectedTeacher)) throw Error('Select a teacher and reload their gradebook before exporting.');
-                const run = () => {
+    window.buildSemesterGradebookExcel = function (datasets, mode, XLSX) {
+        const wb = XLSX.utils.book_new();
+        const quarterReferences = [];
+        const hidden = new Set(['Transmutation']);
+        for (const data of datasets) {
+            const source = window.buildGradebookExcel(data, mode, XLSX);
+            const names = Object.fromEntries(source.SheetNames.map(name => [name, name === 'Transmutation' ? name : `Q${data.quarter} ${name}`]));
+            for (const name of source.SheetNames) {
+                if (name === 'Transmutation' && wb.Sheets.Transmutation) continue;
+                const sheet = source.Sheets[name];
+                for (const cell of Object.values(sheet)) {
+                    if (!cell?.f) continue;
+                    // Each quarter keeps its own calculation references.
+                    for (const original of ['Calculation', 'Class Record', 'Summary']) {
+                        cell.f = cell.f.replaceAll(original + '!', `'${names[original]}'!`);
+                    }
+                }
+                XLSX.utils.book_append_sheet(wb, sheet, names[name]);
+                if (name === 'Calculation') hidden.add(names[name]);
+            }
+            const calculation = source.Sheets[mode === 'summary' ? 'Calculation' : 'Class Record'];
+            const quarterlyCell = Object.keys(calculation).find(address => !address.startsWith('!') && calculation[address]?.v === 'Quarterly Grade' && XLSX.utils.decode_cell(address).r === 8);
+            quarterReferences.push({ data, name: names[mode === 'summary' ? 'Calculation' : 'Class Record'], column: XLSX.utils.decode_cell(quarterlyCell).c });
+        }
+        const first = datasets[0];
+        const semester = Number(first.quarter) <= 2 ? '1st Semester' : '2nd Semester';
+        const rows = [
+            ['Interface Computer College'], ['Semester Class Record'],
+            ['School Year: ' + first.schoolYear], ['Section: ' + first.section + ' | Subject: ' + first.subject],
+            ['Semester: ' + semester], ['Teacher: ' + first.teacher], [],
+            ['No.', 'Name', 'Student ID', ...datasets.map(data => `Quarter ${data.quarter}`), 'Semester Grade']
+        ];
+        const key = row => String(row.id || row.name);
+        const students = [...new Map(datasets.flatMap(data => data.rows).map(row => [key(row), row])).values()];
+        students.sort((a, b) => a.name.localeCompare(b.name));
+        const sheet = XLSX.utils.aoa_to_sheet(rows);
+        const green = { fill: { fgColor: { rgb: '15803D' } }, font: { name: 'Calibri', sz: 12, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } };
+        students.forEach((student, index) => {
+            const r = 8 + index;
+            [index + 1, student.name, String(student.id)].forEach((value, c) => { sheet[XLSX.utils.encode_cell({ r, c })] = { t: c === 0 ? 'n' : 's', v: value }; });
+            const grades = quarterReferences.map((reference, index) => {
+                const rowIndex = reference.data.rows.findIndex(row => key(row) === key(student));
+                const row = reference.data.rows[rowIndex];
+                const grade = row?.quarterly;
+                const value = recordedGrade(grade) ? Number(grade) : '';
+                sheet[XLSX.utils.encode_cell({ r, c: index + 3 })] = { t: value === '' ? 's' : 'n', v: value,
+                    ...(rowIndex < 0 ? {} : { f: `IF(ISNUMBER('${reference.name}'!${XLSX.utils.encode_cell({ r: rowIndex + 10, c: reference.column })}),'${reference.name}'!${XLSX.utils.encode_cell({ r: rowIndex + 10, c: reference.column })},"")` }) };
+                return value;
+            });
+            sheet[XLSX.utils.encode_cell({ r, c: 5 })] = { t: grades.every(recordedGrade) ? 'n' : 's',
+                v: grades.every(recordedGrade) ? Math.round((grades[0] + grades[1]) / 2) : '',
+                f: `IF(COUNT(D${r + 1}:E${r + 1})=2,ROUND(AVERAGE(D${r + 1}:E${r + 1}),0),"")` };
+        });
+        sheet['!ref'] = `A1:F${8 + students.length}`;
+        sheet['!merges'] = [0, 1, 2, 3, 4, 5].map(r => ({ s: { r, c: 0 }, e: { r, c: 5 } }));
+        sheet['!cols'] = [{ wch: 7 }, { wch: 36 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 22 }];
+        sheet['!rows'] = Array.from({ length: 8 + students.length }, () => ({ hpt: 28 }));
+        for (const [address, cell] of Object.entries(sheet)) {
+            if (address.startsWith('!')) continue;
+            const { r, c } = XLSX.utils.decode_cell(address);
+            cell.s = r < 2 || r === 7 ? green : { font: { name: 'Calibri', sz: 11 }, alignment: { vertical: 'center', horizontal: c === 1 ? 'left' : 'center' }, ...(c === 5 && r > 7 ? { fill: { fgColor: { rgb: 'EAF7EF' } } } : {}) };
+        }
+        XLSX.utils.book_append_sheet(wb, sheet, 'Semester Summary');
+        wb.SheetNames = ['Semester Summary', ...wb.SheetNames.filter(name => name !== 'Semester Summary')];
+        wb.Workbook = { Sheets: wb.SheetNames.map(name => ({ name, Hidden: hidden.has(name) ? 1 : 0 })), CalcPr: { calcMode: 'auto', fullCalcOnLoad: true, forceFullCalc: true } };
+        return wb;
+    };
+    const readGradebookExportData = quarter => {
+        const state = window.sigmaGradesState;
+        if (!subjectExportQuarters(state.selectedSubjectSection?.subject).includes(Number(quarter))) {
+            throw Error('This quarter is not assigned to the selected subject.');
+        }
+        const previous = { quarter: state.activeQuarter, view: state.currentView };
+        let snapshot;
+        try {
+            state.activeQuarter = quarter; state.currentView = 'overview';
+            window.renderAdminGradebookWorkspace();
+            snapshot = window._gradebookExportSnapshot;
+        } finally {
+            state.activeQuarter = previous.quarter; state.currentView = previous.view;
+            window.renderAdminGradebookWorkspace();
+        }
+        if (!snapshot || snapshot.subject !== state.selectedSubjectSection.subject || snapshot.section !== state.selectedSubjectSection.sectionName || Number(snapshot.quarter) !== Number(quarter)) throw Error('Unable to read the selected gradebook.');
+        const selectedTeacher = window.getEffectiveTeacher?.();
+        const teacherKey = teacher => String(teacher?.id || teacher?.uid || teacher?.email || teacher?.fullName || teacher?.name || '');
+        if (!selectedTeacher || teacherKey(snapshot.teacher) !== teacherKey(selectedTeacher)) throw Error('Select a teacher and reload their gradebook before exporting.');
+        const run = () => {
                     const groupDefs = [['Written Works', 'ww'], ['Performance Tasks', 'perf. task'], ['Quarterly Assessment', 'qa']];
                     const groups = groupDefs.map(([name, category]) => ({ name, items: window.getCategoryDetails(category, snapshot.quarter, snapshot.subject, snapshot.section) || [] }));
                     const rows = snapshot.rows.map(row => {
@@ -362,11 +517,60 @@
                         schoolYear: sy.yearStart && sy.yearEnd ? `${sy.yearStart}-${sy.yearEnd}` : sy.name || sy.schoolYear || sy.year || sy.label || '',
                         subjectCode: subject.code || subject.subjectCode || state.selectedSubjectSection.subjectCode || '',
                         teacher: snapshot.teacher?.fullName || snapshot.teacher?.name || [snapshot.teacher?.firstName, snapshot.teacher?.middleName, snapshot.teacher?.lastName].filter(Boolean).join(' ') };
+            return data;
+        };
+        return window.withGradebookReadCache ? window.withGradebookReadCache(run) : run();
+    };
+    const recordedGrade = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+    const gradebookPeriods = () => {
+        const subject = window.sigmaGradesState.selectedSubjectSection.subject;
+        const available = subjectExportQuarters(subject);
+        const quarters = available.map(quarter => {
+            const data = readGradebookExportData(quarter);
+            const ready = data.rows.some(row => recordedGrade(row.quarterly));
+            return { value: 'q' + quarter, label: ['1st', '2nd', '3rd', '4th'][quarter - 1] + ' Quarter', disabled: !ready,
+                subtitle: ready ? 'Recorded grades available' : 'Locked · No recorded grades yet' };
+        });
+        return [...quarters, ...[0, 1].filter(semester => [semester * 2 + 1, semester * 2 + 2].every(quarter => available.includes(quarter))).map(semester => {
+            const required = [semester * 2 + 1, semester * 2 + 2];
+            const ready = required.every(quarter => quarters.some(period => period.value === 'q' + quarter && !period.disabled));
+            return { value: 'sem' + (semester + 1), label: semester === 0 ? '1st Semester' : '2nd Semester', disabled: !ready,
+                subtitle: ready ? 'Both quarters available' : 'Locked · Requires grades in both quarters' };
+        })];
+    };
+    window.openGradebookExportForm = function () {
+        if (!window.sigmaGradesState?.selectedSubjectSection) return window.showToast?.('Select a subject and section first.', 'warning');
+        let periods;
+        try { periods = gradebookPeriods(); }
+        catch (error) { return window.showToast?.(error.message, 'warning'); }
+        const preferred = 'q' + (window.sigmaGradesState.activeQuarter || 1);
+        const selectedPeriod = periods.find(period => period.value === preferred && !period.disabled)?.value || periods.find(period => !period.disabled)?.value || '';
+        return window.openSharedExcelExportForm({ id: 'gradebook-export-modal', title: 'Export Class Record',
+            periods, selectedPeriod, refreshPeriods: gradebookPeriods,
+            context: `${window.sigmaGradesState.selectedSubjectSection.subject} · ${window.sigmaGradesState.selectedSubjectSection.sectionName} — Choose the period and class record details to export (.xlsx).`,
+            options: [
+                { value: 'full', label: 'Full Class Record', subtitle: 'All assessment scores, component totals, Initial Grade, and Quarterly Grade.' },
+                { value: 'summary', label: 'Grade Summary', subtitle: 'Component weighted scores, Initial Grade, and Quarterly Grade.' },
+                { value: 'qa', label: 'Quarterly Assessment', subtitle: 'QA scores and component totals, with Initial Grade and Quarterly Grade.' },
+                { value: 'ww-pt', label: 'Written Works & Performance Tasks', subtitle: 'WW and PT scores and component totals, with Initial Grade and Quarterly Grade.' },
+                { value: 'ww', label: 'Written Works', subtitle: 'WW scores and component totals, with Initial Grade and Quarterly Grade.' },
+                { value: 'pt', label: 'Performance Tasks', subtitle: 'PT scores and component totals, with Initial Grade and Quarterly Grade.' }
+            ],
+            onDownload: (mode, period) => {
+                if (!window.XLSX) throw Error('Excel export library is unavailable. Check your connection and retry.');
+                const choice = gradebookPeriods().find(item => item.value === period);
+                if (!choice || choice.disabled) throw Error('This period is locked until grades are recorded.');
+                const safe = value => String(value).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+                if (period.startsWith('sem')) {
+                    const quarters = period === 'sem1' ? [1, 2] : [3, 4];
+                    const datasets = quarters.map(readGradebookExportData);
+                    const wb = window.buildSemesterGradebookExcel(datasets, mode, window.XLSX);
+                    window.XLSX.writeFile(wb, `Class_Record_${safe(datasets[0].subject)}_${safe(datasets[0].section)}_${period}_${mode}.xlsx`, { bookType: 'xlsx', cellStyles: true });
+                } else {
+                    const data = readGradebookExportData(Number(period.slice(1)));
                     const wb = window.buildGradebookExcel(data, mode, window.XLSX);
-                    const safe = value => String(value).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
-                    window.XLSX.writeFile(wb, `Class_Record_${safe(snapshot.subject)}_${safe(snapshot.section)}_Q${snapshot.quarter}_${mode}.xlsx`, { bookType: 'xlsx', cellStyles: true });
-                };
-                return window.withGradebookReadCache ? window.withGradebookReadCache(run) : run();
+                    window.XLSX.writeFile(wb, `Class_Record_${safe(data.subject)}_${safe(data.section)}_${period}_${mode}.xlsx`, { bookType: 'xlsx', cellStyles: true });
+                }
             } });
     };
 })();

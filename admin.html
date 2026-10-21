@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 
 <head>
     <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interface Computer College - Admin</title>
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
@@ -17,31 +18,32 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css?v=20261018_selected_color_restored_v7">
-    <link rel="stylesheet" href="css/topbar.css?v=20261018_suggested_black_text_v5">
-    <link rel="stylesheet" href="css/forms.css?v=20261018_cal_chevron_fix_v41">
+    <link rel="stylesheet" href="css/admin.css?v=20261020_assessment_student_id_v102">
+    <link rel="stylesheet" href="css/section-teacher-picker.css?v=20261020_teacher_two_pages_v82">
+    <link rel="stylesheet" href="css/topbar.css?v=20261020_original_bolt_restored_v16">
+    <link rel="stylesheet" href="css/forms.css?v=20261020_plain_quarter_context_v13">
     <link rel="stylesheet" href="css/ai-log-details.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/record-lifecycle.css?v=20261018_toolbar_layout_v14">
     <link rel="stylesheet" href="css/log-pagination.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261018_attendance_avatar_v39">
+<link rel="stylesheet" href="css/shared-components.css?v=20261021_quiz_plain_focus_v25">
     <link rel="stylesheet" href="css/welcome-panel.css">
-    <link rel="stylesheet" href="css/announcements.css?v=20261017_table_dropdowns_v10">
+    <link rel="stylesheet" href="css/announcements.css?v=20261021_online_top_left_v27">
     <link rel="stylesheet" href="css/announcement-cards.css?v=20261017_table_dropdowns_v10">
-    <link rel="stylesheet" href="css/calendar.css?v=20261017_table_dropdowns_v10">
+    <link rel="stylesheet" href="css/calendar.css?v=20261021_event_notification_details_v16">
     <link rel="stylesheet" href="css/notifications.css?v=20261017_table_dropdowns_v10">
-    <link rel="stylesheet" href="css/admin-insight-report.css?v=20261018_split_insight_edits_v28">
+    <link rel="stylesheet" href="css/admin-insight-report.css?v=20261020_history_label_black_fade_v62">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261018_attendance_avatar_v39">
     <link rel="stylesheet" href="css/settings-view.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/service-vault-security.css?v=20261017_table_dropdowns_v10">
     <script src="js/service-vault-security.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/profile.css?v=20261018_modal_mobile_fullscreen_v12">
-    <link rel="stylesheet" href="css/topic-detail.css?v=20261017_table_dropdowns_v10">
+    <link rel="stylesheet" href="css/topic-detail.css?v=20261021_topic_body_black_v112">
     <link rel="stylesheet" href="css/sidebar.css?v=20261018_flyout_up_v16">
     <link rel="stylesheet" href="css/right-panel.css?v=20261017_table_dropdowns_v10">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261018_insight_single_v11">
-<link rel="stylesheet" href="css/shared-grade-record.css?v=20261017_table_dropdowns_v10">
-    <link rel="stylesheet" href="css/mobile.css?v=20261018_search_panel_v45">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261021_mobile_numbers_only_v27">
+<link rel="stylesheet" href="css/shared-grade-record.css?v=20261020_published_revision_state_v46">
+    <link rel="stylesheet" href="css/mobile.css?v=20261021_topic_body_black_v112">
 
     <!-- CHARTS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -250,6 +252,7 @@
     <script src="js/tab-session.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v10">
+    <link rel="stylesheet" href="css/release-panel.css?v=20261021_selection_container_alignment_v31">
 </head>
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
     <script src="js/page-skeleton.js?v=20261017_table_dropdowns_v10"></script>
@@ -769,28 +772,28 @@
             <!-- DASHBOARD CONTENT -->
             <main id="admin-main" class="flex-1 bg-admin-bg relative">
                 <!-- Global Full-Page Search Results View -->
-                <section id="search-results-view" class="dynamic-section hidden w-full min-h-screen bg-slate-50/60 font-['Inter']">
-                    <div class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-6">
-                        <!-- Top Header (Clean text style matching System Settings style) -->
-                        <div class="flex items-center justify-between px-1">
-                            <h1 class="text-[20px] sm:text-[22px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                                <i class="fa-solid fa-magnifying-glass text-slate-400 text-[18px]"></i>
-                                <span>Search Results for <span id="search-results-query-text" class="text-icc-yellow">""</span></span>
-                            </h1>
-                        </div>
+                <section id="search-results-view" class="dynamic-section hidden w-full font-['Inter']">
+                    <!-- Main Layout (Closed Gap with Sidebar & Navbar, System Settings Style) -->
+                    <div class="search-results-layout">
+                        <!-- Left Big White Panel (Includes Search Results Header & Filter Sidebar) -->
+                        <aside class="search-results-sidebar">
+                            <!-- Search Results Query Title -->
+                            <div class="search-results-header mb-6 pb-4 border-b border-slate-100 flex-shrink-0">
+                                <h1 class="text-[18px] sm:text-[20px] font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                                    <i class="fa-solid fa-magnifying-glass text-black text-[16px]"></i>
+                                    <span>Search Results for <span id="search-results-query-text" class="text-black">""</span></span>
+                                </h1>
+                            </div>
 
-                        <!-- Main Integrated Layout (Integrated Sidebar style like Settings) -->
-                        <div class="search-results-layout bg-white rounded-[24px] border border-slate-200/90 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[650px]">
-                            <!-- Left Integrated Sidebar -->
-                            <aside class="search-results-sidebar w-full md:w-[280px] border-b md:border-b-0 md:border-r border-slate-200/90 p-5 bg-white flex-shrink-0">
-                                <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-2">Filter Results</h2>
-                                <nav class="search-filter-container flex flex-col gap-1.5" role="tablist" aria-label="Search Categories" id="search-results-filter-pills">
-                                    <!-- Hydrated dynamically -->
-                                </nav>
-                            </aside>
+                            <h2 class="search-results-filter-title text-[13px] font-bold text-black-fade mb-3 px-2 flex-shrink-0">Filter Results</h2>
+                            <nav class="search-filter-container flex flex-col gap-1.5 flex-shrink-0" role="tablist" aria-label="Search Categories" id="search-results-filter-pills">
+                                <!-- Hydrated dynamically -->
+                            </nav>
+                        </aside>
 
-                            <!-- Right Integrated Content -->
-                            <main class="search-results-main flex-1 bg-slate-50/40 p-5 sm:p-8 min-w-0">
+                        <!-- Right Content Area (Standalone Cards on Page Background, Not in a Big White Panel) -->
+                        <main class="search-results-main">
+                            <div class="search-results-inner">
                                 <div id="search-results-cards-container" class="space-y-4">
                                     <!-- Hydrated dynamically -->
                                 </div>
@@ -801,18 +804,15 @@
                                 </div>
 
                                 <!-- Empty State -->
-                                <div id="search-results-empty-state" class="hidden py-16 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-                                    <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 text-2xl mb-4">
-                                        <i class="fa-solid fa-magnifying-glass text-black"></i>
+                                <div id="search-results-empty-state" class="hidden py-16 text-center bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+                                    <div class="search-empty-icon-wrap w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-2xl mb-4" style="color: rgba(0, 0, 0, 0.45) !important;">
+                                        <i class="fa-solid fa-magnifying-glass" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
                                     </div>
-                                    <h3 class="text-base font-bold text-slate-800 mb-1" id="search-results-empty-title">No matches found</h3>
-                                    <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">We couldn't find anything matching your search. Check for typos or try searching by name or subject.</p>
-                                    <button type="button" id="search-results-empty-return-btn" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary">
-                                        Return to Previous Page
-                                    </button>
+                                    <h3 class="text-base font-bold text-slate-800 mb-1.5 text-center" id="search-results-empty-title">No matches found</h3>
+                                    <p class="text-xs text-black-fade max-w-sm mx-auto text-center font-['Inter'] leading-relaxed mb-0" style="color: rgba(0, 0, 0, 0.45) !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; text-align: center !important;">We couldn't find anything matching your search. Check for typos or try searching by name or subject.</p>
                                 </div>
-                            </main>
-                        </div>
+                            </div>
+                        </main>
                     </div>
                 </section>
 
@@ -1205,13 +1205,21 @@
                                 <div class="h-11 flex items-center px-4 border-b border-slate-200 bg-white flex-shrink-0">
                                     <div class="flex items-center gap-2">
                                         <i class="fa-solid fa-calendar-days text-[#15803d] text-xs"></i>
-                                        <h3 class="text-xs font-bold text-black tracking-normal">Academic Calendar</h3>
+                                        <h3 class="text-xs font-bold text-black tracking-normal"><button type="button" class="academic-calendar-heading" data-academic-date="">Academic Calendar</button></h3>
                                     </div>
                                 </div>
                                 <div id="admin-pinned-milestones-list" class="flex flex-col">
                                     <!-- Injected dynamically by JS -->
                                 </div>
                             </div>
+                            <section id="admin-online-now-card" class="pinned-calendar-card" aria-labelledby="admin-online-now-title">
+                                <div class="h-11 flex items-center justify-between px-4 border-b border-slate-200 bg-white">
+                                    <h3 id="admin-online-now-title" class="text-xs font-bold text-black">Online Now</h3>
+                                    <span id="admin-online-now-total" class="text-xs font-bold text-[#15803d]">—</span>
+                                </div>
+                                <ul id="admin-online-now-list" class="px-4 py-3 text-xs text-black" style="max-height:320px;overflow-y:auto;list-style:none;margin:0;" aria-label="Online users"></ul>
+                                <div class="px-4 pb-4 text-center"><button type="button" id="admin-online-view-all" class="online-now-view-all" hidden>View All</button></div>
+                            </section>
                         </div>
                     </div>
                     <!-- End home-sticky-rail--right -->
@@ -1572,6 +1580,7 @@
 
                             <!-- Pinned Footer Action Bar -->
                             <div class="sigma-modal-footer flex items-center justify-end gap-3 px-8 py-4 border-t border-slate-200 bg-white sticky bottom-0 z-30 font-['Inter']">
+                                <button type="button" id="sy-cancel-btn" onclick="window.handleSYExit()" class="sigma-btn sigma-btn-white sigma-btn-md">Cancel</button>
                                 <button type="button" id="sy-delete-btn" onclick="window.handleSYDelete()"
                                     class="sigma-btn sigma-btn-white sigma-btn-md gap-2 px-5 cursor-pointer font-['Inter'] hidden text-black">
                                     <i class="fa-solid fa-trash-can text-xs text-black"></i>
@@ -4393,6 +4402,13 @@
                                 </div>
 
                                 <div class="performance-records-toolbar">
+                                    <select id="perf-filter-quarter" aria-label="Filter assessment quarter" onchange="window.applyPerformanceSearch?.()" class="sigma-input performance-record-filter">
+                                        <option value="">All Quarters</option>
+                                        <option value="1">1st Quarter</option>
+                                        <option value="2">2nd Quarter</option>
+                                        <option value="3">3rd Quarter</option>
+                                        <option value="4">4th Quarter</option>
+                                    </select>
                                     <input type="search" id="perf-search-input" placeholder="Search student or subject" aria-label="Search student or subject" class="sigma-input performance-record-search" onkeydown="if(event.key==='Enter') window.applyPerformanceSearch?.()">
                                     <select id="perf-filter-subject" onchange="window.applyPerformanceSearch && window.applyPerformanceSearch()" class="sigma-input performance-record-filter">
                                             <option value="">All Subjects</option>
@@ -4908,12 +4924,14 @@
                                                 class="inline-flex items-center gap-2.5 text-base sm:text-[17px] font-bold text-black hover:text-[#FFD000] transition-colors cursor-pointer font-['Inter'] tracking-tight">
                                                 <span id="section-assign-subject-btn-text">Assign Subject</span>
                                             </button>
+                                            <span id="section-subject-locked-title" class="hidden text-base sm:text-[17px] font-bold text-black font-['Inter']">Subject</span>
                                         </div>
                                         <p id="section-subject-subtitle" class="text-xs font-normal text-right shrink-0" style="color: rgba(0,0,0,0.45);">Choose the course curriculum for this section</p>
                                     </div>
                                     <div id="section-assigned-subject-display" class="space-y-2">
                                         <!-- Rendered by JS -->
                                     </div>
+                                    <p id="section-subject-lock-note" class="hidden text-sm text-black font-['Inter']">Subject changes are unavailable because this class already has student activity.</p>
                                 </div>
 
                                 <!-- 2. CLASS SCHEDULE SECTION -->
@@ -5063,23 +5081,10 @@
 
                             <!-- SUBPAGE: ASSIGN SUBJECT -->
                             <div id="section-subpage-subject" class="hidden space-y-6 animate-in fade-in duration-300">
+                                <p class="text-sm text-black font-['Inter']">Select one subject from the list below, then click the button at the bottom to confirm your selection.</p>
                                 <div class="sigma-field-group">
-                                    <div class="flex items-center gap-3">
-                                        <div class="relative flex-1">
-                                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-black text-sm pointer-events-none"></i>
-                                            <input type="text" id="section-subpage-subject-search" aria-label="Search subject to assign" placeholder="Search subject by title or code..." maxlength="100"
-                                                autocomplete="off"
-                                                oninput="this.value = this.value.replace(/^\s+/, '').replace(/[^a-zA-Z0-9\s.\-']/g, ''); if(!this.value.trim()){document.getElementById('section-subpage-subject-dropdown')?.classList.add('hidden');}"
-                                                onkeydown="if(event.key==='Enter'){event.preventDefault();window.executeSubpageSubjectSearch();}"
-                                                class="sigma-input pl-11">
-                                        </div>
-                                        <button type="button" id="section-subpage-subject-search-btn" onclick="window.executeSubpageSubjectSearch()"
-                                            class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px] shrink-0 flex items-center justify-center gap-2 cursor-pointer">
-                                            <span>Search</span>
-                                        </button>
-                                    </div>
                                     <div id="section-subpage-subject-dropdown"
-                                        class="mt-3 max-h-80 overflow-y-auto hidden font-['Inter']">
+                                        class="font-['Inter']" role="radiogroup" aria-label="Available subjects">
                                     </div>
                                 </div>
                             </div>
@@ -5355,15 +5360,15 @@
                                 </div>
                             </div>
 
-                            <!-- Active Semester & Quarters Checkboxes -->
+                            <!-- Active Semester Radio Buttons -->
                             <div class="space-y-3">
                                 <div class="flex items-center justify-between ml-1">
                                     <span class="text-base font-bold text-black capitalize tracking-normal">Active Semester & Quarters <span class="text-red-500">*</span></span>
-                                    <span class="text-xs font-medium text-black-fade">Select the active semesters for this subject</span>
+                                    <span class="text-xs font-medium text-black-fade">Select one semester for this subject</span>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all select-none">
-                                        <input type="checkbox" name="edit-subject-semester" id="edit-subject-sem1" aria-label="First Semester" value="sem1"
+                                        <input type="radio" name="edit-subject-semester" id="edit-subject-sem1" aria-label="First Semester" value="sem1"
                                             onchange="if (typeof window.handleActiveQuartersChange === 'function') window.handleActiveQuartersChange(); if (typeof window.checkSubjectDraftStatus === 'function') window.checkSubjectDraftStatus(); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-[#15803d] cursor-pointer accent-[#15803d]" />
                                         <div class="flex flex-col">
@@ -5372,7 +5377,7 @@
                                         </div>
                                     </label>
                                     <label class="flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all select-none">
-                                        <input type="checkbox" name="edit-subject-semester" id="edit-subject-sem2" aria-label="Second Semester" value="sem2"
+                                        <input type="radio" name="edit-subject-semester" id="edit-subject-sem2" aria-label="Second Semester" value="sem2"
                                             onchange="if (typeof window.handleActiveQuartersChange === 'function') window.handleActiveQuartersChange(); if (typeof window.checkSubjectDraftStatus === 'function') window.checkSubjectDraftStatus(); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                                             class="w-4 h-4 rounded text-[#15803d] focus:ring-[#15803d] cursor-pointer accent-[#15803d]" />
                                         <div class="flex flex-col">
@@ -5482,11 +5487,12 @@
                                     </div>
                                     <!-- Add Material Dropdown on the Right of Quarter Bar -->
                                     <div class="relative shrink-0 flex items-center justify-end gap-2">
-                                        <button type="button" id="subject-content-reorder-btn" onclick="window.openTopicOrderPanel()"
+                                        <button type="button" id="subject-content-reorder-btn" aria-label="Reorder topics" title="Reorder topics" onclick="window.openTopicOrderPanel()"
                                             class="hidden h-9 px-3.5 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-black flex items-center gap-2 transition-all cursor-pointer font-['Inter'] shadow-2xs">
-                                            <i class="fa-solid fa-arrow-down-up text-xs text-black"></i>
+                                            <i class="fa-solid fa-arrow-down-wide-short text-xs text-black"></i>
                                             <span>Reorder</span>
                                         </button>
+                                        <button type="button" id="subject-content-release-btn" onclick="window.openReleaseFromSubjectContent()" class="hidden sigma-btn sigma-btn-white sigma-btn-md">Release &amp; Schedule</button>
                                         <button type="button" id="subject-content-add-topic-btn" onclick="window.addSubjectTopic()"
                                             class="hidden h-9 px-3.5 bg-white hover:bg-slate-100 active:bg-slate-200 border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-black flex items-center gap-2 transition-all cursor-pointer font-['Inter'] shadow-2xs">
                                             <i class="fa-solid fa-plus text-xs text-black"></i>
@@ -6714,14 +6720,16 @@
 
     <!-- SCRIPTS -->
 <script src="js/private-assessment-comments.js?v=20261017_table_dropdowns_v10"></script>
-<script src="js/shared-components.js?v=20261018_cal_chevron_fix_v41"></script>
-<script src="js/offline-assessments.js?v=20261017_table_dropdowns_v10"></script>
+<script src="js/grade-sync.js?v=20261020_sync_notice_v4"></script>
+<script src="js/shared-components.js?v=20261021_classroom_release_visibility_v33"></script>
+<script src="js/online-presence.js?v=20261021_online_stable_order_v8"></script>
+<script src="js/offline-assessments.js?v=20261021_topic_assessment_picker_v28"></script>
 <script src="js/submission-ai-client.js?v=20261017_generation_timestamp_v1"></script>
     <script src="js/topbar.js?v=20261018_search_dedupe_v13"></script>
-    <script src="js/search-results.js"></script>
-    <script src="js/sigma-chat-client.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/search-results.js?v=20261019_header_blackfade_v20"></script>
+    <script src="js/sigma-chat-client.js?v=20261020_portal_chat_scope_v12"></script>
     <script src="js/sidebar.js?v=20261018_flyout_up_v15"></script>
-<script src="js/notifications.js?v=20261017_table_dropdowns_v10"></script>
+<script src="js/notifications.js?v=20261021_academic_event_reminders_v3"></script>
 <script src="js/log-pagination.js?v=20261017_table_dropdowns_v10"></script>
 <script src="js/notification-logs.js?v=20261017_table_dropdowns_v10"></script>
 <script src="js/authentication-logs.js?v=20261017_table_dropdowns_v10"></script>
@@ -6729,37 +6737,41 @@
 <script src="js/audit-log-search.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/sigma-unread.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/panels.js?v=20261017_table_dropdowns_v13"></script>
-    <script src="js/announcements.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/quiz-creator.js?v=20261017_table_dropdowns_v16"></script>
-    <script src="js/calendar.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/academic-calendar.js?v=20261021_real_events_only_v17"></script>
+    <script src="js/announcements.js?v=20261021_event_notification_details_v16"></script>
+    <script src="js/quiz-creator.js?v=20261021_enum_transparent_input_v23"></script>
+    <script src="js/calendar.js?v=20261021_event_notification_details_v16"></script>
     <script src="js/profile-view.js?v=20261018_modal_mobile_fullscreen_v12"></script>
     <script src="js/admin-session-controls.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/dialog.js?v=20261017_table_dropdowns_v13"></script>
+    <script src="js/dialog.js?v=20261021_quiz_exit_standard_buttons_v18"></script>
     <script src="js/document-viewer.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/settings-view.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/settings-view.js?v=20261021_ai_language_preferences_v30"></script>
     <script src="js/user-profile-sync.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/resources-view.js?v=20261017_table_dropdowns_v10"></script>
-    <link rel="stylesheet" href="css/excel-export.css?v=20261017_table_dropdowns_v10">
-    <script src="js/excel-export.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/sigma-analytics.js?v=20261017_report_cards_v14"></script>
-    <script src="js/shared-grade-record.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/subject-content-editor.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/subject-editor.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/resources-view.js?v=20261020_documentation_resource_scope_v10"></script>
+    <link rel="stylesheet" href="css/excel-export.css?v=20261020_semester_export_locks_v2">
+    <script src="js/excel-export.js?v=20261020_subject_scoped_exports_v3"></script>
+    <script src="js/sigma-analytics.js?v=20261020_gradebook_subject_header_v47"></script>
+    <script src="js/student-analytics.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/shared-grade-record.js?v=20261020_admin_publish_v47"></script>
+    <script src="js/subject-content-editor.js?v=20261021_release_shortcut_v3"></script>
+    <script src="js/subject-editor.js?v=20261021_quarter_reorder_row_v20"></script>
     <script src="js/assessments-page.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/time-picker-dial.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/classroom-room.js?v=20261018_attendance_avatar_v39"></script>
-    <script src="js/release-workspace.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/curriculum-release.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/classroom-room.js?v=20261020_semester_export_locks_v2"></script>
+    <script src="js/release-workspace.js?v=20261021_footer_button_count_v32"></script>
+    <script src="js/curriculum-release.js?v=20261021_release_selection_summary_v21"></script>
     <script src="js/recaptcha-client.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/system-settings-history.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/ai-routing-settings.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/admin.js?v=20261018_search_results_v2"></script>
-    <script src="js/performance-report.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/admin.js?v=20261020_academic_events_v121"></script>
+    <script src="js/section-subject-lock.js?v=20261020_subject_activity_lock_v84"></script>
+    <script src="js/section-teacher-picker.js?v=20261020_teacher_two_pages_v82"></script>
+    <script src="js/performance-report.js?v=20261020_assessment_student_id_v117"></script>
     <script src="js/ai-database-store.js?v=20261017_insight_management_v22"></script>
-    <script src="js/student-insight-view.js?v=20261017_insight_management_v22"></script>
-    <script src="js/admin-insight-report.js?v=20261018_asking_panel_delete_v29"></script>
+    <script src="js/student-insight-view.js?v=20261019_read_more_v47"></script>
+    <script src="js/admin-insight-report.js?v=20261020_chronological_insights_v51"></script>
     <script src="js/record-lifecycle.js?v=20261018_toolbar_layout_v14"></script>
-    <script src="js/ai-log-store.js?v=20261017_table_dropdowns_v10"></script>
+    <script src="js/ai-log-store.js?v=20261020_grade_evidence_key_v3"></script>
     <script src="js/ai-log-preview.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/ai-log-details.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/institution-branding.js?v=20261017_table_dropdowns_v10"></script>

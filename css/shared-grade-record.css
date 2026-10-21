@@ -277,3 +277,223 @@ html body .shared-grade-record .record-sidebar :is(.record-notes, .shared-privat
 @media(max-width:760px){
     html body .shared-grade-record .record-sidebar::before {left:-16px;right:-16px}
 }
+
+/* Review Grades uses the existing compact grade-card layout on phones. */
+.record-mobile-grade-cards{display:none}
+@media(max-width:767px){
+ html body .record-review .record-table-scroll{display:none!important}
+ html body .record-review .record-mobile-grade-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:0;width:100%}
+ .record-mobile-grade-card{padding:16px;background:#fff;border:0;border-bottom:1px solid rgba(0,0,0,.12);border-radius:0;box-shadow:none;min-width:0}
+ .record-mobile-grade-card>header{color:#000;font-size:13px;line-height:20px;overflow-wrap:anywhere}
+ .record-mobile-grade-card>header>span{display:block;color:rgba(0,0,0,.45);font-size:11px;line-height:18px;margin-top:3px}
+ .record-mobile-grade-card dl{display:grid;margin:18px 0 0;padding:0;text-align:center;gap:0}
+ .record-mobile-grade-card dl>div{min-width:0;display:flex;flex-direction:column}
+ .record-mobile-grade-card dt{padding:10px 4px;background:var(--icc-green,#15803d);color:#fff;font-size:12px;line-height:18px;font-weight:600;box-shadow:inset -1px 0 0 #137638}
+ .record-mobile-grade-card dd{flex:1;margin:0;padding:12px 4px;color:#000;font-size:16px;line-height:24px;font-weight:500;border-bottom:1px solid rgba(0,0,0,.08)}
+ .record-mobile-grade-card dd.record-mobile-grade-missing{color:rgba(0,0,0,.45);font-weight:400}
+ .record-mobile-grade-card dl>div:last-child dt{box-shadow:none}
+ .record-mobile-grade-card dl>div:last-child dd{border-left:1px solid rgba(0,0,0,.08)}
+ html body .record-review .record-actions{display:flex;flex-direction:column;align-items:stretch;gap:12px;min-width:0}
+ html body .record-review .record-actions>.record-back{align-self:flex-start}
+ html body .record-review .record-actions>div{display:flex;flex-direction:column;width:100%;min-width:0;gap:10px}
+ html body .record-review .record-actions>div>button{width:100%;min-width:0;white-space:normal}
+}
+@media(max-width:767px){
+ html body .record-review .record-mobile-grade-cards {
+  width:calc(100% + 32px);max-width:none;margin-left:-16px;margin-right:-16px;
+ }
+ html body .record-review .record-mobile-grade-card {
+  padding:16px 0;
+ }
+ html body .record-review .record-mobile-grade-card>header {
+  padding:0 16px;
+ }
+ html body .record-review .record-mobile-grade-card dl {
+  width:100%;
+ }
+}
+
+/* Keep review status spacing independent of the desktop/mobile table markup. */
+html body .record-review .record-main>.record-status {
+ margin-top:18px!important;margin-bottom:0!important;line-height:1.5;
+}
+html body .record-review .record-main>.record-actions {
+ margin-top:24px!important;
+}
+
+/* Inset only the mobile review table; keep student panels full width. */
+@media(max-width:767px){
+ html body .record-review .record-mobile-grade-card dl {
+  width:calc(100% - 32px);margin-left:16px;margin-right:16px;
+ }
+}
+
+.record-share-confirm{width:min(480px,calc(100% - 32px));max-height:85dvh;box-sizing:border-box;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:20px;background:#fff;color:#000;font-family:Inter,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.record-share-confirm::backdrop{background:rgba(0,0,0,.5)}
+.record-share-confirm h2{margin:0 0 14px;font-size:20px;line-height:28px;font-weight:700}
+.record-share-confirm p{margin:0;font-size:14px;line-height:22px}
+.record-share-confirm-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}
+html body .shared-grade-record .record-error[data-success="true"]{color:#15803d!important}
+@media(max-width:767px){.record-share-confirm{padding:20px}.record-share-confirm h2{font-size:17px;line-height:24px}.record-share-confirm p{font-size:12px;line-height:19px}.record-share-confirm-actions .sigma-btn{font-size:12px!important;min-width:0!important}}
+
+.record-share-confirm label{display:block;margin-top:18px;font-size:13px;font-weight:600}
+.record-share-confirm textarea{display:block;width:100%;box-sizing:border-box;min-height:100px;max-height:220px;margin-top:8px;padding:12px;border:1px solid #dce5ef;border-radius:10px;font:400 14px/21px Inter,sans-serif;resize:vertical}
+.record-share-confirm textarea:focus{outline:2px solid #15803d;outline-offset:2px}
+
+@media(max-width:767px){
+ html body .record-review .record-main>.record-actions{
+  position:fixed!important;left:0;right:0;bottom:0;z-index:1000;width:100%!important;
+  margin:0!important;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))!important;
+  box-sizing:border-box;background:#fff;border-top:1px solid #e2e8f0;box-shadow:0 -3px 12px rgba(0,0,0,.05);
+ }
+ html body .record-review .record-main>.record-actions>.record-back{display:none!important}
+ html body .record-review .record-main>.record-actions>div{display:flex!important;flex-direction:row!important;gap:10px;width:100%}
+ html body .record-review .record-main>.record-actions>div>.sigma-btn{flex:1 1 0;width:auto;min-width:0;min-height:42px!important;padding:8px!important;font-size:12px!important;line-height:18px!important}
+ html body .record-review{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))!important}
+}
+
+.record-back-chevron{display:none}
+@media(max-width:767px){
+ html body .record-review .record-main>.record-actions{flex-direction:row!important;align-items:center!important;gap:10px!important}
+ html body .record-review .record-main>.record-actions>.record-back{
+  display:inline-flex!important;align-items:center;justify-content:center;align-self:center!important;
+  flex:0 0 36px;width:36px!important;min-width:36px!important;height:42px!important;
+  padding:0!important;margin:0!important;
+ }
+ html body .record-review .record-actions>.record-back>span{display:none}
+ html body .record-review .record-actions>.record-back>.record-back-chevron{display:inline;font-size:14px}
+ html body .record-review .record-main>.record-actions>div{flex:1;min-width:0;width:auto!important}
+}
+
+
+
+.record-share-confirm .record-correction-hint{display:block;margin-top:6px;color:rgba(0,0,0,.45);font-size:11px;line-height:17px;font-weight:400}
+
+html body .shared-grade-record .record-main .record-table-scroll table[data-quarter-count] tbody tr>td:last-child:not([colspan]){
+ background-color:rgba(16,185,129,.08)!important;
+}
+html body .shared-grade-record .record-main .record-table-scroll table[data-quarter-count] tbody tr:hover>td:last-child:not([colspan]){
+ background-color:rgba(16,185,129,.16)!important;
+}
+html body .shared-grade-record .record-mobile-grade-card dl>div:last-child dd{
+ background-color:rgba(16,185,129,.08)!important;
+}
+html body .shared-grade-record .record-mobile-grade-card:hover dl>div:last-child dd{
+ background-color:rgba(16,185,129,.16)!important;
+}
+
+.record-comment-role{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border-radius:6px;background:#eef2ff;color:#3730a3;font-size:10px;font-weight:600;line-height:16px}
+
+.record-review-quarter-picker{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:16px;font-size:12px;font-weight:600}
+.record-review-quarter-picker select{max-width:100%;padding:10px 12px;border:1px solid #dce5ef;border-radius:10px;background:#fff;color:#000;font:400 13px/20px Inter,sans-serif}
+@media(max-width:767px){.record-review-quarter-picker{justify-content:flex-start}.record-review-quarter-picker select{font-size:12px}}
+
+/* Override the review table's transparent cell reset for semester totals. */
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table tbody tr>td:last-child:not([colspan]){
+ background:rgba(16,185,129,.08)!important;
+}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table tbody tr:hover>td:last-child:not([colspan]){
+ background:rgba(16,185,129,.16)!important;
+}
+
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;flex-wrap:wrap;gap:10px!important;margin:0 0 16px!important;width:100%!important;font-size:12px!important;font-weight:600!important;
+}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker>span{font-size:12px!important;line-height:18px!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker>select{
+ flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;height:40px!important;margin:0!important;padding:8px 36px 8px 12px!important;border:1px solid #dce5ef!important;border-radius:10px!important;background-color:#fff!important;color:#000!important;font:400 13px/20px Inter,sans-serif!important;
+}
+@media(max-width:767px){html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{justify-content:flex-start!important}}
+
+/* One shared Review Grades layout overrides portal-wide table and form rules. */
+@media(min-width:768px){
+ html body #admin-gradebook-workspace-content>.shared-grade-record{padding:24px 32px!important;box-sizing:border-box;width:100%;min-width:0}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-layout{grid-template-columns:minmax(0,1fr) 300px!important;gap:32px!important;padding-top:24px!important;align-items:start}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main table{table-layout:fixed!important;width:100%!important;border-spacing:0!important;border-collapse:collapse!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main table :is(th,td){
+  padding:12px!important;height:72px!important;box-sizing:border-box;vertical-align:middle!important;font:400 13px/20px Inter,sans-serif!important;text-align:center!important;
+ }
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main table th{font-weight:600!important;font-size:14px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main table td:nth-child(2){text-align:left!important;min-width:0!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-identity{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:12px!important;margin:0!important;padding:0!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-details{display:block!important;margin:0!important;padding:0!important;min-width:0;line-height:20px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-mobile-id{display:none!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-avatar,
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-avatar :is(.sigma-user-avatar,img){width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;min-height:38px!important;max-height:38px!important;flex:0 0 38px!important;border-radius:50%!important;object-fit:cover;margin:0!important;padding:0!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-student-avatar i{font-size:16px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{display:grid!important;grid-template-columns:auto 220px!important;justify-content:end!important;align-items:center!important;gap:10px!important;margin:0 0 16px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker>select{display:block!important;width:220px!important;max-width:220px!important;min-width:0!important;box-sizing:border-box!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-sidebar{display:flex!important;flex-direction:column!important;gap:24px!important;min-width:0}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-sidebar .record-comments{padding:24px!important;margin:0!important;width:100%!important;box-sizing:border-box}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-heading{margin:0!important;padding:0 0 24px 14px!important}
+}
+
+/* Identical notes geometry in teacher and admin review pages. */
+@media(min-width:768px){
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-sidebar .record-notes{min-height:294px!important;height:auto!important;align-self:start;box-sizing:border-box}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes>.record-comments-heading{min-height:24px!important;margin:0 0 24px!important;align-items:center!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes #record-note{display:block;width:100%!important;height:110px!important;min-height:110px!important;margin:0!important;padding:12px!important;border-radius:16px!important;box-sizing:border-box!important;font:400 14px/21px Inter,sans-serif!important;resize:vertical}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes #record-note[hidden]{display:none!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes .record-note-footer{margin:18px 0 0!important;gap:10px!important;min-height:46px;align-items:center!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes .record-note-enter{height:46px!important;min-height:46px!important;padding:0 24px!important;font:600 14px/20px Inter,sans-serif!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes .record-note-counter{margin:6px 0 0!important;font:400 11px/16px Inter,sans-serif!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-notes .record-saved-note{min-height:110px;box-sizing:border-box;margin:0!important}
+}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-notes .record-note-error:empty{display:none!important;margin:0!important;padding:0!important}
+
+/* Match the complete review content rhythm across both portals. */
+@media(min-width:768px){
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table :is(thead,tbody) tr{height:72px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table :is(th,td){height:72px!important;min-height:72px!important;padding:12px!important;line-height:20px!important;vertical-align:middle!important;box-sizing:border-box!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table td:nth-child(2){text-align:left!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table th:first-child{width:6%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table th:nth-child(2){width:34%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table th:nth-child(3){width:18%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table th:last-child{width:20%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table[data-quarter-count="4"] th:nth-child(2){width:28%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table[data-quarter-count="4"] :is(th:nth-child(3),th:last-child){width:14%!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main>.record-status{margin:18px 0 0!important;font:400 13px/20px Inter,sans-serif!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main>.record-error{margin:12px 0 0!important;font:400 13px/20px Inter,sans-serif!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main>.record-error:empty{display:none!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-main>.record-actions{margin:24px 0 0!important;align-items:center!important;gap:12px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-actions .sigma-btn{height:46px!important;min-height:46px!important;padding:0 24px!important;font:600 14px/20px Inter,sans-serif!important;box-sizing:border-box!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{min-height:40px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker>select{height:40px!important;min-height:40px!important;max-height:40px!important;line-height:20px!important}
+ html body #admin-gradebook-workspace-content .shared-grade-record .record-sidebar .record-comments-heading{margin:0 0 24px!important;min-height:24px!important;line-height:24px!important}
+}
+
+/* Custom quarter trigger and popover, shared by admin and teacher. */
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{grid-template-columns:auto 160px!important;overflow:visible!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker .sigma-quarter-dropdown{width:160px!important;min-width:160px!important;height:40px!important;border:1px solid #dce5ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker summary{height:38px!important;min-height:38px!important;padding:0 12px!important;font:500 13px/20px Inter,sans-serif!important;color:#000!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker .sigma-quarter-dropdown-menu{left:auto!important;right:0!important;top:calc(100% + 6px)!important;width:180px!important;min-width:160px!important;padding:4px!important;border:1px solid #dce5ef!important;border-radius:10px!important;background:#fff!important;box-shadow:0 8px 24px rgba(0,0,0,.12)!important;z-index:10060}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker .sigma-quarter-dropdown-menu button{min-height:38px!important;padding:8px 12px!important;font:400 13px/20px Inter,sans-serif!important;text-align:left!important;border-radius:6px!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker .sigma-quarter-full-label{display:inline!important}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker .sigma-quarter-mobile-label{display:none!important}
+
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main .record-table-scroll table tbody tr:last-child>td{
+ border-bottom:1px solid rgba(0,0,0,.08)!important;
+}
+
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker{
+ display:flex!important;justify-content:flex-start!important;align-items:center!important;flex-wrap:wrap!important;gap:10px!important;text-align:left!important;
+}
+html body #admin-gradebook-workspace-content .shared-grade-record .record-review-quarter-picker>span{max-width:100%;white-space:normal!important}
+
+
+
+@media(min-width:768px){
+ html body dialog.record-share-confirm h2{font:600 20px/28px Inter,sans-serif!important;margin:0 0 16px!important}
+ html body dialog.record-share-confirm p{font:400 14px/22px Inter,sans-serif!important;margin:0!important}
+ html body dialog.record-share-confirm label{font:600 13px/20px Inter,sans-serif!important}
+ html body dialog.record-share-confirm textarea{font:400 14px/22px Inter,sans-serif!important}
+ html body dialog.record-share-confirm .sigma-btn{font:600 14px/20px Inter,sans-serif!important}
+}
+
+.record-share-confirm #record-share-confirm-description{white-space:pre-line}
+
+.record-live-sync-status{font-size:12px;line-height:18px;color:#b91c1c;margin:0 0 16px}.record-live-sync-status[hidden]{display:none!important}
+
+html body #admin-gradebook-workspace-content .shared-grade-record .record-main table tbody td.record-revised-grade,
+html body #admin-gradebook-workspace-content .shared-grade-record .record-mobile-grade-card dd.record-revised-grade{background:#fffbeb!important}
+.record-previous-grade{display:block;margin-top:4px;font-size:11px;line-height:16px;font-weight:400;color:#854d0e;white-space:normal}

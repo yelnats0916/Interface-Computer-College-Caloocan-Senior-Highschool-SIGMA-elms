@@ -8,6 +8,8 @@
 
     let lastActiveSectionId = null;
     let lastActiveSectionName = 'Previous Page';
+    let lastActiveNavId = null;
+    let lastActiveHeader = null;
     let currentSearchQuery = '';
     let currentCategoryFilter = 'all';
 
@@ -52,29 +54,29 @@
 
             view = document.createElement('section');
             view.id = 'search-results-view';
-            view.className = 'dynamic-section hidden w-full min-h-screen bg-slate-50/60 font-[\'Inter\']';
+            view.className = 'dynamic-section hidden w-full font-[\'Inter\']';
             view.innerHTML = `
-                <div class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-6">
-                    <!-- Top Header (Clean text style matching System Settings style) -->
-                    <div class="flex items-center justify-between px-1">
-                        <h1 class="text-[20px] sm:text-[22px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-[18px]"></i>
-                            <span>Search Results for <span id="search-results-query-text" class="text-icc-yellow">""</span></span>
-                        </h1>
-                    </div>
+                <!-- Main Layout (Closed Gap with Sidebar & Navbar, System Settings Style) -->
+                <div class="search-results-layout">
+                    <!-- Left Section Panel (Closed gap with sidebar and navbar, sticky in view) -->
+                    <aside class="search-results-sidebar">
+                        <!-- Search Results Query Title -->
+                        <div class="search-results-header mb-6 pb-4 border-b border-slate-100 flex-shrink-0">
+                            <h1 class="text-[18px] sm:text-[20px] font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                                <i class="fa-solid fa-magnifying-glass text-black text-[16px]"></i>
+                                <span>Search Results for <span id="search-results-query-text" class="text-black">""</span></span>
+                            </h1>
+                        </div>
 
-                    <!-- Main Integrated Layout (Integrated Sidebar style like Settings) -->
-                    <div class="search-results-layout bg-white rounded-[24px] border border-slate-200/90 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[650px]">
-                        <!-- Left Integrated Sidebar -->
-                        <aside class="search-results-sidebar w-full md:w-[280px] border-b md:border-b-0 md:border-r border-slate-200/90 p-5 bg-white flex-shrink-0">
-                            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-2">Filter Results</h2>
-                            <nav class="search-filter-container flex flex-col gap-1.5" role="tablist" aria-label="Search Categories" id="search-results-filter-pills">
-                                <!-- Hydrated dynamically -->
-                            </nav>
-                        </aside>
+                        <h2 class="search-results-filter-title text-[13px] font-bold text-black-fade mb-3 px-4 flex-shrink-0">Filter Results</h2>
+                        <nav class="search-filter-container flex flex-col gap-1.5 flex-shrink-0" role="tablist" aria-label="Search Categories" id="search-results-filter-pills">
+                            <!-- Hydrated dynamically -->
+                        </nav>
+                    </aside>
 
-                        <!-- Right Integrated Content -->
-                        <main class="search-results-main flex-1 bg-slate-50/40 p-5 sm:p-8 min-w-0">
+                    <!-- Right Content Area (Standalone Cards on Page Background, Not in a Big White Panel) -->
+                    <main class="search-results-main">
+                        <div class="search-results-inner">
                             <div id="search-results-cards-container" class="space-y-4">
                                 <!-- Hydrated dynamically -->
                             </div>
@@ -85,18 +87,15 @@
                             </div>
 
                             <!-- Empty State -->
-                            <div id="search-results-empty-state" class="hidden py-16 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-                                <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 text-2xl mb-4">
-                                    <i class="fa-solid fa-magnifying-glass text-black"></i>
+                            <div id="search-results-empty-state" class="hidden py-16 text-center bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+                                <div class="search-empty-icon-wrap w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-2xl mb-4" style="color: rgba(0, 0, 0, 0.45) !important;">
+                                    <i class="fa-solid fa-magnifying-glass" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
                                 </div>
-                                <h3 class="text-base font-bold text-slate-800 mb-1" id="search-results-empty-title">No matches found</h3>
-                                <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">We couldn't find anything matching your search. Check for typos or try searching by name or subject.</p>
-                                <button type="button" id="search-results-empty-return-btn" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary">
-                                    Return to Previous Page
-                                </button>
+                                <h3 class="text-base font-bold text-slate-800 mb-1.5 text-center" id="search-results-empty-title">No matches found</h3>
+                                <p class="text-xs text-black-fade max-w-sm mx-auto text-center font-['Inter'] leading-relaxed" style="color: rgba(0, 0, 0, 0.45) !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; text-align: center !important;">We couldn't find anything matching your search. Check for typos or try searching by name or subject.</p>
                             </div>
-                        </main>
-                    </div>
+                        </div>
+                    </main>
                 </div>
             `;
 
@@ -118,6 +117,15 @@
             emptyReturnBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 closeSearchResultsView();
+            });
+        }
+
+        if (!view.dataset.selectionPreventBound) {
+            view.dataset.selectionPreventBound = 'true';
+            view.addEventListener('selectstart', (e) => {
+                if (!e.target.closest('input, textarea')) {
+                    e.preventDefault();
+                }
             });
         }
 
@@ -165,6 +173,19 @@
 
         function addResult(item) {
             if (!item || !item.title) return;
+
+            // Class deduplication must be scoped to (titleTokens + section)
+            // so identical subjects across different sections remain distinct cards
+            if (item.category === 'class') {
+                const titleTokens = item.title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join('_');
+                const secClean = String(item.section || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const classDedupeKey = `class_${titleTokens}_${secClean}`;
+                if (seen.has(classDedupeKey)) return;
+                seen.add(classDedupeKey);
+                results.push(item);
+                return;
+            }
+
             const idKey = item.id ? String(item.id).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
             const titleTokens = item.title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).sort().join('_');
 
@@ -334,7 +355,9 @@
                     id: u.uid || u.id || u.lrn || u.employeeId,
                     title: fullName,
                     category: category,
-                    roleLabel: isTeacher ? 'Teacher' : (isStudent ? 'Student' : 'Administrator'),
+                    role: isTeacher ? 'teacher' : (isStudent ? 'student' : 'admin'),
+                    userRole: isTeacher ? 'Teacher' : (isStudent ? 'Student' : 'Admin'),
+                    roleLabel: isTeacher ? 'Teacher' : (isStudent ? 'Student' : 'Admin'),
                     subtitle: userSubtitle,
                     detail: userDetail,
                     avatar: photo,
@@ -343,37 +366,462 @@
             }
         });
 
-        // 2. Scan Subjects & Classes scoped by role
-        const subjectKeys = portalRole === 'student'
-            ? ['sigma_classroom_materials', 'sigma_subjects_v2', 'sigma-subjects-list']
-            : ['sigma-admin-subjects', 'sigma-subjects-list', 'sigma_subjects_v2', 'sigma_classroom_materials'];
-        for (const k of subjectKeys) {
+        function formatClassGrade(grade) {
+            let g = String(grade || '').trim();
+            if (!g) return 'Grade 11';
+            if (!g.toLowerCase().startsWith('grade')) {
+                g = `Grade ${g}`;
+            }
+            return g;
+        }
+
+        function formatClassSection(secName, rawSec) {
+            let s = String(secName || rawSec?.name || rawSec?.sectionName || rawSec?.section || '').trim();
+            if (s.includes(' - ')) {
+                const parts = s.split(' - ');
+                s = parts[parts.length - 1].trim();
+            }
+            if (s.toLowerCase().startsWith('grade ')) {
+                s = s.replace(/^grade\s*\d+\s*[-–:]*\s*/i, '').trim();
+            }
+            return s || 'Rizal';
+        }
+
+        function resolveSubjectSectionAndGrade(subjectName, subjectCode, rawSubj) {
+            let section = '';
+            let grade = '';
+
+            // 1. Direct properties on rawSubj
+            if (rawSubj) {
+                if (rawSubj.sectionName) section = String(rawSubj.sectionName).trim();
+                else if (rawSubj.section) section = String(rawSubj.section).trim();
+                
+                if (rawSubj.gradeLevel) grade = String(rawSubj.gradeLevel).trim();
+                else if (rawSubj.grade) grade = String(rawSubj.grade).trim();
+                else if (rawSubj.subtitle && /grade\s*\d+/i.test(rawSubj.subtitle)) {
+                    const m = rawSubj.subtitle.match(/grade\s*\d+/i);
+                    if (m) grade = m[0];
+                }
+            }
+
+            const cleanSubjName = String(subjectName || '').trim().toLowerCase();
+            const cleanSubjCode = String(subjectCode || '').trim().toLowerCase();
+
+            // 2. Scan saved sections in localStorage
+            const sectionKeys = ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections', 'sigma_classroom_materials'];
+            for (const key of sectionKeys) {
+                if (section && grade) break;
+                try {
+                    const list = JSON.parse(localStorage.getItem(key) || '[]');
+                    if (Array.isArray(list)) {
+                        for (const item of list) {
+                            if (!item) continue;
+                            const itemSubj = String(item.subject || item.assignedSubject || item.name || '').trim().toLowerCase();
+                            const subjs = Array.isArray(item.assignedSubjects) ? item.assignedSubjects.map(x => String(typeof x === 'string' ? x : (x?.name || '')).trim().toLowerCase()) : [];
+                            const matchesSubj = (itemSubj && (itemSubj === cleanSubjName || cleanSubjName.includes(itemSubj) || itemSubj.includes(cleanSubjName))) ||
+                                                subjs.some(s => s === cleanSubjName || cleanSubjName.includes(s) || s.includes(cleanSubjName));
+                            if (matchesSubj) {
+                                if (!section) section = String(item.sectionName || item.name || item.section || '').trim();
+                                if (!grade) grade = String(item.gradeLevel || item.grade || '').trim();
+                                if (section && grade) break;
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // 3. Known subject to section and grade mapping in curriculum
+            const KNOWN_MAP = {
+                'computer programming 1': { section: 'Rizal', grade: 'Grade 11' },
+                'computer programming': { section: 'Rizal', grade: 'Grade 11' },
+                'general mathematics': { section: 'Newton', grade: 'Grade 12' },
+                'oral communication': { section: 'Rizal', grade: 'Grade 11' },
+                'statistics and probability': { section: 'Einstein', grade: 'Grade 11' },
+                'empowerment technologies': { section: 'Rizal', grade: 'Grade 11' },
+                'web development 1': { section: 'Rizal', grade: 'Grade 11' },
+                'web development': { section: 'Rizal', grade: 'Grade 11' },
+                'database management 1': { section: 'Newton', grade: 'Grade 12' },
+                'database management': { section: 'Newton', grade: 'Grade 12' },
+                'earth and life science': { section: 'Einstein', grade: 'Grade 11' },
+                'fundamentals of abm 1': { section: 'Rizal', grade: 'Grade 11' },
+                'business mathematics': { section: 'Newton', grade: 'Grade 12' }
+            };
+
+            if (!section || !grade) {
+                for (const [key, val] of Object.entries(KNOWN_MAP)) {
+                    if (cleanSubjName.includes(key) || key.includes(cleanSubjName)) {
+                        if (!section) section = val.section;
+                        if (!grade) grade = val.grade;
+                        break;
+                    }
+                }
+            }
+
+            // 4. URL or portal state fallback
+            if (!section) {
+                try {
+                    const hash = window.location.hash || '';
+                    if (hash.startsWith('#classroom:')) {
+                        const parts = hash.replace(/^#classroom:/, '').split(':');
+                        if (parts[0]) section = decodeURIComponent(parts[0]).trim();
+                    } else if (window.currentClassroomSectionName) {
+                        section = String(window.currentClassroomSectionName).trim();
+                    }
+                } catch (_) {}
+            }
+
+            section = formatClassSection(section);
+            grade = formatClassGrade(grade);
+
+            return {
+                section: section,
+                gradeLevel: grade
+            };
+        }
+
+        // 2. Scan Subjects & Classes strictly scoped by role
+        if (portalRole === 'teacher') {
+            // Teacher: ONLY classes assigned to the logged-in teacher
+            let authTeacher = null;
             try {
-                const list = JSON.parse(localStorage.getItem(k) || '[]');
-                if (Array.isArray(list)) {
-                    list.forEach(s => {
-                        if (!s) return;
-                        const name = (s.name || s.title || s.subjectName || '').trim();
-                        const code = (s.code || s.subjectCode || '').trim();
-                        const section = (s.section || '').trim();
+                authTeacher = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            } catch (e) {}
+            if (!authTeacher || !authTeacher.id) {
+                if (typeof window.getLoggedInTeacherUser === 'function') {
+                    authTeacher = window.getLoggedInTeacherUser();
+                }
+            }
+            if (!authTeacher || !authTeacher.id) {
+                try {
+                    authTeacher = JSON.parse(localStorage.getItem('sigma-current-user') || '{}');
+                } catch (e) {}
+            }
 
-                        const isMatch = matchesQuery(name, raw) || matchesQuery(code, raw) || matchesQuery(section, raw);
+            const tId = String(authTeacher?.id || authTeacher?.uid || authTeacher?.employeeId || '').replace(/^#/, '').trim().toLowerCase();
+            const tName = String(authTeacher?.fullName || authTeacher?.name || `${authTeacher?.firstName || ''} ${authTeacher?.lastName || ''}`).trim().toLowerCase();
+            const tFirst = String(authTeacher?.firstName || '').trim().toLowerCase();
+            const tLast = String(authTeacher?.lastName || '').trim().toLowerCase();
 
-                        if (isMatch && name) {
-                            addResult({
-                                id: code || s.id,
-                                title: name,
-                                category: 'class',
-                                roleLabel: 'Subject / Class',
-                                subtitle: code ? `Code: ${code}` : 'Senior High Curriculum',
-                                detail: section || 'All Active Sections',
-                                icon: 'fa-book-open',
-                                rawSubject: s
+            function isTeacherAssigned(sec, subjName) {
+                const secName = formatClassSection(sec?.name || sec?.sectionName || sec?.section);
+                if (typeof window.isTeacherStrictlyAssignedToRoom === 'function' && secName && subjName) {
+                    if (window.isTeacherStrictlyAssignedToRoom(secName, subjName)) return true;
+                }
+                if (typeof window.isSectionAssignedToTeacher === 'function' && authTeacher) {
+                    if (window.isSectionAssignedToTeacher(sec, authTeacher)) return true;
+                }
+                if (!authTeacher || (!tId && !tName)) return false;
+
+                const teachers = Array.isArray(sec?.teachers) ? sec.teachers.slice() : (sec?.teacher ? [sec.teacher] : []);
+                if (sec?.adviser) teachers.push(sec.adviser);
+
+                return teachers.some(t => {
+                    if (!t) return false;
+                    if (typeof t === 'object') {
+                        const u = String(t.uid || t.id || t.teacherId || '').replace(/^#/, '').trim().toLowerCase();
+                        const n = String(t.name || t.fullName || `${t.firstName || ''} ${t.lastName || ''}`).trim().toLowerCase();
+                        if (tId && u && tId === u) return true;
+                        if (tName && n && (tName === n || (tLast && n.includes(tLast)))) return true;
+                    } else {
+                        const n = String(t).trim().toLowerCase();
+                        if (tName && (n === tName || (tLast && n.includes(tLast)))) return true;
+                    }
+                    return false;
+                });
+            }
+
+            const secKeys = ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'];
+            const processedTeacherPairs = new Set();
+
+            for (const key of secKeys) {
+                try {
+                    const list = JSON.parse(localStorage.getItem(key) || '[]');
+                    if (Array.isArray(list)) {
+                        list.forEach(sec => {
+                            if (!sec || sec.status === 'Archived') return;
+                            const secName = formatClassSection(sec.name || sec.sectionName || sec.section);
+                            const secGrade = formatClassGrade(sec.gradeLevel || sec.grade);
+
+                            const subjs = (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects.length > 0)
+                                ? sec.assignedSubjects
+                                : (Array.isArray(sec.subjects) && sec.subjects.length > 0)
+                                    ? sec.subjects
+                                    : [sec.subject || sec.assignedSubject || sec.subjectName || sec.name];
+
+                            subjs.forEach(s => {
+                                const name = String(typeof s === 'string' ? s : (s?.title || s?.name || s?.subject || '')).trim();
+                                if (!name) return;
+                                const pairKey = `${secName.toLowerCase()}::${name.toLowerCase()}`;
+                                if (processedTeacherPairs.has(pairKey)) return;
+
+                                if (isTeacherAssigned(sec, name)) {
+                                    processedTeacherPairs.add(pairKey);
+                                    const code = typeof s === 'object' ? (s.code || '') : '';
+                                    const isMatch = matchesQuery(name, raw) || 
+                                                    matchesQuery(code, raw) || 
+                                                    matchesQuery(secName, raw) || 
+                                                    matchesQuery(secGrade, raw);
+
+                                    if (isMatch) {
+                                        addResult({
+                                            id: `${secName}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                                            title: name,
+                                            category: 'class',
+                                            roleLabel: 'Subject / Class',
+                                            subtitle: `Section: ${secName}`,
+                                            detail: `Grade Level: ${secGrade}`,
+                                            icon: 'fa-book-bookmark',
+                                            rawSubject: s,
+                                            rawSection: sec,
+                                            section: secName,
+                                            gradeLevel: secGrade
+                                        });
+                                    }
+                                }
+                            });
+                        });
+                    }
+                } catch (_) {}
+            }
+
+            // Also check teacher's subjectsData if available
+            if (window.subjectsData && typeof window.subjectsData === 'object') {
+                const flattenedSubjects = [
+                    ...(window.subjectsData.core || []),
+                    ...(window.subjectsData.academic || []),
+                    ...(window.subjectsData.techpro || [])
+                ];
+                flattenedSubjects.forEach(s => {
+                    if (!s || !s.name) return;
+                    const name = s.name.trim();
+                    const secName = formatClassSection(Array.isArray(s.sections) && s.sections[0] ? s.sections[0] : (s.section || 'Rizal'));
+                    const secGrade = formatClassGrade(s.grade || 'Grade 11');
+                    const pairKey = `${secName.toLowerCase()}::${name.toLowerCase()}`;
+                    if (processedTeacherPairs.has(pairKey)) return;
+                    processedTeacherPairs.add(pairKey);
+
+                    if (matchesQuery(name, raw) || matchesQuery(secName, raw) || matchesQuery(secGrade, raw)) {
+                        addResult({
+                            id: `${secName}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                            title: name,
+                            category: 'class',
+                            roleLabel: 'Subject / Class',
+                            subtitle: `Section: ${secName}`,
+                            detail: `Grade Level: ${secGrade}`,
+                            icon: 'fa-book-bookmark',
+                            rawSubject: s,
+                            section: secName,
+                            gradeLevel: secGrade
+                        });
+                    }
+                });
+            }
+        } else if (portalRole === 'student') {
+            // Student: ONLY classes enrolled for the logged-in student
+            let authStudent = null;
+            try {
+                authStudent = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
+            } catch (e) {}
+            if (!authStudent || !authStudent.id) {
+                if (typeof window.getLoggedInStudentUser === 'function') {
+                    authStudent = window.getLoggedInStudentUser();
+                }
+            }
+            if (!authStudent || !authStudent.id) {
+                try {
+                    authStudent = JSON.parse(localStorage.getItem('sigma-current-user') || '{}');
+                } catch (e) {}
+            }
+
+            const sId = String(authStudent?.id || authStudent?.uid || authStudent?.lrn || '').replace(/^#/, '').trim().toLowerCase();
+            const sSec = formatClassSection(authStudent?.section || authStudent?.gradeSection || '');
+            const sName = String(authStudent?.fullName || authStudent?.name || `${authStudent?.firstName || ''} ${authStudent?.lastName || ''}`).trim().toLowerCase();
+            const sLast = String(authStudent?.lastName || '').trim().toLowerCase();
+
+            let studentClasses = [];
+            if (typeof window.getStudentSectionClassItems === 'function') {
+                try {
+                    studentClasses = window.getStudentSectionClassItems() || [];
+                } catch (_) {}
+            }
+            if (!studentClasses || studentClasses.length === 0) {
+                try {
+                    studentClasses = JSON.parse(localStorage.getItem('sigma_student_enrolled_classes') || '[]');
+                } catch (_) {}
+            }
+
+            if (Array.isArray(studentClasses) && studentClasses.length > 0) {
+                studentClasses.forEach(item => {
+                    if (!item) return;
+                    const name = (item.subject || item.title || item.name || '').trim();
+                    if (!name) return;
+                    const secName = formatClassSection(item.section || sSec || 'Rizal');
+                    const secGrade = formatClassGrade(item.grade || item.gradeLevel || (sSec.toLowerCase().includes('12') ? 'Grade 12' : 'Grade 11'));
+                    const code = (item.code || item.id || '').trim();
+
+                    const isMatch = matchesQuery(name, raw) || 
+                                    matchesQuery(code, raw) || 
+                                    matchesQuery(secName, raw) || 
+                                    matchesQuery(secGrade, raw);
+
+                    if (isMatch) {
+                        addResult({
+                            id: item.id || `${secName}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                            title: name,
+                            category: 'class',
+                            roleLabel: 'Subject / Class',
+                            subtitle: `Section: ${secName}`,
+                            detail: `Grade Level: ${secGrade}`,
+                            icon: 'fa-book-bookmark',
+                            rawSubject: item,
+                            rawClass: item,
+                            section: secName,
+                            gradeLevel: secGrade
+                        });
+                    }
+                });
+            } else {
+                // Fallback: scan admin sections strictly filtered to student's section or student enrollment
+                const secKeys = ['sigma-admin-sections', 'sigma-sections-list'];
+                for (const key of secKeys) {
+                    try {
+                        const list = JSON.parse(localStorage.getItem(key) || '[]');
+                        if (Array.isArray(list)) {
+                            list.forEach(sec => {
+                                if (!sec || sec.status === 'Archived') return;
+                                const secName = formatClassSection(sec.name || sec.sectionName || sec.section);
+                                const secGrade = formatClassGrade(sec.gradeLevel || sec.grade);
+
+                                const isEnrolled = (sSec && secName.toLowerCase() === sSec.toLowerCase()) ||
+                                    (Array.isArray(sec.students) && sec.students.some(st => {
+                                        const u = String(st.uid || st.id || st.lrn || '').replace(/^#/, '').trim().toLowerCase();
+                                        const n = String(st.name || st.fullName || '').trim().toLowerCase();
+                                        return (sId && u && sId === u) || (sName && n && (sName === n || (sLast && n.includes(sLast))));
+                                    })) ||
+                                    (typeof window.isSectionAssignedToStudent === 'function' && window.isSectionAssignedToStudent(sec, authStudent));
+
+                                if (!isEnrolled && sSec) return;
+
+                                const subjs = (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects.length > 0)
+                                    ? sec.assignedSubjects
+                                    : (Array.isArray(sec.subjects) && sec.subjects.length > 0)
+                                        ? sec.subjects
+                                        : [sec.subject || sec.assignedSubject || sec.subjectName || sec.name];
+
+                                subjs.forEach(s => {
+                                    const name = String(typeof s === 'string' ? s : (s?.title || s?.name || s?.subject || '')).trim();
+                                    if (!name) return;
+                                    const code = typeof s === 'object' ? (s.code || '') : '';
+                                    if (matchesQuery(name, raw) || matchesQuery(code, raw) || matchesQuery(secName, raw) || matchesQuery(secGrade, raw)) {
+                                        addResult({
+                                            id: `${secName}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                                            title: name,
+                                            category: 'class',
+                                            roleLabel: 'Subject / Class',
+                                            subtitle: `Section: ${secName}`,
+                                            detail: `Grade Level: ${secGrade}`,
+                                            icon: 'fa-book-bookmark',
+                                            rawSubject: s,
+                                            rawSection: sec,
+                                            section: secName,
+                                            gradeLevel: secGrade
+                                        });
+                                    }
+                                });
                             });
                         }
-                    });
+                    } catch (_) {}
                 }
-            } catch (_) {}
+            }
+        } else {
+            // Admin: Separate different sections with the same subject into distinct cards
+            const sectionKeys = ['sigma-admin-sections', 'sigma-sections-list', 'sigma-admin-sections-v1', 'sigma-sections'];
+            const processedSectionSubjectPairs = new Set();
+
+            for (const key of sectionKeys) {
+                try {
+                    const list = JSON.parse(localStorage.getItem(key) || '[]');
+                    if (Array.isArray(list)) {
+                        list.forEach(sec => {
+                            if (!sec || sec.status === 'Archived') return;
+                            const secName = formatClassSection(sec.name || sec.sectionName || sec.section);
+                            const secGrade = formatClassGrade(sec.gradeLevel || sec.grade);
+
+                            const subjs = (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects.length > 0)
+                                ? sec.assignedSubjects
+                                : (Array.isArray(sec.subjects) && sec.subjects.length > 0)
+                                    ? sec.subjects
+                                    : [sec.subject || sec.assignedSubject || sec.subjectName || sec.name];
+
+                            subjs.forEach(s => {
+                                const name = String(typeof s === 'string' ? s : (s?.title || s?.name || s?.subject || '')).trim();
+                                if (!name) return;
+                                const pairKey = `${secName.toLowerCase()}::${name.toLowerCase()}`;
+                                if (processedSectionSubjectPairs.has(pairKey)) return;
+                                processedSectionSubjectPairs.add(pairKey);
+
+                                const code = typeof s === 'object' ? (s.code || '') : '';
+                                const isMatch = matchesQuery(name, raw) || 
+                                                matchesQuery(code, raw) || 
+                                                matchesQuery(secName, raw) || 
+                                                matchesQuery(secGrade, raw);
+
+                                if (isMatch) {
+                                    addResult({
+                                        id: `${secName}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                                        title: name,
+                                        category: 'class',
+                                        roleLabel: 'Subject / Class',
+                                        subtitle: `Section: ${secName}`,
+                                        detail: `Grade Level: ${secGrade}`,
+                                        icon: 'fa-book-bookmark',
+                                        rawSubject: s,
+                                        rawSection: sec,
+                                        section: secName,
+                                        gradeLevel: secGrade
+                                    });
+                                }
+                            });
+                        });
+                    }
+                } catch (_) {}
+            }
+
+            // Fallback: scan standalone curriculum subjects that may not yet be assigned to a section
+            const fallbackSubjectKeys = ['sigma-admin-subjects', 'sigma-subjects-list', 'sigma_subjects_v2', 'sigma_classroom_materials'];
+            for (const k of fallbackSubjectKeys) {
+                try {
+                    const list = JSON.parse(localStorage.getItem(k) || '[]');
+                    if (Array.isArray(list)) {
+                        list.forEach(s => {
+                            if (!s) return;
+                            const name = (s.name || s.title || s.subjectName || '').trim();
+                            const code = (s.code || s.subjectCode || '').trim();
+                            const secInfo = resolveSubjectSectionAndGrade(name, code, s);
+
+                            const isMatch = matchesQuery(name, raw) || 
+                                            matchesQuery(code, raw) || 
+                                            matchesQuery(secInfo.section, raw) || 
+                                            matchesQuery(secInfo.gradeLevel, raw);
+
+                            if (isMatch && name) {
+                                addResult({
+                                    id: code || s.id || `${secInfo.section}_${name}`.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                                    title: name,
+                                    category: 'class',
+                                    roleLabel: 'Subject / Class',
+                                    subtitle: `Section: ${secInfo.section}`,
+                                    detail: `Grade Level: ${secInfo.gradeLevel}`,
+                                    icon: 'fa-book-bookmark',
+                                    rawSubject: s,
+                                    section: secInfo.section,
+                                    gradeLevel: secInfo.gradeLevel
+                                });
+                            }
+                        });
+                    }
+                } catch (_) {}
+            }
         }
 
         // 3. Scan Navigation Pages
@@ -421,7 +869,7 @@
     }
 
     function isPersonCategory(category) {
-        return category === 'people' || category === 'student' || category === 'teacher' || category === 'user';
+        return category === 'people' || category === 'student' || category === 'teacher' || category === 'user' || category === 'admin';
     }
 
     function renderSearchResults(query) {
@@ -440,7 +888,7 @@
         const categories = [
             { id: 'all', label: 'All', icon: 'fa-solid fa-list-ul', count: results.length },
             ...(peopleCount > 0 ? [{ id: 'people', label: 'People', icon: 'fa-solid fa-user-group', count: peopleCount }] : []),
-            ...(classCount > 0 ? [{ id: 'class', label: 'Classes & Subjects', icon: 'fa-solid fa-book-bookmark', count: classCount }] : []),
+            ...(classCount > 0 ? [{ id: 'class', label: 'Classes', icon: 'fa-solid fa-book-bookmark', count: classCount }] : []),
             ...(pageCount > 0 ? [{ id: 'page', label: 'Pages', icon: 'fa-solid fa-layer-group', count: pageCount }] : [])
         ];
 
@@ -456,8 +904,8 @@
         if (pillsContainer) {
             pillsContainer.innerHTML = categories.map(cat => `
                 <button type="button" class="search-filter-item ${currentCategoryFilter === cat.id ? 'active' : ''}" data-cat="${cat.id}" role="tab" aria-selected="${currentCategoryFilter === cat.id}">
-                    <span class="flex items-center gap-3.5 min-w-0">
-                        <i class="${cat.icon} text-[15px]"></i>
+                    <span class="flex items-center gap-3.5 min-w-0 w-full">
+                        <i class="${cat.icon} text-[15px] w-5 text-center flex-shrink-0 inline-flex items-center justify-center" aria-hidden="true"></i>
                         <span class="truncate">${cat.label}</span>
                     </span>
                 </button>
@@ -493,7 +941,7 @@
         if (allFilteredResults.length === 0) {
             container.innerHTML = '';
             emptyState.classList.remove('hidden');
-            emptyState.style.display = 'block';
+            emptyState.style.display = 'flex';
             if (sentinel) sentinel.classList.add('hidden');
             const emptyTitle = emptyState.querySelector('#search-results-empty-title');
             if (emptyTitle) {
@@ -507,183 +955,194 @@
         emptyState.classList.add('hidden');
         emptyState.style.display = 'none';
         
-        // Reset pagination
-        displayedCount = 0;
-        container.innerHTML = '';
-        
-        // Initial render
-        renderNextBatch();
-        
-        // Setup Infinite Scroll
-        setupInfiniteScroll();
-    }
+        if (sentinel) sentinel.classList.add('hidden');
 
-    function setupInfiniteScroll() {
-        const sentinel = document.getElementById('search-results-sentinel');
-        if (!sentinel) return;
+        // Assign global index for click handlers
+        allFilteredResults.forEach((item, idx) => {
+            item._globalIdx = idx;
+        });
 
-        if (searchIntersectionObserver) {
-            searchIntersectionObserver.disconnect();
-        }
+        const categoryDefs = [
+            { id: 'people', label: 'People', icon: 'fa-solid fa-user-group', match: (r) => isPersonCategory(r.category) },
+            { id: 'class', label: 'Classes', icon: 'fa-solid fa-book-bookmark', match: (r) => r.category === 'class' },
+            { id: 'page', label: 'Pages', icon: 'fa-solid fa-layer-group', match: (r) => r.category === 'page' }
+        ];
 
-        searchIntersectionObserver = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && displayedCount < allFilteredResults.length) {
-                renderNextBatch();
+        let panelsHtml = '';
+
+        categoryDefs.forEach(catDef => {
+            if (currentCategoryFilter !== 'all' && currentCategoryFilter !== catDef.id) {
+                return;
             }
-        }, { rootMargin: '200px' });
+            const groupItems = allFilteredResults.filter(catDef.match);
+            if (groupItems.length === 0) return;
 
-        searchIntersectionObserver.observe(sentinel);
-    }
-
-    function renderNextBatch() {
-        const view = ensureSearchResultsView();
-        const container = view.querySelector('#search-results-cards-container');
-        const sentinel = view.querySelector('#search-results-sentinel');
-        if (!container) return;
-
-        const startIdx = displayedCount;
-        const nextBatch = allFilteredResults.slice(startIdx, startIdx + SEARCH_PAGE_SIZE);
-        
-        if (nextBatch.length === 0) {
-            if (sentinel) sentinel.classList.add('hidden');
-            return;
-        }
-
-        const html = nextBatch.map((item, idxInBatch) => {
-            const itemIdx = startIdx + idxInBatch;
-            const isStudent = item.category === 'student';
-            const isTeacher = item.category === 'teacher';
-            const isClass = item.category === 'class';
-            const isPage = item.category === 'page';
-
-            let iconOrAvatarHtml = '';
-            if (item.avatar) {
-                iconOrAvatarHtml = `
-                    <img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" 
-                        class="w-11 h-11 rounded-full object-cover aspect-square flex-shrink-0 border border-slate-200" 
-                        onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'w-11 h-11 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-base flex-shrink-0 aspect-square select-none\\'><i class=\\'fa-solid fa-user\\'></i></div>';">
-                `;
-            } else if (isStudent || isTeacher || item.category === 'user') {
-                iconOrAvatarHtml = `
-                    <div class="w-11 h-11 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-base flex-shrink-0 aspect-square select-none">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                `;
-            } else if (isClass) {
-                iconOrAvatarHtml = `
-                    <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
-                        <i class="fa-solid fa-book-bookmark"></i>
-                    </div>
-                `;
-            } else if (isPage) {
-                iconOrAvatarHtml = `
-                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </div>
-                `;
-            } else {
-                iconOrAvatarHtml = `
-                    <div class="w-11 h-11 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-base flex-shrink-0 aspect-square select-none">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                `;
-            }
-
-            let badgeHtml = '';
-            if (isStudent) {
-                badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#2563eb] text-white shadow-sm">Student</span>`;
-            } else if (isTeacher) {
-                badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#d97706] text-white shadow-sm">Teacher</span>`;
-            } else if (isClass) {
-                badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#7c3aed] text-white shadow-sm">Subject</span>`;
-            } else if (item.category === 'user') {
-                badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#475569] text-white shadow-sm">Admin</span>`;
-            } else {
-                badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#475569] text-white shadow-sm">Page</span>`;
-            }
-
-            let actionsHtml = '';
-            if (isStudent) {
-                actionsHtml = `
-                    <div class="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
-                        <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="student" data-index="${itemIdx}">
-                            <span>View Profile</span>
-                        </button>
-                    </div>
-                `;
-            } else if (isTeacher) {
-                actionsHtml = `
-                    <div class="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
-                        <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="teacher" data-index="${itemIdx}">
-                            <span>View Profile</span>
-                        </button>
-                    </div>
-                `;
-            } else if (item.category === 'user') {
-                actionsHtml = `
-                    <div class="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
-                        <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="admin" data-index="${itemIdx}">
-                            <span>View Profile</span>
-                        </button>
-                    </div>
-                `;
-            } else if (isClass) {
-                actionsHtml = `
-                    <div class="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
-                        <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="classroom" data-code="${escapeHtml(item.id || '')}" data-name="${escapeHtml(item.title)}" data-index="${itemIdx}">
-                            <span>Open Classroom</span>
-                        </button>
-                    </div>
-                `;
-            } else {
-                actionsHtml = `
-                    <div class="flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
-                        <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="page" data-page-id="${escapeHtml(item.id || '')}" data-index="${itemIdx}">
-                            <span>Go to Page</span>
-                        </button>
-                    </div>
-                `;
-            }
-
-            return `
-                <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                        ${iconOrAvatarHtml}
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate">${escapeHtml(item.title)}</h3>
-                                ${badgeHtml}
-                            </div>
-                            ${(!isStudent && !isTeacher && item.category !== 'user') ? `
-                            <div class="text-xs text-slate-500 font-medium truncate mt-0.5">
-                                ${item.subtitle ? escapeHtml(item.subtitle) : ''}${item.subtitle && item.detail ? ' • ' : ''}${item.detail ? `<span class="text-slate-400">${escapeHtml(item.detail)}</span>` : ''}
-                            </div>
-                            ` : ''}
+            panelsHtml += `
+                <div class="search-category-panel bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-5 last:mb-0" data-category="${catDef.id}">
+                    <div class="search-category-panel-header px-4 py-2.5 sm:px-5 sm:py-3 bg-slate-50/80 border-b border-slate-200/70 flex items-center justify-between">
+                        <div class="search-category-panel-header-left flex items-center gap-2">
+                            <i class="${catDef.icon} search-category-panel-header-icon text-xs sm:text-sm text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
+                            <span class="search-category-panel-header-title text-xs sm:text-sm font-bold tracking-tight text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;">${catDef.label}</span>
                         </div>
                     </div>
-                    ${actionsHtml}
+                    <div class="search-category-panel-body divide-y divide-slate-100">
+                        ${groupItems.map(item => renderCardItem(item, item._globalIdx)).join('')}
+                    </div>
                 </div>
             `;
-        }).join('');
+        });
 
-        container.insertAdjacentHTML('beforeend', html);
-        
-        // Bind actions to the newly added elements
-        bindCardActions(container, startIdx, nextBatch.length);
-        
-        displayedCount += nextBatch.length;
-
-        if (displayedCount >= allFilteredResults.length) {
-            if (sentinel) sentinel.classList.add('hidden');
-        } else {
-            if (sentinel) sentinel.classList.remove('hidden');
+        // Any leftover items that don't match the standard 3 categories
+        const otherItems = allFilteredResults.filter(r => !isPersonCategory(r.category) && r.category !== 'class' && r.category !== 'page');
+        if (otherItems.length > 0 && (currentCategoryFilter === 'all' || currentCategoryFilter === 'other')) {
+            panelsHtml += `
+                <div class="search-category-panel bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-5 last:mb-0" data-category="other">
+                    <div class="search-category-panel-header px-4 py-2.5 sm:px-5 sm:py-3 bg-slate-50/80 border-b border-slate-200/70 flex items-center justify-between">
+                        <div class="search-category-panel-header-left flex items-center gap-2">
+                            <i class="fa-solid fa-list search-category-panel-header-icon text-xs sm:text-sm text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
+                            <span class="search-category-panel-header-title text-xs sm:text-sm font-bold tracking-tight text-black-fade" style="color: rgba(0, 0, 0, 0.45) !important;">Other Results</span>
+                        </div>
+                    </div>
+                    <div class="search-category-panel-body divide-y divide-slate-100">
+                        ${otherItems.map(item => renderCardItem(item, item._globalIdx)).join('')}
+                    </div>
+                </div>
+            `;
         }
+
+        container.innerHTML = panelsHtml;
+        bindCardActions(container);
     }
 
-    function bindCardActions(container, startIdx, count) {
+    function renderCardItem(item, itemIdx) {
+        const itemRole = String(item.role || item.userRole || item.roleLabel || item.rawUser?.role || item.rawUser?.type || '').toLowerCase();
+        const isClass = item.category === 'class';
+        const isPage = item.category === 'page';
+        const isStudent = !isClass && !isPage && (item.category === 'student' || (!item.category && itemRole.includes('student')) || itemRole === 'student');
+        const isTeacher = !isClass && !isPage && !isStudent && (item.category === 'teacher' || itemRole.includes('teacher') || itemRole.includes('faculty') || itemRole.includes('instructor'));
+        const isAdmin = !isClass && !isPage && !isStudent && !isTeacher && (item.category === 'user' || item.category === 'admin' || itemRole.includes('admin') || itemRole.includes('master'));
+
+        let iconOrAvatarHtml = '';
+        if (item.avatar) {
+            iconOrAvatarHtml = `
+                <img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" 
+                    class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full object-cover aspect-square flex-shrink-0 border border-slate-200" 
+                    onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm flex-shrink-0 aspect-square select-none\\'><i class=\\'fa-solid fa-user\\'></i></div>';">
+            `;
+        } else if (isStudent || isTeacher || isAdmin || item.category === 'user' || item.category === 'people') {
+            iconOrAvatarHtml = `
+                <div class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm flex-shrink-0 aspect-square select-none">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+        } else if (isClass) {
+            iconOrAvatarHtml = `
+                <div class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-sm sm:text-base flex-shrink-0 aspect-square select-none">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+            `;
+        } else if (isPage) {
+            iconOrAvatarHtml = `
+                <div class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-sm sm:text-base flex-shrink-0 aspect-square select-none">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+            `;
+        } else {
+            iconOrAvatarHtml = `
+                <div class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm flex-shrink-0 aspect-square select-none">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            `;
+        }
+
+        let badgeHtml = '';
+        if (isStudent) {
+            badgeHtml = `<span class="search-role-badge search-role-badge--student px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-sm" style="background-color: #2563eb !important; color: #ffffff !important; display: inline-flex !important; align-items: center !important;">Student</span>`;
+        } else if (isTeacher) {
+            badgeHtml = `<span class="search-role-badge search-role-badge--teacher px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-sm" style="background-color: #2563eb !important; color: #ffffff !important; display: inline-flex !important; align-items: center !important;">Teacher</span>`;
+        } else if (isAdmin) {
+            badgeHtml = `<span class="search-role-badge search-role-badge--admin px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-sm" style="background-color: #2563eb !important; color: #ffffff !important; display: inline-flex !important; align-items: center !important;">Admin</span>`;
+        } else if (isClass) {
+            badgeHtml = `<span class="search-role-badge search-role-badge--subject px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-sm" style="background-color: #7c3aed !important; color: #ffffff !important; display: inline-flex !important; align-items: center !important;">Subject</span>`;
+        } else {
+            badgeHtml = `<span class="search-role-badge search-role-badge--page px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white shadow-sm" style="background-color: #64748b !important; color: #ffffff !important; display: inline-flex !important; align-items: center !important;">Page</span>`;
+        }
+
+        let actionsHtml = '';
+        if (isStudent) {
+            actionsHtml = `
+                <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
+                    <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="student" data-index="${itemIdx}">
+                        <span>View Profile</span>
+                    </button>
+                </div>
+            `;
+        } else if (isTeacher) {
+            actionsHtml = `
+                <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
+                    <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="teacher" data-index="${itemIdx}">
+                        <span>View Profile</span>
+                    </button>
+                </div>
+            `;
+        } else if (isAdmin || item.category === 'user') {
+            actionsHtml = `
+                <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
+                    <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="profile" data-name="${escapeHtml(item.title)}" data-id="${escapeHtml(item.id || '')}" data-role="admin" data-index="${itemIdx}">
+                        <span>View Profile</span>
+                    </button>
+                </div>
+            `;
+        } else if (isClass) {
+            actionsHtml = `
+                <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
+                    <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="classroom" data-code="${escapeHtml(item.id || '')}" data-name="${escapeHtml(item.title)}" data-index="${itemIdx}">
+                        <span>Open Classroom</span>
+                    </button>
+                </div>
+            `;
+        } else {
+            actionsHtml = `
+                <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
+                    <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="page" data-page-id="${escapeHtml(item.id || '')}" data-index="${itemIdx}">
+                        <span>Go to Page</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="search-result-card search-result-row p-3 sm:p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4" data-index="${itemIdx}">
+                <div class="search-result-card-info flex items-center gap-3.5 min-w-0 flex-1">
+                    ${iconOrAvatarHtml}
+                    <div class="min-w-0 flex-1">
+                        <div class="search-result-card-title-row flex items-center gap-1.5 flex-nowrap min-w-0">
+                            <h3 class="search-result-title text-xs sm:text-sm font-bold text-slate-900 truncate min-w-0">${escapeHtml(item.title)}</h3>
+                            ${badgeHtml}
+                        </div>
+                        ${isClass ? `
+                        <div class="search-result-subtitle text-xs text-black-fade font-normal leading-relaxed mt-1 font-['Inter']" style="color: rgba(0, 0, 0, 0.45) !important;">
+                            <div>Section: ${escapeHtml(item.section || '')}</div>
+                            <div>Grade Level: ${escapeHtml(item.gradeLevel || '')}</div>
+                        </div>
+                        ` : (!isStudent && !isTeacher && !isAdmin && item.category !== 'user') ? `
+                        <div class="search-result-subtitle text-xs text-slate-500 font-medium truncate mt-0.5">
+                            ${item.subtitle ? escapeHtml(item.subtitle) : ''}${item.subtitle && item.detail ? ' • ' : ''}${item.detail ? `<span class="text-slate-400">${escapeHtml(item.detail)}</span>` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ${actionsHtml}
+            </div>
+        `;
+    }
+
+    function bindCardActions(container) {
+        if (!container) return;
+
         container.querySelectorAll('button[data-action]').forEach(btn => {
             const idx = parseInt(btn.dataset.index, 10);
-            if (isNaN(idx) || idx < startIdx || idx >= startIdx + count) return;
+            if (isNaN(idx)) return;
             
             if (btn.dataset.bound) return;
             btn.dataset.bound = 'true';
@@ -703,7 +1162,7 @@
                     const role = btn.dataset.role || 'student';
                     goToUserProfile(studentName, studentId, role, item.rawUser);
                 } else if (action === 'classes' || action === 'classroom') {
-                    goToClasses();
+                    goToClasses(item);
                 } else if (action === 'page') {
                     const pageId = btn.dataset.pageId;
                     const link = document.getElementById(pageId);
@@ -713,6 +1172,24 @@
                     }
                 }
             });
+        });
+
+        // Also allow clicking the info area of a class card to directly open the classroom
+        container.querySelectorAll('.search-result-card').forEach((cardEl) => {
+            const idx = parseInt(cardEl.dataset.index, 10);
+            if (isNaN(idx)) return;
+            const item = allFilteredResults[idx];
+            if (item && item.category === 'class') {
+                const infoEl = cardEl.querySelector('.search-result-card-info');
+                if (infoEl && !infoEl.dataset.clickBound) {
+                    infoEl.dataset.clickBound = 'true';
+                    infoEl.classList.add('cursor-pointer');
+                    infoEl.addEventListener('click', (e) => {
+                        if (e.target.closest('button')) return;
+                        goToClasses(item);
+                    });
+                }
+            }
         });
     }
 
@@ -769,8 +1246,45 @@
         }
     }
 
-    function goToClasses() {
+    function goToClasses(item) {
         closeSearchResultsView();
+        if (item) {
+            const sec = (item.section || '').replace(/^Grade\s*\d+\s*[-–:]*\s*/i, '').trim();
+            const subj = item.title || item.subject || '';
+            const cardId = item.id || '';
+
+            // 1. Admin Portal
+            if (typeof window.showAdminClassroom === 'function' && sec && subj) {
+                window.showAdminClassroom(sec, subj, 'room');
+                window.location.hash = `#classroom:${encodeURIComponent(sec)}:${encodeURIComponent(subj)}:room`;
+                return;
+            }
+
+            // 2. Teacher Portal
+            if (typeof window.showStudentList === 'function' && sec && subj) {
+                window.showStudentList(sec, subj, 'room');
+                window.location.hash = `#classroom:${encodeURIComponent(sec)}:${encodeURIComponent(subj)}:room`;
+                return;
+            }
+
+            // 3. Student Portal
+            if (typeof window.showClassroomDetail === 'function') {
+                window.showClassroomDetail(cardId || subj, true, 'room');
+                return;
+            }
+
+            // 4. Authoritative openClassroomTopics helper
+            if (typeof window.openClassroomTopics === 'function') {
+                window.openClassroomTopics(cardId, sec, subj);
+                return;
+            }
+
+            // 5. Deep Link Hash Fallback
+            if (sec && subj) {
+                window.location.hash = `#classroom:${encodeURIComponent(sec)}:${encodeURIComponent(subj)}:room`;
+                return;
+            }
+        }
         if (typeof window.switchTab === 'function') {
             window.switchTab('nav-classes');
         }
@@ -800,6 +1314,41 @@
             else lastActiveSectionName = 'Previous Page';
         }
 
+        // Remember currently active sidebar nav link (if any)
+        const activeLink = document.querySelector('#sidebar .nav-link.active, #sidebar .nav-sublink.active, #sidebar .teacher-section-room-link.active, #sidebar .student-section-room-link.active');
+        if (activeLink && activeLink.id) {
+            lastActiveNavId = activeLink.id;
+        }
+
+        // Remember current navbar header title
+        const brandTitle = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+        if (brandTitle) {
+            const topic = brandTitle.querySelector('.breadcrumb-topic');
+            const subj = brandTitle.querySelector('.breadcrumb-subject');
+            if (topic && subj) {
+                lastActiveHeader = { title: subj.textContent.trim(), subtitle: topic.textContent.trim() };
+            } else {
+                lastActiveHeader = { title: brandTitle.textContent.trim() };
+            }
+        }
+
+        // Set navbar header to the name of the school
+        if (typeof window.setPortalHeader === 'function') {
+            window.setPortalHeader('Interface Computer College');
+        } else if (brandTitle) {
+            brandTitle.textContent = 'Interface Computer College';
+        }
+
+        // Make sure no sidebar tabs are selected on search result page
+        document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink, #sidebar .teacher-section-room-link, #sidebar .student-section-room-link, .nav-link, .nav-sublink').forEach(link => {
+            link.classList.remove('active');
+            link.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('#sidebar [data-toggle="submenu"], #sidebar .nav-link--group').forEach(btn => {
+            btn.classList.remove('active', 'open');
+            btn.setAttribute('aria-expanded', 'false');
+        });
+
         // Hide all other dynamic sections
         document.querySelectorAll('.dynamic-section').forEach(sec => {
             if (sec.id !== 'search-results-view') {
@@ -814,9 +1363,24 @@
         view.style.display = 'block';
 
         currentCategoryFilter = 'all';
+        try { window.getSelection?.()?.removeAllRanges?.(); } catch (_) {}
         renderSearchResults(currentSearchQuery);
 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const mainScroll = view.querySelector('.search-results-main');
+        if (mainScroll) mainScroll.scrollTop = 0;
+        const sideScroll = view.querySelector('.search-results-sidebar');
+        if (sideScroll) sideScroll.scrollTop = 0;
+        const layoutWrapper = document.getElementById('layout-wrapper');
+        if (layoutWrapper) layoutWrapper.scrollTop = 0;
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) mainContent.scrollTop = 0;
+        const adminMain = document.getElementById('admin-main');
+        if (adminMain) adminMain.scrollTop = 0;
+        const contentSections = document.getElementById('content-sections');
+        if (contentSections) contentSections.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { window.scrollTo(0, 0); }
     };
 
     window.closeSearchResultsView = function () {
@@ -830,17 +1394,38 @@
         const searchInput = document.getElementById('searchBar');
         if (searchInput) searchInput.value = '';
 
+        // If we remembered a specific navId and switchTab is available, restore via switchTab
+        if (lastActiveNavId && typeof window.switchTab === 'function') {
+            window.switchTab(lastActiveNavId);
+            return;
+        }
+
         // Restore last active section
         if (lastActiveSectionId) {
             const prev = document.getElementById(lastActiveSectionId);
             if (prev) {
                 prev.classList.remove('hidden');
                 prev.style.display = 'block';
+
+                // Restore active state in sidebar
+                if (lastActiveNavId) {
+                    const navEl = document.getElementById(lastActiveNavId);
+                    if (navEl) navEl.classList.add('active');
+                }
+
+                // Restore portal header
+                if (lastActiveHeader && typeof window.setPortalHeader === 'function') {
+                    window.setPortalHeader(lastActiveHeader.title, lastActiveHeader.subtitle);
+                }
                 return;
             }
         }
 
-        // Fallback: User accounts, Dashboard, or Home
+        // Fallback: Dashboard, User accounts, or Home
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('nav-dashboard') || window.switchTab('nav-home') || window.switchTab('nav-users');
+            return;
+        }
         const fallback = document.getElementById('users-view') ||
                          document.getElementById('section-dashboard') ||
                          document.getElementById('dashboard-view') ||

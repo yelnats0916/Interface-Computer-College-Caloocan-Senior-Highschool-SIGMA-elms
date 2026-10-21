@@ -1,0 +1,2489 @@
+
+=== PDF PAGE 1 ===
+1  
+SIGMA: AN AI-INTEGRATED E-LEARNING MANAGEMENT SYSTEM WITH 
+STUDENT INFORMATION AND GRADE MONITORING ANALYTICS FOR SENIOR 
+HIGH SCHOOL OF INTERFACE COMPUTER COLLEGE CALOOCAN 
+ 
+ 
+ 
+A Capstone Project 
+Presented to the Faculty of the 
+Information and Communications Technology Program 
+STI College Caloocan 
+ 
+ 
+ 
+ 
+ 
+ 
+In Partial Fulfilment 
+of the Requirements for the Degree 
+Bachelor of Science in Information Technology 
+ 
+ 
+ 
+ 
+ 
+ 
+John Paul R. Antalan 
+Stanley V. Garcia 
+Reign Jeric G. Sabino 
+Marco P. Salazar 
+ 
+ 
+ 
+MAY 2 2026 
+
+=== PDF PAGE 2 ===
+2  
+ 
+ENDORSEMENT FORM FOR PROPOSAL DEFENSE 
+ 
+ 
+TITLE OF RESEARCH: SIGMA: AI-INTEGRATED E-LEARNING MANAGEMENT 
+SYSTEM WITH STUDENT INFORMATION AND GRADE MONITORING ANALYTICS 
+FOR SENIOR HIGH SCHOOL OF INTERFACE COMPUTER COLLEGE CALOOCAN 
+ 
+NAME OF PROPONENTS: John Paul R. Antalan 
+ 
+Stanley V. Garcia 
+ 
+Reign Jeric G. Sabino 
+Marco P. Salazar` 
+ 
+In Partial Fulfilment of the Requirements 
+ 
+for the degree Bachelor of Science in Information Technology 
+has been examined and is recommended for Proposal Defense. 
+ 
+ENDORSED BY: 
+Romark G. Cacho 
+Capstone Project Adviser 
+ 
+ 
+APPROVED FOR PROPOSAL DEFENSE: 
+ 
+ 
+Carl James Alden Dolorito 
+ 
+Capstone Project Coordinator 
+NOTED 
+Winchester Pastolero 
+ 
+Program Head 
+May 2 2026 
+
+=== PDF PAGE 3 ===
+3  
+APPROVAL SHEET 
+ 
+This capstone project proposal titled SIGMA: AI-Integrated E-Learning Management System with 
+Student Information and Grade Monitoring Analytics for Senior High School of Interface 
+Computer College Caloocan, prepared and submitted by John Paul R. Antalan, Stanley V. Garcia, 
+Reign Jeric G. Sabino, and Marco P. Salazar, in partial fulfillment of the requirements for the 
+degree of Bachelor of Science in Information Technology, has been examined and is recommended 
+for acceptance and approval. 
+ 
+ 
+ 
+Carl James Alden Dolorito 
+ 
+Capstone Project Adviser 
+ 
+ 
+ 
+Accepted and approved by the Capstone Project Review Panel 
+In partial fulfillment of the requirements for the degree of 
+Bachelor of Science in Information Technology 
+ 
+ 
+Panel Member Panel Member 
+ 
+ 
+ 
+ 
+Lead Panelist 
+ 
+ 
+Noted: 
+ 
+ 
+Carl James Alden Dolorito Winchester Pastolero 
+ 
+Capstone Project Adviser Program Head 
+ 
+ 
+May 2 2026 
+
+=== PDF PAGE 4 ===
+4  
+ABSTRACT 
+ 
+Title of Research: SIGMA: AN AI-INTEGRATED E-LEARNING MANAGEMENT 
+SYSTEM WITH STUDENT INFORMATION AND GRADE 
+MONITORING ANALYTICS FOR SENIOR HIGH SCHOOL OF 
+INTERFACE COMPUTER COLLEGE CALOOCAN 
+Researchers: John Paul R. Antalan 
+Stanley V. Garcia 
+Jeric G. Sabino 
+Marco P. Salazar 
+Degree: Bachelor of Science in Information Technology 
+Date of Completion: 
+Keywords: E-LEARNING, ARTIFICIAL INTELLIGENCE, GRADE 
+ 
+MONITORING, DATA ANALYTICS, STUDENT INFORMATION 
+SYSTEM 
+ 
+This capstone project, "SIGMA: An AI-Integrated E-Learning Management System," aims to 
+modernize the educational experience for the Senior High School department of Interface 
+Computer College Caloocan. The system addresses common challenges in traditional schooling, 
+such as manual grade tracking, scattered student information, and the need for more personalized 
+learning tools. It provides a secure, all-in-one platform for students, teachers, and School 
+Administrator. 
+ 
+ 
+The system features Artificial Intelligence (AI) and data analytics to give clear insights into 
+student performance. By monitoring grades and attendance on time, the platform helps teachers 
+identify students who may need extra help and allows School Administrator to track overall 
+academic trends. This data-driven approach helps the school make better decisions and improve 
+the way lessons are delivered. 
+
+=== PDF PAGE 5 ===
+5  
+For students, SIGMA offers an easy-to-use interface where they can access learning materials, 
+submit assignments, and track their own grades instantly. This eliminates confusion and helps 
+students stay on top of their schoolwork. Additionally, the system improves communication 
+between the school and its students through real-time updates and notifications. By using modern 
+technology, this project supports the school’s goal of providing high-quality, innovative 
+education for its Senior High School students. 
+
+=== PDF PAGE 6 ===
+6  
+Table of Contents 
+ 
+ 
+Page 
+Title Page 1 
+Endorsement form for Proposal Defense 2 
+Approval Sheet 4 
+Abstract 5 
+Table of Contents 7 
+Introduction 8 
+Project Context 9 
+Purpose and Description 10 
+Statement of the Problem 12 
+Objectives 13 
+Scope and Limitations 15 
+Review of Related Literature/Studies/Systems 31 
+Methodology 36 
+Technical Background 36 
+Requirements Analysis ii 
+Design of Software, System, Product, and/or Processes v 
+Requirements Documentation xxxvii 
+References xxxviii 
+Appendices xl 
+Resource Persons xl 
+Personal Technical Vitae xliv 
+
+=== PDF PAGE 7 ===
+7  
+CHAPTER I 
+INTRODUCTION 
+ 
+ 
+Technology is now a big part of education. Schools use computers and the internet to help 
+students learn better and to make daily work easier. However, many schools still struggle with 
+managing student records, computing grades, and handling online classes all at the same time. 
+When teachers do these tasks manually or use different program s for each task, it takes a lot of 
+time and often leads to mistakes. In the Philippines, different levels of education have adopted 
+different digital tools to support learning. College institutions have long been using dedicated 
+Learning Management Systems such as Moodle and Canvas, which offer complete tools for course 
+management, grading, and student monitoring. Grade school levels, on the other hand, largely 
+depend on simpler and more accessible platforms like Google Classroom, which are easy to use 
+but limited in academic management features. Senior High School, however, tells a different story. 
+Even among private SHS institutions, most rely on the same general -purpose tools, primarily 
+Google Classroom or basic versions of Moodle, that were never designe d with the specific 
+structure and demands of Philippine Senior High School in mind. As a result, SHS schools are left 
+using platforms borrowed from other educational levels, without a dedicated system that truly fits 
+their needs. Because of these limitations, teachers in Senior High School still face many difficulties 
+in managing academic tasks. Computing grades for SHS is particularly complicated because each 
+subject requires evaluating students across multiple components: Written Works, Performance 
+Tasks, and quarterly assessments following the grading formula prescribed by the Department of 
+Education. When teachers compute these manually or transfer data between different software, the 
+process becomes slow and prone to human error. Students also suffer because they do not receive 
+immediate feedback on their performance, and School Administrator finds it difficult to monitor 
+overall student progress in real time. Without a dedicated system built around the structure of 
+Philippine SHS, these problems continue to affect the quality of teaching and learning. 
+Interface Computer College Caloocan is a private Senior High School institution offering three 
+strands under the DepEd K to 12 curriculum: Accountancy, Business and Management (ABM), 
+Home Economics (HE), General Academic Strand (GAS), Humanities and Social  Sciences 
+(HUMSS), and Information and Communications Technology (ICT). As a private school, ICC 
+
+=== PDF PAGE 8 ===
+8  
+Caloocan has the flexibility to adopt its own digital learning solutions beyond what public schools 
+are provided by DepEd. However, like many private SHS institutions, the school currently utilizes 
+a Moodle -based e -learning platform called FLInt, while functional as a general learning 
+management system, was not purpose-built for the demands of Senior High School education. The 
+existing system allows teachers to upload learning materials and administer basic assessments, but 
+it lacks automated grade computation, real -time student performance monitoring, and AI -
+integrated tools. As a result, teachers still compute grades manually, maintain records across 
+separate applications, and make academic decisions without the support of intelligent monitoring 
+tools problems that directly affect the efficiency of teaching and the academic experience of 
+students. 
+To address these challenges, this study proposes SIGMA: an AI -Integrated E -Learning 
+Management System with Student Information and Grade Monitoring Analytics, developed 
+specifically for the Senior High School department of Interface Computer College Calooc an. 
+SIGMA is designed to fill the technological gap in Philippine SHS by providing a unified platform 
+that combines the accessibility of familiar learning tools with the complete academic management 
+capabilities of a dedicated system. It integrates an AI -powered assistant known as Sigma Bot, 
+automated grade computation following the DepEd grading formula, real -time student 
+performance monitoring, and AI -assisted content generation, all purpose -built for the structure, 
+curriculum, and needs of Senior High Sc hool. Rather than relying on separate and disconnected 
+applications, SIGMA brings everything together in one secure, intelligent, and easy -to-use 
+platform for students, teachers, School Administrator, and school management. 
+ 
+ 
+ 
+Project Context 
+ 
+Based on an interview with the Office of Student Affairs, Mr. Mark Cedrick Inderio 
+Medezabal of Interface Computer College Caloocan, the researchers identified several difficulties 
+experienced by the Senior High School department. Although the school already utilizes a general-
+purpose Learning Management System for uploading topics and giving quizzes, it lacks the 
+
+=== PDF PAGE 9 ===
+9  
+automated grading and AI-driven monitoring features provided by SIGMA. It still relies on manual 
+processes such as Excel for grade computation, student record keeping, and academic monitoring. 
+
+=== PDF PAGE 10 ===
+10  
+During daily operations, teachers must encode scores manually in  Excel and compute grades one 
+by one. This process often takes up to one hour per class section, which significantly increases the 
+risk of human error and delays the release of results. The school also does not have a fully 
+integrated system that combines attendance, records, grading, and learning management in one 
+platform, so some teachers use multiple applications to complete their tasks. 
+Another concern is the lack of smart tools for student monitoring and feedback. Teachers must 
+update records and grading sheets manually whenever there are new subjects or performance tasks, 
+while students and parents often need to ask how grades are computed and what areas need 
+improvement. Because of this, the current system does not provide automatic feedback, 
+performance analytics, or real-time progress reports to support faster academic decisions. 
+ 
+Purpose and Description 
+ 
+Interface Computer College Caloocan currently utilizes FLInt, a Moodle-based e-learning 
+platform that provides basic functions such as uploading learning materials and administering 
+assessments. While the platform exists, it lacks the academic management capabilities that Senior 
+High School education demands particularly automated grade computation, real -time student 
+performance monitoring, and intelligent analytics tools. Teachers continue to rely on manual 
+processes and separate applications, resulting in inefficiencies that directly affect both instruction 
+and student outcomes. 
+SIGMA is developed to address these gaps by providing a unified, AI-integrated platform purpose-
+built for the Senior High School department of Interface Computer College Caloocan. Unlike 
+general-purpose learning management systems, SIGMA is designed around the specific structure 
+of the DepEd K to 12 curriculum, supporting strand and track configuration, subject management, 
+section assignment, and automated grade computation based on the weight distribution prescribed 
+by DepEd Order No. 8, s. 2015. The system supports four user roles Student, Teacher, and School 
+Administrator, each with clearly defined access and capabilities. School Administrator configures 
+the school's academic structure, manage teacher and student accounts, and upload official school-
+wide learning materials. Teachers manage their assigned classrooms, upload learning materials, 
+create and assign quizzes, assignments, activities, and performance tasks, take attendance, and 
+
+=== PDF PAGE 11 ===
+11  
+monitor student performance in real time through an automated gradebook that computes Written 
+Works, Performance Tasks, and Quarterly Assessment scores following the prescribed DepEd 
+grading formula. Students access all available learning materials, submit their outputs, view their 
+grades broken down by component, and track their academic p rogress anytime. The School 
+Administrator oversees the entire system, manages accounts, monitors system and storage usage, 
+and configures the AI integration settings. Artificial Intelligence is integrated throughout SIGMA 
+in multiple ways. Sigma Bot, an AI-powered assistant accessible to students and teachers, provides 
+intelligent chat support scoped to ELMS and ICC-related topics, helping users navigate the system 
+and understand their learning materials. When a teacher uploads a PDF document, Sigma Bot 
+automatically extracts its content and uses it as context, allowing students to ask specific questions 
+about uploaded materials directly. For content creation, teachers can use AI-assisted generation to 
+draft quizzes, assignments, and activities complete with scoring rubrics, which must be reviewed 
+and approved before publishing. The Grades section of SIGMA provides both teachers and 
+students with a comprehensive view of academic performance teachers have access to an analytics 
+dashboard that displays class-wide performance trends, flags students showing signs of academic 
+difficulty, and provides AI-generated prescriptive recommendations alongside a full gradebook for 
+encoding and monitoring individual student scores, while students can view their own grade 
+breakdown per component, track their performance trends across quarters, and receive 
+personalized feedback from Sigma Bot based on their academic stan ding. The AI integration is 
+managed and configured by the School Administrator, who controls system prompt settings, API 
+access, and usage monitoring to ensure the AI remains focused on educational and institutional 
+purposes. By bringing together e -learning, student information management, automated grade 
+computation, attendance monitoring, and AI -driven analytics into one secure and easy -to-use 
+platform, SIGMA aims to reduce the administrative workload of teachers, improve the academic 
+experience of students, and help school leaders make faster and more informed decisions all within 
+a system purpose-built for the unique structure and academic demands of the Senior High School 
+curriculum. 
+
+=== PDF PAGE 12 ===
+12  
+Statement of the Problem 
+ 
+ 
+ 
+ 
+General Problem 
+ 
+ 
+The Senior High School department of Interface Computer College Caloocan, currently relies 
+on a general -purpose, Moodle -based platform (FLInt) and manual processes that lack specific 
+academic management tools required by the Philippine Senior High School Curriculum . This 
+disconnection between the existing technology and the specific needs of the SHS department leads 
+to administrative inefficiencies, delayed feedback for students, and difficulty in monitoring overall 
+academic progress. 
+ 
+ 
+ 
+Specific Problems 
+ 
+ 
+The researchers identified the following critical issues within the current setup: 
+ 
+ 
+• Manual Administrative Workload: Teachers are burdened by the need to manually 
+encode scores in Excel and compute grades individually, a time-consuming process that 
+increases the high risk of human error. 
+• Delayed Academic Feedback: Because the current system lacks real-time monitoring and 
+analytics, students do not receive immediate feedback on their performance, and parents are 
+often left unclear on how grades are computed. 
+• Lack of Integrated Support: Both students and teachers lack access to intelligent, real -
+
+=== PDF PAGE 13 ===
+13  
+time inquiry tools or automated content generation, forcing them to use multiple, disconnected 
+applications for their daily academic tasks. 
+• Scattered Records and Information: The school lacks a unified platform to consolidate 
+attendance, student profiles, and grading records, making it difficult for School Administrators 
+to track long-term academic trends effectively. 
+
+=== PDF PAGE 14 ===
+14  
+• Technological Gap in SHS Structure: Existing tools (like Google Classroom or basic 
+Moodle) are not designed to handle the specific grading components: Written Works, 
+ 
+Performance Tasks, and Quarterly Assessments prescribed by the Department of Education for 
+Senior High School. 
+ 
+ 
+ 
+General Objective 
+ 
+ 
+The main goal of this project is to develop SIGMA, an AI-Integrated E-Learning Management 
+System with Student Information and Grade Monitoring Analytics, to provide the Senior High 
+School department of Interface Computer College Caloocan with a unified, intelligent, and 
+purpose-built platform that supports effective teaching, learning, student information 
+management, and academic monitoring. 
+ 
+ 
+ 
+Specific Objectives 
+ 
+ 
+• Develop a Centralized Student Information System (SIS) 
+ 
+ 
+To establish a secure and centralized digital database that stores and manages all student-
+related records within the Senior High School department of Interface Computer College 
+Caloocan, including personal profiles, enrollment details, strand and section assignments, 
+attendance records, account status, and academic history. The system ensures that student 
+
+=== PDF PAGE 15 ===
+15  
+information is accurately maintained, easily accessible to authorized users, and protected 
+from data loss, thereby replacing the need for scattered manual records and separate 
+applications. 
+ 
+• Develop Multi-Role Web-Based E-Learning Platform with Integrated Content 
+Management 
+To develop a web-based learning environment that allows Admins to manage subjects, 
+topics, sections, and user accounts, preload official learning materials, and assign teachers 
+and students, while enabling teachers to manage their assigned section rooms, post 
+announcements, take attendance, create section-based learning content, and create and 
+manage learning materials, assignments, quizzes, activities, and performance tasks. The 
+system also includes an automated gradebook for recording and computing student grades 
+based on the teacher’s encoded scores. 
+ 
+ 
+• Create an Automated Grade Monitoring Tool 
+ 
+ 
+To develop a digital grade monitoring system that enables the School Administrator to 
+configure grading weights per subject, allows teachers to encode scores for assignments, 
+activities, and performance tasks, and automatically records quiz scores 
+from student submissions. The system shall compute student grades based on the established 
+grading structure, reduce errors caused by manual computation, and provide teachers with an 
+accurate and efficient means of monitoring student performance. 
+• Integrate an AI-Based Analytics and Learning Support Feature 
+ 
+ 
+To develop an AI-based feature that provides a chat panel for students and teachers to ask 
+
+=== PDF PAGE 16 ===
+16  
+subject-related questions using only approved and relevant learning materials as context, 
+including uploaded PDFs and recent teacher-prepared resources. The feature shall also 
+generate summaries of subjects, topics, learning contents, analytics reports, and grade reports 
+when permitted, while detecting students at risk of low performance and providing 
+recommendations for timely intervention. 
+ 
+• School Administrator Control and System Configuration Module 
+ 
+To develop a system module that enables the school administrator to manage system-wide settings, 
+configure API access, control AI-related restrictions, monitor platform usage, and oversee user roles 
+and permissions. 
+ 
+ 
+ 
+Scope and Limitation 
+Scope 
+• Cross-Platform Accessibility 
+ 
+SIGMA provides a responsive web interface compatible with modern browsers such 
+as Google Chrome, Mozilla Firefox, and Microsoft Edge. Students and teachers can 
+access the SIGMA ELMS across all major operating systems and devices, including 
+ 
+desktop computers, laptops, tablets, and smartphones, with an active internet connection. Administrators 
+are restricted to desktop and laptop access only desktop computers, laptops, tablets, and smartphones, 
+with an active internet connection. Administrators are restricted to desktop and laptop access only 
+ 
+ 
+• Create an Automated Grade Monitoring Tool 
+ 
+
+=== PDF PAGE 17 ===
+17  
+ 
+To develop a digital grade monitoring system that enables the School Administrator to 
+configure grading weights per subject, allows teachers to encode scores for assignments, 
+activities, and performance tasks, and automatically records quiz scores 
+from student submissions. The system shall compute student grades based on the established 
+grading structure, reduce errors caused by manual computation, and provide teachers with an 
+accurate and efficient means of monitoring student performance. 
+• Integrate an AI-Based Analytics and Learning Support Feature 
+ 
+ 
+To develop an AI-based feature that provides a chat panel for students and teachers to ask 
+subject-related questions using only approved and relevant learning materials as context, 
+including uploaded PDFs and recent teacher-prepared resources. The feature shall also 
+generate summaries of subjects, topics, learning contents, analytics reports, and grade reports 
+when permitted, while detecting students at risk of low performance and providing 
+recommendations for timely intervention. 
+ 
+• School Administrator Control and System Configuration Module 
+ 
+ 
+To develop a system module that enables the school  administrator to manage system-wide 
+settings, configure API access, control AI-related restrictions, monitor platform usage, and 
+oversee user roles and permissions. 
+ 
+ 
+ 
+Scope and Limitation 
+Scope 
+• Cross-Platform Accessibility 
+
+=== PDF PAGE 18 ===
+18  
+ 
+SIGMA provides a responsive web interface compatible with modern browsers such 
+as Google Chrome, Mozilla Firefox, and Microsoft Edge. Students and teachers can 
+access the SIGMA ELMS across all major operating systems and devices, including 
+desktop computers, laptops, tablets, and smartphones, with an active internet 
+connection. Administrators are restricted to desktop and laptop access only. 
+ 
+• Student Information System (SIS) 
+ 
+SIGMA includes a centralized digital database that securely stores and manages 
+ 
+student records, including name, grade level, strand, enrollment status, contact details, 
+and attendance records. Access to view or edit data is restricted to authorized users 
+only, ensuring data privacy and security. 
+ 
+ 
+• E-Learning Platform 
+SIGMA incorporates a web-based learning environment wherein Administrators 
+ 
+create subjects, topics, and contents in the Subjects Catalog and publish them to the 
+Resource Library. Teachers supplement these with additional content and 
+assessments, upload materials, manage quizzes/assignments/tasks, post 
+announcements, and monitor class participation. Students access all materials and 
+submit outputs directly through the SIGMA ELMS. 
+ 
+• Automated Grade Monitoring Tool 
+ 
+SIGMA ELMS provides a gradebook module within the Teacher dashboard that 
+
+=== PDF PAGE 19 ===
+19  
+automatically computes student grades according to Interface Computer College's 
+prescribed grading policy and component weights. Teachers input scores for real-time 
+monitoring with Excel export functionality formatted to the school's specific 
+requirements. 
+ 
+• Grade Encoding 
+ 
+Teachers enter scores for Written Works, Performance Tasks, and Quarterly 
+Assessments per student. 
+ 
+• Auto-Computation 
+ 
+SIGMA ELMS automatically computes final grades using Interface Computer 
+College's weighting formula. 
+• Export Function 
+ 
+Produces Excel grade sheets in the school's official format for each section and 
+subject. 
+ 
+ 
+ 
+• AI-Based Analytics Feature 
+ 
+SIGMA incorporates an intelligent analytics engine that processes student 
+performance data to track progress, identify at-risk students, forecast academic 
+outcomes, and generate teacher recommendations for timely intervention. Key alerts 
+and insights appear on the Teacher’s analytics dashboard to support data-driven 
+academic decisions. 
+Export Function 
+
+=== PDF PAGE 20 ===
+20  
+ 
+Produces Excel grade sheets in the school's official format for each section and 
+subject. 
+ 
+ 
+• AI-Based Analytics Feature 
+ 
+SIGMA incorporates an intelligent analytics engine that processes student 
+performance data to track progress, identify at-risk students, forecast academic 
+outcomes, and generate teacher recommendations for timely intervention. Key alerts 
+and insights appear on the Teacher’s analytics dashboard to support data-driven 
+academic decisions. 
+ 
+• Descriptive Analytics 
+ 
+Analyzes historical grades, attendance, and submission records to summarize 
+student performance and provide a clear view of past academic results. 
+ 
+ 
+• Predictive Analytics 
+ 
+Analyzes grades, attendance, and submission patterns to forecast student 
+performance trends and potential academic outcomes, enabling early 
+identification of students requiring support. 
+ 
+ 
+• Prescriptive Analytics 
+ 
+Generates actionable recommendations based on performance data, suggesting 
+
+=== PDF PAGE 21 ===
+21  
+specific interventions such as additional review sessions, targeted remediation, or 
+enrichment activities. 
+ 
+ 
+• Login Access Control 
+ 
+The SIGMA ELMS implements a secure authentication mechanism that requires 
+users to enter a Login ID or email address and password. The module enforces server-
+side input validation, failed-attempt monitoring, Google reCAPTCHA verification, 
+account lockout, and role-based redirection to strengthen SIGMA ELMS security and 
+prevent unauthorized access. 
+ 
+• Login 
+ 
+Users authenticate by entering their email address or Login ID together with their 
+password. 
+ 
+• Credential Validation 
+ 
+The SIGMA ELMS validates the entered email address or Login ID and password 
+to determine whether they match the stored database records. 
+ 
+• Login ID Verification 
+ 
+The SIGMA ELMS determines whether the entered email address or Login 
+ID exists in the database. If no corresponding record is found, the SIGMA 
+ELMS records the failed attempt and displays an invalid login message. 
+
+=== PDF PAGE 22 ===
+22  
+ 
+• Password Verification 
+ 
+If the entered Login ID is found in the database, the SIGMA ELMS verifies 
+the password associated with the account. If the password is incorrect, the 
+SIGMA ELMS records the failed attempt and displays a message indicating 
+that the login credentials are invalid. 
+ 
+ 
+• Google reCAPTCHA Verification 
+ 
+Google reCAPTCHA is required after repeated failed login attempts to help 
+prevent automated access attempts. Successful verification allows the user to 
+continue with the login process. 
+ 
+ 
+• reCAPTCHA Triggering 
+When the number of failed attempts exceeds the defined threshold, Google 
+reCAPTCHA is displayed on the next login attempt. 
+ 
+• Verification Result 
+ 
+If reCAPTCHA verification is unsuccessful, the SIGMA ELMS prevents 
+access and displays a corresponding verification error message. The user is 
+then required to repeat the verification process before continuing. 
+ 
+ 
+• Account Lockout System 
+ 
+If the entered password remains incorrect after eight consecutive failed attempts, 
+
+=== PDF PAGE 23 ===
+23  
+the account shall be temporarily locked and access restricted until it is restored by 
+the Administrator. The default lockout threshold is eight, but it may be increased 
+or decreased in the System Settings. 
+ 
+ 
+• Account Status Verification 
+ 
+After successful authentication, the SIGMA ELMS checks the status of the user 
+account. 
+ 
+ 
+• Inactive Account 
+ 
+If the account is inactive, access is denied and the account is referred for 
+further action. 
+ 
+ 
+• Active Account 
+ 
+If the account is active, the user may proceed to role-based redirection. 
+ 
+ 
+ 
+• User Role 
+After successful authentication, the SIGMA ELMS identifies the user’s assigned 
+ 
+role and directs the user to the corresponding dashboard. 
+ 
+• Users and Access Control 
+
+=== PDF PAGE 24 ===
+24  
+ 
+The SIGMA ELMS provides role-based access for the Administrator, Teacher, and 
+Student. Each user can access only the functions assigned to their role. 
+ 
+• Administrator User 
+ 
+This user has full administrative control over the SIGMA platform, managing user 
+accounts, school information, reports, and system configurations. 
+• User Accounts 
+ 
+This module allows the administrator to manage user accounts, update 
+account details, assign permissions, and control account status. 
+ 
+• School Management 
+ 
+This module provides access to resources, school branch management, 
+school profile, school year management, sections, and subjects. 
+ 
+ 
+• School Branch 
+ 
+This module allows the administrator to manage the details of the 
+school branch, including its basic institutional information. 
+ 
+ 
+• School Profile 
+This module allows the administrator to manage and update the 
+official profile of the school, including its basic institutional details. 
+ 
+
+=== PDF PAGE 25 ===
+25  
+ 
+• School Year 
+ 
+This module allows the administrator to manage the school year 
+settings, including the academic period, start and end dates, and 
+active school year status. 
+ 
+ 
+• Reports 
+ 
+This section allows the administrator to view reports for monitoring and analysis. 
+ 
+• Authentication Logs 
+ 
+This submodule records user login and logout activities, including 
+successful and failed authentication attempts. managing assessments, 
+encoding student grades, and monitoring class performance through 
+the gradebook and AI analytics dashboard. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PDF PAGE 26 ===
+26  
+• AI Reports 
+ 
+This section allows the administrator to view descriptive, predictive, 
+and prescriptive insights based on SIGMA ELMS data. 
+ 
+ 
+• Attendance Reports 
+ 
+This section allows the administrator to view attendance records and 
+track student presence, absences, and tardiness across sections and 
+school years. 
+ 
+ 
+• Performance Reports 
+ 
+This section allows the administrator to view student performance 
+summaries and academic trends. 
+ 
+• Audit Logs 
+ 
+This section allows the administrator to view reports for monitoring and 
+analysis. 
+ 
+ 
+7.1.4.3 AI Logs 
+ 
+This submodule records AI-related activities, including user prompts, 
+generated responses, and other AI interactions within the SIGMA 
+ELMS. 
+ 
+
+=== PDF PAGE 27 ===
+27  
+ 
+7.1.4.2 Activity Logs 
+This submodule records user actions and SIGMA ELMS activities 
+within the platform, such as creating, updating, deleting, and 
+submitting records. 
+
+=== PDF PAGE 28 ===
+28  
+ 
+ 
+• System Settings 
+ 
+This section allows the administrator to configure API settings, preferences, 
+security settings, and storage settings. This section allows the administrator 
+to configure and manage system-level settings including API keys, 
+preferences, security protocols, and storage configurations. 
+ 
+ 
+ 
+• API Settings 
+ 
+This section allows the administrator to manage API keys and 
+integrations. 
+ 
+ 
+• Preferences 
+ 
+This section allows the administrator to customize SIGMA ELMS 
+branding, manage login page visual assets. 
+ 
+ 
+• Security Settings 
+ 
+This section allows the administrator to manage security 
+configurations. 
+ 
+ 
+• Storage Settings 
+ 
+
+=== PDF PAGE 29 ===
+29  
+This section allows the administrator to manage cloud storage 
+configurations and set maximum file size limits. 
+ 
+ 
+• Teacher User 
+This user manages assigned class sections within the SIGMA platform by posting 
+announcements, taking attendance, uploading learning materials, creating and  
+
+=== PDF PAGE 30 ===
+30  
+• Sections Module 
+ 
+This module allows the Teacher to view and access assigned class sections. 
+ 
+Upon entering a section, the Teacher can post announcements, take 
+attendance, and manage learning materials for that class. 
+ 
+• Subjects Module 
+ 
+This module allows the Teacher to view the subjects assigned to them, 
+including the topics and topic contents preloaded by the Administrator. 
+ 
+ 
+• Assessments Module 
+ 
+This module provides the Teacher with an overview of all assessments 
+across handled subjects in one place, including assignments, quizzes, 
+activities, and performance tasks. 
+ 
+• Grades Module 
+ 
+This module allows the Teacher to encode and monitor student grades per 
+component: Written Works, Performance Tasks, and Quarterly Assessment 
+following the DepEd grading formula, and access the AI analytics dashboard 
+for class-wide performance monitoring. 
+ 
+ 
+• Student User 
+ 
+This user allows students to access their assigned class sections, view learning 
+
+=== PDF PAGE 31 ===
+31  
+materials and announcements, submit outputs for assessments, track their grades 
+per component, and receive personalized academic feedback through Sigma Bot. 
+ 
+• Sections Module 
+ 
+This module allows the Teacher to view and access assigned class sections.
+
+=== PDF PAGE 32 ===
+32  
+Upon entering a section, the Teacher can post announcements, take attendance, and manage learning 
+materials for that class. 
+ 
+• Subjects Module 
+ 
+This module allows the student to view the subjects assigned to their section, 
+including topics and topic contents. Students can access learning materials 
+and submit outputs for assessments directly within each subject. 
+ 
+ 
+• Assessments Module 
+ 
+This module allows the student to view all assessments across all subjects in 
+one place, displaying the status of each assessment as Pending, Completed, 
+or Overdue, along with submission dates, scores, and equivalent grades. 
+ 
+ 
+• Grades Module 
+ 
+This module allows the student to view their grades broken down per 
+ 
+component: Written Works, Performance Tasks, and Quarterly Assessment 
+and track their academic performance across quarters. 
+ 
+ 
+• AI Sigma Bot 
+ 
+This module receives lesson context and user queries and provides AI-generated 
+responses within the boundaries of the SIGMA ELMS’s approved instructional 
+content and restrictions. 
+• Lesson Context and Query 
+
+=== PDF PAGE 33 ===
+33  
+ 
+This submodule accepts the lesson context and user query provided by the user. 
+ 
+• AI Response Generation 
+ 
+This submodule processes the input and generates a restricted AI response based 
+on the approved instructional content. 
+
+=== PDF PAGE 34 ===
+34  
+• Resources 
+ 
+This module permits users to access files uploaded and submitted within the 
+SIGMA ELMS platform. The Administrator may view all uploaded and submitted 
+files in the SIGMA ELMS, the Teacher may view their own uploaded learning 
+materials and assessments, as well as the submissions of their assigned students, 
+and the student may view their own submitted files. 
+ 
+• Administrator View 
+ 
+This submodule allows the Administrator to view all uploaded and submitted files 
+within the SIGMA ELMS. 
+ 
+ 
+• Teacher View 
+ 
+This submodule allows the Teacher to view their uploaded learning materials and 
+assessments, as well as the submissions of their assigned students. 
+ 
+ 
+• Student View 
+ 
+This submodule allows the student to view their own submitted files. 
+ 
+ 
+ 
+• Notifications 
+ 
+This module allows users to view class schedules, deadlines, events, and other 
+academic reminders in a centralized calendar view within the SIGMA platform. 
+ 
+
+=== PDF PAGE 35 ===
+35  
+ 
+• Calendar 
+ 
+This module allows users to view class schedules, deadlines, events, and other 
+academic reminders in a centralized calendar view within the SIGMA platform. 
+ 
+ 
+ 
+• Announcements 
+This module allows users to view, create, and manage announcements within the 
+SIGMA platform. The Administrator can post general announcements for the entire 
+SIGMA ELMS, while the Teacher can post announcements inside the assigned 
+section or classroom, including updates about activities or uploaded materials. The 
+student can only view announcements and may comment only when such permission 
+is granted.  student can only view announcements and may comment only when such 
+permission is granted. 
+ 
+ 
+• Administrator 
+ 
+The Administrator can create and manage general announcements that are visible 
+to all users in the SIGMA ELMS. This includes posting important notices, 
+school-wide updates, and other official information. 
+ 
+ 
+ 
+• Teacher 
+ 
+The Teacher can post announcements inside the assigned section or classroom. 
+These announcements may include instructions, reminders, uploaded learning 
+materials, or other class-related updates. 
+
+=== PDF PAGE 36 ===
+36  
+ 
+ 
+• Student 
+ 
+The student can view announcements relevant to their section or class. The 
+student may also comment on announcements only if commenting is permitted 
+by the Teacher or Administrator.
+
+=== PDF PAGE 37 ===
+37  
+ 
+ 
+ 
+ 
+Limitations 
+ 
+ 
+• No Dedicated Mobile App 
+ 
+The SIGMA ELMS is accessible on mobile devices through a web browser but does not 
+include a dedicated downloadable application for IOS or Android in this version. 
+ 
+ 
+• Requires Internet Connection 
+ 
+The SIGMA ELMS requires an active connection to function. Offline access is not 
+supported in this version. 
+ 
+• AI Restrictions 
+ 
+The AI integration within the SIGMA ELMS is dependent on third-party API access 
+configured by the Administrator. Sigma Bot responses are limited to approved learning 
+materials, uploaded resources, and system-related content only. 
+ 
+ 
+• Single School Deployment 
+ 
+The SIGMA ELMS is developed and configured exclusively for the Senior High School 
+department of the Interface Computer College Caloocan. While the SIGMA ELMS 
+includes an organization setup module for institutional configuration, it is not designed 
+for multi-school deployment and cannot be used by other institutions without significant 
+
+=== PDF PAGE 38 ===
+38  
+development changes. 
+ 
+• No Support for Junior High or College Levels 
+ 
+The SIGMA ELMS is designed solely for Senior High School Grades 11 and 12 and does 
+not support Junior High School or college-level academic structures. 
+ 
+ 
+• No Google Meet or Video Call Integration 
+ 
+The SIGMA ELMS does not include built-in Google Meet integration or video calling 
+functionality. Synchronous online class meetings and  live video consultations are not 
+supported in this version. 
+ 
+ 
+• No Email or Private Messaging Modules 
+ 
+The SIGMA ELMS does not provide an internal email system or private messaging 
+feature between users. Communication within the platform is limited to announcements, 
+announcement comments, and notifications. Sigma Bot is an AI-powered learning 
+assistant and does not facilitate user-to-user private messaging. 
+ 
+ 
+• Single School Deployment 
+ 
+The SIGMA ELMS is developed and configured exclusively for the Senior High School 
+department of the Interface Computer College Caloocan. While the SIGMA ELMS 
+includes an organization setup module for institutional configuration, it is not designed 
+for multi-school deployment and cannot be used by other institutions without significant 
+development changes. 
+
+=== PDF PAGE 39 ===
+39  
+ 
+• No Support for Junior High or College Levels 
+ 
+The SIGMA ELMS is designed solely for Senior High School Grades 11 and 12 and does 
+not support Junior High School or college-level academic structures. 
+ 
+ 
+• No Google Meet or Video Call Integration 
+ 
+The SIGMA ELMS does not include built-in Google Meet integration or video calling 
+functionality. Synchronous online class meetings and  live video consultations are not 
+supported in this version. 
+ 
+ 
+• No Email or Private Messaging Modules 
+ 
+The SIGMA ELMS does not provide an internal email system or private messaging 
+feature between users. Communication within the platform is limited to announcements, 
+announcement comments, and notifications. Sigma Bot is an AI-powered learning 
+assistant and does not facilitate user-to-user private messaging. 
+ 
+ 
+Review of Related Literature/Studies/Systems 
+ 
+ 
+ 
+ 
+Bhatia et al. (2024) conducted a systematic review of artificial intelligence in higher 
+education, highlighting that the integration of chatbots and predictive tools into learning 
+management systems significantly improves both student engagement and academic outcomes. 
+
+=== PDF PAGE 40 ===
+40  
+The research found that "emotion-aware" and "adaptive" learning systems provide real-time 
+ 
+feedback that traditional platforms lack. By analyzing behavioral data, these AI-driven systems 
+can suggest targeted interventions and provide proactive support, which is essential for 
+maintaining student motivation in a digital environment. 
+Furthermore, Jin et al. (2025) explored the implementation of AI-powered grading 
+platforms and identified a critical need for embedded automation to replace batch-feedback 
+methods. The study noted that without integrated automated grading, teachers often default to 
+paper-based or manual workflows, which delays the feedback cycle by weeks. The researchers 
+emphasized that real-time, automated scoring allows for "revision-oriented" learning, where 
+students can immediately see their mistakes and improve their work before moving to the next 
+topic. 
+A report by the International Society for Technology in Education (ISTE) (2025) 
+found that AI integration in e-learning platforms can increase learner engagement by up to 40%. 
+The study highlighted that the most significant benefit for educators is the automation of routine 
+administrative tasks, such as attendance tracking and grade computation. By shifting these 
+burdens to an AI-based system, educators are able to focus more on instructional delivery and 
+personalized student interaction, directly addressing the common problem of manual workload in 
+modern schools. 
+Molinari and Sandri (2024) demonstrated how AI-driven LMS solutions use advanced 
+algorithms, such as Convolutional Neural Networks (CNN), to optimize digital learning 
+ 
+management through real-time data analysis. Their research focused on the scalability of these 
+platforms, proving that AI can manage large and diverse learner profiles without compromising 
+the quality of monitoring. The study concluded that predictive analytics, specifically those that 
+management through real-time data analysis. Their research focused on the scalability of these 
+platforms, proving that AI can manage large and diverse learner profiles without compromising 
+the quality of monitoring. The study concluded that predictive analytics, specifically those that 
+ 
+
+=== PDF PAGE 41 ===
+41  
+flag engagement drops and academic risks early are vital for proactive intervention, moving the 
+educational model from a "reactive" to a "proactive" state. 
+Finally, Chen et al. (2025) emphasized that the "third generation" of Learning 
+Management Systems is characterized by intelligence that adapts and predicts. Their findings 
+suggested that AI-driven analytics dashboards provide deep insights into learner behavior that 
+manual tracking cannot capture. By identifying patterns in historical academic data, these 
+systems offer precise grade monitoring and student performance analytics, ensuring that 
+educational managers can make data-driven decisions with higher accuracy and speed. 
+ 
+ 
+ 
+A study by Agbong-Coates (2024) demonstrated that the integration of generative AI 
+tools significantly boosts personalized learning outcomes within the Philippine educational 
+setting. The research found that when AI is used to provide immediate, customized feedback, it 
+creates a more engaging environment that allows students to acquire information at their own 
+pace. The study concluded that such technologies are particularly effective in addressing long-
+standing challenges related to student engagement and information accessibility, reinforcing the 
+need for localized systems that can adapt to the unique needs of Filipino learners. 
+Bato and Pomperada (2025) developed a Student Performance Analytics and Grading 
+Automation System designed to modernize traditional academic processes within a Philippine 
+educational institution. Their research highlighted how transitioning from manual grading to an 
+automated web-based platform significantly reduces administrative workloads and enhances data 
+accuracy. The study emphasized that the integration of real-time performance analytics allows 
+educators to identify academic trends and provide early interventions for struggling students. By 
+offering predictive insights through an intuitive dashboard, the system supports data-driven 
+decision-making, ensuring that student monitoring is both transparent and precise. 
+ 
+In a similar local study, Estrellado and Miranda (2023) investigated the adoption and 
+perceptions of artificial intelligence tools among college students in the Philippines. Their 
+findings indicated that students strongly perceive AI tools as helpful in improving the quality of 
+
+=== PDF PAGE 42 ===
+42  
+their academic work and saving time on school tasks. The researchers noted that AI encompasses 
+ 
+flag engagement drops and academic risks early are vital for proactive intervention, moving the 
+educational model from a "reactive" to a "proactive" state. 
+Finally, Chen et al. (2025) emphasized that the "third generation" of Learning 
+Management Systems is characterized by intelligence that adapts and predicts. Their findings 
+suggested that AI-driven analytics dashboards provide deep insights into learner behavior that 
+manual tracking cannot capture. By identifying patterns in historical academic data, these 
+systems offer precise grade monitoring and student performance analytics, ensuring that 
+educational managers can make data-driven decisions with higher accuracy and speed. 
+ 
+ 
+ 
+A study by Agbong-Coates (2024) demonstrated that the integration of generative AI 
+tools significantly boosts personalized learning outcomes within the Philippine educational 
+setting. The research found that when AI is used to provide immediate, customized feedback, it 
+creates a more engaging environment that allows students to acquire information at their own 
+pace. The study concluded that such technologies are particularly effective in addressing long-
+standing challenges related to student engagement and information accessibility, reinforcing the 
+need for localized systems that can adapt to the unique needs of Filipino learners. 
+Bato and Pomperada (2025) developed a Student Performance Analytics and Grading 
+Automation System designed to modernize traditional academic processes within a Philippine 
+educational institution. Their research highlighted how transitioning from manual grading to an 
+automated web-based platform significantly reduces administrative workloads and enhances data 
+accuracy. The study emphasized that the integration of real-time performance analytics allows 
+educators to identify academic trends and provide early interventions for struggling students. By 
+offering predictive insights through an intuitive dashboard, the system supports data-driven 
+decision-making, ensuring that student monitoring is both transparent and precise. 
+ 
+
+=== PDF PAGE 43 ===
+43  
+In a similar local study, Estrellado and Miranda (2023) investigated the adoption and 
+perceptions of artificial intelligence tools among college students in the Philippines. Their 
+findings indicated that students strongly perceive AI tools as helpful in improving the quality of 
+their academic work and saving time on school tasks. The researchers noted that AI encompasses 
+various technologies, including large language models like Google Gemini, which are becoming 
+increasingly prevalent for personalized learning and quick assessments. The study concluded that 
+while the integration of AI is still in its early stages in some regions, it holds the potential to 
+revolutionize teaching methodologies by offering immediate feedback and tailored support. 
+ 
+Furthermore, a study published in Philippine E-Journals (2024) explored the 
+ 
+implementation of an online student monitoring and data tracking system using the Agile 
+methodology. The researchers found that centralizing student information, such as attendance 
+and performance records, is vital for academic safety and effective communication between 
+teachers and parents. The evaluation results showed that 95% of respondents believed the 
+automated tracking system was effective in improving overall student monitoring. This supports 
+the move away from traditional, scattered methods of record-keeping toward integrated digital 
+platforms that ensure data security and accessibility. 
+Finally, according to the Department of Education (2025), the launch of the Education 
+Center for AI Research (E-CAIR) marks a critical shift toward AI-powered solutions in the 
+Philippine basic education sector. This initiative focuses on developing AI-driven tools to 
+enhance school administration and generate data-driven insights for student assessment. By 
+leveraging computer-based results and analytics dashboards, the program aims to revitalize how 
+schools monitor learning outcomes and manage administrative tasks, reinforcing the role of 
+technology in transforming the country's educational landscape. 
+Synthesis 
+ 
+ 
+The synthesis of the reviewed studies shows a clear shift toward proactive education, 
+where AI-driven systems replace slow, manual work with real-time automation and smart 
+
+=== PDF PAGE 44 ===
+44  
+monitoring. According to Bhatia et al. (2024), adding AI to learning platforms has a 
+revolutionary effect on schools by using "emotion-aware" tools that keep students interested. 
+This is supported by Chen et al. (2025), who explain that the new generation of learning systems 
+can predict student needs, helping school managers make better decisions through easy-to-read 
+data dashboards. Furthermore, research by Molinari and Sandri (2024) shows how advanced 
+math and computer rules can spot students who are struggling early on. This moves schools away 
+from just "reacting" to problems and toward "preventing" them. This improvement is also 
+highlighted by Jin et al. (2025), who found that automated grading is the best way to replace 
+slow paper-based work. By letting AI handle heavy tasks like calculating grades which ISTE 
+(2025) says can increase student interest by 40% teachers can spend more time actually talking 
+to and helping their students. Local studies in the Philippines also show clear benefits in making 
+school tasks easier and more transparent. Bato and Pomperada (2025) proved that automated 
+grading reduces the workload for teachers, while Agbong-Coates (2024) noted that these systems 
+help Filipino students learn at their own speed. All things considered, these studies show how 
+technology is changing education, from improving how students do their work with tools like 
+Google Gemini as noted by Estrellado and Miranda (2023) to using centralized tracking for 
+better safety and communication, as seen in the Philippine E-Journals (2024). These ideas 
+provide the foundation for building advanced systems like SIGMA that meet the needs of 
+students while making school management faster and more accurate, especially with the support 
+of DepEd’s (2025) new AI research programs. 
+ 
+ 
+ 
+
+=== PDF PAGE 45 ===
+45  
+ 
+ 
+ 
+Technical Background 
+CHAPTER II 
+METHODOLOGY 
+ 
+ 
+This chapter gives an overview of the technology used to build SIGMA: An AI-Integrated E-
+Learning Management System. The system is made to help the Senior High School department 
+of Interface Computer College Caloocan by putting school records, online classes, and smart 
+monitoring tools in one place. 
+The SIGMA system is a web-based platform that works on computers, tablets, and smartphones. 
+ 
+It has different features for Students, Teachers, and School Administrator. The front part of the 
+system is where students view their lessons and grades, while teachers use it to manage their 
+classes. The back part of the system uses an API for Artificial Intelligence (Sigma Bot) to 
+automatically compute grades based on DepEd rules and provide reports on student performance. 
+This setup keeps all student information safe in one database and uses smart tools to make school 
+work easier and faster for everyone. 
+ 
+ 
+ 
+Technologies to be used 
+ 
+ 
+The proponents primarily use desktop computers and laptops for planning, organizing, and 
+ 
+writing the documentation. These devices are also the main tools for coding the SIGMA system, 
+managing the database, and setting up the web-based platform. 
+Smartphones are used to test the responsive design of the system. This ensures that the layout 
+
+=== PDF PAGE 46 ===
+46  
+works well on mobile screens, so students and teachers can easily access materials and check 
+grades from any device. The researchers also use these devices to test the Sigma Bot AI feature, 
+making sure the chat interface is easy to use and provides helpful answers across all platforms. 
+VS Code is the primary code editor used for development. It provides the necessary tools and 
+extensions to write, test, and debug the system’s code efficiently. 
+
+=== PDF PAGE 47 ===
+47  
+HTML is used to build the structure of the web application. It serves as the foundation for the 
+system’s layout, ensuring that all text, buttons, and forms are organized correctly. 
+ 
+Tailwind CSS is used for styling the user interface. It allows the researchers to design a modern, 
+clean, and responsive layout that looks good on both desktop and mobile screens without writing 
+complex code. 
+JavaScript is applied to make the website interactive. It handles the logic for the front-end, such 
+as showing pop-up notifications and updating content without refreshing the page. 
+Native PHP serves as the backend language for the system. It handles the server-side logic, 
+processes user requests, and connects the front-end to the database. 
+MySQL is the database management system used to store and organize all information. It 
+securely holds student records, grades, account details, and school data. 
+Railway is the hosting platform used to put the system online. It ensures that the SIGMA 
+platform is live and accessible to users over the internet. 
+Gemini API is the technology behind Sigma Bot. It provides the artificial intelligence needed to 
+answer student questions, summarize lessons, and give performance insights. 
+Google Drive API is used for managing file storage. It allows the system to securely save and 
+retrieve uploaded learning materials and PDF documents. 
+Pusher is used to provide real-time notifications. This ensures that students and teachers receive 
+instant updates for announcements or grade entries without needing to refresh their browsers. 
+Google reCAPTCHA is integrated into the login module as a security feature. It protects the 
+ 
+system from automated bots and unauthorized login attempts, ensuring only real users can access 
+the platform. 
+
+=== PDF PAGE 48 ===
+48  
+GANTTCHART OF ACTIVITIES 
+ 
+MONTH  
+ 
+FEBRUARY 
+ 
+ 
+MARCH 
+ 
+ 
+APRIL 
+ 
+ 
+MAY 
+ 
+ 
+JUNE 
+ 
+ 
+JULY 
+ 
+ 
+AUGUST 
+ 
+ 
+SEPTEMBER ACTIVITY 
+Planning                                 
+Research Title                                 
+Compile RRL                                 
+Search for Adviser                                 
+Consultation                                 
+Search for client                                 
+Creating DFD & HIPO                                 
+Interview with Client                                 
+Checking Final Papers                                 
+Mock Defense Adviser                                 
+Final Defense                                 
+Redefense (Changing Title)                                 
+Development of System                                 
+Changing of Papers and Format                                 
+IMRAD (Introduction)                                 
+IMRAD (Methodology)                                 
+IMRAD (Results)                                 
+IMRAD (Discussion)                                 
+
+
+=== PDF PAGE 49 ===
+49  
+ 
+
+=== PDF PAGE 50 ===
+50  
+RESOURCES 
+ 
+ 
+ 
+ 
+LAPTOP 
+ 
+ 
+DEVICE NAME DESKTOP-M1A1PU6 
+PROCESSOR 13th Gen Intel(R) Core(TM) i5-1334U (1.30 
+ 
+GHz) 
+INSTALLED RAM 16.0 GB (15.7 GB usable) 
+DEVICE ID 67536912-0CF7-4213-BCE6-1C8DD98230CF 
+PRODUCT ID 00342-42379-34440-AAOEM 
+SYSTEM TYPE 64-bit operating system, x64-based processor 
+PEN AND TOUCH NOT SUPPORTED 
+ 
+MOBILE 
+ 
+ 
+DEVICE NAME POCO M7 4G 
+RAM 6.00 GB + SNAPDRAGON 685 
+CPU Octa Core CPU 
+(4x Kryo 265 @ 2.8GHz + 4x Kryo 265 @ 
+1.9GHz) 
+ROM 128 GB 
+ANDROID VERSION 16 
+
+=== PDF PAGE 51 ===
+51  
+ 
+
+=== PDF PAGE 52 ===
+52  
+Requirement Analysis 
+ 
+ 
+ 
+ 
+Research Method: 
+ 
+ 
+ 
+ 
+AGILE METHODOLOGY – SIGMA SYSTEM 
+ 
+
+
+=== PDF PAGE 53 ===
+53  
+Phase 1: Planning 
+ 
+ 
+In this phase, the proponents identify the project goals, scope, and target users of the SIGMA 
+system. Initial discussions are conducted to determine the problems in the current e-learning 
+system of Interface Computer College Caloocan. The project timeline, resources, and expect 
+ 
+ 
+ 
+outputs are also defined. This phase may be revisited in every iteration to adjust plans based on 
+feedback and development progress. 
+ 
+ 
+ 
+ 
+Phase 2: Requirements Analysis 
+ 
+ 
+The proponents gather and analyze system requirements through interviews, observations, and 
+document reviews. This includes identifying the needs of students, teachers, and administrators, 
+and defining both functional and non-functional requirements. Requirements are continuously 
+refined throughout the development process as new insights and feedback are obtained. 
+ 
+ 
+ 
+ 
+ 
+Phase 3: System Design 
+ 
+ 
+The system architecture, database structure, and user interface designs are developed based on 
+the analyzed requirements. This includes creating Data Flow Diagrams (DFD), system 
+flowcharts, HIPO charts, and prototypes. The design is flexible and may be improved during 
+each iteration to support system enhancements and usability. 
+ 
+
+=== PDF PAGE 54 ===
+54  
+Phase 4: Iterative Development 
+ 
+ 
+The SIGMA system is developed in multiple sprints, where each sprint focuses on specific 
+ 
+modules such as login system, student information system, grade computation, and AI chatbot 
+ 
+integration. Coding, integration, and refinement are performed continuously. After each iteration, 
+features are reviewed and improved before proceeding to the next cycle 
+ 
+ 
+outputs are also defined. This phase may be revisited in every iteration to adjust plans based on 
+feedback and development progress. 
+ 
+ 
+ 
+ 
+Phase 2: Requirements Analysis 
+ 
+ 
+The proponents gather and analyze system requirements through interviews, observations, and 
+document reviews. This includes identifying the needs of students, teachers, and administrators, 
+and defining both functional and non-functional requirements. Requirements are continuously 
+refined throughout the development process as new insights and feedback are obtained. 
+ 
+ 
+ 
+ 
+ 
+Phase 3: System Design 
+
+=== PDF PAGE 55 ===
+55  
+ 
+ 
+The system architecture, database structure, and user interface designs are developed based on 
+the analyzed requirements. This includes creating Data Flow Diagrams (DFD), system 
+flowcharts, HIPO charts, and prototypes. The design is flexible and may be improved during 
+each iteration to support system enhancements and usability. 
+ 
+
+=== PDF PAGE 56 ===
+56  
+Phase 4: Iterative Development 
+ 
+ 
+The SIGMA system is developed in multiple sprints, where each sprint focuses on specific 
+ 
+modules such as login system, student information system, grade computation, and AI chatbot 
+ 
+integration. Coding, integration, and refinement are performed continuously. After each iteration, 
+features are reviewed and improved before proceeding to the next cycle. 
+ 
+ 
+ 
+ 
+ 
+ 
+Phase 5: Testing and Validation 
+ 
+ 
+ 
+Testing is conducted throughout the development process, including unit testing, integration 
+testing, and user acceptance testing. Errors and system issues are identified and resolved 
+continuously. Feedback from users is incorporated to improve system functionality, accuracy, 
+and usability. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PDF PAGE 57 ===
+57  
+ 
+Phase 6: Deployment and Evaluation 
+ 
+ 
+ 
+The system is deployed after successful iterations and testing. It is evaluated based on usability, 
+efficiency, and overall performance. Feedback from users is collected and used as input for 
+further improvements, allowing the system to evolve even after deployment. 
+
+=== PDF PAGE 58 ===
+58  
+DESIGN OF SOFTWARE, SYSTEM, 
+PRODUCT, AND/OR PROCESSES 
+ 
+ 
+ 
+Description of Prototype 
+ 
+ 
+ENTITY RELATIONSHIP DIAGRAM 
+
+
+=== PDF PAGE 59 ===
+59  
+DATA FLOW DIAGRAM 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 1. Level 0 Context Diagram SIGMA ELMS for Senior High School of Interface 
+Computer College 
+
+
+=== PDF PAGE 60 ===
+60  
+ 
+ 
+Figure 2. Level 1 – Process 1.0: Authentication 
+
+
+=== PDF PAGE 61 ===
+61  
+ 
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.1: Validate Login ID / Email 
+
+
+=== PDF PAGE 62 ===
+62  
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.2: Verify Password 
+ 
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.3: Check ReCaptcha 
+
+
+=== PDF PAGE 63 ===
+63  
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.4: Enforce Account Lockout 
+
+
+=== PDF PAGE 64 ===
+64  
+ 
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.5: Check Account Status 
+
+
+=== PDF PAGE 65 ===
+65  
+ 
+ 
+ 
+ 
+Figure 2. Level 1 – Process 1.6: Role-Based Redirection 
+ 
+Figurex` 3. Level 1 – Process 2.0: Account Management 
+
+
+=== PDF PAGE 66 ===
+66  
+ 
+ 
+Figure 4. Level 1 – Process 3.0: Academic Setup 
+ 
+ 
+ 
+ 
+Figure 5. Level 1 – Process 4.0: Content & Assessment Management 
+
+
+=== PDF PAGE 67 ===
+67  
+ 
+ 
+ 
+Figure 6. Level 1 – Process 5.0: Grading & Analytics 
+ 
+Figure 7. Level 1 – Process 6.0: AI Services 
+
+
+=== PDF PAGE 68 ===
+68  
+ 
+ 
+Figure 8. Level 1 – Process 7.0: Announcements 
+
+
+=== PDF PAGE 69 ===
+69  
+Figure 9. User Login Process 
+ 
+
+
+=== PDF PAGE 70 ===
+70  
+ 
+ 
+Figure 10. Create and Edit User Accounts 
+
+
+=== PDF PAGE 71 ===
+71  
+ 
+ 
+ 
+ 
+ 
+Figure 10. Create Subjects 
+
+
+=== PDF PAGE 72 ===
+72  
+ 
+ 
+ 
+ 
+ 
+Figure 10. Create Sections 
+
+
+=== PDF PAGE 73 ===
+73  
+LOGIN PAGE: ALL USERS 
+ 
+ 
+ 
+ 
+ 
+Figure 11. Desktop Login Page 
+ 
+ 
+ 
+ 
+Figure 12. Mobile Login Page 
+
+
+=== PDF PAGE 74 ===
+74  
+Administrator Page 
+ 
+ 
+ 
+ 
+Figure 13. Administrator Dashboard 
+ 
+ 
+ 
+ 
+Figure 14. User Accounts 
+
+
+=== PDF PAGE 75 ===
+75  
+ 
+ 
+ 
+Figure 15. Create User Account 
+ 
+ 
+School Management 
+ 
+ 
+ 
+ 
+Figure 16. School Branch 
+
+
+=== PDF PAGE 76 ===
+76  
+ 
+ 
+ 
+Figure 17. School Profile 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Figure 18. School Year 
+
+
+=== PDF PAGE 77 ===
+77  
+ 
+ 
+ 
+Figure 19. Sections 
+ 
+ 
+ 
+ 
+Figure 20. Create Section 
+
+
+=== PDF PAGE 78 ===
+78  
+ 
+ 
+ 
+Figure 20. Subjects 
+ 
+ 
+ 
+ 
+Figure 21. Create Subject 
+
+
+=== PDF PAGE 79 ===
+79  
+Reports 
+ 
+ 
+ 
+ 
+Figure 22. AI Reports 
+ 
+ 
+ 
+ 
+Figure 23. Attendance Reports 
+
+
+=== PDF PAGE 80 ===
+80  
+ 
+ 
+ 
+Figure 23. Performance Reports 
+ 
+ 
+ 
+ 
+Figure 24. Resources 
+
+
+=== PDF PAGE 81 ===
+81  
+Audit Logs 
+ 
+ 
+ 
+ 
+Figure 25. AI Logs 
+ 
+ 
+ 
+ 
+Figure 26. Activity Logs 
+
+
+=== PDF PAGE 82 ===
+82  
+ 
+ 
+ 
+Figure 27. Activity Logs 
+ 
+ 
+System Settings 
+ 
+ 
+ 
+ 
+Figure 28. Login Security 
+
+
+=== PDF PAGE 83 ===
+83  
+ 
+ 
+ 
+Figure 29. Preferences 
+ 
+ 
+ 
+ 
+Figure 30. Storage 
+
+
+=== PDF PAGE 84 ===
+84  
+ 
+ 
+ 
+Figure 31. API Keys 
+ 
+ 
+ 
+ 
+Figure 32. Student Page 
+
+
+=== PDF PAGE 85 ===
+85  
+ 
+ 
+Figure 33. Teacher Page – Sections Tab 
+ 
+ 
+ 
+ 
+Figure 34. Student Page – Sections Tab 
+
+
+=== PDF PAGE 86 ===
+86  
+ 
+ 
+ 
+Figure 35. Subjects Tab 
+ 
+ 
+ 
+Figure 36. Assessments Tab 
+
+
+=== PDF PAGE 87 ===
+87  
+ 
+ 
+Figure 37. Teacher Page - Grades Tab Analytics 
+ 
+ 
+ 
+Figure 37. Student Page - Grades Tab Analytics 
+
+
+=== PDF PAGE 88 ===
+88  
+Requirements Documentation 
+ 
+The requirements documentation of SIGMA: An AI-Integrated E-Learning Management 
+System with Student Information and Grade Monitoring Analytics defines the functional and 
+non-functional requirements necessary to support the academic operations of the Senior High 
+School department of Interface Computer College Caloocan. Based on the interactions presented 
+in the system’s context diagram, the platform is designed to address existing challenges such as 
+manual grade computation, scattered student records, delayed academic feedback, and the lack of 
+an integrated academic system. It identifies the needs of the primary users: students, teachers, 
+and the school administrator and specifies essential system functionalities, including secure user 
+authentication with role-based access, a centralized Student Information System for managing 
+student records, and a web-based e-learning platform for delivering instructional materials and 
+managing class activities. SIGMA also includes an assessment module for quizzes, assignments, 
+and performance tasks, as well as an automated grade monitoring feature that computes grades 
+based on the Department of Education grading formula. In addition, SIGMA integrates an AI-
+powered assistant (Sigma Bot) that provides learning support, generates academic content, and 
+analyzes student performance using available system data. 
+Furthermore, SIGMA incorporates non-functional requirements to ensure efficiency, security, 
+and usability within a real-world academic environment. SIGMA is designed to deliver reliable 
+performance through real-time data processing, allowing multiple users to access the platform 
+simultaneously with minimal delay. Security measures such as credential validation, account 
+lockout mechanisms, and CAPTCHA verification are implemented to protect sensitive academic 
+information and ensure controlled access to the system. The platform also emphasizes usability 
+through a responsive and user-friendly interface that is accessible across various devices, 
+including desktops, laptops, tablets, and smartphones, with compatibility across major web 
+browsers. In terms of reliability and maintainability, SIGMA is structured to minimize errors, 
+maintain data consistency, and support future enhancements, particularly in AI integration and 
+analytics capabilities. These requirements serve as the foundation for the system’s design and 
+iterative development under the Agile methodology, ensuring that SIGMA effectively improves 
+academic management, enhances the learning experience, and supports data-driven decision-
+making within the institution. 
+
+=== PDF PAGE 89 ===
+89  
+REFERENCE 
+ 
+Foreign Literature 
+ 
+ 
+Bhatia, R., Sharma, P., & Kumar, S. (2024). Artificial intelligence in higher education: A 
+systematic review of adaptive and emotion-aware learning systems. International Journal 
+of Educational Technology, 15(2), 101–118. 
+Chen, X., Li, Q., & Zhang, H. (2025). The evolution of intelligent learning management 
+systems: From automation to predictive analytics. Educational Technology Research and 
+Development, 73(2), 233–250. 
+International Society for Technology in Education. (2025). AI integration in education: 
+Enhancing engagement and automation in learning systems. ISTE Publications. 
+Jin, L., Chen, Y., & Park, S. (2025). AI-powered grading systems and real-time feedback 
+mechanisms in digital learning environments. Journal of Computer-Assisted Learning, 
+41(1), 55–70.. 
+Molinari, A., & Sandri, M. (2024). AI-driven learning management systems: Scalability 
+and predictive analytics using convolutional neural networks. Computers & Education 
+Journal, 190, 104–120. 
+ 
+ 
+Local Literature 
+ 
+Agbong-Coates, J. (2024). Generative AI and personalized learning in Philippine 
+education. Philippine Journal of Educational Technology, 6(1), 45–60. 
+Bato, R., & Pomperada, R. (2025). Student performance analytics and grading 
+ 
+
+=== PDF PAGE 90 ===
+90  
+automation system for academic institutions. Philippine Computing Journal, 10(1), 22–35. 
+ 
+ 
+Department of Education. (2025). Education Center for AI Research (E-CAIR): 
+Advancing AI in Philippine basic education. DepEd Philippines. 
+ 
+ 
+Estrellado, M., & Miranda, K. (2023). Adoption and perception of artificial intelligence 
+tools among Filipino college students. Asia Pacific Journal of Education, 43(3), 389–
+405. 
+Philippine E-Journals. (2024). Agile-based student monitoring and data tracking system 
+implementation. Philippine E-Journals Database. https://ejournals.ph 
+. 
+
+=== PDF PAGE 91 ===
+91  
+APPENDICES 
+TRANSCRIPT OF INTERVIEW 
+INTERVIEWER: Marco Salazar 
+INTERVIEWEE: Mark Mendezabal 
+ 
+MEETING PLACE: Interface Computer 
+College Caloocan 
+TRANSCRIPT DATE: March 25, 2026 
+ 
+ 
+ 
+INTERVIEW QUESTIONS & ANSWER 
+ 
+Client: I am Mark Mendezabal 
+Interviewer: What challenges are you currently experiencing with your existing e-
+learning or student management system? 
+Client: For me, as a teacher in this institution, I think the challenges that I encountered 
+were the first one, maybe the access of the student, because not all students are okay with e-
+learning. Our problem is that not all students are well-informed when it comes to e-learning. 
+Besides, because there are other branches or instances that have e-learning branches, therefore 
+there are students who are not in the areas where there is internet connection. So that is one of 
+the problems that I encountered. Besides, maybe the details, because I see that not all are techy, 
+not all are knowledgeable when it comes to using e-learning. Because there are details that are a 
+bit for me, if you are a beginner, it is a bit, you need to give it some time to learn and to learn e-
+learning safely. Thank you. 
+Interviewer: How do you currently manage student information (enrollment, records, 
+
+=== PDF PAGE 92 ===
+92  
+profiles) in the Senior High School department? 
+Client: Sa akin, as a Teacher, hindi ko kasi siyempre nakahawakan since registered kasi 
+na hindi nakahandle when it comes to development ng mga students. Even doon sa mga records 
+ng grades ng mga students, sa registered. Pero as far as I know, ang ginagawa kasi namin dito, 
+development namin, pero nga sa register na namin, sa pamamagitan lang ng kanilang mga sarili, 
+spreadsheet, I don't know kung talaga sila. So I don't know, pero sa ngayon, yun yung 
+pagkakatanda ko kung paano nag-involve sa development process sa system natin. 
+Interviewer:What process do teachers follow when recording, computing, and 
+submitting student grades? 
+Client: So senior high school, actually, this is the global. Yung iba kaunti. Sa senior high school kasi 
+ginagamit ng mga teachers for recording the grades. So ang ginagamit kasi namin 
+tinatawag ng i-record senior high school. So pag nag-record sheet na ito, basta madikit tala, 
+nagyan ka lang ng score ng bata, pag na-automatic na siya na lalabas yung ilang points niya. 
+Ganyan. Kapag before kasi traditional na ginagamit ng mga teacher, manually ang pag-compute 
+ng grades. Pagkatapos before sa EBS, computation talaga siya. Ngayon kasi because of the, 
+actually isa na rin sa elements sa internet. Sa elements, meron din actually doon yung mga 
+maglalagay ka na lang or paglabas ng score ng bata, lalabas na paano, automatic na weight niya. 
+Pero ngayon nga lang, syempre, hindi na-consider pa rin kasi sa teacher compute na grade. 
+Siyempre, part ng task. , sometimes, hindi na nakakapagod sa EBS. Kasi di pa alam kasi mga 
+teachers, mgagitin na outfit lang yan. Naririg. So yun. 
+Interviewer: What common issues occur in grade monitoring and reporting (e.g., delays, 
+errors, accessibility? 
+Client: Pero something sa akin, hindi kasi sabi kasi nag-manage pa kasi siya, kaya hindi 
+ko sabi nagbibig. Pero tingin ko kasi, siguro sa taas, as I said sa picture na sa benefit na kong 
+tasing dito. So medyo tingin ko medyo down-down-down ang problema. Sa totoo, wala namang 
+problema doon sa delay na request mo, hindi naman kasi na somehow na nadetect na naman siya. 
+Pero na pamamagitan ng LMS, e-learning natin, malaki yung tulong mo. Kasi, minsan kapag 
+busy ka, magbibigay ka ng activity. Ang activity na sa estudyante, then gagawin nila. After that, 
+magiging ka na ng source nila. Diretto na siya sa content yan. This is the business system. That's 
+where something po tayo. 
+
+=== PDF PAGE 93 ===
+93  
+Interviewer: What features would you like to see in an AI-integrated e-learning 
+management system? 
+Client: Well, actually, I agree with Dr. AI technology kasi malaki ng impact ng AI 
+technology, particularly for those students na talagang amin natin na hindi tayo ganun ka-
+academic and well, no. Pero yun nga, ang gusto kong mangyari sa AI, maintindihan ng bata, ng 
+student, yung boundaries nila na hindi dapat tayo maging dependent well in terms of AI. Pero 
+aminin natin may advantages and disadvantages talaga yung isang bagay, especially with the AI. 
+So yun lang naman yung aking side. 
+Interviewer: How do students currently access learning materials, assignments, and 
+ 
+Client: So senior high school, actually, this is the global. Yung iba kaunti. Sa senior high school kasi 
+ginagamit ng mga teachers for recording the grades. So ang ginagamit kasi namin 
+tinatawag ng i-record senior high school. So pag nag-record sheet na ito, basta madikit tala, 
+nagyan ka lang ng score ng bata, pag na-automatic na siya na lalabas yung ilang points niya. 
+Ganyan. Kapag before kasi traditional na ginagamit ng mga teacher, manually ang pag-compute 
+ng grades. Pagkatapos before sa EBS, computation talaga siya. Ngayon kasi because of the, 
+actually isa na rin sa elements sa internet. Sa elements, meron din actually doon yung mga 
+maglalagay ka na lang or paglabas ng score ng bata, lalabas na paano, automatic na weight niya. 
+Pero ngayon nga lang, syempre, hindi na-consider pa rin kasi sa teacher compute na grade. 
+Siyempre, part ng task. , sometimes, hindi na nakakapagod sa EBS. Kasi di pa alam kasi mga 
+teachers, mgagitin na outfit lang yan. Naririg. So yun. 
+Interviewer: What common issues occur in grade monitoring and reporting (e.g., delays, 
+errors, accessibility? 
+Client: Pero something sa akin, hindi kasi sabi kasi nag-manage pa kasi siya, kaya hindi 
+ko sabi nagbibig. Pero tingin ko kasi, siguro sa taas, as I said sa picture na sa benefit na kong 
+tasing dito. So medyo tingin ko medyo down-down-down ang problema. Sa totoo, wala namang 
+problema doon sa delay na request mo, hindi naman kasi na somehow na nadetect na naman siya. 
+Pero na pamamagitan ng LMS, e-learning natin, malaki yung tulong mo. Kasi, minsan kapag 
+busy ka, magbibigay ka ng activity. Ang activity na sa estudyante, then gagawin nila. After that, 
+
+=== PDF PAGE 94 ===
+94  
+magiging ka na ng source nila. Diretto na siya sa content yan. This is the business system. That's 
+where something po tayo. 
+Interviewer: What features would you like to see in an AI-integrated e-learning 
+management system? 
+Client: Well, actually, I agree with Dr. AI technology kasi malaki ng impact ng AI 
+technology, particularly for those students na talagang amin natin na hindi tayo ganun ka-
+academic and well, no. Pero yun nga, ang gusto kong mangyari sa AI, maintindihan ng bata, ng 
+student, yung boundaries nila na hindi dapat tayo maging dependent well in terms of AI. Pero 
+aminin natin may advantages and disadvantages talaga yung isang bagay, especially with the AI. 
+So yun lang naman yung aking side. 
+Interviewer: How do students currently access learning materials, assignments, and 
+announcements? 
+ 
+Client: binibigay lang kasi na, actually, bawat estudyante namin dito, meron na silang 
+sarili nilang account. So doon minsan, kung hindi man nadadagdagan or nalalaman ng bata na 
+may ano, and then minsan nag-remind, hindi lang sa GC, pero yung sa FB ng namin, sometimes 
+updated naman sa nakakapag-adapt. kasi mas active pa rin kasi yung mga bata when it comes to 
+message eh. So hindi pa rin namin maiwasan na message yung sa mga adults. So ngayon mag-
+post sa mga site. 
+Interviewer: What type of analytics or reports would be useful for monitoring student 
+performance? 
+ 
+ 
+Client: yung LMS, yung LMS ispoise, I'm sure yung mga activities sa asikubo, as I 
+mentioned a while ago, yung isa sa mga activities nila, ako kasi nakagamit ako ng LMS medyo 
+na lessen dito sa Paulo at medyo iba na gawain. Kasi ang pagnatrabaho sa teacher, yung ano, 
+yung pag-encode, mag-input nila. So, yun, malaking tulong sa LMS. Okay. 
+Interviewer:Who will be the primary users of the system (e.g., administrators, teachers, 
+students), and what are their specific needs? 
+
+=== PDF PAGE 95 ===
+95  
+Client: I think siguro ano, more orientation when it comes to technology. Dapat kasi ako 
+na kasi sa computer na din. Computer school, so maganda ako. Yung mga staff nito ay techie 
+din. So alam nila kung paano ipagkita ng gamit na alam nila. Naniniwala ako na mas okay ko 
+yung teacher, alam niya kung paano gamitin yung LMS. So paano nga niya ba i-encourage yung 
+mga student na gumamit ng LMS if they don't know how to use it. So yan, so okay tayo dyan. 
+Alam din nila yung access dun, or may access sila dun sa LMS. 
+ 
+Interviewer: What security measures or access controls are important for managing 
+student data and grades? 
+Client: Para, kasi ano eh, dahil kasi baka okay naman. Hindi naman nagyang password, 
+wala namang problema. Pero pag meron tayong security tayo, siguro ano, mas okay kung 
+mapagbuti na lang dito. Kung security ang pinag-uusapan natin, siguro Siguro yung pagtiwas na 
+lang na pagbanggit siguro ng grades ng bata, I think, without the permission of that student, I 
+think. Kasi ngayon, sabi ko kasi sa sabi kong sa grade na pinag-uusapan, security niya. Kung 
+safe naman, kasi kami lang talaga yung may access. Pero may mga kasi natin kasi na talagang 
+nagpupuwilit na makita nila yung kanilang grades. So okay yun for transparency. However, ang 
+problema kasi noon, kung ibang bata yung gusto niyang makita, iba-ibang estudyante. This is not 
+good for everyone. Kasi confidentiality na dapat itagilid natin kapag pinabayaan natin. If they 
+want to know siguro, kailangan nilang hatanungin yung person na yun, yung estudyante na 
+event. Me as a teacher, I don't have any right na ipakita yung grades noon ng estudyante ko 
+without the permission of that student. So na-i-capture sa ilalim ng video. So yun lang ang 
+pananatake. 
+Interviewer: How do you envision the system improving teaching, learning, and 
+administrative processes in your Senior High School department? 
+Client: Ito ay base sa aking observation. Malaki yung tulong nito sa school kasi ako kahit 
+na nag-college din ako, may LMS din kami. Talagang natutulungan ako nito. Pero totoo na 
+malaki yung tulong ng LMS sa management system nito sa pag-aaral at sa pagtutulong kasi 
+nalalessen nito yung gawain na bibigyan natin ng pagkakataon na explore yung sarili natin muna. 
+Kasi sa akin, we also have activities. And ano ba, mas napapalawak pa nito of course yung ating 
+learning development bilang class to technology. 
+
+=== PDF PAGE 96 ===
+96  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+PROOF OF INTERVIEW 
+ 
+ 
+ 
+ 
+ 
+
+
+=== PDF PAGE 97 ===
+97  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+APPENDIX F. PERSONAL TECHNICAL VITAE 
+
+=== PDF PAGE 98 ===
+98  
+Curriculum Vitae of 
+ 
+ 
+Stanley V. Garcia 
+7 Leland Quezon City 
+ 
+ 
+0916-1971-745 
+ 
+ 
+EDUCATIONAL BACKGROUND 
+Level Inclusive Dates Name of school/ 
+Institution 
+Tertiary 2023- Present STI College Caloocan 
+Senior High 
+School 
+2020-2023 Capitol Institute 
+High School 2016-2020  Capitol Institute 
+Elementary 2010-2016 Saint Dominic School 
+ 
+ 
+ 
+PROFESSIONAL OR VOLUNTEER EXPERIENCE 
+Inclusive 
+Dates 
+Nature of 
+Experience/ 
+Job Title 
+Name and Address of Company 
+or Organization 
+N/A N/A N/A 
+ 
+ 
+ 
+Inclusive 
+Dates 
+AFFILIATIONS 
+Name of Organization Position 
+Stanley0916.sg@gmail.com 
+
+=== PDF PAGE 99 ===
+99  
+N/A N/A N/A 
+ 
+ 
+SKILLS 
+
+=== PDF PAGE 100 ===
+100  
+SKILLS Level of Competency  Date 
+Acquired 
+Programming 
+Video Editing 
+Basi 
+c 
+Basi 
+c 
+2022 
+2021 
+ 
+ 
+ 
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED 
+Inclusive Dates Title of Training, Seminar, or 
+Workshop 
+N/A N/A 
+
+=== PDF PAGE 101 ===
+101  
+ 
+ 
+ 
+ 
+Curriculum Vitae of 
+Reign Jeric G. Sabino 
+99 Silahis St. Tanza Navotas City 
+jericreign02@gmail.com 
+0950-688-0011 
+ 
+ 
+EDUCATIONAL BACKGROUND 
+Level Inclusive Dates Name of school/ Institution 
+Tertiary  2022- Present  STI College Caloocan 
+Senior High 
+School 
+2020-2022 San Jose Academy 
+High School 2016-2020 Malabon National High School 
+Elementary 2010-2016  Tanza Elementary 
+School 
+ 
+ 
+ 
+PROFESSIONAL OR VOLUNTEER EXPERIENCE 
+ 
+Inclusive 
+Dates 
+Nature of 
+Experience/ 
+Job Title 
+Name and Address of Company 
+or Organization 
+N/A N/A N/A 
+ 
+ 
+ 
+Inclusive 
+Dates 
+AFFILIATIONS 
+Name of Organization Position 
+N/A N/A N/A 
+
+
+=== PDF PAGE 102 ===
+102  
+ SKILLS  
+SKILLS Level of Competency Date 
+  Acquired 
+Programmin Basi 2022 
+g Video c 2021 
+Editing Basi 2020 
+Using Word c  
+ Basi  
+ c  
+ 
+ 
+ 
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED 
+Inclusive 
+Dates 
+Title of Training, Seminar, or 
+Workshop 
+N/A N/A 
+
+=== PDF PAGE 103 ===
+103  
+ 
+ 
+Curriculum Vitae of 
+ 
+ 
+Marco P. Salazar 
+17 Sulucan ST. Malabon City 
+ 
+ 
+0968-7947-335 
+ 
+ 
+EDUCATIONAL BACKGROUND 
+Level Inclusive Dates Name of school/ Institution 
+Tertiary  2023- Present  STI College Caloocan 
+Senior High 
+School 
+2020-2023 STI College Caloocan 
+High School 2016-2020 Malabon National High School 
+Elementary 2010-2016  M.E.S Elementary 
+School 
+ 
+ 
+ 
+ 
+ 
+PROFESSIONAL OR VOLUNTEER EXPERIENCE 
+ 
+Inclusive 
+Dates 
+Nature of 
+Experience/ 
+Job Title 
+Name and Address of Company 
+or Organization 
+N/A N/A N/A 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Marcopadayaosalazar17@gmail.com 
+
+=== PDF PAGE 104 ===
+104  
+ 
+AFFILIATIONS 
+
+=== PDF PAGE 105 ===
+105  
+Inclusive 
+Dates 
+Name of Organization Position 
+N/A N/A N/A 
+ 
+ 
+ 
+ 
+ 
+ 
+SKILLS 
+SKILLS Level of Competency Date 
+Acquired 
+Video 
+Editing 
+Using Word 
+Basic 
+Basic 
+2022 
+2021 
+ 
+ 
+ 
+ 
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED 
+Inclusive 
+Dates 
+Title of Training, Seminar, or 
+Workshop 
+N/A N/A 
+
+=== PDF PAGE 106 ===
+106  
+Curriculum Vitae of 
+ 
+ 
+John Paul R. Antalan 
+Padas St. Dagat-Dagatan Caloocan City 
+ 
+ 
+0939-159-2498 
+ 
+ 
+EDUCATIONAL BACKGROUND 
+Level Inclusive Dates Name of school/ Institution 
+Tertiary  2023- Present  STI College Caloocan 
+Senior High 
+School 
+2021-2023 Arellano University-JSC Campus 
+High School 2017-2020  Jose P. Laurel High School 
+Elementary 2011-2017 Dagat-Dagatan Elementary School 
+ 
+ 
+ 
+ 
+PROFESSIONAL OR VOLUNTEER EXPERIENCE 
+ 
+Inclusive 
+Dates 
+Nature of 
+Experience/ 
+Job Title 
+Name and Address of Company 
+or Organization 
+N/A N/A N/A 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+johnpaulantalan111@gmail.com 
+
+=== PDF PAGE 107 ===
+107  
+AFFILIATIONS 
+
+=== PDF PAGE 108 ===
+108  
+Inclusive 
+Dates 
+Name of Organization Position 
+N/A N/A N/A 
+ 
+ 
+ 
+ 
+ 
+ 
+SKILLS 
+SKILLS Level of Competency Date 
+Acquired 
+Video Editing 
+Using 
+Microsoft 
+Office 
+Programming 
+Basic 
+Basic 
+Basic 
+2020 
+2021 
+ 
+ 
+2022 
+ 
+ 
+ 
+TRAININGS, SEMINARS, OR WORKSHOPS ATTENDED 
+Inclusive 
+Dates 
+Title of Training, Seminar, or 
+Workshop 
+N/A N/A 

@@ -42,6 +42,7 @@
 
         // Variants let high-focus flows use an appropriately sized desktop dialog.
         if (card) card.classList.toggle('sigma-universal-ask-card--quiz-start', options.variant === 'quiz-start');
+        if (card) card.classList.toggle('sigma-universal-ask-card--quiz-exit', options.variant === 'quiz-exit');
         if (card) card.classList.toggle('sigma-universal-ask-card--grading', options.variant === 'grading');
         if (card) card.classList.toggle('sigma-universal-ask-card--quarter-reminder', options.variant === 'quarter-reminder');
 
@@ -92,6 +93,11 @@
                     actionsEl.className = 'mt-4 sm:mt-4.5 flex items-center justify-center';
                 }
             }
+        }
+
+        if (options.variant === 'quiz-exit') {
+            if (cancelBtn) cancelBtn.className = 'sigma-btn sigma-btn-white sigma-btn-md';
+            if (proceedBtn) proceedBtn.className = 'sigma-btn sigma-btn-primary sigma-btn-md';
         }
 
         overlay.classList.remove('hidden');

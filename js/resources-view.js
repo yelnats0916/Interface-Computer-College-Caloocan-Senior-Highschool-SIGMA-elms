@@ -17,7 +17,11 @@
     let _searchQuery = '';
     let _currentViewMode = localStorage.getItem('sigma_resources_view_mode') || 'table'; // 'table' (default) | 'grid'
     let _activeAuthorFilter = null; // null: all resources | string: specific author (e.g. current admin or other instructor)
-    let _activeSchoolYearFilter = '2026-2027'; // '2026-2027' | 'all' | '2025-2026' | 'archive'
+    let _activeSchoolYearFilter = null;
+    function resourceActiveSchoolYear() {
+        const year = window.getActiveSchoolYearRecord?.() || {};
+        return year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : String(year.name || year.schoolYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1));
+    }
     let _currentPage = 1;
     const _pageSize = 20;
     let studentSubmissionsOnly = false;
@@ -45,7 +49,17 @@
         const subjects = [item.subjectCode,item.subject].filter(Boolean).map(norm);
         if (viewer.teacher) {
             const assigned = window.getTeacherAssignedSubjectsAndSections?.(window.getLoggedInTeacherUser?.() || viewer.user) || [];
-            return assigned.some(row => [row.subjectId,row.subjectCode,row.subject,row.title].filter(Boolean).some(value => subjects.includes(norm(value))));
+            return assigned.some(row => {
+                if (![row.subjectId,row.subjectCode,row.subject,row.title].filter(Boolean).some(value => subjects.includes(norm(value)))) return false;
+                if (!resourceIsSubmission(item)) return true;
+                const sectionName = item.sectionName || item.section || item.classSection || '';
+                if (sectionName) return norm(sectionName) === norm(row.sectionName || row.section);
+                let users=[],sections=[];
+                try { users=JSON.parse(localStorage.getItem('sigma-admin-users')||'[]');sections=JSON.parse(localStorage.getItem('sigma-admin-sections')||'[]'); } catch (_) {}
+                const student=users.find(user=>[user.id,user.uid,user.studentNumber,user.lrn].filter(Boolean).map(String).includes(String(item.studentId)));
+                const section=sections.find(value=>norm(value.name||value.sectionName)===norm(row.sectionName||row.section));
+                return Boolean(student&&section&&window.isSectionAssignedToStudent?.(section,student));
+            });
         }
         let sections = []; try { sections = JSON.parse(localStorage.getItem('sigma-admin-sections') || '[]'); } catch (_) {}
         return sections.some(section => window.isSectionAssignedToStudent?.(section,viewer.user) &&
@@ -244,7 +258,7 @@
                 fileName: rawName,
                 fileUrl: cand.url || '',
                 fileType: normType,
-                fileSize: cand.size || mat.fileSize || '2.4 MB'
+                fileSize: cand.size || mat.fileSize || 'N/A'
             });
         });
 
@@ -307,7 +321,7 @@
                                     quarter: mat.quarter || '1st Quarter',
                                     size: f.fileSize,
                                     date: mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Recent',
-                                    schoolYear: mat.schoolYear || subj.schoolYear || '2026-2027',
+                                    schoolYear: mat.schoolYear || subj.schoolYear || resourceActiveSchoolYear(),
                                     author: author,
                                     sharedWithStudents: mat.sharedWithStudents !== false,
                                     downloads: mat.downloads || 0,
@@ -359,7 +373,7 @@
                                         quarter: mat.quarter || t.quarter || '1st Quarter',
                                         size: f.fileSize,
                                         date: mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Recent',
-                                        schoolYear: mat.schoolYear || t.schoolYear || subj.schoolYear || '2026-2027',
+                                        schoolYear: mat.schoolYear || t.schoolYear || subj.schoolYear || resourceActiveSchoolYear(),
                                         author: author,
                                         sharedWithStudents: mat.sharedWithStudents !== false,
                                         downloads: mat.downloads || 0,
@@ -411,7 +425,7 @@
                                     quarter: mat.quarter || '1st Quarter',
                                     size: f.fileSize,
                                     date: mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Recent',
-                                    schoolYear: mat.schoolYear || sec.schoolYear || '2026-2027',
+                                    schoolYear: mat.schoolYear || sec.schoolYear || resourceActiveSchoolYear(),
                                     author: mat.authorName || mat.author || admin.name,
                                     sharedWithStudents: mat.sharedWithStudents !== false,
                                     downloads: mat.downloads || 0,
@@ -475,7 +489,7 @@
                                         quarter: mat.quarter || t.quarter || '1st Quarter',
                                         size: f.fileSize,
                                         date: mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Recent',
-                                        schoolYear: mat.schoolYear || t.schoolYear || '2026-2027',
+                                        schoolYear: mat.schoolYear || t.schoolYear || resourceActiveSchoolYear(),
                                         author: mat.authorName || mat.author || 'Instructor',
                                         sharedWithStudents: mat.sharedWithStudents !== false,
                                         downloads: mat.downloads || 0,
@@ -517,7 +531,7 @@
                                 studentFiles.push({
                                     name: sub.fileName.trim(),
                                     fileUrl: sub.fileUrl || sub.dataUrl || sub.url,
-                                    size: sub.fileSize || '1.8 MB'
+                                    size: sub.fileSize || 'N/A'
                                 });
                             }
 
@@ -532,7 +546,7 @@
                                             studentFiles.push({
                                                 name: fn,
                                                 fileUrl: fileItem.fileUrl || fileItem.dataUrl || fileItem.url,
-                                                size: fileItem.size ? (typeof fileItem.size === 'number' ? (fileItem.size / (1024 * 1024)).toFixed(1) + ' MB' : String(fileItem.size)) : (sub.fileSize || '1.8 MB')
+                                                size: fileItem.size ? (typeof fileItem.size === 'number' ? (fileItem.size / (1024 * 1024)).toFixed(1) + ' MB' : String(fileItem.size)) : (sub.fileSize || 'N/A')
                                             });
                                         }
                                     });
@@ -547,7 +561,7 @@
                                         studentFiles.push({
                                             name: att.fileName.trim(),
                                             fileUrl: att.fileUrl || att.dataUrl || att.url,
-                                            size: att.fileSize || sub.fileSize || '1.8 MB'
+                                            size: att.fileSize || sub.fileSize || 'N/A'
                                         });
                                     }
                                     if (Array.isArray(att.files)) {
@@ -601,7 +615,7 @@
                                     quarter: quarter,
                                     size: f.size,
                                     date: displayDate,
-                                    schoolYear: sub.schoolYear || '2026-2027',
+                                    schoolYear: sub.schoolYear || resourceActiveSchoolYear(),
                                     author: author,
                                     sharedWithStudents: true,
                                     downloads: 0,
@@ -651,9 +665,9 @@
                                 type: normType,
                                 category: sub.category || 'Handout',
                                 quarter: sub.quarter || '1st Quarter',
-                                size: sub.fileSize || '1.8 MB',
+                                size: sub.fileSize || 'N/A',
                                 date: sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Recent',
-                                schoolYear: sub.schoolYear || '2026-2027',
+                                schoolYear: sub.schoolYear || resourceActiveSchoolYear(),
                                 author: author,
                                 sharedWithStudents: true,
                                 downloads: 0,
@@ -768,14 +782,15 @@
         if (viewer.student) return combined.filter(item => resourceIsSubmission(item)
             ? studentSubmissionsOnly && resourceIsOwned(item,viewer.user)
             : !studentSubmissionsOnly && item.sharedWithStudents !== false && resourceInViewerClass(item,viewer));
-        if (viewer.teacher) return combined.filter(item => !resourceIsSubmission(item) && (resourceIsOwned(item,viewer.user) || resourceInViewerClass(item,viewer)));
+        if (viewer.teacher) return combined.filter(item => resourceIsSubmission(item) ? resourceInViewerClass(item,viewer) : (resourceIsOwned(item,viewer.user) || resourceInViewerClass(item,viewer)));
         return combined;
     }
 
     function saveResources(list) {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-        } catch (_) {}
+            return true;
+        } catch (_) { return false; }
     }
 
     // --- SCHOOL YEAR & ARCHIVE RESOLUTION UTILITIES ---
@@ -852,14 +867,15 @@
         } catch (_) {}
 
         // 4. Default fallbacks if empty
-        if (!yearsMap.has('2026-2027')) {
-            yearsMap.set('2026-2027', {
-                sy: '2026-2027',
-                label: 'S.Y. 2026-2027',
+        const activeLabel=resourceActiveSchoolYear();
+        if (!yearsMap.has(activeLabel)) {
+            yearsMap.set(activeLabel, {
+                sy: activeLabel,
+                label: `S.Y. ${activeLabel}`,
                 status: 'Active',
                 isArchived: false,
                 isUpcoming: false,
-                yearStart: 2026
+                yearStart: Number(activeLabel.slice(0,4))
             });
         }
 
@@ -875,7 +891,7 @@
         if (sy === 'archive' || sy === 'archived') return true;
         const years = getAvailableSchoolYears();
         const found = years.find(y => y.sy === sy || y.label === sy);
-        return found ? found.isArchived : (sy !== '2026-2027' && sy !== '2027-2028');
+        return found ? found.isArchived : Number(String(sy).match(/\d{4}/)?.[0]) < Number(resourceActiveSchoolYear().slice(0,4));
     }
 
     function getSelectedSchoolYearLabel() {
@@ -888,8 +904,8 @@
 
     function buildSchoolYearSelectorHtml() {
         const years = getAvailableSchoolYears();
-        const activeYear = years.find(year => year.status === 'Active') || { sy: '2026-2027', label: 'S.Y. 2026-2027' };
-        _activeSchoolYearFilter = activeYear.sy;
+        const activeYear = years.find(year => year.status === 'Active') || { sy: resourceActiveSchoolYear(), label: `S.Y. ${resourceActiveSchoolYear()}` };
+        _activeSchoolYearFilter ||= activeYear.sy;
         return `
             <div class="relative shrink-0" id="resource-sy-selector-wrap">
                 <button type="button" id="btn-resource-sy-toggle" class="sigma-btn sigma-btn-white sigma-btn-md gap-2.5 shrink-0" aria-expanded="false" aria-controls="resource-sy-dropdown" aria-haspopup="true" title="Active School Year">
@@ -1062,7 +1078,7 @@
                         return false;
                     }
                 } else {
-                    const rSy = String(r.schoolYear || '2026-2027').trim();
+                    const rSy = String(r.schoolYear || resourceActiveSchoolYear()).trim();
                     if (_activeSchoolYearFilter === 'archive') {
                         if (!isSchoolYearArchived(rSy) && !r.isArchived) return false;
                     } else {
@@ -1453,7 +1469,7 @@
                 if (r.isPerpetual) {
                     if (_activeSchoolYearFilter === 'archive' || isSchoolYearArchived(_activeSchoolYearFilter)) return false;
                 } else {
-                    const rSy = String(r.schoolYear || '2026-2027').trim();
+                    const rSy = String(r.schoolYear || resourceActiveSchoolYear()).trim();
                     if (_activeSchoolYearFilter === 'archive') {
                         if (!isSchoolYearArchived(rSy) && !r.isArchived) return false;
                     } else {
@@ -1670,6 +1686,7 @@
     function renderResourcesView() {
         const section = document.getElementById('resources-view');
         if (!section) return;
+        _activeSchoolYearFilter ||= resourceActiveSchoolYear();
         if (resourceViewer().student) {
             ownUploadsOnly = true;
             studentSubmissionsOnly = true;
@@ -1986,16 +2003,23 @@
                 #resources-view .resources-page-shell {
                     display: flex !important;
                     flex-direction: column !important;
-                    gap: 12px !important;
-                    padding: 12px 12px 24px !important;
+                    gap: 0 !important;
+                    padding: 0 0 24px !important;
+                    max-width: 100% !important;
                 }
                 #resources-view .resources-header-toolbar {
                     flex-direction: column !important;
                     align-items: stretch !important;
                     gap: 10px !important;
                     padding: 12px !important;
-                    border-radius: 16px !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                    border-left: 0 !important;
+                    border-right: 0 !important;
                 }
+                #resources-view .resources-page-shell > * {margin-top:0!important;margin-bottom:0!important}
+                #resources-view #resources-content-area {width:100%!important;min-width:0}
+                #resources-view .resources-empty-card {width:100%!important;margin:0!important;border-radius:0!important;border-left:0!important;border-right:0!important;box-shadow:none!important;box-sizing:border-box}
                 #resources-view .resources-search-box {
                     width: 100% !important;
                     max-width: 100% !important;
@@ -2403,8 +2427,7 @@
                             <div>
                                 <label for="upload-sy" class="block text-xs font-bold text-slate-700 mb-1">School Year</label>
                                 <select id="upload-sy" class="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600">
-                                    <option value="2026-2027" selected>S.Y. 2026-2027 (Active)</option>
-                                    <option value="2025-2026">S.Y. 2025-2026 (Archived)</option>
+                                    ${getAvailableSchoolYears().map(year=>`<option value="${escapeHtml(year.sy)}" ${year.sy===resourceActiveSchoolYear()?'selected':''}>${escapeHtml(year.label)} (${escapeHtml(year.status)})</option>`).join('')}
                                 </select>
                             </div>
                         </div>
@@ -2496,7 +2519,7 @@
         contentArea?.addEventListener('click', (e) => {
             const resetSyBtn = e.target.closest('.btn-reset-sy');
             if (resetSyBtn) {
-                _activeSchoolYearFilter = '2026-2027';
+                _activeSchoolYearFilter = resourceActiveSchoolYear();
                 _currentPage = 1;
                 updateResourcesContentOnly(section);
                 return;
@@ -2562,7 +2585,7 @@
                 _activeTypeFilter = 'all';
                 _searchQuery = '';
                 _activeAuthorFilter = null;
-                _activeSchoolYearFilter = '2026-2027';
+                _activeSchoolYearFilter = resourceActiveSchoolYear();
                 _currentPage = 1;
                 renderResourcesView();
                 return;
@@ -2649,7 +2672,7 @@
                                 <div class="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
                                     <span class="font-semibold text-slate-600">${escapeHtml(file.category || 'Handout')}</span>
                                     <span>•</span>
-                                    <span>${escapeHtml(file.size || '2.4 MB')}</span>
+                                    <span>${escapeHtml(file.size || 'N/A')}</span>
                                     <span>•</span>
                                     <span>${escapeHtml(file.date || 'Recent')}</span>
                                     <span>•</span>
@@ -2872,7 +2895,7 @@
             }
         });
 
-        form?.addEventListener('submit', (e) => {
+        form?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const titleInput = section.querySelector('#upload-title');
             const subjectSelect = section.querySelector('#upload-subject');
@@ -2883,15 +2906,29 @@
             if (!titleInput?.value.trim()) return;
 
             const filename = titleInput.value.trim();
+            const sourceFilename = fileInput?.files?.[0]?.name || filename;
             let ext = 'pdf';
-            if (filename.toLowerCase().endsWith('.pptx') || filename.toLowerCase().endsWith('.ppt')) ext = 'pptx';
-            else if (filename.toLowerCase().endsWith('.zip') || filename.toLowerCase().endsWith('.rar')) ext = 'zip';
-            else if (filename.toLowerCase().endsWith('.docx') || filename.toLowerCase().endsWith('.doc')) ext = 'docx';
-            else if (filename.toLowerCase().endsWith('.mp4') || filename.toLowerCase().endsWith('.mov')) ext = 'video';
+            if (sourceFilename.toLowerCase().endsWith('.pptx') || sourceFilename.toLowerCase().endsWith('.ppt')) ext = 'pptx';
+            else if (sourceFilename.toLowerCase().endsWith('.zip') || sourceFilename.toLowerCase().endsWith('.rar')) ext = 'zip';
+            else if (sourceFilename.toLowerCase().endsWith('.docx') || sourceFilename.toLowerCase().endsWith('.doc')) ext = 'docx';
+            else if (sourceFilename.toLowerCase().endsWith('.mp4') || sourceFilename.toLowerCase().endsWith('.mov')) ext = 'video';
 
             const admin = getCurrentAdminUser();
             const authorName = admin.name || 'Curriculum Office';
             const editId = form?.dataset.editId;
+            const uploadFile=fileInput?.files?.[0];
+            if(!editId&&!uploadFile){showNotification('Choose a file before uploading.');return;}
+            if(uploadFile){
+                const limits=window.getSigmaMaterialLimits?.()||{};
+                const limitKey=ext==='video'?'video':ext;
+                const maxMb=Number(limits[limitKey]?.max);
+                if(Number.isFinite(maxMb)&&maxMb>0&&uploadFile.size>maxMb*1024*1024){showNotification(`The selected file exceeds the configured ${maxMb} MB limit.`);return;}
+            }
+            let fileUrl='';
+            if(uploadFile){
+                try{fileUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Unable to read the selected file.'));reader.readAsDataURL(uploadFile);});}
+                catch(_){showNotification('Unable to read the selected file. Please try again.');return;}
+            }
 
             const list = getStoredResources();
 
@@ -2913,21 +2950,24 @@
                 existing.subjectCode = (existing.subject || '').replace(/\s+/g, '').substring(0, 6).toUpperCase();
                 existing.quarter = quarterSelect?.value || existing.quarter || '1st Quarter';
                 existing.category = categorySelect?.value || existing.category || 'Handout';
-                existing.schoolYear = sySelect?.value || existing.schoolYear || '2026-2027';
+                existing.schoolYear = sySelect?.value || existing.schoolYear || resourceActiveSchoolYear();
 
                 if (fileInput?.files && fileInput.files[0]) {
                     const f = fileInput.files[0];
                     existing.size = (f.size / (1024 * 1024)).toFixed(1) + ' MB';
                     existing.type = ext;
+                    existing.fileUrl = fileUrl;
                 }
 
-                saveResources(list);
+                if(!saveResources(list)){showNotification('Browser storage is full. The file was not saved.');return;}
                 closeModal();
                 updateResourcesContentOnly(section);
                 showNotification(`"${existing.title}" updated successfully!`);
             } else {
                 // Create new resource
                 const newResource = {
+                    fileUrl,
+                    uploadedById: resourceViewer().user.id || resourceViewer().user.uid || '',
                     id: 'res-' + Date.now(),
                     title: filename,
                     materialTitle: filename,
@@ -2936,10 +2976,10 @@
                     type: ext,
                     category: categorySelect?.value || 'Handout',
                     quarter: quarterSelect?.value || '1st Quarter',
-                    schoolYear: sySelect?.value || '2026-2027',
+                    schoolYear: sySelect?.value || resourceActiveSchoolYear(),
                     size: (fileInput?.files && fileInput.files[0])
                         ? (fileInput.files[0].size / (1024 * 1024)).toFixed(1) + ' MB'
-                        : (Math.random() * 8 + 1.2).toFixed(1) + ' MB',
+                        : 'N/A',
                     date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
                     author: authorName,
                     sharedWithStudents: true,
@@ -2948,7 +2988,7 @@
                 };
 
                 list.unshift(newResource);
-                saveResources(list);
+                if(!saveResources(list)){showNotification('Browser storage is full. The file was not saved.');return;}
                 closeModal();
                 updateResourcesContentOnly(section);
                 showNotification(`"${newResource.title}" uploaded successfully!`);
@@ -3019,12 +3059,12 @@
                 if (typeof window.positionActionDropdown === 'function') {
                     window.positionActionDropdown(menu, btn);
                 } else {
-                    menu.style.position = 'fixed';
-                    menu.style.right = 'auto';
-                    menu.style.bottom = 'auto';
-                    menu.style.marginTop = '0';
-                    menu.style.marginBottom = '0';
-                    menu.style.zIndex = '9999';
+                    menu.style.setProperty('position', 'fixed', 'important');
+                    menu.style.setProperty('right', 'auto', 'important');
+                    menu.style.setProperty('bottom', 'auto', 'important');
+                    menu.style.setProperty('margin-top', '0px', 'important');
+                    menu.style.setProperty('margin-bottom', '0px', 'important');
+                    menu.style.setProperty('z-index', '99999', 'important');
                     const btnRect = btn.getBoundingClientRect();
                     const menuRect = menu.getBoundingClientRect();
                     const menuWidth = menuRect.width || menu.offsetWidth || 195;
@@ -3044,8 +3084,10 @@
                         top = Math.min(viewportH - menuHeight - 12, btnRect.bottom + 6);
                         menu.classList.remove('dropup');
                     }
-                    menu.style.left = Math.round(left) + 'px';
-                    menu.style.top = Math.round(top) + 'px';
+                    menu.style.setProperty('max-height', 'calc(100vh - 24px)', 'important');
+                    menu.style.setProperty('overflow-y', 'auto', 'important');
+                    menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+                    menu.style.setProperty('top', Math.round(top) + 'px', 'important');
                 }
             } else {
                 menu.classList.remove('show', 'dropup');

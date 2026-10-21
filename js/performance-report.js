@@ -19,20 +19,14 @@ function collect(){
 
  const rows=[];const seen=new Set();
 
- const active=window.getActiveSchoolYearRecord?.();
-
- const now=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date());
-
- const quarter=[1,2,3,4].find(q=>active?.[`q${q}Start`]<=now&&active?.[`q${q}End`]>=now)||1;
-
- for(const c of classes.values()) for(const category of ['ww','pt','qa']){
+ for(const quarter of [1,2,3,4]) for(const c of classes.values()) for(const category of ['ww','pt','qa']){
 
  const students=(window.getStudentsForSection?.(c.sectionName,c.subject)||[]).map(student=>({...student,section:c.sectionName}));
  const items=window.getCategoryDetails?.(category,quarter,c.subject,c.sectionName)||[];
 
  items.forEach((item,index)=>{
 
- const key=JSON.stringify([c.subject,c.sectionName,item.id||item.rawItem?.id||[item.topicIdx,item.itemIdx,category,index]]);if(seen.has(key))return;seen.add(key);
+ const key=JSON.stringify([quarter,c.subject,c.sectionName,item.id||item.rawItem?.id||[item.topicIdx,item.itemIdx,category,index]]);if(seen.has(key))return;seen.add(key);
 
  for(const student of students){
 
@@ -95,18 +89,19 @@ window.applyPerformanceSearch=function(){
  const subject=document.getElementById('perf-filter-subject')?.value||'';
 
  const type=document.getElementById('perf-filter-type')?.value||'';
+ const selectedQuarter=Number(document.getElementById('perf-filter-quarter')?.value)||0;
 
- const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!subject||r.subject===subject)&&(!type||r.type===type)&&JSON.stringify([r.student.fullName,r.student.name,r.subject,r.section]).toLowerCase().includes(q));
+ const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!selectedQuarter||r.quarter===selectedQuarter)&&(!subject||r.subject===subject)&&(!type||r.type===type)&&JSON.stringify([r.student.fullName,r.student.name,r.student.studentNumber,r.student.id,r.student.uid,r.student.lrn,r.subject,r.section]).toLowerCase().includes(q));
 
  const percentages=filtered.filter(r=>r.status==='graded'&&r.score!==null&&r.max>0).map(r=>r.score/r.max*100);
 
- const values=[percentages.length?(percentages.reduce((a,b)=>a+b,0)/percentages.length).toFixed(1)+'%':'—',percentages.length?Math.max(...percentages).toFixed(1)+'%':'—',percentages.length?(percentages.filter(v=>v>=75).length/percentages.length*100).toFixed(1)+'%':'—',new Set(filtered.filter(r=>['missing','absent','incomplete'].includes(r.status)||r.status==='graded'&&r.score!==null&&r.max>0&&r.score/r.max<.75).map(r=>r.student.uid||r.student.id||r.student.studentNumber||JSON.stringify([r.student.fullName||r.student.name,r.section]))).size];
+ const values=[percentages.length?(percentages.reduce((a,b)=>a+b,0)/percentages.length).toFixed(1)+'%':'N/A',percentages.length?Math.max(...percentages).toFixed(1)+'%':'N/A',filtered.filter(r=>r.status==='graded'&&r.score!==null).length,new Set(filtered.filter(r=>['missing','absent','incomplete'].includes(r.status)||r.status==='graded'&&r.score!==null&&r.max>0&&r.score/r.max<.75).map(r=>r.student.uid||r.student.id||r.student.studentNumber||JSON.stringify([r.student.fullName||r.student.name,r.section]))).size];
 
- ['avg','highest','passrate','atrisk'].forEach((id,i)=>{const el=document.getElementById('metric-perf-'+id);if(el){el.textContent=values[i];const spot=el.closest('.sigma-interactive-metric-card')?.querySelector('.metric-text-spotlight span:last-child');if(spot)spot.textContent=values[i];}});
+ ['avg','highest','passrate','atrisk'].forEach((id,i)=>{const el=document.getElementById('metric-perf-'+id);if(el){el.textContent=values[i];el.classList.toggle('performance-metric-unavailable',values[i]==='N/A');el.title=values[i]==='N/A'?'No scored assessments available for the selected filters.':'';const spot=el.closest('.sigma-interactive-metric-card')?.querySelector('.metric-text-spotlight span:last-child');if(spot){spot.textContent=values[i];spot.classList.toggle('performance-metric-unavailable',values[i]==='N/A');}}});
 
  renderOverview(filtered);
 
- body.innerHTML=filtered.map(r=>{const name=r.student.fullName||r.student.name||[r.student.firstName,r.student.lastName].filter(Boolean).join(' ');const avatarHtml=(typeof window.renderUserAvatarHtml==='function'&&window.renderUserAvatarHtml(r.student,'sm'))||'<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>';return `<tr><td><div class="flex items-center gap-3">${avatarHtml}<span>${esc(name)}</span></div></td><td><div>${esc(r.section)}</div><div>${esc(r.grade)}</div></td><td><div>${esc(r.subject)}</div></td><td><span>${r.type}</span></td><td><span>${r.score===null?'—':esc(r.score)}${r.max?' / '+esc(r.max):''}</span></td><td><span class="performance-assessment-status" data-status="${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td><div class="flex justify-center"><div class="action-dropdown-container"><button type="button" class="action-dots-btn cursor-pointer" id="perf-dots-btn-${r.index}" aria-label="Assessment actions" onclick="window.togglePerformanceActionDropdown(${r.index},event)"><i class="fa-solid fa-ellipsis"></i></button><div id="perf-action-menu-${r.index}" class="action-dropdown-menu"><button type="button" class="action-dropdown-item cursor-pointer" onclick="window.openPerformanceSubmission(${r.index});this.closest('.action-dropdown-menu').classList.remove('show')"><i class="fa-solid fa-file-lines"></i><span>View Submission</span></button></div></div></div></td></tr>`}).join('')||'<tr><td colspan="7" class="text-xs text-black-fade italic" style="text-align:center;padding:32px;color:rgba(0,0,0,0.45);">No assessment records match the selected filters.</td></tr>';
+ body.innerHTML=filtered.map(r=>{const name=r.student.fullName||r.student.name||[r.student.firstName,r.student.lastName].filter(Boolean).join(' ');const avatarHtml=(typeof window.renderUserAvatarHtml==='function'&&window.renderUserAvatarHtml(r.student,'sm'))||'<div class="sigma-user-avatar sigma-user-avatar--sm"><i class="fa-solid fa-user"></i></div>';return `<tr><td><div class="flex items-center gap-3">${avatarHtml}<div class="performance-student-identity"><span>${esc(name)}</span><small class="performance-student-id">ID: ${esc(r.student.studentNumber || r.student.id || r.student.uid || r.student.lrn || '—')}</small></div></div></td><td><div>${esc(r.section)}</div><div>${esc(r.grade)}</div></td><td><div>${esc(r.subject)}</div><small class="performance-quarter-label">Quarter ${r.quarter}</small></td><td><span>${r.type}</span></td><td><span>${r.score===null?'—':esc(r.score)}${r.max?' / '+esc(r.max):''}</span></td><td><span class="performance-assessment-status" data-status="${r.status}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></td><td><div class="flex justify-center"><div class="action-dropdown-container"><button type="button" class="action-dots-btn cursor-pointer" id="perf-dots-btn-${r.index}" aria-label="Assessment actions" onclick="window.togglePerformanceActionDropdown(${r.index},event)"><i class="fa-solid fa-ellipsis"></i></button><div id="perf-action-menu-${r.index}" class="action-dropdown-menu"><button type="button" class="action-dropdown-item cursor-pointer" onclick="window.openPerformanceSubmission(${r.index});this.closest('.action-dropdown-menu').classList.remove('show')"><i class="fa-solid fa-file-lines"></i><span>View Submission</span></button></div></div></div></td></tr>`}).join('')||`<tr><td colspan="7" class="text-xs text-black-fade italic" style="text-align:center;padding:32px;color:rgba(0,0,0,0.45);">${records.length ? 'No assessment records match the selected filters.' : 'No graded assessments or assessment statuses have been recorded for this school year.'}</td></tr>`;
  paginatePerformanceRows();
 
 };
@@ -142,9 +137,6 @@ function computeStudentGradesForQuarter(quarter, gradeFilter = '', sectionFilter
  const seen = new Set();
 
  for (const c of classes.values()) {
-  const weights = (typeof window.loadAdminGradebookWeights === 'function') 
-   ? window.loadAdminGradebookWeights(c.subject) 
-   : { ww: 25, pt: 50, qa: 25 };
   const students = window.getStudentsForSection?.(c.sectionName, c.subject) || [];
   for (const student of students) {
    if (gradeFilter && student.gradeLevel && student.gradeLevel !== gradeFilter) continue;
@@ -153,15 +145,8 @@ function computeStudentGradesForQuarter(quarter, gradeFilter = '', sectionFilter
    if (seen.has(key)) continue;
    seen.add(key);
 
-   const scoped = { ...student, section: c.sectionName };
-   const values = ['ww', 'perf. task', 'qa'].map(cat => 
-    window.calculateGradebookCategoryPercentage?.(scoped, cat, c.subject, quarter, c.sectionName)
-   );
-   if (!values.some(v => v !== null && v !== undefined && Number.isFinite(Number(v)))) continue;
-   const initial = values.reduce((sum, v, idx) => sum + (Number(v) || 0) * Number([weights.ww ?? 25, weights.pt ?? 50, weights.qa ?? 25][idx]) / 100, 0);
-   const grade = (window.SigmaGradeEngine && typeof window.SigmaGradeEngine.transmute === 'function') 
-    ? window.SigmaGradeEngine.transmute(initial) 
-    : Math.round(initial);
+   const grade = window.getPublishedSubjectGrade?.(student, c.subject, c.sectionName, quarter, selectedPerfSchoolYear || getActiveSYLabel());
+   if (!Number.isFinite(grade)) continue;
    const studentName = student.fullName || student.name || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
    results.push({
     name: studentName,
@@ -547,9 +532,6 @@ function computeStudentGwaRankings(quarter, sectionFilter = '', subjectFilter = 
  const seenSubjectStudent = new Set();
 
  for (const c of classes.values()) {
-  const weights = (typeof window.loadAdminGradebookWeights === 'function')
-   ? window.loadAdminGradebookWeights(c.subject)
-   : { ww: 25, pt: 50, qa: 25 };
   const students = window.getStudentsForSection?.(c.sectionName, c.subject) || [];
   for (const student of students) {
    const studentName = student.fullName || student.name || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
@@ -558,19 +540,8 @@ function computeStudentGwaRankings(quarter, sectionFilter = '', subjectFilter = 
    if (seenSubjectStudent.has(subjKey)) continue;
    seenSubjectStudent.add(subjKey);
 
-   const scoped = { ...student, section: c.sectionName };
-   const values = ['ww', 'perf. task', 'qa'].map(cat =>
-    window.calculateGradebookCategoryPercentage?.(scoped, cat, c.subject, quarter, c.sectionName)
-   );
-   if (!values.some(v => v !== null && v !== undefined && Number.isFinite(Number(v)))) continue;
-
-   const initial = values.reduce((sum, v, idx) => sum + (Number(v) || 0) * Number([weights.ww ?? 25, weights.pt ?? 50, weights.qa ?? 25][idx]) / 100, 0);
-   const grade = (window.SigmaGradeEngine && typeof window.SigmaGradeEngine.transmute === 'function')
-    ? window.SigmaGradeEngine.transmute(initial)
-    : Math.round(initial);
-
-   if (!Number.isFinite(Number(grade))) continue;
-
+   const grade = window.getPublishedSubjectGrade?.(student, c.subject, c.sectionName, quarter, selectedPerfSchoolYear || getActiveSYLabel());
+   if (!Number.isFinite(grade)) continue;
    const rawGradeLevel = student.gradeLevel || c.grade || sectionGradeMap.get(String(c.sectionName || '').trim().toLowerCase()) || '';
    const normalizedGradeLevel = /12/.test(String(rawGradeLevel)) ? 'Grade 12' : (/11/.test(String(rawGradeLevel)) ? 'Grade 11' : (rawGradeLevel || 'Grade 11'));
 
@@ -885,6 +856,28 @@ function paginatePerformanceRows() {
 
  const rows=Array.from(body.rows).filter(row=>row.cells.length>1);
  window.SigmaLogPagination.setRecords(table,rows,row=>row,{reset:true});
+ const wrap=table.closest('.performance-records-table-wrap');
+ const footer=wrap?.querySelector('.sigma-log-pagination');
+ if(footer)wrap.after(footer);
+}
+function setupPerformanceDropdowns(){
+ const toolbar=document.querySelector('.performance-records-toolbar');if(!toolbar)return;
+ const search=toolbar.querySelector('#perf-search-input');if(search)toolbar.prepend(search);
+ for(const id of ['perf-filter-quarter','perf-filter-subject','perf-filter-type']){
+  const select=document.getElementById(id);if(!select)continue;
+  toolbar.querySelector(`[data-select-for="${id}"]`)?.remove();
+  select.hidden=true;
+  const dropdown=document.createElement('details');dropdown.className='sigma-quarter-dropdown performance-filter-dropdown';dropdown.dataset.selectFor=id;
+  const summary=document.createElement('summary');summary.setAttribute('aria-label',select.getAttribute('aria-label')|| (id==='perf-filter-subject'?'Filter subject':'Filter assessment type'));
+  const label=document.createElement('span');label.textContent=select.selectedOptions[0]?.textContent||select.options[0]?.textContent||'';
+  const icon=document.createElement('i');icon.className='fa-solid fa-chevron-down';icon.setAttribute('aria-hidden','true');summary.append(label,icon);
+  const menu=document.createElement('div');menu.className='sigma-quarter-dropdown-menu';
+  for(const option of select.options){
+   const button=document.createElement('button');button.type='button';button.textContent=option.textContent;button.setAttribute('aria-pressed',String(option.selected));
+   button.onclick=()=>{select.value=option.value;label.textContent=option.textContent;dropdown.open=false;menu.querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));select.dispatchEvent(new Event('change',{bubbles:true}));summary.focus();};menu.append(button);
+  }
+  dropdown.append(summary,menu);select.after(dropdown);
+ }
 }
 let performancePageSize=20;
 function setupPerformanceTabs() {
@@ -929,9 +922,10 @@ function refresh() {
 
  if (select) {
   select.innerHTML = '<option value="">All Subjects</option>' + [...new Set(records.map(r => r.subject))].sort().map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  select.value = previous || '';
+  select.value = [...select.options].some(option=>option.value===previous) ? previous : '';
  }
 
+ setupPerformanceDropdowns();
  window.applyPerformanceSearch();
 }
 
@@ -950,6 +944,8 @@ document.addEventListener('DOMContentLoaded', () => {
  scheduleRefresh();
 });
 window.addEventListener('hashchange', scheduleRefresh);
+window.addEventListener('sigma:grades-published', scheduleRefresh);
+['sigma:assessment-scored','sigma-gradebook-updated','sigma-assessment-data-updated','sigma:submission-files-updated','sigma-submissions-cleared','sigma:release-config-updated','focus'].forEach(event=>window.addEventListener(event,scheduleRefresh));
 window.addEventListener('storage', event => {
  if (!event.key || /grade|score|submission|sigma_sub_|assessment|sigma-admin-(users|sections|subjects)/i.test(event.key)) scheduleRefresh();
 });

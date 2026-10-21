@@ -1151,15 +1151,16 @@ function renderUserAccountsTable() {
 window.resetActionDropdownPosition = function (menu) {
     if (!menu) return;
     menu.classList.remove('dropup');
-    if (menu.classList.contains('action-dropdown-menu') || menu.classList.contains('ai-log-message-menu') || menu.classList.contains('notification-log-action-menu')) {
-        menu.style.position = '';
-        menu.style.top = '';
-        menu.style.bottom = '';
-        menu.style.left = '';
-        menu.style.right = '';
-        menu.style.marginTop = '';
-        menu.style.marginBottom = '';
-    }
+    menu.style.removeProperty('position');
+    menu.style.removeProperty('top');
+    menu.style.removeProperty('bottom');
+    menu.style.removeProperty('left');
+    menu.style.removeProperty('right');
+    menu.style.removeProperty('margin-top');
+    menu.style.removeProperty('margin-bottom');
+    menu.style.removeProperty('z-index');
+    menu.style.removeProperty('max-height');
+    menu.style.removeProperty('overflow-y');
 };
 
 window.closeAllTableActionDropdowns = function (exceptMenu = null) {
@@ -1188,6 +1189,20 @@ window.closeAllTableActionDropdowns = function (exceptMenu = null) {
             }
         }
     });
+    document.querySelectorAll('.teacher-dropdown-menu:not(.hidden)').forEach(m => {
+        if (m !== exceptMenu) {
+            m.classList.add('hidden');
+            m.classList.remove('dropup');
+            window.resetActionDropdownPosition(m);
+        }
+    });
+    document.querySelectorAll('.sy-action-dropdown:not(.hidden)').forEach(m => {
+        if (m !== exceptMenu) {
+            m.classList.add('hidden');
+            m.classList.remove('dropup');
+            window.resetActionDropdownPosition(m);
+        }
+    });
     document.querySelectorAll('.removed-records-menu').forEach(m => {
         if (m !== exceptMenu && typeof m.matches === 'function' && m.matches(':popover-open')) {
             try { m.hidePopover(); } catch (_) {}
@@ -1199,61 +1214,74 @@ window.positionActionDropdown = function (menu, btn) {
     if (!menu || !btn) return;
     menu.classList.remove('dropup');
 
-    const isFixedCapable = menu.classList.contains('action-dropdown-menu') ||
-        menu.classList.contains('ai-log-message-menu') ||
-        menu.classList.contains('notification-log-action-menu');
-
-    if (!isFixedCapable) {
-        const btnRect = btn.getBoundingClientRect();
-        const menuHeight = (menu.offsetHeight > 0) ? menu.offsetHeight : 240;
-        const spaceBelow = window.innerHeight - btnRect.bottom;
-        const spaceAbove = btnRect.top;
-        if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
-            menu.classList.add('dropup');
-        } else {
-            menu.classList.remove('dropup');
-        }
-        return;
-    }
-
-    menu.style.position = 'fixed';
-    menu.style.right = 'auto';
-    menu.style.bottom = 'auto';
-    menu.style.marginTop = '0';
-    menu.style.marginBottom = '0';
-    menu.style.zIndex = '9999';
+    // Ensure fixed capability so menus escape table and container overflow clipping
+    menu.style.setProperty('position', 'fixed', 'important');
+    menu.style.setProperty('right', 'auto', 'important');
+    menu.style.setProperty('bottom', 'auto', 'important');
+    menu.style.setProperty('margin-top', '0px', 'important');
+    menu.style.setProperty('margin-bottom', '0px', 'important');
+    menu.style.setProperty('z-index', '99999', 'important');
 
     const btnRect = btn.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-    const menuWidth = menuRect.width || menu.offsetWidth || 195;
-    const menuHeight = menuRect.height || menu.offsetHeight || 160;
-    const viewportW = window.innerWidth || document.documentElement.clientWidth;
-    const viewportH = window.innerHeight || document.documentElement.clientHeight;
+    let menuWidth = menu.offsetWidth;
+    let menuHeight = menu.offsetHeight;
+    if (!menuHeight || menuHeight <= 0) {
+        const prevVis = menu.style.visibility;
+        const prevDisplay = menu.style.display;
+        menu.style.setProperty('visibility', 'hidden', 'important');
+        menu.style.setProperty('display', 'block', 'important');
+        menuHeight = menu.offsetHeight || 180;
+        menuWidth = menu.offsetWidth || 195;
+        if (prevDisplay) {
+            menu.style.setProperty('display', prevDisplay);
+        } else {
+            menu.style.removeProperty('display');
+        }
+        if (prevVis) {
+            menu.style.setProperty('visibility', prevVis);
+        } else {
+            menu.style.removeProperty('visibility');
+        }
+    }
+
+    const viewportW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
     let left = btnRect.right - menuWidth;
-    if (left < 12) left = 12;
-    if (left + menuWidth > viewportW - 12) left = Math.max(12, viewportW - menuWidth - 12);
+    if (left + menuWidth > viewportW - 12) {
+        left = Math.max(12, viewportW - menuWidth - 12);
+    }
+    if (left < 12) {
+        left = 12;
+    }
 
     const spaceBelow = viewportH - btnRect.bottom;
     const spaceAbove = btnRect.top;
     let top;
 
+    // If not enough room below (menuHeight + 16px margin) and more room above, flip upward (dropup)
     if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
-        top = Math.max(12, btnRect.top - menuHeight - 6);
+        top = btnRect.top - menuHeight - 6;
+        if (top < 12) top = 12;
         menu.classList.add('dropup');
     } else {
-        top = Math.min(viewportH - menuHeight - 12, btnRect.bottom + 6);
+        top = btnRect.bottom + 6;
+        if (top + menuHeight > viewportH - 12) {
+            top = Math.max(12, viewportH - menuHeight - 12);
+        }
         menu.classList.remove('dropup');
     }
 
-    menu.style.left = Math.round(left) + 'px';
-    menu.style.top = Math.round(top) + 'px';
+    menu.style.setProperty('max-height', 'calc(100vh - 24px)', 'important');
+    menu.style.setProperty('overflow-y', 'auto', 'important');
+    menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+    menu.style.setProperty('top', Math.round(top) + 'px', 'important');
 };
 
 window.repositionActiveAdminDropdowns = function () {
     document.querySelectorAll('.action-dropdown-menu.show').forEach(menu => {
         const parent = menu.closest('.action-dropdown-container');
-        const btn = parent ? parent.querySelector('.action-dots-btn') : null;
+        const btn = parent ? parent.querySelector('.action-dots-btn, button') : null;
         if (btn) {
             const rect = btn.getBoundingClientRect();
             if (rect.bottom < 0 || rect.top > window.innerHeight || (rect.width === 0 && rect.height === 0)) {
@@ -1283,12 +1311,30 @@ window.repositionActiveAdminDropdowns = function () {
     document.querySelectorAll('.teacher-dropdown-menu:not(.hidden)').forEach(menu => {
         const parent = menu.parentElement;
         const btn = parent ? parent.querySelector('button') : null;
-        if (btn) window.positionActionDropdown(menu, btn);
+        if (btn) {
+            const rect = btn.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight || (rect.width === 0 && rect.height === 0)) {
+                menu.classList.add('hidden');
+                menu.classList.remove('dropup');
+                window.resetActionDropdownPosition(menu);
+            } else {
+                window.positionActionDropdown(menu, btn);
+            }
+        }
     });
     document.querySelectorAll('.sy-action-dropdown:not(.hidden)').forEach(menu => {
         const parent = menu.closest('.sy-action-dropdown-container');
         const btn = parent ? parent.querySelector('.sy-dots-btn') : null;
-        if (btn) window.positionActionDropdown(menu, btn);
+        if (btn) {
+            const rect = btn.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight || (rect.width === 0 && rect.height === 0)) {
+                menu.classList.add('hidden');
+                menu.classList.remove('dropup');
+                window.resetActionDropdownPosition(menu);
+            } else {
+                window.positionActionDropdown(menu, btn);
+            }
+        }
     });
 };
 
@@ -1442,14 +1488,25 @@ window.getTodayAttendanceRecord = function (sectionName, subjectName) {
     };
 };
 
-window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
+window.getFilteredSubmittedAttendance = function(section, subject, requestedDate) {
+    const source = window.getTodayAttendanceRecord(section, subject);
+    const range = window._appliedAttendanceReportRange || document.getElementById('attendance-filter-date')?.value || 'today';
+    const config = getAttendanceDateFilterConfig(range);
+    const data = source.classroomData || {};
+    const dates = Object.keys(data).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && config.isMatch(date) && data[date]?.submitted === true).sort();
+    if (data.date && data.submitted === true && config.isMatch(data.date) && !dates.includes(data.date)) dates.push(data.date);
+    dates.sort();
+    const date = dates.includes(requestedDate) ? requestedDate : dates[dates.length - 1];
+    return { dates, date, config, isSubmitted: !!date, dayRecord: data[date] || (data.date === date ? data : null) };
+};
+window.openTodayAttendanceSummaryModal = function (sectionName, subjectName, requestedDate) {
     const rawSection = sectionName ? decodeURIComponent(String(sectionName)) : '';
     const rawSubject = subjectName ? decodeURIComponent(String(subjectName)) : '';
 
-    const todayCheck = window.getTodayAttendanceRecord(rawSection, rawSubject);
+    const todayCheck = window.getFilteredSubmittedAttendance(rawSection, rawSubject, requestedDate);
     if (!todayCheck.isSubmitted || !todayCheck.dayRecord) {
         if (typeof window.showToastNotification === 'function') {
-            window.showToastNotification(`Attendance for ${rawSection || 'this section'} has not been submitted today.`, 'warning');
+            window.showToastNotification(`No submitted attendance for ${rawSection || 'this section'} in ${todayCheck.config.label.toLowerCase()}.`, 'warning');
         }
         return;
     }
@@ -1498,14 +1555,23 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
     };
 
     const accountedKeys = new Set();
+    const attendanceNameKey = value => String(value || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).sort().join(' ');
+    const seenStudents = new Set();
 
     if (Array.isArray(students) && students.length > 0) {
         students.forEach(st => {
+            const identity = typeof st === 'object' ? String(st.id || st.uid || st.lrn || st.studentNumber || attendanceNameKey(st.fullName || st.name)) : attendanceNameKey(st);
+            if (seenStudents.has(identity)) return;
+            seenStudents.add(identity);
             let dName = (typeof st === 'object') ? (st.name || st.displayName || st.fullName || '') : String(st);
             if (typeof st === 'object' && st.middleName && !dName.includes(st.middleName)) {
                 dName = `${st.name} ${st.middleName}`;
             }
-            let s = activeStatuses[dName] || (st.id && activeStatuses[st.id]) || (st.uid && activeStatuses[st.uid]) || '';
+            const aliases = typeof st === 'object' ? [st.name, st.displayName, st.fullName, [st.firstName, st.middleName, st.lastName].filter(Boolean).join(' '), dName].filter(Boolean) : [dName];
+            const ids = typeof st === 'object' ? [st.id, st.uid, st.lrn, st.studentNumber].filter(Boolean).map(String) : [];
+            const matchingKeys = Object.keys(activeStatuses).filter(key => ids.includes(String(key)) || aliases.some(alias => attendanceNameKey(key) === attendanceNameKey(alias)));
+            matchingKeys.forEach(key => accountedKeys.add(key));
+            let s = activeStatuses[dName] || (st.id && activeStatuses[st.id]) || (st.uid && activeStatuses[st.uid]) || activeStatuses[matchingKeys[0]] || '';
             let matchedKey = null;
 
             if (!s) {
@@ -1536,7 +1602,10 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
     }
 
     Object.entries(activeStatuses).forEach(([k, v]) => {
-        if (!accountedKeys.has(k)) {
+        if (!accountedKeys.has(k) && students.length === 0 && !/^\d+$/.test(k)) {
+            const nameKey = attendanceNameKey(k);
+            if (seenStudents.has(nameKey)) return;
+            seenStudents.add(nameKey);
             const code = normStatus(v);
             if (code === 'P') {
                 presentStudents.push({ name: k, excused: false });
@@ -1554,7 +1623,7 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
     const dailyRate = totalEnrolled > 0 ? ((attendedStudents / totalEnrolled) * 100).toFixed(1) + '%' : '0.0%';
 
     const now = new Date();
-    const activeDateFormatted = now.toLocaleDateString('en-US', {
+    const activeDateFormatted = new Date(`${todayCheck.date}T00:00:00`).toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -1570,7 +1639,7 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
     const bodyEl = document.getElementById('admin-att-summary-body');
     const openRoomBtn = document.getElementById('admin-att-summary-view-room-btn');
 
-    if (titleEl) titleEl.textContent = `Submitted Attendance Today`;
+    if (titleEl) titleEl.textContent = `Submitted Attendance — ${todayCheck.config.label}`;
     if (subEl) {
         subEl.textContent = `${rawSection}${rawSubject ? ' • ' + rawSubject : ''}`;
         subEl.style.color = 'rgba(0, 0, 0, 0.45)';
@@ -1579,7 +1648,7 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
         metaEl.style.color = 'rgba(0, 0, 0, 0.45)';
         metaEl.innerHTML = `
             <i class="fa-solid fa-circle-check text-emerald-600"></i>
-            <span>Submitted today${formattedSubmittedTime ? ` at ${formattedSubmittedTime}` : ''}</span>
+            <span>${escapeHtml(activeDateFormatted)}${formattedSubmittedTime ? ` · Submitted at ${formattedSubmittedTime}` : ''}</span>
         `;
     }
 
@@ -1685,6 +1754,17 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName) {
         `;
     }
 
+    document.getElementById('attendance-summary-date-navigation')?.remove();
+    if (todayCheck.dates.length > 1 && bodyEl) {
+        const navigation = document.createElement('div');
+        navigation.id = 'attendance-summary-date-navigation';
+        navigation.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px';
+        const index = todayCheck.dates.indexOf(todayCheck.date);
+        navigation.innerHTML = `<button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" ${index === 0 ? 'disabled' : ''}>Previous</button><span>${index + 1} / ${todayCheck.dates.length} submitted days</span><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" ${index === todayCheck.dates.length - 1 ? 'disabled' : ''}>Next</button>`;
+        navigation.firstElementChild.onclick = () => window.openTodayAttendanceSummaryModal(sectionName, subjectName, todayCheck.dates[index - 1]);
+        navigation.lastElementChild.onclick = () => window.openTodayAttendanceSummaryModal(sectionName, subjectName, todayCheck.dates[index + 1]);
+        bodyEl.prepend(navigation);
+    }
     modal.classList.remove('hidden');
     document.body.classList.add('dialog-open', 'modal-open');
 };
@@ -2040,10 +2120,10 @@ window.getAttendanceReportRows = function (dateRange) {
         const matchingDates = Object.keys(classroomData || {}).filter(d => {
             if (!config.isMatch(d)) return false;
             const dayEntry = classroomData[d];
-            return dayEntry && dayEntry.statuses && typeof dayEntry.statuses === 'object';
+            return dayEntry && dayEntry.submitted === true && dayEntry.statuses && typeof dayEntry.statuses === 'object';
         });
 
-        if (matchingDates.length === 0 && classroomData.date && classroomData.statuses && config.isMatch(classroomData.date)) {
+        if (matchingDates.length === 0 && classroomData.submitted === true && classroomData.date && classroomData.statuses && config.isMatch(classroomData.date)) {
             matchingDates.push(classroomData.date);
         }
 
@@ -2243,7 +2323,7 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
         const rowStripe = idx % 2 === 1 ? 'bg-slate-50/60' : '';
         const rowId = row.id || (idx + 1);
         const todayCheck = (typeof window.getTodayAttendanceRecord === 'function')
-            ? window.getTodayAttendanceRecord(row.sectionName || row.section, row.subject || '')
+            ? window.getFilteredSubmittedAttendance(row.sectionName || row.section, row.subject || '')
             : { isSubmitted: false };
         const isSubmittedToday = Boolean(todayCheck && todayCheck.isSubmitted);
         return `
@@ -2295,12 +2375,12 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                                 ${isSubmittedToday ? `
                                 <button type="button" onclick="window.openTodayAttendanceSummaryModal && window.openTodayAttendanceSummaryModal('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer is-submitted">
                                     <i class="fa-solid fa-clipboard-check"></i>
-                                    <span>Submitted Attendance Today</span>
+                                    <span>Submitted Attendance — ${config.label}</span>
                                 </button>
                                 ` : `
-                                <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Attendance has not been submitted today" onclick="event.stopPropagation();">
+                                <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="No submitted attendance in this period" onclick="event.stopPropagation();">
                                     <i class="fa-solid fa-lock text-slate-400"></i>
-                                    <span>Submitted Attendance Today</span>
+                                    <span>Submitted Attendance — ${config.label}</span>
                                 </button>
                                 `}
                                 <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer">
@@ -5019,22 +5099,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addAiMessage(content, isUser = false) {
         if (!sigmaAiMessages) return;
-        const msg = document.createElement('div');
+        const msg = window.renderSigmaChatMessage({ role: isUser ? 'user' : 'assistant', text: '', stamp: getSigmaAiTimestamp() });
+        msg.querySelector('.sigma-ai-message__bubble').innerHTML = content;
         if (!isUser && content === WELCOME_MSG) msg.dataset.sigmaGreeting = 'true';
-        msg.className = `sigma-ai-message ${isUser ? 'sigma-ai-message--user' : 'sigma-ai-message--assistant'}`;
-        const stamp = getSigmaAiTimestamp();
-        msg.innerHTML = `
-            <div class="sigma-ai-message__meta">${stamp}</div>
-            <div class="sigma-ai-message__row">
-                ${!isUser ? `<div class="sigma-ai-message__icon"><i class="fa-solid fa-bolt"></i></div>` : ''}
-                <div class="sigma-ai-message__bubble ${isUser ? 'sigma-ai-message__bubble--user' : 'sigma-ai-message__bubble--assistant'}">${content}</div>
-            </div>
-        `;
         sigmaAiMessages.appendChild(msg);
         sigmaAiMessages.scrollTop = sigmaAiMessages.scrollHeight;
         return msg;
     }
-
     function setSigmaAiWaiting(waiting) {
         sigmaAiWaiting = waiting;
         if (sigmaAiSendBtn) {
@@ -7774,39 +7845,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── PINNED ACADEMIC CALENDAR MILESTONES ─────────────────────────────
     function renderAdminPinnedMilestones() {
-        const listEl = document.getElementById('admin-pinned-milestones-list');
-        if (!listEl) return;
-
-        let milestones = [];
-        try {
-            const raw = localStorage.getItem('sigma-admin-pinned-milestones');
-            if (raw !== null) {
-                milestones = JSON.parse(raw);
-            }
-        } catch {
-            milestones = [];
-        }
-
-        if (!milestones || milestones.length === 0) {
-            listEl.innerHTML = `
-                <div class="p-3 text-center flex flex-col items-center justify-center">
-                    <p class="text-[11.5px] font-semibold text-black-fade leading-tight">No Events Scheduled</p>
-                </div>
-            `;
-            return;
-        }
-
-        listEl.innerHTML = milestones.map(item => `
-            <div class="pinned-milestone-item">
-                <div class="w-4 h-4 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <i class="fa-solid fa-thumbtack text-[8px]"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <span class="text-[11px] font-bold text-slate-800 leading-tight cursor-pointer hover:text-[#15803d] transition-colors duration-150 block">${item.date} · ${item.title}</span>
-                    <p class="text-[9.5px] text-slate-500 font-medium leading-tight mt-0.5">${item.desc}</p>
-                </div>
-            </div>
-        `).join('');
+        window.renderAcademicCalendarWidgets?.();
     }
 
     // Initial render for Right Rail new panels
@@ -9013,9 +9052,10 @@ window.checkSYFormValidity = function () {
     if (!saveBtn) return;
 
     if (isEditing) {
-        saveBtn.disabled = false;
-        saveBtn.style.opacity = '1';
-        saveBtn.style.cursor = 'pointer';
+        const changed = window.hasSYChanges?.() === true;
+        saveBtn.disabled = !changed;
+        saveBtn.style.opacity = changed ? '1' : '0.5';
+        saveBtn.style.cursor = changed ? 'pointer' : 'not-allowed';
         return;
     }
 
@@ -9750,6 +9790,8 @@ window.openSYEditor = function (recordId = null, targetQuarterKey = null, fromMa
         window.pushModalHistoryState('sy-edit-overlay');
     }
     initialSYValues = getSYFormValues();
+    overlay.oninput = () => window.checkSYFormValidity();
+    overlay.onchange = () => window.checkSYFormValidity();
     window.checkSYFormValidity();
 };
 
@@ -12159,6 +12201,21 @@ window.filterExistingSectionsMenu = function (query) {
     window.renderExistingSectionsList(query || '');
 };
 
+window.formatSectionTeacherDisplayName = function (teacher) {
+    const name = String(typeof teacher === 'string' ? teacher : (teacher?.name || teacher?.fullName || '')).trim();
+    const account = (typeof teacher === 'object' && teacher?.firstName && teacher?.lastName)
+        ? teacher : window.findMatchedUserAccount?.('', name);
+    if (account?.firstName && account?.lastName) return `${account.firstName} ${account.lastName}`;
+    if (name.includes(',')) {
+        const [last, first] = name.split(',');
+        return `${first.trim().split(/\s+/)[0]} ${last.trim()}`;
+    }
+    const parts = name.split(/\s+/);
+    if (parts.length <= 2) return name;
+    const last = name.match(/\b(?:de la|dela|de los|del|de|san|santa|van|von)\s+\S+$/i)?.[0] || parts[parts.length - 1];
+    return `${parts[0]} ${last}`;
+};
+
 window.renderExistingSectionsList = function (query = '') {
     const listContainer = document.getElementById('section-existing-list');
     if (!listContainer) return;
@@ -12189,6 +12246,10 @@ window.renderExistingSectionsList = function (query = '') {
             });
         }
         const profile = profileMap.get(key);
+        const assignedAdviser = (Array.isArray(s.teachers) ? s.teachers : []).find(teacher => teacher?.role === 'Adviser');
+        if (!profile.adviser) {
+            profile.adviser = assignedAdviser || s.adviser || (s.role === 'Adviser' ? s.teacher : '') || '';
+        }
         if (s.subject && !profile.subjects.includes(s.subject)) {
             profile.subjects.push(s.subject);
         }
@@ -12210,7 +12271,8 @@ window.renderExistingSectionsList = function (query = '') {
             return (p.name || '').toLowerCase().includes(cleanQ) ||
                    (p.gradeLevel || '').toLowerCase().includes(cleanQ) ||
                    (p.schoolYear || '').toLowerCase().includes(cleanQ) ||
-                   (p.room || '').toLowerCase().includes(cleanQ);
+                   (p.room || '').toLowerCase().includes(cleanQ) ||
+                   window.formatSectionTeacherDisplayName(p.adviser).toLowerCase().includes(cleanQ);
         });
     }
 
@@ -12226,8 +12288,7 @@ window.renderExistingSectionsList = function (query = '') {
 
     listContainer.innerHTML = profiles.map(p => {
         const studentCount = (p.students || []).length;
-        const teacherCount = (p.teachers || []).length;
-        const teacherLabel = teacherCount > 0 ? (p.teachers[0].name || 'Assigned') : 'No Teacher';
+        const teacherLabel = p.adviser ? `Adviser: ${window.formatSectionTeacherDisplayName(p.adviser)}` : 'No adviser assigned';
         const syLabel = p.schoolYear ? `S.Y. ${escapeHtml(p.schoolYear)}` : 'No SY';
         const roomLabel = p.room ? `Room ${escapeHtml(p.room)}` : 'No Room';
 
@@ -12623,7 +12684,7 @@ window.handleSectionBack = function () {
     }
 
     if (isTeacherSubpageOpen) {
-        const isTeacherChanged = window.subpageTeacherInitialSnapshot && JSON.stringify(window.stagedSectionTeachers || []) !== window.subpageTeacherInitialSnapshot;
+        const isTeacherChanged = (window.subpageTeacherInitialSnapshot && JSON.stringify(window.stagedSectionTeachers || []) !== window.subpageTeacherInitialSnapshot) || (window.subpageAdviserInitialSnapshot !== undefined && JSON.stringify(window.stagedSectionAdviser || null) !== window.subpageAdviserInitialSnapshot);
         if (isTeacherChanged) {
             const promptOptions = {
                 title: 'Do you want to discard?',
@@ -12892,6 +12953,7 @@ window.openCreateSectionModal = function () {
 };
 
 window.hasSectionFormChanges = function () {
+    if (window.sectionAdviserEdits?.size) return true;
     if (!initialSectionValues) return false;
     const currentValues = {
         name: document.getElementById('edit-section-name')?.value.trim() || '',
@@ -14610,6 +14672,7 @@ document.addEventListener('click', function (e) {
 });
 
 window.handleSectionSave = function (status, createAnother = false) {
+    if (window.guardSectionSubjectChange?.(document.getElementById('edit-section-subject')?.value || '') === false) return;
     // 1. Check duplicate section name + subject
     const duplicate = window.checkSectionNameDuplicate ? window.checkSectionNameDuplicate(true) : null;
     if (duplicate) {
@@ -14714,9 +14777,16 @@ window.handleSectionSave = function (status, createAnother = false) {
             loading.classList.remove('hidden');
 
             setTimeout(() => {
+                if (window.guardSectionSubjectChange?.(document.getElementById('edit-section-subject')?.value || '') === false) {
+                    saveBtn.disabled = false;
+                    loading.classList.add('hidden');
+                    window.renderAssignSectionOverview();
+                    return;
+                }
                 window.collapseExtraAdviserRoles(window.selectedSectionTeachers);
                 const primaryTeacher = (window.selectedSectionTeachers || []).find(t => t.isPrimary) || (window.selectedSectionTeachers || [])[0];
-                const adviserTeacher = (window.selectedSectionTeachers || []).find(t => t.role === 'Adviser') ||
+                const adviserEditKey = window.sectionAdviserGroupKey({name:document.getElementById('edit-section-name')?.value,grade:document.getElementById('edit-section-grade')?.value,schoolYear:document.getElementById('edit-section-school-year')?.value});
+                const adviserTeacher = window.sectionAdviserEdits?.has(adviserEditKey) ? window.sectionAdviserEdits.get(adviserEditKey) : (window.selectedSectionTeachers || []).find(t => t.role === 'Adviser') ||
                     (document.getElementById('edit-section-role')?.value === 'Adviser' ? primaryTeacher : null);
                 const activeDays = (window.selectedSectionDailySchedule || []).filter(d => d.active).map(d => d.day);
                 const primarySlot = (window.selectedSectionDailySchedule || []).find(d => d.active && d.startTime && d.endTime);
@@ -14770,7 +14840,7 @@ window.handleSectionSave = function (status, createAnother = false) {
                 }
 
                 const savedRecord = sections.find(section => section && String(section.id) === String(sectionData.id)) || sectionData;
-                const savedAdviser = (savedRecord.teachers || []).find(teacher => teacher && teacher.role === 'Adviser') || null;
+                const savedAdviser = adviserTeacher || (savedRecord.adviser ? {name:savedRecord.adviser,id:savedRecord.adviserId} : null);
                 if (savedAdviser) {
                     sections.forEach((section) => {
                         if (!section || String(section.id) === String(savedRecord.id)) return;
@@ -14780,6 +14850,10 @@ window.handleSectionSave = function (status, createAnother = false) {
                 }
 
                 saveStoredJson(SECTIONS_STORAGE_KEY, sections);
+                if (savedAdviser && window.sectionAdviserEdits?.has(adviserEditKey)) {
+                    sections.filter(section=>String(section.id)!==String(savedRecord.id) && window.sectionAdviserGroupKey(section)===adviserEditKey).forEach(section=>window.syncSectionToDB?.(section));
+                }
+                window.sectionAdviserEdits?.delete(adviserEditKey);
                 if (typeof window.syncSectionToDB === 'function') {
                     window.syncSectionToDB(sectionData);
                 }
@@ -15182,6 +15256,14 @@ window.toggleSectionExitButton = function (show = true) {
 };
 
 window.openSectionSubpage = function (subpageType, isChangeMode = false) {
+    if (subpageType === 'subject') {
+        const lock = window.getSectionSubjectActivityLock?.();
+        if (lock) {
+            window.showAlertDialog?.('Subject Locked', lock.message);
+            window.renderAssignSectionOverview();
+            return;
+        }
+    }
     window.SigmaDateTimeInputs?.close();
     window.toggleSectionExitButton(false);
     const currentSubject = (document.getElementById('edit-section-subject')?.value || window.stagedSectionSubject || '').trim();
@@ -15212,6 +15294,7 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
     }
 
     window.activeSectionSubpage = subpageType;
+    document.getElementById('section-modal-status-badge')?.style.setProperty('display', 'none', 'important');
     if (subpageType !== 'subject') {
         const subjectChip = document.getElementById('section-subpage-subject-selected-panel');
         if (subjectChip) {
@@ -15276,6 +15359,8 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
     const confirmLabel = document.getElementById('section-subpage-confirm-label');
     if (confirmBtn) {
         confirmBtn.classList.remove('hidden');
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         confirmBtn.onclick = window.confirmSectionSubpage;
     }
 
@@ -15328,8 +15413,8 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
             }
         }
     } else if (subpageType === 'subject') {
-        if (titleEl) titleEl.textContent = 'Assign Subject';
-        setSubtitle('Search and select the subject to be taught in this section.');
+        if (titleEl) titleEl.textContent = document.getElementById('edit-section-subject')?.value ? 'Change Subject' : 'Assign Subject';
+        setSubtitle('Select the subject to be taught in this section.');
         // Stage current subject so changes are only applied on confirm
         window.stagedSectionSubject = document.getElementById('edit-section-subject')?.value || '';
         window.subpageSubjectInitialSnapshot = window.stagedSectionSubject || '';
@@ -15340,7 +15425,7 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
             document.getElementById('section-subpage-subject-dropdown')?.classList.add('hidden');
             window.renderSubpageSubjectSelectedPanel();
         }
-        if (confirmLabel) confirmLabel.textContent = 'Select Subject';
+        if (confirmLabel) confirmLabel.textContent = window.subpageSubjectInitialSnapshot ? 'Change Subject' : 'Select Subject';
     } else if (subpageType === 'students') {
         if (titleEl) titleEl.textContent = 'Assign Students';
         setSubtitle('Search and add students to enroll in this section.');
@@ -15449,6 +15534,7 @@ window.confirmSectionSubpage = function () {
         if (teacherInput) teacherInput.value = primary ? primary.name : '';
         if (roleInput) roleInput.value = primary ? primary.role : 'Teacher';
     } else if (window.activeSectionSubpage === 'subject') {
+        if (window.guardSectionSubjectChange?.(window.stagedSectionSubject || '') === false) return;
         window.selectedSectionSubject = window.stagedSectionSubject || '';
         const subjectInput = document.getElementById('edit-section-subject');
         if (subjectInput) subjectInput.value = window.selectedSectionSubject;
@@ -15463,6 +15549,7 @@ window.confirmSectionSubpage = function () {
 window.closeSectionSubpage = function () {
     window.SigmaDateTimeInputs?.close();
     window.activeSectionSubpage = null;
+    document.getElementById('section-modal-status-badge')?.style.removeProperty('display');
     window.teacherSubpageReplaceIndex = null;
     const headerContainer = document.getElementById('section-modal-header-container');
     const tabsContainer = document.getElementById('section-step-tabs-container');
@@ -15714,10 +15801,11 @@ window.applyCanonicalAdviserToSection = function (section, canonical) {
         }
     });
     const kept = canonical ? teachers.find(teacher => teacher && window.sameSectionTeacher(teacher, canonical)) : null;
-    if (kept) {
-        const keptId = kept.id || kept.uid || '';
-        if (section.adviser !== kept.name) {
-            section.adviser = kept.name || '';
+    if (canonical) {
+        const adviser = kept || canonical;
+        const keptId = adviser.id || adviser.uid || '';
+        if (section.adviser !== adviser.name) {
+            section.adviser = adviser.name || '';
             changed = true;
         }
         if (String(section.adviserId || '') !== String(keptId)) {
@@ -15746,7 +15834,7 @@ window.applyCanonicalAdviserToSection = function (section, canonical) {
 window.normalizeSectionSingleAdviser = function (section) {
     if (!section || typeof section !== 'object') return false;
     window.collapseExtraAdviserRoles(section.teachers);
-    const kept = (Array.isArray(section.teachers) ? section.teachers : []).find(teacher => teacher && teacher.role === 'Adviser') || null;
+    const kept = (Array.isArray(section.teachers) ? section.teachers : []).find(teacher => teacher && teacher.role === 'Adviser') || (section.adviser ? {name:section.adviser,id:section.adviserId} : null);
     return window.applyCanonicalAdviserToSection(section, kept);
 };
 
@@ -15770,7 +15858,7 @@ window.enforceSingleAdviserOnStoredSections = function () {
     groups.forEach((entries) => {
         const advisers = [];
         entries.forEach(({ section, index }) => {
-            const adviser = (Array.isArray(section.teachers) ? section.teachers : []).find(teacher => teacher && teacher.role === 'Adviser');
+            const adviser = (Array.isArray(section.teachers) ? section.teachers : []).find(teacher => teacher && teacher.role === 'Adviser') || (section.adviser ? {name:section.adviser,id:section.adviserId} : null);
             if (!adviser) return;
             advisers.push({
                 adviser,
@@ -15862,6 +15950,13 @@ const SECTION_STEP_CHECK_SVG = `<svg class="w-2.5 h-2.5 text-white" style="width
 
 function setSectionStepBadgeState(el, state, stepNum) {
     if (!el) return;
+    if (window.isEditingSection) {
+        el.style.setProperty('display', 'none', 'important');
+        el.setAttribute('aria-hidden', 'true');
+        return;
+    }
+    el.style.removeProperty('display');
+    el.removeAttribute('aria-hidden');
     if (state === 'completed') {
         el.className = 'w-5 h-5 rounded-full bg-[#15803d] text-white flex items-center justify-center font-[\'Inter\'] transition-colors shrink-0';
         el.style.backgroundColor = '#15803d';
@@ -15936,17 +16031,26 @@ window.renderAssignSectionOverview = function () {
         }
     }
 
+    const subjectActivityLock = window.getSectionSubjectActivityLock?.();
+    if (assignSubjectHeaderBtn) {
+        assignSubjectHeaderBtn.classList.toggle('hidden', Boolean(subjectActivityLock));
+        if (subjectActivityLock) assignSubjectHeaderBtn.style.setProperty('display', 'none', 'important');
+        else assignSubjectHeaderBtn.style.removeProperty('display');
+    }
+    document.getElementById('section-subject-locked-title')?.classList.toggle('hidden', !subjectActivityLock);
+    document.getElementById('section-subject-lock-note')?.classList.toggle('hidden', !subjectActivityLock);
+
     if (subjectDisplay) {
         if (isSubjectSet) {
+            const subjectRecord = getStoredJson(SUBJECTS_STORAGE_KEY, []).find(s => String(s.name || '').trim().toLowerCase() === subjectName.toLowerCase());
             subjectDisplay.innerHTML = `
                 <div class="divide-y divide-black/10 border-y border-black/10 border-x-0 rounded-none sigma-selected-faded-panel overflow-hidden">
-                    <div class="p-4 hover:bg-black/[0.03] transition-colors flex items-center justify-between">
+                    <div class="p-4 hover:bg-black/[0.03] transition-colors" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:16px;min-height:4.5rem">
                         <div class="flex items-center gap-4 min-w-0">
-                            <div class="w-10 h-10 rounded-full bg-[#15803d] text-white flex items-center justify-center font-bold text-sm shrink-0 border border-green-700/20">
-                                <i class="fa-solid fa-book text-xs text-white"></i>
-                            </div>
                             <p class="text-sm font-bold text-black tracking-tight truncate">${escapeHtml(subjectName)}</p>
                         </div>
+                        <p class="text-sm text-black text-center">Code: ${escapeHtml(subjectRecord?.code || '—')}</p>
+                        <span></span>
                     </div>
                 </div>
             `;
@@ -16003,7 +16107,7 @@ window.renderAssignSectionOverview = function () {
                 if (conflicts.length > 0) {
                     scheduleBadge.innerHTML = `<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Room Conflict</span>`;
                 } else {
-                    scheduleBadge.textContent = `${activeScheduleDays.length} active day${activeScheduleDays.length === 1 ? '' : 's'}`;
+                    scheduleBadge.textContent = '';
                 }
             }
 
@@ -16027,20 +16131,17 @@ window.renderAssignSectionOverview = function () {
                     const dayConflict = conflicts.find(c => c.day === d.fullDay || c.day === d.day);
 
                     return `
-                        <div class="p-4 hover:bg-black/[0.03] transition-colors flex items-center justify-between font-['Inter'] ${dayConflict ? 'bg-rose-50/50' : ''}">
+                        <div class="section-schedule-overview-row p-4 hover:bg-black/[0.03] transition-colors font-['Inter'] ${dayConflict ? 'bg-rose-50/50' : ''}" style="min-height:4.5rem">
                             <div class="flex items-center gap-4 min-w-0">
-                                <div class="w-10 h-10 rounded-full ${dayConflict ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-[#15803d] text-white border-green-700/20'} flex items-center justify-center font-bold text-sm shrink-0 border">
-                                    <i class="fa-solid fa-calendar-day text-xs ${dayConflict ? 'text-rose-600' : 'text-white'}"></i>
-                                </div>
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2">
                                         <p class="text-sm font-bold ${dayConflict ? 'text-rose-700' : 'text-black'} tracking-tight truncate">${escapeHtml(d.fullDay || d.day)}</p>
                                         ${dayConflict ? `<span class="text-[11px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">Conflict with "${escapeHtml(dayConflict.section.name)}"</span>` : ''}
                                     </div>
-                                    <p class="text-xs font-medium mt-0.5 ${dayConflict ? 'text-rose-600' : ''}" style="${dayConflict ? '' : 'color: rgba(0,0,0,0.45);'}">${escapeHtml(timeStr)}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3 shrink-0">
+                            <p class="section-schedule-overview-time text-xs font-medium ${dayConflict ? 'text-rose-600' : 'text-black-fade'}">${escapeHtml(timeStr)}</p>
+                            <div class="section-schedule-overview-room flex items-center gap-3 shrink-0">
                                 <span class="text-xs font-medium ${dayConflict ? 'text-rose-600' : ''}" style="${dayConflict ? '' : 'color: #15803d;'}">Room ${escapeHtml(document.getElementById('edit-section-room')?.value || '—')}</span>
                             </div>
                         </div>
@@ -16118,9 +16219,9 @@ window.renderAssignSectionOverview = function () {
             assignTeacherHeaderBtn.classList.remove('hidden', 'opacity-40');
             assignTeacherHeaderBtn.removeAttribute('title');
             if (teachersList.length >= 2) {
-                assignTeacherHeaderBtn.classList.remove('hover:text-[#FFD000]', 'cursor-pointer', 'opacity-40', 'cursor-not-allowed');
-                assignTeacherHeaderBtn.classList.add('cursor-default', 'pointer-events-none');
-                assignTeacherHeaderBtn.innerHTML = `<span id="section-assign-teacher-btn-text">Teachers</span>`;
+                assignTeacherHeaderBtn.classList.remove('cursor-default', 'pointer-events-none', 'opacity-40', 'cursor-not-allowed');
+                assignTeacherHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
+                assignTeacherHeaderBtn.innerHTML = `<span id="section-assign-teacher-btn-text">Manage Teachers</span>`;
             } else {
                 assignTeacherHeaderBtn.classList.remove('cursor-default', 'pointer-events-none', 'opacity-40', 'cursor-not-allowed');
                 assignTeacherHeaderBtn.classList.add('hover:text-[#FFD000]', 'cursor-pointer');
@@ -16139,13 +16240,15 @@ window.renderAssignSectionOverview = function () {
             teacherDisplay.innerHTML = '';
         } else {
             const rowsHtml = teachersList.map((t, idx) => {
+                const isLead = Boolean(t.isPrimary) || (!teachersList.some(teacher => teacher.isPrimary) && idx === 0);
                 return `
                     <div class="p-4 hover:bg-black/[0.03] transition-colors flex items-center justify-between relative">
                         <div class="flex items-center gap-4 min-w-0">
                             ${renderUserAvatarHtml(t.name, 'w-10 h-10', 'text-sm')}
                             <div class="truncate">
                                 <div class="flex items-center gap-3">
-                                    <p class="text-sm font-bold text-black tracking-tight truncate">${escapeHtml(t.name)}</p>
+                                    <p class="text-sm font-bold text-black tracking-tight truncate" title="${escapeHtml(t.name)}">${escapeHtml(window.formatSectionTeacherDisplayName(t))}</p>
+                                    ${isLead ? '<span class="text-[11px] font-semibold text-[#15803d] bg-green-50 px-2 py-0.5 rounded border border-green-200 shrink-0">Lead Teacher</span>' : ''}
                                     ${t.role === 'Adviser' ? '<span class="text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-[\'Inter\'] shrink-0">Adviser</span>' : ''}
                                 </div>
                             </div>
@@ -16157,6 +16260,7 @@ window.renderAssignSectionOverview = function () {
                                 <i class="fa-solid fa-ellipsis-vertical text-base text-black group-hover:text-[#FFD000] transition-colors"></i>
                             </button>
                             <div id="teacher-menu-${idx}" class="teacher-dropdown-menu absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-2xl z-40 py-1.5 hidden animate-in fade-in duration-150 font-['Inter']">
+                                ${!isLead ? `<button type="button" onclick="window.setSectionPrimaryTeacher(${idx})" class="w-full text-left px-4 py-2.5 text-xs font-semibold text-black hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer"><i class="fa-solid fa-chalkboard-user text-black text-xs"></i><span>Set as Lead Teacher</span></button>` : ''}
                                 ${t.role === 'Adviser' ? `
                                     <button type="button" onclick="window.setSectionTeacherRole(${idx}, 'Teacher')"
                                         class="w-full text-left px-4 py-2.5 text-xs font-semibold text-black hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer">
@@ -16630,7 +16734,7 @@ window.renderSubpageTeacherSelectedPanel = function () {
     panel.innerHTML = `
         <div class="flex items-center gap-2 min-w-0 h-10 pl-1.5 pr-1 rounded-xl bg-slate-50 border border-slate-200" title="${escapeHtml(teacher.name)}">
             ${renderUserAvatarHtml(matched || teacher.name, 'w-7 h-7', 'text-[10px]')}
-            <p class="text-sm font-bold text-black tracking-tight truncate font-['Inter']">${escapeHtml(teacher.name)}</p>
+            <p class="text-sm font-bold text-black tracking-tight truncate font-['Inter']">${escapeHtml(window.formatSectionTeacherDisplayName(teacher))}</p>
             ${roleLabel ? '<span class="text-[11px] font-bold text-black bg-[#FFD000] px-2 py-0.5 rounded border border-black/10 tracking-tight font-[\'Inter\'] shrink-0">Adviser</span>' : ''}
             <button type="button" onclick="window.clearSubpageTeacherSelection()"
                 class="w-8 h-8 rounded-full bg-transparent hover:bg-black/5 text-black flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Remove Teacher">
@@ -16751,7 +16855,7 @@ window.handleSubpageSubjectSearch = function (query = '') {
         const status = String(s.status || 'published').toLowerCase().trim();
         return status === 'published' || status === 'active';
     });
-    const unassignedSubjects = publishedSubjects.filter(s => (s.name || '').toLowerCase().trim() !== currentSelectedSubject);
+    const unassignedSubjects = publishedSubjects;
 
     const filtered = q ? unassignedSubjects.filter(s => {
         const name = (s.name || '').toLowerCase();
@@ -16780,6 +16884,8 @@ window.handleSubpageSubjectSearch = function (query = '') {
     });
 
     dropdown.innerHTML = filtered.map(s => {
+        const selected = (s.name || '').toLowerCase().trim() === currentSelectedSubject;
+        const current = (s.name || '').toLowerCase().trim() === String(window.subpageSubjectInitialSnapshot || '').toLowerCase().trim();
         const isMismatch = (sectionGrade && s.gradeLevel && s.gradeLevel !== 'All' && s.gradeLevel !== sectionGrade);
         const isAlreadyAssigned = window.isSubjectAlreadyAssignedToSection ? window.isSubjectAlreadyAssignedToSection(s.name) : false;
         
@@ -16792,21 +16898,21 @@ window.handleSubpageSubjectSearch = function (query = '') {
         }
 
         return `
-            <div onclick="window.selectSubpageSubject('${escapeHtml(s.name)}')"
-                class="p-4 hover:bg-black/[0.03] transition-colors flex items-center justify-between cursor-pointer font-['Inter'] ${isAlreadyAssigned ? 'bg-rose-50/50' : ''}">
+            <label
+                class="p-4 hover:bg-black/[0.03] transition-colors cursor-pointer font-['Inter'] ${isAlreadyAssigned ? 'bg-rose-50/50' : ''}" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:16px;min-height:4.5rem">
                 <div class="flex items-center gap-4 min-w-0">
-                    <div class="w-10 h-10 rounded-full ${isAlreadyAssigned ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-slate-100 text-black border-slate-200/60'} flex items-center justify-center font-bold text-sm shrink-0 border">
-                        <i class="fa-solid fa-book text-xs ${isAlreadyAssigned ? 'text-rose-600' : 'text-black'}"></i>
-                    </div>
+                    <input type="radio" name="section-subject-choice" value="${escapeHtml(s.name)}" ${selected ? 'checked' : ''} ${isAlreadyAssigned ? 'disabled' : ''} style="accent-color:#15803d;width:16px;height:16px;flex-shrink:0" onchange="window.selectSubpageSubject(this.value)">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 truncate">
                             <p class="text-sm font-bold text-black tracking-tight truncate">${escapeHtml(s.name)}</p>
                             ${statusBadge}
                         </div>
-                        <p class="text-xs font-medium mt-0.5" style="color: rgba(0,0,0,0.45);">Code: ${escapeHtml(s.code || '—')}${isMismatch ? ` • Recommended for ${escapeHtml(s.gradeLevel)}` : ''}</p>
+                        ${isMismatch ? `<p class="text-xs mt-0.5 text-black">Recommended for ${escapeHtml(s.gradeLevel)}</p>` : ''}
                     </div>
                 </div>
-            </div>
+                <p class="text-sm text-black text-center">Code: ${escapeHtml(s.code || '—')}</p>
+                <span class="text-xs text-right" style="color:var(--icc-green,#15803d)">${current ? 'Currently assigned' : ''}</span>
+            </label>
         `;
     }).join('');
 
@@ -16837,6 +16943,7 @@ window.selectSubpageSubject = function (subjectName) {
     if (mismatch) {
         const msg = `Grade Level Mismatch: "${subjectName}" is configured for ${mismatch.subjectGrade}, but this section is ${mismatch.sectionGrade}. Are you sure you want to assign this subject to this section?`;
         if (typeof window.showSectionConfirm === 'function') {
+            window.renderSubpageSubjectSelectedPanel();
             window.showSectionConfirm('Grade Level Mismatch', msg, () => {
                 window.stagedSectionSubject = subjectName;
                 const searchInput = document.getElementById('section-subpage-subject-search');
@@ -16864,41 +16971,17 @@ window.renderSubpageSubjectSelectedPanel = function () {
     const subjectName = window.stagedSectionSubject || '';
     const confirmBtn = document.getElementById('section-subpage-confirm-btn');
 
-    if (!panel) return;
-
-    if (!subjectName || window.activeSectionSubpage !== 'subject') {
-        panel.innerHTML = '';
-        panel.classList.add('hidden');
-        if (confirmBtn && window.activeSectionSubpage === 'subject') {
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-        return;
-    }
-
+    if (panel) { panel.replaceChildren(); panel.classList.add('hidden'); }
+    if (window.activeSectionSubpage !== 'subject') return;
+    const unchanged = subjectName.trim().toLowerCase() === String(window.subpageSubjectInitialSnapshot || '').trim().toLowerCase();
     if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        confirmBtn.disabled = !subjectName || unchanged;
+        confirmBtn.classList.toggle('opacity-50', confirmBtn.disabled);
+        confirmBtn.classList.toggle('cursor-not-allowed', confirmBtn.disabled);
     }
-
-    const mismatch = window.getSubjectGradeMismatch(subjectName);
-    const subjects = getStoredJson(SUBJECTS_STORAGE_KEY, []);
-    const subObj = subjects.find(s => (s.name || '').toLowerCase().trim() === subjectName.toLowerCase().trim());
-    const codeText = subObj?.code ? subObj.code : '';
-
-    panel.classList.remove('hidden');
-    panel.innerHTML = `
-        <div class="flex items-center gap-2 min-w-0 h-10 pl-3 pr-1 rounded-xl bg-slate-50 border border-slate-200" title="${escapeHtml(subjectName)}${codeText ? ` (${codeText})` : ''}">
-            <i class="fa-solid fa-book text-xs text-[#15803d] shrink-0"></i>
-            <p class="text-sm font-bold text-black tracking-tight truncate font-['Inter']">${escapeHtml(subjectName)}</p>
-            ${codeText ? `<span class="text-xs font-semibold text-black/45 shrink-0 font-['Inter']">${escapeHtml(codeText)}</span>` : ''}
-            ${mismatch ? `<i class="fa-solid fa-triangle-exclamation text-xs text-amber-700 shrink-0" title="Configured for ${escapeHtml(mismatch.subjectGrade)} (Section is ${escapeHtml(mismatch.sectionGrade)})"></i>` : ''}
-            <button type="button" onclick="window.clearSubpageSubjectSelection()"
-                class="w-8 h-8 rounded-full bg-transparent hover:bg-black/5 text-black flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Remove Subject">
-                <i class="fa-solid fa-xmark text-sm text-black"></i>
-            </button>
-        </div>
-    `;
+    const label = document.getElementById('section-subpage-confirm-label');
+    if (label) label.textContent = window.subpageSubjectInitialSnapshot ? 'Change Subject' : 'Select Subject';
+    window.handleSubpageSubjectSearch('');
 };
 
 window.clearSubpageSubjectSelection = function () {

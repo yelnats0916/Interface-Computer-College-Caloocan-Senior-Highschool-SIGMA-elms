@@ -21,6 +21,37 @@
     }
 
     window.usesCombinedSubjectContent = usesCombinedSubjectContent;
+    window.openReleaseFromSubjectContent = function () {
+        const subjectId = window.originalEditingSubjectId || window.originalEditingSubjectCode || sharedContentSubjectId();
+        const section = window.activeSubjectEditorSection || sharedContentSection(window.subjectEditorOptions);
+        const quarter = window.currentSubjectMaterialQuarter || window.currentSubjectTopicQuarter || 'q1';
+        if (!subjectId || !section || typeof window.openTeacherReleaseAssessmentsModal !== 'function') {
+            window.showToast?.('Open Topics & Materials from a class section to release content.');
+            return;
+        }
+        const open = () => {
+            window.stopAllVideos?.();
+            window.toggleSubjectOverlay(false);
+            const state = (typeof currentTopicState !== 'undefined' && currentTopicState) || window.currentTopicState || {};
+            state.subjectId = subjectId;
+            state.selectedSection = section;
+            state.currentQuarter = quarter;
+            window.currentTopicState = state;
+            window.currentSelectedTopicQuarter = quarter;
+            window.setActiveReleaseQuarter?.(quarter);
+            window.openTeacherReleaseAssessmentsModal();
+        };
+        if (window.hasSubjectChanges?.()) {
+            window.openAskingPanel?.({
+                title: 'Unsaved Changes',
+                desc: 'Save your edits before opening Release & Schedule, or discard them to continue.',
+                confirmText: 'Discard & Continue', cancelText: 'Keep Editing', showCancel: true,
+                type: 'warning', onConfirm: open
+            });
+            return;
+        }
+        open();
+    };
 
     function sharedContentSubjectId(explicitId) {
         if (explicitId) return explicitId;

@@ -3,6 +3,11 @@ require_once __DIR__ . '/record_lifecycle.php';
 
 function aiInsightControls(PDO $db): void {
     static $ready=false;if($ready)return;
+    $db->exec("CREATE TABLE IF NOT EXISTS ai_grade_insight_views (
+        user_id VARCHAR(50) NOT NULL,view_key CHAR(64) NOT NULL,generation_id VARCHAR(128) NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY(user_id,view_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS ai_insight_controls (
         source_type VARCHAR(24) NOT NULL,source_id VARCHAR(191) NOT NULL,user_id VARCHAR(50) NOT NULL,
         hidden TINYINT(1) NOT NULL DEFAULT 0,is_deleted TINYINT(1) NOT NULL DEFAULT 0,
@@ -28,7 +33,7 @@ function saveAiLog(PDO $db, array $log): void {
         || !in_array($log['status'] ?? '', ['Success','Failed','Fallback Used'], true)) throw new InvalidArgumentException('Invalid AI log.');
     // Accept public request metadata only, never service credentials.
     if (isset($log['generationId']) && (!is_string($log['generationId']) || !preg_match('/^[A-Z]{3,8}-\\d{4}-\\d{4,}$/', $log['generationId']))) throw new InvalidArgumentException('Invalid AI generation ID.');
-    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','generationId','provider','keyId','keyLabel','evidenceSources','source','messages'];
+    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','generationId','provider','keyId','keyLabel','evidenceSources','source','messages','gradeEvidenceKey','gradeViewKey'];
     $log = array_intersect_key($log, array_flip($allowed));
     $payload = json_encode($log, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     if (strlen($payload) > 128000) throw new InvalidArgumentException('AI log is too large.');

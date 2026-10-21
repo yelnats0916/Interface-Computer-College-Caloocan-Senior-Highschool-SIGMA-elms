@@ -188,6 +188,29 @@ body .video-material-description:not(.is-expanded) p.material-detail-body-text {
     color: #111827 !important;
 }
 
+#teacher-release-assessments-overlay [id^="topic-chevron-"] {
+    display: inline-block !important;
+    transform-origin: center;
+    transition: transform 200ms ease !important;
+    line-height: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+    #teacher-release-assessments-overlay [id^="topic-chevron-"] { transition: none !important; }
+}
+
+#topics-materials-release-workspace .release-workspace-toolbar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+#topics-materials-release-workspace .release-workspace-quarter {
+    flex-shrink: 0;
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     #teacher-release-assessments-overlay .overflow-y-auto.flex-1 {
         padding-left: 12px !important;
@@ -210,9 +233,14 @@ body .video-material-description:not(.is-expanded) p.material-detail-body-text {
     }
 
     #topics-materials-release-workspace .release-workspace-toolbar {
-        flex-wrap: nowrap;
-        gap: 6px;
-        overflow-x: auto;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+        overflow: visible;
+        padding-top: 0 !important;
+        padding-bottom: 10px !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
@@ -220,30 +248,41 @@ body .video-material-description:not(.is-expanded) p.material-detail-body-text {
     #topics-materials-release-workspace #unified-picker-filter-chips {
         flex-wrap: nowrap !important;
         flex-shrink: 0;
-        width: auto !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        margin: 0 !important;
         padding: 0 !important;
-        gap: 3px;
+        gap: 8px !important;
     }
 
     #topics-materials-release-workspace #unified-picker-filter-chips .quiz-storage-filter-chip {
-        padding: 5px !important;
-        font-size: 10px;
-        line-height: 14px;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 3px 8px !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        margin: 0 !important;
+        font-size: 10px !important;
+        line-height: 14px !important;
     }
 
     #topics-materials-release-workspace .release-workspace-selection-actions {
         flex-wrap: nowrap;
-        gap: 3px;
-        margin-left: auto;
+        align-self: center;
+        align-items: center;
+        gap: 8px !important;
+        margin-left: 0;
         white-space: nowrap;
-        font-size: 10px;
-        line-height: 14px;
+        font-size: 12px !important;
+        line-height: 18px !important;
     }
 
     #topics-materials-release-workspace .release-workspace-selection-actions button {
-        padding: 5px 2px;
-        font-size: inherit;
-        line-height: inherit;
+        padding: 4px 0 !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
     }
 }
 
@@ -2085,7 +2124,7 @@ body.sorting-subject-topics * {
     border-right: 1px solid #137638 !important;
     border-left: none !important;
     border-top: none !important;
-    border-bottom: 1px solid #166534 !important;
+    border-bottom: 0 !important;
     color: #ffffff !important;
     position: sticky !important;
     top: 0 !important;
@@ -3675,11 +3714,32 @@ html body #section-topic-content #topic-content-main :is(#handout-list, #assessm
     border-radius:var(--topic-panel-radius, 22px)!important;
 }
 html body #section-topic-content #assessment-list .assessment-facts-panel {
-    border-radius:12px!important;
+    border-radius:0!important;
+    border:0!important;
+    box-shadow:none!important;
     overflow:hidden!important;
 }
 html body #section-topic-content #assessment-list .assessment-facts-panel table {
     border-radius:0!important;
+    border:0!important;
+}
+html body #section-topic-content #assessment-list .assessment-facts-panel tbody td {
+    border-bottom:1px solid rgba(0, 0, 0, 0.08)!important;
+}
+html body #section-topic-content #assessment-list .assessment-facts-panel tbody td.fact-group-divider {
+    border-right:1px solid rgba(0, 0, 0, 0.08)!important;
+}
+@media (max-width:767px){
+    html body #section-topic-content #topic-content-main #assessment-list .assessment-card-panel .assessment-facts-panel {
+        width:100%!important;
+        max-width:100%!important;
+        margin-left:0!important;
+        margin-right:0!important;
+        border-left:0!important;
+        border-right:0!important;
+        border-radius:0!important;
+        box-sizing:border-box;
+    }
 }
 @media (min-width:768px){
     html body #topic-content-main > div:has(#handout-list),
@@ -3692,15 +3752,53 @@ html body #section-topic-content #assessment-list .assessment-facts-panel table 
     html body #topic-content-main > div:has(#handout-list),
     html body #topic-content-main > div:has(#assessment-list){padding-left:0!important;padding-right:0!important}
     html body #section-topic-content {--topic-panel-radius:20px}
+    html body #section-topic-content #topic-content-main:has(.topic-video-player-view),
+    html body #section-topic-content #topic-content-main .topic-video-player-view,
+    html body #section-topic-content #topic-content-main .topic-video-player-panel {
+        width:100%!important;
+        max-width:100%!important;
+        margin-left:0!important;
+        margin-right:0!important;
+        padding-left:0!important;
+        padding-right:0!important;
+        border-radius:0!important;
+    }
+    html body #section-topic-content #topic-content-main .topic-video-player-view .video-cinema-player,
+    html body #section-topic-content #topic-content-main .video-cinema-player > :is(iframe,video) {
+        width:100%!important;
+        max-width:100%!important;
+        border-radius:0!important;
+        border:0!important;
+        box-shadow:none!important;
+    }
     html body #section-topic-content #topic-content-main:has(:is(#handout-list,#assessment-list)) {
-        padding-left:16px!important;
-        padding-right:16px!important;
+        padding-left:0!important;
+        padding-right:0!important;
         box-sizing:border-box;
     }
     html body #section-topic-content :is(#handout-list,#assessment-list) {
+        --topic-panel-radius:0px;
+        display:flex!important;
+        flex-direction:column!important;
+        gap:0!important;
         width:100%!important;
         margin-left:0!important;
         margin-right:0!important;
+    }
+    html body #section-topic-content #topic-content-main :is(#handout-list,#assessment-list) > * {
+        margin-top:0!important;
+        margin-bottom:0!important;
+    }
+    html body #section-topic-content #topic-content-main :is(#handout-list,#assessment-list) > :is(.assessment-card-panel,.sigma-black-fade-panel),
+    html body #section-topic-content #topic-content-main #assessment-list > :is(.student-assessment-list-item,.teacher-assessment-list-item) > .assessment-card-panel {
+        width:100%!important;
+        max-width:100%!important;
+        border-radius:0!important;
+        box-shadow:none!important;
+        border:0!important;
+        border-bottom:1px solid rgba(0,0,0,.12)!important;
+        margin:0!important;
+        padding:12px 16px!important;
     }
 }
 @media (min-width:768px){
@@ -7405,7 +7503,7 @@ html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
     animation: action-slide-up 0.2s ease-out;
 }
 
-.action-dropdown-menu.dropup {
+.action-dropdown-menu.dropup:not([style*="fixed"]) {
     top: auto !important;
     bottom: 100% !important;
     margin-top: 0 !important;
@@ -7415,6 +7513,20 @@ html body :is(#subject-topics-quarter-pills,#subject-materials-quarter-pills) {
 
 .action-dropdown-menu.dropup.show {
     animation: action-slide-down 0.2s ease-out;
+}
+
+.action-dropdown-menu[style*="fixed"] {
+    bottom: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    transform-origin: top right;
+}
+
+.action-dropdown-menu[style*="fixed"].dropup {
+    bottom: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    transform-origin: bottom right !important;
 }
 
 @keyframes action-slide-up {
@@ -7537,10 +7649,45 @@ html body #sigma-universal-ask-card.sigma-universal-ask-card--quarter-reminder #
     font-style: normal !important;
     display: inline-block !important;
     color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
 }
 :is(.sigma-ai-badge, .sigma-ai-message__icon, .ai-log-sigma-icon) > i.fa-bolt::before {
     content: "\f0e7";
 }
+
+/* Canonical original SIGMA glyph: protect it from global bolt/font overrides. */
+html body #sigmaAiPanel :is(.sigma-ai-badge,.sigma-ai-message__icon) > i.fa-bolt,
+html body .ai-log-sigma-icon > i.fa-bolt{
+    display:inline-block!important;
+    font-family:"Font Awesome 6 Free"!important;
+    font-weight:900!important;
+    font-style:normal!important;
+    font-variant:normal!important;
+    line-height:1!important;
+    color:#000!important;
+    -webkit-text-fill-color:#000!important;
+    background:transparent!important;
+    mask:none!important;
+    -webkit-mask:none!important;
+    width:auto!important;
+    height:auto!important;
+    opacity:1!important;
+    visibility:visible!important;
+    transform:none!important;
+}
+html body #sigmaAiPanel :is(.sigma-ai-badge,.sigma-ai-message__icon) > i.fa-bolt::before,
+html body .ai-log-sigma-icon > i.fa-bolt::before{
+    content:"\f0e7"!important;
+    display:inline-block!important;
+    font-family:"Font Awesome 6 Free"!important;
+    font-weight:900!important;
+    font-style:normal!important;
+    line-height:1!important;
+    color:#000!important;
+    -webkit-text-fill-color:#000!important;
+}
+html body #sigmaAiPanel .sigma-ai-badge > i.fa-bolt{font-size:13px!important}
+html body #sigmaAiPanel .sigma-ai-message__icon > i.fa-bolt{font-size:11px!important}
 
 /* Attendance Student Profile Avatar - Exact Match to User Accounts Table (32px x 32px circle, never oval) */
 html body .attendance-month-table .student-name-col :is(.attendance-student-avatar, .sigma-user-avatar, [class*="sigma-user-avatar"]):not(img),
@@ -7611,4 +7758,425 @@ html body .attendance-student-avatar i {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+}
+
+/* Keep missing-grade marks consistent across both mobile grade views. */
+.attendance-roster-inline{display:none}
+html body .attendance-numbered-table .attendance-roster-number{position:sticky!important;left:0!important;width:40px!important;min-width:40px!important;max-width:40px!important;text-align:center!important;padding:0 6px!important;border-right:1px solid rgba(0,0,0,.08)!important;font:400 12px/18px Inter,sans-serif;z-index:25;background:#fff;color:#000000}
+html body .attendance-numbered-table th.attendance-roster-number{background:#15803d;color:#fff;z-index:45}
+@media(min-width:769px){
+ html body .attendance-numbered-table .student-name-col{left:40px!important}
+ html body .attendance-numbered-table :is(.attendance-summary-th--p,.attendance-summary-td--p){left:310px!important}
+ html body .attendance-numbered-table :is(.attendance-summary-th--a,.attendance-summary-td--a){left:374px!important}
+ html body .attendance-numbered-table :is(.attendance-summary-th--l,.attendance-summary-td--l){left:438px!important}
+}
+@media(max-width:768px){
+ html body .attendance-numbered-table .attendance-roster-number{display:none!important}
+ html body table.attendance-month-table.attendance-numbered-table .student-name-col .attendance-roster-inline{display:inline!important;color:#000000;font-weight:400}
+ html body table.attendance-month-table.attendance-numbered-table .student-name-col .attendance-student-avatar{display:none!important}
+ html body .attendance-numbered-table .attendance-student-name{white-space:normal!important;overflow-wrap:anywhere;line-height:16px!important}
+ html body .attendance-numbered-table .student-name-col > div{white-space:normal!important}
+}
+html body table :is(thead, thead tr, thead th) {
+    border-bottom: 0 !important;
+}
+
+/* Mobile GWA and Class Average share a flush, centered presentation. */
+@media (max-width: 767px) {
+    html:has(:is(.student-assessment-breakdown, .student-topic-performance).is-open),
+    body:has(:is(.student-assessment-breakdown, .student-topic-performance).is-open) {
+        overflow: hidden !important;
+        overscroll-behavior: none !important;
+    }
+
+    html body :is(.student-assessment-breakdown, .student-topic-performance).is-open {
+        overscroll-behavior: contain;
+    }
+
+    html body :is(.student-assessment-breakdown-surface, .student-topic-performance-surface) {
+        border-radius: 0 !important;
+        overscroll-behavior: contain;
+    }
+
+    html body #section-grades #grades-layout {
+        padding-top: 0 !important;
+    }
+
+    html body #section-grades #grades-layout .shared-grades-top-panels {
+        gap: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    html body #section-grades .shared-grades-top-panels > .gwa-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    html body #section-grades .shared-grades-top-panels > .gwa-card > div {
+        width: 100%;
+        text-align: center !important;
+    }
+}
+
+/* Shared horizontal mobile assessment summaries across all portals. */
+@media (max-width: 768px) {
+    html body #assessment-list .assessment-facts-panel .assessment-desktop-facts-table {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    html body #assessment-list .assessment-facts-panel .assessment-mobile-facts-panel {
+        display: none !important;
+    }
+
+    html body #assessment-list .assessment-facts-panel table {
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: fixed !important;
+    }
+
+    html body #assessment-list .assessment-facts-panel :is(th, td) {
+        width: 25% !important;
+        padding: 10px 4px !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        text-align: center !important;
+        vertical-align: middle !important;
+        box-sizing: border-box;
+    }
+
+    html body #assessment-list .assessment-facts-panel thead th {
+        font-size: 11px !important;
+        line-height: 16px !important;
+        border-bottom: 0 !important;
+    }
+
+    html body #assessment-list .assessment-facts-panel tbody td,
+    html body #assessment-list .assessment-facts-panel tbody td :is(div, span) {
+        font-size: 12px !important;
+        line-height: 16px !important;
+        white-space: normal !important;
+        min-width: 0 !important;
+        max-width: 100%;
+    }
+
+    html body #assessment-list .assessment-facts-panel tbody td .flex > span + span {
+        font-size: 10px !important;
+        line-height: 14px !important;
+    }
+
+    /* Quiz summaries retain their fifth column without widening the table. */
+    html body #assessment-list .assessment-facts-panel table:has(thead th:nth-child(5)) :is(th, td) {
+        width: 20% !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+
+    html body #assessment-list .assessment-facts-panel table:has(thead th:nth-child(5)) thead th {
+        font-size: 10px !important;
+    }
+}
+@media (max-width: 767px) {
+    html body .student-grade-card dd.student-grade-missing,
+    html body .teacher-quarter-grade-table.teacher-mobile-grade-cards .teacher-quarter-grade-empty {
+        color: rgba(0, 0, 0, .45) !important;
+        font-family: Inter, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        line-height: 24px !important;
+    }
+}
+
+/* Desktop material headings match the topic card title typography. */
+@media(min-width:769px){
+ html body :is(#topic-content-main,#subject-materials-list,#subject-material-detail-view,.assessment-material-main-card) :is(.sigma-file-panel-title,.material-card-title){font-size:1.25rem!important;font-weight:700!important;line-height:1.3!important}
+}
+#attendance-record-dialog{width:min(760px,calc(100% - 32px));max-height:85dvh;padding:0;border:1px solid #e2e8f0;border-radius:16px;color:#000;background:#fff;font-family:Inter,sans-serif}
+#attendance-record-dialog::backdrop{background:rgba(0,0,0,.45)}
+#attendance-record-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;border-bottom:1px solid #e2e8f0}
+#attendance-record-dialog h2{margin:0;font-size:20px;font-weight:700}
+#attendance-record-dialog p{margin:6px 0 0;font-size:12px}
+#attendance-record-dialog .attendance-record-table{overflow:auto}
+#attendance-record-dialog table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
+#attendance-record-dialog th{background:#15803d;color:#fff;padding:14px 16px}
+#attendance-record-dialog td{padding:12px 16px;border-bottom:1px solid rgba(0,0,0,.08)}
+#attendance-record-dialog .attendance-record-person{display:flex;align-items:center;gap:12px}
+#attendance-record-dialog .attendance-record-avatar{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 38px;border-radius:50%;background:#f1f5f9;color:#94a3b8;overflow:hidden}
+#attendance-record-dialog .attendance-record-avatar :is(img,.sigma-user-avatar){width:38px!important;height:38px!important;min-width:38px!important;border-radius:50%;object-fit:cover}
+body:has(#attendance-record-dialog[open]){overflow:hidden}
+@media(max-width:767px){#attendance-record-dialog .attendance-record-avatar{display:none}}
+html body :is(.attendance-action-btn--view,.attendance-action-btn--edit){background:#15803d!important;border-color:#15803d!important;color:#fff!important}
+html body :is(.attendance-action-btn--view,.attendance-action-btn--edit) span{color:#fff!important}
+html body :is(.attendance-action-btn--view,.attendance-action-btn--edit):hover{background:#166534!important;border-color:#166534!important;color:#fff!important}
+html body #attendance-record-dialog :is(th,td):first-child{width:64px;min-width:64px;text-align:center!important;vertical-align:middle;padding-left:12px;padding-right:12px;font-variant-numeric:tabular-nums}
+#attendance-record-dialog .attendance-record-quarter-short{display:none}
+@media(max-width:767px){#attendance-record-dialog .attendance-record-quarter-full{display:none}#attendance-record-dialog .attendance-record-quarter-short{display:inline}}
+/* Attendance record columns: compact number, readable names, aligned status. */
+html body #attendance-record-dialog table{table-layout:fixed}
+html body #attendance-record-dialog :is(th,td):first-child{width:52px;min-width:52px;box-sizing:border-box}
+html body #attendance-record-dialog th:nth-child(2){width:60%;text-align:center!important}
+html body #attendance-record-dialog td:nth-child(2){text-align:left!important;overflow-wrap:anywhere}
+html body #attendance-record-dialog :is(th,td):nth-child(3){text-align:center!important;vertical-align:middle}
+html body #attendance-record-dialog .attendance-record-person{min-width:0}
+html body #attendance-record-dialog .attendance-record-person>span:last-child{min-width:0;overflow-wrap:anywhere}
+#attendance-record-dialog .attendance-record-close-icon{display:none}
+@media(max-width:767px){
+ html body #attendance-record-dialog>header>div{min-width:0;flex:1}
+ html body #attendance-record-dialog h2{font-size:16px!important;line-height:22px!important}
+ html body #attendance-record-dialog p{font-size:11px!important;line-height:17px!important;margin-top:4px}
+ html body #attendance-record-dialog [data-close]{width:30px!important;min-width:30px!important;height:30px!important;min-height:30px!important;flex:0 0 30px;padding:0!important;border:0!important;border-radius:6px!important;background:transparent!important;color:#000!important}
+ html body #attendance-record-dialog .attendance-record-close-label{display:none!important}
+ html body #attendance-record-dialog .attendance-record-close-icon{display:inline-block!important;font-size:14px!important;line-height:1!important;color:#000!important}
+ html body #attendance-record-dialog table{font-size:12px!important}
+ html body #attendance-record-dialog :is(th,td),
+ html body #attendance-record-dialog .attendance-record-person,
+ html body #attendance-record-dialog .attendance-record-person>span:last-child{font-size:12px!important;line-height:18px!important}
+}
+
+/* Quarter dropdowns retain readable full names on phones. */
+@media(max-width:767px){
+ html body .sigma-quarter-dropdown .sigma-quarter-full-label{display:inline!important}
+ html body .sigma-quarter-dropdown .sigma-quarter-mobile-label{display:none!important}
+ html body .sigma-quarter-dropdown{width:150px!important;min-width:150px!important;max-width:100%!important;flex:0 0 150px!important}
+ html body .sigma-quarter-dropdown .sigma-quarter-dropdown-menu{width:150px!important;min-width:150px!important;max-width:150px!important}
+ html body #grades-layout .student-grade-bars .student-shared-quarter,
+ html body #student-classroom-grades-modal-overlay .student-shared-quarter{width:150px!important;min-width:150px!important;max-width:150px!important;flex:0 0 150px!important}
+ html body #student-classroom-grades-modal-overlay .student-shared-quarter .sigma-quarter-dropdown-menu{width:150px!important;min-width:150px!important;max-width:150px!important}
+}
+/* Editing and release lists share the release panel's text hierarchy. */
+html body #subject-edit-overlay #subject-topics-list h4,
+html body #subject-edit-overlay #subject-materials-list h4,
+html body :is(#teacher-release-topics-overlay,#teacher-release-learning-materials-overlay,#teacher-release-assessments-overlay) h4{font-family:Inter,sans-serif!important;font-size:14px!important;font-weight:400!important;line-height:21px!important;letter-spacing:normal!important}
+html body #subject-edit-overlay .subject-quarter-context-label{font-family:Inter,sans-serif!important;font-size:14px!important;font-weight:600!important;line-height:20px!important;color:#000!important}
+@media(max-width:767px){
+ html body #subject-edit-overlay #subject-topics-list h4,
+ html body #subject-edit-overlay #subject-materials-list h4,
+ html body :is(#teacher-release-topics-overlay,#teacher-release-learning-materials-overlay,#teacher-release-assessments-overlay) h4{font-size:12px!important;font-weight:400!important;line-height:18px!important}
+ html body #subject-edit-overlay .subject-quarter-context-label{font-size:12px!important;line-height:18px!important;font-weight:600!important}
+}html body :is(#teacher-release-topics-overlay,#teacher-release-learning-materials-overlay,#teacher-release-assessments-overlay) .subject-quarter-context-label{font:600 14px/20px Inter,sans-serif!important;color:#000;background:transparent}
+@media(max-width:767px){html body :is(#teacher-release-topics-overlay,#teacher-release-learning-materials-overlay,#teacher-release-assessments-overlay) .subject-quarter-context-label{font-size:12px!important;line-height:18px!important}}
+
+/* Shared report table colors across portals. */
+html body :is(.student-report-grades-table, .teacher-grades-modal-table, .admin-grades-modal-table) tbody tr:hover > td:not(.gb-summary-green),
+html body :is(#teacher-grades-modal-tbody, #admin-grades-modal-tbody) tr:hover > td:not(.gb-summary-green) {
+ background-color:#f1f5f9!important;
+}
+html body :is(.student-report-grades-table, .teacher-grades-modal-table, .admin-grades-modal-table) tbody td.gb-summary-green,
+html body :is(#teacher-grades-modal-tbody, #admin-grades-modal-tbody) td.gb-summary-green {
+ background-color:rgba(16,185,129,.08)!important;
+}
+html body :is(.student-report-grades-table, .teacher-grades-modal-table, .admin-grades-modal-table) tbody tr:hover > td.gb-summary-green,
+html body :is(#teacher-grades-modal-tbody, #admin-grades-modal-tbody) tr:hover > td.gb-summary-green {
+ background-color:rgba(16,185,129,.16)!important;
+}
+
+/* Semester totals use the same fill and hover across grade tables. */
+html body :is(.student-grade-card,.record-mobile-grade-card) dl>div:last-child dd,
+html body :is(.teacher-quarter-grade-table,.student-grades-summary-table,.record-main table[data-quarter-count]) tbody tr>td:last-child:not([colspan]) {
+ background-color:rgba(16,185,129,.08)!important;
+}
+html body :is(.student-grade-card,.record-mobile-grade-card):hover dl>div:last-child dd,
+html body :is(.teacher-quarter-grade-table,.student-grades-summary-table,.record-main table[data-quarter-count]) tbody tr:hover>td:last-child:not([colspan]) {
+ background-color:rgba(16,185,129,.16)!important;
+}
+
+/* One-touch matching: only answer tiles capture gestures; surrounding rows still scroll. */
+.sigma-quiz-matching-bank [draggable="true"],
+.sigma-quiz-matching-rows [draggable="true"] {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    cursor: grab;
+}
+.sigma-quiz-matching-rows [draggable="true"]:active { cursor: grabbing; }
+
+/* Matching bank tiles and filled slots share desktop drag cursors. */
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) [draggable="true"],
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) [draggable="true"] :is(span,i,div) {
+    cursor: grab !important;
+}
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) [draggable="true"]:active,
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) [draggable="true"]:active :is(span,i,div),
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) .sigma-quiz-choice-dragging,
+html body :is(.sigma-quiz-matching-bank,.sigma-quiz-matching-rows) .sigma-quiz-choice-dragging :is(span,i,div) {
+    cursor: grabbing !important;
+}
+html body .sigma-quiz-matching-rows [draggable="true"] button,
+html body .sigma-quiz-matching-rows [draggable="true"] button * {
+    cursor: pointer !important;
+}
+
+.quiz-submission-review-actions { display: flex; justify-content: flex-end; margin-top: 14px; width: 100%; }
+@media (max-width: 639px) {
+    .quiz-submission-review-actions > button { width: 100%; justify-content: center; }
+}
+
+html body .sigma-attached-file-panel.sigma-quiz-panel-static,
+html body .sigma-attached-file-panel.sigma-quiz-panel-static:hover {
+    background-color: #fff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.02) !important;
+    transform: none !important;
+    cursor: default !important;
+    transition: none !important;
+}
+html body .sigma-quiz-panel-static .sigma-file-panel-title,
+html body .sigma-quiz-panel-static .sigma-file-panel-title:hover {
+    color: #000 !important;
+    text-decoration: none !important;
+    cursor: default !important;
+}
+
+/* External quiz actions follow the common desktop and mobile text-button sizes. */
+html body .quiz-submission-review-actions > button.sigma-btn {
+    width: auto;
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 0 24px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    justify-content: center;
+}
+@media (max-width: 768px) {
+    html body .quiz-submission-review-actions > button.sigma-btn {
+        width: 100%;
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 16px !important;
+    }
+}
+
+/* Exit Quiz uses the regular text actions and readable black description. */
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-desc {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-actions button {
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+    padding: 0 24px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 20px !important;
+}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-cancel-btn {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1.5px solid #e2e8f0 !important;
+}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-cancel-btn:hover {
+    background: #e2e8f0 !important;
+}
+@media (max-width: 768px) {
+    html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-actions button {
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 16px !important;
+    }
+}
+
+/* Keep legacy dialog ID rules from overriding the standard primary action. */
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-proceed-btn.sigma-btn-primary {
+    background: #15803d !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    font-family: 'Inter', sans-serif !important;
+}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-proceed-btn.sigma-btn-primary:hover:not(:disabled) {
+    background: #166534 !important;
+}
+html body #sigma-universal-ask-card.sigma-universal-ask-card--quiz-exit #sigma-ask-proceed-btn.sigma-btn-primary:active:not(:disabled) {
+    background: #14532d !important;
+}
+
+/* Digital quiz totals are calculated from the reviewed question scores. */
+html body input.gb-open-score-counter[data-calculated-quiz="1"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+    cursor: default !important;
+    caret-color: transparent;
+}
+html body input.gb-open-score-counter[data-calculated-quiz="1"]::-webkit-inner-spin-button,
+html body input.gb-open-score-counter[data-calculated-quiz="1"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* The cell owns the status tint; the inline editor must not add a second rectangle. */
+html body :is(#admin-gradebook-spreadsheet,#gradebook-spreadsheet,#gradebook-outer-spreadsheet) td .gb-open-score-editor,
+html body :is(#admin-gradebook-spreadsheet,#gradebook-spreadsheet,#gradebook-outer-spreadsheet) td .gb-open-score-editor:is(:hover,:focus-within),
+html body :is(#admin-gradebook-spreadsheet,#gradebook-spreadsheet,#gradebook-outer-spreadsheet) td .gb-open-status-row {
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    border: 0 !important;
+}
+
+/* Enumeration rows provide the fill and border, including hover and typing states. */
+html body :is(#student-preview-modal,#sigma-quiz-form-modal,#universal-quiz-preview-modal) input.sigma-quiz-enumeration-input,
+html body :is(#student-preview-modal,#sigma-quiz-form-modal,#universal-quiz-preview-modal) input.sigma-quiz-enumeration-input:is(:hover,:focus,:active) {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Quiz response fields: white on hover, a plain yellow border while typing. */
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) :is(input[type="text"][placeholder="Type your answer here..."], textarea):not(:disabled):not([readonly]) {
+    background-color: rgba(248, 250, 252, 0.6) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) :is(input[type="text"][placeholder="Type your answer here..."], textarea):not(:disabled):not([readonly]):is(:hover, :focus) {
+    background-color: #fff !important;
+}
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) :is(input[type="text"][placeholder="Type your answer here..."], textarea):not(:disabled):not([readonly]):focus {
+    border-color: #FFD000 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+/* The entire enumeration row changes fill, keeping its inner input transparent. */
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) div:has(> input.sigma-quiz-enumeration-input:not(:disabled):not([readonly])) {
+    box-shadow: none !important;
+    outline: none !important;
+}
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) div:has(> input.sigma-quiz-enumeration-input:not(:disabled):not([readonly])):is(:hover, :focus-within) {
+    background-color: #fff !important;
+}
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) div:has(> input.sigma-quiz-enumeration-input:not(:disabled):not([readonly])):focus-within {
+    border-color: #FFD000 !important;
+}
+html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) .sigma-quiz-matching-rows [ondragover].border-black {
+    box-shadow: none !important;
 }

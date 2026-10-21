@@ -42,7 +42,7 @@
                 if (checkbox.checked) selection.add(insightKey(card)); else selection.delete(insightKey(card));
                 updateInsightManagement();
             };
-            const panelTimestamp = node.querySelector?.('.insight-user-panel-date');
+            const panelTimestamp = node.querySelector?.('.insight-user-panel-date, .sigma-ai-generation-time');
             const cardTimestamp = node.querySelector?.('.sigma-card-date');
             if (panelTimestamp) {
                 const footer = el('div', undefined, 'insight-selection-footer');
@@ -51,6 +51,11 @@
             } else if (cardTimestamp) {
                 cardTimestamp.classList.add('has-insight-selection');
                 cardTimestamp.append(label);
+            } else if (node.classList.contains('insight-user-panel')) {
+                const footer = el('div', undefined, 'insight-selection-footer');
+                footer.append(label);
+                footer.style.justifyContent = 'flex-end';
+                (node.querySelector('.insight-user-panel-body') || node).append(footer);
             } else {
                 node.prepend(label);
             }
@@ -177,8 +182,18 @@
             }
 
             if (!editing && !anyEditing) {
-                const edit = el('button', cardsOnly ? 'Edit cards' : 'Edit insights', 'sigma-btn sigma-btn-white sigma-btn-md');
+                const edit = el('button', undefined, cardsOnly ? 'sigma-rail-header__config-btn insight-card-edit-button' : 'sigma-btn sigma-btn-white sigma-btn-md');
                 edit.type = 'button';
+                if (cardsOnly) {
+                    edit.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>';
+                    edit.title = 'Edit Cards';
+                    edit.setAttribute('aria-label', 'Edit Cards');
+                } else {
+                    edit.classList.add('insight-detail-edit-button');
+                    edit.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>';
+                    edit.title = 'Edit Insights';
+                    edit.setAttribute('aria-label', 'Edit Insights');
+                }
                 edit.disabled = managementBusy;
                 edit.setAttribute('aria-pressed', 'false');
                 edit.onclick = () => {
@@ -409,13 +424,21 @@
         .map(value => String(value).replace(/\s+/g, ' ').trim())
         .filter(Boolean)
         .join(' ') || 'No additional insight details were saved.';
+    const insightPreviewText = card => insightText(card)
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/`([^`]+)`/g, '$1');
     const insightTimestamp = (card, user) => {
         const value = card?.createdAt || card?.timestamp || user?.lastAnalyzed;
         const time = value ? new Date(value).getTime() : 0;
         return Number.isFinite(time) ? time : 0;
     };
-    const newestInsights = user => [...(user.cards || [])].sort((a, b) => insightTimestamp(b, user) - insightTimestamp(a, user));
-    const latestInsightTimestamp = user => Math.max(0, ...(user.cards || []).map(card => insightTimestamp(card, user)));
+    const newestInsights = user => {
+        const timestamp = card => Date.parse(card.createdAt || card.timestamp || '') || 0;
+        return [...(user.cards || [])].sort((a, b) => timestamp(b) - timestamp(a));
+    };
+    const latestInsightTimestamp = user => Math.max(0, ...(user.cards || []).map(card => Date.parse(card.createdAt || card.timestamp || '') || 0));
     const insightDate = (card, user) => {
         const value = card?.createdAt || card?.timestamp || user?.lastAnalyzed;
         if (!value) return '';
@@ -429,29 +452,38 @@
     };
 
     function createGeneratedInsightCard(card, user) {
+        const rules = window.SigmaInsightRules;
+        const paragraphs = rules && typeof rules.renderInsightSections === 'function'
+            ? rules.renderInsightSections(card.analyses || [], location.href)
+            : (card.analyses || []).map(a => `<p>${a.text}</p>`).join('');
+        
+        const iconKey = rules?.normalizeInsightIcon?.(card.icon) || 'progress';
+        const iconInfo = rules?.INSIGHT_ICONS?.[iconKey] || { className: 'fa-chart-column' };
+
+        const escape = value => { const node = document.createElement('span'); node.textContent = String(value || ''); return node.innerHTML; };
+        const data = {
+            id: escape(card.id || `${user.id}-${(user.cards || []).indexOf(card)}`),
+            concernTitle: escape(card.title || 'AI Insight'),
+            categoryIcon: iconInfo.className, headerIconColor: 'text-[#FFD000]',
+            datePlacement: 'footer', date: escape(insightDate(card, user)),
+            concernText: paragraphs,
+            // renderBody returns inline markup, matching teacher card previews.
+            previewText: rules?.renderBody ? rules.renderBody(insightText(card), location.href) : escape(insightText(card))
+        };
+        
         if (window.renderSigmaReadOnlyInsightCard) {
-            const escape = value => { const node = document.createElement('span'); node.textContent = String(value || ''); return node.innerHTML; };
-            const paragraphs = (card.analyses || []).map(analysis => {
-                const context = analysis.context ? `<p>${escape(analysis.context)}</p>` : '';
-                const advice = analysis.text ? `<p>${analysis.actionLabel ? `<strong>${escape(analysis.actionLabel)}:</strong> ` : ''}${escape(analysis.text)}</p>` : '';
-                return context + advice;
-            }).join('') || `<p>${escape(insightText(card))}</p>`;
-            return window.renderSigmaReadOnlyInsightCard({
-                id: escape(card.id || `${user.id}-${(user.cards || []).indexOf(card)}`),
-                concernTitle: escape(card.title || 'AI Insight'),
-                categoryIcon: 'fa-circle-info', headerIconColor: 'text-[#FFD000]',
-                datePlacement: 'footer', date: escape(insightDate(card, user)),
-                concernText: paragraphs, previewText: escape(insightText(card))
-            }, true);
+            return window.renderSigmaReadOnlyInsightCard(data, true);
         }
+
         const article = el('article', undefined, 'insight-generated-card');
         const header = el('header', undefined, 'insight-generated-card-header');
-        const icon = el('i', undefined, 'fa-solid fa-bolt'); icon.setAttribute('aria-hidden', 'true');
+        
+        const icon = el('i', undefined, `fa-solid ${iconInfo.className}`); icon.setAttribute('aria-hidden', 'true');
         header.append(icon, el('h4', card?.title || 'AI Insight'));
         const body = el('div', undefined, 'insight-generated-card-body');
-        body.append(el('p', insightText(card)));
+        body.innerHTML = paragraphs;
         const date = insightDate(card, user);
-        if (date) body.append(el('time', date, 'insight-generated-card-date'));
+        if (date) body.insertAdjacentHTML('beforeend', `<time class="insight-generated-card-date">${escape(date)}</time>`);
         article.append(header, body);
         return article;
     }
@@ -459,26 +491,20 @@
     function createInsightPanel(card, user) {
         const article = el('article', undefined, 'insight-user-panel sigma-ai-panel');
         
-        // Header with Yellow Bolt badge and Subject / Context badge
-        const header = el('header', undefined, 'insight-user-panel-header');
-        const headingWrap = el('div', undefined, 'sigma-ai-shared-heading');
-        const iconWrap = el('span', undefined, 'sigma-ai-shared-icon');
-        iconWrap.setAttribute('aria-hidden', 'true');
-        const boltIcon = el('i', undefined, 'fa-solid fa-bolt');
-        iconWrap.append(boltIcon);
-        
-        const titleSpan = el('span', card?.title || 'SIGMA AI Insights', 'insight-user-panel-title');
-        headingWrap.append(iconWrap, titleSpan);
+        const rules = window.SigmaInsightRules;
+        article.setAttribute('aria-label', card?.title || 'Insight');
+        if (card.sourceType === 'grade' && String(user.role).toLowerCase() === 'student') {
+            const source = card.reportCategory === 'subject' ? 'Subject view' : 'Grades page';
+            article.append(el('p', `${card.isCurrentStudentView ? 'Currently shown to student' : 'Saved history'} · ${source}`, 'insight-current-view-label'));
+        }
 
-        const overallGrade = card?.reportCategory === 'grade' && String(user.role).toLowerCase() !== 'teacher';
-        const subjectContext = overallGrade ? 'Overall Grades' : (card?.subject || card?.subjectTitle || card?.area || 'Subject Coursework');
-        const contextBadge = el('span', String(subjectContext), 'insight-user-panel-subject-badge');
-        header.append(headingWrap, contextBadge);
-
-        // Body with canonical light green tint & bold action advice
+        // Body with canonical light green tint & rich text support
         const body = el('div', undefined, 'insight-user-panel-body sigma-ai-panel-body');
         const analyses = Array.isArray(card?.analyses) && card.analyses.length ? card.analyses : null;
-        if (analyses) {
+        
+        if (analyses && rules && typeof rules.renderInsightSections === 'function') {
+            body.innerHTML = rules.renderInsightSections(analyses, location.href);
+        } else if (analyses) {
             analyses.forEach(analysis => {
                 const section = el('div', undefined, 'insight-user-analysis-block');
                 if (analysis?.context) {
@@ -491,23 +517,24 @@
                         const strong = el('strong', `${analysis.actionLabel}: `);
                         adv.append(strong);
                     }
-                    adv.append(document.createTextNode(String(analysis.text).replace(/^[\t ]*(?:\*\*)?(?:Advice|Recommend(?:ation)?|Try|Suggested Action|Next step)(?:\*\*)?[\t ]*:[\t ]*(?:\*\*)?[\t ]*/i, '')));
+                    adv.append(document.createTextNode(String(analysis.text)));
                     section.append(adv);
                 }
                 body.append(section);
             });
         } else {
-            const fallbackP = el('p', insightText(card));
+            const text = insightText(card);
+            const fallbackP = el('p', text);
             body.append(fallbackP);
         }
 
         const date = insightDate(card, user);
         if (date) {
-            const timeTag = el('time', date, 'insight-user-panel-date');
-            body.append(timeTag);
+            const timestampHtml = window.renderSigmaInsightTimestamp?.(card.createdAt) || `<time class="insight-user-panel-date">${date}</time>`;
+            body.insertAdjacentHTML('beforeend', timestampHtml);
         }
 
-        article.append(header, body);
+        article.append(body);
         return article;
     }
 
@@ -515,8 +542,6 @@
         const section = el('section', undefined, 'insight-user-category');
         const headerRow = el('div', undefined, 'insight-user-category-header');
         headerRow.append(el('h3', title));
-        const countBadge = el('span', `${cards.length} ${cards.length === 1 ? 'insight' : 'insights'}`, 'insight-user-category-count');
-        headerRow.append(countBadge);
         section.append(headerRow);
 
         const panels = el('div', undefined, 'insight-user-panel-grid');
@@ -667,7 +692,7 @@
                 const cardTitle = el('span', latestCard.title || 'Latest AI Insight', 'insight-user-snippet-title');
                 snippetHead.append(bolt, cardTitle);
 
-                const snippetText = el('p', insightText(latestCard), 'insight-user-snippet-body');
+                const snippetText = el('p', insightPreviewText(latestCard), 'insight-user-snippet-body');
                 snippetBox.append(snippetHead, snippetText);
             } else {
                 const emptySnippet = el('div', undefined, 'insight-user-snippet-empty');
@@ -687,10 +712,10 @@
             tagsRow.append(totalTag);
 
             if (subjectCardsCount > 0) {
-                tagsRow.append(el('span', `${subjectCardsCount} Subject`, 'insight-user-pill insight-user-pill-sub'));
+                tagsRow.append(el('span', `${subjectCardsCount} Subject${subjectCardsCount === 1 ? '' : 's'}`, 'insight-user-pill insight-user-pill-sub'));
             }
             if (gradeCardsCount > 0) {
-                tagsRow.append(el('span', `${gradeCardsCount} Grade`, 'insight-user-pill insight-user-pill-sub'));
+                tagsRow.append(el('span', `${gradeCardsCount} Grade${gradeCardsCount === 1 ? '' : 's'}`, 'insight-user-pill insight-user-pill-sub'));
             }
 
             // 4. Footer Row
@@ -726,7 +751,7 @@
 
     function renderUserDetail(user) {
         const page = el('section', undefined, 'insight-user-page');
-        const pageHeader = el('header', undefined, 'insight-user-page-header');
+        const pageHeader = el('div', undefined, 'insight-user-page-header');
         const profile = el('div', undefined, 'insight-user-profile');
         const avatar = el('span', undefined, 'header-profile-btn insight-user-profile-avatar');
         const fallback = el('i', undefined, 'fa-solid fa-user header-avatar-placeholder');
@@ -744,12 +769,21 @@
         identity.append(el('h2', user.name || 'Unnamed user'), el('p', `ID: ${user.id || '—'}`));
         profile.append(avatar, identity);
         pageHeader.append(profile);
+        const profileRole = el('span', roleLabel(user), `insight-user-result-role ${String(user.role).toLowerCase() === 'teacher' ? 'is-teacher' : 'is-student'}`);
+        profileRole.classList.add('insight-user-profile-role');
+        pageHeader.append(profileRole);
 
         const layout = el('div', undefined, 'insight-user-detail-layout');
         const rail = el('aside', undefined, 'insight-user-insights-rail');
-        const railHeader = el('div', undefined, 'insight-user-insights-rail-header');
-        railHeader.append(el('h3', 'SIGMA AI Insights'));
-        if (canManageInsights()) railHeader.append(el('div', undefined, 'insight-card-management insight-management'));
+        const railHeader = el('div', undefined, 'sigma-rail-header pocket-rail-header insight-user-insights-rail-header');
+        const title = el('span', 'SIGMA AI Insights', 'sigma-rail-header__title pocket-rail-header__title');
+        railHeader.append(title);
+
+        if (canManageInsights()) {
+            const mgmt = el('div', undefined, 'insight-card-management insight-management');
+            railHeader.append(mgmt);
+        }
+        
         const railCards = el('div', undefined, 'insight-user-insights-rail-cards');
         const cards = newestInsights(user);
         const railCardsList = cards.filter(card => insightCategory(card) === 'analytics');
@@ -783,6 +817,7 @@
         } else railCards.append(el('p', 'No generated AI insight cards for this user yet.', 'insight-report-empty'));
         
         const main = el('main', undefined, 'insight-user-detail-main');
+        main.append(pageHeader);
         const grouped = { subject: [], grade: [] };
         cards.forEach(card => {
             // Only true subject/grade report cards belong in Subject and Grade Insights
@@ -802,7 +837,7 @@
         else attachInsightManagement(createInsightCategory('Grade Insights', grouped.grade, user));
         if (String(user.role).toLowerCase() !== 'teacher') main.append(createInsightCategory('Grade Insights', grouped.grade, user));
         layout.append(rail, main);
-        page.append(pageHeader, layout);
+        page.append(layout);
         return page;
     }
 
@@ -937,9 +972,10 @@
             navigateInsights(() => { selectedRole = roleSelect.value; directoryPage = 1; });
         };
 
-        const searchButton = el('button', 'Search', 'sigma-btn sigma-btn-primary insight-report-search-button');
+        const searchButton = el('button', undefined, 'sigma-btn sigma-btn-primary sigma-btn-md min-w-[100px] insight-report-search-button');
         searchButton.type = 'button';
         searchButton.title = 'Search user insights';
+        searchButton.append(el('span', 'Search'));
 
         filters.append(searchControl, roleControl, searchButton);
 
@@ -988,6 +1024,17 @@
         try {
             const result = await window.SigmaAiDatabase?.loadInsightReport();
             cachedUsers = result?.users || [];
+            try {
+                const views = JSON.parse(localStorage.getItem('sigma-student-grade-insight-views-v1') || '{}');
+                for (const user of cachedUsers) {
+                    if (!views[user.id]) continue;
+                    if ((user.cards || []).some(card => card.isCurrentStudentView)) continue;
+                    const currentIds = new Set(Object.values(views[user.id]));
+                    for (const card of user.cards || []) {
+                        if (card.sourceType === 'grade') card.isCurrentStudentView = currentIds.has(card.generationId);
+                    }
+                }
+            } catch (_) {}
             hasLoadedUsers = true;
             isLoading = false;
             renderSchoolOverview();
@@ -1015,7 +1062,7 @@
     window.addEventListener('focus', refreshActiveViews);
     document.addEventListener('visibilitychange', refreshActiveViews);
     window.addEventListener('storage', event => {
-        if (event.key && /^sigma-(student|teacher)-analytics-v1:|^sigma-subject-grade-insights/.test(event.key)) {
+        if (event.key && /^sigma-(student|teacher)-analytics-v1:|^sigma-subject-grade-insights|^sigma-student-grade-insight-views-v1$|^sigma-ai-recorded-logs$/.test(event.key)) {
             refreshActiveViews();
         }
     });

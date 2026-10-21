@@ -2888,6 +2888,7 @@ function initTeacherPortal() {
                 </p>
             `;
             actionButtonHtml = `
+                <button type="button" class="attendance-action-btn attendance-action-btn--view" onclick="window.viewDailyAttendance('${activeLocalDateStr}')" title="View submitted attendance"><span>View</span></button>
                 <button type="button" class="attendance-action-btn attendance-action-btn--edit" onclick="window.enableDailyAttendanceEdit('${activeLocalDateStr}')" title="Edit this day's attendance">
                     <span>Edit</span>
                 </button>
@@ -2924,7 +2925,7 @@ function initTeacherPortal() {
                 `;
             }
             actionButtonHtml = `
-                <button type="button" class="attendance-action-btn attendance-action-btn--submit" onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
+                <button type="button" class="attendance-action-btn attendance-action-btn--submit" ${totalRecorded === 0 || totalEnrolled === 0 ? 'disabled aria-disabled="true" style="opacity:.5;cursor:not-allowed"' : ''} onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
                     <span>Submit</span>
                 </button>
             `;
@@ -2958,9 +2959,10 @@ function initTeacherPortal() {
                 </div>
 
                 <div class="attendance-grid-container">
-                    <table class="attendance-month-table font-['Inter'] text-black">
+                    <table class="attendance-month-table attendance-numbered-table font-['Inter'] text-black">
                         <thead>
                             <tr>
+                                <th class="attendance-roster-number" scope="col">No.</th>
                                 <th class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}" onclick="window.toggleAttendanceStudentCol(event)" style="cursor: pointer;" title="${isAttendanceStudentColExpanded ? 'Collapse Present, Absent, Late columns' : 'Expand to see Present, Absent, Late summary columns'}">
                                     <div class="attendance-th-students-inner flex items-center justify-between gap-1 h-full w-full select-none cursor-pointer">
                                         <span class="attendance-th-title" style="font-size: clamp(11px, 2.8vw, 13.5px); white-space: nowrap;">Students</span>
@@ -3000,7 +3002,7 @@ function initTeacherPortal() {
         if (students.length === 0) {
             html += `
                 <tr>
-                    <td colspan="${daysInMonth + 1 + BLANK_ATTENDANCE_COLS_COUNT + (isAttendanceStudentColExpanded ? 3 : 0)}" class="py-16 text-center text-slate-500">
+                    <td colspan="${daysInMonth + 2 + BLANK_ATTENDANCE_COLS_COUNT + (isAttendanceStudentColExpanded ? 3 : 0)}" class="py-16 text-center text-slate-500">
                         <div class="flex flex-col items-center justify-center gap-2">
                             <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                 <i class="fa-solid fa-user-slash text-base"></i>
@@ -3012,7 +3014,7 @@ function initTeacherPortal() {
                 </tr>
             `;
         } else {
-            students.forEach(student => {
+            students.forEach((student, rosterIndex) => {
                 let displayName = student.name;
                 if (student.middleName && !student.name.includes(student.middleName)) {
                     displayName = `${student.name} ${student.middleName}`;
@@ -3028,12 +3030,13 @@ function initTeacherPortal() {
 
                 html += `
                     <tr>
+                        <td class="attendance-roster-number">${rosterIndex + 1}</td>
                         <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${rosterIndex + 1}. </span>${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -3742,6 +3745,7 @@ function initTeacherPortal() {
                                 </label>
 
                                 <!-- Option 3: All Recorded Dates to Date (No Blank Columns) -->
+                                ${window.attendanceAcademicExportOptions?.(secName, subjName) || ""}
                                 <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-all-label">
                                     <input type="radio" name="attendance-export-scope" value="all" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
                                     <div class="flex-1 min-w-0">
@@ -3805,6 +3809,20 @@ function initTeacherPortal() {
         const currentMonthName = monthNames[attendanceViewingMonth];
         const secName = (typeof currentClassroomSectionName !== 'undefined' && currentClassroomSectionName) ? currentClassroomSectionName : (currentClassroomKey ? currentClassroomKey.split('::')[0] : 'Section');
         const subjName = (typeof currentClassroomMeta !== 'undefined' && currentClassroomMeta ? (currentClassroomMeta.subject || currentClassroomMeta.name) : '') || (typeof window.currentClassroomSubject !== 'undefined' ? window.currentClassroomSubject : '') || (currentClassroomKey ? currentClassroomKey.split('::')[1] : 'Subject');
+        const academicPeriod = window.getAttendanceAcademicPeriods?.().find(period => period.key === scope);
+        if (academicPeriod) {
+            if (!window.isAttendanceAcademicPeriodReady?.(academicPeriod, secName, subjName)) {
+                window.showToastNotification?.('This period is locked. Configure its dates and record attendance before exporting.', 'warning');
+                return;
+            }
+            const exported = window.exportFilteredAttendanceWorkbook(secName, subjName, {
+                label: academicPeriod.label,
+                academic: academicPeriod,
+                isMatch: date => date >= academicPeriod.start && date <= academicPeriod.end
+            });
+            if (exported) window.closeAttendanceExportModal();
+            return;
+        }
 
         const students = (studentsBySection[secName] || [])
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -3860,7 +3878,7 @@ function initTeacherPortal() {
             const sheetData = [];
             sheetData.push(["INTERFACE COMPUTER COLLEGE"]);
             sheetData.push([`ATTENDANCE REGISTER - ${subjName.toUpperCase()} (${secName})`]);
-            sheetData.push([`Period: ${periodLabel} | School Year: 2026-2027`]);
+            sheetData.push([`Period: ${periodLabel}`]);
             sheetData.push([]); // Empty row
 
             // Column headers
@@ -4021,7 +4039,7 @@ function initTeacherPortal() {
                     }
                 }
 
-                window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel);
+                window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel, window.getAttendanceAcademicContext?.(datesToExport));
                 return { ws, sheetData };
             }
 
@@ -5467,6 +5485,13 @@ function initTeacherPortal() {
         });
     }
 
+    function isAdvisoryGradeReview() {
+        if (!/^#grades:gradebook:share-record$/.test(window.location.hash)) return false;
+        if (window.sigmaGradesState?.recordMode === 'review' || history.state?.recordMode === 'review') return true;
+        try { return JSON.parse(sessionStorage.getItem('sigma-share-record-route-v1') || 'null')?.recordMode === 'review'; }
+        catch (_) { return false; }
+    }
+
     function syncSectionsNavState(showChildren = sectionsSubmenuOpen) {
         const parent = document.getElementById('nav-classes');
         const submenu = ensureSectionsSubmenu();
@@ -5475,7 +5500,8 @@ function initTeacherPortal() {
         const isCollapsed = document.body.classList.contains('sidebar-collapsed') && window.innerWidth >= 1024;
         const isDetailVisible = !document.getElementById('section-classroom-detail')?.classList.contains('hidden');
 
-        const isGradebookVisible = !document.getElementById('section-grades')?.classList.contains('hidden') && window.sigmaGradesState?.activeTab === 'gradebook';
+        const reviewingGrades = isAdvisoryGradeReview();
+        const isGradebookVisible = !reviewingGrades && !document.getElementById('section-grades')?.classList.contains('hidden') && window.sigmaGradesState?.activeTab === 'gradebook';
         if (isGradebookVisible) {
             const selected = window.sigmaGradesState.selectedSubjectSection || {};
             const section = window.sigmaGradesState.selectedSection || selected.sectionName;
@@ -5486,7 +5512,8 @@ function initTeacherPortal() {
             }
             document.getElementById('nav-grades')?.classList.remove('active');
         }
-        parent.classList.toggle('active', isGradebookVisible || (isDetailVisible && Boolean(currentClassroomKey)));
+        parent.classList.toggle('active', !reviewingGrades && (isGradebookVisible || (isDetailVisible && Boolean(currentClassroomKey))));
+        if (reviewingGrades) document.getElementById('nav-grades')?.classList.add('active');
         const isShow = showChildren && !isCollapsed;
         parent.classList.toggle('open', isShow);
         parent.setAttribute('aria-expanded', isShow ? 'true' : 'false');
@@ -5501,7 +5528,7 @@ function initTeacherPortal() {
     }
 
     function renderClassroomSectionsSidebar(activeClassName = '', activeSubject = '', showCollapsedOverlay = false) {
-        if (window.sigmaGradesState?.activeTab === 'gradebook' && !document.getElementById('section-grades')?.classList.contains('hidden')) {
+        if (!isAdvisoryGradeReview() && window.sigmaGradesState?.activeTab === 'gradebook' && !document.getElementById('section-grades')?.classList.contains('hidden')) {
             activeClassName = window.sigmaGradesState.selectedSection || window.sigmaGradesState.selectedSubjectSection?.sectionName || activeClassName;
             activeSubject = window.sigmaGradesState.selectedSubject || window.sigmaGradesState.selectedSubjectSection?.subject || activeSubject;
             if (activeClassName && activeSubject) {
@@ -16309,13 +16336,14 @@ function initTeacherPortal() {
         if (!window._topicReleaseCollapsedState) window._topicReleaseCollapsedState = {};
         if (isCollapsed) {
             bodyEl.classList.remove('hidden');
-            if (chevronEl) chevronEl.style.transform = 'rotate(0deg)';
+            if (chevronEl) chevronEl.style.transform = 'rotate(180deg)';
             window._topicReleaseCollapsedState[topicSafeId] = false;
         } else {
             bodyEl.classList.add('hidden');
-            if (chevronEl) chevronEl.style.transform = 'rotate(-90deg)';
+            if (chevronEl) chevronEl.style.transform = 'rotate(0deg)';
             window._topicReleaseCollapsedState[topicSafeId] = true;
         }
+        chevronEl?.closest('button')?.setAttribute('aria-expanded', String(isCollapsed));
     };
 
     window.toggleReleaseDivisionCollapse = function (divisionSafeId, e) {
@@ -16668,7 +16696,7 @@ function initTeacherPortal() {
 
                                         <!-- Chevron Dropdown Icon -->
                                         <div class="w-6 h-6 flex items-center justify-center text-black pointer-events-none">
-                                            <i id="topic-chevron-${topicSafeId}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200" style="transform: ${isTopicExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'};"></i>
+                                            <i id="topic-chevron-${topicSafeId}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200" style="transform: ${isTopicExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -16848,7 +16876,6 @@ function initTeacherPortal() {
                 <div class="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between shrink-0 font-['Inter']">
                     <div>
                         <h2 class="text-lg sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Release Topics & Materials</h2>
-                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Manage topic, learning material, and assessment visibility and release schedule for students</p>
                     </div>
                 </div>
 
@@ -19413,7 +19440,7 @@ function initTeacherPortal() {
                     if (context?.subject && context?.section) window._classroomGradebookContext = context;
                 } catch (_) { /* Ignore invalid stored classroom context. */ }
             }
-            const classroomGradebook = targetSubTab === 'gradebook';
+            const classroomGradebook = targetSubTab === 'gradebook' && !isAdvisoryGradeReview();
             if (classroomGradebook) {
                 document.getElementById('nav-grades')?.classList.remove('active');
                 document.getElementById('nav-classes')?.classList.add('active');
@@ -19458,7 +19485,7 @@ function initTeacherPortal() {
             'nav-dashboard': 'Interface Computer College',
             'nav-classes': 'My Classes',
             'nav-assessments': 'Interface Computer College',
-            'nav-grades': window.sigmaGradesState?.activeTab === 'gradebook' ? 'My Classes' : 'Grades',
+            'nav-grades': window.sigmaGradesState?.activeTab === 'gradebook' && !isAdvisoryGradeReview() ? 'My Classes' : 'Grades',
             'nav-resources': 'Resources',
             'nav-settings': 'Settings',
             'nav-attendance': 'Calendar',
@@ -19468,7 +19495,11 @@ function initTeacherPortal() {
         if (typeof window.setNavContext === 'function') {
             const grades = window.sigmaGradesState;
             const subject = grades?.selectedSubjectSection?.subject;
-            if (navId === 'nav-grades' && grades?.activeTab === 'analytics' && grades.teacherAnalyticsDetail && subject) {
+            if (navId === 'nav-grades' && isAdvisoryGradeReview()) {
+                window.setNavContext('Advisory Class', 'Review Grades');
+            } else if (navId === 'nav-grades' && grades?.activeTab === 'gradebook') {
+                window.setNavContext('My Classes', subject || window._classroomGradebookContext?.subject || 'Classrooms');
+            } else if (navId === 'nav-grades' && grades?.activeTab === 'analytics' && grades.teacherAnalyticsDetail && subject) {
                 window.setNavContext('Grades', subject);
             } else if (navId === 'nav-grades' && grades?.activeTab === 'analytics' && grades.teacherAdvisoryView) {
                 window.setNavContext('Grades', 'Advisory Class');
@@ -20019,8 +20050,10 @@ function initTeacherPortal() {
                 const grid = document.getElementById('classrooms-grid');
                 const detailView = document.getElementById('classroom-detail-view');
                 if (detailView && !detailView.classList.contains('hidden')) {
-                    grid.classList.remove('hidden');
-                    grid.style.setProperty('display', 'grid', 'important');
+                    if (grid) {
+                        grid.classList.remove('hidden');
+                        grid.style.setProperty('display', 'grid', 'important');
+                    }
                     detailView.classList.add('hidden');
                     detailView.style.setProperty('display', 'none', 'important');
                     setClassroomDetailHeader({ showDetail: false });
@@ -21532,6 +21565,8 @@ function initTeacherPortal() {
 
         const subjectName = subject || 'Subject Grades';
         const sectionName = section || 'Grade 11 - Section';
+        const reportQuarters = [...new Set((window.getSubjectAvailableQuarters?.(subjectName) || [1, 2]).map(q => Number(String(q).replace(/^q/i, ''))))].filter(q => q >= 1 && q <= 4).sort();
+        const quarterNames = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter'];
 
         // 1. Instant non-blocking student resolution
         let students = [];
@@ -21575,26 +21610,28 @@ function initTeacherPortal() {
             const sId = std.id || std.uid || std.lrn || `STD-${idx + 1}`;
             const sName = std.name || `${std.firstName || ''} ${std.lastName || ''}`.trim() || 'Student';
 
-            // Resolve quarter values from student record or calculations
-            let q1Val = typeof std.q1 === 'number' ? std.q1 : (std.term1Val || std.q1Val || null);
-            let q2Val = typeof std.q2 === 'number' ? std.q2 : (std.term2Val || std.q2Val || null);
-            let q3Val = typeof std.q3 === 'number' ? std.q3 : (std.term3Val || std.q3Val || null);
-            let q4Val = typeof std.q4 === 'number' ? std.q4 : (std.term4Val || std.q4Val || null);
-            let overallVal = typeof std.overall === 'number' ? std.overall : (std.overallVal || std.finalGrade || null);
+            // Official report grades use the same published record as student and admin views.
+            const q1Val = window.getPublishedSubjectGrade?.(std, subjectName, sectionName, 1) ?? null;
+            const q2Val = window.getPublishedSubjectGrade?.(std, subjectName, sectionName, 2) ?? null;
+            const q3Val = window.getPublishedSubjectGrade?.(std, subjectName, sectionName, 3) ?? null;
+            const q4Val = window.getPublishedSubjectGrade?.(std, subjectName, sectionName, 4) ?? null;
+            const overallVal = null;
 
-            const validQs = [q1Val, q2Val, q3Val, q4Val]
+            const quarterValues = [q1Val, q2Val, q3Val, q4Val];
+            const validQs = reportQuarters.map(q => quarterValues[q - 1])
                 .map(v => (typeof v === 'number' ? v : parseFloat(v)))
                 .filter(v => !isNaN(v) && v > 0);
 
             let finalNum = null;
             if (typeof overallVal === 'number' && !isNaN(overallVal) && overallVal > 0) {
                 finalNum = overallVal;
-            } else if (validQs.length > 0) {
+            } else if (validQs.length === reportQuarters.length) {
                 finalNum = validQs.reduce((a, b) => a + b, 0) / validQs.length;
             }
 
             return {
                 rawStudent: std,
+                quarterValues,
                 id: sId,
                 name: sName,
                 q1: fmtScore(q1Val),
@@ -21639,7 +21676,7 @@ function initTeacherPortal() {
                     <div class="flex items-center gap-2 min-w-0">
                         <button type="button" class="teacher-grades-modal-back" aria-label="Back" title="Back" onclick="window.closeTeacherClassroomGradesModal()"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
                         <div class="min-w-0">
-                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Grades</h2>
+                        <h2 class="text-base sm:text-xl font-bold text-black font-['Inter'] tracking-tight truncate">Reports</h2>
                         </div>
                     </div>
                 </div>
@@ -21662,15 +21699,12 @@ function initTeacherPortal() {
                     <!-- Students Grades Table -->
                     <div class="teacher-grades-modal-table border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-xs">
+                            <table class="w-full text-left border-collapse text-xs" style="--report-grade-columns:${reportQuarters.length + 1}">
                                 <thead>
                                     <tr class="bg-[#15803d] text-white select-none">
                                         <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">1st<br>Quarter</span><span class="teacher-quarter-short">Q1</span></th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">2nd<br>Quarter</span><span class="teacher-quarter-short">Q2</span></th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">3rd<br>Quarter</span><span class="teacher-quarter-short">Q3</span></th>
-                                        <th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;"><span class="teacher-quarter-full">4th<br>Quarter</span><span class="teacher-quarter-short">Q4</span></th>
-                                        <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white tracking-normal text-center w-16 sm:w-24 text-[11px] sm:text-xs" style="border-right: none !important;"><span class="teacher-quarter-full">Final<br>Quarter</span><span class="teacher-quarter-short">Final</span></th>
+                                        ${reportQuarters.map(q => `<th class="px-2 sm:px-3 py-2 sm:py-3 font-semibold text-white text-center w-14 sm:w-20 border-r border-[#166534] text-[11px] sm:text-xs"><span class="teacher-quarter-full">${quarterNames[q - 1]}</span><span class="teacher-quarter-short">Q${q}</span></th>`).join('')}
+                                        <th class="px-2.5 sm:px-3 py-2 sm:py-3 font-semibold text-white text-center w-16 sm:w-24 text-[11px] sm:text-xs"><span class="teacher-quarter-full">${window.getGradeSemesterLabel(reportQuarters)}</span><span class="teacher-quarter-short">${window.getGradeSemesterLabel(reportQuarters, true)}</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="teacher-grades-modal-tbody" class="divide-y divide-slate-100">
@@ -21694,10 +21728,7 @@ function initTeacherPortal() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q1}</td>
-                                            <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q2}</td>
-                                            <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q3}</td>
-                                            <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std.q4}</td>
+                                            ${reportQuarters.map(q => `<td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-medium text-[11.5px] sm:text-xs">${std[`q${q}`]}</td>`).join('')}
                                             <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-black gb-summary-green border-l border-slate-200 text-[11.5px] sm:text-xs" style="border-left: 1px solid #e2e8f0 !important;">${std.overall}</td>
                                         </tr>
                                     `}).join('')}
@@ -21733,6 +21764,12 @@ function initTeacherPortal() {
             if (e.target === overlay) window.closeTeacherClassroomGradesModal();
         });
 
+        overlay.refreshPublishedReport = () => {
+            const scroll = overlay.querySelector('.teacher-grades-modal-body').scrollTop;
+            window.openTeacherClassroomGradesModal(classroomId);
+            const next = document.getElementById('teacher-classroom-grades-modal-overlay');
+            if (next) next.querySelector('.teacher-grades-modal-body').scrollTop = scroll;
+        };
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
         const viewport = window.visualViewport;
@@ -21750,6 +21787,12 @@ function initTeacherPortal() {
             window.removeEventListener('resize', syncViewport);
         };
     };
+
+    const refreshPublishedTeacherReport = () => document.getElementById('teacher-classroom-grades-modal-overlay')?.refreshPublishedReport?.();
+    window.addEventListener('sigma:grades-published', refreshPublishedTeacherReport);
+    window.addEventListener('storage', event => {
+        if (['sigma-published-quarter-grades-v1', 'sigma-admin-sections', 'sigma-sections-list', 'sigma-school-years'].includes(event.key)) refreshPublishedTeacherReport();
+    });
 
     window.closeTeacherClassroomGradesModal = function () {
         const overlay = document.getElementById('teacher-classroom-grades-modal-overlay');
@@ -28124,24 +28167,14 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
     }
 
     function addAiMessage(content, isUser = false) {
-        const msg = document.createElement('div');
+        if (!sigmaAiMessages) return;
+        const msg = window.renderSigmaChatMessage({ role: isUser ? 'user' : 'assistant', text: '', stamp: getSigmaAiTimestamp() });
+        msg.querySelector('.sigma-ai-message__bubble').innerHTML = content;
         if (!isUser && content === WELCOME_MSG) msg.dataset.sigmaGreeting = 'true';
-        msg.className = `sigma-ai-message ${isUser ? 'sigma-ai-message--user' : 'sigma-ai-message--assistant'}`;
-        const stamp = getSigmaAiTimestamp();
-        msg.innerHTML = `
-            <div class="sigma-ai-message__meta">${stamp}</div>
-            <div class="sigma-ai-message__row">
-                ${!isUser ? `<div class="sigma-ai-message__icon"><i class="fa-solid fa-bolt"></i></div>` : ''}
-                <div class="sigma-ai-message__bubble ${isUser ? 'sigma-ai-message__bubble--user' : 'sigma-ai-message__bubble--assistant'}">${content}</div>
-            </div>
-        `;
-        if (sigmaAiMessages) {
-            sigmaAiMessages.appendChild(msg);
-            sigmaAiMessages.scrollTop = sigmaAiMessages.scrollHeight;
-        }
+        sigmaAiMessages.appendChild(msg);
+        sigmaAiMessages.scrollTop = sigmaAiMessages.scrollHeight;
         return msg;
     }
-
     function setSigmaAiWaiting(waiting) {
         sigmaAiWaiting = waiting;
         if (sigmaAiSendBtn) {

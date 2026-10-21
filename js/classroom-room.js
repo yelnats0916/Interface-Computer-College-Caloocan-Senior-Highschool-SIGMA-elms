@@ -614,7 +614,7 @@
                                     onclick="window.openTeacherClassroomGradesModal ? window.openTeacherClassroomGradesModal() : (window.openTeacherClassroomGradebook ? window.openTeacherClassroomGradebook() : (window.switchTab && window.switchTab('nav-grades'))); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
                                     class="classroom-settings-item classroom-settings-grades-btn items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
                                     <i class="fa-solid fa-chart-simple text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
-                                    <span class="text-black text-xs">View Grades</span>
+                                    <span class="text-black text-xs">View Reports</span>
                                 </button>
 
                                 <!-- Customize Banner Button -->
@@ -668,7 +668,7 @@
                                 onclick="window.openStudentClassroomGradesModal && window.openStudentClassroomGradesModal(); window.closeClassroomSettingsMenu && window.closeClassroomSettingsMenu();"
                                 class="classroom-settings-item classroom-settings-grades-btn items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors w-full text-left text-xs font-semibold text-black cursor-pointer whitespace-nowrap">
                                 <i class="fa-solid fa-chart-simple text-black text-xs w-4 text-center" style="color:#000000 !important;"></i>
-                                <span class="text-black text-xs">View Grades</span>
+                                <span class="text-black text-xs">View Reports</span>
                             </button>
                         </div>
                     </div>
@@ -2116,7 +2116,11 @@
             }
         }
 
+        const calendar = window.getActiveSchoolYearRecord?.();
+        const calendarQuarter = calendar && [1, 2, 3, 4].find(quarter =>
+            calendar[`q${quarter}Start`] && calendar[`q${quarter}End`] && dateString >= calendar[`q${quarter}Start`] && dateString <= calendar[`q${quarter}End`]);
         const recordEntry = {
+            ...(calendarQuarter ? { schoolYearId: calendar.id, schoolYear: `${calendar.yearStart}-${calendar.yearEnd}`, quarter: calendarQuarter, semester: calendarQuarter <= 2 ? 1 : 2 } : {}),
             updatedAt: updatedAt,
             statuses: { ...statuses },
             excuses: { ...excuses },
@@ -2203,7 +2207,7 @@
             });
         }
 
-        if (markedCount === 0 && enrolled > 0) {
+        if (markedCount === 0 || enrolled === 0) {
             if (typeof window.showToastNotification === 'function') {
                 window.showToastNotification('Please record at least one student before submitting attendance.', 'warning');
             }
@@ -2237,6 +2241,28 @@
         }
     };
 
+    window.viewDailyAttendance = function(dateString) {
+        const students = getAttendanceStudents(getActiveRoomSectionName(), getActiveRoomSubjectName()) || [];
+        const statuses = getCurrentAttendanceStatuses(dateString);
+        const calendar = window.getActiveSchoolYearRecord?.();
+        const quarter = calendar && [1,2,3,4].find(q => calendar[`q${q}Start`] && calendar[`q${q}End`] && dateString >= calendar[`q${q}Start`] && dateString <= calendar[`q${q}End`]);
+        document.getElementById('attendance-record-dialog')?.remove();
+        const dialog = document.createElement('dialog');
+        dialog.id = 'attendance-record-dialog';
+        const date = new Date(`${dateString}T00:00:00`).toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
+        dialog.innerHTML = `<header><div><h2>Attendance Record</h2><p>${escapeHtml(date)}${quarter ? ` · <span class="attendance-record-quarter-full">${['1st','2nd','3rd','4th'][quarter - 1]} Quarter</span><span class="attendance-record-quarter-short">Q${quarter}</span>` : ''}${calendar ? ` · S.Y. ${escapeHtml(`${calendar.yearStart}-${calendar.yearEnd}`)}` : ''}</p></div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" data-close aria-label="Close attendance record"><span class="attendance-record-close-label">Close</span><i class="fa-solid fa-xmark attendance-record-close-icon" aria-hidden="true"></i></button></header><div class="attendance-record-table"><table><thead><tr><th>No.</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${students.map((student,index) => {
+            const name = student.fullName || student.name || [student.firstName,student.lastName].filter(Boolean).join(' ');
+            const key = Object.keys(statuses).find(key => (student.id && String(key) === String(student.id)) || studentNamesMatch(key,name));
+            const status = statuses[student.id] || statuses[name] || statuses[key] || '';
+            const label = {P:'Present',A:'Absent',L:'Late',E:'Excused'}[status] || 'Unmarked';
+            return `<tr><td>${index+1}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
+        }).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div>`;
+        dialog.querySelector('[data-close]').onclick = () => dialog.close();
+        dialog.addEventListener('click', event => { if (event.target === dialog) { const rect=dialog.getBoundingClientRect(); if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close(); } });
+        dialog.addEventListener('close', () => dialog.remove());
+        document.body.append(dialog);
+        dialog.showModal();
+    };
     window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
 
     window.enableDailyAttendanceEdit = function (dateString) {
@@ -2751,6 +2777,7 @@
                 </p>
             `;
             actionButtonHtml = `
+                <button type="button" class="attendance-action-btn attendance-action-btn--view" onclick="window.viewDailyAttendance('${activeLocalDateStr}')" title="View submitted attendance"><span>View</span></button>
                 <button type="button" class="attendance-action-btn attendance-action-btn--edit" onclick="window.enableDailyAttendanceEdit('${activeLocalDateStr}')" title="Edit this day's attendance">
                     <span>Edit</span>
                 </button>
@@ -2787,7 +2814,7 @@
                 `;
             }
             actionButtonHtml = `
-                <button type="button" class="attendance-action-btn attendance-action-btn--submit" onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
+                <button type="button" class="attendance-action-btn attendance-action-btn--submit" ${totalRecorded === 0 || totalEnrolled === 0 ? 'disabled aria-disabled="true" style="opacity:.5;cursor:not-allowed"' : ''} onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
                     <span>Submit</span>
                 </button>
             `;
@@ -2821,9 +2848,10 @@
                 </div>
 
                 <div class="attendance-grid-container">
-                    <table class="attendance-month-table font-['Inter'] text-black">
+                    <table class="attendance-month-table attendance-numbered-table font-['Inter'] text-black">
                         <thead>
                             <tr>
+                                <th class="attendance-roster-number" scope="col">No.</th>
                                 <th class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}" onclick="window.toggleAttendanceStudentCol(event)" style="cursor: pointer;" title="${isAttendanceStudentColExpanded ? 'Collapse Present, Absent, Late columns' : 'Expand to see Present, Absent, Late summary columns'}">
                                     <div class="attendance-th-students-inner flex items-center justify-between gap-1 h-full w-full select-none cursor-pointer">
                                         <span class="attendance-th-title" style="font-size: clamp(11px, 2.8vw, 13.5px); white-space: nowrap;">Students</span>
@@ -2863,7 +2891,7 @@
         if (students.length === 0) {
             html += `
                 <tr>
-                    <td colspan="${daysInMonth + 1 + BLANK_ATTENDANCE_COLS_COUNT + (isAttendanceStudentColExpanded ? 3 : 0)}" class="py-16 text-center text-slate-500">
+                    <td colspan="${daysInMonth + 2 + BLANK_ATTENDANCE_COLS_COUNT + (isAttendanceStudentColExpanded ? 3 : 0)}" class="py-16 text-center text-slate-500">
                         <div class="flex flex-col items-center justify-center gap-2">
                             <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                 <i class="fa-solid fa-user-slash text-base"></i>
@@ -2875,7 +2903,7 @@
                 </tr>
             `;
         } else {
-            students.forEach(student => {
+            students.forEach((student, rosterIndex) => {
                 let displayName = student.name || student.displayName || student.fullName || '';
                 const sPhoto = (typeof window.resolveUserAvatar === 'function')
                     ? window.resolveUserAvatar(student)
@@ -2888,12 +2916,13 @@
 
                 html += `
                     <tr>
+                        <td class="attendance-roster-number">${rosterIndex + 1}</td>
                         <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
+                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${rosterIndex + 1}. </span>${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -3574,6 +3603,7 @@
                                         <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed font-['Inter'] font-normal">Exports only dates in ${currentMonthName} that have at least 1 student attendance entry. Completely blank day columns are omitted.</p>
                                     </div>
                                 </label>
+                                ${window.attendanceAcademicExportOptions?.(getActiveRoomSectionName(), getActiveRoomSubjectName()) || ""}
                                 <label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" id="export-option-all-label">
                                     <input type="radio" name="attendance-export-scope" value="all" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" onchange="window.updateAttendanceExportOptionUI()" />
                                     <div class="flex-1 min-w-0">
@@ -3629,7 +3659,7 @@
         document.documentElement.classList.remove('has-modal-open');
     };
 
-    function buildAttendanceWorksheet(datesToExport, periodLabel, students, subjName, secName, statusesForDate = getCurrentAttendanceStatuses) {
+    function buildAttendanceWorksheet(datesToExport, periodLabel, students, subjName, secName, statusesForDate = getCurrentAttendanceStatuses, academicContext = null) {
         if (!datesToExport || datesToExport.length === 0) {
             return { ws: null, sheetData: [] };
         }
@@ -3637,7 +3667,7 @@
         const sheetData = [];
         sheetData.push(["INTERFACE COMPUTER COLLEGE"]);
         sheetData.push([`ATTENDANCE REGISTER - ${String(subjName || 'SUBJECT').toUpperCase()} (${secName || 'SECTION'})`]);
-        sheetData.push([`Period: ${periodLabel} | School Year: 2026-2027`]);
+        sheetData.push([`Period: ${periodLabel}`]);
         sheetData.push([]);
 
         const headerRow = ["No.", "Students", "Student ID"];
@@ -3779,7 +3809,7 @@
                 }
             }
 
-            window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel);
+            window.styleAttendanceExcelHeading?.(ws, XLSX, subjName, secName, periodLabel, academicContext || window.getAttendanceAcademicContext?.(datesToExport));
             return { ws, sheetData };
         }
 
@@ -3799,11 +3829,14 @@
         const workbook = XLSX.utils.book_new();
         for (const month of [...new Set(dates.map(date => date.slice(0, 7)))]) {
             const columns = dates.filter(date => date.startsWith(month)).map(date => ({ dateStr: date, label: date.slice(5).replace('-', '/'), dayNum: Number(date.slice(8)) }));
-            const { ws } = buildAttendanceWorksheet(columns, config.label + ' · ' + columns[0].dateStr + ' to ' + columns[columns.length - 1].dateStr, students, subject, section, getStatuses);
+            const rangeStart = config.academic?.start || columns[0].dateStr;
+            const rangeEnd = config.academic?.end || columns[columns.length - 1].dateStr;
+            const { ws } = buildAttendanceWorksheet(columns, config.label + ' · ' + rangeStart + ' to ' + rangeEnd, students, subject, section, getStatuses, config.academic);
             XLSX.utils.book_append_sheet(workbook, ws, month);
         }
         const safe = value => String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
         XLSX.writeFile(workbook, `Attendance_${safe(subject)}_${safe(section)}_${safe(config.label)}.xlsx`);
+        return true;
     };
 
     window.executeAttendanceExport = function () {
@@ -3812,6 +3845,20 @@
         const currentMonthName = monthNames[attendanceViewingMonth];
         const secName = getActiveRoomSectionName();
         const subjName = getActiveRoomSubjectName();
+        const academicPeriod = window.getAttendanceAcademicPeriods?.().find(period => period.key === scope);
+        if (academicPeriod) {
+            if (!window.isAttendanceAcademicPeriodReady?.(academicPeriod, secName, subjName)) {
+                window.showToastNotification?.('This period is locked. Configure its dates and record attendance before exporting.', 'warning');
+                return;
+            }
+            const exported = window.exportFilteredAttendanceWorkbook(secName, subjName, {
+                label: academicPeriod.label,
+                academic: academicPeriod,
+                isMatch: date => date >= academicPeriod.start && date <= academicPeriod.end
+            });
+            if (exported) window.closeAttendanceExportModal();
+            return;
+        }
 
         const rawStudents = getAttendanceStudents(secName, subjName);
         const students = (Array.isArray(rawStudents) ? rawStudents.slice() : [])

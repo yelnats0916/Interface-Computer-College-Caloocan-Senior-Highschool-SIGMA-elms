@@ -71,9 +71,13 @@
     white-space:nowrap;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-button{
-    width:100%;
     min-width:100px;
-    height:48px;
+    height:46px!important;
+    min-height:46px!important;
+    padding:0 24px!important;
+    border-radius:12px!important;
+    font-size:14px!important;
+    font-weight:600!important;
     white-space:nowrap;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-select-wrap>.sigma-select-icon{
@@ -104,7 +108,11 @@
     margin-left:auto;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-directory,
-:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-page{min-height:calc(100vh - 230px)}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-page{
+    min-height:calc(100vh - 230px);
+    padding: 24px;
+    background: #f8fafc;
+}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-directory>h2,
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-page-identity h2{
     margin:0;
@@ -392,13 +400,18 @@
 .is-hidden-insight>.sigma-card--insight,.is-hidden-insight>.insight-user-panel{opacity:.6}
 .insight-selection-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:8px;border-top:1px solid rgba(187,247,208,.6)}
 .insight-selection-footer .insight-user-panel-date{margin:0;padding:0;border:0}
+.insight-selection-footer .sigma-ai-generation-time{margin:0!important;padding:0!important;border:0!important;min-width:0}
+.insight-selection-footer .insight-selection{margin:0;flex-shrink:0}
+.insight-current-view-label{margin:0 0 12px;color:rgba(0,0,0,.45);font:500 11px/1.5 Inter,sans-serif}
+#ai-insights-view #ai-generates-user-insights .insight-user-profile-role{margin-left:auto;align-self:center}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main > .insight-user-page-header{flex-direction:row;align-items:center;flex-wrap:wrap}
 .sigma-card-date.has-insight-selection{display:flex;align-items:center;justify-content:space-between;gap:8px}
 @media(max-width:760px){.insight-management{margin-left:0;justify-content:flex-start}}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-profile-avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border-radius:50%;overflow:hidden;background:#f1f5f9}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-page-identity p{margin:4px 0 0;color:rgba(0,0,0,.45);font-family:'Inter',sans-serif;font-size:13px;font-weight:500}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-detail-layout{
     display:grid;
-    grid-template-columns:minmax(280px,360px) minmax(0,1fr);
+    grid-template-columns: 297px minmax(0,1fr);
     align-items:start;
     gap:24px;
 }
@@ -408,9 +421,10 @@
     max-height:calc(100dvh - var(--header-total-height,82px) - 32px);
     display:flex;
     flex-direction:column;
-    min-width:0;
-    padding-right:20px;
-    border-right:1px solid #e2e8f0;
+    width: 297px;
+    min-width: 297px;
+    padding-right:16px; /* Sync with .sigma-analytics-rail */
+    border-right: none;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-header{
     display:flex;
@@ -418,11 +432,19 @@
     justify-content:space-between;
     flex-wrap:wrap;
     gap:10px;
-    margin-bottom:14px;
+    padding: 0 4px 6px 4px; /* Sync with .sigma-rail-header */
+    margin-bottom: 4px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-header h3,
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-category-header>h3,
-:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-category>h3{margin:0;color:#000;font-family:'Inter',sans-serif;font-size:16px;font-weight:800}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-category>h3{
+    margin:0;
+    color:#000;
+    font-family: inherit;
+    font-size: 15px !important; /* Sync with .sigma-rail-header__title */
+    font-weight: 800 !important;
+}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-refresh{
     display:inline-flex;
     align-items:center;
@@ -436,11 +458,23 @@
     cursor:pointer;
 }
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-refresh:hover{background:#f0fdf4}
-:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards{display:grid;gap:12px}
-:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 4px 2px}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards{
+    display:flex;
+    flex-direction:column;
+    gap: 8px; /* Sync with var(--sigma-card-gap) */
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:2px 4px 4px 2px;
+}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-header{flex-shrink:0}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-rail-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;flex-shrink:0}
-:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards>.sigma-card--insight{width:100%;margin:0;cursor:pointer}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards>.sigma-card--insight{
+    width:100% !important;
+    height: 220px !important;
+    margin:0 !important;
+    cursor:pointer !important;
+}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail-cards>.sigma-card--insight:focus-within{outline:2px solid #15803d;outline-offset:3px}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-generated-card{
     overflow:hidden;
@@ -520,7 +554,7 @@
     background:#f1f5f9;
     border:1px solid #e2e8f0;
     color:#334155;
-    font-family:'Inter',sans-serif;
+    font-family: inherit;
     font-size:11px;
     font-weight:600;
 }
@@ -627,10 +661,10 @@
     :is(#ai-insight-report, #ai-generates-user-insights) .insight-user-insights-rail{position:static;max-height:none;padding:0 0 20px;border:0;border-bottom:1px solid #e2e8f0}
 }
 
-/* Match the compact AI Logs search field and icon actions. */
+/* Match the compact AI Logs / User Accounts search field and action button. */
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-filters{
-    grid-template-columns:minmax(220px,280px) 180px 126px;
-    gap:14px;
+    grid-template-columns:minmax(220px,280px) 180px minmax(100px,max-content);
+    gap:12px;
     justify-content:end;
     margin-left:auto;
     width:fit-content;
@@ -665,19 +699,35 @@
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-clear:focus-visible{outline:2px solid #15803d;outline-offset:2px}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-clear i{font-size:12px}
 :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-button{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:126px;
-    min-width:126px;
-    height:48px;
-    min-height:48px;
-    margin:0;
-    padding:0 20px;
-    border-radius:14px;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:auto!important;
+    min-width:100px!important;
+    height:46px!important;
+    min-height:46px!important;
+    margin:0!important;
+    padding:0 24px!important;
+    border-radius:12px!important;
+    font-family:'Inter',sans-serif!important;
+    font-size:14px!important;
+    font-weight:600!important;
+    background-color:#15803d!important;
+    color:#ffffff!important;
+    box-shadow:none!important;
+    border:none!important;
+    cursor:pointer!important;
+    transition:all 0.15s ease!important;
+}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-button:hover:not(:disabled){
+    background-color:#166534!important;
+    color:#ffffff!important;
+}
+:is(#ai-insight-report, #ai-generates-user-insights) .insight-report-search-button:active:not(:disabled){
+    transform:scale(0.98)!important;
 }
 @media (max-width:760px){
-    :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-filters{grid-template-columns:minmax(0,1fr) 140px 100px;justify-content:stretch;width:100%}
+    :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-filters{grid-template-columns:minmax(0,1fr) 140px minmax(100px,max-content);justify-content:stretch;width:100%}
 }
 @media (max-width:520px){
     :is(#ai-insight-report, #ai-generates-user-insights) .insight-report-filters{grid-template-columns:minmax(0,1fr)}
@@ -773,5 +823,293 @@
     color: #15803d;
     font-size: 11px;
     margin-right: 2px;
+}
+
+/* Admin Insights uses the same inset and rail geometry as the teacher page. */
+#ai-insights-view,
+#ai-insights-view > .flex.flex-col{
+    background:#f8fafc!important;
+}
+#ai-insights-view #ai-generates-user-insights{
+    background:transparent;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-panel{
+    background:#fff!important;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-panel-body{
+    background:#ecfdf5!important;
+}
+#ai-insights-view .insight-user-page-header{
+    padding:20px;
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+#ai-insights-view > .flex.flex-col > .px-10.py-6{padding:24px 32px!important}
+#ai-insights-view #ai-generates-user-insights > .insight-report-filters{margin-bottom:24px}
+#ai-insights-view #ai-generates-user-insights > .insight-generates-content > .insight-user-directory{
+    padding:0!important;
+    min-height:0;
+    background:transparent!important;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-results{margin-top:0}
+#ai-insights-view #ai-generates-user-insights .insight-user-result-card,
+#ai-insights-view #ai-generates-user-insights .insight-user-result-card *{text-transform:none!important}
+@media(max-width:640px){
+    #ai-insights-view > .flex.flex-col > .px-10.py-6{padding:20px 16px!important}
+}
+#ai-insights-view :is(.insight-user-directory,.insight-user-page){
+    padding:20px 1rem!important;
+    background:#f8fafc!important;
+}
+#ai-insights-view .insight-user-detail-layout{
+    grid-template-columns:297px minmax(0,1fr)!important;
+    gap:24px!important;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-page{
+    padding:0!important;
+    min-height:0;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-layout{
+    align-items:start;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    padding:24px;
+    gap:28px;
+    align-content:start;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main > .insight-user-page-header{
+    padding:0 0 20px;
+    margin:0;
+    min-height:0;
+    border:0;
+    border-bottom:1px solid #e2e8f0;
+    border-radius:0;
+    box-shadow:none;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-page-identity h2{
+    font-size:20px;
+    line-height:1.4;
+}
+@media(max-width:640px){
+    #ai-insights-view #ai-generates-user-insights .insight-user-detail-main{padding:16px;gap:24px}
+}
+#ai-insights-view .insight-user-insights-rail{
+    width:297px!important;
+    min-width:297px!important;
+    padding-right:0!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards{
+    width:297px;
+    max-width:100%;
+    box-sizing:border-box;
+    padding:0 6px 0 0;
+    gap:8px;
+    overflow-x:hidden;
+}
+#ai-insights-view .insight-user-insights-rail-header{
+    flex-wrap:wrap;
+    gap:8px;
+    padding-right:6px!important;
+}
+#ai-insights-view .insight-user-insights-rail-header .sigma-rail-header__title{white-space:nowrap}
+#ai-insights-view .insight-card-management{margin-left:auto;max-width:100%}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight{
+    display:flex!important;
+    flex-direction:column!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight .sigma-card-body{
+    padding:12px 16px 8px!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight .sigma-card-concern-text{
+    font-size:12px!important;
+    line-height:18px!important;
+    font-weight:400!important;
+    margin:0!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-insight-header{cursor:default!important}
+#ai-insights-view .insight-user-insights-rail-cards>.sigma-card--insight{
+    height:var(--sigma-card-height,220px)!important;
+    min-height:var(--sigma-card-height,220px)!important;
+    max-height:var(--sigma-card-height,220px)!important;
+    margin:0!important;
+}
+/* Cards are wrapped while editing, so constrain the wrapped card as well. */
+#ai-insights-view .insight-user-insights-rail-cards>.insight-managed-card>.sigma-card--insight{
+    height:var(--sigma-card-height,220px)!important;
+    min-height:var(--sigma-card-height,220px)!important;
+    max-height:var(--sigma-card-height,220px)!important;
+    overflow:hidden!important;
+    flex:0 0 var(--sigma-card-height,220px)!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards>.insight-managed-card{
+    height:220px!important;
+    min-height:220px!important;
+    max-height:220px!important;
+    overflow:visible!important;
+    flex:0 0 220px!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight .sigma-card-body,
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight .sigma-insight-preview{
+    min-height:0!important;
+    max-height:100%!important;
+    overflow:hidden!important;
+}
+#ai-insights-view .insight-user-insights-rail-cards .sigma-card--insight .sigma-card-concern-text{
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:var(--sigma-preview-lines,4)!important;
+    max-height:calc(var(--sigma-preview-lines,4) * 18px)!important;
+    overflow:hidden!important;
+}
+#ai-insights-view .insight-card-management .insight-card-edit-button{
+    width:auto!important;
+    height:30px!important;
+    padding:0 8px!important;
+    gap:6px;
+    border:1px solid #e2e8f0!important;
+    border-radius:8px!important;
+    color:#334155!important;
+    font-family:'Inter',sans-serif!important;
+    font-size:11px!important;
+    font-weight:600!important;
+    white-space:nowrap;
+}
+#ai-insights-view .insight-card-management .insight-card-edit-button:hover{
+    border-color:#15803d!important;
+    background:#f0fdf4!important;
+    color:#15803d!important;
+}
+#ai-insights-view .insight-card-management .insight-card-edit-button i{font-size:12px!important}
+/* Match the 36px teacher/student rail controls and the 6px + 4px header gap. */
+#ai-insights-view #ai-generates-user-insights .insight-user-insights-rail-header{
+    min-height:42px;
+    padding:0 4px 6px!important;
+    margin:0 0 4px!important;
+    box-sizing:border-box;
+}
+#ai-insights-view #ai-generates-user-insights .insight-card-management .insight-card-edit-button{
+    height:36px!important;
+    min-height:36px!important;
+}
+#ai-insights-view .insight-user-insights-rail-header>.sigma-analyze-button,
+#ai-insights-view .insight-user-insights-rail-header>.sigma-insight-mark-all,
+#ai-insights-view .insight-user-insights-rail-header>.sigma-insight-search-toggle{display:none!important}
+@media(max-width:760px){
+    #ai-insights-view .insight-user-detail-layout{grid-template-columns:minmax(0,1fr)!important}
+    #ai-insights-view .insight-user-insights-rail{width:100%!important;min-width:0!important;padding:0 0 20px!important}
+}
+
+/* Icon controls match the teacher rail's 36px control area. */
+#ai-insights-view #ai-generates-user-insights :is(.insight-card-edit-button,.insight-detail-edit-button){
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:36px!important;
+    min-width:36px!important;
+    height:36px!important;
+    min-height:36px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:50%!important;
+    background:transparent!important;
+    color:#000!important;
+    box-shadow:none!important;
+}
+#ai-insights-view #ai-generates-user-insights :is(.insight-card-edit-button,.insight-detail-edit-button) i{font-size:16px!important;color:#000!important}
+#ai-insights-view #ai-generates-user-insights :is(.insight-card-edit-button,.insight-detail-edit-button):hover{background:#f1f5f9!important;color:#000!important}
+/* The page scrolls normally; only the sticky left rail has an internal track. */
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main{
+    display:flex;
+    flex-direction:column;
+    padding:24px!important;
+    gap:24px;
+    scroll-padding-block:24px;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main > *{
+    flex:0 0 auto;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main > .insight-user-page-header{
+    position:static!important;
+    width:auto!important;
+    height:auto!important;
+    padding:0 0 20px!important;
+    margin:0!important;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-profile{
+    padding:0;
+    gap:14px;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-page-identity :is(h2,p){
+    margin:0;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-page-identity p{margin-top:6px}
+#ai-insights-view #ai-generates-user-insights .insight-user-category-header{
+    min-height:46px;
+    padding-bottom:12px;
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-panel-grid{
+    margin-top:16px;
+    gap:16px;
+}
+@media(max-width:640px){
+    #ai-insights-view #ai-generates-user-insights .insight-user-detail-main{padding:16px!important;gap:20px}
+}
+#ai-insights-view #ai-generates-user-insights .insight-user-detail-main{
+    border-radius:var(--welcome-panel-radius,22px);
+    border-color:var(--welcome-panel-border,#e2e8f0);
+    box-shadow:var(--sigma-card-shadow,0 1px 3px rgba(0,0,0,.05));
+    box-sizing:border-box;
+}
+@media(min-width:1024px){
+    #ai-insights-view:has(.insight-user-detail-layout) > .flex.flex-col > .px-10.py-6{
+        padding:24px 16px!important;
+    }
+    #ai-insights-view #ai-generates-user-insights .insight-user-detail-layout{
+        grid-template-columns:297px minmax(0,1fr)!important;
+        gap:clamp(1rem,1.5vw,2rem)!important;
+        width:100%;
+        box-sizing:border-box;
+    }
+}
+@media(min-width:761px){
+    #ai-insights-view:has(.insight-user-detail-layout) > .flex.flex-col{
+        min-height:0!important;
+    }
+    #ai-insights-view #ai-generates-user-insights .insight-user-detail-layout{
+        --insight-column-height:calc(100dvh - var(--admin-total-top-offset,82px) - 48px);
+        height:auto;
+        min-height:0;
+        align-items:start;
+    }
+    #ai-insights-view #ai-generates-user-insights .insight-user-insights-rail{
+        position:sticky!important;
+        top:calc(var(--admin-total-top-offset,82px) + 24px)!important;
+        height:var(--insight-column-height)!important;
+        max-height:var(--insight-column-height)!important;
+        min-height:0;
+        overflow:hidden;
+        align-self:start;
+    }
+    #ai-insights-view #ai-generates-user-insights .insight-user-insights-rail-cards{
+        flex:1 1 auto;
+        min-height:0;
+        overflow-y:auto;
+        overscroll-behavior-y:contain;
+        scrollbar-gutter:stable;
+    }
+    #ai-insights-view #ai-generates-user-insights .insight-user-detail-main{
+        height:auto;
+        min-height:0;
+        max-height:none;
+        overflow:visible;
+        overscroll-behavior-y:auto;
+        scrollbar-gutter:auto;
+    }
 }
 

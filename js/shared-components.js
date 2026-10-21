@@ -5647,6 +5647,10 @@ window.renderSharedTopicsPanelHtml = function (options = {}) {
     topics.forEach((topic, idx) => {
         const topicQuarter = (topic && topic.quarter) ? String(topic.quarter).toLowerCase() : (activeQuarters[0] || 'q1');
         if (topicQuarter !== currentQuarter) return;
+        if (isSpecific) {
+            const status = window.getStudentTopicReleaseStatus?.(subjectId, topic, idx, section, true);
+            if (status && (status.isLocked || status.isHidden || status.isUnreleased)) return;
+        }
         const topicId = topic && topic.id !== undefined && topic.id !== '' ? String(topic.id) : '';
         const title = topic && topic.title ? String(topic.title).trim() : '';
         const candidates = [topicId, title, title.toLowerCase()].filter(Boolean);
@@ -6689,6 +6693,25 @@ window.reopenGradedAssessment = function () {
         }
     });
 };
+window.isCalculatedQuizAssessment = function (item = {}) {
+    const source = item.rawItem || item;
+    return Boolean(source.quizId || source.selectedQuizId || source.hasAttachedQuiz || source.isDigitalQuiz
+        || (Array.isArray(source.questions) && source.questions.length)
+        || (Array.isArray(source.quizQuestions) && source.quizQuestions.length)
+        || String(source.fileType || source.fileExt || '').toLowerCase() === 'quiz');
+};
+window.isCalculatedQuizGradebookCell = function (cell) {
+    if (!cell?.dataset || cell.dataset.manual === '1' || cell.dataset.offline === '1') return false;
+    const data = cell.dataset;
+    const current = window.getCurrentTopicAssessment?.(data.subject, 'assessments', Number(data.topicItemIdx || data.itemIdx || 0), Number(data.topicIdx || 0));
+    if (current && (!data.itemId || [current.id, current.materialId].filter(Boolean).map(String).includes(String(data.itemId)))) {
+        if (window.isCalculatedQuizAssessment(current)) return true;
+    }
+    const details = window.getCategoryDetails?.(data.category, Number(data.quarter || 1), data.subject, data.section) || [];
+    const match = details.find(item => [item.id, item.materialId, item.rawItem?.id].filter(Boolean).map(String).includes(String(data.itemId)));
+    return window.isCalculatedQuizAssessment(match || {});
+};
+
 window.isStudentAssessmentClosed = function (subjectId, topicIdx, tab, activeIdx) {
     const student = window.getLoggedInStudentUser?.();
     const item = window.getCurrentTopicAssessment?.(subjectId, tab, activeIdx, topicIdx);
@@ -7737,7 +7760,7 @@ window.topicHasReleasedAssessment = function (subjectId, section, topic) {
     }
 };
 
-window.getStudentTopicReleaseStatus = function (subjectId, topic, index, customSection = '') {
+window.getStudentTopicReleaseStatus = function (subjectId, topic, index, customSection = '', staffView = false) {
     const section = (typeof window.resolveStudentReleaseSection === 'function')
         ? window.resolveStudentReleaseSection(customSection)
         : (customSection || '');
@@ -7773,7 +7796,7 @@ window.getStudentTopicReleaseStatus = function (subjectId, topic, index, customS
     }
 
     // Check if student is assigned to this topic
-    if (config.assignedStudents && typeof config.assignedStudents === 'object') {
+    if (!staffView && config.assignedStudents && typeof config.assignedStudents === 'object') {
         let assignedList = null;
         for (const cid of candidateIds) {
             if (config.assignedStudents[cid]) {
@@ -7952,7 +7975,7 @@ window.formatMaterialReleaseDate = function (item, subjectId, targetSection, fal
     return ownDate ? formatStamp(ownDate) : '';
 };
 
-window.getStudentLearningMaterialReleaseStatus = function (subjectId, item, topicIdx, index, itemType = 'lesson', customSection = '') {
+window.getStudentLearningMaterialReleaseStatus = function (subjectId, item, topicIdx, index, itemType = 'lesson', customSection = '', staffView = false) {
     const section = (typeof window.resolveStudentReleaseSection === 'function')
         ? window.resolveStudentReleaseSection(customSection)
         : (customSection || '');
@@ -7976,7 +7999,7 @@ window.getStudentLearningMaterialReleaseStatus = function (subjectId, item, topi
     }
 
     // Check if student is assigned to this material
-    if (config.assignedStudents) {
+    if (!staffView && config.assignedStudents) {
         const assignedList = config.assignedStudents[itemId]
             || (itemTitle && config.assignedStudents[itemTitle])
             || (itemTitle && config.assignedStudents[itemTitle.toLowerCase()])
@@ -8144,14 +8167,14 @@ window.getAssessmentReleaseConfig = function (subjectId, section) {
 window._studentAssessmentReleaseStatusCache = window._studentAssessmentReleaseStatusCache || new Map();
 window._studentAssessmentReleaseStatusCacheTime = window._studentAssessmentReleaseStatusCacheTime || 0;
 
-window.getStudentAssessmentReleaseStatus = function (subjectId, item, topicIdx, index, tab = 'assignments', customSection = '') {
+window.getStudentAssessmentReleaseStatus = function (subjectId, item, topicIdx, index, tab = 'assignments', customSection = '', staffView = false) {
     const givenSection = String(customSection || '').trim();
     const section = givenSection || ((typeof window.resolveStudentReleaseSection === 'function')
         ? window.resolveStudentReleaseSection('')
         : '');
 
     const itemId = item?.id || item?.quizId || item?.materialId || item?.origId || index;
-    const statusCacheKey = `${subjectId}_${itemId}_${topicIdx}_${index}_${tab}_${section}`;
+    const statusCacheKey = `${staffView ? 'staff' : 'student'}_${subjectId}_${itemId}_${topicIdx}_${index}_${tab}_${section}`;
     if (Date.now() - window._studentAssessmentReleaseStatusCacheTime > 2000) {
         window._studentAssessmentReleaseStatusCache.clear();
         window._studentAssessmentReleaseStatusCacheTime = Date.now();
@@ -8221,7 +8244,7 @@ window.getStudentAssessmentReleaseStatus = function (subjectId, item, topicIdx, 
     }
 
     // Check if student is assigned to this assessment
-    if (config.assignedStudents && typeof config.assignedStudents === 'object') {
+    if (!staffView && config.assignedStudents && typeof config.assignedStudents === 'object') {
         let assignedList = null;
         for (const id of idList) {
             if (config.assignedStudents[id]) {
@@ -8598,7 +8621,7 @@ window.renderSharedTopicCard = function (topic, index, subjectId, statusIconClas
 
     // Release Status for Student View & Teacher Badges
     const topicReleaseStatus = (typeof window.getStudentTopicReleaseStatus === 'function')
-        ? window.getStudentTopicReleaseStatus(subjectId, topic, actualIdx, section)
+        ? window.getStudentTopicReleaseStatus(subjectId, topic, actualIdx, section, isTeacher)
         : { isLocked: false, isPublished: true };
     const releaseStatus = (!isTeacher) ? topicReleaseStatus : { isLocked: false };
     const isLockedByTeacher = !isTeacher && releaseStatus.isLocked;
@@ -9106,6 +9129,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
         const isStudentGraded = Boolean(details.isGraded);
         const isStudentSubmitted = turnedInWork;
 
+        const calculatedQuizScore = window.isCalculatedQuizAssessment(currentItem || {}) || Boolean(subData?.quizId && (subData?.answers || subData?.userAnswers));
         const isQuizItem = Boolean(
             assCat === 'quiz' || tab === 'quiz' ||
             currentItem?.quizId || currentItem?.selectedQuizId || currentItem?.isQuiz || currentItem?.isScheduleQuiz ||
@@ -9316,13 +9340,14 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                 <span id="teacher-grading-score-draft" class="score-draft-flag" hidden>Unsaved</span>
                                 <button type="button" id="teacher-grading-score-edit"
                                     title="${scorePanelLocked ? (isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading') : 'Edit score'}"
+                                    ${calculatedQuizScore ? 'hidden' : ''}
                                     onclick="window.toggleTeacherScoreEditor?.()"
                                     ${scorePanelLocked ? 'disabled' : ''}
                                     data-selected="0"
                                     onmouseenter="if(!this.disabled && this.dataset.selected !== '1') this.style.backgroundColor='#e2e8f0';"
                                     onmouseleave="if(this.dataset.selected !== '1') this.style.backgroundColor='transparent';"
                                     class="w-6 h-6 sm:w-7 sm:h-7 inline-flex items-center justify-center rounded-md sm:rounded-lg text-black cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    style="background-color: transparent;">
+                                    style="background-color: transparent; ${calculatedQuizScore ? 'display:none!important;' : ''}">
                                     <i class="fa-solid ${scorePanelLocked ? 'fa-lock text-black-fade' : 'fa-pencil text-black'} text-[11px] sm:text-xs"></i>
                                 </button>
                                 <span id="teacher-grading-score-display" class="min-w-6 sm:min-w-8 text-center text-[11px] sm:text-xs font-bold text-black select-none">${(scoreDisplayVal !== '' && scoreDisplayVal !== null && scoreDisplayVal !== undefined) ? scoreDisplayVal : '—'}</span>
@@ -9336,6 +9361,8 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                                     data-manual-no-submission="${!isEmptySelection && window.resolveNoDeadlineAssessment(currentItem, subjectId, section, currentItem?.quarter || 1) ? '1' : '0'}"
                                     data-needs-quiz-review="0"
                                     data-is-quiz="${isQuizItem ? '1' : '0'}"
+                                    data-calculated-quiz="${calculatedQuizScore ? '1' : '0'}"
+                                    ${calculatedQuizScore ? 'readonly aria-readonly="true"' : ''}
                                     data-has-quiz-submission="${hasSubmittedQuiz ? '1' : '0'}"
                                     placeholder="-"
                                     ${scorePanelLocked ? `disabled title="${isQuizItem ? 'Locked: Student must submit the quiz first to unlock grading' : 'Locked: Student must submit coursework first to unlock grading'}"` : ''}
@@ -9419,7 +9446,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                     <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 text-[#15803d] flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                         <i class="fa-solid fa-paper-plane text-xs sm:text-sm text-[#15803d]"></i>
                     </div>
-                    <span class="text-xs sm:text-sm font-bold text-black group-hover:text-[#15803d] transition-colors whitespace-nowrap">Release</span>
+                    <span class="text-xs sm:text-sm font-bold text-black group-hover:text-[#15803d] transition-colors whitespace-nowrap">Release &amp; Schedule</span>
                 </button>
             </div>
         </div>
@@ -9529,6 +9556,76 @@ window.getTaskProgressColor = function (pct) {
 };
 
 // --- CANONICAL SHARED TASK PROGRESS PANEL ---
+window.getTaskProgressTextColor = function (pct) {
+    return Number(pct) > 0 ? '#ffffff' : '#000000';
+};
+
+window.getStudentTaskProgress = function (options = {}) {
+    const { subjectId = '', section = '', data = {}, topics = [], allTopics = [], topicIdx = 0 } = options;
+    const quarter = Number(String(options.currentQuarter || 'q1').replace(/^q/i, '')) || 1;
+    const student = options.studentUser || window.getLoggedInStudentUser?.();
+    const master = Array.isArray(data[`q${quarter}Topics`]) && data[`q${quarter}Topics`].length ? data[`q${quarter}Topics`]
+        : (Array.isArray(data.q1Topics) ? data.q1Topics : (Array.isArray(data.topics) ? data.topics : allTopics));
+    const source = Array.isArray(options.topics) ? topics : master;
+    const matches = (a, b) => a === b || (a?.id && b?.id && String(a.id) === String(b.id))
+        || (a?.title && b?.title && String(a.title).trim().toLowerCase() === String(b.title).trim().toLowerCase());
+    const result = { submitted: 0, total: 0, completedTopics: 0, totalTopics: 0, topicSubmitted: 0, topicTotal: 0, percent: 0, topicPercent: 0 };
+    const seenTopics = new Set();
+    source.forEach((topic, visibleIndex) => {
+        if (!topic || typeof topic !== 'object') return;
+        let masterIndex = master.findIndex(candidate => matches(candidate, topic));
+        if (masterIndex < 0) {
+            for (const candidates of [data.q1Topics, data.q2Topics, data.q3Topics, data.q4Topics, data.topics]) {
+                if (!Array.isArray(candidates)) continue;
+                masterIndex = candidates.findIndex(candidate => matches(candidate, topic));
+                if (masterIndex >= 0) break;
+            }
+        }
+        const index = masterIndex >= 0 ? masterIndex : visibleIndex;
+        const topicQuarter = Number(String(topic.quarter || topic.term || quarter).replace(/^q/i, ''));
+        if (topicQuarter !== quarter) return;
+        const key = String(topic.id || topic.title || index);
+        if (seenTopics.has(key)) return;
+        seenTopics.add(key);
+        const release = window.getStudentTopicReleaseStatus?.(subjectId, topic, index, section);
+        if (release && (release.isLocked || release.isHidden || release.isUnreleased)) return;
+        result.totalTopics++;
+        const defaults = ['assignments', 'quiz', 'activity', 'performance', 'assessments'].flatMap(key => Array.isArray(topic[key]) ? topic[key] : []);
+        const assessments = window.getUnifiedTopicAssessments?.('assessments', subjectId, index, defaults, section, topic) || defaults;
+        let total = 0, submitted = 0;
+        const seenAssessments = new Set();
+        assessments.forEach((assessment, assessmentIndex) => {
+            if (!assessment) return;
+            const assessmentQuarter = Number(String(assessment.quarter || topicQuarter).replace(/^q/i, ''));
+            if (assessmentQuarter !== quarter) return;
+            const assessmentKey = assessment.id || assessment.quizId || assessment.materialId || `${assessment.category || assessment.type}:${assessment.title || assessmentIndex}`;
+            if (seenAssessments.has(String(assessmentKey))) return;
+            seenAssessments.add(String(assessmentKey));
+            const scoped = { ...assessment, quarter, section: assessment.section || section };
+            const releaseIndex = Number(assessment.itemIdx ?? assessment.unifiedIdx ?? assessmentIndex);
+            const status = window.getStudentAssessmentReleaseStatus?.(subjectId, scoped, index, releaseIndex, 'assessments', section);
+            if (status && (status.isLocked || status.isHidden || status.isUnreleased)) return;
+            total++;
+            if (!student) return;
+            const details = window.resolveStudentAssessmentSubmissionDetails?.(scoped, subjectId, index, assessmentIndex, section, student);
+            const sub = details?.sub || window.getStudentAssessmentSubmission?.(subjectId, 'assessments', assessmentIndex, index, scoped, student);
+            const subStatus = String(sub?.status || '').trim().toLowerCase();
+            const draft = sub?.isDraft === true || sub?.draft === true || subStatus === 'draft';
+            const turnedIn = !draft && Boolean(sub && (sub.submittedAt || sub.submissionDate || sub.completedAt
+                || ['submitted', 'pending', 'graded', 'completed'].includes(subStatus)
+                || (Array.isArray(sub.attempts) && sub.attempts.some(attempt => attempt?.submittedAt || attempt?.completedAt))));
+            if (turnedIn) submitted++;
+        });
+        result.total += total;
+        result.submitted += submitted;
+        if (total > 0 && submitted === total) result.completedTopics++;
+        if (index === Number(topicIdx)) { result.topicSubmitted += submitted; result.topicTotal += total; }
+    });
+    result.percent = result.total ? Math.round(result.submitted / result.total * 100) : 0;
+    result.topicPercent = result.topicTotal ? Math.round(result.topicSubmitted / result.topicTotal * 100) : 0;
+    return result;
+};
+
 window.renderSharedTaskProgressPanelHtml = function (options = {}) {
     const {
         subjectId = '',
@@ -9541,163 +9638,15 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
         topicIdx = null
     } = options;
 
-    // Use strictly the released topics provided for this specific subject and section in this quarter
-    const displayTopics = Array.isArray(topics) ? topics : [];
-
-    let totalAssessments = 0;
-    let gradedAssessments = 0;
-    let completedTopics = 0;
-    const totalTopics = displayTopics.length;
-
-    let quarterEarnedScore = 0;
-    let quarterTotalHps = 0;
-
-    const studentUser = (!isTeacher && typeof window.getLoggedInStudentUser === 'function')
-        ? window.getLoggedInStudentUser()
-        : null;
-    const studentId = studentUser?.id || studentUser?.studentId || '2222222';
-
-    const activeTopicIdx = (topicIdx !== null && topicIdx !== undefined)
-        ? Number(topicIdx)
-        : ((typeof window._tcTopicIdx !== 'undefined' && window._tcTopicIdx !== null) ? Number(window._tcTopicIdx) : 0);
-
-    let topicEarnedScore = 0;
-    let topicTotalHps = 0;
-
-    const allSubs = (!isTeacher && typeof window.getSharedAssessmentSubmissionsStorage === 'function')
-        ? window.getSharedAssessmentSubmissionsStorage()
-        : null;
-    const sBucket = (allSubs && studentId) ? (allSubs[studentId] || {}) : {};
-
-    displayTopics.forEach((top, tIdx) => {
-        if (!top) return;
-
-        const rawAssign = Array.isArray(top.assignments) ? top.assignments : [];
-        const rawQuiz = Array.isArray(top.quiz) ? top.quiz : [];
-        const rawAct = Array.isArray(top.activity) ? top.activity : [];
-        const rawPerf = Array.isArray(top.performance) ? top.performance : [];
-        const rawAssessments = Array.isArray(top.assessments) ? top.assessments : [];
-
-        let assessments = [...rawAssign, ...rawQuiz, ...rawAct, ...rawPerf, ...rawAssessments];
-        if (typeof window.getUnifiedTopicAssessments === 'function') {
-            assessments = window.getUnifiedTopicAssessments('assessments', subjectId, tIdx, assessments, section, top);
-        }
-
-        if (typeof window.getStudentAssessmentReleaseStatus === 'function') {
-            assessments = assessments.filter((ass, idx) => {
-                const effIdx = (ass?.itemIdx !== undefined && ass?.itemIdx !== null) ? Number(ass.itemIdx) : ((ass?.unifiedIdx !== undefined && ass?.unifiedIdx !== null) ? Number(ass.unifiedIdx) : idx);
-                const status = window.getStudentAssessmentReleaseStatus(subjectId, ass, tIdx, effIdx, 'assessments', section);
-                return !status.isLocked && !status.isHidden && !status.isUnreleased;
-            });
-        }
-
-        let topicAssessmentsCount = assessments.length;
-        let topicAssessmentsDoneCount = 0;
-
-        if (topicAssessmentsCount > 0) {
-            assessments.forEach((ass, aIdx) => {
-                totalAssessments++;
-                let isDone = false;
-                let subObj = null;
-
-                const assHps = Number(
-                    ass?.totalPoints || ass?.points || ass?.maxScore ||
-                    (Array.isArray(ass?.questions) && ass.questions.length > 0
-                        ? ass.questions.reduce((acc, q) => acc + (Number(q?.points) || 1), 0)
-                        : 100)
-                ) || 100;
-
-                if (!isTeacher) {
-                    // 1. Fast unified student submission lookup
-                    if (typeof window.getStudentAssessmentSubmission === 'function') {
-                        const sub = window.getStudentAssessmentSubmission(subjectId, ass?.tab || ass?.category || 'assessments', aIdx, tIdx, ass, studentUser);
-                        if (sub && (sub.status === 'Graded' || (!sub.isPending && sub.status !== 'Pending' && sub.status !== 'Submitted' && (sub.gradePercent !== undefined || sub.score !== undefined)))) {
-                            isDone = true;
-                            subObj = sub;
-                        }
-                    }
-
-                    // 2. Fast bucket lookup if not yet found
-                    if (!isDone) {
-                        const assId = String(ass?.id || ass?.quizId || ass?.materialId || '');
-                        const cleanSubj = String(subjectId || '').replace(/[^a-zA-Z0-9]/g, '');
-                        const subKeyCandidates = [
-                            `${subjectId}_top_${tIdx}_assessments_${aIdx}`,
-                            `${cleanSubj}_top_${tIdx}_assessments_${aIdx}`,
-                            assId ? `${subjectId}_top_${tIdx}_mat_${assId}` : null
-                        ].filter(Boolean);
-                        for (const k of subKeyCandidates) {
-                            const found = sBucket[k];
-                            if (found && (found.status === 'Graded' || (!found.isPending && found.status !== 'Pending' && found.status !== 'Submitted' && found.score !== undefined))) {
-                                isDone = true;
-                                subObj = found;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 3. Check if ass has graded flag explicitly set
-                    if (!isDone && (ass.status === 'Graded' || ass.isGraded)) {
-                        isDone = true;
-                        subObj = ass;
-                    }
-                } else {
-                    // For Teacher / Admin:
-                    if (ass.isCompleted || ass.status === 'Completed' || ass.status === 'completed' || ass.status === 'Graded' || (top.status === 'completed' || top.status === 'Completed')) {
-                        isDone = true;
-                        subObj = ass;
-                    }
-                }
-
-                if (isDone) {
-                    gradedAssessments++;
-                    topicAssessmentsDoneCount++;
-
-                    const earnedScore = Number(subObj?.score !== undefined ? subObj.score : (subObj?.gradePercent !== undefined ? (subObj.gradePercent / 100) * assHps : assHps)) || 0;
-                    const effectiveHps = Number(subObj?.maxScore !== undefined ? subObj.maxScore : assHps) || assHps;
-
-                    quarterEarnedScore += earnedScore;
-                    quarterTotalHps += effectiveHps;
-
-                    if (tIdx === activeTopicIdx || (activeTopicIdx >= displayTopics.length && tIdx === 0)) {
-                        topicEarnedScore += earnedScore;
-                        topicTotalHps += effectiveHps;
-                    }
-                } else {
-                    // Add to total potential HPS for reference
-                    quarterTotalHps += assHps;
-                    if (tIdx === activeTopicIdx || (activeTopicIdx >= displayTopics.length && tIdx === 0)) {
-                        topicTotalHps += assHps;
-                    }
-                }
-            });
-        }
-
-        const topicKey = `sigma_student_${studentId}_topic_completed_${subjectId}_${tIdx}`;
-        const topicExplicitlyDone = (top.status === 'completed' || top.status === 'Completed') || (!isTeacher && localStorage.getItem(topicKey) === 'true');
-
-        if (topicExplicitlyDone || (topicAssessmentsCount > 0 && topicAssessmentsDoneCount === topicAssessmentsCount)) {
-            completedTopics++;
-        }
-    });
-
-    // Vertical Progress Bar % (Quarter Graded Completion Rate)
-    let percent = totalAssessments > 0
-        ? Math.round((gradedAssessments / totalAssessments) * 100)
-        : (totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0);
-    if (percent < 0) percent = 0;
-    if (percent > 100) percent = 100;
-
-    // Circle 1: Topic Score % (Total Score in Tasks / HPS * 100 per topic)
-    let topicScorePct = topicTotalHps > 0 ? Math.round((topicEarnedScore / topicTotalHps) * 100) : 0;
-    if (topicScorePct < 0) topicScorePct = 0;
-    if (topicScorePct > 100) topicScorePct = 100;
-
-    // Circle 2: Quarter Score % (Total Score in Tasks / HPS * 100 for the quarter)
-    let quarterScorePct = quarterTotalHps > 0 ? Math.round((quarterEarnedScore / quarterTotalHps) * 100) : 0;
-    if (quarterScorePct < 0) quarterScorePct = 0;
-    if (quarterScorePct > 100) quarterScorePct = 100;
-
+    window._studentTaskProgressOptions = options;
+    const progress = window.getStudentTaskProgress(options);
+    const totalAssessments = progress.total;
+    const gradedAssessments = progress.submitted;
+    const completedTopics = progress.completedTopics;
+    const totalTopics = progress.totalTopics;
+    const percent = progress.percent;
+    const topicScorePct = progress.topicPercent;
+    const quarterScorePct = progress.percent;
     const progressColor = (typeof window.getTaskProgressColor === 'function')
         ? window.getTaskProgressColor(percent)
         : '#15803d';
@@ -9722,7 +9671,7 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
             <!-- Main Row: Vertical Progress Bar with Beside % (Left) + 2 Circle Percentages Stacked (Right) -->
             <div class="flex items-center justify-center gap-6 sm:gap-7 py-2 px-1 w-full mx-auto">
                 <!-- Left: Vertical Progress Bar with % Beside Right -->
-                <div class="flex items-center gap-2.5 sm:gap-3 shrink-0" title="${percent}% Tasks Graded">
+                <div class="flex items-center gap-2.5 sm:gap-3 shrink-0" title="${percent}% Assessments Submitted">
                     <div class="topic-progress-vertical-bar relative rounded-full p-0.5 flex flex-col justify-end overflow-hidden shadow-inner shrink-0"
                          style="background: rgba(0, 0, 0, 0.05) !important; border: 1px solid rgba(0, 0, 0, 0.09) !important; width: 18px !important; min-width: 18px !important; max-width: 18px !important; height: 68px !important; min-height: 68px !important;">
                         <div class="w-full rounded-full transition-all duration-700 ease-out" 
@@ -9735,7 +9684,7 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
                 <div class="shrink-0 flex justify-center">
                     <div style="display: grid; grid-template-columns: 32px auto; column-gap: 8px; row-gap: 6px; align-items: center; justify-items: start; width: fit-content;">
                         <!-- Top Circle: Per Topic Score % -->
-                        <div class="relative w-8 h-8 flex items-center justify-center shrink-0" title="Topic Score: ${topicEarnedScore}/${topicTotalHps} (${topicScorePct}%)">
+                        <div class="relative w-8 h-8 flex items-center justify-center shrink-0" title="Topic submissions: ${progress.topicSubmitted}/${progress.topicTotal} (${topicScorePct}%)">
                             <svg class="w-8 h-8 transform -rotate-90" viewBox="0 0 48 48">
                                 <circle cx="24" cy="24" r="19" stroke="rgba(0,0,0,0.06)" stroke-width="4.5" fill="transparent"/>
                                 <circle cx="24" cy="24" r="19" stroke="${topicColor}" stroke-width="4.5" stroke-linecap="round" fill="transparent"
@@ -9749,7 +9698,7 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
                         </div>
 
                         <!-- Bottom Circle: Per Quarter Score % -->
-                        <div class="relative w-8 h-8 flex items-center justify-center shrink-0" title="Quarter Score: ${quarterEarnedScore}/${quarterTotalHps} (${quarterScorePct}%)">
+                        <div class="relative w-8 h-8 flex items-center justify-center shrink-0" title="Quarter submissions: ${progress.submitted}/${progress.total} (${quarterScorePct}%)">
                             <svg class="w-8 h-8 transform -rotate-90" viewBox="0 0 48 48">
                                 <circle cx="24" cy="24" r="19" stroke="rgba(0,0,0,0.06)" stroke-width="4.5" fill="transparent"/>
                                 <circle cx="24" cy="24" r="19" stroke="${quarterColor}" stroke-width="4.5" stroke-linecap="round" fill="transparent"
@@ -9788,6 +9737,33 @@ window.renderSharedTaskProgressPanelHtml = function (options = {}) {
         </div>
     `;
 };
+
+(function connectStudentTaskProgressUpdates() {
+    let queued = false;
+    const refresh = () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+            queued = false;
+            window._studentAssessmentDetailsCache?.clear();
+            window.invalidateSharedAssessmentSubmissionsStorage?.();
+            const card = document.getElementById('topic-task-progress-card');
+            if (card?.getClientRects().length && window._studentTaskProgressOptions) {
+                const holder = document.createElement('div');
+                holder.innerHTML = window.renderSharedTaskProgressPanelHtml(window._studentTaskProgressOptions);
+                card.replaceWith(holder.firstElementChild);
+            }
+            const grades = document.getElementById('section-grades');
+            if (grades && !grades.classList.contains('hidden')) {
+                grades.querySelectorAll('.student-topic-performance').forEach(panel => panel._refreshTaskProgress?.());
+            }
+        });
+    };
+    ['sigma:submission-files-updated', 'sigma:assessment-scored', 'sigma-assessment-data-updated', 'sigma-submissions-cleared', 'sigma:release-config-updated', 'focus'].forEach(event => window.addEventListener(event, refresh));
+    window.addEventListener('storage', event => {
+        if (!event.key || /sigma_(student_assessment|sub_|submission_|quiz_result_)|sigma-assessment-scored-broadcast|sigma_topic_release|sigma_assessment_release/.test(event.key)) refresh();
+    });
+})();
 
 window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, statusIconClass = {}, isTeacher = false, options = {}) {
     if (!containerEl) return;
@@ -9830,7 +9806,7 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
     window.currentSelectedTopicQuarter = currentQuarter;
 
     // Filter topics:
-    // Teachers and Admins: See all topics on the topic board.
+    // Staff classroom boards are filtered by section release status below.
     // Students: Only show topics that have been released for this section.
     let visibleTopics = [];
     const isTeacherOrAdmin = Boolean(isTeacher || window._isAdminPreview || (typeof role !== 'undefined' && (role === 'teacher' || role === 'admin')));
@@ -9981,6 +9957,14 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
         }
     } catch (e) {}
 
+    if (isTeacherOrAdmin && section && section.toLowerCase() !== 'all') {
+        visibleTopics = visibleTopics.filter(topic => {
+            const index = q1Topics.indexOf(topic);
+            const status = window.getStudentTopicReleaseStatus(subjectId, topic, index, section, true);
+            return !status.isLocked && !status.isHidden && !status.isUnreleased;
+        });
+    }
+
     // Filter by selected quarter
     const quarterTopics = visibleTopics.filter(t => {
         const tQ = (t && t.quarter) ? String(t.quarter).toLowerCase() : (activeQuarters[0] || 'q1');
@@ -10105,6 +10089,29 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
     }
 };
 
+window.performanceQuarterStorageKey = function (panel, user) {
+    const year = window.getActiveSchoolYearRecord?.() || {};
+    const actor = user || window.getPrivateCommentActor?.() || {};
+    return JSON.stringify(['sigma-performance-quarter-v2', location.pathname, actor.uid || actor.id || actor.email || actor.name || 'guest', year.id || year.uid || year.schoolYear || year.name || `${year.yearStart || ''}-${year.yearEnd || ''}`, panel]);
+};
+window.restorePerformanceQuarter = function (panel, quarters, user) {
+    const available = quarters.map(q => Number(String(q).replace(/^q/i, ''))).filter(q => q >= 1 && q <= 4);
+    try {
+        const saved = Number(localStorage.getItem(window.performanceQuarterStorageKey(panel, user)));
+        if (available.includes(saved)) return saved;
+    } catch (_) {}
+    const year = window.getActiveSchoolYearRecord?.() || {};
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    let current = Number(String(year.currentQuarter || year.activeQuarter || '').replace(/^q/i, ''));
+    for (const q of [1, 2, 3, 4]) {
+        if (year[`q${q}Start`] && year[`q${q}End`] && date >= year[`q${q}Start`] && date <= year[`q${q}End`]) current = q;
+    }
+    return available.includes(current) ? current : available[0] || 1;
+};
+window.rememberPerformanceQuarter = function (panel, quarter, user) {
+    try { localStorage.setItem(window.performanceQuarterStorageKey(panel, user), String(quarter)); } catch (_) {}
+};
 window.renderSharedQuarterDropdown = function (quarters, current, action) {
     const names = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter'];
     const label = q => names[Number(String(q).replace(/^q/i, '')) - 1] || String(q);
@@ -12302,7 +12309,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
         const iconCls = quizDetails.iconCls || 'fa-solid fa-file-signature';
 
         return `
-            <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
+            <div class="sigma-attached-file-panel sigma-black-fade-panel ${isExplicitlyUnclickable ? 'sigma-quiz-panel-static' : ''} group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
                 <div class="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                     <div class="w-12 h-12 rounded-xl border ${quizDetails.iconBox} flex items-center justify-center shrink-0 shadow-2xs"${iconBoxStyleAttr}>
                         <i class="${iconCls} text-lg ${quizDetails.iconColor}"${iconStyleAttr}></i>
@@ -12567,11 +12574,11 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
         : null;
 
     const allHandoutsBeforeFilter = Array.isArray(handouts) ? [...handouts] : [];
-    // Filter handouts by release status: only for student
-    if (role === 'student' && Array.isArray(handouts)) {
+    // Regular classroom views show only visible releases.
+    if ((role === 'student' || (['teacher', 'admin'].includes(role) && targetSection && targetSection.toLowerCase() !== 'all')) && Array.isArray(handouts)) {
         handouts = handouts.filter((h, idx) => {
             if (typeof window.getStudentLearningMaterialReleaseStatus === 'function') {
-                const status = window.getStudentLearningMaterialReleaseStatus(subjectId, h, topicIdx, idx, 'lesson', targetSection);
+                const status = window.getStudentLearningMaterialReleaseStatus(subjectId, h, topicIdx, idx, 'lesson', targetSection, role !== 'student');
                 return !status.isLocked && !status.isHidden && !status.isUnreleased;
             }
             return true;
@@ -12582,6 +12589,12 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
     let targetHandout = null;
     if (numLessonIdx !== null) {
         targetHandout = handouts[numLessonIdx] || allHandoutsBeforeFilter[numLessonIdx] || allHandoutsBeforeFilter.find(h => String(h.id) === String(activeIdx) || Number(h.itemIdx) === numLessonIdx);
+    }
+
+    if (role !== 'student' && numLessonIdx !== null) {
+        const original = allHandoutsBeforeFilter[numLessonIdx];
+        targetHandout = handouts.includes(original) ? original : null;
+        if (!targetHandout) return window.renderTopicEmptyStateHtml?.('lessons') || '';
     }
 
     if (numLessonIdx === null && (!handouts || !handouts.length)) {
@@ -12639,7 +12652,7 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
         return `
             <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-0 px-0">
                 <!-- Lesson Detail Container Panel -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                <div class="lesson-material-main-card bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
                     <div class="flex items-start gap-3 sm:gap-4">
                         <div class="min-w-0 flex-1 space-y-6">
                             <!-- Material Title & Badge -->
@@ -12716,16 +12729,17 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
 
     // List View (All Lesson Panels)
     return `
-        <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
+        <div class="topic-material-list-shell font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
             <div class="topic-lessons-list-card bg-transparent border-0 p-0 shadow-none rounded-none">
                 <div class="space-y-3 sm:space-y-4 font-['Inter']" id="handout-list">
                     ${handouts.map((h, i) => {
+        if (role !== 'student') i = allHandoutsBeforeFilter.indexOf(h);
         const cfg = window.getSigmaMaterialTypeConfig(h.category || h.type || 'Lesson');
         const rawType = (h.type || (h.url ? h.url.split('.').pop() : (h.file ? h.file.split('.').pop() : (h.name ? h.name.split('.').pop() : 'pdf')))).toLowerCase();
         const typeLabel = h.category || (h.type === 'PDF' || h.type === 'DOCX' || h.type === 'PPTX' ? 'Lesson' : (h.type || cfg.type));
         const displayTitle = (h.title || h.name || 'Lesson Document').replace(/\.(pdf|docx|pptx|ppt)$/i, '');
         const statusBadgeHtml = (role === 'teacher' || role === 'admin') && typeof window.renderReleaseStatusBadgeHtml === 'function'
-            ? window.renderReleaseStatusBadgeHtml(window.getStudentLearningMaterialReleaseStatus(subjectId, h, topicIdx, i, 'lesson', targetSection))
+            ? window.renderReleaseStatusBadgeHtml(window.getStudentLearningMaterialReleaseStatus(subjectId, h, topicIdx, i, 'lesson', targetSection, true))
             : '';
 
         return `
@@ -12933,60 +12947,133 @@ window.endQuizChoiceDragVisual = function () {
     window._quizChoiceDragVisual = null;
 };
 
-// Touch matching reuses the same drag/drop handlers as desktop.
+// Matching choices use immediate touch dragging, including already placed answers.
+window.applyMatchingSlotMove = function (event, answers, qIdx, slotIdx, text) {
+    let origin;
+    try { origin = JSON.parse(event.dataTransfer.getData('application/x-sigma-matching-slot') || 'null'); } catch (_) {}
+    if (origin && Number(origin.question) === Number(qIdx) && Number(origin.slot) !== Number(slotIdx)) {
+        const displaced = answers[slotIdx];
+        if (displaced) answers[origin.slot] = displaced;
+        else delete answers[origin.slot];
+    }
+    answers[slotIdx] = text;
+};
+window.preserveMatchingScroll = function (render) {
+    const containers = [...document.querySelectorAll('.sigma-modal-overlay, .sigma-modal-overlay *')]
+        .filter(element => element.scrollTop || element.scrollLeft)
+        .map(element => {
+            const path = [];
+            let node = element;
+            while (node && node !== document.body) {
+                path.unshift([...node.parentElement.children].indexOf(node));
+                node = node.parentElement;
+            }
+            return { element, id: element.id, path, top: element.scrollTop, left: element.scrollLeft };
+        });
+    render();
+    containers.forEach(record => {
+        const element = record.element.isConnected ? record.element : (record.id ? document.getElementById(record.id) : record.path.reduce((node, index) => node?.children[index], document.body));
+        if (element) { element.scrollTop = record.top; element.scrollLeft = record.left; }
+    });
+};
 (function () {
     let drag = null;
-    const dragEvent = (type, point, transfer) => new DragEvent(type, {
-        bubbles: true, cancelable: true, clientX: point.clientX,
-        clientY: point.clientY, dataTransfer: transfer
+    const slotSelector = '.sigma-quiz-matching-rows [ondrop]';
+    const slotInfo = slot => {
+        const handler = slot?.getAttribute('ondrop') || '';
+        const match = handler.match(/(?:dropUniversalMatchingSlot|_dropQuizMatchingPair|handlePreviewMatchingDrop)\(event,\s*(?:this,\s*)?(\d+),\s*(\d+)/);
+        const label = slot?.querySelector(':scope > span:not(.slot-placeholder)');
+        return match && label ? { question: Number(match[1]), slot: Number(match[2]), text: label.textContent.trim() } : null;
+    };
+    const prepare = () => document.querySelectorAll(slotSelector).forEach(slot => {
+        if (slotInfo(slot)?.text) slot.draggable = true;
+        else slot.removeAttribute('draggable');
     });
+    document.addEventListener('DOMContentLoaded', () => {
+        prepare();
+        new MutationObserver(prepare).observe(document.body, { childList: true, subtree: true });
+    });
+    const transferOrigin = (source, transfer) => {
+        const info = slotInfo(source);
+        if (!info) return false;
+        transfer.setData('text/plain', info.text);
+        transfer.setData('application/x-sigma-matching-slot', JSON.stringify(info));
+        transfer.effectAllowed = 'move';
+        return true;
+    };
+    document.addEventListener('dragstart', event => {
+        const source = event.target.closest?.(slotSelector);
+        if (!source || !transferOrigin(source, event.dataTransfer)) return;
+        window.handleSharedQuizChoiceDragStart({ dataTransfer: event.dataTransfer, currentTarget: source, clientX: event.clientX, clientY: event.clientY }, slotInfo(source).text);
+    });
+    document.addEventListener('dragend', event => {
+        if (event.target.matches?.(slotSelector)) window.handleSharedQuizChoiceDragEnd?.(event);
+    });
+    const dragEvent = (type, point, transfer) => new DragEvent(type, {
+        bubbles: true, cancelable: true, clientX: point.clientX, clientY: point.clientY, dataTransfer: transfer
+    });
+    const hitTarget = point => document.elementFromPoint(point.clientX, point.clientY)?.closest(slotSelector);
+    const updateTarget = point => {
+        if (!drag) return;
+        const candidate = hitTarget(point);
+        const target = candidate && candidate !== drag.source && drag.modal.contains(candidate) ? candidate : null;
+        if (drag.target && drag.target !== target) drag.target.dispatchEvent(dragEvent('dragleave', point, drag.transfer));
+        drag.source.classList.remove('border-black', 'bg-slate-100');
+        drag.target = target;
+        // Keep ghost/scroll listeners updated without firing the source slot's drop-zone handler.
+        (target || document).dispatchEvent(dragEvent('dragover', point, drag.transfer));
+    };
     const finish = (event, cancelled = false) => {
         if (!drag) return;
         const current = drag;
         drag = null;
-        clearTimeout(current.timer);
-        if (!current.active) return;
+        cancelAnimationFrame(current.frame);
         event.preventDefault();
-        const point = event.changedTouches[0] || current.point;
+        const point = event.changedTouches?.[0] || current.point;
         current.target?.classList.remove('border-black', 'bg-slate-100');
-        const target = document.elementFromPoint(point.clientX, point.clientY)?.closest('.sigma-quiz-matching-rows [ondrop]');
-        if (!cancelled && target && current.modal.contains(target)) {
-            target.dispatchEvent(dragEvent('drop', point, current.transfer));
-        }
+        current.source.classList.remove('border-black', 'bg-slate-100');
+        const target = hitTarget(point);
+        if (!cancelled && target && target !== current.source && current.modal.contains(target)) target.dispatchEvent(dragEvent('drop', point, current.transfer));
         current.source.dispatchEvent(dragEvent('dragend', point, current.transfer));
         window.endQuizChoiceDragVisual();
     };
+    const autoScroll = () => {
+        if (!drag) return;
+        const point = drag.point;
+        let element = document.elementFromPoint(point.clientX, point.clientY);
+        while (element && drag.modal.contains(element)) {
+            const style = getComputedStyle(element);
+            if (element.scrollHeight > element.clientHeight + 1 && /(auto|scroll)/.test(style.overflowY)) {
+                const rect = element.getBoundingClientRect();
+                const top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+                const delta = point.clientY < top + 64 ? -12 : point.clientY > bottom - 80 ? 12 : 0;
+                if (delta) { element.scrollTop += delta; break; }
+            }
+            element = element.parentElement;
+        }
+        updateTarget(point);
+        drag.frame = requestAnimationFrame(autoScroll);
+    };
     document.addEventListener('touchstart', event => {
-        const source = event.target.closest?.('.sigma-quiz-matching-bank [draggable="true"]');
-        if (!source || event.touches.length !== 1) return;
+        if (event.touches.length !== 1 || event.target.closest?.('button')) return;
+        const source = event.target.closest?.('.sigma-quiz-matching-bank [draggable="true"], .sigma-quiz-matching-rows [draggable="true"]');
+        if (!source) return;
         const modal = source.closest('.sigma-modal-overlay');
         if (!modal) return;
+        event.preventDefault();
         const point = event.touches[0];
-        drag = { source, modal, point, active: false, transfer: new DataTransfer(), timer: null, target: null };
-        const current = drag;
-        current.timer = setTimeout(() => {
-            if (drag !== current) return;
-            current.active = true;
-            source.dispatchEvent(dragEvent('dragstart', current.point, current.transfer));
-        }, 180);
-    }, { passive: true });
+        drag = { source, modal, point, transfer: new DataTransfer(), target: null, frame: null };
+        modal.querySelectorAll(slotSelector).forEach(slot => slot.classList.remove('border-black', 'bg-slate-100'));
+        source.dispatchEvent(dragEvent('dragstart', point, drag.transfer));
+        drag.frame = requestAnimationFrame(autoScroll);
+    }, { passive: false });
     document.addEventListener('touchmove', event => {
         if (!drag) return;
+        event.preventDefault();
         const point = event.touches[0];
         if (!point) return;
-        if (!drag.active) {
-            if (Math.hypot(point.clientX - drag.point.clientX, point.clientY - drag.point.clientY) > 8) {
-                clearTimeout(drag.timer);
-                drag = null;
-            }
-            return;
-        }
-        event.preventDefault();
         drag.point = point;
-        const target = document.elementFromPoint(point.clientX, point.clientY)?.closest('.sigma-quiz-matching-rows [ondrop]');
-        if (drag.target && drag.target !== target) drag.target.dispatchEvent(dragEvent('dragleave', point, drag.transfer));
-        drag.target = target && drag.modal.contains(target) ? target : null;
-        (drag.target || drag.source).dispatchEvent(dragEvent('dragover', point, drag.transfer));
+        updateTarget(point);
     }, { passive: false });
     document.addEventListener('touchend', event => finish(event), { passive: false });
     document.addEventListener('touchcancel', event => finish(event, true), { passive: false });
@@ -13354,6 +13441,74 @@ window.startQuizItem = function (optionsOrId) {
     }
 };
 
+// Neutral pre-submission review shared by creator and portal previews.
+window.getQuizExpectedReviewAnswers = function (questions, isCorrect) {
+    const result = {};
+    questions.forEach((question, index) => {
+        const type = question.type || 'Multiple Choice';
+        const text = value => value && typeof value === 'object' ? value.text || value.label || value.value || '' : String(value ?? '');
+        if (type === 'Multiple Choice') {
+            const choices = question.choices || question.options || [];
+            const selected = choices.findIndex((choice, item) => isCorrect(question, item, text(choice), String.fromCharCode(65 + item)));
+            result[index] = selected >= 0 ? String.fromCharCode(65 + selected) : '';
+        } else if (type === 'True or False') {
+            result[index] = isCorrect(question, 0, 'True', 'A') ? 'True' : isCorrect(question, 1, 'False', 'B') ? 'False' : '';
+        } else if (type === 'Matching Type') {
+            result[index] = Object.fromEntries((question.pairs || []).map((pair, item) => [item, text(pair.target)]));
+        } else if (type === 'Enumeration') {
+            result[index] = (question.items || []).map(text);
+        } else {
+            const accepted = question.answers?.length ? question.answers : question.acceptableAnswers?.length ? question.acceptableAnswers : [question.correct ?? question.correctAnswer ?? question.answer ?? question.sampleAnswer ?? '', ...(question.alternatives || [])];
+            result[index] = accepted.map(text).filter(Boolean).join(' / ');
+        }
+    });
+    return result;
+};
+window.renderQuizAnswerReview = function (quizQuestions, answers, onEdit, preview = false, shuffledChoices = {}, allowEdit = true, expectedMode = false) {
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const filled = value => value !== undefined && value !== null && String(value).trim() !== '';
+    const answered = quizQuestions.filter((question, index) => {
+        const value = answers[index];
+        if (value && typeof value === 'object') return Object.values(value).some(filled);
+        return filled(value);
+    }).length;
+    return `<section class="space-y-5"><h2 class="text-xl font-bold text-black">Review Answers</h2><p class="text-sm text-black-fade">${expectedMode ? 'Expected answers for teacher/admin preview. No attempt or grade will be saved.' : `${answered} answered · ${quizQuestions.length - answered} unanswered.${preview ? ' Preview only—no attempt or grade will be saved.' : ' Check your answers before submitting.'}`}</p>${quizQuestions.map((question, index) => {
+        const value = answers[index];
+        const answerLine = (label, answer) => {
+            const supplied = answer !== null && answer !== undefined && String(answer).trim() !== '';
+            return `<div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0"><p class="text-xs font-semibold text-black-fade mb-1">${escape(label)}</p><p class="text-sm ${supplied ? 'text-black' : 'text-black-fade'}" style="white-space:pre-wrap;overflow-wrap:anywhere">${escape(supplied ? answer : (expectedMode ? 'No expected answer configured' : 'Unanswered'))}</p></div>`;
+        };
+        let answerHtml = '';
+        if (!question.type || question.type === 'Multiple Choice') {
+            const rawChoices = question.choices?.length ? question.choices : question.options?.length ? question.options : ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
+            const choices = question.shuffleChoices ? (shuffledChoices?.[index] || rawChoices) : rawChoices;
+            const text = (choice, i) => {
+                const label = choice && typeof choice === 'object' ? choice.text || choice.label || choice.value : choice;
+                return String(label ?? `Option ${i + 1}`).replace(/^[A-H][\.\)]\s*/i, '').trim();
+            };
+            const selected = String(value ?? '').trim();
+            const letterIndex = /^[A-H]$/i.test(selected) ? selected.toUpperCase().charCodeAt(0) - 65 : -1;
+            const choiceIndex = letterIndex >= 0 && letterIndex < choices.length ? letterIndex : choices.findIndex((choice, i) => text(choice, i).toLowerCase() === selected.toLowerCase());
+            const fullAnswer = choiceIndex >= 0 ? `${String.fromCharCode(65 + choiceIndex)}. ${text(choices[choiceIndex], choiceIndex)}` : selected;
+            answerHtml = answerLine(expectedMode ? 'Expected answer' : 'Your selected answer', fullAnswer);
+        } else if (question.type === 'True or False') {
+            const selected = String(value ?? '').trim().toLowerCase();
+            const fullAnswer = ['true', 't', 'a'].includes(selected) ? 'A. True' : ['false', 'f', 'b'].includes(selected) ? 'B. False' : selected;
+            answerHtml = answerLine(expectedMode ? 'Expected answer' : 'Your selected answer', fullAnswer);
+        } else if (question.type === 'Matching Type') {
+            const pairs = question.pairs?.length ? question.pairs : [{ premise: '' }, { premise: '' }];
+            answerHtml = `<div class="grid gap-3">${pairs.map((pair, item) => answerLine(`${item + 1}. ${pair.premise || 'Item ' + (item + 1)} → ${expectedMode ? 'Expected match' : 'Your match'}`, value?.[item])).join('')}</div>`;
+        } else if (question.type === 'Enumeration') {
+            const items = (question.items || []).map(item => typeof item === 'string' ? item : item?.text || '').filter(Boolean);
+            const count = Math.max(1, parseInt(question.requiredCount) || items.length || 3);
+            answerHtml = `<div class="grid gap-3">${Array.from({ length: count }, (_, item) => answerLine(`Item ${item + 1}`, value?.[item])).join('')}</div>`;
+        } else {
+            answerHtml = answerLine(expectedMode ? (question.type === 'Essay' || question.type === 'Paragraph' ? 'Sample / expected response' : 'Accepted answers') : 'Your answer', value);
+        }
+        return `<article class="rounded-2xl border border-slate-200 p-5 space-y-3 min-w-0"><div class="flex items-center justify-between gap-3"><h3 class="font-bold text-black">Question ${index + 1}</h3>${allowEdit ? `<button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="${onEdit}(${index})">Edit</button>` : ''}</div><p class="text-black" style="white-space:pre-wrap;overflow-wrap:anywhere">${escape(question.question || 'Untitled Question')}</p>${answerHtml}</article>`;
+    }).join('')}</section>`;
+};
+
 window.openQuizFormModal = function (options = {}) {
     if (options.role === 'student' && window.isStudentAssessmentClosed(options.subjectId, options.topicIdx, options.tab, options.activeIdx)) return;
     const rawTitle = options.title || 'Quiz Assessment';
@@ -13661,6 +13816,7 @@ window.openQuizFormModal = function (options = {}) {
 
     let userAnswers = {};
     let currentQuestionIndex = 0;
+    let reviewingAnswers = false;
     let timerInterval = null;
     let secondsLeft = totalSeconds;
     let isModalActive = true;
@@ -13844,6 +14000,7 @@ window.openQuizFormModal = function (options = {}) {
             if (window.openAskingPanel) {
                 window.openAskingPanel({
                     title: 'Exit Quiz?',
+                    variant: 'quiz-exit',
                     desc: confirmMsg,
                     message: confirmMsg,
                     type: 'warning',
@@ -13948,8 +14105,8 @@ window.openQuizFormModal = function (options = {}) {
                 if (!userAnswers[qIdx] || typeof userAnswers[qIdx] !== 'object') {
                     userAnswers[qIdx] = {};
                 }
-                userAnswers[qIdx][pIdx] = data;
-                renderModalContent('taking');
+                window.applyMatchingSlotMove(event, userAnswers[qIdx], qIdx, pIdx, data);
+                window.preserveMatchingScroll(() => renderModalContent('taking'));
             }
         } catch (e) { }
     };
@@ -13965,6 +14122,7 @@ window.openQuizFormModal = function (options = {}) {
 
     window._jumpQuizQuestion = function (targetIdx) {
         if (targetIdx >= 0 && targetIdx < questionsList.length) {
+            reviewingAnswers = false;
             currentQuestionIndex = targetIdx;
             currentPillsPage = Math.floor(targetIdx / 10);
             renderModalContent('taking');
@@ -15166,7 +15324,7 @@ window.openQuizFormModal = function (options = {}) {
                                         value="${escape(curVal)}"
                                         oninput="window._selectQuizEnumItem(${currentIdx}, ${iIdx}, this.value, false)"
                                         style="outline: none !important;"
-                                        class="flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 text-black">
+                                        class="sigma-quiz-enumeration-input flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 text-black">
                                 </div>
                             `;
                 }).join('')}
@@ -15413,7 +15571,7 @@ window.openQuizFormModal = function (options = {}) {
                 isLast ? `
                                 <button type="button" id="sigma-quiz-done-btn"
                                     class="sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer bg-[#15803d] hover:bg-[#166534]">
-                                    <span>Done</span>
+                                    <span>${reviewingAnswers ? 'Done' : 'Finished'}</span>
                                 </button>
                             ` : `
                                 <button type="button" id="sigma-quiz-next-btn"
@@ -15426,8 +15584,8 @@ window.openQuizFormModal = function (options = {}) {
                 isLast ? `
                                 <button type="button" id="sigma-quiz-submit-btn"
                                     class="sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer bg-[#15803d] hover:bg-[#166534]">
-                                    <span>Submit Quiz</span>
-                                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                                    <span>${reviewingAnswers ? 'Submit Quiz' : 'Finished'}</span>
+                                    ${reviewingAnswers ? '<i class="fa-solid fa-paper-plane text-xs"></i>' : ''}
                                 </button>
                             ` : `
                                 <button type="button" id="sigma-quiz-next-btn"
@@ -15448,9 +15606,23 @@ window.openQuizFormModal = function (options = {}) {
             resetQuizFormScroll();
         }
 
+        if (reviewingAnswers) {
+            const header = modal.querySelector('.sigma-quiz-sticky-header');
+            if (header?.children[1]) header.children[1].style.setProperty('display', 'none', 'important');
+            const content = modal.querySelector('.sigma-modal-panel > .flex-1 > div');
+            if (content) content.innerHTML = window.renderQuizAnswerReview(questionsList, isTeacherView ? window.getQuizExpectedReviewAnswers(questionsList, isChoiceCorrect) : userAnswers, 'window._jumpQuizQuestion', isTeacherView, {}, !isTeacherView, isTeacherView);
+            const footer = modal.querySelector('.sigma-modal-footer');
+            const counter = footer?.querySelector('div');
+            if (counter) counter.textContent = '';
+        }
+
         // Navigation listeners
         const prevBtn = modal.querySelector('#sigma-quiz-prev-btn');
-        if (prevBtn && !isFirst) {
+        if (prevBtn && reviewingAnswers) {
+            prevBtn.classList.remove('invisible', 'pointer-events-none');
+            prevBtn.innerHTML = 'Back to Quiz';
+            prevBtn.onclick = () => { reviewingAnswers = false; renderModalContent('taking'); resetQuizFormScroll(); };
+        } else if (prevBtn && !isFirst) {
             prevBtn.onclick = () => {
                 currentQuestionIndex--;
                 currentPillsPage = Math.floor(currentQuestionIndex / 10);
@@ -15471,7 +15643,10 @@ window.openQuizFormModal = function (options = {}) {
 
         const doneBtn = modal.querySelector('#sigma-quiz-done-btn');
         if (doneBtn) {
-            doneBtn.onclick = () => resetAndCloseQuiz();
+            doneBtn.onclick = () => {
+                if (reviewingAnswers) resetAndCloseQuiz();
+                else { reviewingAnswers = true; renderModalContent('taking'); resetQuizFormScroll(); }
+            };
         }
 
         // Exit listener
@@ -15488,6 +15663,7 @@ window.openQuizFormModal = function (options = {}) {
         const submitBtn = modal.querySelector('#sigma-quiz-submit-btn');
         if (submitBtn) {
             submitBtn.onclick = () => {
+                if (!reviewingAnswers) { reviewingAnswers = true; renderModalContent('taking'); resetQuizFormScroll(); return; }
                 if (isPreview) {
                     resetAndCloseQuiz();
                     return;
@@ -17781,7 +17957,7 @@ window.openTeacherScoreEditor = function () {
     const display = document.getElementById('teacher-grading-score-display');
     const edit = document.getElementById('teacher-grading-score-edit');
     if (!input || input.disabled || (edit && edit.disabled)) return;
-    if (input.dataset.needsSubmission === '1') return;
+    if (input.dataset.calculatedQuiz === '1' || input.dataset.needsSubmission === '1') return;
     if (display) display.style.display = 'none';
     input.style.display = 'inline-block';
     input.classList.add('is-selected');
@@ -17794,7 +17970,7 @@ window.toggleTeacherScoreEditor = function () {
     const input = document.getElementById('teacher-grading-score-input');
     const edit = document.getElementById('teacher-grading-score-edit');
     if (!input || input.disabled || (edit && edit.disabled)) return;
-    if (input.dataset.needsSubmission === '1') return;
+    if (input.dataset.calculatedQuiz === '1' || input.dataset.needsSubmission === '1') return;
     if (input.style.display !== 'none') window.closeTeacherScoreEditor(input);
     else window.openTeacherScoreEditor();
 };
@@ -17803,6 +17979,7 @@ window.applyGradingStatusToScoreCounter = function (isNone) {
     const input = document.getElementById('teacher-grading-score-input');
     const edit = document.getElementById('teacher-grading-score-edit');
     if (!input) return;
+    if (input.dataset.calculatedQuiz === '1') { input.readOnly = true; if (edit) edit.style.setProperty('display', 'none', 'important'); }
     const isQuiz = input.dataset.isQuiz === '1';
     const hasQuizSubmission = input.dataset.hasQuizSubmission === '1';
     const isUnsubmittedQuiz = isQuiz && !hasQuizSubmission;
@@ -19113,6 +19290,7 @@ window.saveTeacherGradingScore = function () {
     const saveBtn = document.getElementById('teacher-grading-save-btn');
     if (!input) return;
     if (saveBtn) saveBtn.disabled = false;
+    if (input.dataset.calculatedQuiz === '1') input.value = input.dataset.savedScore || '';
     let rawVal = String(input.value || '').trim();
     if (rawVal === '' && input.style.display === 'none') {
         const display = document.getElementById('teacher-grading-score-display');
@@ -21623,9 +21801,10 @@ window.openGradebookScoreEditor = function (cell) {
         }
     }
 
+    const calculatedQuizScore = window.isCalculatedQuizGradebookCell(cell);
     const maxPts = Number(cell.dataset.max);
     const current = cell.dataset.score || '';
-    const esc = (v) => String(v ?? '').replace(/"/g, '&quot;');
+    const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
     // Clear previous active highlights & badges
     window.hideGradebookFloatingBadge();
@@ -21633,9 +21812,11 @@ window.openGradebookScoreEditor = function (cell) {
     const activeStatus = String(cell.dataset.attendance || '').trim().toLowerCase();
     cell._gradebookOriginalHtml = cell.innerHTML;
     const statusBtn = (type, letter, label) => `<button type="button" class="gb-open-status-btn gb-open-status-${letter.toLowerCase()}${activeStatus === type ? ' is-active active-status' : ''}" data-type="${type}" title="${label}">${letter}</button>`;
-    cell.innerHTML = `<div class="gb-open-score-editor">
+    cell.innerHTML = `<div class="gb-open-score-editor" ${calculatedQuizScore ? 'tabindex="-1"' : ''}>
+        ${calculatedQuizScore ? `<span class="gradebook-score-value" aria-label="Calculated quiz score">${esc(current === '' ? '-' : current)}</span>` : ''}
         <input type="number" inputmode="numeric" step="1" autocomplete="off" placeholder=" "
         class="score-counter-input gb-open-score-counter"
+        ${calculatedQuizScore ? 'readonly aria-readonly="true" data-calculated-quiz="1" hidden aria-hidden="true" tabindex="-1" style="display:none !important;"' : ''}
         min="0" max="${Number.isFinite(maxPts) ? maxPts : 0}" value="${esc(current)}"
         data-student-id="${esc(cell.dataset.studentId)}"
         data-student-name="${esc(cell.dataset.studentName)}"
@@ -21680,8 +21861,12 @@ window.openGradebookScoreEditor = function (cell) {
     }
 
     // Zero-jump focus prevents the browser from shifting or scrolling the table horizontally
-    input.focus({ preventScroll: true });
-    input.select();
+    if (calculatedQuizScore) {
+        cell.querySelector('.gb-open-score-editor')?.focus({ preventScroll: true });
+    } else {
+        input.focus({ preventScroll: true });
+        input.select();
+    }
     if (!window._gbStatusClickGuard) {
         window._gbStatusClickGuard = true;
         document.addEventListener('click', (event) => {
@@ -21702,7 +21887,7 @@ window.openGradebookScoreEditor = function (cell) {
             window._gbIgnoreNextCellOpen = true;
             window._gbApplyingStatus = true;
             window.applyOpenGradebookStatus(btn);
-            if (input && document.contains(input)) {
+            if (!calculatedQuizScore && input && document.contains(input)) {
                 try { input.focus({ preventScroll: true }); } catch (_) {}
             }
             setTimeout(() => {
@@ -21763,7 +21948,7 @@ window.applyOpenGradebookStatus = function (btn) {
     // Score is kept completely independent of status - DO NOT force 0!
     if (input) input.dataset.applyAttendance = next;
 
-    let scoreToSync = input ? input.value : (cell.dataset.score || '');
+    let scoreToSync = input?.dataset.calculatedQuiz === '1' ? (cell.dataset.score || '') : input ? input.value : (cell.dataset.score || '');
     const manualNoDeadline = window.resolveNoDeadlineAssessment({ id: cell.dataset.itemId }, cell.dataset.subject, cell.dataset.section, cell.dataset.quarter || 1);
     if (scoreToSync === '-' || scoreToSync === '—' || scoreToSync === '--') {
         scoreToSync = '';
@@ -21880,7 +22065,7 @@ window.applyOpenGradebookStatus = function (btn) {
     window.syncOpenGradebookStatusToScorePanel?.(input || cell, next, shown);
 
     // Keep counter / score editor open and focused
-    if (input) {
+    if (input && input.dataset.calculatedQuiz !== '1') {
         input.focus({ preventScroll: true });
         if (next === 'missing' || next === 'absent' || next === 'incomplete') {
             try { input.select(); } catch (_) {}
@@ -22140,6 +22325,7 @@ window.commitGradebookScoreInput = function (input, event = null, forceCommit = 
     if (!input || input.disabled || input.dataset.committed === '1') return;
     const cell = input.closest('td');
     if (!cell) return;
+    if (input.dataset.calculatedQuiz === '1') input.value = cell.dataset.score || '';
     const rawScore = String(input.value ?? '').trim();
     const originalScore = String(cell.dataset.score || '').trim();
     const currentStatus = String(input.dataset.applyAttendance ?? cell.dataset.attendance ?? '').toLowerCase();
@@ -26786,12 +26972,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         assessments = window.deduplicateMaterialsArray(assessments, { collapseRoles: true });
     }
 
-    // The topic page uses the same released list as the Release Assessments panel for students.
-    if (role === 'student' && Array.isArray(assessments)) {
+    const allAssessmentsBeforeFilter = Array.isArray(assessments) ? [...assessments] : [];
+
+    // Regular classroom views show only visible releases.
+    if ((role === 'student' || (['teacher', 'admin'].includes(role) && targetSection && targetSection.toLowerCase() !== 'all')) && Array.isArray(assessments)) {
         assessments = assessments.filter((ass, idx) => {
             if (typeof window.getStudentAssessmentReleaseStatus === 'function') {
                 const effIdx = (ass?.itemIdx !== undefined && ass?.itemIdx !== null) ? Number(ass.itemIdx) : ((ass?.unifiedIdx !== undefined && ass?.unifiedIdx !== null) ? Number(ass.unifiedIdx) : idx);
-                const status = window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, effIdx, tab, targetSection);
+                const status = window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, effIdx, tab, targetSection, role !== 'student');
                 return !status.isLocked && !status.isHidden && !status.isUnreleased;
             }
             return true;
@@ -26853,7 +27041,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
     // Detail View (Next Page with Instructions & Attached Document)
     const numIdx = (activeIdx !== null && activeIdx !== undefined && activeIdx !== '') ? Number(activeIdx) : null;
     const hasActiveIdx = (numIdx !== null && !Number.isNaN(numIdx));
-    const activeAss = hasActiveIdx ? (assessments[numIdx] || assessments.find(a => Number(a.itemIdx) === numIdx || Number(a.unifiedIdx) === numIdx || String(a.id) === `ass-${numIdx}` || String(a.id) === String(activeIdx))) : null;
+    let activeAss = hasActiveIdx ? (assessments[numIdx] || assessments.find(a => Number(a.itemIdx) === numIdx || Number(a.unifiedIdx) === numIdx || String(a.id) === `ass-${numIdx}` || String(a.id) === String(activeIdx))) : null;
+    if (role !== 'student' && hasActiveIdx) {
+        const original = allAssessmentsBeforeFilter[numIdx] || allAssessmentsBeforeFilter.find(a => Number(a.itemIdx) === numIdx || Number(a.unifiedIdx) === numIdx || String(a.id) === String(activeIdx));
+        activeAss = assessments.includes(original) ? original : null;
+        if (!activeAss) return window.renderTopicEmptyStateHtml?.(emptyTabKey || tab) || '';
+    }
+
 
     if (hasActiveIdx && activeAss) {
         let ass = { ...activeAss };
@@ -27319,9 +27513,12 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     materialId: ass.id || ass.materialId || '',
                     quizId: ass.selectedQuizId || ass.quizId || '',
                     hasAttachedQuiz: true,
-                    clickable: (role === 'teacher' || role === 'admin') ? Boolean(attachedDocClick) : false,
-                    onClick: attachedDocClick
+                    clickable: false,
+                    onClick: null
                 });
+                if ((role === 'teacher' || role === 'admin') && attachedDocClick) {
+                    attachedFileHtml += `<div class="quiz-submission-review-actions"><button type="button" onclick="${attachedDocClick}" class="sigma-btn sigma-btn-primary sigma-btn-md cursor-pointer">Preview Quiz</button></div>`;
+                }
             } else if (hasRealUploadedFile && fileName) {
                 attachedFileHtml = window.renderSharedAttachedFilePanelHtml({
                     title: fileName,
@@ -28617,12 +28814,11 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             const itemQuizTitle = resolvedOriginalQuizTitle || displayTitle || ass.title || 'Quiz Assessment';
                             const quizReviewBtnHtml = (role === 'teacher' || !isPending) ? `
                                 <button type="button" onclick="window.openStudentQuizReviewPlayer('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${encodeURIComponent(displayTitle)}', ${currentAttemptPage})"
-                                    class="sigma-btn sigma-btn-primary px-4 py-2.5 rounded-xl text-xs font-bold font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
-                                    <i class="fa-solid fa-file-lines text-xs text-white"></i>
-                                    <span>${role === 'teacher' ? (isPending ? 'Review Answers' : 'View Quiz Score') : 'View Quiz Score'}</span>
+                                    class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
+                                    <span>${role === 'teacher' || role === 'admin' ? 'Review Answers' : 'View Quiz Score'}</span>
                                 </button>
                             ` : '';
-                            return window.renderSharedAttachedFilePanelHtml({
+                            const quizPanelHtml = window.renderSharedAttachedFilePanelHtml({
                                 title: itemQuizTitle,
                                 url: 'quiz',
                                 type: 'quiz',
@@ -28644,8 +28840,9 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                 quizId: ass.selectedQuizId || ass.quizId || ass.id || '',
                                 clickable: false,
                                 onClick: null,
-                                rightActionHtml: quizReviewBtnHtml
+                                rightActionHtml: ''
                             });
+                            return quizPanelHtml + (quizReviewBtnHtml ? `<div class="quiz-submission-review-actions">${quizReviewBtnHtml}</div>` : '');
                         }
                         return window.renderSharedAttachedFilePanelHtml({
                             title: f.name || f.fileName || 'Submitted_Work.pdf',
@@ -28680,14 +28877,14 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                         quizId: ass.selectedQuizId || ass.quizId || ass.id || '',
                         clickable: false,
                         onClick: null,
-                        rightActionHtml: (currentAttemptPage === 1 && (role === 'teacher' || !isPending)) ? `
-                            <button type="button" onclick="window.openStudentQuizReviewPlayer('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${encodeURIComponent(displayTitle)}', ${currentAttemptPage})"
-                                class="sigma-btn sigma-btn-primary px-4 py-2.5 rounded-xl text-xs font-bold font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
-                                <i class="fa-solid fa-file-lines text-xs text-white"></i>
-                                <span>${role === 'teacher' ? (isPending ? 'Review Answers' : 'View Quiz Score') : 'View Quiz Score'}</span>
-                            </button>
-                        ` : ''
+                        rightActionHtml: ''
                     })}
+                    ${(currentAttemptPage === 1 && (role === 'teacher' || !isPending)) ? `<div class="quiz-submission-review-actions">
+                            <button type="button" onclick="window.openStudentQuizReviewPlayer('${subjectId}', '${tab}', ${activeIdx}, ${topicIdx}, '${encodeURIComponent(displayTitle)}', ${currentAttemptPage})"
+                                class="sigma-btn sigma-btn-primary sigma-btn-md font-['Inter'] flex items-center gap-2 cursor-pointer transition-all hover:bg-[#166534] active:bg-[#14532d] active:scale-[0.98] shadow-2xs shrink-0">
+                                <span>${role === 'teacher' || role === 'admin' ? 'Review Answers' : 'View Quiz Score'}</span>
+                            </button>
+                        </div>` : ''}
                                                       </div>
                                                   ` : (activeAttempt?.fileName || subData?.fileName || activeAttempt?.dataUrl || activeAttempt?.fileUrl || subData?.fileUrl || subData?.dataUrl) ? window.renderSharedAttachedFilePanelHtml({
                         title: activeAttempt?.fileName || subData?.fileName || 'Submitted_Work.pdf',
@@ -29211,7 +29408,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                                                 </div>
                                             </div>
                                         ` : `
-                                            ${(!isAnyQuiz && !isAttemptsExhausted && !isLateBlocked) ? `
+                                            ${(!isAttemptsExhausted && !isLateBlocked) ? `
                                                 ${(isAnyQuiz && hasAttachedDigitalQuiz) ? `
                                                     ${allowFileUpload ? `
                                                         <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full">
@@ -29413,10 +29610,10 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
 
     // List View (All Assessment Panels)
     return `
-        <div class="font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
+        <div class="topic-material-list-shell font-['Inter'] animate-in fade-in duration-300 pb-12 pt-3 sm:pt-0 px-3.5 sm:px-0">
             <div class="space-y-4 font-['Inter']" id="assessment-list">
                 ${(window.orderAssessmentsOldestFirst ? window.orderAssessmentsOldestFirst(assessments) : assessments).map((ass) => {
-                    const i = assessments.indexOf(ass);
+                    const i = (role === 'student' ? assessments : allAssessmentsBeforeFilter).indexOf(ass);
                     const rawKind = String(ass?.category || ass?.type || ass?.kind || tab || '').toLowerCase();
                     const rawTitle = String(ass?.title || ass?.name || '').toLowerCase();
                     const isTaskItem = rawTitle.startsWith('task') || rawKind === 'task' || rawKind === 'tasks' || rawKind === 'assignment' || rawKind === 'activity' || rawKind === 'performance task' || rawKind === 'perf. task' || ass?.category === 'Task';
@@ -29436,7 +29633,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                             ? window.buildTeacherDesktopAssessmentTopStatusHtml(ass, subjectId, topicIdx, i, targetSection)
                             : '');
                     const statusBadgeHtml = (role === 'teacher' || role === 'admin') && typeof window.renderReleaseStatusBadgeHtml === 'function'
-                        ? window.renderReleaseStatusBadgeHtml(window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, i, tab, targetSection))
+                        ? window.renderReleaseStatusBadgeHtml(window.getStudentAssessmentReleaseStatus(subjectId, ass, topicIdx, i, tab, targetSection, true))
                         : '';
                     // Collapse / Expand state: DEFAULT IS EXPANDED (false) unless user saved collapsed preference
                     const assKey = String(ass?.id || ass?.title || displayTitle || `ass-${i}`).trim().toLowerCase();
@@ -29673,11 +29870,11 @@ window.renderSharedVideosTabHtml = function (options) {
     });
 
     const allVideosBeforeFilter = Array.isArray(videos) ? [...videos] : [];
-    // Filter videos by release status: only for students
-    if (role === 'student' && Array.isArray(videos)) {
+    // Regular classroom views show only visible releases.
+    if ((role === 'student' || (['teacher', 'admin'].includes(role) && targetSection && targetSection.toLowerCase() !== 'all')) && Array.isArray(videos)) {
         videos = videos.filter((v, idx) => {
             if (typeof window.getStudentLearningMaterialReleaseStatus === 'function') {
-                const status = window.getStudentLearningMaterialReleaseStatus(subjectId, v, topicIdx, idx, 'video', targetSection);
+                const status = window.getStudentLearningMaterialReleaseStatus(subjectId, v, topicIdx, idx, 'video', targetSection, role !== 'student');
                 return !status.isLocked && !status.isHidden && !status.isUnreleased;
             }
             return true;
@@ -29688,6 +29885,12 @@ window.renderSharedVideosTabHtml = function (options) {
     let targetVideo = null;
     if (numVidIdx !== null) {
         targetVideo = videos[numVidIdx] || allVideosBeforeFilter[numVidIdx] || allVideosBeforeFilter.find(v => String(v.id) === String(activeIdx) || Number(v.itemIdx) === numVidIdx);
+    }
+
+    if (role !== 'student' && numVidIdx !== null) {
+        const original = allVideosBeforeFilter[numVidIdx];
+        targetVideo = videos.includes(original) ? original : null;
+        if (!targetVideo) return window.renderTopicEmptyStateHtml?.('videos') || '';
     }
 
     if (numVidIdx === null && (!videos || !videos.length)) {
@@ -29709,6 +29912,7 @@ window.renderSharedVideosTabHtml = function (options) {
                 <div class="topic-videos-list-card md:bg-transparent md:border-0 md:p-0 md:shadow-none md:rounded-none bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm w-full m-0">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full font-['Inter'] m-0 p-0">
                         ${videos.map((video, i) => {
+        if (role !== 'student') i = allVideosBeforeFilter.indexOf(video);
             const rawDesc = (video.description || video.instructions || '').trim();
             const isDuplicateDesc = !rawDesc || rawDesc.toLowerCase() === (video.title || '').trim().toLowerCase();
             const cleanDesc = isDuplicateDesc ? getOverview(video.title) : rawDesc;
@@ -29716,7 +29920,7 @@ window.renderSharedVideosTabHtml = function (options) {
             const isMp4Item = Boolean(rawVideoUrl && (video.sourceType === 'mp4' || video.fileType === 'mp4' || rawVideoUrl.match(/\.(mp4|webm|ogg|mov)($|\?)/i) || rawVideoUrl.startsWith('blob:') || rawVideoUrl.startsWith('data:video/')) || (video.fileName && video.fileName.toLowerCase().match(/\.(mp4|webm|mov|ogg)$/i)));
             const durationStr = (video.duration && video.duration.trim()) ? video.duration.trim() : (isMp4Item ? '03:30' : '15:00');
             const statusBadgeHtml = (role === 'teacher' || role === 'admin') && typeof window.renderReleaseStatusBadgeHtml === 'function'
-                ? window.renderReleaseStatusBadgeHtml(window.getStudentLearningMaterialReleaseStatus(subjectId, video, topicIdx, i, 'video', targetSection))
+                ? window.renderReleaseStatusBadgeHtml(window.getStudentLearningMaterialReleaseStatus(subjectId, video, topicIdx, i, 'video', targetSection, true))
                 : '';
 
             return `
@@ -31001,46 +31205,33 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
     function updateTeacherGradingButtonState() {
         const modal = document.getElementById('universal-quiz-preview-modal');
-        const teacherArea = (modal && modal.querySelector('#uqp-teacher-grading-area')) || document.getElementById('uqp-teacher-grading-area');
-        if (!teacherArea) return;
+        const area = modal?.querySelector('#uqp-teacher-grading-area');
+        if (area) { area.innerHTML = ''; area.classList.add('hidden'); area.classList.remove('flex'); }
+        const teacher = /(?:teacher|admin)\.html/i.test(location.pathname) || ['teacher', 'admin', 'instructor'].includes(String(window.currentUser?.role || '').toLowerCase());
+        if (!teacher || !_isStudentQuizReview || !_isReviewMode || _isTeacherPreviewMode || _currentQuestionIdx !== _previewQuestions.length - 1) return;
+        const button = document.getElementById('uqp-next-btn');
+        if (!button) return;
+        const pending = hasAnyPendingReviewQuestions();
+        const dirty = isTeacherReviewDirty();
+        const readOnly = window._quizReviewReadOnly;
+        const done = readOnly || (!dirty && !pending);
+        button.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center justify-center cursor-pointer';
+        button.innerHTML = done ? 'Done' : 'Save Grades';
+        button.disabled = !done && pending;
+        button.title = pending && !readOnly ? 'Save a score for every pending question first.' : done ? 'Close review' : 'Save reviewed scores to the gradebook';
+        button.onclick = done ? () => window.closeQuizPreviewModal() : () => window.finalizeTeacherReviewDone();
+    }
 
-        const isTeacherUser = Boolean(window.loggedTeacher) ||
-            (typeof window.location !== 'undefined' && (window.location.pathname.includes('teacher') || window.location.href.includes('teacher.html'))) ||
-            (typeof role !== 'undefined' && (role === 'teacher' || role === 'admin' || role === 'instructor')) ||
-            (typeof window.currentUser !== 'undefined' && (window.currentUser?.role === 'teacher' || window.currentUser?.role === 'admin' || window.currentUser?.role === 'instructor'));
-
-        if (isTeacherUser && _isStudentQuizReview) {
-            if (window._quizReviewReadOnly) {
-                teacherArea.innerHTML = '';
-                teacherArea.classList.add('hidden');
-                return;
-            }
-            const hasPending = typeof hasAnyPendingReviewQuestions === 'function' && hasAnyPendingReviewQuestions();
-            const isDirty = typeof isTeacherReviewDirty === 'function' && isTeacherReviewDirty();
-            const isLocked = hasPending || !isDirty;
-
-            teacherArea.classList.remove('hidden');
-            teacherArea.classList.add('flex');
-
-            let titleTooltip = 'Submit review and update grade';
-            if (hasPending) {
-                titleTooltip = 'Please score and accept all pending questions before submitting.';
-            } else if (!isDirty) {
-                titleTooltip = 'No changes made yet.';
-            }
-
-            teacherArea.innerHTML = `
-                <button type="button" onclick="window.finalizeTeacherReviewDone()"
-                    ${isLocked ? 'disabled' : ''}
-                    title="${titleTooltip}"
-                    class="sigma-btn sigma-btn-primary sigma-btn-md rounded-2xl font-bold flex items-center justify-center transition-all ${isLocked ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer hover:bg-[#166534] active:scale-[0.98]'}">
-                    <span>Submit</span>
-                </button>
-            `;
-        } else {
-            teacherArea.classList.add('hidden');
-            teacherArea.classList.remove('flex');
-        }
+    function reviewDraftKey() {
+        const sub = window._activeReviewSubData || {};
+        const ctx = window._activeReviewContext || {};
+        if (!sub.studentId) return null;
+        return 'sigma-quiz-review-draft:' + JSON.stringify([sub.studentId, sub.section || window.currentTopicState?.selectedSection || '', ctx.subjectId, ctx.topicIdx, ctx.tab, ctx.activeIdx, sub.quizId || sub.materialId || '', window._activeReviewAttemptNumber || 1, window._activeReviewAttempt?.submittedAt || sub.submittedAt || '']);
+    }
+    function persistReviewDraft() {
+        const key = reviewDraftKey();
+        if (!key) throw Error('Cannot save a review without a student identity.');
+        localStorage.setItem(key, JSON.stringify({ scores: window._teacherEssayScores || {}, accepted: window._teacherEssayGraded || {}, enumScores: window._teacherEnumItemScores || {}, savedAt: new Date().toISOString() }));
     }
 
     function renderPillsHtml() {
@@ -31113,6 +31304,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const nextBtn = document.getElementById('uqp-next-btn');
 
         if (!bodyEl) return;
+        counterEl?.parentElement?.style.removeProperty('display');
+        if (prevBtn) { prevBtn.onclick = () => window.navQuizPreview(-1); prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Previous</span>'; }
+        if (nextBtn) nextBtn.onclick = () => window.navQuizPreview(1);
 
         if (!_previewQuestions || _previewQuestions.length === 0) {
             if (titleEl) titleEl.textContent = _activeQuiz?.title || _activeQuiz?.name || 'Quiz Assessment';
@@ -31903,12 +32097,14 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                                     <span style="${badgeStyle}" class="sigma-quiz-enum-marker w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center shrink-0 shadow-2xs ${badgeClass}">
                                         ${iIdx + 1}
                                     </span>
+                                    ${isLocked ? `<span id="uqp-enum-answer-${idx}-${iIdx}" style="${inputStyle} user-select:none; -webkit-user-select:none;" class="flex-1 text-sm md:text-base font-semibold min-w-0 pr-2 break-words cursor-default ${inputClass}">${escapeStr(rowVal || 'Unanswered')}</span>` : `
                                     <input type="text" id="uqp-enum-answer-${idx}-${iIdx}" name="uqp-enum-answer-${idx}-${iIdx}" aria-labelledby="uqp-enum-label-${idx}" placeholder="Item ${iIdx + 1} answer..."
                                         maxlength="100"
                                         value="${escapeStr(rowVal)}"
                                         style="${inputStyle} outline: none !important;"
-                                        ${isLocked ? 'readonly' : `oninput="window.setUniversalPreviewEnumAnswer(${idx}, ${iIdx}, this.value, false)"`}
-                                        class="flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
+                                        oninput="window.setUniversalPreviewEnumAnswer(${idx}, ${iIdx}, this.value, false)"
+                                        class="sigma-quiz-enumeration-input flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
+                                    `}
                                     ${statusIcon}
                                 </div>
                                 ${window.renderSharedMatchingEarnedHtml({ earned: hasSlotScore ? earnedSlotPts : (isSlotCorrect ? enumItemDisplayPts : 0), max: enumItemDisplayPts, visible: !_isTeacherPreviewMode && (_isReviewMode || hasVal) })}
@@ -32330,11 +32526,12 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             } else {
                 nextBtn.disabled = false;
                 nextBtn.innerHTML = isLast
-                    ? '<span>Exit Preview</span>'
+                    ? '<span>Finished</span>'
                     : '<span>Next</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
                 nextBtn.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
             }
         }
+        updateTeacherGradingButtonState();
     }
 
     window.openQuizPreviewModal = function (quizIdOrData, optionalFallbackTitle) {
@@ -32794,7 +32991,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         window._quizReviewReadOnly = pageNum > 1 && reversedAttempts.length > 1;
         window._activeReviewContext = { subjectId, tab, activeIdx, topicIdx, title, totalQuizPoints };
         const storedReviewScores = {
-            ...(activeAttempt.essayScores || subData?.essayScores || {}),
+            ...(pageNum === 1 ? subData?.essayScores || {} : {}),
+            ...(activeAttempt.essayScores || {}),
             ...(officialAttempt?.essayScores || {})
         };
         window._teacherEssayScores = {};
@@ -32809,7 +33007,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         });
         window._teacherEnumItemScores = {};
         const storedEnumScores = {
-            ...(activeAttempt?.enumItemScores || subData?.enumItemScores || {}),
+            ...(pageNum === 1 ? subData?.enumItemScores || {} : {}),
+            ...(activeAttempt?.enumItemScores || {}),
             ...(officialAttempt?.enumItemScores || {})
         };
         Object.keys(storedEnumScores).forEach(k => {
@@ -32817,12 +33016,27 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             if (value === undefined || value === null || String(value).trim() === '') return;
             window._teacherEnumItemScores[k] = value;
         });
+        // Recover prior question drafts for this exact student and attempt only.
+        let restoredDraft = false;
+        if (!window._quizReviewReadOnly && /(?:teacher|admin)\.html/i.test(location.pathname)) {
+            try {
+                const key = reviewDraftKey();
+                const draft = key ? JSON.parse(localStorage.getItem(key) || 'null') : null;
+                const officialDate = Date.parse(officialAttempt?.gradedAt || activeAttempt?.gradedAt || subData?.gradedAt || '') || 0;
+                if (draft && Date.parse(draft.savedAt) > officialDate) {
+                    Object.assign(window._teacherEssayScores, draft.scores || {});
+                    Object.assign(window._teacherEssayGraded, draft.accepted || {});
+                    Object.assign(window._teacherEnumItemScores, draft.enumScores || {});
+                    restoredDraft = true;
+                }
+            } catch (_) {}
+        }
         const autoScoreReview = String(essayGradingMode || '').toLowerCase() === 'auto' || String(gradingMode || '').toLowerCase() === 'auto-all';
         if (autoScoreReview) window._teacherEssayGraded = {};
         window._initialTeacherEssayScores = JSON.parse(JSON.stringify(window._teacherEssayScores || {}));
         window._initialTeacherEssayGraded = JSON.parse(JSON.stringify(window._teacherEssayGraded || {}));
         window._initialTeacherEnumItemScores = JSON.parse(JSON.stringify(window._teacherEnumItemScores || {}));
-        window._isReviewDirty = false;
+        window._isReviewDirty = restoredDraft;
 
         const modal = ensureModalInDom();
         modal.classList.remove('hidden');
@@ -32993,10 +33207,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
             window._activeReviewSubData.enumItemScores = kept;
         }
 
-        if (typeof window.showToast === 'function') {
-            window.showToast(`Question ${idx + 1} score accepted (${score}/${maxPts} pts).`, 'success');
-        }
-
+        try { persistReviewDraft(); } catch (error) { window.showToast?.('Unable to save the question draft: ' + error.message, 'error'); return; }
+        window.showToast?.(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Save Grades to apply it.`, 'success');
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
     };
@@ -33046,8 +33258,10 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         storeReviewQuestionScore(idx, score, true);
         window._editingReviewScores?.delete(idx);
         window._isReviewDirty = true;
+        try { persistReviewDraft(); }
+        catch (error) { window.showToast?.('Unable to save the question draft: ' + error.message, 'error'); return; }
         if (typeof window.showToast === 'function') {
-            window.showToast(`Question ${idx + 1} score saved (${score}/${maxPts} pts).`, 'success');
+            window.showToast(`Question ${idx + 1} score saved as draft (${score}/${maxPts} pts). Use Save Grades to apply it.`, 'success');
         }
         updateTeacherGradingButtonState();
         renderCurrentQuestion();
@@ -33318,6 +33532,21 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 } catch (e) { }
             }
 
+            if (subData?.studentId) {
+                const section = subData.section || window.currentTopicState?.selectedSection || '';
+                const secKey = window.submissionSectionKey?.(section) || 'section';
+                const subject = String(ctx.subjectId || subData.subjectId || '').replace(/^(card-|subj-)/, '').trim().toLowerCase();
+                const savedKey = `sigma_sub_${subData.studentId}_${secKey}_${subject}_top_${ctx.topicIdx ?? 0}_quiz_${ctx.activeIdx ?? 0}`;
+                let saved;
+                try { saved = JSON.parse(localStorage.getItem(savedKey) || 'null'); } catch (_) {}
+                const keys = Object.keys(window._teacherEssayScores || {});
+                if (!saved || Number(saved.score) !== totalScore || !keys.every(key => Number(saved.essayScores?.[key]) === Number(window._teacherEssayScores[key]))) {
+                    window._isReviewDirty = true;
+                    window.showToast?.('Grades could not be fully saved. Your question drafts are retained. Please retry.', 'error');
+                    return;
+                }
+                try { const key = reviewDraftKey(); if (key) localStorage.removeItem(key); } catch (_) {}
+            }
             _isPendingReview = false;
             if (typeof window.showToast === 'function') {
                 window.showToast(`Quiz review complete! Total Score: ${totalScore} / ${totalQuizPoints}`, 'success');
@@ -33455,18 +33684,18 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
 
         if (typeof window.openAskingPanel === 'function') {
             window.openAskingPanel({
-                title: 'Save Changes?',
+                title: 'Save Grades?',
                 message: 'Are you sure you want to save review changes and update the final grades?',
-                confirmText: 'Save Changes',
+                confirmText: 'Save Grades',
                 cancelText: 'Cancel',
                 icon: 'fa-solid fa-floppy-disk text-[#15803d]',
                 onConfirm: executeFinalize
             });
         } else if (typeof window.showConfirmDialog === 'function') {
             window.showConfirmDialog({
-                title: 'Save Changes?',
+                title: 'Save Grades?',
                 message: 'Are you sure you want to save review changes and update the final grades?',
-                confirmText: 'Save Changes',
+                confirmText: 'Save Grades',
                 cancelText: 'Cancel',
                 icon: 'fa-solid fa-floppy-disk text-[#15803d]',
                 onConfirm: executeFinalize
@@ -33495,6 +33724,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     type: 'warning',
                     icon: 'fa-solid fa-triangle-exclamation text-amber-500',
                     onConfirm: function () {
+                        try { const key = reviewDraftKey(); if (key) localStorage.removeItem(key); } catch (_) {}
                         window._isReviewDirty = false;
                         window.closeQuizPreviewModal(true);
                     }
@@ -33509,6 +33739,26 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         const legacyModal = document.getElementById('subject-quiz-viewer-modal');
         if (legacyModal) legacyModal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
+    };
+
+    window.reviewPortalQuizPreviewAnswers = function () {
+        if (_isReviewMode || _isStudentQuizReview) return;
+        const body = document.getElementById('uqp-body');
+        if (!body) return;
+        body.innerHTML = window.renderQuizAnswerReview(_previewQuestions, _isTeacherPreviewMode ? window.getQuizExpectedReviewAnswers(_previewQuestions, isUniversalChoiceCorrect) : _userAnswers, 'window.jumpToQuizPreviewQuestion', true, _isTeacherPreviewMode ? {} : _shuffledChoices, !_isTeacherPreviewMode, _isTeacherPreviewMode);
+        document.getElementById('uqp-counter')?.parentElement?.style.setProperty('display', 'none', 'important');
+        const previous = document.getElementById('uqp-prev-btn');
+        if (previous) {
+            previous.disabled = false;
+            previous.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
+            previous.innerHTML = 'Back to Quiz';
+            previous.onclick = () => { renderCurrentQuestion(); resetQuizPreviewScroll(); };
+        }
+        const next = document.getElementById('uqp-next-btn');
+        if (next) { next.innerHTML = _isTeacherPreviewMode ? 'Done' : 'Submit Preview'; next.onclick = () => window.closeQuizPreviewModal(); }
+        const counter = document.getElementById('uqp-footer-counter');
+        if (counter) counter.textContent = '';
+        resetQuizPreviewScroll();
     };
 
     window.navQuizPreview = function (dir) {
@@ -33531,7 +33781,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                 } else if (_isReviewMode) {
                     window.finalizeTeacherReviewDone();
                 } else {
-                    window.closeQuizPreviewModal();
+                    window.reviewPortalQuizPreviewAnswers();
                 }
             }
         }
@@ -33636,9 +33886,9 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
         if (typeof _userAnswers[qIdx] !== 'object' || _userAnswers[qIdx] === null || Array.isArray(_userAnswers[qIdx])) {
             _userAnswers[qIdx] = {};
         }
-        _userAnswers[qIdx][pIdx] = text;
+        window.applyMatchingSlotMove(e, _userAnswers[qIdx], qIdx, pIdx, text);
 
-        renderCurrentQuestion();
+        window.preserveMatchingScroll(renderCurrentQuestion);
         const pillsStrip = document.getElementById('uqp-pills-strip');
         if (pillsStrip) pillsStrip.innerHTML = renderPillsHtml();
     };
@@ -34445,11 +34695,7 @@ window.SIGMA_ENABLE_ONLINE_PRESENCE = false; // Set to true to switch online pre
 
 (function initSigmaPresenceTracker(global) {
     if (!window.SIGMA_ENABLE_ONLINE_PRESENCE) {
-        try {
-            localStorage.removeItem('sigma-active-online-users');
-            localStorage.removeItem('sigma-active-online-tabs-v1');
-            sessionStorage.removeItem('sigma_tab_presence_id');
-        } catch (e) { }
+        // The lightweight tracker loads separately; do not erase other tabs' presence.
         global.SigmaPresenceTracker = {
             getCleanOnlineUsers: () => [],
             recordHeartbeat: () => { },
@@ -35577,7 +35823,7 @@ window.renderSharedSvgSplineChartHtml = function (options = {}) {
             <svg viewBox="0 0 240 130" preserveAspectRatio="none" class="w-full h-full overflow-visible">
                 ${[100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map(v => {
                     const y = bottomY - (v / 100 * h);
-                    return `<line x1="${leftOffset}" y1="${y}" x2="${leftOffset + graphWidth}" y2="${y}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5" />`;
+                    return `<line x1="${leftOffset}" y1="${y}" x2="${leftOffset + graphWidth}" y2="${y}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" />`;
                 }).join('')}
                 ${chartSvgBody}
             </svg>
@@ -35604,28 +35850,14 @@ window.openSubjectPerformanceGrades = function (button) {
         window.openStudentClassroomGradesModal(options.id, options.title);
     }
 };
-window.selectSubjectPerformanceQuarter = function (select) {
-    const slider = select.closest('.student-performance-slider');
-    if (slider) {
-        const quarter = Number(select.value);
-        slider.dataset.selectedQuarter = String(quarter);
-        const user = window.getLoggedInStudentUser?.();
-        const userId = user?.uid || user?.id;
-        if (userId) {
-            try { localStorage.setItem(`sigma-student-performance-quarter:${userId}`, String(quarter)); } catch (_) {}
-        }
-        slider.querySelectorAll('.subject-performance-card').forEach(card => {
-            const options = subjectPerformanceOptions.get(card.dataset.performanceKey);
-            if (!options) return;
-            card.outerHTML = window.renderSharedSubjectPerformanceCardHtml({ ...options, selectedQuarter: quarter, detailsOpen: card.querySelector('details')?.open });
-        });
-        return;
-    }
+window.selectSubjectPerformanceQuarter = function (select, selectedValue) {
+    const value = Number(selectedValue ?? select.value);
     const card = select.closest('.subject-performance-card');
     const options = subjectPerformanceOptions.get(card.dataset.performanceKey);
     if (!options) return;
+    window.rememberPerformanceQuarter(JSON.stringify(['subject-performance', options.id, options.title, options.subtitle, options.section]), value);
     const expanded = card.querySelector('details')?.open;
-    card.outerHTML = window.renderSharedSubjectPerformanceCardHtml({ ...options, selectedQuarter: Number(select.value), detailsOpen: expanded });
+    card.outerHTML = window.renderSharedSubjectPerformanceCardHtml({ ...options, selectedQuarter: value, detailsOpen: expanded });
 };
 window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
     const {
@@ -35650,14 +35882,15 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
         const value = quarterValues[q - 1];
         return Number.isFinite(value) ? value : (options.omitMissingPoints ? null : 0);
     })];
-    const requestedQuarter = options.selectedQuarter || (previewDetails ? 2 : 1);
+    const requestedQuarter = window.restorePerformanceQuarter(JSON.stringify(['subject-performance', options.id, options.title, options.subtitle, options.section]), availableQuarters);
     const selectedQuarter = availableQuarters.includes(requestedQuarter) ? requestedQuarter : availableQuarters[0];
     const selectedScore = quarterValues[selectedQuarter - 1];
-    const previousScore = quarterValues[selectedQuarter - 2];
-    const canCompare = availableQuarters.includes(selectedQuarter - 1) && Number.isFinite(selectedScore) && Number.isFinite(previousScore);
+    const isStartingQuarter = selectedQuarter === availableQuarters[0];
+    const previousScore = isStartingQuarter ? 0 : quarterValues[selectedQuarter - 2];
+    const canCompare = (isStartingQuarter || availableQuarters.includes(selectedQuarter - 1)) && Number.isFinite(selectedScore) && Number.isFinite(previousScore);
     const change = canCompare ? Math.round(selectedScore) - Math.round(previousScore) : null;
     const changeDisplay = canCompare
-        ? `<div class="subject-quarter-change" style="color:${change > 0 ? '#15803d' : change < 0 ? '#dc2626' : 'rgba(0,0,0,0.45)'};"><div style="font-size:18px;line-height:24px;font-weight:600;white-space:nowrap;" aria-label="${change > 0 ? 'Up' : change < 0 ? 'Down' : 'No change'} ${Math.abs(change)} points">${change !== 0 ? `<i class="fa-solid ${change > 0 ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i> ${change > 0 ? '+' : ''}${change}` : 'No change'}</div><div style="font-size:12px;line-height:18px;font-weight:400;white-space:nowrap;">from Q${selectedQuarter - 1}</div></div>`
+        ? `<div class="subject-quarter-change" style="color:${change > 0 ? '#15803d' : change < 0 ? '#dc2626' : 'rgba(0,0,0,0.45)'};"><div style="font-size:18px;line-height:24px;font-weight:600;white-space:nowrap;" aria-label="${change > 0 ? 'Up' : change < 0 ? 'Down' : 'No change'} ${Math.abs(change)} points">${change !== 0 ? `<i class="fa-solid ${change > 0 ? 'fa-arrow-up' : 'fa-arrow-down'}" aria-hidden="true"></i> ${change > 0 ? '+' : ''}${change}` : 'No change'}</div><div style="font-size:12px;line-height:18px;font-weight:400;white-space:nowrap;">${isStartingQuarter ? 'from starting baseline (0)' : `from Q${selectedQuarter - 1}`}</div></div>`
         : '';
     const recordedScores = availableQuarters.map(q => quarterValues[q - 1]).filter(v => typeof v === 'number' && Number.isFinite(v));
     const isHighest = Number.isFinite(selectedScore) && recordedScores.length > 0 && selectedScore === Math.max(...recordedScores);
@@ -35666,7 +35899,7 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
         ? [quarterDetail.ww, quarterDetail.pt, quarterDetail.qa] : null;
     const svgChart = window.renderSharedSvgSplineChartHtml({
         values: chartValues,
-        labels: chartQuarters.map(q => `Q${q}`),
+        labels: chartQuarters.map(q => options.fullQuarterLabels ? `${['1st','2nd','3rd','4th'][q - 1]} Quarter` : `Q${q}`),
         omitMissingPoints: options.omitMissingPoints,
         scoreTint: options.scoreTint,
         id: safeId,
@@ -35689,9 +35922,7 @@ window.renderSharedSubjectPerformanceCardHtml = function (options = {}) {
                     ${options.teacherName ? `<div class="performance-subject-teacher">${(typeof window.renderUserAvatarHtml === 'function' && window.renderUserAvatarHtml(options.teacherName, 'xs', 'performance-subject-teacher-avatar')) || '<span class="performance-subject-teacher-avatar sigma-user-avatar sigma-user-avatar--xs" aria-hidden="true"><i class="fa-solid fa-user"></i></span>'}<span>${String(options.teacherName).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span></div>` : ''}
                 </div>
                 <div class="flex items-start gap-2 flex-shrink-0">
-                    <select aria-label="Quarter for ${escTitle}" class="bg-transparent text-black text-xs border border-slate-200 rounded px-2 py-1 cursor-pointer" style="cursor:pointer !important;" onchange="window.selectSubjectPerformanceQuarter(this)">
-                        ${availableQuarters.map(q => `<option value="${q}" ${q === selectedQuarter ? 'selected' : ''}>${performanceQuarterLabel(q)}</option>`).join('')}
-                    </select>
+                    ${window.renderSharedQuarterDropdown(availableQuarters, selectedQuarter, q => `window.selectSubjectPerformanceQuarter(this, ${q})`).replace('class="sigma-quarter-dropdown"', 'class="sigma-quarter-dropdown student-shared-quarter"')}
                     <div class="text-right" style="min-width:48px;">
                     ${cardOverallDisplay}
                     <div style="min-height:16px;margin-top:4px;font-size:10px;font-weight:600;color:#15803d;letter-spacing:0;">${isHighest ? 'Highest' : ''}</div>
@@ -35739,10 +35970,10 @@ document.addEventListener('click', event => {
     window.scrollTo(0,0);
 }, true);
 
-window.getAssignedGradeSections = function(student, subject) {
+window.getAssignedGradeSections = function(student, subject, requestedYear) {
     const normalize = value => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
     const year = window.getActiveSchoolYearRecord?.() || {};
-    const schoolYear = year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : year.name || year.schoolYear || year.year || '';
+    const schoolYear = requestedYear || (year.yearStart && year.yearEnd ? `${year.yearStart}-${year.yearEnd}` : year.name || year.schoolYear || year.year || '');
     const yearKey = value => normalize(value).replace(/[\u2013\u2014]/g, '-');
     const aliases = value => {
         const id = typeof value === 'object' ? value?.id || value?.subjectId : value;
@@ -35761,24 +35992,43 @@ window.getAssignedGradeSections = function(student, subject) {
         return wanted.some(value => subjects.includes(value)) && window.isSectionAssignedToStudent?.(section, student) === true;
     }).map(section => normalize(section.name || section.sectionName || section.section)).filter(Boolean))];
 };
-window.getPublishedSubjectGrade = function(student,subject,section,quarter){
+window.getPublishedSubjectGrade = function(student,subject,section,quarter,requestedYear){
     try{
         const normalize=value=>String(value||'').trim().replace(/\s+/g,' ').toLowerCase();
         const year=window.getActiveSchoolYearRecord?.()||{};
-        const schoolYear=year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified';
-        const assigned = window.getAssignedGradeSections(student, subject).filter(name => !section || name === normalize(section));
+        const schoolYear=requestedYear || (year.yearStart&&year.yearEnd?`${year.yearStart}-${year.yearEnd}`:year.name||year.schoolYear||year.year||'Not specified');
+        const assigned = window.getAssignedGradeSections(student, subject, schoolYear).filter(name => !section || name === normalize(section));
         const records=JSON.parse(localStorage.getItem('sigma-published-quarter-grades-v1')||'{}');
         const ids=[student?.id,student?.uid,student?.lrn,student?.studentNumber].filter(Boolean).map(String);
         const grades = assigned.flatMap(name => {
             const key=JSON.stringify([schoolYear,name,normalize(subject),Number(quarter)]);
-            const row=records[key]?.rows?.find(row=>ids.includes(String(row.id)));
+            const remote = window.SigmaGradeSync?.getPublished(key);
+            const record = remote?.ready ? remote.record : records[key];
+            const row=record?.rows?.find(row=>[row.id, ...(Array.isArray(row.studentIds) ? row.studentIds : [])].some(id=>ids.includes(String(id))));
             return row && Number.isFinite(row.grade) ? [row.grade] : [];
         });
         return grades.length === 1 ? grades[0] : null;
     }catch(_){return null;}
 };
-window.getSigmaAiLanguage = function(feature){
-    try{const user=JSON.parse(sessionStorage.getItem('sigma-authenticated-user')||'{}');const prefs=JSON.parse(localStorage.getItem(`sigma-ai-preferences:${user.uid||user.id||'default'}`)||'{}');return prefs[feature]||(feature==='bot'?'auto':'en');}catch(_){return feature==='bot'?'auto':'en';}
+window.getSigmaAiPreferencesKey = function (fallbackUser) {
+    let user = {};
+    try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}') || {}; } catch (_) {}
+    if (!user.uid && !user.id) {
+        try { user = window.getLoggedInUserData?.() || fallbackUser || {}; } catch (_) { user = fallbackUser || {}; }
+        if (!user.uid && !user.id) user = fallbackUser || {};
+    }
+    return `sigma-ai-preferences:${user.uid || user.id || 'default'}`;
+};
+window.getSigmaAiPreferences = function (user) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(window.getSigmaAiPreferencesKey(user)) || '{}') || {}; } catch (_) {}
+    return {
+        bot: ['auto', 'en', 'fil'].includes(saved.bot) ? saved.bot : 'auto',
+        insights: saved.insights === 'fil' ? 'fil' : 'en'
+    };
+};
+window.getSigmaAiLanguage = function (feature) {
+    return window.getSigmaAiPreferences()[feature] || (feature === 'bot' ? 'auto' : 'en');
 };
 window.renderSigmaAiHeading = function(label='SIGMA AI Insights') {
     return `<div class="sigma-ai-shared-heading"><span class="sigma-ai-shared-icon" aria-hidden="true"><i class="fa-solid fa-bolt"></i></span><span>${window.escapeHtml?window.escapeHtml(label):label}</span></div>`;
@@ -37584,3 +37834,95 @@ window.flushTeacherReleaseToastQueue = function () {
     function start(){enhance(document);new MutationObserver(changes=>{for(const change of changes)for(const node of change.addedNodes)if(node.nodeType===1)enhance(node);}).observe(document.body,{childList:true,subtree:true});}
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
+
+// =========================================================================
+// UNIVERSAL ACTION DROPDOWN POSITIONING & DROPUP AUTO-FLIP
+// =========================================================================
+window.resetActionDropdownPosition = function (menu) {
+    if (!menu) return;
+    menu.classList.remove('dropup');
+    menu.style.removeProperty('position');
+    menu.style.removeProperty('top');
+    menu.style.removeProperty('bottom');
+    menu.style.removeProperty('left');
+    menu.style.removeProperty('right');
+    menu.style.removeProperty('margin-top');
+    menu.style.removeProperty('margin-bottom');
+    menu.style.removeProperty('z-index');
+    menu.style.removeProperty('max-height');
+    menu.style.removeProperty('overflow-y');
+};
+
+window.positionActionDropdown = function (menu, btn) {
+    if (!menu || !btn) return;
+    menu.classList.remove('dropup');
+
+    // Ensure fixed capability so menus escape table and container overflow clipping
+    menu.style.setProperty('position', 'fixed', 'important');
+    menu.style.setProperty('right', 'auto', 'important');
+    menu.style.setProperty('bottom', 'auto', 'important');
+    menu.style.setProperty('margin-top', '0px', 'important');
+    menu.style.setProperty('margin-bottom', '0px', 'important');
+    menu.style.setProperty('z-index', '99999', 'important');
+
+    const btnRect = btn.getBoundingClientRect();
+    let menuWidth = menu.offsetWidth;
+    let menuHeight = menu.offsetHeight;
+    if (!menuHeight || menuHeight <= 0) {
+        const prevVis = menu.style.visibility;
+        const prevDisplay = menu.style.display;
+        menu.style.setProperty('visibility', 'hidden', 'important');
+        menu.style.setProperty('display', 'block', 'important');
+        menuHeight = menu.offsetHeight || 180;
+        menuWidth = menu.offsetWidth || 195;
+        if (prevDisplay) {
+            menu.style.setProperty('display', prevDisplay);
+        } else {
+            menu.style.removeProperty('display');
+        }
+        if (prevVis) {
+            menu.style.setProperty('visibility', prevVis);
+        } else {
+            menu.style.removeProperty('visibility');
+        }
+    }
+
+    const viewportW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+
+    let left = btnRect.right - menuWidth;
+    if (left + menuWidth > viewportW - 12) {
+        left = Math.max(12, viewportW - menuWidth - 12);
+    }
+    if (left < 12) {
+        left = 12;
+    }
+
+    const spaceBelow = viewportH - btnRect.bottom;
+    const spaceAbove = btnRect.top;
+    let top;
+
+    // If not enough room below (menuHeight + 16px margin) and more room above, flip upward (dropup)
+    if (spaceBelow < menuHeight + 16 && spaceAbove > spaceBelow) {
+        top = btnRect.top - menuHeight - 6;
+        if (top < 12) top = 12;
+        menu.classList.add('dropup');
+    } else {
+        top = btnRect.bottom + 6;
+        if (top + menuHeight > viewportH - 12) {
+            top = Math.max(12, viewportH - menuHeight - 12);
+        }
+        menu.classList.remove('dropup');
+    }
+
+    menu.style.setProperty('max-height', 'calc(100vh - 24px)', 'important');
+    menu.style.setProperty('overflow-y', 'auto', 'important');
+    menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+    menu.style.setProperty('top', Math.round(top) + 'px', 'important');
+};
+
+window.getGradeSemesterLabel = function(quarters, compact = false) {
+    const values = (quarters || []).map(value => Number(String(value).replace(/^q/i, ''))).filter(value => value >= 1 && value <= 4);
+    const semester = values.length && values.every(value => value <= 2) ? '1st' : values.length && values.every(value => value >= 3) ? '2nd' : null;
+    return semester ? `${semester} ${compact ? 'Sem' : 'Semester'}` : (compact ? 'Final' : 'Final Grade');
+};

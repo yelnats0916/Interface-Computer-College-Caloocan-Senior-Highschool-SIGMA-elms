@@ -6262,12 +6262,42 @@ window.prevPreviewQuestion = function () {
 };
 
 window.nextPreviewQuestion = function () {
+    if (currentPreviewQuestionIndex === questions.length - 1) {
+        window.finishCreatorQuizPreview();
+        return;
+    }
     if (currentPreviewQuestionIndex < questions.length - 1) {
         currentPreviewQuestionIndex++;
         currentPreviewPillsPage = Math.floor(currentPreviewQuestionIndex / 10);
         window.renderStudentPreview();
         resetStudentPreviewScroll();
     }
+};
+
+// Creator-only review: never calls live attempt submission or grade synchronization.
+window.finishCreatorQuizPreview = function () {
+    const list = document.getElementById('student-preview-questions-list');
+    if (!list || !questions?.length) return;
+    const subheader = document.getElementById('student-preview-counter')?.parentElement;
+    if (subheader) subheader.style.setProperty('display', 'none', 'important');
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    list.innerHTML = window.renderQuizAnswerReview(questions, window.previewUserAnswers, 'window.jumpToPreviewQuestion', true, window.previewShuffledChoices || {});
+    const previous = document.getElementById('preview-footer-prev-btn');
+    if (previous) {
+        previous.disabled = false;
+        previous.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
+        previous.innerHTML = 'Back to Quiz';
+        previous.onclick = () => window.jumpToPreviewQuestion(questions.length - 1);
+    }
+    const next = document.getElementById('preview-footer-next-btn');
+    if (next) {
+        next.disabled = false;
+        next.innerHTML = 'Submit Preview';
+        next.onclick = () => window.closeStudentQuizPreviewModal();
+    }
+    const counter = document.getElementById('preview-footer-question-counter');
+    if (counter) counter.textContent = '';
+    resetStudentPreviewScroll();
 };
 
 window.jumpToPreviewQuestion = function (idx) {
@@ -6916,6 +6946,7 @@ window.updatePreviewPills = function () {
 window.renderStudentPreview = function () {
     const listContainer = document.getElementById('student-preview-questions-list');
     if (!listContainer) return;
+    document.getElementById('student-preview-counter')?.parentElement?.style.removeProperty('display');
 
     if (!questions || questions.length === 0) {
         listContainer.innerHTML = `
@@ -7305,7 +7336,7 @@ window.renderStudentPreview = function () {
                                 oninput="window.setPreviewEnumAnswer(${idx}, ${iIdx}, this.value)"
                                 onkeydown="window.confirmPreviewTextAnswer(${idx}, event)"
                                 onblur="window.confirmPreviewTextAnswer(${idx}, event)"
-                                class="flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
+                                class="sigma-quiz-enumeration-input flex-1 bg-transparent text-sm md:text-base font-semibold outline-none focus:outline-none focus:ring-0 placeholder:text-black-fade placeholder:font-normal min-w-0 pr-2 ${inputClass}">
                             <div id="preview-enum-icon-${idx}-${iIdx}">${statusIcon}</div>
                         </div>
                         <div id="preview-enum-earned-${idx}-${iIdx}">${window.renderSharedMatchingEarnedHtml({ earned: isSlotCorrect ? window.getQuestionPoints(idx).max / Math.max(1, slotCount) : 0, max: window.getQuestionPoints(idx).max / Math.max(1, slotCount), visible: allFilled })}</div>
@@ -7540,16 +7571,18 @@ window.renderStudentPreview = function () {
     const prevBtn = document.getElementById('preview-footer-prev-btn');
     const nextBtn = document.getElementById('preview-footer-next-btn');
     if (prevBtn) {
+        prevBtn.innerHTML = '<i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Previous</span>';
+        prevBtn.onclick = () => window.prevPreviewQuestion();
         prevBtn.disabled = idx === 0;
         prevBtn.className = idx === 0
             ? 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 invisible pointer-events-none'
             : 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
     }
     if (nextBtn) {
-        nextBtn.disabled = idx >= totalQ - 1;
-        nextBtn.className = idx >= totalQ - 1
-            ? 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 invisible pointer-events-none'
-            : 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
+        nextBtn.disabled = false;
+        nextBtn.className = 'sigma-btn sigma-btn-primary sigma-btn-md flex items-center gap-2 cursor-pointer';
+        nextBtn.innerHTML = idx === totalQ - 1 ? '<span>Finished</span>' : '<span>Next</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+        nextBtn.onclick = () => window.nextPreviewQuestion();
     }
 };
 
@@ -7687,8 +7720,10 @@ window.handlePreviewMatchingDrop = function (e, slotEl, qIdx, slotIdx) {
     window.handlePreviewChoiceDragEnd(e);
     const text = e.dataTransfer.getData('text/plain');
     if (text) {
-        window.setPreviewMatchingAnswer(qIdx, slotIdx, text);
-        window.renderStudentPreview();
+        if (!window.previewUserAnswers[qIdx] || typeof window.previewUserAnswers[qIdx] !== 'object') window.previewUserAnswers[qIdx] = {};
+        window.applyMatchingSlotMove(e, window.previewUserAnswers[qIdx], qIdx, slotIdx, text);
+        window.updatePreviewPills();
+        window.preserveMatchingScroll(() => window.renderStudentPreview());
     }
 };
 

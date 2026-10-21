@@ -417,6 +417,10 @@ window.initializeSharedCurriculumRelease = function () {
 
     // ── Release Quarter Management & Toggle Helper ────────────────────────────
     window.getActiveReleaseQuarter = function () {
+        if (location.pathname.endsWith('/teacher.html')) {
+            const selected = String(window.currentSelectedTopicQuarter || window.currentTopicState?.currentQuarter || '').toLowerCase();
+            if (/^q[1-4]$/.test(selected)) return selected;
+        }
         if (window._activeReleaseQuarter) return window._activeReleaseQuarter;
         const pageQuarter = window.currentSelectedTopicQuarter
             || (typeof currentTopicState !== 'undefined' ? currentTopicState?.currentQuarter : null)
@@ -549,6 +553,9 @@ window.initializeSharedCurriculumRelease = function () {
     };
 
     window.renderReleaseQuarterToggleHtml = function (subjectIdOrQuarter = null, currentQuarter = null) {
+        if (location.pathname.endsWith('/teacher.html')) {
+            return `<span class="subject-quarter-context-label">${window.getReleaseQuarterLabel(window.getActiveReleaseQuarter())}</span>`;
+        }
         let subjectId = null;
         let activeQ = null;
 
@@ -1094,7 +1101,7 @@ window.initializeSharedCurriculumRelease = function () {
             if (left + menuWidth > window.innerWidth - 8) {
                 left = window.innerWidth - menuWidth - 8;
             }
-            const approxHeight = isDesktop ? menu.offsetHeight : (category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125));
+            const approxHeight = (menu.offsetHeight > 0 ? menu.offsetHeight : (isDesktop ? 160 : (category === 'assessments' ? (isMobile ? 125 : 155) : (isMobile ? 95 : 125))));
             if (top + approxHeight > window.innerHeight - 8) {
                 top = Math.max(8, rect.top - approxHeight - 4);
             }
@@ -8705,13 +8712,14 @@ window.initializeSharedCurriculumRelease = function () {
         if (!window._topicReleaseCollapsedState) window._topicReleaseCollapsedState = {};
         if (isCollapsed) {
             bodyEl.classList.remove('hidden');
-            if (chevronEl) chevronEl.style.transform = 'rotate(0deg)';
+            if (chevronEl) chevronEl.style.transform = 'rotate(180deg)';
             window._topicReleaseCollapsedState[topicSafeId] = false;
         } else {
             bodyEl.classList.add('hidden');
-            if (chevronEl) chevronEl.style.transform = 'rotate(-90deg)';
+            if (chevronEl) chevronEl.style.transform = 'rotate(0deg)';
             window._topicReleaseCollapsedState[topicSafeId] = true;
         }
+        chevronEl?.closest('button')?.setAttribute('aria-expanded', String(isCollapsed));
     };
 
     window.toggleReleaseDivisionCollapse = function (divisionSafeId, e) {
@@ -9064,7 +9072,7 @@ window.initializeSharedCurriculumRelease = function () {
 
                                         <!-- Chevron Dropdown Icon -->
                                         <div class="w-6 h-6 flex items-center justify-center text-black pointer-events-none">
-                                            <i id="topic-chevron-${topicSafeId}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200" style="transform: ${isTopicExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'};"></i>
+                                            <i id="topic-chevron-${topicSafeId}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200" style="transform: ${isTopicExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -9249,7 +9257,6 @@ window.initializeSharedCurriculumRelease = function () {
                             </button>
                             <h2 class="text-lg sm:text-xl font-bold text-black font-['Inter'] tracking-tight">Release Topics & Materials</h2>
                         </div>
-                        <p class="text-[11px] sm:text-xs font-medium text-black-fade font-['Inter'] mt-0.5">Manage topic, learning material, and assessment visibility and release schedule for students</p>
                     </div>
                 </div>
 
@@ -9818,6 +9825,7 @@ window.initializeSharedCurriculumRelease = function () {
     };
 
     window.syncTopicsAndMaterialsPickerSubmitBtn = function () {
+        window.syncReleaseWorkspaceSelectionSummary?.();
         const working = window._topicsAndMaterialsPickerWorking || new Map();
         const count = working.size;
         const selectBtn = document.getElementById('topics-materials-picker-submit-btn');

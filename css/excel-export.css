@@ -7,6 +7,15 @@
 .shared-export-option:has(input:checked) { border: 2px solid #15803d; padding: 23px; background: #f6fdf9; }
 .shared-export-option:has(input:checked):hover { background: #f2fcf6; }
 .shared-export-option input { width: 20px; height: 20px; margin-top: 4px; accent-color: #15803d; flex-shrink: 0; }
+.shared-export-periods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 768px; border: 0; padding: 0; margin: 0 0 28px; }
+.shared-export-periods legend { font-weight: 700; margin-bottom: 12px; }
+.shared-export-period { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid #e2e8f0; border-radius: 16px; cursor: pointer; }
+.shared-export-period input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #15803d; }
+.shared-export-period span { font-weight: 700; }
+.shared-export-period small { display: block; margin-top: 4px; color: rgba(0,0,0,.45); font-weight: 400; }
+.shared-export-period:has(input:checked) { border-color: #15803d; background: #f6fdf9; }
+.shared-export-period:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+@media (max-width: 639px) { .shared-export-periods { grid-template-columns: 1fr; } }
 .shared-export-error { color: #b91c1c; }
 .shared-export-copy { display: grid; gap: 6px; min-width: 0; }
 .shared-export-intro { margin: 0 0 24px; color: #000; font-size: 16px; font-weight: 500; line-height: 1.5; }

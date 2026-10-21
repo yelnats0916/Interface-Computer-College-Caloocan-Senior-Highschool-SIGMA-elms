@@ -44,20 +44,71 @@
             }
         };
         const selected = (state.assessmentPage || 0) * 4 + (state.mobileAssessmentSlot || 0);
+        const list = modal.querySelector('.gb-assessment-picker-list');
+        const heading = modal.querySelector('.sigma-modal-title');
+        const topics = new Map();
+        const manual = [];
         items.forEach((item, index) => {
+            const rawTopic = item.topicIdx ?? item.rawItem?.topicIdx;
+            const topicNumber = rawTopic !== undefined && rawTopic !== null && rawTopic !== ''
+                ? Number(rawTopic) + 1 : Number(item.topicNumber);
+            const entry = { item, index };
+            if (item.offline || !Number.isInteger(topicNumber) || topicNumber < 1) {
+                manual.push(entry);
+            } else {
+                if (!topics.has(topicNumber)) topics.set(topicNumber, []);
+                topics.get(topicNumber).push(entry);
+            }
+        });
+        const topicNumbers = [...topics.keys()].sort((a, b) => a - b);
+        const appendAction = (text, onClick) => {
             const button = document.createElement('button'); button.type = 'button'; button.className = 'gb-assessment-picker-item';
-            button.textContent = item.title || item.name;
-            button.setAttribute('aria-current', String(index === selected));
-            button.onclick = () => {
+            button.textContent = text;
+            button.onclick = onClick;
+            list.appendChild(button);
+            return button;
+        };
+        const appendAssessment = ({ item, index }) => {
+            const button = appendAction(item.title || item.name, () => {
                 state.assessmentPage = Math.floor(index / 4); state.mobileAssessmentSlot = index % 4;
                 state.mobileAssessmentSummary = false; close(); window.renderAdminGradebookWorkspace?.();
-            };
-            modal.querySelector('.gb-assessment-picker-list').appendChild(button);
-        });
-        const add = document.createElement('button'); add.type = 'button'; add.className = 'gb-assessment-picker-item';
-        add.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i> Add Assessment';
-        add.onclick = () => { close(); window.openOfflineAssessmentForm(); };
-        modal.querySelector('.gb-assessment-picker-list').appendChild(add);
+            });
+            button.textContent = item.title || item.name;
+            button.setAttribute('aria-current', String(index === selected));
+        };
+        const appendAdd = () => {
+            const add = appendAction('Add Assessment', () => { close(); window.openOfflineAssessmentForm(); });
+            add.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i> Add Assessment';
+        };
+        const setHeading = text => {
+            heading.textContent = text;
+            modal.setAttribute('aria-label', text);
+            list.replaceChildren();
+        };
+        const renderTopic = number => {
+            setHeading(number === null ? 'Assessment List — Manual' : `Assessment List — Topic ${number}`);
+            if (topicNumbers.length > 1) appendAction('Back to Topics', () => { renderTopics(); list.querySelector('button')?.focus(); });
+            (number === null ? manual : topics.get(number) || []).forEach(appendAssessment);
+            // Manual assessments have no topic; keep them separately labelled.
+            if (number !== null && topicNumbers.length === 1 && manual.length) {
+                const label = document.createElement('h3');
+                label.textContent = 'Manual Assessments';
+                label.className = 'text-sm font-semibold text-black mt-3 mb-1';
+                list.appendChild(label);
+                manual.forEach(appendAssessment);
+            }
+            appendAdd();
+        };
+        const renderTopics = () => {
+            setHeading('Assessment List — Select Topic');
+            topicNumbers.forEach(number => appendAction(`Topic ${number}`, () => {
+                renderTopic(number); list.querySelector('button')?.focus();
+            }));
+            if (manual.length) appendAction('Manual Assessments', () => { renderTopic(null); list.querySelector('button')?.focus(); });
+            appendAdd();
+        };
+        if (topicNumbers.length > 1) renderTopics();
+        else renderTopic(topicNumbers[0] ?? null);
         modal.querySelector('[data-close]').onclick = close;
         document.body.appendChild(modal); document.addEventListener('keydown', keyboard); modal.querySelector('button').focus();
     };

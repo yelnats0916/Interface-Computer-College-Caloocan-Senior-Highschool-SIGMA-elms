@@ -1,6 +1,38 @@
 (function () {
     'use strict';
     let busy = false;
+    window.getSigmaLessonContext = function () {
+        const host=document.getElementById('section-topic-content');
+        const state=window.currentTopicState||{};
+        if(!host||host.classList.contains('hidden')||!state.subjectId)return null;
+        const data=window.getTopicData?.(state.subjectId);
+        if(!data)return null;
+        const quarter=String(window.currentSelectedTopicQuarter||'q1').replace(/^q?/,'q');
+        const topics=data[quarter+'Topics']||data.q1Topics||data.topics||[];
+        const index=Number(state.topicIdx)||0;
+        const topic=topics[index];
+        if(!topic)return null;
+        const student=/student/i.test(location.pathname);
+        const section=state.selectedSection||'';
+        const status=student?window.getStudentTopicReleaseStatus?.(state.subjectId,topic,index,section):null;
+        if(status&&(status.isLocked||status.isHidden||status.isUnreleased))return null;
+        const plain=value=>{
+            const node=document.createElement('div');node.innerHTML=String(value||'');
+            return (node.textContent||'').replace(/\s+/g,' ').trim();
+        };
+        const sources=[];
+        for(const key of ['lessons','videos','materials','resources']){
+            for(const [materialIndex,item] of (Array.isArray(topic[key])?topic[key]:[]).entries()){
+                if(!item||typeof item!=='object')continue;
+                const release=student?window.getStudentLearningMaterialReleaseStatus?.(state.subjectId,item,index,materialIndex,key==='videos'?'video':'lesson',section):null;
+                if(release&&(release.isLocked||release.isHidden||release.isUnreleased))continue;
+                sources.push({title:plain(item.title||item.name),text:plain(item.description||item.content||item.text).slice(0,1200)});
+            }
+        }
+        // No assessment answers, student records, credentials, or unparsed file contents.
+        const context={subject:plain(data.title||data.text||data.name||state.subjectId),topic:plain(topic.title||topic.name),description:plain(topic.description||topic.overview).slice(0,1600),sources:sources.slice(0,4)};
+        return context;
+    };
     window.sendSigmaChatMessage = async function (suggestedText) {
         const panel = document.getElementById('sigmaAiPanel');
         const messages = document.getElementById('sigmaAiMessages');
@@ -8,6 +40,7 @@
         const send = document.getElementById('sigmaAiSendBtn');
         if (busy || !panel || !messages || !input || typeof window.renderSigmaChatMessage !== 'function') return;
         const text = String(typeof suggestedText === 'string' ? suggestedText : input.value).trim();
+        const portalRole=/admin/i.test(location.pathname)?'admin':/teacher/i.test(location.pathname)?'teacher':'student';
         if (!text) return;
         let notice = document.getElementById('sigmaChatError');
         if (!notice) {
@@ -26,7 +59,7 @@
             if (el.dataset.sigmaGreeting === 'true') continue;
             const content = el.querySelector('.sigma-ai-message__bubble')?.textContent || '';
             const size = new TextEncoder().encode(content).length;
-            if (history.length >= 12 || bytes + size > 12000 || size > 4000) break;
+            if (history.length >= 12 || bytes + size > 8000 || size > 4000) break;
             bytes += size;
             history.unshift({ role: el.classList.contains('sigma-ai-message--user') ? 'user' : 'assistant', text: content });
         }
@@ -50,7 +83,7 @@
                 ? 'http://localhost/sigma-elms/php/api/sigma_chat.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/sigma_chat.php' : 'php/api/sigma_chat.php', location.href).href;
             const response = await fetch(apiUrl, { method: 'POST', credentials: 'include', signal: controller.signal,
-                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, language:window.getSigmaAiLanguage?.('bot')||'auto' }) });
+                headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history, portalRole, lessonContext:window.getSigmaLessonContext(), language:window.getSigmaAiLanguage?.('bot')||'auto' }) });
             const result = await response.json();
             if (!response.ok || !result.success || typeof result.text !== 'string' || !result.text.trim()) throw new Error(result.error || 'SIGMA could not get an answer. Try again.');
             if (!/^CHAT-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('SIGMA replied without a generation ID. Try again.');

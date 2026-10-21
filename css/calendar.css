@@ -1451,23 +1451,25 @@ body.calendar-page-mode #mobile-calendar-panel {
     #attendance-full-calendar-grid > div {
         min-height: 46px !important;
         height: 46px !important;
-        padding: 0 !important;
+        padding: 4px 5px !important;
         display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
         box-sizing: border-box !important;
     }
     #attendance-full-calendar-grid > div > div {
         display: flex !important;
         align-items: center !important;
-        justify-content: center !important;
+        justify-content: flex-start !important;
         width: 100% !important;
-        height: 100% !important;
+        height: auto !important;
     }
     .calendar-grid-date-num {
-        width: 24px !important;
-        height: 24px !important;
-        font-size: 11px !important;
+        width: auto !important;
+        height: 12px !important;
+        justify-content: flex-start !important;
+        font-size: 9px !important;
         font-weight: 700 !important;
         line-height: 1 !important;
     }
@@ -1617,5 +1619,59 @@ body.calendar-page-mode #mobile-calendar-panel {
 .calendar-mobile-collapse-bar,
 .calendar-mobile-nav-chevron-btn {
     display: none;
+}
+
+/* Keep month-cell previews bounded on both layouts. */
+.calendar-view-announcement { display: inline-block; border: 0; background: transparent; padding: 6px 0; margin: 2px 0; color: var(--icc-green, #15803d); font-size: 12px; font-weight: 600; cursor: pointer; }
+.calendar-view-announcement:is(:hover, :focus-visible) { text-decoration: underline; text-underline-offset: 3px; }
+html body #attendance-full-calendar-grid > div {
+    min-width: 0;
+    overflow: hidden;
+}
+html body #attendance-full-calendar-grid .academic-calendar-day-events {
+    display: grid !important;
+    align-content: start;
+    gap: 3px;
+    width: 100% !important;
+    min-width: 0;
+    height: auto !important;
+    overflow: hidden;
+}
+html body #attendance-full-calendar-grid .academic-calendar-day-events > span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+html body #attendance-full-calendar-grid .calendar-cell-event-count {
+    display: none !important;
+}
+@media (min-width: 1024px) {
+    html body #attendance-full-calendar-grid > div > div:first-child {
+        justify-content: flex-start !important;
+    }
+    html body #attendance-full-calendar-grid .calendar-grid-date-num {
+        justify-content: flex-start !important;
+    }
+    html body #attendance-full-calendar-grid .academic-calendar-day-events > span {
+        font-size: 11px;
+        line-height: 14px;
+        padding: 2px 5px;
+    }
+}
+@media (max-width: 1023px) {
+    html body #attendance-full-calendar-grid .academic-calendar-day-events {
+        margin-top: 3px;
+    }
+    html body #attendance-full-calendar-grid .academic-calendar-day-events > :is(.calendar-cell-event-title, .calendar-cell-event-more) {
+        display: none !important;
+    }
+    html body #attendance-full-calendar-grid .academic-calendar-day-events > .calendar-cell-event-count {
+        display: block !important;
+        font-size: 8px !important;
+        line-height: 12px !important;
+        padding: 0 2px !important;
+    }
 }
 

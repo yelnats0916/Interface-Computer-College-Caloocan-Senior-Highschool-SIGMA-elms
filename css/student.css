@@ -6904,14 +6904,53 @@ html body #grades-layout .student-performance-slider .subject-performance-card >
 }
 html body #grades-layout :is(.student-grades-summary-panel,.student-performance-section)[hidden]{display:none!important}
 .student-grades-view-control{margin-left:auto}
+.student-grade-cards{display:grid;grid-template-columns:minmax(0,1fr);width:100%;gap:20px;padding:0 0 24px;font-family:Inter,sans-serif}
+html body #grades-layout .student-grade-cards[hidden]{display:none!important}
+.student-grade-card{min-width:0;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.student-grade-card>header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.student-grade-card-subject{min-width:0;overflow-wrap:anywhere;font-size:14px;line-height:20px;font-weight:600;color:var(--icc-green)}
+.student-grade-card-subject>span{display:block;margin-top:4px;color:rgba(0,0,0,.45);font-size:12px;line-height:18px;font-weight:400}
+.student-grade-card-teacher{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;max-width:48%;font-size:13px;color:#000;text-align:right;overflow-wrap:anywhere}
+.student-grade-card-avatar{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;height:32px;border-radius:50%;background:#f1f5f9;color:#94a3b8}
+.student-grade-card dl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:18px 0 0;padding:0;background:#fff;border:0;text-align:center;gap:0}
+.student-grade-card dl>div{min-width:0;display:flex;flex-direction:column}
+.student-grade-card dt{padding:10px 4px;background:var(--icc-green,#15803d);color:#fff;font-size:12px;line-height:18px;font-weight:600;box-shadow:inset -1px 0 0 #137638}
+.student-grade-card dd{flex:1;margin:0;padding:12px 4px;color:#000;font-size:16px;line-height:24px;font-weight:500;border-bottom:1px solid rgba(0,0,0,.08)}
+.student-grade-card dd.student-grade-missing{color:rgba(0,0,0,.45);font-weight:400}
+.student-grade-card dl>div:last-child dt{box-shadow:none}
+.student-grade-card dl>div:last-child dd{border-left:1px solid rgba(0,0,0,.08)}
+@media(min-width:768px){
+ html body #section-grades #grades-layout{padding:24px 40px 40px!important}
+ html body #grades-layout .student-grade-cards{padding-bottom:0;gap:20px}
+ html body #grades-layout .student-grade-card{padding:20px;border-radius:16px}
+ html body #grades-layout .student-grade-card>header{min-height:42px}
+ html body #grades-layout .student-grade-card-avatar{width:38px;height:38px;flex:0 0 38px;background:#e2e8f0;border:1px solid rgba(226,232,240,.7);font-size:15px;box-sizing:border-box}
+}
+@media(max-width:767px){
+ .student-grade-cards{grid-template-columns:minmax(0,1fr);gap:0;width:100%}
+ .student-grade-card{padding:16px;border:0;border-bottom:1px solid rgba(0,0,0,.12);border-radius:0;box-shadow:none}
+ .student-grade-card-avatar{display:none}
+ .student-grade-card-teacher{font-size:12px}
+ .student-grade-card>header{align-items:flex-start;gap:12px}
+}
 .student-grades-view-segments{display:flex;border:1px solid #dce5ef;border-radius:8px;overflow:hidden}
 .student-grades-view-segments button{padding:8px 12px;background:#fff;color:#000;border:0;font-size:13px;min-height:36px}
 .student-grades-view-segments button[aria-pressed=true]{background:#15803d;color:#fff}
 .student-grades-view-mobile{display:none}
+.student-final-label-mobile{display:none}
 @media(max-width:767px){
+ .student-final-label-desktop{display:none}
+ .student-final-label-mobile{display:inline}
  .student-grades-view-segments{display:none}
  .student-grades-view-mobile{display:flex;position:relative;align-items:center;justify-content:center;gap:8px;border:1px solid #dce5ef;border-radius:8px;width:52px;height:36px;color:#000;background:#fff}
- .student-grades-view-mobile select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+ .student-grades-view-toggle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:100%;padding:0;border:0;border-radius:inherit;background:transparent;color:#000;cursor:pointer}
+ .student-grades-view-toggle::after{content:none!important}
+ .student-grades-view-toggle[aria-expanded=true] .fa-chevron-down{transform:rotate(180deg)}
+ .student-grades-view-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;min-width:130px;padding:5px;background:#fff;border:1px solid #dce5ef;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+ .student-grades-view-menu[hidden]{display:none!important}
+ .student-grades-view-menu button{display:block;width:100%;min-height:44px;padding:10px 14px;border:0;border-radius:6px;background:#fff;color:#111;text-align:left;font:400 14px/20px Inter,sans-serif;cursor:pointer}
+ .student-grades-view-menu button[aria-pressed=true]{background:#ecfdf5;color:#15803d;font-weight:600}
+ .student-grades-view-menu button:hover{background:#f1f5f9}
  .student-grades-view-mobile .fa-chevron-down{font-size:9px}
 }
 @media(max-width:767px){
@@ -6939,6 +6978,15 @@ html body .student-grade-bars[hidden]{display:none!important}
 .student-grade-bar-subtitle{margin-top:4px;color:rgba(0,0,0,.45);font-size:12px;font-weight:400;line-height:18px;overflow-wrap:anywhere}
 .student-grade-bar-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .student-grade-bar-subject-info{min-width:0;flex:1}
+.student-grade-bar-teacher{display:flex;align-items:center;gap:8px;color:#000;font-size:13px;min-width:0;overflow-wrap:anywhere}
+html body #grades-layout :is(.grade-subject-title,.student-grade-bar-subject,.subject-performance-card button[title="View grades"],.subject-performance-card button[title="View grades"] span,.subject-performance-card button[title="View grades"] i,.student-grade-bar-detail-heading strong){color:var(--icc-green)!important}
+@media(max-width:767px){
+ .student-grade-bar-heading{flex-wrap:wrap}
+ .student-grade-bar-subject-info{flex-basis:55%}
+ .student-grade-bar-teacher{font-size:12px;max-width:42%;margin-left:auto;text-align:right}
+ .student-grade-bar-teacher .student-grade-card-avatar{display:none}
+ .student-grade-bar-heading>.student-grade-bar-assessments{margin-left:auto}
+}
 .student-grade-bar-detail-heading{display:flex;align-items:center;gap:12px;margin-right:auto;min-width:0;flex:1;font-size:14px}
 .student-grade-bar-detail-heading[hidden]{display:none}
 .student-grade-bar-detail-heading > div{min-width:0;overflow-wrap:anywhere}
@@ -6955,8 +7003,8 @@ html body .student-grade-bars[hidden]{display:none!important}
 html body .student-grade-bar-subject:is(:hover,:focus-visible){color:#eab308!important}
 .student-grade-bar-line{display:flex;align-items:center;gap:16px;margin-top:12px}
 .student-grade-bar-line>span{min-width:64px;text-align:right}
-html body .student-grade-bar-score{color:#15803d!important}
-html body .student-grade-bar-score[data-empty="true"]{color:rgba(0,0,0,.45)!important}
+html body .student-grade-bar-score{color:#000000!important}
+html body .student-grade-bar-score[data-empty="true"]{color:#000000!important}
 .student-grade-bar-track{flex:1;min-width:0;height:24px;border-radius:999px;background:#f3f4f6;overflow:hidden}
 .student-grade-bar-track>div{height:100%;border-radius:inherit;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px}
 @media(max-width:767px){
@@ -7026,4 +7074,48 @@ html body .student-performance-track .student-shared-quarter .sigma-quarter-drop
         max-height: 28px !important;
         flex: 0 0 28px !important;
     }
+}
+
+/* Student-only topic assessment percentages; no category weights or totals. */
+.student-grade-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;min-width:0;align-items:start}
+.student-topic-performance{position:relative;align-self:stretch;min-width:0;color:#000}
+.student-topic-performance-surface{position:absolute;inset:0;display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid rgba(0,0,0,.12);border-radius:16px;background:#fff;box-sizing:border-box;min-width:0}
+.student-topic-performance-surface > header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.student-topic-performance-surface h3{margin:0;font:600 14px/20px Inter,sans-serif;min-width:0}
+.student-topic-performance-surface h3.student-topic-performance-heading-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;border-radius:8px;background:#eef8f1;color:var(--icc-green,#15803d);font-size:16px}
+.student-topic-performance-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+html body .student-topic-performance .sigma-quarter-dropdown{width:150px;min-width:150px}
+html body .student-topic-performance .sigma-quarter-dropdown-menu{top:calc(100% + 4px)!important;bottom:auto!important;right:-1px;left:auto}
+.student-topic-performance-chart{display:grid;grid-template-columns:repeat(var(--topic-count,1),112px);justify-content:safe center;gap:12px;flex:1;min-height:64px;min-width:0;overflow-x:auto;overflow-y:hidden;padding-bottom:5px;overscroll-behavior-x:contain;scrollbar-width:thin;scroll-snap-type:x proximity}
+.student-topic-performance-column{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;min-height:0;scroll-snap-align:start}
+.student-topic-performance-value{position:absolute;left:0;transform:translateY(50%);width:100%;max-width:100%;padding:0;background:transparent;color:#000;text-align:center;white-space:nowrap;font:600 12px/16px Inter,sans-serif}
+.student-topic-performance-value.on-fill{color:#fff}
+.student-topic-performance-value.is-empty{background:transparent;font-weight:400;color:rgba(0,0,0,.45)}
+.student-topic-performance-track{position:relative;display:flex;align-items:flex-end;flex:1;min-height:32px;width:56px;max-width:100%;background:#f1f5f9;border-radius:4px;overflow:hidden}
+.student-topic-performance-track > div{width:100%;background:var(--icc-green,#15803d);border-radius:inherit}
+.student-topic-performance-column > button{display:block;overflow:hidden;width:100%;height:22px;flex:0 0 22px;padding:2px;border:0;background:transparent;color:#000;text-align:center;white-space:nowrap;font:400 11px/16px Inter,sans-serif;cursor:pointer}
+html body #grades-layout .student-topic-name-detail{flex-shrink:0;margin:0;padding-top:6px;max-height:42px;overflow:auto;border-top:1px solid rgba(0,0,0,.08);color:rgba(0,0,0,.55);font:400 12px/16px Inter,sans-serif}
+.student-topic-performance-empty{grid-column:1/-1;align-self:center;margin:0;color:rgba(0,0,0,.45);font:400 12px/18px Inter,sans-serif}
+.student-topic-performance-surface > footer{display:flex;justify-content:space-between;gap:8px;flex-shrink:0;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);color:rgba(0,0,0,.55);font:400 12px/18px Inter,sans-serif;flex-wrap:wrap}
+.student-topic-performance-close,.student-topic-performance-trigger{display:none}
+@media(max-width:767px){
+ .student-grade-pair{display:block}
+ .student-topic-performance{display:none}
+ .student-topic-performance.is-open{display:flex;position:fixed;inset:0;align-items:flex-end;justify-content:center;padding-top:24px;background:rgba(0,0,0,.45);z-index:100001}
+ .student-topic-performance-surface{position:static;width:100%;max-height:85dvh;height:340px;border-radius:16px 16px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+ .student-topic-performance-surface > header{flex-wrap:wrap}
+ .student-topic-performance-close,.student-topic-performance-trigger{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;flex-shrink:0;border:1px solid rgba(0,0,0,.12);border-radius:8px;background:#fff;color:var(--icc-green,#15803d);cursor:pointer;font-size:16px}
+ .student-grade-card > header{flex-wrap:wrap}
+ .student-topic-performance-trigger{margin-left:auto}
+ .student-topic-performance-close{background:#f1f5f9;color:#000}
+}
+
+html body #student-classroom-grades-modal-overlay .student-report-grades-table {
+ border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+html body #student-classroom-grades-modal-overlay .student-report-grades-table :is(table,th,td) {
+ border-radius:0!important;
+}
+html body #student-classroom-grades-modal-overlay .student-report-grades-table td {
+ border-bottom:1px solid rgba(0,0,0,.08)!important;
 }

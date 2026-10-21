@@ -2,6 +2,7 @@
     'use strict';
     const key = 'sigma-ai-recorded-logs';
     const sampleKey = 'sigma-ai-preview-logs';
+    const pendingRecords = new Map();
     const features = ['sigmabot', 'analytics', 'quiz', 'submission_evaluation', 'submission_feedback', 'grade_insights'];
     function normalizeEvidenceSources(sources) {
         return Array.isArray(sources) ? sources.filter(item => item?.id && item.label && Array.isArray(item.records))
@@ -37,6 +38,7 @@
             ...(log.provider && ['gemini', 'groq'].includes(log.provider) ? { provider: log.provider } : {}),
             ...(log.keyId ? { keyId: String(log.keyId), keyLabel: String(log.keyLabel || 'API Key') } : {}),
             evidenceSources: normalizeEvidenceSources(log.evidenceSources),
+            ...(log.feature === 'grade_insights' && typeof log.gradeEvidenceKey === 'string' ? { gradeEvidenceKey: log.gradeEvidenceKey, gradeViewKey: String(log.gradeViewKey || '') } : {}),
             isDeleted: Boolean(log.isDeleted), deletedAt: log.deletedAt || null, deletedBy: log.deletedBy || null,
             cardRecordId: log.cardRecordId || null, cardRemoved: Boolean(log.cardRemoved), cardRemovedAt: log.cardRemovedAt || null, cardRemovedBy: log.cardRemovedBy || null,
             source: log.source && ['student', 'teacher'].includes(log.source.kind) && log.source.cardId && log.source.signature
@@ -55,6 +57,7 @@
     }
     // Call only after an actual provider request completes; chat placeholders are not logs.
     window.SigmaAiLogs = {
+        whenSaved: id => pendingRecords.get(id) || Promise.resolve(),
         getRecords: () => window.SigmaAiDatabase ? window.SigmaAiDatabase.getLogs().map(normalize) : read(),
         getDisplayRecords: () => window.SigmaAiDatabase ? window.SigmaAiDatabase.getLogs().map(normalize) : read(),
         setSampleRecords(records) {
@@ -69,9 +72,11 @@
         record(log) {
             const entry = normalize(log);
             save([entry, ...read().filter(item => item.id !== entry.id)]);
-            window.SigmaAiDatabase?.record(entry).catch(error => {
+            const saving = window.SigmaAiDatabase?.record(entry);
+            if (saving) pendingRecords.set(entry.id, saving);
+            saving?.catch(error => {
                 window.dispatchEvent(new CustomEvent('sigma:ai-database-error', { detail: 'AI log was not saved: ' + error.message }));
-            });
+            }).finally(() => pendingRecords.delete(entry.id));
             return entry.id;
         },
         recordInsight({ userId, kind, card, snapshot, timestamp, model, provider, keyId, keyLabel, generationId, status = 'Success' }) {

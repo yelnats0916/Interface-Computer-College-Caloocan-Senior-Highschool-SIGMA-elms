@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        function finalizeLogin() {
+        async function finalizeLogin() {
             setLoading(formType, false);
             sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
 
@@ -1112,6 +1112,22 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             sessionStorage.setItem('sigma-login-explicit', 'true');
             localStorage.setItem('sigma-logged-in-user', JSON.stringify(userSessionObj));
+            sessionStorage.removeItem('sigma-grade-sync-session');
+            try {
+                const url = ['localhost', '127.0.0.1'].includes(location.hostname) && location.port && !['80', '443'].includes(location.port)
+                    ? 'http://localhost/sigma-elms/php/api/grade_sync.php'
+                    : new URL(location.pathname.includes('/php/') ? 'api/grade_sync.php' : 'php/api/grade_sync.php', location.href).href;
+                const target = new URL(url);
+                if (target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) throw new Error('HTTPS is required for live grade sign-in.');
+                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000),
+                    body: JSON.stringify({ action: 'login', login: id, password: pass, otp: gradeSyncOtp }) });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.error || 'Live grade sign-in failed.');
+                sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify({ token: result.token, userId: result.userId }));
+                sessionStorage.removeItem('sigma-grade-sync-error');
+            } catch (error) {
+                sessionStorage.setItem('sigma-grade-sync-error', error.message || 'Live grade connection unavailable.');
+            }
             localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             localStorage.setItem('sigma-login-explicit', 'true');
             recordAuthenticationEvent('Login successful', userSessionObj, 'success');
@@ -1176,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    let gradeSyncOtp = '';
     let current2faUserId = null;
     let current2faSuccessCallback = null;
     let current2faSetupFromServer = false; // true = QR came from PHP backend; local fallback must not override
@@ -1512,6 +1529,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (verified) {
+                gradeSyncOtp = code;
                 recordAuthenticationEvent('Google Authenticator 2FA verified', findManagedAccount(current2faUserId), 'success');
                 if (typeof current2faSuccessCallback === 'function') {
                     current2faSuccessCallback();
@@ -1709,6 +1727,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (verified) {
+                gradeSyncOtp = code;
                 localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
                 markLocalUser2faEnabled(current2faUserId, true);
                 recordAuthenticationEvent('Google Authenticator 2FA enabled', findManagedAccount(current2faUserId), 'success');
