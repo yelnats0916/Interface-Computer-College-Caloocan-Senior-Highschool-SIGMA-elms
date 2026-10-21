@@ -1778,3 +1778,21 @@ body #entryHelpCenterBtnSmall:is(:hover, :focus-visible) i::before {
         line-height: 1.75rem !important;
     }
 }
+/* One Help Center icon treatment across landing, help and policy headers. */
+body #mainNav :is(#entryHelpCenterBtn i, #navIcon),
+body #entryHelpCenterBtnSmall i {
+    color: rgba(0, 0, 0, .50) !important;
+    -webkit-text-fill-color: rgba(0, 0, 0, .50) !important;
+    opacity: 1 !important;
+}
+@media (min-width: 1024px) {
+    body #mainNav :is(#entryHelpCenterBtn i, #navIcon) {
+        font-size: 1.875rem !important;
+        line-height: 2.25rem !important;
+    }
+    body #mainNav #entryHelpCenterBtn span,
+    body.help-center-active #mainNav #navTitle {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem !important;
+    }
+}
