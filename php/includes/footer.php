@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="../css/record-lifecycle.css?v=<?= filemtime(dirname(__DIR__, 2) . '/css/record-lifecycle.css') ?>">
     <script src="../js/service-vault-security.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/service-vault-security.js') ?>"></script>
     <?php endif; ?>
+    <link rel="stylesheet" href="../css/sigma-message-format.css?v=20261022_reply_format_v1">
+    <script src="../js/sigma-message-format.js?v=20261022_reply_format_v1"></script>
     <script src="../js/shared-components.js?v=<?= time() ?>"></script>
     <?php if (($topbarHeaderId ?? '') === 'teacher-header'): ?>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>

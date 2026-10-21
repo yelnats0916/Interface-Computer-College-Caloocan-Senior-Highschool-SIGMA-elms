@@ -69,7 +69,7 @@
             if (greetingNode) greeting = greetingNode.cloneNode(true);
             const list = Array.from(messages.querySelectorAll('.sigma-ai-message')).filter(el => el.dataset.sigmaGreeting !== 'true').map(el => ({
                 role: el.classList.contains('sigma-ai-message--user') ? 'user' : 'assistant',
-                text: el.querySelector('.sigma-ai-message__bubble')?.textContent || '',
+                text: window.SigmaMessageFormat.raw(el.querySelector('.sigma-ai-message__bubble')),
                 stamp: el.querySelector('.sigma-ai-message__meta')?.textContent || ''
             }));
             if (!list.some(item => item.role === 'user')) return;

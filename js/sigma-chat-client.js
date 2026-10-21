@@ -57,7 +57,7 @@
         let bytes = 0;
         for (const el of Array.from(messages.querySelectorAll('.sigma-ai-message')).reverse()) {
             if (el.dataset.sigmaGreeting === 'true') continue;
-            const content = el.querySelector('.sigma-ai-message__bubble')?.textContent || '';
+            const content = window.SigmaMessageFormat.raw(el.querySelector('.sigma-ai-message__bubble'));
             const size = new TextEncoder().encode(content).length;
             if (history.length >= 12 || bytes + size > 8000 || size > 4000) break;
             bytes += size;

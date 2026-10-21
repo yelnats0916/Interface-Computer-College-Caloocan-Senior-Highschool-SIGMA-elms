@@ -394,14 +394,7 @@
         sentinel.setAttribute('aria-hidden', 'true');
         transcript.append(sentinel);
         function highlight(content) {
-            const text = content.textContent;
-            content.replaceChildren();
-            let offset = 0, index;
-            while (activeTerm && (index = text.toLowerCase().indexOf(activeTerm, offset)) !== -1) {
-                content.append(document.createTextNode(text.slice(offset, index)), node('mark', text.slice(index, index + activeTerm.length)));
-                offset = index + activeTerm.length;
-            }
-            content.append(document.createTextNode(text.slice(offset)));
+            window.SigmaMessageFormat.highlight(content, activeTerm);
         }
         function appendMessages(limit) {
             const fragment = document.createDocumentFragment();

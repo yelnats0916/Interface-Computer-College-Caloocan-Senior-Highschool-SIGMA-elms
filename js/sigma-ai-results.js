@@ -1337,7 +1337,7 @@
                                 <i class="fa-solid fa-trash-can text-[11px]" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
                             </button>
                         `}
-                        <p class="sigma-ai-message__bubble sigma-ai-message__bubble--${isUser ? 'user' : 'assistant'}">${escapeHtml(msg.text || '')}</p>
+                        <div class="sigma-ai-message__bubble sigma-ai-message__bubble--${isUser ? 'user' : 'assistant'}">${escapeHtml(msg.text || '')}</div>
                         ${!isUser ? `
                             <button type="button" class="bubble-trash-btn w-7 h-7 rounded-full inline-flex items-center justify-center hover:bg-slate-100 cursor-pointer shrink-0 transition-colors" aria-label="Delete message" data-msg-idx="${idx}">
                                 <i class="fa-solid fa-trash-can text-[11px]" style="color: rgba(0, 0, 0, 0.45) !important;"></i>
@@ -1345,6 +1345,8 @@
                         ` : ''}
                     </div>
                 `;
+                const replyBubble = block.querySelector('.sigma-ai-message__bubble');
+                window.SigmaMessageFormat.render(replyBubble, msg.text || '');
 
                 const trashBtn = block.querySelector('.bubble-trash-btn');
                 if (trashBtn) {
@@ -1756,24 +1758,7 @@
         let currentMatch = -1;
 
         function highlightBubble(bubble, term) {
-            const originalText = bubble.dataset.originalText || bubble.textContent;
-            bubble.dataset.originalText = originalText;
-            if (!term) {
-                bubble.textContent = originalText;
-                return;
-            }
-            bubble.replaceChildren();
-            let offset = 0;
-            let index;
-            const lower = originalText.toLowerCase();
-            while ((index = lower.indexOf(term, offset)) !== -1) {
-                bubble.append(document.createTextNode(originalText.slice(offset, index)));
-                const mark = document.createElement('mark');
-                mark.textContent = originalText.slice(index, index + term.length);
-                bubble.append(mark);
-                offset = index + term.length;
-            }
-            bubble.append(document.createTextNode(originalText.slice(offset)));
+            window.SigmaMessageFormat.highlight(bubble, term);
         }
 
         function jumpToMatch(index) {

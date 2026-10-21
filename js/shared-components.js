@@ -51,7 +51,10 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
         icon.append(window.createSigmaBoltIcon());
         row.append(icon);
     }
-    row.append(make('p', 'sigma-ai-message__bubble sigma-ai-message__bubble--' + (user ? 'user' : 'assistant'), text));
+    const bubble = make('div', 'sigma-ai-message__bubble sigma-ai-message__bubble--' + (user ? 'user' : 'assistant'));
+    if (window.SigmaMessageFormat) window.SigmaMessageFormat.render(bubble, text);
+    else bubble.textContent = String(text ?? '');
+    row.append(bubble);
     message.append(row);
     return message;
 };
