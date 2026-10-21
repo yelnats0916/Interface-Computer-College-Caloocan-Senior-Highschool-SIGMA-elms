@@ -3260,19 +3260,22 @@ function getFilteredUsersBySearch(searchState) {
         const fnameLower = firstName.toLowerCase();
         const lnameLower = lastName.toLowerCase();
         const mnameLower = middleName.toLowerCase();
-        const fullName = [fnameLower, mnameLower, lnameLower].filter(Boolean).join(' ');
-        const nameWords = [fnameLower, lnameLower, mnameLower, ...fullName.split(/\s+/)].filter(Boolean);
+        const fullName = [fnameLower, mnameLower, lnameLower].filter(Boolean).join(' ')
+            || String(user.fullName || '').trim().toLowerCase();
+        const nameWords = fullName.split(/\s+/).filter(Boolean);
         const normalizedRole = normalizeUserRole(user.type || user.role || '').toLowerCase();
         const userStatus = String(user.status || 'Active').toLowerCase();
 
         let matchesSearch = true;
         const searchTarget = query || idQuery || nameQuery;
         if (searchTarget) {
-            matchesSearch = idLower.includes(searchTarget)
-                || fnameLower.includes(searchTarget)
-                || lnameLower.includes(searchTarget)
-                || fullName.includes(searchTarget)
-                || nameWords.some(w => w.startsWith(searchTarget));
+            // IDs match from the first digit; names match from the start of a word.
+            const idPrefix = searchTarget.replace(/^#/, '');
+            const isIdSearch = /^\d+$/.test(idPrefix);
+            const searchWords = searchTarget.split(/\s+/).filter(Boolean);
+            matchesSearch = isIdSearch
+                ? idLower.replace(/^#/, '').startsWith(idPrefix)
+                : searchWords.every(part => nameWords.some(word => word.startsWith(part)));
         }
 
         let matchesRole = true;
