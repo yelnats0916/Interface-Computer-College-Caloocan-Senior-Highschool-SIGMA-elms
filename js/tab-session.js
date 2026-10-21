@@ -79,10 +79,14 @@
     const isLoginPage = /\/(?:index\.html)?$/i.test(location.pathname);
     let verification = null;
     let verifiedToken = null;
+    let signingOut = false;
     let gateMessage = 'Checking your session...';
     const gateStyle = document.createElement('style');
     gateStyle.textContent = 'html[data-sigma-session-check] body > :not(#sigma-session-status){visibility:hidden!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
     document.head.appendChild(gateStyle);
+    const spinnerStyle = document.createElement('style');
+    spinnerStyle.textContent = '#sigma-session-status .sigma-transition-spinner{width:32px;height:32px;border:3px solid rgba(0,0,0,.10);border-top-color:rgba(0,0,0,.50);border-radius:50%;animation:sigma-transition-spin .8s linear infinite}@keyframes sigma-transition-spin{to{transform:rotate(360deg)}}#sigma-session-status p{color:rgba(0,0,0,.5);font:14px Inter,Arial,sans-serif}';
+    document.head.appendChild(spinnerStyle);
     function renderGate() {
         if (!document.body || isLoginPage) return;
         let status = document.getElementById('sigma-session-status');
@@ -97,10 +101,16 @@
             document.body.appendChild(status);
         }
         status.replaceChildren();
+        if (gateMessage === 'Checking your session...' || signingOut) {
+            const spinner = document.createElement('div');
+            spinner.className = 'sigma-transition-spinner';
+            spinner.setAttribute('aria-hidden', 'true');
+            status.appendChild(spinner);
+        }
         const message = document.createElement('p');
         message.textContent = gateMessage;
         status.appendChild(message);
-        if (gateMessage !== 'Checking your session...') {
+        if (gateMessage !== 'Checking your session...' && !signingOut) {
             const retry = document.createElement('button');
             retry.type = 'button'; retry.textContent = 'Retry';
             retry.addEventListener('click', () => verifyDatabaseSession());
@@ -122,6 +132,24 @@
         renderGate();
     }
     document.addEventListener('DOMContentLoaded', renderGate);
+    document.addEventListener('click', event => {
+        const link = event.target.closest?.('a.profile-logout-btn');
+        if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (signingOut) return;
+        signingOut = true;
+        setGate('Signing out…');
+        // Existing logout handlers still clear/revoke the session during this click.
+        // Paint the spinner before starting the document navigation.
+        let navigating = false;
+        const navigate = () => {
+            if (navigating) return;
+            navigating = true;
+            window.location.replace(new URL('index.html', document.baseURI).href);
+        };
+        requestAnimationFrame(() => requestAnimationFrame(navigate));
+        setTimeout(navigate, 300);
+    }, true);
     function clearIdentity() {
         [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge', 'sigma-login-handoff'].forEach(key => sessionStorage.removeItem(key));
         SHARED_KEYS.forEach(key => localStorage.removeItem(key));
@@ -135,6 +163,7 @@
     }
     window.SigmaSessionNavigation = Object.freeze({ portalForRole });
     function verifyDatabaseSession({ background = false } = {}) {
+        if (signingOut) return Promise.resolve();
         if (verification) return verification;
         const user = getTabSessionUser();
         if (!user) {
@@ -218,6 +247,6 @@
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
     });
-    window.addEventListener('pagehide', () => { setGate('Checking your session...'); });
+    window.addEventListener('pagehide', () => { setGate(signingOut ? 'Signing out…' : 'Checking your session...'); });
     window.addEventListener('pageshow', event => { verifyDatabaseSession({ background: !event.persisted }); });
 })();

@@ -7,6 +7,19 @@
 
 <head>
     <meta charset="UTF-8">
+    <style>
+        html.sigma-entry-loading::before { content:""; position:fixed; inset:0; z-index:2147483646; background:#fff; }
+        html.sigma-entry-loading::after { content:""; position:fixed; left:calc(50% - 16px); top:calc(50% - 16px); width:32px; height:32px; box-sizing:border-box; border:3px solid rgba(0,0,0,.10); border-top-color:rgba(0,0,0,.50); border-radius:50%; z-index:2147483647; animation:sigma-entry-spin .8s linear infinite; }
+        @keyframes sigma-entry-spin { to { transform:rotate(360deg); } }
+    </style>
+    <script>
+        document.documentElement.classList.add('sigma-entry-loading');
+        const clearEntryLoading = () => document.documentElement.classList.remove('sigma-entry-loading');
+        document.addEventListener('DOMContentLoaded', clearEntryLoading, {once:true});
+        window.addEventListener('pageshow', clearEntryLoading);
+        // Do not trap the login page behind an overlay if an optional resource stalls.
+        setTimeout(clearEntryLoading, 15000);
+    </script>
     <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sigma ELMS - Interface Computer College</title>
@@ -27,7 +40,7 @@
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/mobile.css?v=20261011attendancePicker352">
     <script src="js/database-client.js?v=20261021_database_foundation_v5"></script>
-    <script src="js/tab-session.js?v=20261021_login_handoff_v7"></script>
+    <script src="js/tab-session.js?v=20261021_logout_spinner_v8"></script>
 <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
