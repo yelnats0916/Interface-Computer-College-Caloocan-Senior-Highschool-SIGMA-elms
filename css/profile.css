@@ -1070,3 +1070,19 @@
     :is(#user-profile-picture-overlay, #profile-picture-overlay) button[title="Close picture chooser"] { display:none !important; }
     :is(#user-profile-picture-overlay, #profile-picture-overlay) button[aria-label="Back"] { display:flex !important; }
 }
+
+/* Desktop chooser close control highlights only during interaction. */
+@media (min-width:640px) {
+    :is(#user-profile-picture-overlay, #profile-picture-overlay) button[title="Close picture chooser"] {
+        background:transparent !important;
+        border-color:transparent !important;
+        box-shadow:none !important;
+    }
+    :is(#user-profile-picture-overlay, #profile-picture-overlay) button[title="Close picture chooser"]:hover {
+        background:#f1f5f9 !important;
+    }
+    :is(#user-profile-picture-overlay, #profile-picture-overlay) button[title="Close picture chooser"]:focus-visible {
+        outline:2px solid #15803d;
+        outline-offset:2px;
+    }
+}
