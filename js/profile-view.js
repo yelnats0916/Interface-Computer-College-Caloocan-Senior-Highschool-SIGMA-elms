@@ -2847,6 +2847,36 @@
         window.syncUserProfileData();
     }
 
+    // Profile pages are standalone views, not a selected sidebar destination.
+    // Observe navigation changes because some portal routers apply active states
+    // after populating the profile (including refresh and browser history).
+    let profileNavFrame = false;
+    function clearProfileSidebarSelection() {
+        profileNavFrame = false;
+        const visibleProfile = ['user-profile-view', 'public-school-profile-view'].some(id => {
+            const view = document.getElementById(id);
+            return view && !view.classList.contains('hidden') && view.style.display !== 'none' && view.getClientRects().length > 0;
+        });
+        if (!visibleProfile) return;
+        document.querySelectorAll('#sidebar .active, #sidebar .active-yellow, #sidebar .is-active, #sidebar [aria-selected="true"], #sidebar [aria-current], #sidebar [data-selected="true"]').forEach(link => {
+            link.classList.remove('active', 'active-yellow', 'is-active');
+            if (link.hasAttribute('aria-selected')) link.setAttribute('aria-selected', 'false');
+            link.removeAttribute('aria-current');
+            if (link.hasAttribute('data-selected')) link.setAttribute('data-selected', 'false');
+        });
+    }
+    function scheduleProfileSidebarSync() {
+        if (profileNavFrame) return;
+        profileNavFrame = true;
+        requestAnimationFrame(clearProfileSidebarSelection);
+    }
+    new MutationObserver(records => {
+        if (records.some(({target, type, addedNodes}) => target.id === 'user-profile-view' || target.id === 'public-school-profile-view'
+            || target.closest?.('#sidebar') || (type === 'childList' && Array.from(addedNodes).some(node => node.id === 'user-profile-view' || node.id === 'public-school-profile-view')))) scheduleProfileSidebarSync();
+    }).observe(document.documentElement, {subtree:true, childList:true, attributes:true, attributeFilter:['class','style','aria-selected','aria-current','data-selected']});
+    window.addEventListener('pageshow', scheduleProfileSidebarSync);
+    scheduleProfileSidebarSync();
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initProfileHeroListeners);
     } else {
