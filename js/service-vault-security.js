@@ -30,7 +30,7 @@
             const dialog = document.createElement('dialog');
             dialog.className = 'service-vault-auth';
             dialog.setAttribute('aria-labelledby', 'service-vault-auth-title');
-            dialog.innerHTML = '<form><h2 id="service-vault-auth-title">Administrator Verification</h2><label>Login ID or email<input name="login" autocomplete="username" required maxlength="150"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><label>Authenticator code (if enabled)<input name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></label><p class="service-vault-error" role="alert" hidden></p><div class="service-vault-auth-actions"><button type="button" data-cancel>Cancel</button><button type="submit">Verify</button></div></form>';
+            dialog.innerHTML = '<form><h2 id="service-vault-auth-title">Administrator Verification</h2><label>Login ID<input name="login" autocomplete="username" readonly aria-readonly="true" required maxlength="150"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><p class="service-vault-error" role="alert" hidden></p><div class="service-vault-auth-actions"><button type="button" class="sigma-dialog-btn-cancel" data-cancel>Cancel</button><button type="submit" class="sigma-dialog-btn-confirm">Verify</button></div></form>';
             document.body.append(dialog);
             const form = dialog.querySelector('form');
             let submitting = false;
@@ -58,8 +58,9 @@
                 const error = dialog.querySelector('.service-vault-error');
                 button.disabled = true;
                 try {
-                    const response = await originalFetch(new URL('auth.php', api).href, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'authorize_service_vault', login: form.elements.login.value.trim(), password: form.elements.password.value, otp: form.elements.otp.value }) });
+                    const response = await originalFetch(new URL('auth.php', api).href, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token || '') },
+                        signal: AbortSignal.timeout(15000),
+                        body: JSON.stringify({ action: 'authorize_service_vault', login: form.elements.login.value.trim(), password: form.elements.password.value }) });
                     const result = await response.json();
                     if (!response.ok || !result.success || !/^[a-f0-9]{64}$/.test(result.token || '')) throw new Error(result.error || 'Administrator verification failed.');
                     token = result.token;
@@ -67,14 +68,14 @@
                     close(); resolve();
                 } catch (failure) {
                     error.textContent = failure.message; error.hidden = false;
-                    form.elements.password.value = ''; form.elements.otp.value = '';
+                    form.elements.password.value = '';
                 } finally { submitting = false; button.disabled = false; }
             };
             dialog.showModal();
             let user = {};
             try { user = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
-            form.elements.login.value = user.id || user.uid || user.email || '';
-            (form.elements.login.value ? form.elements.password : form.elements.login).focus();
+            form.elements.login.value = user.id || user.uid || '';
+            form.elements.password.focus();
         }).finally(() => { pending = null; });
         return pending;
     }

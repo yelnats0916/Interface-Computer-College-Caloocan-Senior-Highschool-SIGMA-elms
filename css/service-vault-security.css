@@ -9,3 +9,25 @@
 .service-vault-auth button[type="submit"] { background: #15803d; color: #fff; border-color: #15803d; }
 .service-vault-auth button:disabled { opacity: .5; cursor: wait; }
 .service-vault-error { color: #b91c1c; font-size: 13px; overflow-wrap: anywhere; }
+/* Match the shared confirmation buttons used throughout the portal. */
+.service-vault-auth { font-family: 'Inter', sans-serif; border-radius: 18px; }
+.service-vault-auth input[readonly] { background: #f8fafc; cursor: default; }
+.service-vault-auth .service-vault-auth-actions button {
+    min-width: 88px;
+    font-family: 'Inter', sans-serif;
+}
+.service-vault-auth .service-vault-auth-actions .sigma-dialog-btn-cancel {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+.service-vault-auth .service-vault-auth-actions .sigma-dialog-btn-cancel:not(:disabled):hover {
+    background: #e2e8f0;
+}
+.service-vault-auth .service-vault-auth-actions .sigma-dialog-btn-confirm:not(:disabled):hover {
+    background: #166534;
+    border-color: #166534;
+}
+.service-vault-auth .service-vault-auth-actions button:not(:disabled):active { transform: scale(.98); }
+.service-vault-auth .service-vault-auth-actions button:focus-visible { outline: 2px solid #15803d; outline-offset: 3px; }
+.service-vault-auth .service-vault-auth-actions button:disabled { transform: none; cursor: wait; }

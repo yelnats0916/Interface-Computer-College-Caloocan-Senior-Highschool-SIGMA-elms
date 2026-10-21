@@ -16,27 +16,27 @@ function serviceVaultAdmin(array $user): bool {
 function authorizeServiceVault(array $input): string {
     if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true) && !serviceRequestIsSecure()) throw new RuntimeException('HTTPS is required for administrator credentials.');
     $db = serviceSettingsPdo();
+    require_once __DIR__ . '/application_auth.php';
+    $actor = sigmaApplicationUser($db);
+    if (!$actor || !serviceVaultAdmin($actor)) throw new RuntimeException('Sign in as an authorized administrator before verifying your password.');
     $client = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'unknown');
     $check = $db->prepare('SELECT attempts, blocked_until FROM service_vault_login_attempts WHERE client_hash = ?');
     $check->execute([$client]);
     $attempt = $check->fetch();
     if ($attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'] . ' UTC') > time()) throw new RuntimeException('Too many attempts. Wait five minutes before trying again.');
-    $id = trim($input['login'] ?? '');
+    $id = (string)$actor['id'];
+    if (isset($input['login']) && (!is_string($input['login']) || !hash_equals($id, trim($input['login'])))) throw new RuntimeException('Verify the administrator currently signed in.');
     $password = $input['password'] ?? '';
     if (!is_string($password) || strlen($password) > 256 || strlen($id) > 150) throw new InvalidArgumentException('Invalid credentials.');
-    $stmt = $db->prepare('SELECT id, role, status, is_deleted, password, permissions, totp_enabled, totp_secret FROM users WHERE (id = ? OR email = ?) AND is_deleted = 0 LIMIT 1');
-    $stmt->execute([$id, $id]);
+    $stmt = $db->prepare('SELECT id, role, status, is_deleted, password, permissions FROM users WHERE id = ? AND is_deleted = 0 LIMIT 1');
+    $stmt->execute([$id]);
     $user = $stmt->fetch();
     $valid = $password !== '' && $user && (password_verify($password, $user['password']) || (password_get_info($user['password'])['algo'] === null && hash_equals($user['password'], $password))) && serviceVaultAdmin($user);
-    if ($valid && !empty($user['totp_enabled'])) {
-        require_once __DIR__ . '/totp_service.php';
-        $valid = preg_match('/^\d{6}$/', $input['otp'] ?? '') && TotpService::verifyCode($user['totp_secret'], $input['otp']);
-    }
     if (!$valid) {
         $count = $attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'] . ' UTC') <= time() ? 1 : (int)($attempt['attempts'] ?? 0) + 1;
         $save = $db->prepare('INSERT INTO service_vault_login_attempts(client_hash, attempts, blocked_until) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts), blocked_until=VALUES(blocked_until), updated_at=CURRENT_TIMESTAMP');
         $save->execute([$client, $count, $count >= 5 ? gmdate('Y-m-d H:i:s', time() + 300) : null]);
-        throw new RuntimeException('Administrator credentials or authenticator code are invalid.');
+        throw new RuntimeException('The administrator password is incorrect.');
     }
     $db->prepare('DELETE FROM service_vault_login_attempts WHERE client_hash = ?')->execute([$client]);
     $token = bin2hex(random_bytes(32));
