@@ -80,7 +80,10 @@ function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $file
 
 // Folder usage is read-only and restricted to integration administrators.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'folder_usage') {
-    requireServiceVaultAccess();
+    $usageActor = sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
+    if (!serviceVaultAdmin($usageActor)) {
+        jsonOut(['success' => false, 'error' => 'This administrator cannot view integration storage usage.'], 403);
+    }
     require_once dirname(__DIR__) . '/includes/gdrive_usage.php';
     try {
         $auth = getGoogleAccessToken('');
