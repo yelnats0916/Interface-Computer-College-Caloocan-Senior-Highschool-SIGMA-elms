@@ -603,6 +603,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Toggle help-center-active class on body for responsive layout handling
         document.body.classList.toggle('help-center-active', viewName === 'help');
+        document.querySelectorAll('a[href^="terms.html"], a[href^="privacy.html"]').forEach(link => {
+            const target = new URL(link.getAttribute('href'), location.href);
+            target.searchParams.set('from', viewName === 'help' ? 'help' : 'login');
+            link.setAttribute('href', target.pathname.split('/').pop() + target.search);
+        });
 
         // Nav Logic
         if (viewName === 'landing') {

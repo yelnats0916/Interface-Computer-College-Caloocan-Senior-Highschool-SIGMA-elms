@@ -170,7 +170,7 @@
         const helpBtn = document.getElementById('entryHelpCenterBtn');
         const helpMobileBtn = document.getElementById('helpCenterNavMenuBtn');
 
-        if (activeRole) {
+        if (isRoleContext) {
             if (helpBtn) {
                 helpBtn.style.display = 'none';
                 helpBtn.classList.add('hidden');
@@ -181,6 +181,8 @@
             }
         } else {
             if (helpBtn) {
+                helpBtn.style.removeProperty('display');
+                helpBtn.classList.remove('hidden');
                 helpBtn.href = 'index.html#help';
                 helpBtn.onclick = function (e) {
                     e.preventDefault();
