@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS system_service_settings (
     encrypted_settings LONGTEXT NOT NULL,
     key_location VARCHAR(1024) NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS service_vault_sessions (
     token_hash CHAR(64) NOT NULL PRIMARY KEY,
@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS service_vault_sessions (
     expires_at DATETIME NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX vault_user_idx (user_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS service_vault_login_attempts (
     client_hash CHAR(64) NOT NULL PRIMARY KEY,
     attempts INT UNSIGNED NOT NULL DEFAULT 0,
     blocked_until DATETIME NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

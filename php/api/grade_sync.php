@@ -41,9 +41,9 @@ function gradeStudent(array $section, array $user): bool {
 try {
     if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1','::1'], true) && !serviceRequestIsSecure()) gradeReply(['success'=>false,'error'=>'HTTPS is required for live grade access.'],403);
     if (!$pdo) gradeReply(['success'=>false,'error'=>'The grade database is unavailable. No grades were saved.'],503);
-    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_sync_tokens (token_hash CHAR(64) PRIMARY KEY,user_id VARCHAR(50) NOT NULL,expires_at DATETIME NOT NULL)");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_sync_attempts (client_hash CHAR(64) PRIMARY KEY,attempts INT NOT NULL DEFAULT 0,blocked_until DATETIME NULL)");
-    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_publications (record_key CHAR(64) NOT NULL,kind VARCHAR(12) NOT NULL,scope_json TEXT NOT NULL,payload LONGTEXT NOT NULL,revision INT NOT NULL DEFAULT 1,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(record_key,kind))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_sync_tokens (token_hash CHAR(64) PRIMARY KEY,user_id VARCHAR(50) NOT NULL,expires_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_sync_attempts (client_hash CHAR(64) PRIMARY KEY,attempts INT NOT NULL DEFAULT 0,blocked_until DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS grade_publications (record_key CHAR(64) NOT NULL,kind VARCHAR(12) NOT NULL,scope_json TEXT NOT NULL,payload LONGTEXT NOT NULL,revision INT NOT NULL DEFAULT 1,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(record_key,kind)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $method = $_SERVER['REQUEST_METHOD'] ?? '';
     if (!in_array($method,['GET','POST'],true)) gradeReply(['success'=>false,'error'=>'Unsupported method.'],405);
     $raw = $method === 'POST' ? file_get_contents('php://input', false, null, 0, 262145) : '';

@@ -20,7 +20,7 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS grade_publications (
     revision INT NOT NULL DEFAULT 1,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY(record_key,kind)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 $tables = ['users','school_years','sections','subjects','quizzes','announcements','audit_logs','ai_logs','ai_insight_cards'];
 foreach ($tables as $table) {
     $columns = array_column($pdo->query("SHOW COLUMNS FROM `$table`")->fetchAll(), 'Field');
