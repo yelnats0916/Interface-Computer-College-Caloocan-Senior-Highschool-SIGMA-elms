@@ -1875,12 +1875,12 @@
                         </div>
                         <span class="text-[11px] text-black-fade font-medium">Real-time Transcripts</span>
                     </div>
-                    <div class="py-20 px-4 text-center text-slate-400">
-                        <div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-300 mx-auto mb-3 shadow-2xs">
-                            <i class="fa-solid fa-comments text-2xl"></i>
+                    <div class="py-20 px-4 text-center">
+                        <div class="w-14 h-14 rounded-full bg-slate-50 border border-slate-200/80 flex items-center justify-center mx-auto mb-3 shadow-2xs">
+                            <i class="fa-solid fa-comments text-2xl icon-black-fade" aria-hidden="true"></i>
                         </div>
-                        <p class="text-sm font-bold text-slate-800 font-['Inter']">No conversations</p>
-                        <p class="text-xs text-slate-400 mt-1">No conversation records match your current filter.</p>
+                        <p class="text-sm font-bold text-black font-['Inter']">No conversations</p>
+                        <p class="text-xs text-black-fade mt-1">No conversation records match your current filter.</p>
                     </div>
                 </div>
             `;
