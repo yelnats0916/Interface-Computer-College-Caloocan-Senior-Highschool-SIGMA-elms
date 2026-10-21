@@ -132,15 +132,8 @@
         },
         showRenderingLoading(scope, durationMs) {
             if (!scope) return () => {};
-            scope.classList.add('sigma-rendering-loading');
-            scope.setAttribute('aria-busy', 'true');
-            let cleared = false;
-            const clear = () => {
-                if (cleared) return;
-                cleared = true;
-                scope.classList.remove('sigma-rendering-loading');
-                scope.removeAttribute('aria-busy');
-            };
+            // The caller supplies the body/content region, leaving its header visible.
+            const clear = window.SigmaContentLoading?.show(scope) || (() => {});
             if (typeof durationMs === 'number' && durationMs > 0) {
                 setTimeout(clear, durationMs);
             }
@@ -748,7 +741,10 @@
         }
 
         const targetContainer = element.querySelector('#grades-layout, #assessments-layout, #curriculum-page-shell, #classroom-detail-view') || element;
-        targetContainer.innerHTML = getContentSkeletonHtml(layout);
+        // Keep the initial route shimmer; subsequent empty content loads use dots.
+        targetContainer.innerHTML = initialDismissed
+            ? '<div class="sigma-content-skeleton" role="status" aria-label="Loading content" style="display:flex;align-items:center;justify-content:center;min-height:240px;width:100%"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i></div>'
+            : getContentSkeletonHtml(layout);
         element.setAttribute('data-sigma-skeleton-active', 'true');
         if (targetContainer !== element) {
             targetContainer.setAttribute('data-sigma-skeleton-active', 'true');

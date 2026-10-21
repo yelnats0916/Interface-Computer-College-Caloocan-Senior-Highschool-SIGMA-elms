@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <style>
         html.sigma-entry-loading::before { content:""; position:fixed; inset:0; z-index:2147483646; background:#fff; }
-        html.sigma-entry-loading::after { content:""; position:fixed; left:calc(50% - 16px); top:calc(50% - 16px); width:32px; height:32px; box-sizing:border-box; border:3px solid rgba(0,0,0,.10); border-top-color:rgba(0,0,0,.50); border-radius:50%; z-index:2147483647; animation:sigma-entry-spin .8s linear infinite; }
+        html.sigma-entry-loading::after { content:""; position:fixed; --sigma-full-loader-size:clamp(48px,8vmin,72px); left:calc(50% - var(--sigma-full-loader-size)/2); top:calc(50% - var(--sigma-full-loader-size)/2); width:var(--sigma-full-loader-size); height:var(--sigma-full-loader-size); background:radial-gradient(circle at 50% 10%, rgba(0,0,0,.55) 0 6%, transparent 7%), radial-gradient(circle at 78% 22%, rgba(0,0,0,.48) 0 6%, transparent 7%), radial-gradient(circle at 90% 50%, rgba(0,0,0,.41) 0 6%, transparent 7%), radial-gradient(circle at 78% 78%, rgba(0,0,0,.34) 0 6%, transparent 7%), radial-gradient(circle at 50% 90%, rgba(0,0,0,.27) 0 6%, transparent 7%), radial-gradient(circle at 22% 78%, rgba(0,0,0,.20) 0 6%, transparent 7%), radial-gradient(circle at 10% 50%, rgba(0,0,0,.13) 0 6%, transparent 7%), radial-gradient(circle at 22% 22%, rgba(0,0,0,.08) 0 6%, transparent 7%); z-index:2147483647; animation:sigma-entry-spin 1s steps(8,end) infinite; }
         @keyframes sigma-entry-spin { to { transform:rotate(360deg); } }
     </style>
     <script>
@@ -40,7 +40,9 @@
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/mobile.css?v=20261011attendancePicker352">
     <script src="js/database-client.js?v=20261021_database_foundation_v5"></script>
-    <script src="js/tab-session.js?v=20261021_logout_spinner_v8"></script>
+    <link rel="stylesheet" href="css/content-loading.css?v=20261021_dots_v1">
+    <script src="js/content-loading.js?v=20261021_dots_v1"></script>
+    <script src="js/tab-session.js?v=20261021_dotted_content_v9"></script>
 <script src="js/live-reload-lifecycle.js?v=20261004bfcache1"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
 </head>
