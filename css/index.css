@@ -1749,3 +1749,10 @@ textarea::placeholder {
     }
 }
 
+/* Help Center: highlight the icon and label together. */
+#entryHelpCenterBtn:is(:hover, :focus-visible),
+#entryHelpCenterBtnSmall:is(:hover, :focus-visible),
+#entryHelpCenterBtn:is(:hover, :focus-visible) :is(i, span),
+#entryHelpCenterBtnSmall:is(:hover, :focus-visible) :is(i, span) {
+    color: var(--icc-yellow, #FFD000) !important;
+}
