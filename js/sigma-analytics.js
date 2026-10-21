@@ -254,7 +254,7 @@
     function liveMetricHtml(id) {
         const health = id === 'metric-health';
         const title = health ? 'System Health' : 'Database Load';
-        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4>${liveMetrics ? `<span class="text-xs font-semibold text-black-fade">${health ? 'Responding' : 'Connected'}</span>` : ''}</div>`;
+        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4>${liveMetrics ? `<span class="text-xs font-semibold" style="color:#15803d">${health ? 'Responding' : 'Connected'} <i class="fa-solid ${health ? 'fa-circle' : 'fa-database'}" style="font-size:9px" aria-hidden="true"></i></span>` : ''}</div>`;
         if (!liveMetrics) {
             const loading = liveMetricsPending;
             const heading = loading ? 'Loading measurements' : health ? 'No health data yet' : 'No database metrics yet';
@@ -269,10 +269,19 @@
             </div>`;
         }
         const data = liveMetrics;
+        const mainValue = health ? data.roundTripMs : data.database.queryMs;
+        const mainLabel = health ? 'API response time' : 'Database query time';
+        const note = health ? 'Time for this browser to request and receive the API response. This is a current check, not uptime history.' : 'Elapsed time for SELECT 1. Table storage includes allocated data and indexes and is approximate; cache and pool statistics are not monitored.';
         const rows = health
-            ? [['API round trip', data.roundTripMs + ' ms'], ['PHP processing', data.application.processingMs + ' ms'], ['Database check', 'Passed']]
-            : [['SELECT 1 query', data.database.queryMs + ' ms'], ['Database tables', data.database.tables], ['Allocated table storage', (data.database.allocatedBytes / 1048576).toFixed(2) + ' MB']];
-        return header + `<div class="space-y-3 py-4">` + rows.map(([label,value]) => `<div class="flex justify-between gap-3 text-xs"><span class="text-black-fade">${label}</span><strong class="text-black">${escapeHtml(String(value))}</strong></div>`).join('') + `</div><p class="text-xs text-black-fade">Checked ${escapeHtml(new Date(data.checkedAt).toLocaleTimeString())}</p><p class="text-xs text-black-fade mt-2">${health ? 'Current request only; uptime history is not monitored.' : 'Point-in-time query; cache hit rate and connection pools are not monitored. Storage is approximate.'}</p>`;
+            ? [['PHP processing', data.application.processingMs + ' ms'], ['Database check', 'Passed']]
+            : [['Tables', data.database.tables], ['Table storage', (data.database.allocatedBytes / 1048576).toFixed(2) + ' MB']];
+        return header + `<div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-4" title="${escapeHtml(note)}">
+            <div class="flex items-baseline justify-center gap-1.5"><strong class="text-2xl font-black text-black leading-none tracking-tight">${escapeHtml(String(mainValue))}</strong><span class="text-xs text-black-fade">ms</span></div>
+            <p class="text-xs text-black-fade">${mainLabel}</p>
+        </div><div class="space-y-2 border-t border-slate-100 pt-3">`
+            + rows.map(([label,value]) => `<div class="flex justify-between gap-3 text-xs"><span class="text-black">${label}</span><strong class="text-black">${escapeHtml(String(value))}</strong></div>`).join('')
+            + `</div><div class="flex items-center justify-between gap-2 mt-3 text-black-fade" style="font-size:10px"><span title="${escapeHtml(note)}">Live check · ${escapeHtml(new Date(data.checkedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</span><button type="button" class="cursor-pointer" aria-label="Refresh system measurements" title="Refresh measurements" onclick="window.refreshLiveSystemMetrics()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>`;
+
     }
     function paintLiveMetrics() {
         document.querySelectorAll('[data-live-system-metric]').forEach(node => {
@@ -306,7 +315,7 @@
 
         if (['metric-health', 'metric-database'].includes(item.id)) {
             return `<div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
-                <div data-live-system-metric="${item.id}">${liveMetricHtml(item.id)}</div>
+                <div data-live-system-metric="${item.id}" class="flex flex-col h-full">${liveMetricHtml(item.id)}</div>
             </div>`;
         }
 
