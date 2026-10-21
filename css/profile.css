@@ -1086,3 +1086,45 @@
         outline-offset:2px;
     }
 }
+
+/* Consistent neutral profile dividers and breathing room around About. */
+:is(#user-profile-view, #school-profile-view, #public-school-profile-view) {
+    --sigma-profile-divider:rgba(0,0,0,.10);
+}
+:is(#user-profile-view, #school-profile-view, #public-school-profile-view) :is([class*="border-slate-"], [class*="border-gray-"]) {
+    border-color:var(--sigma-profile-divider) !important;
+}
+:is(#user-profile-view, #school-profile-view, #public-school-profile-view) [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]) {
+    border-color:var(--sigma-profile-divider) !important;
+}
+#user-profile-tabs-header-grid {
+    border-top:1px solid var(--sigma-profile-divider) !important;
+    height:auto !important;
+    min-height:64px !important;
+    padding-top:16px !important;
+    padding-bottom:16px !important;
+    box-sizing:border-box !important;
+}
+#user-profile-about-title-col {
+    min-height:32px;
+}
+#user-profile-about-title-col h3 { margin:0 !important; line-height:1.5 !important; }
+:is(#school-profile-view, #public-school-profile-view) .border-t-2 {
+    border-top-width:1px !important;
+    padding-top:16px !important;
+    padding-bottom:16px !important;
+}
+@media(max-width:639.98px) {
+    #user-profile-tabs-header-grid {
+        padding-top:12px !important;
+        padding-bottom:12px !important;
+        min-height:56px !important;
+    }
+    #user-profile-about-title-col {
+        display:flex !important;
+        justify-content:flex-start !important;
+        min-height:32px;
+    }
+    #user-profile-tabs-container:not(.hidden) { margin-top:8px !important; }
+    #user-profile-tabs-container.hidden { display:none !important; }
+}
