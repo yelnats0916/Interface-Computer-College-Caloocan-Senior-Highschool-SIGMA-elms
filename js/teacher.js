@@ -19045,6 +19045,7 @@ function initTeacherPortal() {
     });
 
     const setupNavigationHistory = () => {
+        if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         const hash = window.location.hash || '';
 
         // 1. High-Priority Hash Check (Deep Links)
@@ -19311,6 +19312,7 @@ function initTeacherPortal() {
     };
 
     window.addEventListener('popstate', (event) => {
+        if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         const fromHash = sigmaLastNavHash;
         const landedHash = window.location.hash || '';
         sigmaLastNavHash = landedHash;

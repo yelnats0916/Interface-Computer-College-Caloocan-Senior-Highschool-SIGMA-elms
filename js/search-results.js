@@ -824,8 +824,16 @@
             }
         }
 
+        // School information is available to every signed-in portal through a
+        // separate read-only view, independent of school-editing permissions.
+        const school = window.SigmaSchoolProfileView?.getProfile();
+        if (school && matchesQuery(`School Profile Institution ${school.schoolName}`, raw)) {
+            addResult({id:'public-school-profile-view', title:'School Profile', category:'page',
+                roleLabel:'Institution', subtitle:school.schoolName, detail:'View school information'});
+        }
         // 3. Scan Navigation Pages
         document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink').forEach(link => {
+            if (link.id === 'nav-school-profile') return;
             const label = link.querySelector('span')?.textContent?.trim() || link.textContent?.trim();
             if (label && matchesQuery(label, raw)) {
                 addResult({
@@ -1105,7 +1113,7 @@
             actionsHtml = `
                 <div class="search-result-actions flex flex-wrap items-center gap-2.5 mt-3 sm:mt-0">
                     <button type="button" class="sigma-btn sigma-btn-primary search-action-btn search-action-btn--primary" data-action="page" data-page-id="${escapeHtml(item.id || '')}" data-index="${itemIdx}">
-                        <span>Go to Page</span>
+                        <span>${item.id === 'public-school-profile-view' ? 'View Profile' : 'Go to Page'}</span>
                     </button>
                 </div>
             `;
@@ -1165,6 +1173,11 @@
                     goToClasses(item);
                 } else if (action === 'page') {
                     const pageId = btn.dataset.pageId;
+                    if (['public-school-profile-view', 'nav-school-profile'].includes(pageId)) {
+                        closeSearchResultsView();
+                        window.SigmaSchoolProfileView?.open();
+                        return;
+                    }
                     const link = document.getElementById(pageId);
                     if (link) {
                         closeSearchResultsView();

@@ -18709,6 +18709,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Handle browser back/forward buttons and hash navigation
     function handleAdminRouteOrPopState(isPopState = false) {
+        if (location.hash === '#school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         if (window.guardMaterialLimitsHistory && !window.guardMaterialLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
         if (window.guardAdvancedLimitsHistory && !window.guardAdvancedLimitsHistory(() => handleAdminRouteOrPopState(isPopState))) return;
         // If an active modal, form, or overlay is currently being closed via back navigation, let modal closer handle it

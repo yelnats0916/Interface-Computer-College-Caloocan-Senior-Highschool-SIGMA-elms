@@ -2118,6 +2118,7 @@ if (overlay) overlay.classList.add('hidden');
         syncInline();
     }
     function resolvePageStateFromLocation(state) {
+        if (location.hash === '#school-profile-view') return 'school-profile-view';
         const hash = window.location.hash || '';
         if (!hash) return state?.page || 'home';
         const clean = hash.replace(/^#/, '');
@@ -2180,6 +2181,7 @@ if (overlay) overlay.classList.add('hidden');
 
     }
     function applyHistoryPage(page, state = null) {
+        if (page === 'school-profile-view') { window.SigmaSchoolProfileView?.open(false); return; }
         if (!page) {
             _applyTab('nav-home');
             return;
