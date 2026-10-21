@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/includes/data_provenance.php';
 /**
  * SIGMA ELMS — Subjects Management REST API
  * 
@@ -10,9 +11,10 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Sigma-Actor');
 
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -23,6 +25,8 @@ if ($requestMethod === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/application_auth.php';
+$databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
     http_response_code($code);
@@ -127,6 +131,7 @@ try {
     if ($method === 'POST') {
         $raw = file_get_contents('php://input');
         $payload = json_decode($raw, true) ?: $_POST;
+        sigmaRequireRealRecords($payload);
 
         $action = $payload['action'] ?? 'save';
 
@@ -138,7 +143,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $findStmt = $pdo->prepare("SELECT id FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
             $findStmt->execute([':id' => $target, ':code_match' => $target]);
@@ -163,7 +168,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $findStmt = $pdo->prepare("SELECT id FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
             $findStmt->execute([':id' => $target, ':code_match' => $target]);

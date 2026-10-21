@@ -10,7 +10,7 @@ if (!$local || ($origin && !in_array($host, ['localhost', '127.0.0.1', '::1'], t
     http_response_code(403); echo json_encode(['success' => false, 'error' => 'Server-verified analytics records are required for remote access.']); exit;
 }
 if ($origin) { header('Access-Control-Allow-Origin: ' . $origin); header('Access-Control-Allow-Credentials: true'); header('Vary: Origin'); }
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') exit;
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); exit; }
@@ -18,8 +18,18 @@ $raw = file_get_contents('php://input', false, null, 0, 32001);
 if (strlen($raw) > 32000) { http_response_code(413); echo json_encode(['success' => false, 'error' => 'Too much evidence for one request.']); exit; }
 require_once __DIR__ . '/../includes/analytics_ai_generation.php';
 require_once __DIR__ . '/../includes/ai_generation_id.php';
+require_once __DIR__ . '/../includes/ai_request_auth.php';
+$aiActor = sigmaRequireAiActor([]);
 try {
     $input = json_decode($raw, true) ?: [];
+    sigmaRequireRealRecords($input);
+    $actorRole = preg_replace('/[\s_-]+/', '', strtolower($aiActor['role']));
+    if (!in_array($actorRole, ['admin', 'masteradmin', 'administrator'], true)) {
+        $kind = (string)($input['kind'] ?? '');
+        if ($kind !== $actorRole || (string)($input['snapshot'][$kind . 'Id'] ?? '') !== (string)$aiActor['id']) {
+            http_response_code(403); echo json_encode(['success'=>false,'error'=>'Analytics must belong to the signed-in account.']); exit;
+        }
+    }
     $services = require dirname(__DIR__, 2) . '/config/services.php';
     $result = generateAnalyticsAi($services, $input, function ($url, $headers, $body) {
         $ch = curl_init($url);

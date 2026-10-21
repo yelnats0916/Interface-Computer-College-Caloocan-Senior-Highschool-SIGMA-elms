@@ -12,6 +12,8 @@ header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
 require_once dirname(__DIR__) . '/includes/service_key_validation.php';
+require_once dirname(__DIR__) . '/includes/gdrive_service.php';
+require_once dirname(__DIR__) . '/includes/application_auth.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
@@ -32,45 +34,14 @@ function jsonOut(array $data, int $code = 200): void {
 }
 
 function getGoogleAccessToken(string $keyFile) {
-    $keyData = loadServiceSettings()['google_drive']['service_account'] ?? null;
-    if (!$keyData || empty($keyData['client_email']) || empty($keyData['private_key'])) return null;
-
-    $now = time();
-    $header = str_replace(["+", "/", "="], ["-", "_", ""], base64_encode(json_encode(["alg" => "RS256", "typ" => "JWT"])));
-    $claim = str_replace(["+", "/", "="], ["-", "_", ""], base64_encode(json_encode([
-        "iss" => $keyData["client_email"],
-        "scope" => "https://www.googleapis.com/auth/drive",
-        "aud" => "https://oauth2.googleapis.com/token",
-        "exp" => $now + 3600,
-        "iat" => $now
-    ])));
-    $toSign = $header . "." . $claim;
-    $privKey = @openssl_pkey_get_private($keyData["private_key"]);
-    if (!$privKey) return null;
-    @openssl_sign($toSign, $signature, $privKey, OPENSSL_ALGO_SHA256);
-    $jwt = $toSign . "." . str_replace(["+", "/", "="], ["-", "_", ""], base64_encode($signature));
-
-    $ch = curl_init("https://oauth2.googleapis.com/token");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-        "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        "assertion" => $jwt
-    ]));
-    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-    $res = curl_exec($ch);
-    curl_close($ch);
-
-    $tokenData = json_decode($res, true);
-    return [
-        'token' => $tokenData['access_token'] ?? null,
-        'email' => $keyData['client_email'] ?? '',
-        'project_id' => $keyData['project_id'] ?? ''
-    ];
+    $token = getGdriveAccessToken($keyFile);
+    if (!$token) return null;
+    $account = loadServiceSettings()['google_drive']['service_account'] ?? [];
+    return ['token' => $token, 'email' => $account['client_email'] ?? '', 'project_id' => $account['project_id'] ?? ''];
 }
 
 function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $fileName, string $folderId) {
-    if (!file_exists($keyFile) || !file_exists($filePath) || empty($folderId)) return null;
+    if (!file_exists($filePath) || empty($folderId)) return null;
     $auth = getGoogleAccessToken($keyFile);
     if (!$auth || empty($auth['token'])) return null;
 
@@ -218,11 +189,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
+$uploadActor = sigmaRequireApplicationActor(serviceSettingsPdo());
+
 // Check for JSON or POST payload actions
 $rawInput = file_get_contents('php://input');
 $jsonPayload = json_decode($rawInput, true) ?: [];
 $action = $_POST['action'] ?? $jsonPayload['action'] ?? 'upload';
-if (in_array($action, ['test_connection', 'save_config', 'upload_key'], true)) requireServiceVaultAccess();
+if (in_array($action, ['test_connection', 'save_config', 'upload_key'], true)) {
+    sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
+    requireServiceVaultAccess();
+}
 
 // ── Action: TEST CONNECTION ──────────────────────────────────────────────────
 if ($action === 'test_connection') {
@@ -398,7 +374,7 @@ if (!empty($customPath) && is_array($customPath) && $token && $rootFolderId) {
 }
 
 $gdriveFile = null;
-if (file_exists($keyPath) && !empty($targetGdriveFolderId)) {
+if (!empty($token) && !empty($targetGdriveFolderId)) {
     $gdriveFile = @uploadFileToGoogleDrive($keyPath, $targetPath, $uploadedFile['name'], $targetGdriveFolderId);
 }
 

@@ -13,7 +13,7 @@
     async function request(input) {
         const auth = session(), actor = user();
         if (!auth.token || ![actor.id, actor.uid].filter(Boolean).map(String).includes(String(auth.userId))) throw new Error('Sign in again to connect live grade updates.');
-        const response = await fetch(endpoint(), { method: input ? 'POST' : 'GET', headers: { Authorization: `Bearer ${auth.token}`, ...(input ? { 'Content-Type': 'application/json' } : {}) },
+        const response = await window.SigmaDatabase.fetch(endpoint(), { method: input ? 'POST' : 'GET', headers: { Authorization: `Bearer ${auth.token}`, ...(input ? { 'Content-Type': 'application/json' } : {}) },
             cache: 'no-store', signal: AbortSignal.timeout(15000), ...(input ? { body: JSON.stringify(input) } : {}) });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || 'Unable to sync grades. Please try again.');

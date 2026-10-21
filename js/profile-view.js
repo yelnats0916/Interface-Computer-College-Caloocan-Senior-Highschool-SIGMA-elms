@@ -96,9 +96,7 @@
         } catch (e) {}
         const authId = String(auth.uid || auth.id || auth.accountId || auth.userId || '').replace(/^#/, '').trim();
         if (authId) return authId;
-        const portal = getPortalRoleKey();
-        if (portal === 'admin') return '0000000';
-        return `${portal}_default`;
+        return '';
     }
 
     function resolveTargetUserId(userId) {
@@ -320,7 +318,7 @@
 
     function parseNameComponents(userObj, defaultRole) {
         if (!userObj) {
-            return { firstName: defaultRole || 'User', middleName: 'Santos', lastName: '', fullName: defaultRole || 'User' };
+            return { firstName: defaultRole || 'User', middleName: '', lastName: '', fullName: defaultRole || 'User' };
         }
         let firstName = userObj.firstName || '';
         let lastName = userObj.lastName || '';
@@ -356,176 +354,8 @@
         return { firstName, middleName, lastName, fullName };
     }
 
-    function getAdminFallbackUser() {
-        if (!document.getElementById('admin-main') && getPortalRoleKey() !== 'admin') return {};
-        const found = findAccountInAllStores('0000000');
-        if (found) return found;
-        const users = getStoredJson(USER_STORAGE_KEY, []);
-        if (Array.isArray(users)) {
-            const admin = users.find(user => String(user.uid || user.id || '') === '0000000')
-                || users.find(user => String(user.role || user.type || '').toLowerCase().includes('admin'));
-            if (admin) return admin;
-        }
-        return {
-            id: "0000000",
-            uid: "0000000",
-            firstName: "Stanley",
-            middleName: "Vargas",
-            lastName: "Garcia",
-            fullName: "Stanley Vargas Garcia",
-            email: "stanley.garcia@gmail.com",
-            role: "Master Admin",
-            type: "Master Admin",
-            gender: "Male",
-            status: "Active"
-        };
-    }
-
-    function getTeacherFallbackUser() {
-        return {
-            id: "1111111",
-            uid: "1111111",
-            firstName: "Maria",
-            middleName: "Santos",
-            lastName: "Ramos",
-            fullName: "Maria Santos Ramos",
-            name: "Maria Santos Ramos",
-            email: "maria.ramos@gmail.com",
-            role: "Teacher",
-            type: "Teacher",
-            gender: "Female",
-            status: "Active",
-            department: "Senior High School - Faculty",
-            section: "",
-            sections: [],
-            assignedSections: [],
-            subject: "",
-            subjects: [],
-            assignedSubjects: []
-        };
-    }
-
-    function getStudentFallbackUser() {
-        return {
-            id: "2222222",
-            uid: "2222222",
-            firstName: "Juan",
-            middleName: "Abad",
-            lastName: "Dela Cruz",
-            fullName: "Juan Abad Dela Cruz",
-            email: "juan.delacruz@gmail.com",
-            role: "Student",
-            type: "Student",
-            gender: "Male",
-            status: "Active",
-            gradeSection: "Grade 11 - ICT A",
-            strand: "TVL - ICT"
-        };
-    }
-
     function getLoggedInUserData() {
-        const portal = getPortalRoleKey(); // 'admin', 'teacher', or 'student'
-
-        let authUser = {};
-        try {
-            authUser = JSON.parse(sessionStorage.getItem(AUTH_STORAGE_KEY) || '{}');
-        } catch (e) {
-            authUser = {};
-        }
-
-        const validAuthUser = (authUser && typeof authUser === 'object' && Object.keys(authUser).length > 0) ? authUser : {};
-        const localProfile = getStoredJson(getUserProfileStorageKey(), {});
-        const authId = String(validAuthUser.uid || validAuthUser.id || validAuthUser.accountId || validAuthUser.userId || '');
-        const authEmail = (validAuthUser.email || '').toLowerCase();
-
-        let matchedUser = null;
-        if (authId || authEmail) {
-            matchedUser = findAccountInAllStores(authId || authEmail);
-        }
-
-        if (portal === 'admin') {
-            const adminUser = (typeof window.getLoggedInAdminUser === 'function') ? window.getLoggedInAdminUser() : null;
-            let profileUser = adminUser || {};
-            if (!profileUser || Object.keys(profileUser).length === 0) {
-                if (matchedUser) {
-                    profileUser = { ...matchedUser, ...validAuthUser };
-                } else if (authId || authEmail) {
-                    profileUser = { ...validAuthUser };
-                } else {
-                    profileUser = { ...getAdminFallbackUser(), ...localProfile };
-                }
-            }
-
-            const id = profileUser.uid || profileUser.id || profileUser.accountId || profileUser.userId || '0000000';
-            const rawRole = profileUser.role || profileUser.type || (id === '0000000' ? 'Master Admin' : 'Admin');
-            const role = window.normalizeUserRole ? window.normalizeUserRole(rawRole) : rawRole;
-            const isMasterAdmin = String(id) === '0000000' || String(role).toLowerCase().includes('master');
-            const defaultRole = isMasterAdmin ? 'Master Admin' : 'Admin';
-
-            const nameInfo = parseNameComponents(profileUser, defaultRole);
-            const gender = profileUser.gender && profileUser.gender !== 'Not specified' ? profileUser.gender : (isMasterAdmin ? 'Male' : 'Not specified');
-
-            let userAvatar = profileUser.avatar || '';
-            if (!userAvatar && String(id) === '0000000') {
-                userAvatar = localStorage.getItem('sigma_avatar_0000000') || localStorage.getItem('sigma_admin_avatar_base64') || '';
-            }
-            if (!userAvatar) {
-                userAvatar = getCurrentUserAvatar(id) || '';
-            }
-
-            return {
-                id,
-                firstName: nameInfo.firstName,
-                middleName: nameInfo.middleName,
-                lastName: nameInfo.lastName,
-                fullName: nameInfo.fullName,
-                name: nameInfo.fullName,
-                email: profileUser.email || (isMasterAdmin ? 'stanley.garcia@gmail.com' : 'Not provided'),
-                role,
-                status: profileUser.status || 'Active',
-                gender,
-                phone: profileUser.phone || 'Not provided',
-                address: profileUser.address || 'Not provided',
-                bios: profileUser.bios || localProfile.bios || [],
-                avatar: userAvatar,
-                permissions: profileUser.permissions || { bio: true, achievements: false, subjects: true, sections: true },
-                isReadOnly: false
-            };
-        }
-
-        // Dedicated isolated states for Teacher and Student portals
-        const defaultRole = portal === 'teacher' ? 'Teacher' : 'Student';
-        const defaultFallback = portal === 'teacher' ? getTeacherFallbackUser() : getStudentFallbackUser();
-
-        const profileUser = (validAuthUser && (validAuthUser.id || validAuthUser.uid))
-            ? { ...defaultFallback, ...localProfile, ...validAuthUser, ...(matchedUser || {}) }
-            : (matchedUser ? { ...defaultFallback, ...localProfile, ...matchedUser } : { ...defaultFallback, ...localProfile });
-        const id = profileUser.uid || profileUser.id || profileUser.accountId || profileUser.userId || (portal === 'teacher' ? '1111111' : '2222222');
-        const role = profileUser.role || profileUser.type || defaultRole;
-        const defaultPerms = { bio: true, achievements: false, subjects: true, sections: true };
-
-        const nameInfo = parseNameComponents(profileUser, defaultRole);
-        const rawEmail = (profileUser.email || (localProfile.email && localProfile.email.includes('@') ? localProfile.email : '')).trim();
-        const safeEmail = (rawEmail && !rawEmail.includes('asdasda') && !rawEmail.includes('@icc')) ? rawEmail : (profileUser.email || (portal === 'teacher' ? 'maria.ramos@gmail.com' : 'juan.delacruz@gmail.com'));
-
-        return {
-            id: id || (portal === 'teacher' ? '1111111' : '2222222'),
-            firstName: nameInfo.firstName,
-            middleName: nameInfo.middleName,
-            lastName: nameInfo.lastName,
-            fullName: nameInfo.fullName,
-            name: nameInfo.fullName,
-            email: safeEmail,
-            role,
-            status: profileUser.status || 'Active',
-            gender: profileUser.gender || (portal === 'teacher' ? 'Female' : 'Male'),
-            phone: profileUser.phone || 'Not provided',
-            address: profileUser.address || 'Not provided',
-            bios: localProfile.bios || [],
-            avatar: profileUser.avatar || getCurrentUserAvatar(id) || '',
-            permissions: defaultPerms,
-            isReadOnly: false
-        };
+        return window.SigmaDatabase?.currentUser() || {};
     }
     window.getLoggedInUserData = getLoggedInUserData;
 

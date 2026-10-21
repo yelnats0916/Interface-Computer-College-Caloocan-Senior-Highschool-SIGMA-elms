@@ -27,115 +27,10 @@
     }
 
     function getTabSessionUser() {
-        const path = (typeof window !== 'undefined' && window.location && window.location.pathname ? window.location.pathname.toLowerCase() : '');
-        const isTeacherPage = path.includes('teacher');
-        const isStudentPage = path.includes('student');
-        const isAdminPage = path.includes('admin');
-        const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
-
-        const auth = readJson(sessionStorage, SESSION_KEY);
-        const cur = readJson(sessionStorage, 'currentUser');
-
-        // On teacher portal, the permanent default teacher is Maria Santos Ramos (1111111).
-        // Only accept another teacher account in sessionStorage IF the user explicitly logged in during this session.
-        if (isTeacherPage) {
-            if (auth && idOf(auth)) {
-                return auth;
-            }
-            if (cur && idOf(cur)) {
-                return cur;
-            }
-        } else {
-            if (auth && idOf(auth)) return auth;
-            if (cur && idOf(cur)) return cur;
-        }
-
-        const shared = readJson(localStorage, 'sigma-logged-in-user') || readJson(localStorage, 'currentUser');
-        const sharedRole = String(shared?.role || shared?.type || '').toLowerCase();
-
-        if (isTeacherPage) {
-            if (shared && idOf(shared) && (sharedRole.includes('teach') || sharedRole.includes('faculty'))) {
-                try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(shared)); } catch (_) {}
-                return shared;
-            }
-            // Permanent default teacher Maria Santos Ramos (1111111) when no teacher is logged in
-            const defaultTeacher = {
-                id: '1111111',
-                uid: '1111111',
-                firstName: 'Maria',
-                middleName: 'Santos',
-                lastName: 'Ramos',
-                fullName: 'Maria Santos Ramos',
-                name: 'Maria Santos Ramos',
-                email: 'maria.ramos@gmail.com',
-                role: 'Teacher',
-                type: 'Teacher',
-                status: 'Active',
-                gender: 'Female',
-                branch: 'Main Campus',
-                department: 'Senior High School - Faculty',
-                section: '',
-                sections: [],
-                assignedSections: [],
-                subject: '',
-                subjects: [],
-                assignedSubjects: []
-            };
-            try {
-                sessionStorage.setItem(SESSION_KEY, JSON.stringify(defaultTeacher));
-                sessionStorage.setItem('currentUser', JSON.stringify(defaultTeacher));
-            } catch (_) {}
-            return defaultTeacher;
-        }
-
-        if (isStudentPage) {
-            if (shared && idOf(shared) && sharedRole.includes('stud')) {
-                try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(shared)); } catch (_) {}
-                return shared;
-            }
-            const defaultStudent = {
-                id: '2222222',
-                uid: '2222222',
-                firstName: 'Juan',
-                middleName: 'Abad',
-                lastName: 'Dela Cruz',
-                fullName: 'Juan Abad Dela Cruz',
-                name: 'Juan Abad Dela Cruz',
-                email: 'juan.delacruz@gmail.com',
-                role: 'Student',
-                type: 'Student'
-            };
-            try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(defaultStudent)); } catch (_) {}
-            return defaultStudent;
-        }
-
-        if (isAdminPage) {
-            if (shared && idOf(shared) && sharedRole.includes('admin')) {
-                try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(shared)); } catch (_) {}
-                return shared;
-            }
-            const defaultAdmin = {
-                id: '0000000',
-                uid: '0000000',
-                firstName: 'Stanley',
-                middleName: 'Vargas',
-                lastName: 'Garcia',
-                fullName: 'Stanley Vargas Garcia',
-                name: 'Stanley Vargas Garcia',
-                email: 'stanley.garcia@gmail.com',
-                role: 'Master Admin',
-                type: 'Master Admin'
-            };
-            try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(defaultAdmin)); } catch (_) {}
-            return defaultAdmin;
-        }
-
-        if (shared && idOf(shared)) {
-            try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(shared)); } catch (_) {}
-            return shared;
-        }
-
-        return null;
+        const user = readJson(sessionStorage, SESSION_KEY);
+        const session = readJson(sessionStorage, 'sigma-grade-sync-session');
+        if (!user || !session?.token || idOf(user) !== String(session.userId || '').toLowerCase()) return null;
+        return user;
     }
 
     function syncTabIdentity() {
@@ -181,7 +76,111 @@
     window.getTabSessionUser = getTabSessionUser;
     window.syncTabIdentity = syncTabIdentity;
 
-    syncTabIdentity();
+    const isLoginPage = /\/(?:index\.html)?$/i.test(location.pathname);
+    let verification = null;
+    let gateMessage = 'Checking your session...';
+    const gateStyle = document.createElement('style');
+    gateStyle.textContent = 'html[data-sigma-session-check] body > :not(#sigma-session-status){visibility:hidden!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
+    document.head.appendChild(gateStyle);
+    function renderGate() {
+        if (!document.body || isLoginPage) return;
+        let status = document.getElementById('sigma-session-status');
+        if (!document.documentElement.hasAttribute('data-sigma-session-check')) {
+            status?.remove();
+            return;
+        }
+        if (!status) {
+            status = document.createElement('div');
+            status.id = 'sigma-session-status';
+            status.setAttribute('role', 'status');
+            document.body.appendChild(status);
+        }
+        status.replaceChildren();
+        const message = document.createElement('p');
+        message.textContent = gateMessage;
+        status.appendChild(message);
+        if (gateMessage !== 'Checking your session...') {
+            const retry = document.createElement('button');
+            retry.type = 'button'; retry.textContent = 'Retry';
+            retry.addEventListener('click', () => verifyDatabaseSession());
+            status.appendChild(retry);
+            const login = document.createElement('button');
+            login.type = 'button'; login.textContent = 'Sign out and return to Login';
+            login.addEventListener('click', () => {
+                window.SigmaDatabase?.revokeSession();
+                clearIdentity();
+                window.location.replace(new URL('index.html', document.baseURI).href);
+            });
+            status.appendChild(login);
+        }
+    }
+    function setGate(message) {
+        if (isLoginPage) return;
+        gateMessage = message || 'Checking your session...';
+        document.documentElement.toggleAttribute('data-sigma-session-check', !!message);
+        renderGate();
+    }
+    document.addEventListener('DOMContentLoaded', renderGate);
+    function clearIdentity() {
+        [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge'].forEach(key => sessionStorage.removeItem(key));
+        SHARED_KEYS.forEach(key => localStorage.removeItem(key));
+    }
+    function portalForRole(role) {
+        const value = String(role || '').replace(/[\s_-]+/g, '').toLowerCase();
+        if (['admin', 'administrator', 'masteradmin'].includes(value)) return 'admin.html';
+        if (['teacher', 'faculty', 'instructor'].includes(value)) return 'teacher.html';
+        if (['student', 'learner'].includes(value)) return 'student.html';
+        return null;
+    }
+    window.SigmaSessionNavigation = Object.freeze({ portalForRole });
+    function verifyDatabaseSession() {
+        if (verification) return verification;
+        const user = getTabSessionUser();
+        if (!user) {
+            if (!isLoginPage) {
+                setGate('Checking your session...');
+                clearIdentity();
+                window.location.replace(new URL('index.html', document.baseURI).href);
+            }
+            return Promise.resolve();
+        }
+        const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
+        setGate('Checking your session...');
+        verification = (async () => {
+            try {
+                const result = await window.SigmaDatabase.request('session');
+                // A logout or new sign-in may have occurred while the server was responding.
+                if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
+                const portal = portalForRole(result.user.role);
+                if (!portal) throw Object.assign(new Error('This account has no portal access.'), { status: 403 });
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
+                sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+                if (isLoginPage || (!location.pathname.endsWith('/' + portal) && !location.pathname.endsWith('/quiz-creator.html'))) {
+                    window.location.replace(new URL(portal, document.baseURI).href);
+                    return;
+                }
+                syncTabIdentity();
+                setGate(null);
+                window.dispatchEvent(new Event('sigma:database-session-ready'));
+            } catch (error) {
+                if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
+                if (error.status === 401 || error.status === 403) {
+                    clearIdentity();
+                    if (!isLoginPage) window.location.replace(new URL('index.html', document.baseURI).href);
+                } else {
+                    setGate('Your session could not be verified. Check that XAMPP Apache and MySQL are running, then retry.');
+                    window.dispatchEvent(new CustomEvent('sigma:database-error', { detail: { endpoint: 'session', message: error.message } }));
+                }
+            } finally {
+                verification = null;
+                if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) {
+                    Promise.resolve().then(verifyDatabaseSession);
+                }
+            }
+        })();
+        return verification;
+    }
+    verifyDatabaseSession();
 
     let wasHidden = false;
     document.addEventListener('visibilitychange', () => {
@@ -189,15 +188,18 @@
             wasHidden = true;
             return;
         }
+        if (wasHidden) verifyDatabaseSession();
         if (wasHidden && syncTabIdentity()) {
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
         wasHidden = false;
     });
     window.addEventListener('focus', () => {
+        verifyDatabaseSession();
         if (syncTabIdentity()) {
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
     });
-    window.addEventListener('pageshow', () => { syncTabIdentity(); });
+    window.addEventListener('pagehide', () => { setGate('Checking your session...'); });
+    window.addEventListener('pageshow', () => { verifyDatabaseSession(); });
 })();

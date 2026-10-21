@@ -361,19 +361,7 @@
         ];
     }
 
-    function isFakeAssessment(item) {
-        if (typeof window.isFakeAssessment === 'function' && window.isFakeAssessment !== isFakeAssessment) {
-            return window.isFakeAssessment(item);
-        }
-        if (!item) return true;
-        if (item.isFake === true || item.isSample === true) return true;
-        const title = String(item.title || item.name || '').trim();
-        if (!title) return true;
-        const lower = title.toLowerCase();
-        if (lower.includes('variable declaration practice') || lower.includes('basic syntax and data types')) return false;
-        if (lower === 'fgdfhd' || lower.includes('fgdfhd') || lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') || lower === 'scdad' || lower.includes('scdad')) return true;
-        return false;
-    }
+    function isFakeAssessment(item) { return !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item)); }
 
     function getAssessmentsForSubject(subjectId, category, fallbackTitle, sectionName) {
         const tabMap = {
@@ -672,9 +660,6 @@
                 if (sName && targetName && isStudentMatch(sName, targetName)) return rawSub;
                 if (sId && targetId && isStudentMatch(sId, targetId)) return rawSub;
                 if (!sName && !sId) {
-                    // Default untagged submissions only belong to the primary default student (Juan Dela Cruz / 2222222)
-                    if (targetName && isStudentMatch('Juan Dela Cruz', targetName)) return rawSub;
-                    if (targetId && (targetId === '2222222' || targetId === '222222')) return rawSub;
                     return null;
                 }
                 return null;

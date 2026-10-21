@@ -1,0 +1,52 @@
+name: Deploy SIGMA to Alwaysdata
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sigma-alwaysdata-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build credential-free release
+        run: |
+          python scripts/build-hosting-release.py --output release.zip --runtime-path /home/sigma-elms/sigma-private/runtime.php
+      - name: Configure deployment identity
+        env:
+          ALWAYSDATA_SSH_KEY: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+          ALWAYSDATA_KNOWN_HOSTS: ${{ secrets.ALWAYSDATA_KNOWN_HOSTS }}
+        run: |
+          test -n "$ALWAYSDATA_SSH_KEY"
+          test -n "$ALWAYSDATA_KNOWN_HOSTS"
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ALWAYSDATA_SSH_KEY" > ~/.ssh/alwaysdata
+          printf '%s\n' "$ALWAYSDATA_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Upload and activate verified release
+        shell: bash
+        run: |
+          target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
+          archive="/home/sigma-elms/sigma-gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.zip"
+          release="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
+          opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          scp "${opts[@]}" release.zip "$target:$archive"
+          scp "${opts[@]}" scripts/activate-hosting-release.py "$target:/home/sigma-elms/sigma-private/activate-hosting-release.py"
+          ssh "${opts[@]}" "$target" "python3 /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release'"
+      - name: Check public login
+        run: curl --fail --silent --show-error --location --max-time 30 https://sigma-elms.alwaysdata.net/index.html --output /dev/null
+      - name: Remove runner deployment key
+        if: always()
+        run: rm -f ~/.ssh/alwaysdata

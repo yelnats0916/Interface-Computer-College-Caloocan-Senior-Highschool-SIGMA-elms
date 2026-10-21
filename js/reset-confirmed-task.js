@@ -100,5 +100,5 @@
             return report;
         };
     }
-    resetConfirmedTask();
+    // Retained for explicit, user-directed recovery only; never run on page load.
 })();

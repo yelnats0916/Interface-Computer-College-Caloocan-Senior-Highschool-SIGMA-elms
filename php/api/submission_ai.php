@@ -8,7 +8,7 @@ if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true) || ($or
     http_response_code(403); echo json_encode(['success' => false, 'error' => 'Server-verified submission access is required for remote evaluation.']); exit;
 }
 if ($origin) { header('Access-Control-Allow-Origin: ' . $origin); header('Access-Control-Allow-Credentials: true'); header('Vary: Origin'); }
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') exit;
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); exit; }
@@ -16,8 +16,11 @@ $raw = file_get_contents('php://input', false, null, 0, 150001);
 if (strlen($raw) > 150000) { http_response_code(413); echo json_encode(['success' => false, 'error' => 'Submission evidence is too large.']); exit; }
 require_once __DIR__ . '/../includes/submission_ai_generation.php';
 require_once __DIR__ . '/../includes/ai_generation_id.php';
+require_once __DIR__ . '/../includes/ai_request_auth.php';
+$aiActor = sigmaRequireAiActor(['admin', 'masteradmin', 'administrator', 'teacher']);
 try {
     $request = json_decode($raw, true) ?: [];
+    sigmaRequireRealRecords($request);
     $services = require dirname(__DIR__, 2) . '/config/services.php';
     $result = generateSubmissionAi($services, $request, function ($url, $headers, $body) {
         $ch = curl_init($url);

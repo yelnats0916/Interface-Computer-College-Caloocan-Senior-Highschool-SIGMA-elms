@@ -13,7 +13,7 @@
             const timeout = new AbortController();
             const timer = setTimeout(() => timeout.abort(), 30000);
             try {
-                const response = await fetch(api, { method: 'POST', credentials: 'include', signal: timeout.signal, headers: { 'Content-Type': 'application/json' },
+                const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: timeout.signal, headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ kind, snapshot: request.snapshot, maxCards: request.maxCards, language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
                 const result = await response.json();
                 if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'AI returned invalid analytics.');

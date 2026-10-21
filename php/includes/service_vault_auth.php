@@ -46,10 +46,19 @@ function authorizeServiceVault(array $input): string {
 }
 
 function requireServiceVaultAccess(): void {
-    // Allow local structuring/testing before the administrator login is connected.
+    // Local credential management now uses the same verified database identity.
     $host = strtolower(parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST) ?: '');
     if (in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)
-        && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) return;
+        && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) {
+        require_once __DIR__ . '/application_auth.php';
+        $actor = sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
+        if (!serviceVaultAdmin($actor)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'This administrator cannot manage service credentials.']);
+            exit;
+        }
+        return;
+    }
     if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true) && !serviceRequestIsSecure()) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'HTTPS is required for credential management.']); exit; }
     $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
     $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? $headers['authorization'] ?? '';
@@ -71,7 +80,7 @@ function restrictServiceOrigin(): void {
     $local = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
     $serverHost = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
     if ($origin && ($local ? !in_array($originHost, ['localhost', '127.0.0.1'], true) : $originHost !== $serverHost)) { http_response_code(403); exit; }
-    if ($origin) { header('Access-Control-Allow-Origin: ' . $origin); header('Vary: Origin'); }
+    if ($origin) { header('Access-Control-Allow-Origin: ' . $origin); header('Access-Control-Allow-Credentials: true'); header('Vary: Origin'); }
 }
 
 function protectServiceAdministratorAccounts(array $input): void {

@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/includes/data_provenance.php';
 /**
  * SIGMA ELMS — User Management REST API
  * 
@@ -22,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/application_auth.php';
+$databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
 require_once $rootDir . '/php/includes/gdrive_service.php';
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -116,6 +119,7 @@ try {
             jsonResponse(['success' => false, 'error' => 'Invalid JSON payload'], 400);
         }
 
+        sigmaRequireRealRecords($input);
         $action = trim($input['action'] ?? 'save');
         protectServiceAdministratorAccounts($input);
 
@@ -148,7 +152,8 @@ try {
             }
 
             $stmt = $pdo->prepare("UPDATE `users` SET `password` = :pwd WHERE `id` = :id");
-            $stmt->execute([':pwd' => $newPassword, ':id' => $id]);
+            $stmt->execute([':pwd' => password_hash($newPassword, PASSWORD_DEFAULT), ':id' => $id]);
+            sigmaRevokeAccountSessions($pdo, $id);
             jsonResponse(['success' => true, 'message' => "Password updated for user {$id}"]);
         }
 
@@ -163,7 +168,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($input['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $stmt = $pdo->prepare("UPDATE `users` SET `is_deleted` = 1, `deleted_at` = UTC_TIMESTAMP(), `deleted_by` = :actor WHERE `id` = :id");
             $stmt->execute([':id' => $id, ':actor' => $actor]);
@@ -182,7 +187,7 @@ try {
             if (!$id) jsonResponse(['success' => false, 'error' => 'User ID is required'], 400);
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($input['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $stmt = $pdo->prepare("UPDATE `users` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id");
             $stmt->execute([':id' => $id]);
@@ -196,84 +201,8 @@ try {
         }
 
         // ACTION: Batch Sync from client
-        if ($action === 'batch_sync') {
-            $users = $input['users'] ?? [];
-            if (!is_array($users)) {
-                jsonResponse(['success' => false, 'error' => 'Users array required'], 400);
-            }
-
-            $insertedCount = 0;
-            $stmt = $pdo->prepare("
-                INSERT INTO `users` (
-                    `id`, `first_name`, `middle_name`, `last_name`, `full_name`, `email`, `password`,
-                    `role`, `status`, `gender`, `branch`, `department`, `grade_level`, `grade_section`, `strand`, `permissions`, `created_at`
-                ) VALUES (
-                    :id, :first_name, :middle_name, :last_name, :full_name, :email, :password,
-                    :role, :status, :gender, :branch, :department, :grade_level, :grade_section, :strand, :permissions, :created_at
-                ) ON DUPLICATE KEY UPDATE
-                    `first_name` = VALUES(`first_name`),
-                    `middle_name` = VALUES(`middle_name`),
-                    `last_name` = VALUES(`last_name`),
-                    `full_name` = VALUES(`full_name`),
-                    `email` = VALUES(`email`),
-                    `role` = VALUES(`role`),
-                    `status` = VALUES(`status`),
-                    `gender` = VALUES(`gender`),
-                    `department` = VALUES(`department`),
-                    `grade_level` = VALUES(`grade_level`),
-                    `grade_section` = VALUES(`grade_section`),
-                    `strand` = VALUES(`strand`),
-                    `permissions` = VALUES(`permissions`)
-            ");
-
-            foreach ($users as $u) {
-                $uid = trim($u['id'] ?? $u['uid'] ?? '');
-                if (!$uid) continue;
-
-                $firstName = trim($u['firstName'] ?? $u['first_name'] ?? '');
-                $middleName = trim($u['middleName'] ?? $u['middle_name'] ?? '');
-                $lastName = trim($u['lastName'] ?? $u['last_name'] ?? '');
-                $fullName = trim($u['fullName'] ?? $u['full_name'] ?? '');
-                if (!$fullName) $fullName = trim("{$firstName} {$middleName} {$lastName}");
-
-                $email = trim($u['email'] ?? '');
-                if (!$email) $email = "user_{$uid}@gmail.com";
-
-                $password = (string) ($u['password'] ?? "pass{$uid}");
-                $role = (string) ($u['role'] ?? $u['type'] ?? 'Student');
-                $status = (string) ($u['status'] ?? 'Active');
-                $gender = (string) ($u['gender'] ?? '');
-                $branch = (string) ($u['branch'] ?? 'Main Campus');
-                $dept = (string) ($u['department'] ?? '');
-                $grade = (string) ($u['gradeLevel'] ?? $u['grade_level'] ?? '');
-                $section = (string) ($u['gradeSection'] ?? $u['grade_section'] ?? '');
-                $strand = (string) ($u['strand'] ?? '');
-                $perms = isset($u['permissions']) ? json_encode($u['permissions']) : null;
-                $createdAt = !empty($u['createdAt']) ? date('Y-m-d H:i:s', strtotime($u['createdAt'])) : date('Y-m-d H:i:s');
-
-                $stmt->execute([
-                    ':id' => $uid,
-                    ':first_name' => $firstName ?: 'User',
-                    ':middle_name' => $middleName,
-                    ':last_name' => $lastName ?: $uid,
-                    ':full_name' => $fullName,
-                    ':email' => $email,
-                    ':password' => $password,
-                    ':role' => $role,
-                    ':status' => $status,
-                    ':gender' => $gender,
-                    ':branch' => $branch,
-                    ':department' => $dept,
-                    ':grade_level' => $grade,
-                    ':grade_section' => $section,
-                    ':strand' => $strand,
-                    ':permissions' => $perms,
-                    ':created_at' => $createdAt
-                ]);
-                $insertedCount++;
-            }
-
-            jsonResponse(['success' => true, 'syncedCount' => $insertedCount]);
+        if ($action === 'batch_sync' || $action === 'create_missing') {
+            jsonResponse(['success' => false, 'code' => 'review_required', 'error' => 'Unreviewed browser account imports are disabled. Create a verified account through user management.'], 409);
         }
 
         // ACTION: Save / Create / Update single user
@@ -281,16 +210,6 @@ try {
         $id = trim($userObj['id'] ?? $userObj['uid'] ?? '');
         if (!$id) {
             jsonResponse(['success' => false, 'error' => 'User ID is required'], 400);
-        }
-
-        if ($action === 'create_missing') {
-            $existing = $pdo->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
-            $existing->execute([$id]);
-            if ($existing->fetchColumn()) jsonResponse(['success' => true, 'skipped' => true]);
-            $importRole = strtolower((string)($userObj['role'] ?? $userObj['type'] ?? ''));
-            if (!in_array($importRole, ['student', 'teacher'], true) || empty($userObj['password'])) {
-                jsonResponse(['success' => false, 'error' => 'Only existing student/teacher accounts with credentials can be imported'], 400);
-            }
         }
 
         $firstName = trim($userObj['firstName'] ?? $userObj['first_name'] ?? '');
@@ -301,6 +220,15 @@ try {
 
         $email = trim($userObj['email'] ?? '');
         $password = (string) ($userObj['password'] ?? '');
+        if ($firstName === '' || $lastName === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            jsonResponse(['success' => false, 'error' => 'A real first name, last name, and valid email are required.'], 422);
+        }
+        $existingPasswordQuery = $pdo->prepare('SELECT password FROM users WHERE id=? LIMIT 1');
+        $existingPasswordQuery->execute([$id]);
+        $existingPassword = $existingPasswordQuery->fetchColumn();
+        if ($password === '' && $existingPassword === false) jsonResponse(['success' => false, 'error' => 'An initial password is required for a new account.'], 422);
+        $storedPassword = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : $existingPassword;
+
         $role = (string) ($userObj['role'] ?? $userObj['type'] ?? 'Student');
         $status = (string) ($userObj['status'] ?? 'Active');
         $gender = (string) ($userObj['gender'] ?? '');
@@ -340,19 +268,14 @@ try {
         ";
 
         $stmt = $pdo->prepare($upsertSql);
-        if ($action === 'create_missing') {
-            $upsertSql = preg_replace('/ON DUPLICATE KEY UPDATE.*$/s', '', $upsertSql);
-            $upsertSql = preg_replace('/INSERT INTO/', 'INSERT IGNORE INTO', $upsertSql, 1);
-            $stmt = $pdo->prepare($upsertSql);
-        }
         $stmt->execute([
             ':id' => $id,
-            ':first_name' => $firstName ?: 'User',
+            ':first_name' => $firstName,
             ':middle_name' => $middleName,
-            ':last_name' => $lastName ?: $id,
+            ':last_name' => $lastName,
             ':full_name' => $fullName,
-            ':email' => $email ?: "user_{$id}@gmail.com",
-            ':password' => $password ?: "pass{$id}",
+            ':email' => $email,
+            ':password' => $storedPassword,
             ':role' => $role,
             ':status' => $status,
             ':gender' => $gender,
@@ -364,6 +287,8 @@ try {
             ':avatar' => $avatar,
             ':permissions' => $perms
         ]);
+
+        if ($password !== '' && $existingPassword !== false) sigmaRevokeAccountSessions($pdo, $id);
 
         $fetchStmt = $pdo->prepare("SELECT * FROM `users` WHERE `id` = :id LIMIT 1");
         $fetchStmt->execute([':id' => $id]);

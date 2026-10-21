@@ -9,21 +9,21 @@ if ($origin && ($originHost === explode(':', $_SERVER['HTTP_HOST'] ?? '')[0] || 
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
     header('Vary: Origin');
-    header('Access-Control-Allow-Headers: Content-Type');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
     header('Access-Control-Allow-Methods: POST, OPTIONS');
 } elseif ($origin) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Origin not allowed.']); exit; }
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') exit;
-session_start();
-// Local capstone development is allowed; remote deployments need server-authenticated users.
-if (!$local && empty($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'error' => 'Sign in to use SIGMA.']); exit; }
-session_write_close();
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); exit; }
 $input = file_get_contents('php://input', false, null, 0, 24001);
 if (strlen($input) > 24000) { http_response_code(413); echo json_encode(['success' => false, 'error' => 'Message context is too large.']); exit; }
 require_once __DIR__ . '/../includes/sigma_chat_generation.php';
 require_once __DIR__ . '/../includes/ai_generation_id.php';
+require_once __DIR__ . '/../includes/ai_request_auth.php';
+$aiActor = sigmaRequireAiActor([]);
 try {
     $request = json_decode($input, true) ?: [];
+    sigmaRequireRealRecords($request);
     $services = require dirname(__DIR__, 2) . '/config/services.php';
     $result = generateSigmaChat($services, $request, function ($url, $headers, $body) {
         $ch = curl_init($url);

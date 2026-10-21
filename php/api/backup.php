@@ -12,9 +12,10 @@
  *   POST ?action=delete_snapshot  — Deletes a specific snapshot file from database/backups/
  */
 
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-Admin-Id');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Admin-Id');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
@@ -23,6 +24,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/application_auth.php';
+$databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
 
 $backupsDir = $rootDir . '/database/backups';
 if (!is_dir($backupsDir)) {
@@ -47,12 +50,7 @@ $action = trim($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) ? ($
 // -------------------------------------------------------------------------
 // AUTHORIZATION CHECK: Master Admin Role & Database Permissions
 // -------------------------------------------------------------------------
-$requesterId = trim(
-    $_SERVER['HTTP_X_ADMIN_ID'] ?? 
-    $_GET['requester_id'] ?? 
-    $_POST['requester_id'] ?? 
-    (is_array($jsonInput) ? ($jsonInput['requester_id'] ?? '') : '')
-);
+$requesterId = (string)$databaseActor['id'];
 
 $isMaster = false;
 $canManageDb = false;

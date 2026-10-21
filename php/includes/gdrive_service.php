@@ -21,7 +21,7 @@ function getGdriveAccessToken(string $keyFile) {
     $toSign = $header . "." . $claim;
     $privKey = @openssl_pkey_get_private($keyData["private_key"]);
     if (!$privKey) return null;
-    @openssl_sign($toSign, $signature, $privKey, OPENSSL_ALGO_SHA256);
+    if (!@openssl_sign($toSign, $signature, $privKey, OPENSSL_ALGO_SHA256)) return null;
     $jwt = $toSign . "." . str_replace(["+", "/", "="], ["-", "_", ""], base64_encode($signature));
 
     $ch = curl_init("https://oauth2.googleapis.com/token");
@@ -219,6 +219,8 @@ function resolveGdriveFolderPath(string $token, string $rootFolderId, array $pat
         $cleanSegment = trim((string)$segment);
         if ($cleanSegment === '') continue;
 
+        $folder = findOrCreateGdriveFolder($token, $currentParentId, $cleanSegment);
+        if (!is_array($folder) || empty($folder['id'])) return null;
         $currentParentId = $folder['id'];
         $lastFolder = $folder;
     }

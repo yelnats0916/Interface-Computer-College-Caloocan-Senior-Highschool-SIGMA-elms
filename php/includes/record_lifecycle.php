@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/service_vault_auth.php';
+require_once __DIR__ . '/application_auth.php';
+require_once __DIR__ . '/data_provenance.php';
 
 function lifecycleTables(PDO $db): array {
     $allowed = ['users', 'school_years', 'sections', 'subjects', 'quizzes', 'announcements', 'audit_logs', 'ai_logs', 'ai_insight_cards'];
@@ -7,17 +9,8 @@ function lifecycleTables(PDO $db): array {
 }
 
 function lifecycleActor(): string {
-    if (session_status() === PHP_SESSION_NONE) @session_start();
-    $id = $_SESSION['user_id'] ?? $_SESSION['user']['id'] ?? '';
-    if (!$id) {
-        $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-        $id = $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '';
-    }
-    if (!$id && in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
-        $id = '0000000';
-    }
-    if (!is_string($id) || strlen($id) > 50) throw new InvalidArgumentException('Invalid account identifier.');
-    return $id;
+    $user = sigmaRequireApplicationActor(serviceSettingsPdo());
+    return (string)$user['id'];
 }
 
 function lifecycleAuthorize(string $actor): void {
@@ -43,6 +36,7 @@ function lifecycleChange(PDO $db, string $table, string $id, string $action, str
             if ($table === 'announcements' && $action === 'remove') {
                 $post = json_decode($confirmation, true);
                 if (is_array($post)) {
+                    sigmaRequireRealRecords($post);
                     $stmt = $db->prepare("INSERT INTO announcements (id, title, content, author_id, author_name, author_role, audience, is_deleted, deleted_at, deleted_by) VALUES (?, ?, ?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(), ?)");
                     $stmt->execute([
                         $id,

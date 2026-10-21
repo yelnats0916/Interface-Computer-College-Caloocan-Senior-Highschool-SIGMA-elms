@@ -167,8 +167,9 @@ function _saveBeforeExit() {
 
         // Resolve active user
         const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
-        const authorId = activeUser ? String(activeUser.id || activeUser.uid || '0000000') : '0000000';
-        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Stanley Garcia';
+        if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); return; }
+        const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
+        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
         const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
         const totalPoints = (questions || []).reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
 
@@ -2008,8 +2009,9 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
         const library = getStoredQuizLibrary();
 
         const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
-        const authorId = activeUser ? String(activeUser.id || activeUser.uid || '0000000') : '0000000';
-        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Stanley Garcia';
+        if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); return; }
+        const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
+        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
         const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
 
         let savedQuizId = currentQuizId;
@@ -2617,11 +2619,11 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
     const date = quiz.createdAt || (quiz.updatedAt ? new Date(quiz.updatedAt).toLocaleDateString() : 'Saved');
 
     const authorInfo = (typeof window.resolveQuizAuthor === 'function') ? window.resolveQuizAuthor(quiz) : {
-        authorId: quiz.authorId || '0000000',
-        authorName: quiz.authorName || 'Stanley Garcia',
+        authorId: quiz.authorId || '',
+        authorName: quiz.authorName || 'Author not recorded',
         authorRole: 'Admin'
     };
-    const authorDisplay = authorInfo.authorName || 'Stanley Garcia';
+    const authorDisplay = authorInfo.authorName || 'Author not recorded';
     const authorRoleDisplay = authorInfo.authorRole || 'Admin';
 
     const iconInfo = (typeof window.getQuizStorageIconInfo === 'function')
@@ -2905,7 +2907,7 @@ window.resolveCourseMaterialsApiUrl = resolveCourseMaterialsApiUrl;
 window.fetchCourseMaterialsFromDB = async function () {
     try {
         const url = resolveCourseMaterialsApiUrl();
-        const res = await fetch(url);
+        const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
@@ -3019,7 +3021,7 @@ window.getRealCourseMaterials = function () {
             const section = subj.section || subj.sectionName || subj.strand || subj.track || (rawSubjName.toLowerCase().includes('prog') || rawSubjName.toLowerCase().includes('network') || rawSubjName.toLowerCase().includes('web') || rawSubjName.toLowerCase().includes('css') ? 'TVL - ICT' : (rawSubjName.toLowerCase().includes('math') || rawSubjName.toLowerCase().includes('calculus') ? 'STEM' : 'STEM'));
 
             const isSubjAdmin = Boolean(subj.createdByAdmin || String(subj.authorName || subj.teacher || '').toLowerCase().includes('admin') || subj._sourceStorageKey === 'sigma-admin-subjects');
-            const subjAuthor = subj.authorName || subj.teacher || (isSubjAdmin ? 'Stanley Garcia (Admin)' : 'Maria Santos Ramos (Teacher)');
+            const subjAuthor = subj.authorName || subj.teacher || 'Author not recorded';
             const subjAuthorRole = isSubjAdmin ? 'Admin' : 'Teacher';
 
             const rawMaterialList = [];
@@ -3109,7 +3111,7 @@ window.getRealCourseMaterials = function () {
                     isSubjAdmin || mat.createdByAdmin || 
                     String(mat.authorName || mat.uploader || mat.author || '').toLowerCase().includes('admin')
                 );
-                const matAuthor = isMatAdmin ? 'Stanley Garcia (Admin)' : (mat.authorName || mat.uploader || mat.author || subjAuthor);
+                const matAuthor = mat.authorName || mat.uploader || mat.author || subjAuthor;
                 const matAuthorRole = isMatAdmin ? 'Admin' : 'Teacher';
 
                 const matId = `mat_${subj.id || subjCode}_${mat.id || normalizeKey(matTitle)}`;
@@ -3147,7 +3149,7 @@ window.getRealCourseMaterials = function () {
                         if (!v) return;
                         const vTitle = String(v.title || 'Course Lecture Video').replace(/\.(mp4|mov|avi)$/i, '').trim();
                         const vSubj = String(v.subject || 'Senior High Lectures').replace(/\s*\([^\)]*\)/g, '').trim();
-                        const vAuthor = v.teacher || v.authorName || 'Stanley Garcia (Admin)';
+                        const vAuthor = v.teacher || v.authorName || 'Author not recorded';
                         const vAuthorRole = vAuthor.toLowerCase().includes('admin') ? 'Admin' : 'Teacher';
                         const filePanel = v.fileName || `${vTitle.replace(/\s+/g, '-')}.mp4`;
                         const vId = `rel_video_${v.id || vIdx}`;
@@ -4810,7 +4812,7 @@ window.executeAIQuestionGeneration = async function () {
     try {
         const apiUrl = new URL(resolveCourseMaterialsApiUrl(), location.href);
         apiUrl.pathname = apiUrl.pathname.replace(/subjects\.php$/, 'quiz_ai.php');
-        const response = await fetch(apiUrl.href, {
+        const response = await window.SigmaDatabase.fetch(apiUrl.href, {
             method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ source: fileContent || topic, type: selectedType, count, difficulty })
         });

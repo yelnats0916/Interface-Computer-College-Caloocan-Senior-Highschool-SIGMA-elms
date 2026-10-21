@@ -20,7 +20,7 @@ function sigmaAiGenerationId(string $kind): string {
     ];
     if (!isset($prefixes[$kind])) throw new InvalidArgumentException('Unsupported AI generation type.');
 
-    $directory = dirname(__DIR__, 2) . '/storage';
+    $directory = getenv('SIGMA_STORAGE_DIRECTORY') ?: dirname(__DIR__, 2) . '/storage';
     if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
         throw new RuntimeException('AI generation ID storage is unavailable.');
     }

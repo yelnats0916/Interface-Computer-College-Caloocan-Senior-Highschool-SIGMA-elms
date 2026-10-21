@@ -6,7 +6,7 @@
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 12000);
         try {
-            const response = await fetch(url, { ...options, signal: controller.signal });
+            const response = await window.SigmaDatabase.fetch(url, { ...options, signal: controller.signal });
             const data = await response.json();
             if (!response.ok || !data.success) {
                 const error = new Error(data.error || 'The reCAPTCHA server request failed.');

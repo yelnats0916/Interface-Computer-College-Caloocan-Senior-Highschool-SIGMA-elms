@@ -3,6 +3,8 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/service_vault_auth.php';
+require_once __DIR__ . '/../includes/data_provenance.php';
+require_once __DIR__ . '/../includes/application_auth.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -47,6 +49,7 @@ try {
     $raw = $method === 'POST' ? file_get_contents('php://input', false, null, 0, 262145) : '';
     if (strlen($raw)>262144) gradeReply(['success'=>false,'error'=>'Grade submission is too large.'],413);
     $input = $method === 'POST' ? json_decode($raw,true,64,JSON_THROW_ON_ERROR) : $_GET;
+    if ($method === 'POST') sigmaRequireRealRecords($input);
     if (($input['action'] ?? '') === 'login' && $method === 'POST') {
         $client = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ':' . strtolower((string)($input['login'] ?? '')));
         $stmt=$pdo->prepare('SELECT * FROM grade_sync_attempts WHERE client_hash=?');$stmt->execute([$client]);$attempt=$stmt->fetch();
@@ -63,15 +66,20 @@ try {
             $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
             gradeReply(['success'=>false,'error'=>'Database sign-in failed. Check that this account is synced and the credentials are correct.'],401);
         }
+        if (empty($user['totp_enabled'])) gradeReply(['success'=>false,'code'=>'two_factor_setup_required','error'=>'Complete database authenticator setup before signing in.'],403);
+        if (empty($user['terms_accepted'])) gradeReply(['success'=>false,'code'=>'terms_required','error'=>'Accept the terms agreement before entering the portal.'],403);
+        if (password_get_info($user['password'])['algo'] === null || password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
+            $pdo->prepare('UPDATE users SET password=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+        }
+        $pdo->prepare('DELETE FROM application_login_challenges WHERE user_id=?')->execute([$user['id']]);
         $pdo->prepare('DELETE FROM grade_sync_attempts WHERE client_hash=?')->execute([$client]);
         $token=bin2hex(random_bytes(32));
         $pdo->prepare('DELETE FROM grade_sync_tokens WHERE expires_at<UTC_TIMESTAMP()')->execute();
         $pdo->prepare('INSERT INTO grade_sync_tokens VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 12 HOUR))')->execute([hash('sha256',$token),$user['id']]);
         gradeReply(['success'=>true,'token'=>$token,'userId'=>$user['id']]);
     }
-    $authorization=$_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-    $token=preg_match('/^Bearer ([a-f0-9]{64})$/',$authorization,$match)?$match[1]:'';
-    $stmt=$pdo->prepare('SELECT u.* FROM grade_sync_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.expires_at>UTC_TIMESTAMP() AND u.is_deleted=0 AND LOWER(u.status)=\'active\'');$stmt->execute([hash('sha256',$token)]);$actor=$stmt->fetch();
+    $token=sigmaApplicationToken();
+    $stmt=$pdo->prepare('SELECT u.* FROM grade_sync_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.expires_at>UTC_TIMESTAMP() AND u.is_deleted=0 AND LOWER(u.status)=\'active\' AND u.totp_enabled=1 AND u.terms_accepted=1');$stmt->execute([hash('sha256',$token)]);$actor=$stmt->fetch();
     if (!$token || !$actor) gradeReply(['success'=>false,'error'=>'Sign in again to connect live grade updates.'],401);
     $role=strtolower(preg_replace('/[\s_-]+/','',$actor['role']));$admin=in_array($role,['admin','masteradmin','administrator'],true);
     $sections=$pdo->query("SELECT * FROM sections WHERE is_deleted=0 AND LOWER(status)<>'archived'")->fetchAll();

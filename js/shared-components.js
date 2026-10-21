@@ -384,242 +384,11 @@ window.ensureAppFavicon = function () {
     } catch (e) {}
 })();
 
-window.isFakeSampleTopic = function (t) {
-    if (!t) return false;
-    const id = String(t.id || '').trim().toLowerCase();
-    const title = String(t.title || t.name || (typeof t === 'string' ? t : '')).trim().toLowerCase();
-    const authorId = String(t.authorId || '').trim().toLowerCase();
-    const authorName = String(t.authorName || '').trim().toLowerCase();
-    if (id === 'topic_teacher_sample_01' ||
-        id === 'topic-teacher-sample-01' ||
-        authorId === 'teacher_sample_01' ||
-        authorName.includes('johnathan smith') ||
-        t.isFake === true ||
-        t.isSample === true) {
-        return true;
-    }
-    const fakeTopicTitles = [
-        'arrays',
-        'introduction to debugging',
-        'debugging',
-        'random variables & probability distributions',
-        'normal distribution & sampling techniques',
-        'nature and elements of communication',
-        'communication strategies & speech delivery',
-        'introduction to programming logic',
-        'control structures & algorithms',
-        'functions and their graphs',
-        'business mathematics & financial logic',
-        'introduction to relational databases',
-        'sql fundamentals & database queries',
-        'introduction to web development',
-        'html5, css3 & javascript basics',
-        'origin and structure of the earth',
-        'earth materials, processes & life systems',
-        'information and communications technology today',
-        'applied productivity tools & web content creation',
-        'unit 1: fundamentals and key concepts',
-        'unit 2: applied methodologies & practical workflows',
-        'advanced diagnostic procedures',
-        'topic 7',
-        'topic 8',
-        'control structures',
-        'string manipulation',
-        'module 1: advanced research methods',
-        'repetition control structures',
-        'functions and methods',
-        'loops and iteration',
-        'functions and modular programming',
-        'introduction to object-oriented programming'
-    ];
-    if (fakeTopicTitles.some(f => title === f || title.startsWith(f) || (f.length > 10 && title.includes(f)))) {
-        return true;
-    }
-    return false;
-};
+window.isFakeSampleTopic = function (record) { return Boolean(window.SigmaDatabase?.isSyntheticRecord(record)); };
 
-window.isFakeSampleMaterial = function (m) {
-    if (!m) return false;
-    const id = String(m.id || '').trim().toLowerCase();
-    const title = String(m.title || m.name || (typeof m === 'string' ? m : '')).trim().toLowerCase();
-    const fileName = String(m.fileName || '').trim().toLowerCase();
-    const authorId = String(m.authorId || '').trim().toLowerCase();
-    const authorName = String(m.authorName || '').trim().toLowerCase();
-    if (id.includes('sample_01') ||
-        authorId === 'teacher_sample_01' ||
-        authorName.includes('johnathan smith') ||
-        m.isFake === true ||
-        m.isSample === true) {
-        return true;
-    }
-    const fakeMatKeywords = [
-        'written task & practice exercise',
-        'written task',
-        'mastery test',
-        'collaborative workshop',
-        'practical project',
-        'performance task: ',
-        'complete study module & notes',
-        'guided exercises & worksheets',
-        'interactive video lecture',
-        'practical applications & case analysis',
-        'campus-clip.mp4'
-    ];
-    if (fakeMatKeywords.some(f => title.includes(f) || fileName.includes(f))) {
-        return true;
-    }
-    return false;
-};
+window.isFakeSampleMaterial = function (record) { return Boolean(window.SigmaDatabase?.isSyntheticRecord(record)); };
 
-(function purgeLegacyMockTopics() {
-    try {
-        const PURGE_KEY = 'sigma-mock-topics-purged-v8';
-        if (!localStorage.getItem(PURGE_KEY)) {
-            const isMockStr = (str) => {
-                const lower = String(str || '').toLowerCase().trim();
-                return [
-                    'functions and their graphs',
-                    'rational, exponential',
-                    'rational functions',
-                    'exponential and logarithmic',
-                    'nature and elements of communication',
-                    'communication strategies & speech delivery',
-                    'communication strategies',
-                    'speech delivery',
-                    'functions of communication',
-                    'communication models',
-                    'simple and compound interest',
-                    'stocks, bonds',
-                    'pre-immersion',
-                    'immersion proper',
-                    'post-immersion',
-                    'advanced diagnostic procedures',
-                    'evaluating and graphing',
-                    'evaluating and graphing functions',
-                    'graphing functions',
-                    'arrays',
-                    'introduction to debugging',
-                    'debugging',
-                    'random variables & probability distributions',
-                    'normal distribution & sampling techniques',
-                    'random variables',
-                    'probability distributions',
-                    'normal distribution',
-                    'sampling techniques',
-                    'introduction to programming logic',
-                    'control structures & algorithms',
-                    'business mathematics & financial logic',
-                    'business mathematics',
-                    'introduction to relational databases',
-                    'sql fundamentals & database queries',
-                    'sql fundamentals',
-                    'introduction to web development',
-                    'html5, css3 & javascript basics',
-                    'origin and structure of the earth',
-                    'earth materials, processes & life systems',
-                    'information and communications technology today',
-                    'applied productivity tools & web content creation',
-                    'unit 1: fundamentals and key concepts',
-                    'unit 2: applied methodologies & practical workflows',
-                    'written task & practice exercise',
-                    'mastery test',
-                    'collaborative workshop',
-                    'practical project',
-                    'complete study module & notes',
-                    'guided exercises & worksheets',
-                    'interactive video lecture',
-                    'practical applications & case analysis',
-                    'campus-clip.mp4',
-                    'control structures',
-                    'string manipulation',
-                    'module 1: advanced research methods',
-                    'repetition control structures',
-                    'functions and methods',
-                    'loops and iteration',
-                    'functions and modular programming',
-                    'introduction to object-oriented programming'
-                ].some(m => lower === m || lower.includes(m));
-            };
-
-            const isFakeTopicObj = (t) => {
-                if (!t) return true;
-                if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic(t)) return true;
-                const title = typeof t === 'string' ? t : (t.title || t.name || '');
-                return isMockStr(title);
-            };
-
-            const isFakeMatObj = (m) => {
-                if (!m) return true;
-                if (typeof window.isFakeSampleMaterial === 'function' && window.isFakeSampleMaterial(m)) return true;
-                const title = typeof m === 'string' ? m : (m.title || m.name || m.fileName || '');
-                return isMockStr(title);
-            };
-
-            // 1. Clean primary storage arrays
-            const storageKeys = [
-                'sigma-admin-subjects',
-                'sigma_subjects_v2',
-                'sigma-teacher-subjects',
-                'sigma_subjects',
-                'sigma_subjects_data',
-                'sigma_cached_subjects'
-            ];
-            storageKeys.forEach(subKey => {
-                let subs = window.getStoredJson ? window.getStoredJson(subKey, []) : JSON.parse(localStorage.getItem(subKey) || '[]');
-                if (Array.isArray(subs)) {
-                    let changed = false;
-                    subs.forEach(s => {
-                        if (s) {
-                            if (Array.isArray(s.topics)) {
-                                const origLen = s.topics.length;
-                                s.topics = s.topics.filter(t => !isFakeTopicObj(t));
-                                // Also clean embedded sub-arrays inside topics
-                                s.topics.forEach(t => {
-                                    if (t && typeof t === 'object') {
-                                        ['assignments', 'quiz', 'activity', 'performance', 'videos', 'handouts', 'materials', 'assessments'].forEach(k => {
-                                            if (Array.isArray(t[k])) {
-                                                t[k] = t[k].filter(item => !isFakeMatObj(item));
-                                            }
-                                        });
-                                    }
-                                });
-                                if (s.topics.length !== origLen) changed = true;
-                            }
-                            if (Array.isArray(s.materials)) {
-                                const origLen = s.materials.length;
-                                s.materials = s.materials.filter(m => !isFakeMatObj(m));
-                                if (s.materials.length !== origLen) changed = true;
-                            }
-                        }
-                    });
-                    if (changed) {
-                        localStorage.setItem(subKey, JSON.stringify(subs));
-                    }
-                }
-            });
-
-            // 2. Filter custom topics in localStorage rather than deleting them
-            for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                if (k && (k.startsWith('sigma_custom_topics_') || k.startsWith('sigma_topics_') || k.startsWith('sigma_teacher_topics_') || k.startsWith('sigma_subject_topics_'))) {
-                    try {
-                        const parsed = JSON.parse(localStorage.getItem(k) || '[]');
-                        if (Array.isArray(parsed)) {
-                            const filtered = parsed.filter(t => !isFakeTopicObj(t));
-                            if (filtered.length !== parsed.length) {
-                                localStorage.setItem(k, JSON.stringify(filtered));
-                            }
-                        }
-                    } catch (_) {}
-                }
-            }
-
-            localStorage.setItem(PURGE_KEY, 'true');
-        }
-    } catch (e) {
-        console.error('Error purging legacy mock topics and materials:', e);
-    }
-})();
+// Legacy records are not deleted by title heuristics; use an explicit reviewed migration.
 
 // --- CANONICAL SHARED PRIMITIVES ---
 window.escapeHtml = window.escapeHtml || function (value) {
@@ -840,104 +609,7 @@ window.saveStoredJson = function (key, data) {
     });
 })();
 
-window.repairAdminSubjectMaterialsIntact = function () {
-    try {
-        if (typeof localStorage === 'undefined') return;
-        const primaryKeys = ['sigma-admin-subjects', 'sigma_subjects_v2', 'sigma-teacher-subjects', 'sigma_subjects'];
-        primaryKeys.forEach(storageKey => {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return;
-            let subjects = [];
-            try { subjects = JSON.parse(raw); } catch (e) { return; }
-            if (!Array.isArray(subjects) || subjects.length === 0) return;
-
-            let anySubjectChanged = false;
-
-            subjects.forEach(subj => {
-                if (!subj || !Array.isArray(subj.materials)) return;
-
-                subj.materials.forEach(m => {
-                    if (!m) return;
-                    const mTitle = String(m.title || m.name || '').trim();
-                    const cleanTitle = mTitle.toLowerCase();
-                    const mRole = m.authorRole || m.role || (m.isTeacher ? 'Teacher' : (m.isAdmin ? 'Admin' : ''));
-                    const isT = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(mRole) : mRole) === 'Teacher';
-
-                    // If an assessment has been turned into Teacher or has originalAdminId (e.g. Algorithm Design Assignment)
-                    if (isT && (cleanTitle.includes('algorithm design assignment') || m.originalAdminId)) {
-                        const hasAdminCopy = subj.materials.some(other => {
-                            if (!other || other === m) return false;
-                            const oRole = other.authorRole || other.role || (other.isAdmin ? 'Admin' : (other.isTeacher ? 'Teacher' : ''));
-                            const isA = (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(oRole) : oRole) === 'Admin';
-                            if (!isA) return false;
-                            const otherTitle = String(other.title || other.name || '').trim().toLowerCase();
-                            const otherId = String(other.id || '').trim().toLowerCase();
-                            const origId = String(m.originalAdminId || '').trim().toLowerCase();
-                            return (otherTitle === cleanTitle) || (origId && (otherId === origId));
-                        });
-
-                        if (!hasAdminCopy) {
-                            const adminId = m.originalAdminId || `ass-0`;
-                            m.originalAdminId = adminId;
-                            const adminMat = {
-                                id: adminId,
-                                originalAdminId: null,
-                                title: mTitle || 'Algorithm Design Assignment',
-                                description: m.description || 'Choose a real-life process (e.g., making instant noodles, withdrawing money from an ATM). Write it out as a step-by-step algorithm, identifying inputs, processes, and expected outputs.',
-                                topicId: m.topicId || 'topic-1',
-                                quarter: m.quarter || 'q1',
-                                type: m.type || 'Task',
-                                authorRole: 'Admin',
-                                authorName: 'Stanley Garcia',
-                                authorId: 'admin',
-                                isAdmin: true,
-                                isTeacher: false,
-                                hasRubric: false,
-                                rubricFileName: '',
-                                rubricUrl: '',
-                                rubric: '',
-                                fileName: m.fileName || '',
-                                fileUrl: m.fileUrl || '',
-                                fileType: m.fileType || 'docx',
-                                createdAt: m.createdAt || new Date().toISOString(),
-                                updatedAt: new Date().toISOString()
-                            };
-                            subj.materials.unshift(adminMat);
-                            anySubjectChanged = true;
-
-                            // Ensure Admin copy is also placed into matching topic's assignments array
-                            if (Array.isArray(subj.topics)) {
-                                const targetTopic = subj.topics.find(t => String(t.id || '') === String(adminMat.topicId) || t.id === 'topic-1');
-                                if (targetTopic) {
-                                    if (!Array.isArray(targetTopic.assignments)) targetTopic.assignments = [];
-                                    const hasAdminInTopic = targetTopic.assignments.some(a => {
-                                        const r = a.authorRole || a.role || (a.isAdmin ? 'Admin' : '');
-                                        return (typeof window.normalizeSubjectAuthorRole === 'function' ? window.normalizeSubjectAuthorRole(r) : r) === 'Admin';
-                                    });
-                                    if (!hasAdminInTopic) {
-                                        targetTopic.assignments.unshift(adminMat);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-
-            if (anySubjectChanged) {
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify(subjects));
-                    if (typeof window.saveStoredJson === 'function') {
-                        window.saveStoredJson(storageKey, subjects);
-                    }
-                    console.log(`[SIGMA] Repaired Admin materials intact in ${storageKey}.`);
-                } catch (e) {}
-            }
-        });
-    } catch (err) {
-        console.warn('[repairAdminSubjectMaterialsIntact] non-blocking error:', err);
-    }
-};
+window.repairAdminSubjectMaterialsIntact = function () { return false; }; // Missing originals require review, never fabricated copies.
 
 try {
     window.repairAdminSubjectMaterialsIntact();
@@ -2640,21 +2312,6 @@ window.resolveUserAvatar = function (userOrName) {
         }
     }
 
-    // Special permanent demo users fallback
-    if (!photo && fullName) {
-        const lower = fullName.toLowerCase();
-        if (lower.includes('juan') && (lower.includes('dela cruz') || lower.includes('abad'))) {
-            const p = localStorage.getItem('sigma_avatar_2222222') || localStorage.getItem('sigma_student_avatar_base64');
-            if (!_isMockPhoto(p)) photo = p;
-        } else if (lower.includes('maria') && (lower.includes('santos') || lower.includes('ramos'))) {
-            const p = localStorage.getItem('sigma_avatar_1111111') || localStorage.getItem('sigma_teacher_avatar_base64');
-            if (!_isMockPhoto(p)) photo = p;
-        } else if (lower.includes('stanley') && lower.includes('garcia')) {
-            const p = localStorage.getItem('sigma_avatar_0000000') || localStorage.getItem('sigma_admin_avatar_base64');
-            if (!_isMockPhoto(p)) photo = p;
-        }
-    }
-
     return photo || '';
 };
 
@@ -2869,266 +2526,25 @@ window.normalizeQuizRole = function (role) {
 };
 
 window.resolveQuizAuthor = function (quiz) {
-    if (!quiz) {
-        return {
-            authorId: '0000000',
-            authorName: 'Stanley Garcia',
-            authorRole: 'Admin'
-        };
-    }
-
-    const allUsers = window.getStoredJson('sigma-admin-users', window.getStoredJson('sigma-users-list', []));
-
-    const qAuthorId = String(quiz.authorId || '').trim();
-    const qAuthorName = String(quiz.authorName || '').trim();
-    const qRawRole = quiz.authorRole || quiz.role || '';
-
-    // Match in database by ID, email, or username
-    let found = null;
-    if (qAuthorId) {
-        found = allUsers.find(u => String(u.id || u.uid) === qAuthorId || u.username === qAuthorId || u.email === qAuthorId);
-    }
-    if (!found && qAuthorName && !['admin', 'master admin', 'administrator', 'self', 'you', 'instructor'].includes(qAuthorName.toLowerCase())) {
-        found = allUsers.find(u => {
-            const uFull = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
-            return (uFull && uFull === qAuthorName.toLowerCase()) || (u.name && u.name.toLowerCase() === qAuthorName.toLowerCase()) || (u.fullName && u.fullName.toLowerCase() === qAuthorName.toLowerCase());
-        });
-    }
-
-    let role = window.normalizeQuizRole(found?.role || found?.type || qRawRole || 'Admin');
-    let name = '';
-
-    if (found) {
-        name = `${found.firstName || ''} ${found.lastName || ''}`.trim() || found.fullName || found.name;
-    } else if (qAuthorName && !['admin', 'master admin', 'administrator', 'self', 'you', 'instructor'].includes(qAuthorName.toLowerCase())) {
-        name = qAuthorName;
-    } else {
-        if (role === 'Teacher' || qAuthorId === '1111111') {
-            name = 'Maria Santos Ramos';
-            role = 'Teacher';
-        } else {
-            name = 'Stanley Garcia';
-            role = 'Admin';
-        }
-    }
-
-    const id = qAuthorId || found?.id || found?.uid || (role === 'Teacher' ? '1111111' : '0000000');
-
+    if (!quiz) return { authorId: '', authorName: 'Author not recorded', authorRole: '' };
+    const users = window.getStoredJson('sigma-admin-users', []);
+    const authorId = String(quiz.authorId || '').trim();
+    const author = authorId ? users.find(user => String(user.id || user.uid) === authorId) : null;
+    const role = author?.role || author?.type || quiz.authorRole || quiz.role || '';
     return {
-        authorId: id,
-        authorName: name,
-        authorRole: role
+        authorId,
+        authorName: author ? ([author.firstName, author.lastName].filter(Boolean).join(' ') || author.fullName || author.name || 'Author not recorded') : (quiz.authorName || 'Author not recorded'),
+        authorRole: role ? window.normalizeQuizRole(role) : ''
     };
 };
 
 window.getLoggedInTeacherUser = function () {
-    let authUser = {};
-    const isTeacherPortal = (typeof window !== 'undefined' && (
-        (window.location && window.location.pathname && window.location.pathname.includes('teacher.html')) ||
-        (document.body && (document.body.id === 'teacher-dashboard-page' || document.body.classList.contains('teacher-page')))
-    ));
-    const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
-    try {
-        authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-        if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
-            authUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
-        }
-        if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
-            authUser = JSON.parse(localStorage.getItem('sigma-logged-in-user') || '{}');
-        }
-    } catch (e) {}
-
-    const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-
-    const defaultTeacher = {
-        id: '1111111',
-        uid: '1111111',
-        firstName: 'Maria',
-        middleName: 'Santos',
-        lastName: 'Ramos',
-        fullName: 'Maria Santos Ramos',
-        name: 'Maria Santos Ramos',
-        email: 'maria.ramos@gmail.com',
-        role: 'Teacher',
-        type: 'Teacher',
-        status: 'Active',
-        gender: 'Female',
-        branch: 'Main Campus',
-        department: 'Senior High School - Faculty',
-        section: '',
-        sections: [],
-        assignedSections: [],
-        subject: '',
-        subjects: [],
-        assignedSubjects: []
-    };
-
-    const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
-    // Default to Maria Santos Ramos only when no account is authenticated
-    if (!authIdRaw) {
-        authUser = defaultTeacher;
-    }
-
-    let allUsers = [];
-    const storageKeys = ['sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-teacher-users-v1', 'sigma-users'];
-    for (const key of storageKeys) {
-        try {
-            const raw = localStorage.getItem(key);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    allUsers = allUsers.concat(parsed);
-                }
-            }
-        } catch (e) {}
-    }
-
-    const authId = String(authUser.id || authUser.uid || '').trim();
-    const authEmail = (authUser.email || '').toLowerCase().trim();
-    const authFullName = cleanStr(authUser.fullName || authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`);
-
-    let matchedUser = null;
-    if (authId && !authId.toLowerCase().includes('default')) {
-        matchedUser = allUsers.find(u => String(u.uid || u.id || '').trim().toLowerCase() === authId.toLowerCase());
-    }
-    if (!matchedUser && authEmail) {
-        matchedUser = allUsers.find(u => (u.email || '').toLowerCase().trim() === authEmail);
-    }
-    if (!matchedUser && authFullName) {
-        matchedUser = allUsers.find(u => {
-            const uName = cleanStr(u.fullName || u.name || `${u.firstName || ''} ${u.lastName || ''}`);
-            const uRev = cleanStr(`${u.lastName || ''} ${u.firstName || ''}`);
-            return uName === authFullName || uRev === authFullName;
-        });
-    }
-
-    if (matchedUser) {
-        const finalId = String(matchedUser.uid || matchedUser.id || authId).trim();
-        const finalFn = matchedUser.firstName || authUser.firstName || 'Teacher';
-        const finalLn = matchedUser.lastName || authUser.lastName || '';
-        const finalFull = matchedUser.fullName || matchedUser.name || authUser.fullName || `${finalFn} ${finalLn}`.trim();
-
-        const baseObj = {
-            ...matchedUser,
-            ...authUser,
-            id: finalId,
-            uid: finalId,
-            firstName: finalFn,
-            lastName: finalLn,
-            fullName: finalFull,
-            name: finalFull,
-            role: 'Teacher'
-        };
-
-        return baseObj;
-    }
-
-    if (authId || authFullName || authUser.firstName) {
-        const finalId = authId || 'teacher_user';
-        const finalFn = authUser.firstName || (authUser.name ? authUser.name.split(' ')[0] : 'Teacher');
-        const finalLn = authUser.lastName || (authUser.name ? authUser.name.split(' ').slice(1).join(' ') : '');
-        const finalFull = authUser.fullName || authUser.name || `${finalFn} ${finalLn}`.trim();
-        const baseObj = {
-            ...authUser,
-            id: finalId,
-            uid: finalId,
-            firstName: finalFn,
-            lastName: finalLn,
-            fullName: finalFull,
-            name: finalFull,
-            role: 'Teacher'
-        };
-
-        return baseObj;
-    }
-
-    return defaultTeacher;
+    return window.SigmaDatabase?.currentUser() || {};
 };
 
-window.getQuizActiveUser = function (fallbackUser = null) {
-    const allUsers = window.getStoredJson('sigma-admin-users', window.getStoredJson('sigma-users-list', []));
-
-    const masterAdminSeed = allUsers.find(u => String(u.id || u.uid) === '0000000') || {
-        id: '0000000',
-        uid: '0000000',
-        firstName: 'Stanley',
-        lastName: 'Garcia',
-        fullName: 'Stanley Garcia',
-        role: 'Admin',
-        type: 'Admin'
-    };
-
-    let user = fallbackUser || null;
-
-    if (!user) {
-        try {
-            const rawAuth = sessionStorage.getItem('sigma-authenticated-user');
-            if (rawAuth) user = JSON.parse(rawAuth);
-        } catch (e) { }
-    }
-
-    if (!user && typeof window.getCurrentEditorUser === 'function') {
-        user = window.getCurrentEditorUser();
-    }
-    if (!user && typeof window.getLoggedInAdminUser === 'function') {
-        user = window.getLoggedInAdminUser();
-    }
-    if (!user && typeof window.getLoggedInTeacherUser === 'function') {
-        user = window.getLoggedInTeacherUser();
-    }
-    if (!user && typeof window.getLoggedInUser === 'function') {
-        user = window.getLoggedInUser();
-    }
-    if (!user) {
-        try {
-            const rawActive = localStorage.getItem('sigma_active_user') || localStorage.getItem('sigma-logged-in-user') || localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
-            if (rawActive) user = JSON.parse(rawActive);
-        } catch (e) { }
-    }
-
-    if (!user || (!user.id && !user.uid && !user.firstName && !user.name)) {
-        user = masterAdminSeed;
-    }
-
-    const userId = String(user.id || user.uid || '').trim();
-    const userEmail = (user.email || '').trim().toLowerCase();
-    const username = (user.username || '').trim().toLowerCase();
-
-    let dbMatch = (userId ? allUsers.find(u => String(u.id || u.uid) === userId) : null)
-        || (userEmail ? allUsers.find(u => u.email && u.email.toLowerCase() === userEmail) : null)
-        || (username ? allUsers.find(u => u.username && u.username.toLowerCase() === username) : null);
-
-    if (!dbMatch && (userId === '0000000' || String(user.role || '').toLowerCase().includes('master'))) {
-        dbMatch = masterAdminSeed;
-    }
-
-    const rawRole = dbMatch?.role || dbMatch?.type || user.role || user.type || user.userType || 'Admin';
-    const normalizedRole = window.normalizeQuizRole(rawRole);
-
-    const firstName = (dbMatch?.firstName || user.firstName || '').trim();
-    const lastName = (dbMatch?.lastName || user.lastName || '').trim();
-    let fullName = (dbMatch?.fullName || `${firstName} ${lastName}`.trim() || user.name || user.fullName || '').trim();
-
-    if (!fullName || ['admin', 'master admin', 'administrator', 'self', 'you'].includes(fullName.toLowerCase())) {
-        if (normalizedRole === 'Admin' || userId === '0000000' || !userId) {
-            fullName = masterAdminSeed.fullName || 'Stanley Garcia';
-        } else if (normalizedRole === 'Teacher') {
-            fullName = 'Maria Santos Ramos';
-        }
-    }
-
-    return {
-        id: userId || dbMatch?.id || dbMatch?.uid || (normalizedRole === 'Teacher' ? '1111111' : '0000000'),
-        uid: userId || dbMatch?.uid || dbMatch?.id || (normalizedRole === 'Teacher' ? '1111111' : '0000000'),
-        firstName: firstName || (fullName.split(' ')[0] || 'Stanley'),
-        lastName: lastName || (fullName.split(' ').slice(1).join(' ') || 'Garcia'),
-        fullName: fullName || 'Stanley Garcia',
-        name: fullName || 'Stanley Garcia',
-        email: user.email || dbMatch?.email || '',
-        username: user.username || dbMatch?.username || '',
-        role: normalizedRole,
-        type: normalizedRole
-    };
+window.getQuizActiveUser = function () {
+    const user = window.SigmaDatabase?.currentUser() || {};
+    return user.id ? { ...user, name: user.fullName || user.name || '', role: window.normalizeQuizRole(user.role || user.type) } : {};
 };
 
 window.isUserQuizOwner = function (quiz, user = null) {
@@ -3154,15 +2570,6 @@ window.isUserQuizOwner = function (quiz, user = null) {
     if (quizAuthorId && currentAuthorId && quizAuthorId === currentAuthorId) return true;
     if (currentUsername && quizAuthorId && quizAuthorId === currentUsername) return true;
     if (currentEmail && quizAuthorId && quizAuthorId === currentEmail) return true;
-
-    // Direct Name match
-    if (quizAuthorName && currentFullName && (quizAuthorName === currentFullName || quizAuthorName.includes(currentFullName) || currentFullName.includes(quizAuthorName))) return true;
-
-    // Master Admin fallback match
-    if ((currentAuthorId === '0000000' || currentFullName.includes('stanley garcia')) &&
-        (quizAuthorId === '0000000' || quizAuthorName.includes('stanley garcia') || quizAuthorName === 'admin' || quizAuthorName === 'master admin')) {
-        return true;
-    }
 
     return false;
 };
@@ -3210,18 +2617,6 @@ window.getStoredQuizLibrary = function () {
                 q.authorRole = normalizedRole;
                 modified = true;
             }
-            // Resolve generic admin name to Stanley Garcia
-            if (!q.authorName || ['admin', 'master admin', 'administrator', 'self', 'you'].includes(String(q.authorName).trim().toLowerCase())) {
-                if (normalizedRole === 'Admin' || q.authorId === '0000000' || !q.authorId) {
-                    q.authorName = 'Stanley Garcia';
-                    q.authorId = q.authorId || '0000000';
-                    modified = true;
-                } else if (normalizedRole === 'Teacher') {
-                    q.authorName = 'Maria Santos Ramos';
-                    q.authorId = q.authorId || '1111111';
-                    modified = true;
-                }
-            }
             return q;
         });
         if (modified && typeof window.saveStoredQuizLibrary === 'function') {
@@ -3238,12 +2633,6 @@ window.saveStoredQuizLibrary = function (library) {
         delete copy.isOwner;
         // Never put 'Master Admin' in storage — strictly 'Admin' or 'Teacher'
         copy.authorRole = window.normalizeQuizRole ? window.normalizeQuizRole(copy.authorRole || copy.role) : (String(copy.authorRole || copy.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin');
-        if (!copy.authorName || ['admin', 'master admin', 'administrator', 'self', 'you'].includes(String(copy.authorName).trim().toLowerCase())) {
-            if (copy.authorRole === 'Admin') {
-                copy.authorName = 'Stanley Garcia';
-                copy.authorId = copy.authorId || '0000000';
-            }
-        }
         return copy;
     }) : [];
 
@@ -3491,7 +2880,7 @@ window.SIGMA_USE_SERVER_STORAGE = true;
 window.fetchQuizLibraryFromServer = async function () {
     if (!window.SIGMA_USE_SERVER_STORAGE) return;
     try {
-        const res = await fetch(resolveQuizApiUrl());
+        const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl());
         if (!res.ok) {
             console.warn('[SIGMA] Quiz library server fetch HTTP error:', res.status);
             return;
@@ -3519,7 +2908,7 @@ window.fetchQuizLibraryFromServer = async function () {
 window.saveQuizToServer = async function (quizData) {
     if (!window.SIGMA_USE_SERVER_STORAGE) return null;
     try {
-        const res = await fetch(resolveQuizApiUrl(), {
+        const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(quizData)
@@ -3547,7 +2936,7 @@ window.deleteQuizFromServer = async function (quizId) {
         const currentActor = (() => {
             try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
         })();
-        await fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
+        await window.SigmaDatabase.fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
             method: 'DELETE',
             headers: { 'X-Sigma-Actor': currentActor }
         });
@@ -11140,47 +10529,7 @@ window.getUnifiedTopicHandouts = function (subjectId, topicIdx, defaultHandouts 
  * Helper to retrieve unified topic assessments (Assignments, Quizzes, Activities, Performance Tasks)
  * combining Subject Storage (sigma-admin-subjects) and dynamic teacher materials.
  */
-window.isFakeAssessment = function (item) {
-    if (!item) return true;
-    if (item.isFake === true || item.isSample === true) return true;
-    const id = String(item.id || '').trim().toLowerCase();
-    const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-    const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-    if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) {
-        return true;
-    }
-    const title = String(item.title || item.name || '').trim();
-    if (!title) return true;
-    if (title.startsWith('"') || title.startsWith("'")) return true;
-    const lower = title.toLowerCase();
-
-    // Explicitly known real user-released assessments - NEVER FAKE
-    if (lower.includes('variable declaration practice') ||
-        lower.includes('basic syntax and data types') ||
-        lower.startsWith('task 1') ||
-        lower.startsWith('task 2') ||
-        lower.startsWith('quiz 1')) {
-        return false;
-    }
-
-    // Fake / dummy / keyboard-mash assessments to strictly block & delete
-    if (id === 'assess-task-1' || id === 'assess-task-2' || id.includes('assess-task-1') || id.includes('assess-task-2') ||
-        lower.includes('sample assessment') ||
-        lower.includes('mock assessment') ||
-        lower.includes('fake assessment') ||
-        lower.includes('dummy') ||
-        lower === 'fgdfhd' || lower.includes('fgdfhd') ||
-        lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') ||
-        lower === 'scdad' || lower.includes('scdad') ||
-        /^[bcdfghjklmnpqrstvwxyz]{4,}$/i.test(lower)) {
-        return true;
-    }
-    // If it's a real user-created or stored material, never consider it fake
-    if (id.startsWith('mat-') || id.startsWith('subj-') || item.fileUrl || item.fileName || item.quizId || item.selectedQuizId || item.authorRole) {
-        return false;
-    }
-    return false;
-};
+window.isFakeAssessment = function (record) { return !record || Boolean(window.SigmaDatabase?.isSyntheticRecord(record)); };
 
 /**
  * Global Purge Utility to permanently scrub fake and dummy assessments from localStorage
@@ -11264,7 +10613,7 @@ window.purgeFakeAssessments = function () {
         console.warn('[SIGMA] purgeFakeAssessments error:', e);
     }
 };
-try { window.purgeFakeAssessments(); } catch (_) {}
+// Automatic legacy deletion is disabled; uncertain records need review.
 
 /**
  * Universal Deduplication Helper for Subject Materials and Assessments
@@ -15735,25 +15084,7 @@ try {
     const RESET_KEY = 'sigma_reset_v10_clean_fake_materials_20260918_06';
     if (!localStorage.getItem(RESET_KEY)) {
 
-        const isFakeMat = (item) => {
-            if (!item) return true;
-            if (item.isFake === true || item.isSample === true) return true;
-            const id = String(item.id || '').trim().toLowerCase();
-            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-            if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-            if (id.startsWith('mat-') || id.startsWith('subj-') || item.fileUrl || item.fileName || item.quizId || item.selectedQuizId || item.authorRole) {
-                return false;
-            }
-            const title = String(item.title || item.name || '').trim();
-            if (!title) return true;
-            if (title.startsWith('"') || title.startsWith("'")) return true;
-            const lower = title.toLowerCase();
-            return lower.includes('sample assessment') ||
-                lower.includes('mock assessment') ||
-                lower.includes('fake assessment') ||
-                lower.includes('dummy');
-        };
+        const isFakeMat = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
         // Clean fake materials in sigma-admin-subjects
         try {
@@ -23602,7 +22933,7 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
             currentAuthUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
         } catch (e) { }
 
-        const studentName = loggedStudent?.name || loggedStudent?.fullName || currentAuthUser?.fullName || currentAuthUser?.name || 'Juan Dela Cruz';
+        const studentName = loggedStudent?.name || loggedStudent?.fullName || currentAuthUser?.fullName || currentAuthUser?.name || 'User not recorded';
         const studentId = String(loggedStudent?.id || loggedStudent?.uid || currentAuthUser?.id || currentAuthUser?.uid || '2222222').trim();
         const studentAvatar = loggedStudent?.avatar || loggedStudent?.profilePicture || currentAuthUser?.avatar || '';
 
@@ -28991,13 +28322,13 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
                     let commentAuthorName = activeAttempt.commentAuthor || subData?.commentAuthor || subData?.studentName;
                     if (!commentAuthorName || commentAuthorName === 'Student') {
                         if (role === 'student') {
-                            commentAuthorName = loggedStudent?.name || loggedStudent?.fullName || currentAuthUser?.fullName || currentAuthUser?.name || 'Juan Dela Cruz';
+                            commentAuthorName = loggedStudent?.name || loggedStudent?.fullName || currentAuthUser?.fullName || currentAuthUser?.name || 'User not recorded';
                         } else if (options.selectedStudent && options.selectedStudent !== 'All') {
                             commentAuthorName = options.selectedStudent;
                         } else if (typeof window.currentTopicState !== 'undefined' && window.currentTopicState?.selectedStudent && window.currentTopicState.selectedStudent !== 'All') {
                             commentAuthorName = window.currentTopicState.selectedStudent;
                         } else {
-                            commentAuthorName = ass?.studentName || loggedStudent?.name || 'Juan Dela Cruz';
+                            commentAuthorName = ass?.studentName || loggedStudent?.name || 'User not recorded';
                         }
                     }
 
@@ -30247,10 +29578,10 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
 
     const authorInfo = (typeof window.resolveQuizAuthor === 'function') ? window.resolveQuizAuthor(quiz) : {
         authorId: quiz.authorId || '0000000',
-        authorName: quiz.authorName || 'Stanley Garcia',
+        authorName: quiz.authorName || 'User not recorded',
         authorRole: 'Admin'
     };
-    const authorDisplay = authorInfo.authorName || 'Stanley Garcia';
+    const authorDisplay = authorInfo.authorName || 'User not recorded';
     const authorRoleDisplay = authorInfo.authorRole || 'Admin';
 
     const iconInfo = (typeof window.getQuizStorageIconInfo === 'function')
@@ -35005,6 +34336,7 @@ window.SIGMA_ENABLE_ONLINE_PRESENCE = false; // Set to true to switch online pre
     }
 
     function logout() {
+        window.SigmaDatabase?.revokeSession();
         try {
             removeSelfFromPresence();
             removeTabFromPresence();
@@ -36269,12 +35601,7 @@ window.getAssessmentsForSubject = function (subjectId, category, specifiedQ = nu
         return false;
     };
 
-    const isFake = (item) => {
-        if (typeof window.isFakeAssessment === 'function') return window.isFakeAssessment(item);
-        if (!item) return true;
-        const name = (item.title || item.name || '').toLowerCase();
-        return name.includes('dummy') || name.includes('placeholder') || name.includes('hands-on lab practice') || name.includes('collaborative discussion task') || name.includes('practical synthesis project') || name.includes('system development & output');
-    };
+    const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
     const realAssessments = [];
     const seenTitles = new Set();

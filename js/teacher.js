@@ -128,7 +128,7 @@ function initTeacherPortal() {
     }
     window.deduplicateTeacherMaterialCopies = deduplicateTeacherMaterialCopies;
     // Run immediately on portal init to clear existing duplicates and fake items
-    try { if (typeof window.purgeFakeAssessments === 'function') window.purgeFakeAssessments(); } catch (_) {}
+    // Legacy academic records require review before removal.
     deduplicateTeacherMaterialCopies();
 
     function cleanupLegacySectionReleaseContamination() {
@@ -906,15 +906,7 @@ function initTeacherPortal() {
 
     (function sanitizeTeacherCurriculumStorage() {
         try {
-            const isFake = (t) => {
-                if (!t) return false;
-                if (typeof t === 'string') return t.toLowerCase().includes('advanced diagnostic procedures');
-                const id = String(t.id || '').trim().toLowerCase();
-                const authorId = String(t.authorId || '').trim().toLowerCase();
-                const authorName = String(t.authorName || '').trim().toLowerCase();
-                const title = String(t.title || t.name || '').trim().toLowerCase();
-                return id === 'topic_teacher_sample_01' || id === 'topic-teacher-sample-01' || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith') || title.includes('advanced diagnostic procedures');
-            };
+            const isFake = (t) => !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t));
             const subjectsKey = 'sigma-admin-subjects';
             const rawSubjs = localStorage.getItem(subjectsKey);
             if (rawSubjs) {
@@ -1065,351 +1057,7 @@ function initTeacherPortal() {
         }
     };
 
-    const curriculumTopicCatalog = {
-        'core-effective-communication': {
-            text: 'Effective Communication',
-            subtitle: 'Core Subject &bull; Grade 11',
-            instructor: 'DepEd Core Curriculum',
-            icon: 'fa-solid fa-comments',
-            bg: 'image/book1.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'A core communication subject that strengthens speaking, listening, and writing for everyday and academic use.',
-            q1Topics: []
-        },
-        'core-life-and-career-skills': {
-            text: 'Life and Career Skills',
-            subtitle: 'Core Subject &bull; Grade 11',
-            instructor: 'DepEd Core Curriculum',
-            icon: 'fa-solid fa-heart-circle-check',
-            bg: 'image/book4.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'A core subject that prepares learners for career planning, self-management, financial literacy, and workplace readiness.',
-            q1Topics: []
-        },
-        'core-general-mathematics': {
-            text: 'General Mathematics',
-            subtitle: 'Core Subject &bull; Grade 11',
-            instructor: 'DepEd Core Curriculum',
-            icon: 'fa-solid fa-square-root-variable',
-            bg: 'image/book2.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'A core mathematics subject focused on functions, business math, interest, loans, and logic for real-life use.',
-            q1Topics: []
-        },
-        'core-general-science': {
-            text: 'General Science',
-            subtitle: 'Core Subject &bull; Grade 11',
-            instructor: 'DepEd Core Curriculum',
-            icon: 'fa-solid fa-flask',
-            bg: 'image/book3.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'A science foundation that connects earth systems, life science, matter, energy, and real-world scientific reasoning.',
-            q1Topics: []
-        },
-        'subj-prog1': {
-            text: 'Programming 1',
-            subtitle: 'Applied Subject &bull; Grade 11',
-            instructor: 'Alex Reyes',
-            icon: 'fa-solid fa-code',
-            bg: 'image/techpro-track.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'Introduction to computer programming using Java, covering syntax, logic, and object-oriented concepts.',
-            q1Topics: []
-        },
-        'subj-dbms': {
-            text: 'Database Management',
-            subtitle: 'Specialized Subject • Grade 11',
-            instructor: 'TechPro Faculty',
-            icon: 'fa-solid fa-database',
-            bg: 'image/techpro-track.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Fundamentals of database design, SQL, and data management systems.',
-            q1Topics: []
-        },
-        'subj-css': {
-            text: 'Computer Systems Servicing',
-            subtitle: 'Specialized Subject • Grade 11',
-            instructor: 'TechPro Faculty',
-            icon: 'fa-solid fa-screwdriver-wrench',
-            bg: 'image/techpro-track.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Installing and configuring computer systems, networking, and hardware maintenance.',
-            q1Topics: []
-        },
-        'subj-lit-1': {
-            text: 'Contemporary Literature 1',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Arts Faculty',
-            icon: 'fa-solid fa-book-open',
-            bg: 'image/book1.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Exploring modern literature, critical analysis, and creative expression.',
-            q1Topics: []
-        },
-        'subj-arts-1': {
-            text: 'Arts 1 - Creative Industries',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Arts Faculty',
-            icon: 'fa-solid fa-palette',
-            bg: 'image/book2.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Introduction to the creative industries, visual arts, and design principles.',
-            q1Topics: []
-        },
-        'subj-civic': {
-            text: 'Citizenship and Civic Engagement',
-            subtitle: 'Applied Subject • Grade 12',
-            instructor: 'Social Science Faculty',
-            icon: 'fa-solid fa-people-arrows',
-            bg: 'image/book3.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Understanding civic duties, governance, and active community participation.',
-            q1Topics: []
-        },
-        'subj-anim': {
-            text: 'Animation',
-            subtitle: 'Specialized Subject • Grade 11',
-            instructor: 'Alex Reyes',
-            icon: 'fa-solid fa-clapperboard',
-            bg: 'image/techpro-track.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'A comprehensive course on animation techniques, covering principles, 2D/3D character design, and visual effects.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'core-history-society': {
-            text: 'Pag-aaral ng Kasaysayan at Lipunang Pilipino',
-            subtitle: 'Core Subject &bull; Grade 11',
-            instructor: 'DepEd Core Curriculum',
-            icon: 'fa-solid fa-landmark',
-            bg: 'image/book5.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'A core subject that builds understanding of Philippine society, governance, citizenship, and historical identity.',
-            q1Topics: []
-        },
-        'card-earthsci': {
-            text: 'Earth and Life Science',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Roberto Diaz',
-            icon: 'fa-solid fa-earth-americas',
-            bg: 'image/book6.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'A core science foundation connecting earth systems, life processes, bioenergetics, and ecosystems.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-oralcomm': {
-            text: 'Oral Communication',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Grace Tan',
-            icon: 'fa-solid fa-comments',
-            bg: 'image/book1.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Developing effective speaking and listening skills for interpersonal, group, and public communication.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-prog1': {
-            text: 'Computer Programming 1',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Maria Santos Ramos',
-            icon: 'fa-solid fa-code',
-            bg: 'image/book1.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'Learn the fundamentals of programming using modern languages.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-webdev': {
-            text: 'Web Development 1',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Maria Santos Ramos',
-            icon: 'fa-solid fa-globe',
-            bg: 'image/book4.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            q3Percent: 0,
-            q4Percent: 0,
-            summary: 'Build responsive websites using HTML, CSS, and JavaScript.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-database': {
-            text: 'Database Management 1',
-            subtitle: 'Specialized Subject • Grade 11',
-            instructor: 'Elena Reyes',
-            icon: 'fa-solid fa-database',
-            bg: 'image/book2.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Master SQL and database design principles.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-empowerment': {
-            text: 'Empowerment Technologies',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Roberto Diaz',
-            icon: 'fa-solid fa-bolt',
-            bg: 'image/book3.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Developing ICT skills for professional environments.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-stats': {
-            text: 'Statistics & Probability',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Jennifer Santos',
-            icon: 'fa-solid fa-chart-line',
-            bg: 'image/book5.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Understanding data analysis and probability theory.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'card-genmath': {
-            text: 'General Mathematics',
-            subtitle: 'Core Subject • Grade 11',
-            instructor: 'Elena Cruz',
-            icon: 'fa-solid fa-infinity',
-            bg: 'image/book2.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Functions, business math, loans, interest rates, logic, and practical mathematical problem-solving.',
-            q1Topics: [],
-            q2Topics: [],
-            q3Topics: [],
-            q4Topics: []
-        },
-        'applied-eapp': {
-            text: 'English for Academic and Professional Purposes',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Grace Tan',
-            icon: 'fa-solid fa-pen-nib',
-            bg: 'image/book1.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Develops critical reading, academic analysis, concept paper formulation, and professional paper writing skills.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'applied-research1': {
-            text: 'Practical Research 1',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Dr. Santos',
-            icon: 'fa-solid fa-magnifying-glass-chart',
-            bg: 'image/book2.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Qualitative research design, problem formulation, qualitative data gathering, and thematic content analysis.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'applied-entrepreneurship': {
-            text: 'Entrepreneurship',
-            subtitle: 'Applied Subject • Grade 11',
-            instructor: 'Mark Davis',
-            icon: 'fa-solid fa-lightbulb',
-            bg: 'image/book5.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Business planning, market validation, value proposition creation, and enterprise management.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'abm-fabm1': {
-            text: 'Fundamentals of ABM 1',
-            subtitle: 'Specialized Subject (ABM) • Grade 11',
-            instructor: 'ABM Strand Faculty',
-            icon: 'fa-solid fa-calculator',
-            bg: 'image/book3.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Basic accounting concepts, the accounting equation, rules of debit and credit, and journalizing.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'abm-busmath': {
-            text: 'Business Mathematics',
-            subtitle: 'Specialized Subject (ABM) • Grade 11',
-            instructor: 'ABM Strand Faculty',
-            icon: 'fa-solid fa-coins',
-            bg: 'image/book5.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Commercial computations, fractions and decimals in business, mark-on, markdown, and profit margins.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'humss-creative-writing': {
-            text: 'Creative Writing',
-            subtitle: 'Specialized Subject (HUMSS) • Grade 11',
-            instructor: 'HUMSS Strand Faculty',
-            icon: 'fa-solid fa-feather-pointed',
-            bg: 'image/book6.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Fiction, poetry, drama, and craft techniques for imaginative literary expression.',
-            q1Topics: [],
-            q2Topics: []
-        },
-        'humss-politics': {
-            text: 'Philippine Politics & Governance',
-            subtitle: 'Specialized Subject (HUMSS) • Grade 11',
-            instructor: 'HUMSS Strand Faculty',
-            icon: 'fa-solid fa-landmark-dome',
-            bg: 'image/book7.jpg',
-            q1Percent: 0,
-            q2Percent: 0,
-            summary: 'Democratic institutions, the constitution, branches of government, and political participation in the Philippines.',
-            q1Topics: [],
-            q2Topics: []
-        }
-    };
+    const curriculumTopicCatalog = {}; // Populated from real saved subject records only.
 
     const dynamicCurriculumSubjects = {};
 
@@ -1556,25 +1204,7 @@ function initTeacherPortal() {
                     return '';
                 };
 
-                const isFakeSampleTopic = (t) => {
-                    if (!t) return false;
-                    if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic(t)) return true;
-                    const id = String(t.id || '').trim().toLowerCase();
-                    const title = String(t.title || t.name || (typeof t === 'string' ? t : '')).trim().toLowerCase();
-                    const authorId = String(t.authorId || '').trim().toLowerCase();
-                    const authorName = String(t.authorName || '').trim().toLowerCase();
-                    return id === 'topic_teacher_sample_01' ||
-                           id === 'topic-teacher-sample-01' ||
-                           authorId === 'teacher_sample_01' ||
-                           authorName.includes('johnathan smith') ||
-                           title === 'arrays' ||
-                           title === 'introduction to debugging' ||
-                           title === 'debugging' ||
-                           title.startsWith('arrays') ||
-                           title.startsWith('introduction to debugging') ||
-                           t.isFake === true ||
-                           t.isSample === true;
-                };
+                const isFakeSampleTopic = (t) => !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t));
 
                 const rawTopicsMapped = adminSubj.topics
                     .filter(t => !isFakeSampleTopic(t))
@@ -4462,192 +4092,9 @@ function initTeacherPortal() {
     }
 
     function getLoggedInTeacherUser() {
-        let authUser = {};
-        const hasExplicitLogin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sigma-login-explicit') === 'true');
-        try {
-            authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-            if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
-                authUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
-            }
-            if (!authUser || (!authUser.id && !authUser.uid && !authUser.name && !authUser.firstName)) {
-                authUser = JSON.parse(localStorage.getItem('sigma-logged-in-user') || '{}');
-            }
-        } catch (e) {}
-
-        const cleanStr = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-
-        const defaultTeacher = {
-            id: '1111111',
-            uid: '1111111',
-            firstName: 'Maria',
-            middleName: 'Santos',
-            lastName: 'Ramos',
-            fullName: 'Maria Santos Ramos',
-            name: 'Maria Santos Ramos',
-            email: 'maria.ramos@gmail.com',
-            role: 'Teacher',
-            type: 'Teacher',
-            status: 'Active',
-            gender: 'Female',
-            branch: 'Main Campus',
-            department: 'Senior High School - Faculty',
-            section: '',
-            sections: [],
-            assignedSections: [],
-            subject: '',
-            subjects: [],
-            assignedSubjects: []
-        };
-
-        const authIdRaw = String(authUser?.id || authUser?.uid || '').replace(/^#/, '').trim().toLowerCase();
-        // The permanent hardcoded default teacher is Maria Santos Ramos (1111111) when no teacher is logged in.
-        if (!authIdRaw) {
-            authUser = defaultTeacher;
-        }
-
-        let allUsers = [];
-        const storageKeys = [USER_STORAGE_KEY, 'sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-teacher-users-v1', 'sigma-users'];
-        for (const key of storageKeys) {
-            try {
-                const raw = localStorage.getItem(key);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        allUsers = allUsers.concat(parsed);
-                    }
-                }
-            } catch (e) {}
-        }
-
-        const authId = String(authUser.id || authUser.uid || '').trim();
-        const authEmail = (authUser.email || '').toLowerCase().trim();
-        const authFullName = cleanStr(authUser.fullName || authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`);
-
-        const matchedUsers = allUsers.filter(u => {
-            if (!u) return false;
-            if (typeof window.isUserNameMatch === 'function' && window.isUserNameMatch(u, authUser)) return true;
-            const uId = String(u.uid || u.id || '').trim().toLowerCase();
-            if (authId && !authId.toLowerCase().includes('default') && uId === authId.toLowerCase()) return true;
-            if (authEmail && (u.email || '').toLowerCase().trim() === authEmail) return true;
-            if (authFullName) {
-                const uName = cleanStr(u.fullName || u.name || `${u.firstName || ''} ${u.lastName || ''}`);
-                const uRev = cleanStr(`${u.lastName || ''} ${u.firstName || ''}`);
-                if (uName === authFullName || uRev === authFullName) return true;
-            }
-            return false;
-        });
-
-        let matchedUser = matchedUsers[0] || null;
-
-        if (matchedUser) {
-            const finalId = String(matchedUser.uid || matchedUser.id || authId).trim();
-            const finalFn = matchedUser.firstName || authUser.firstName || 'Teacher';
-            const finalLn = matchedUser.lastName || authUser.lastName || '';
-            const finalFull = matchedUser.fullName || matchedUser.name || authUser.fullName || `${finalFn} ${finalLn}`.trim();
-
-            const teacherObj = {
-                id: finalId,
-                uid: finalId,
-                firstName: finalFn,
-                lastName: finalLn,
-                fullName: finalFull,
-                name: finalFull,
-                email: authUser.email || matchedUser.email || ''
-            };
-
-            const combinedSectionsList = [];
-            const combinedSubjectsList = [];
-
-            // Query canonical section records where this teacher is assigned
-            const canonicalSections = (typeof getStoredJson === 'function') ? getStoredJson('sigma-admin-sections', []) : [];
-            const activeCanonical = Array.isArray(canonicalSections) ? canonicalSections.filter(s => s && s.status !== 'Archived') : [];
-            const assignedFromCanonical = activeCanonical.filter(sec => {
-                if (typeof window.isSectionAssignedToTeacher === 'function') {
-                    return window.isSectionAssignedToTeacher(sec, teacherObj);
-                }
-                if (typeof isSectionAssignedToTeacher === 'function') {
-                    return isSectionAssignedToTeacher(sec, teacherObj);
-                }
-                return false;
-            });
-
-            if (assignedFromCanonical.length > 0) {
-                assignedFromCanonical.forEach(sec => {
-                    const secId = String(sec.id || '').trim();
-                    const secName = String(sec.name || sec.sectionName || '').trim();
-                    const secSubj = String(sec.subject || sec.assignedSubject || (Array.isArray(sec.assignedSubjects) && sec.assignedSubjects[0]) || '').trim();
-                    if (secId) combinedSectionsList.push(secId);
-                    if (secName) combinedSectionsList.push(secName);
-                    if (secSubj) combinedSubjectsList.push(secSubj);
-                });
-            } else {
-                matchedUsers.forEach(u => {
-                    (Array.isArray(u.assignedSections) ? u.assignedSections : []).forEach(s => combinedSectionsList.push(s));
-                    (Array.isArray(u.sections) ? u.sections : []).forEach(s => combinedSectionsList.push(s));
-                    if (u.section) combinedSectionsList.push(u.section);
-
-                    (Array.isArray(u.assignedSubjects) ? u.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                    (Array.isArray(u.subjects) ? u.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                    if (u.subject) combinedSubjectsList.push(u.subject);
-                });
-
-                (Array.isArray(authUser.assignedSections) ? authUser.assignedSections : []).forEach(s => combinedSectionsList.push(s));
-                (Array.isArray(authUser.sections) ? authUser.sections : []).forEach(s => combinedSectionsList.push(s));
-                if (authUser.section) combinedSectionsList.push(authUser.section);
-
-                (Array.isArray(authUser.assignedSubjects) ? authUser.assignedSubjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                (Array.isArray(authUser.subjects) ? authUser.subjects : []).forEach(sub => combinedSubjectsList.push(sub));
-                if (authUser.subject) combinedSubjectsList.push(authUser.subject);
-            }
-
-            const combinedAssignedSections = Array.from(new Set(combinedSectionsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.sectionName) : s).trim()).filter(Boolean)));
-            const combinedAssignedSubjects = Array.from(new Set(combinedSubjectsList.map(s => String(typeof s === 'object' ? (s.id || s.name || s.subject) : s).trim()).filter(Boolean)));
-
-            return {
-                ...matchedUser,
-                ...authUser,
-                id: finalId,
-                uid: finalId,
-                firstName: finalFn,
-                lastName: finalLn,
-                fullName: finalFull,
-                name: finalFull,
-                role: 'Teacher',
-                assignedSections: combinedAssignedSections,
-                sections: combinedAssignedSections,
-                assignedSubjects: combinedAssignedSubjects,
-                subjects: combinedAssignedSubjects
-            };
-        }
-
-        if (authId || authFullName || authUser.firstName) {
-            const finalId = authId || 'teacher_user';
-            const finalFn = authUser.firstName || (authUser.name ? authUser.name.split(' ')[0] : 'Teacher');
-            const finalLn = authUser.lastName || (authUser.name ? authUser.name.split(' ').slice(1).join(' ') : '');
-            const finalFull = authUser.fullName || authUser.name || `${finalFn} ${finalLn}`.trim();
-            return {
-                ...authUser,
-                id: finalId,
-                uid: finalId,
-                firstName: finalFn,
-                lastName: finalLn,
-                fullName: finalFull,
-                name: finalFull,
-                role: 'Teacher'
-            };
-        }
-
-        const fallbackMaria = allUsers.find(u => String(u.uid || u.id) === '1111111' || (cleanStr(u.firstName) === 'maria' && cleanStr(u.lastName) === 'ramos'));
-        if (fallbackMaria) {
-            return {
-                ...defaultTeacher,
-                ...fallbackMaria
-            };
-        }
-
-        return defaultTeacher;
+        return window.SigmaDatabase?.currentUser() || {};
     }
-    window.getLoggedInTeacherUser = getLoggedInTeacherUser;
+        window.getLoggedInTeacherUser = getLoggedInTeacherUser;
 
     function isSectionAssignedToTeacher(sec, teacher) {
         if (!sec || !teacher) return false;
@@ -7831,25 +7278,7 @@ function initTeacherPortal() {
         } catch (e) {}
 
         // 5. Normalize and filter fake topics
-        const isFakeTopic = (t) => {
-            if (!t) return true;
-            if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic(t)) return true;
-            const id = String(t.id || '').trim().toLowerCase();
-            const title = String(t.title || t.name || (typeof t === 'string' ? t : '')).trim().toLowerCase();
-            const authorId = String(t.authorId || '').trim().toLowerCase();
-            const authorName = String(t.authorName || '').trim().toLowerCase();
-            return id === 'topic_teacher_sample_01' ||
-                   id === 'topic-teacher-sample-01' ||
-                   authorId === 'teacher_sample_01' ||
-                   authorName.includes('johnathan smith') ||
-                   title === 'arrays' ||
-                   title === 'introduction to debugging' ||
-                   title === 'debugging' ||
-                   title.startsWith('arrays') ||
-                   title.startsWith('introduction to debugging') ||
-                   t.isFake === true ||
-                   t.isSample === true;
-        };
+        const isFakeTopic = (t) => !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t));
 
         const normalizedTopics = [];
         const seenKeys = new Set();
@@ -15446,18 +14875,7 @@ function initTeacherPortal() {
 
         const items = [];
         const seenIds = new Set();
-        const isFake = (typeof window.isFakeAssessment === 'function') ? window.isFakeAssessment : (item) => {
-            if (!item) return true;
-            if (item.isFake === true || item.isSample === true) return true;
-            const t = String(item.title || item.name || '').trim();
-            if (!t) return true;
-            if (t.startsWith('"') || t.startsWith("'")) return true;
-            const id = String(item.id || '').trim().toLowerCase();
-            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-            if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-            return false;
-        };
+        const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
         const isMaterialAllowed = (m) => {
             if (!m || isFake(m)) return false;
@@ -15678,18 +15096,7 @@ function initTeacherPortal() {
             topicQuarterMap.set(String(tIdx), tQuarter);
         });
 
-        const isFake = (typeof window.isFakeAssessment === 'function') ? window.isFakeAssessment : (item) => {
-            if (!item) return true;
-            if (item.isFake === true || item.isSample === true) return true;
-            const t = String(item.title || item.name || '').trim();
-            if (!t) return true;
-            if (t.startsWith('"') || t.startsWith("'")) return true;
-            const id = String(item.id || '').trim().toLowerCase();
-            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-            if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-            return false;
-        };
+        const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
         const isAssessmentAllowed = (item) => {
             if (!item || isFake(item)) return false;
@@ -20214,7 +19621,7 @@ function initTeacherPortal() {
         const secName = className || currentClassroomSectionName || '';
         const subj = subject || (currentClassroomMeta ? currentClassroomMeta.subject : '') || '';
         const meta = classroomMetaBySubject[`${secName}::${subj}`] || currentClassroomMeta || {};
-        const teacherName = (typeof window.getUnifiedClassroomTeacher === 'function' && window.getUnifiedClassroomTeacher(secName, subj)) || (meta && meta.teacher) || 'Maria Santos Ramos';
+        const teacherName = (typeof window.getUnifiedClassroomTeacher === 'function' && window.getUnifiedClassroomTeacher(secName, subj)) || (meta && meta.teacher) || 'User not recorded';
         
         let students = [];
         if (meta && Array.isArray(meta.students) && meta.students.length > 0) {
@@ -24549,13 +23956,8 @@ function initTeacherPortal() {
             }
         }
     };
-    const HAS_PURGED_FAKE_SCORES_KEY = 'sigma_purged_fake_scores_v20260921_1';
-    if (!localStorage.getItem(HAS_PURGED_FAKE_SCORES_KEY)) {
-        window.eraseAllGradebookScores();
-        localStorage.setItem(HAS_PURGED_FAKE_SCORES_KEY, 'true');
-    } else {
-        loadGradebookData();
-    }
+    // Existing grades require record-by-record review; never erase them on portal startup.
+    loadGradebookData();
 
     window.resetGradebookState = () => {
         gradebookState.selectedSection = '';
@@ -26065,18 +25467,7 @@ function initTeacherPortal() {
     }
     window.calculateGradebookCategoryPercentage = calculateCategoryPercentage;
 
-    const isFakeAssessment = (item) => {
-        if (typeof window.isFakeAssessment === 'function' && window.isFakeAssessment !== isFakeAssessment) {
-            return window.isFakeAssessment(item);
-        }
-        if (!item) return true;
-        const title = String(item.title || item.name || '').trim();
-        if (!title) return true;
-        const lower = title.toLowerCase();
-        if (lower.includes('variable declaration practice') || lower.includes('basic syntax and data types')) return false;
-        if (lower === 'fgdfhd' || lower.includes('fgdfhd') || lower === 'asdfgdfhgf' || lower.includes('asdfgdfhgf') || lower === 'scdad' || lower.includes('scdad')) return true;
-        return false;
-    };
+    const isFakeAssessment = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
     if (typeof window.isFakeAssessment !== 'function') {
         window.isFakeAssessment = isFakeAssessment;
     }

@@ -14,7 +14,7 @@
         ? 'http://localhost/sigma-elms/php/api/' + name + '.php'
         : new URL(location.pathname.includes('/php/') ? 'api/' + name + '.php' : 'php/api/' + name + '.php', location.href).href;
     async function request(name, input, get = false) {
-        const response = await fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
+        const response = await window.SigmaDatabase.fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
             method: get ? 'GET' : 'POST', credentials: 'include',
             ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': actor() },
@@ -51,18 +51,15 @@
             const queuedKey = storageKey + ':pending-sync';
             let queued;
             try { queued = JSON.parse(localStorage.getItem(queuedKey) || 'null'); } catch {}
-            if (queued && queued.actor === actor() && queued.revision === result.revision) {
+            if (queued && queued.origin === 'database-foundation-v1' && queued.actor === actor() && queued.revision === result.revision) {
                 result = await request('ai_records', { action: 'save_state', kind, userId: id, state: queued.state, revision: queued.revision });
                 localStorage.removeItem(queuedKey);
             } else if (queued) {
+                window.SigmaDatabase?.preserveLegacy(queuedKey, localStorage.getItem(queuedKey));
                 localStorage.removeItem(queuedKey);
                 window.dispatchEvent(new CustomEvent('sigma:ai-database-error', { detail: 'Newer database insights were kept. The pending offline copy was not uploaded.' }));
             }
-            if (!result.exists) {
-                let legacy;
-                try { legacy = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
-                if (legacy) result = await request('ai_records', { action: 'save_state', kind, userId: id, state: { ...legacy, cards: legacy.cards || [] }, revision: 0 });
-            }
+            if (!result.exists) window.SigmaDatabase?.preserveLegacy(storageKey, localStorage.getItem(storageKey));
             remember(kind, id, result);
             offline.delete(storageKey);
             return result.state;
@@ -101,7 +98,7 @@
             if (id !== actor() || !(error instanceof TypeError || error.status >= 500)) throw error;
             const revision = states.get(storageKey)?.revision;
             if (revision === null || revision === undefined) throw new Error('Connect to the database before saving new insights.');
-            localStorage.setItem(storageKey + ':pending-sync', JSON.stringify({ actor: actor(), revision, state }));
+            localStorage.setItem(storageKey + ':pending-sync', JSON.stringify({ origin: 'database-foundation-v1', actor: actor(), revision, state }));
             localStorage.setItem(storageKey, JSON.stringify(state));
             states.set(storageKey, { state, revision });
             offline.add(storageKey);
@@ -126,23 +123,11 @@
         if (!actor() || importing || Date.now() < retryNotBefore) return importing;
         importing = (async () => {
             const isAdmin = location.pathname.toLowerCase().includes('admin');
-            if (isAdmin) {
-                // Import preserved browser records once; database tombstones prevent resurrection.
-                for (const storageKey of Object.keys(localStorage).filter(value => /^sigma-(student|teacher)-analytics-v1:/.test(value))) {
-                    const match = storageKey.match(/^sigma-(student|teacher)-analytics-v1:(.+)$/);
-                    await ensureState(match[1], match[2]);
-                }
-            } else {
+            if (!isAdmin) {
                 const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
                 await ensureState(kind, actor(), true);
             }
-            const legacy = JSON.parse(localStorage.getItem('sigma-ai-recorded-logs') || '[]');
-            for (const log of legacy.filter(log => isAdmin || log.userId === actor())) {
-                const fingerprint = JSON.stringify([actor(), log]);
-                if (importedLogs.has(fingerprint)) continue;
-                await request('ai_records', { action: 'save_log', log });
-                importedLogs.add(fingerprint);
-            }
+            window.SigmaDatabase?.preserveLegacy('sigma-ai-recorded-logs', localStorage.getItem('sigma-ai-recorded-logs'));
             if (isAdmin) await reloadLogs();
             window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
         })().catch(error => {

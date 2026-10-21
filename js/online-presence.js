@@ -1,12 +1,9 @@
 (function () {
     'use strict';
     if (window.SigmaLightPresence) return;
-    const prefix = 'sigma-presence-tab-v2:';
     const heartbeatMs = 60000;
     const expiryMs = 180000;
-    // A fresh ID per document avoids collisions between duplicated tabs.
-    const tabId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const key = prefix + tabId;
+    let serverUsers = [], presenceError = '', clockOffset = 0, heartbeatPending = false;
     let lastHeartbeat = 0;
     let fingerprint = '';
     let loggedOut = false;
@@ -60,45 +57,28 @@
         } catch (_) { return null; }
     }
     function getCleanOnlineUsers() {
-        const now = Date.now();
-        const users = new Map();
-        const stale = [];
+        const now = Date.now() + clockOffset;
+        return serverUsers.filter(user => now - user.lastSeen <= expiryMs);
+    }
+    async function refreshPresence(heartbeat = false) {
+        if (document.hidden || !getUser() || !window.SigmaDatabase) return;
         try {
-            for (let i = 0; i < localStorage.length; i++) {
-                const storageKey = localStorage.key(i);
-                if (!storageKey?.startsWith(prefix)) continue;
-                let record;
-                try { record = JSON.parse(localStorage.getItem(storageKey)); } catch (_) {}
-                if (!record?.id || !roleOf(record.role) || !Number.isFinite(record.lastSeen) || now - record.lastSeen > expiryMs || record.lastSeen > now + 5000) {
-                    stale.push(storageKey);
-                    continue;
-                }
-                const id = String(record.id).toLowerCase();
-                const existing = users.get(id);
-                const onlineSince = Math.min(existing?.onlineSince || existing?.lastSeen || Infinity, record.onlineSince || record.lastSeen);
-                if (!existing || existing.lastSeen < record.lastSeen) users.set(id, { ...record, onlineSince });
-                else existing.onlineSince = onlineSince;
-            }
-            stale.forEach(storageKey => localStorage.removeItem(storageKey));
-        } catch (_) {}
-        return [...users.values()];
+            const result = await window.SigmaDatabase.request('presence', heartbeat ? { data: { action: 'heartbeat' } } : {});
+            serverUsers = result.users || [];
+            clockOffset = result.serverNow - Date.now();
+            presenceError = '';
+        } catch (_) {
+            serverUsers = [];
+            presenceError = 'Online status unavailable.';
+        }
+        renderPanel();
     }
     function renderPanel() {
         if (document.hidden || getUser()?.role !== 'admin') return;
         const card = document.getElementById('admin-online-now-card');
         if (!card) return;
-        const profiles = new Map();
-        for (const storageKey of ['sigma-admin-users', 'sigma-teacher-users', 'sigma-student-users', 'sigma-users-list']) {
-            try {
-                const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                if (Array.isArray(records)) records.forEach(user => {
-                    const id = String(user.uid || user.id || '').toLowerCase();
-                    if (id) profiles.set(id, { ...profiles.get(id), ...user });
-                });
-            } catch (_) {}
-        }
         const users = getCleanOnlineUsers().map(user => {
-            const profile = profiles.get(String(user.id).toLowerCase()) || {};
+            const profile = user;
             const first = profile.firstName || user.firstName || '';
             const last = profile.lastName || user.lastName || '';
             const full = String(profile.fullName || profile.name || user.name || '').trim();
@@ -114,13 +94,13 @@
             return `<li class="online-now-profile"><button type="button" class="online-now-profile-link" data-online-profile-id="${escape(user.uid || user.id)}" aria-label="Open ${escape(label === 'You' ? 'your profile' : user.displayName + ' profile')}"><span class="relative shrink-0">${avatar}<span aria-hidden="true" style="position:absolute;right:0;bottom:0;width:8px;height:8px;border-radius:50%;background:#15803d;border:2px solid white;box-sizing:content-box;"></span></span><span class="online-now-profile-name">${escape(label)}</span></button></li>`;
         });
         const rows = rowItems.join('');
-        const next = rows;
+        const next = rows + presenceError;
         if (next === fingerprint) return;
         fingerprint = next;
         allRows = rows;
         onlineCount = users.length;
-        document.getElementById('admin-online-now-total').textContent = String(users.length);
-        document.getElementById('admin-online-now-list').innerHTML = rowItems.slice(0, 9).join('') || '<li class="online-now-empty py-2 text-black-fade">No users online.</li>';
+        document.getElementById('admin-online-now-total').textContent = presenceError ? '—' : String(users.length);
+        document.getElementById('admin-online-now-list').innerHTML = rowItems.slice(0, 9).join('') || `<li class="online-now-empty py-2 text-black-fade">${presenceError || 'No users online.'}</li>`;
         const viewAll = document.getElementById('admin-online-view-all');
         if (viewAll) {
             viewAll.hidden = users.length === 0;
@@ -133,36 +113,20 @@
             document.getElementById('online-now-modal-title').textContent = `Online Now (${users.length})`;
         }
     }
-    function recordHeartbeat() {
-        if (document.hidden || Date.now() - lastHeartbeat < heartbeatMs) return;
-        const user = getUser();
-        if (!user) return;
-        const now = Date.now();
-        const existing = getCleanOnlineUsers().find(record => String(record.id).toLowerCase() === user.id.toLowerCase());
-        const onlineSince = existing?.onlineSince || existing?.lastSeen || now;
-        try { localStorage.setItem(key, JSON.stringify({ ...user, onlineSince, lastSeen: now })); lastHeartbeat = now; } catch (_) {}
+    async function recordHeartbeat() {
+        if (document.hidden || heartbeatPending || Date.now() - lastHeartbeat < heartbeatMs || !getUser()) return;
+        heartbeatPending = true;
+        try { await refreshPresence(true); lastHeartbeat = Date.now(); }
+        finally { heartbeatPending = false; }
     }
-    function removeTabFromPresence() {
-        try { localStorage.removeItem(key); } catch (_) {}
-    }
-    function removeSelfFromPresence() {
-        const user = getUser();
-        if (!user) return;
-        const keys = [];
-        try {
-            for (let i = 0; i < localStorage.length; i++) {
-                const storageKey = localStorage.key(i);
-                if (!storageKey?.startsWith(prefix)) continue;
-                try { if (String(JSON.parse(localStorage.getItem(storageKey))?.id) === user.id) keys.push(storageKey); } catch (_) {}
-            }
-            keys.forEach(storageKey => localStorage.removeItem(storageKey));
-        } catch (_) {}
-    }
+    function removeTabFromPresence() { /* Expiry and server session revocation remove stale sessions. */ }
+    function removeSelfFromPresence() { serverUsers = []; }
     const previousLogout = window.SigmaPresenceTracker?.logout;
     window.SigmaPresenceTracker = {
         getCleanOnlineUsers, recordHeartbeat, removeTabFromPresence, removeSelfFromPresence,
         getEffectiveActiveUser: getUser,
         logout() {
+            window.SigmaDatabase?.revokeSession();
             removeSelfFromPresence();
             loggedOut = true;
             if (previousLogout) previousLogout();
@@ -180,7 +144,7 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
     else start();
     setInterval(recordHeartbeat, heartbeatMs);
-    if (/admin\.html$/i.test(location.pathname)) setInterval(renderPanel, 30000);
+    if (/admin\.html$/i.test(location.pathname)) setInterval(() => refreshPresence(false), 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
-    // No unload/blur removal: short tab switches and refreshes retain the grace period.
+    // No browser records are imported. Short tab switches retain the server grace period.
 })();

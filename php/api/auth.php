@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'client_
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/totp_service.php';
+require_once $rootDir . '/php/includes/application_auth.php';
 require_once $rootDir . '/php/includes/recaptcha_service.php';
 require_once $rootDir . '/php/includes/recaptcha_config.php';
 require_once $rootDir . '/php/includes/ai_routing_config.php';
@@ -166,6 +167,7 @@ try {
             jsonOut(['success' => false, 'error' => 'User ID is required'], 400);
         }
 
+        sigmaRequireOwnIdentity($pdo, $userId, true);
         $stmt = $pdo->prepare("SELECT id, full_name, email, role, totp_enabled, terms_accepted, terms_accepted_at FROM users WHERE id = ? AND is_deleted = 0 LIMIT 1");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -565,6 +567,10 @@ try {
     }
 
     // ── POST: SETUP 2FA (Generate Secret + QR Code) ──────────────────────────
+    if (in_array($action, ['setup_2fa', 'verify_and_enable_2fa', 'verify_login_2fa', 'accept_terms'], true)) {
+        sigmaRequireOwnIdentity($pdo, trim((string)($payload['id'] ?? $payload['uid'] ?? '')), true);
+    }
+
     if ($action === 'setup_2fa') {
         $userId = trim($payload['id'] ?? $payload['uid'] ?? '');
         if (empty($userId)) {
@@ -578,6 +584,8 @@ try {
         if (!$user) {
             jsonOut(['success' => false, 'error' => 'User not found in system'], 404);
         }
+
+        if (!empty($user['totp_enabled'])) jsonOut(['success' => false, 'error' => 'Authenticator is already enabled. Verify its existing code.'], 409);
 
         // Generate or reuse pending secret
         $secret = TotpService::generateSecret(16);
@@ -617,7 +625,9 @@ try {
             jsonOut(['success' => false, 'error' => 'No 2FA setup found. Please scan the QR code first.'], 400);
         }
 
+        sigmaTwoFactorRateLimit($pdo, $userId);
         $isValid = TotpService::verifyCode($user['totp_secret'], $code);
+        sigmaTwoFactorRateLimit($pdo, $userId, $isValid);
         if (!$isValid) {
             jsonOut(['success' => false, 'error' => 'Invalid or expired 6-digit authenticator code. Check your device time.'], 401);
         }
@@ -625,6 +635,7 @@ try {
         // Enable 2FA
         $upd = $pdo->prepare("UPDATE users SET totp_enabled = 1 WHERE id = ?");
         $upd->execute([$userId]);
+        $pdo->prepare('DELETE FROM grade_sync_tokens WHERE user_id=?')->execute([$userId]);
 
         jsonOut([
             'success' => true,
@@ -649,7 +660,9 @@ try {
             jsonOut(['success' => false, 'error' => '2FA is not enabled for this user account.'], 400);
         }
 
+        sigmaTwoFactorRateLimit($pdo, $userId);
         $isValid = TotpService::verifyCode($user['totp_secret'], $code);
+        sigmaTwoFactorRateLimit($pdo, $userId, $isValid);
         if (!$isValid) {
             jsonOut(['success' => false, 'error' => 'Invalid 6-digit code. Please check Google Authenticator on your phone.'], 401);
         }
@@ -673,7 +686,7 @@ try {
             jsonOut(['success' => false, 'error' => 'User ID is required'], 400);
         }
 
-        $now = date('Y-m-d H:i:s');
+        $now = gmdate('Y-m-d H:i:s');
         $upd = $pdo->prepare("UPDATE users SET terms_accepted = 1, terms_accepted_at = ? WHERE id = ?");
         $upd->execute([$now, $userId]);
 
@@ -692,8 +705,29 @@ try {
             jsonOut(['success' => false, 'error' => 'User ID is required'], 400);
         }
 
+        $actor = sigmaApplicationUser($pdo);
+        if (!$actor) {
+            // A password challenge cannot replace a lost second factor.
+            sigmaRequireOwnIdentity($pdo, $userId, true);
+            jsonOut(['success' => false, 'code' => 'recovery_required', 'error' => 'Your authenticator has not been reset. Ask a signed-in school administrator to verify your identity and reset 2FA in User Management. For a master admin account, ask another signed-in master admin or the server administrator. Then return to Login to set up a new authenticator.'], 403);
+        }
+        $stmt = $pdo->prepare('SELECT id, role FROM users WHERE id=? AND is_deleted=0 LIMIT 1');
+        $stmt->execute([$userId]);
+        $target = $stmt->fetch();
+        if (!$target) jsonOut(['success' => false, 'error' => 'Account not found.'], 404);
+        if (!sigmaCanResetAuthenticator($actor, $target)) {
+            jsonOut(['success' => false, 'error' => 'A verified administrator with authority over this account must reset its authenticator.'], 403);
+        }
+        $pdo->beginTransaction();
         $upd = $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?");
         $upd->execute([$userId]);
+        sigmaRevokeAccountSessions($pdo, $userId);
+        try {
+            $pdo->prepare('DELETE FROM service_vault_sessions WHERE user_id=?')->execute([$userId]);
+        } catch (PDOException $error) {
+            if ($error->getCode() !== '42S02') throw $error;
+        }
+        $pdo->commit();
 
         jsonOut([
             'success' => true,
@@ -704,5 +738,6 @@ try {
     jsonOut(['success' => false, 'error' => 'Invalid action specified'], 400);
 
 } catch (Exception $e) {
+    if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
     jsonOut(['success' => false, 'error' => $e->getMessage()], 500);
 }

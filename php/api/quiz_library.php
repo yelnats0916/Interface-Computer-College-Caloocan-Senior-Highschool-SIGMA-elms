@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/includes/data_provenance.php';
 /**
  * SIGMA ELMS — Quiz Library REST API
  * 
@@ -11,9 +12,10 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Sigma-Actor');
 
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -24,6 +26,8 @@ if ($requestMethod === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/application_auth.php';
+$databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 if (session_status() === PHP_SESSION_NONE) {
     @session_start();
@@ -158,11 +162,19 @@ try {
     if ($method === 'POST') {
         $raw = file_get_contents('php://input');
         $payload = json_decode($raw, true) ?: $_POST;
+        sigmaRequireRealRecords($payload);
 
         $action = $payload['action'] ?? 'save';
+        if (in_array($action, ['delete', 'restore'], true) && strtolower($databaseActor['role']) === 'teacher') {
+            $owner = $pdo->prepare('SELECT author_id FROM quizzes WHERE id=? OR code=? LIMIT 1');
+            $target = (string)($payload['id'] ?? $payload['code'] ?? '');
+            $owner->execute([$target, $target]);
+            if ((string)$owner->fetchColumn() !== (string)$databaseActor['id']) jsonResponse(['success'=>false,'error'=>'Only the recorded quiz author can perform this action.'],403);
+        }
+
 
         $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-        $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+        $actor = (string)$databaseActor['id'];
 
         if ($action === 'delete') {
             $target = trim((string) ($payload['id'] ?? $payload['code'] ?? ''));
@@ -227,9 +239,16 @@ try {
         $status = strtolower(trim((string) ($quiz['status'] ?? 'published')));
         if ($status !== 'draft') $status = 'published';
 
-        $authorId = trim((string) ($quiz['authorId'] ?? $quiz['author_id'] ?? $_SESSION['user_id'] ?? '0000000'));
-        $authorName = trim((string) ($quiz['authorName'] ?? $quiz['author_name'] ?? 'Stanley Garcia'));
-        $authorRole = trim((string) ($quiz['authorRole'] ?? $quiz['author_role'] ?? 'Admin'));
+        $actorRole = preg_replace('/[\s_-]+/', '', strtolower($databaseActor['role']));
+        $existingQuizQuery = $pdo->prepare('SELECT author_id,author_name,author_role FROM quizzes WHERE id=? LIMIT 1');
+        $existingQuizQuery->execute([$id]);
+        $existingQuiz = $existingQuizQuery->fetch(PDO::FETCH_ASSOC);
+        if ($actorRole === 'teacher' && $existingQuiz && (string)$existingQuiz['author_id'] !== (string)$databaseActor['id']) {
+            jsonResponse(['success' => false, 'error' => 'Only the recorded author or an administrator can change this quiz.'], 403);
+        }
+        $authorId = $existingQuiz ? (string)$existingQuiz['author_id'] : (string)$databaseActor['id'];
+        $authorName = $existingQuiz ? (string)$existingQuiz['author_name'] : (string)($databaseActor['full_name'] ?: trim($databaseActor['first_name'].' '.$databaseActor['last_name']));
+        $authorRole = $existingQuiz ? (string)$existingQuiz['author_role'] : ($actorRole === 'teacher' ? 'Teacher' : 'Admin');
 
         $questionsArr = $quiz['questions'] ?? [];
         if (!is_array($questionsArr)) $questionsArr = [];
@@ -306,13 +325,20 @@ try {
     }
 
     if ($method === 'DELETE') {
+        if (strtolower($databaseActor['role']) === 'teacher') {
+            $owner = $pdo->prepare('SELECT author_id FROM quizzes WHERE id=? OR code=? LIMIT 1');
+            $target = (string)($_GET['id'] ?? '');
+            $owner->execute([$target, $target]);
+            if ((string)$owner->fetchColumn() !== (string)$databaseActor['id']) jsonResponse(['success'=>false,'error'=>'Only the recorded quiz author can delete this quiz.'],403);
+        }
+
         $target = trim((string) ($_GET['id'] ?? ''));
         if (!$target) {
             jsonResponse(['success' => false, 'error' => 'Missing ?id parameter'], 400);
         }
 
         $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-        $actor = trim((string)($_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+        $actor = (string)$databaseActor['id'];
 
         $findStmt = $pdo->prepare("SELECT id FROM `quizzes` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
         $findStmt->execute([':id' => $target, ':code_match' => $target]);

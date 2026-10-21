@@ -187,36 +187,7 @@
     }
 
     function getCurrentEditorUser() {
-        let authUser = null;
-        try {
-            authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-        } catch (e) {}
-
-        if (authUser && (authUser.id || authUser.uid || authUser.name || authUser.firstName)) {
-            return authUser;
-        }
-
-        if (typeof window.getLoggedInAdminUser === 'function') {
-            const adminUser = window.getLoggedInAdminUser();
-            if (adminUser) return adminUser;
-        }
-
-        if (typeof window.getLoggedInTeacherUser === 'function') {
-            const teacherUser = window.getLoggedInTeacherUser();
-            if (teacherUser) return teacherUser;
-        }
-
-        if (typeof window.getLoggedInUser === 'function') {
-            const user = window.getLoggedInUser();
-            if (user) return user;
-        }
-
-        try {
-            const userStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
-            if (userStr) return JSON.parse(userStr);
-        } catch (e) {}
-
-        return null;
+        return window.SigmaDatabase?.currentUser() || {};
     }
 
     function normalizeSubjectAuthorRole(role) {
@@ -228,14 +199,8 @@
     }
 
     function getSubjectAdminAuthorName() {
-        if (typeof window.getLoggedInAdminUser === 'function') {
-            const u = window.getLoggedInAdminUser();
-            if (u) {
-                const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name;
-                if (name && !name.toLowerCase().includes('teacher') && !name.toLowerCase().includes('maria')) return name;
-            }
-        }
-        return 'Stanley Garcia';
+        const user = getCurrentEditorUser();
+        return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.fullName || user.name || 'Author not recorded';
     }
     window.getSubjectAdminAuthorName = getSubjectAdminAuthorName;
 
@@ -382,93 +347,10 @@
     };
 
 
-    function isFakeSampleTopic(t) {
-        if (!t) return false;
-        if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic !== isFakeSampleTopic) {
-            return window.isFakeSampleTopic(t);
-        }
-        const id = String(t.id || '').trim().toLowerCase();
-        const title = String(t.title || t.name || (typeof t === 'string' ? t : '')).trim().toLowerCase();
-        const authorId = String(t.authorId || '').trim().toLowerCase();
-        const authorName = String(t.authorName || '').trim().toLowerCase();
-        if (id === 'topic_teacher_sample_01' ||
-            id === 'topic-teacher-sample-01' ||
-            authorId === 'teacher_sample_01' ||
-            authorName.includes('johnathan smith') ||
-            t.isFake === true ||
-            t.isSample === true) {
-            return true;
-        }
-        const fakeTopicTitles = [
-            'arrays',
-            'introduction to debugging',
-            'debugging',
-            'random variables & probability distributions',
-            'normal distribution & sampling techniques',
-            'nature and elements of communication',
-            'communication strategies & speech delivery',
-            'introduction to programming logic',
-            'control structures & algorithms',
-            'functions and their graphs',
-            'business mathematics & financial logic',
-            'introduction to relational databases',
-            'sql fundamentals & database queries',
-            'introduction to web development',
-            'html5, css3 & javascript basics',
-            'origin and structure of the earth',
-            'earth materials, processes & life systems',
-            'information and communications technology today',
-            'applied productivity tools & web content creation',
-            'unit 1: fundamentals and key concepts',
-            'unit 2: applied methodologies & practical workflows',
-            'advanced diagnostic procedures',
-            'topic 7',
-            'topic 8',
-            'control structures',
-            'string manipulation',
-            'module 1: advanced research methods',
-            'repetition control structures',
-            'functions and methods',
-            'loops and iteration',
-            'functions and modular programming',
-            'introduction to object-oriented programming'
-        ];
-        return fakeTopicTitles.some(f => title === f || title.startsWith(f) || (f.length > 10 && title.includes(f)));
-    }
+    function isFakeSampleTopic(t) { return !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t)); }
     window.isFakeSampleTopic = isFakeSampleTopic;
 
-    function isFakeSampleMaterial(m) {
-        if (!m) return false;
-        if (typeof window.isFakeSampleMaterial === 'function' && window.isFakeSampleMaterial !== isFakeSampleMaterial) {
-            return window.isFakeSampleMaterial(m);
-        }
-        const id = String(m.id || '').trim().toLowerCase();
-        const title = String(m.title || m.name || (typeof m === 'string' ? m : '')).trim().toLowerCase();
-        const fileName = String(m.fileName || '').trim().toLowerCase();
-        const authorId = String(m.authorId || '').trim().toLowerCase();
-        const authorName = String(m.authorName || '').trim().toLowerCase();
-        if (id.includes('sample_01') ||
-            authorId === 'teacher_sample_01' ||
-            authorName.includes('johnathan smith') ||
-            m.isFake === true ||
-            m.isSample === true) {
-            return true;
-        }
-        const fakeMatKeywords = [
-            'written task & practice exercise',
-            'written task',
-            'mastery test',
-            'collaborative workshop',
-            'practical project',
-            'performance task: ',
-            'complete study module & notes',
-            'guided exercises & worksheets',
-            'interactive video lecture',
-            'practical applications & case analysis',
-            'campus-clip.mp4'
-        ];
-        return fakeMatKeywords.some(f => title.includes(f) || fileName.includes(f));
-    }
+    function isFakeSampleMaterial(m) { return !m || Boolean(window.SigmaDatabase?.isSyntheticRecord(m)); }
     window.isFakeSampleMaterial = isFakeSampleMaterial;
 
     function canCurrentSubjectEditorDeleteSubject() {
@@ -4191,7 +4073,7 @@
                         }
                     } else if (authorRole === 'Teacher') {
                         if (!authorName) {
-                            authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                            authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
                         }
                     }
                     const isOwnTopic = isCurrentUserAuthor(topic.authorId, topic.authorName, authorRole);
@@ -4279,7 +4161,7 @@
                         }
                     } else if (authorRole === 'Teacher') {
                         if (!authorName) {
-                            authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                            authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
                         }
                     }
                     const isOwnTopic = isCurrentUserAuthor(topic.authorId, topic.authorName, authorRole);
@@ -4367,7 +4249,7 @@
                     }
                 } else if (authorRole === 'Teacher') {
                     if (!authorName) {
-                        authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                        authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
                     }
                 }
 
@@ -5001,7 +4883,7 @@ window.addSubjectTopic = function () {
             authorRole = 'Teacher';
         }
         const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Teacher');
-        const authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || '');
+        const authorId = currentUserId || '';
         const activeSection = window.activeSubjectEditorSection
             || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
             || (window.currentAdminClassroomSection ? (window.currentAdminClassroomSection.name || window.currentAdminClassroomSection.section) : '')
@@ -5124,8 +5006,8 @@ window.addSubjectTopic = function () {
         if (!isTeacher && window.activeCurriculumScope && window.activeCurriculumScope !== 'master' && window.activeCurriculumScope !== 'all') {
             authorRole = 'Teacher';
         }
-        const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Maria Santos Ramos');
-        const authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || 'teacher');
+        const authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'User not recorded');
+        const authorId = currentUserId || '';
 
         const activeSection = window.activeSubjectEditorSection
             || (typeof window.subjectEditorOptions !== 'undefined' && (window.subjectEditorOptions?.section || window.subjectEditorOptions?.selectedSection))
@@ -6528,7 +6410,7 @@ window.addSubjectTopic = function () {
                 }
             } else if (authorRole === 'Teacher') {
                 if (!authorName) {
-                    authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                    authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
                 }
             }
             const isOwnTopic = isCurrentUserAuthor(topic.authorId, topic.authorName, authorRole);
@@ -6637,7 +6519,7 @@ window.addSubjectTopic = function () {
                                         }
                                     } else if (authorRole === 'Teacher') {
                                         if (!authorName) {
-                                            authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                                            authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
                                         }
                                     }
                                     const isOwnMaterial = isCurrentUserAuthor(m.authorId, m.authorName, authorRole);
@@ -7027,7 +6909,7 @@ window.addSubjectTopic = function () {
             }
         } else if (authorRole === 'Teacher') {
             if (!authorName) {
-                authorName = isTeacher ? (currentUserName || 'Maria Santos Ramos') : 'Teacher';
+                authorName = isTeacher ? (currentUserName || 'User not recorded') : 'Teacher';
             }
         }
         const isOwnMaterial = isCurrentUserAuthor(m.authorId, m.authorName || authorName, authorRole);
@@ -9123,11 +9005,11 @@ window.addSubjectTopic = function () {
                     const dTitle = _esc(latestStorageDraft.title || 'Untitled Draft');
                     const dCode  = (latestStorageDraft.code || latestStorageDraft.quizCode || latestStorageDraft.refCode || '').replace(/^#/, '');
                     const authorInfo = (typeof window.resolveQuizAuthor === 'function') ? window.resolveQuizAuthor(latestStorageDraft) : {
-                        authorId: latestStorageDraft.authorId || '0000000',
-                        authorName: latestStorageDraft.authorName || 'Stanley Garcia',
+                        authorId: latestStorageDraft.authorId || '',
+                        authorName: latestStorageDraft.authorName || 'User not recorded',
                         authorRole: 'Admin'
                     };
-                    const dAuthor = _esc(authorInfo.authorName || 'Stanley Garcia');
+                    const dAuthor = _esc(authorInfo.authorName || 'User not recorded');
                     const dRoleDisplay = _esc(authorInfo.authorRole || 'Admin');
                     storageDraftPanelHtml = `
                         <div class="mb-3 sm:mb-4 rounded-xl sm:rounded-2xl border border-amber-200 bg-amber-50 p-2.5 sm:p-4 flex items-center gap-2.5 sm:gap-3.5 shadow-2xs animate-in fade-in duration-150">
@@ -10235,8 +10117,8 @@ window.addSubjectTopic = function () {
         const currentUserName = currentUser ? (`${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.name || '') : '';
         const rawRole = currentUser ? (currentUser.role || currentUser.type || (isTeacher ? 'Teacher' : 'Admin')) : (isTeacher ? 'Teacher' : 'Admin');
         let authorRole = isTeacher ? 'Teacher' : normalizeSubjectAuthorRole(rawRole);
-        let authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'Maria Santos Ramos');
-        let authorId = authorRole === 'Admin' ? '0000000' : (currentUserId || 'teacher');
+        let authorName = authorRole === 'Admin' ? getSubjectAdminAuthorName() : (currentUserName || 'User not recorded');
+        let authorId = currentUserId || '';
 
         // Admin editing in teacher view scope:
         if (!isTeacher && window.activeCurriculumScope && window.activeCurriculumScope !== 'master' && window.activeCurriculumScope !== 'all') {
@@ -10932,7 +10814,7 @@ window.addSubjectTopic = function () {
         });
     }
 
-    window.syncCurrentSubjectEditorToStorage = function () {
+    window.syncCurrentSubjectEditorToStorage = async function () {
         const isTeacher = isCurrentEditorTeacher();
         const isStandalone = Boolean(window.subjectEditorOptions?.standalone);
         if (!window.isEditingSubject && !isStandalone && !isTeacher) return;
@@ -10994,10 +10876,8 @@ window.addSubjectTopic = function () {
             subjects.unshift(targetSubject);
         }
 
+        if (!await window.syncSubjectToDB(targetSubject)) return false;
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
-        if (typeof window.syncSubjectToDB === 'function') {
-            window.syncSubjectToDB(targetSubject);
-        }
 
         syncCustomStorageKeys(targetSubject, window.originalEditingSubjectCode, window.originalEditingSubjectId, window.originalEditingSubjectName);
 
@@ -11008,7 +10888,7 @@ window.addSubjectTopic = function () {
 
     // ── SAVING & PUBLISHING WORKSTATION DATA ──────────────────────────────────
 
-    window.handleSubjectSave = function (status = 'Published') {
+    window.handleSubjectSave = async function (status = 'Published') {
         const editorOpts = window.subjectEditorOptions;
         const isStandaloneMode = !!editorOpts?.standalone;
         const standaloneStep = editorOpts?.standaloneStep || 0;
@@ -11067,10 +10947,8 @@ window.addSubjectTopic = function () {
             subjects[index].weights = subjectWeights;
             subjects[index].status = status;
             subjects[index].activeQuarters = getActiveSubjectQuarters();
+            if (!await window.syncSubjectToDB(subjects[index])) return false;
             _saveStored(SUBJECTS_STORAGE_KEY, subjects);
-            if (typeof window.syncSubjectToDB === 'function') {
-                window.syncSubjectToDB(subjects[index]);
-            }
 
             if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
                 window.saveSubjectGradebookWeights(code, subjectWeights);
@@ -11142,10 +11020,8 @@ window.addSubjectTopic = function () {
             subjects.unshift(newSubject);
         }
 
+        if (!await window.syncSubjectToDB(newSubject)) return false;
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
-        if (typeof window.syncSubjectToDB === 'function') {
-            window.syncSubjectToDB(newSubject);
-        }
 
         if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
             window.saveSubjectGradebookWeights(code, subjectWeights);

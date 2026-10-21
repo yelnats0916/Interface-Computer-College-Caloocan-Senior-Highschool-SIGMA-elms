@@ -43,7 +43,7 @@
         if (!url) throw new Error('The file content is unavailable. Upload the actual file before evaluating.');
         const resolved = new URL(url, location.href);
         if (!['data:', 'blob:'].includes(resolved.protocol) && resolved.origin !== location.origin && !['localhost', '127.0.0.1'].includes(resolved.hostname)) throw new Error('Use a locally uploaded document for AI evaluation.');
-        const response = await fetch(resolved.href);
+        const response = await window.SigmaDatabase.fetch(resolved.href);
         if (!response.ok) throw new Error('Could not read the submitted file or rubric.');
         const blob = await response.blob();
         if (blob.size > 10 * 1024 * 1024) throw new Error('Use a document smaller than 10 MB.');
@@ -167,7 +167,7 @@
             const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/submission_ai.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/submission_ai.php' : 'php/api/submission_ai.php', location.href).href;
             sent = true;
-            const response = await fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evidence) });
+            const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evidence) });
             const result = await response.json();
             if (!response.ok || !result.success || (feedback ? !Array.isArray(result.feedback) || result.feedback.length < 1 || result.feedback.length > 3 : !Number.isFinite(result.score) || result.score < 0 || result.score > context.maxScore || !Array.isArray(result.criteria) || !Array.isArray(result.commentary))) throw new Error(result.error || 'AI returned an invalid evaluation.');
             const expectedId = feedback ? /^FDBK-\d{4}-\d{4,}$/ : /^EVAL-\d{4}-\d{4,}$/;

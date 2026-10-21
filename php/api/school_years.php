@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/includes/data_provenance.php';
 /**
  * SIGMA ELMS — School Year Management REST API
  * 
@@ -10,9 +11,10 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
+require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
+restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Sigma-Actor');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -21,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
+require_once $rootDir . '/php/includes/application_auth.php';
+$databaseActor = sigmaRequireApplicationActor($pdo, (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' ? [] : ['admin', 'masteradmin', 'administrator']));
 require_once $rootDir . '/php/includes/gdrive_service.php';
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -85,6 +89,7 @@ try {
     if ($method === 'POST') {
         $raw = file_get_contents('php://input');
         $payload = json_decode($raw, true) ?: $_POST;
+        sigmaRequireRealRecords($payload);
 
         $action = $payload['action'] ?? 'save';
 
@@ -136,7 +141,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 1, deleted_at = UTC_TIMESTAMP(), deleted_by = ? WHERE id = ?");
             $stmt->execute([$actor, $recordId]);
@@ -157,7 +162,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL WHERE id = ?");
             $stmt->execute([$recordId]);
@@ -178,7 +183,7 @@ try {
             }
 
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
-            $actor = trim((string)($payload['actor'] ?? $_SERVER['HTTP_X_SIGMA_ACTOR'] ?? $headers['x-sigma-actor'] ?? '0000000'));
+            $actor = (string)$databaseActor['id'];
 
             $stmt = $pdo->prepare("DELETE FROM school_years WHERE id = ?");
             $stmt->execute([$recordId]);

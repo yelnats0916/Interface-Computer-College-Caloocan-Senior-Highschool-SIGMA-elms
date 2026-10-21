@@ -55,7 +55,7 @@
     // Current State
     let currentRole = 'teacher'; // 'admin', 'teacher', or 'student'
     let currentUser = {
-        name: 'Maria Santos Ramos',
+        name: '',
         role: 'teacher',
         avatar: ''
     };
@@ -458,7 +458,7 @@
             if (!studentUser && Array.isArray(allUsers)) {
                 studentUser = allUsers.find(u => String(u.role || u.type || '').toLowerCase().includes('stud'));
             }
-            const sName = studentUser ? (`${studentUser.firstName || ''} ${studentUser.lastName || ''}`.trim() || studentUser.fullName || studentUser.name || 'Juan Dela Cruz') : 'Juan Dela Cruz';
+            const sName = studentUser ? (`${studentUser.firstName || ''} ${studentUser.lastName || ''}`.trim() || studentUser.fullName || studentUser.name || 'User not recorded') : 'User not recorded';
             const sUid = studentUser ? String(studentUser.uid || studentUser.id || '2222222').replace(/^#/, '').trim() : '2222222';
             const sSec = studentUser?.gradeSection || studentUser?.section || (localStorage.getItem('sigma_student_section') || 'Grade 11 - STEM A');
 
@@ -491,7 +491,7 @@
             if (!teacherUser && Array.isArray(allUsers)) {
                 teacherUser = allUsers.find(u => String(u.role || u.type || '').toLowerCase().includes('teach'));
             }
-            const tName = teacherUser ? (`${teacherUser.firstName || ''} ${teacherUser.lastName || ''}`.trim() || teacherUser.fullName || teacherUser.name || 'Maria Santos Ramos') : 'Maria Santos Ramos';
+            const tName = teacherUser ? (`${teacherUser.firstName || ''} ${teacherUser.lastName || ''}`.trim() || teacherUser.fullName || teacherUser.name || 'User not recorded') : 'User not recorded';
             const tUid = teacherUser ? String(teacherUser.uid || teacherUser.id || '1111111').replace(/^#/, '').trim() : '1111111';
 
             let tAvatar = teacherUser?.profilePicture || teacherUser?.avatar || teacherUser?.photo || teacherUser?.profileImage || '';
@@ -536,7 +536,7 @@
             if (!adminUser && Array.isArray(allUsers)) {
                 adminUser = allUsers.find(u => String(u.uid || u.id) === '0000000' || String(u.role || u.type || '').toLowerCase().includes('admin'));
             }
-            const aName = adminUser ? (`${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim() || adminUser.fullName || adminUser.name || 'Stanley Garcia') : 'Stanley Garcia';
+            const aName = adminUser ? (`${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim() || adminUser.fullName || adminUser.name || 'User not recorded') : 'User not recorded';
             const aUid = adminUser ? String(adminUser.uid || adminUser.id || '0000000').replace(/^#/, '').trim() : '0000000';
 
             let aAvatar = adminUser?.profilePicture || adminUser?.avatar || adminUser?.photo || adminUser?.profileImage || '';
@@ -5613,68 +5613,7 @@
         showToast: showToastNotice,
         // Developer & Designer Preview Helpers
         loadDemoData: function () {
-            const demoPosts = [
-                {
-                    id: 'demo-post-1',
-                    title: 'Welcome to Academic Year 2026-2027!',
-                    body: 'Immaculate Conception College warmly welcomes all Senior High School and College students to the new academic year. Please check your assigned schedules, classrooms, and orientation guidelines.',
-                    authorName: 'Maria Santos Ramos',
-                    authorRole: 'teacher',
-                    authorAvatar: '',
-                    audience: 'everyone',
-                    audienceLabel: 'Everyone',
-                    priority: 'important',
-                    priorityLabel: 'Important',
-                    mediaType: 'image',
-                    mediaUrls: ['image/ICC Shs.jpg', 'image/ICC Immersion.jpg'],
-                    mediaUrl: 'image/ICC Shs.jpg',
-                    createdAt: new Date().toISOString(),
-                    likes: 12,
-                    likedByMe: true,
-                    comments: [
-                        { id: 'c1', authorName: 'Elena Cruz', authorRole: 'student', authorAvatar: '', text: 'Excited for this school year!', createdAt: new Date(Date.now() - 3600000).toISOString() }
-                    ]
-                },
-                {
-                    id: 'demo-post-2',
-                    title: 'Campus Tour & Laboratory Guidelines',
-                    body: 'Please review the updated laboratory and campus safety protocols before attending hands-on sessions in the computer and science labs.',
-                    authorName: 'Maria Santos Ramos',
-                    authorRole: 'teacher',
-                    authorAvatar: '',
-                    audience: 'Grade 11 - STEM A',
-                    audienceLabel: 'Grade 11 - STEM A',
-                    priority: 'normal',
-                    priorityLabel: 'Announcement',
-                    mediaType: 'video',
-                    mediaUrl: 'image/campus-clip.mp4',
-                    createdAt: new Date(Date.now() - 7200000).toISOString(),
-                    likes: 5,
-                    likedByMe: false,
-                    comments: []
-                },
-                {
-                    id: 'demo-post-3',
-                    title: 'Quarterly Project Submission Reminder',
-                    body: 'All research papers and capstone proposals must be submitted through the portal before Friday midnight. Late submissions will be flagged automatically.',
-                    authorName: 'ICC Administration',
-                    authorRole: 'admin',
-                    authorAvatar: '',
-                    audience: 'all_students',
-                    audienceLabel: 'All Students',
-                    priority: 'normal',
-                    priorityLabel: 'Announcement',
-                    mediaType: null,
-                    mediaUrl: null,
-                    createdAt: new Date(Date.now() - 86400000).toISOString(),
-                    likes: 8,
-                    likedByMe: false,
-                    comments: []
-                }
-            ];
-            saveStoredAnnouncements(demoPosts);
-            refreshAllFeeds();
-            showToastNotice('Loaded demo template posts for preview!', 'success');
+            showToastNotice('Demo data is disabled. Create an actual announcement instead.', 'info');
         },
         clearAll: function () {
             saveStoredAnnouncements([]);

@@ -256,25 +256,7 @@ window.initializeSharedCurriculumRelease = function () {
         } catch (e) {}
 
         // 5. Normalize and filter fake topics
-        const isFakeTopic = (t) => {
-            if (!t) return true;
-            if (typeof window.isFakeSampleTopic === 'function' && window.isFakeSampleTopic(t)) return true;
-            const id = String(t.id || '').trim().toLowerCase();
-            const title = String(t.title || t.name || (typeof t === 'string' ? t : '')).trim().toLowerCase();
-            const authorId = String(t.authorId || '').trim().toLowerCase();
-            const authorName = String(t.authorName || '').trim().toLowerCase();
-            return id === 'topic_teacher_sample_01' ||
-                   id === 'topic-teacher-sample-01' ||
-                   authorId === 'teacher_sample_01' ||
-                   authorName.includes('johnathan smith') ||
-                   title === 'arrays' ||
-                   title === 'introduction to debugging' ||
-                   title === 'debugging' ||
-                   title.startsWith('arrays') ||
-                   title.startsWith('introduction to debugging') ||
-                   t.isFake === true ||
-                   t.isSample === true;
-        };
+        const isFakeTopic = (t) => !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t));
 
         const normalizedTopics = [];
         const seenKeys = new Set();
@@ -7822,18 +7804,7 @@ window.initializeSharedCurriculumRelease = function () {
 
         const items = [];
         const seenIds = new Set();
-        const isFake = (typeof window.isFakeAssessment === 'function') ? window.isFakeAssessment : (item) => {
-            if (!item) return true;
-            if (item.isFake === true || item.isSample === true) return true;
-            const t = String(item.title || item.name || '').trim();
-            if (!t) return true;
-            if (t.startsWith('"') || t.startsWith("'")) return true;
-            const id = String(item.id || '').trim().toLowerCase();
-            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-            if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-            return false;
-        };
+        const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
         const isMaterialAllowed = (m) => {
             if (!m || isFake(m)) return false;
@@ -8054,18 +8025,7 @@ window.initializeSharedCurriculumRelease = function () {
             topicQuarterMap.set(String(tIdx), tQuarter);
         });
 
-        const isFake = (typeof window.isFakeAssessment === 'function') ? window.isFakeAssessment : (item) => {
-            if (!item) return true;
-            if (item.isFake === true || item.isSample === true) return true;
-            const t = String(item.title || item.name || '').trim();
-            if (!t) return true;
-            if (t.startsWith('"') || t.startsWith("'")) return true;
-            const id = String(item.id || '').trim().toLowerCase();
-            const authorId = String(item.authorId || item.uid || '').trim().toLowerCase();
-            const authorName = String(item.authorName || item.author || '').trim().toLowerCase();
-            if (id.includes('sample_01') || authorId === 'teacher_sample_01' || authorName.includes('johnathan smith')) return true;
-            return false;
-        };
+        const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
         const isAssessmentAllowed = (item) => {
             if (!item || isFake(item)) return false;

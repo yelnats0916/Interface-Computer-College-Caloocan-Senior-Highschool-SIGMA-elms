@@ -304,7 +304,7 @@
         try {
             const url = new URL(window.resolveUploadApiUrl(), location.href);
             url.searchParams.set('action', 'folder_usage');
-            const response = await fetch(url.href);
+            const response = await window.SigmaDatabase.fetch(url.href);
             const data = await response.json();
             if (!response.ok || !data.success) throw new Error(data.error || 'Folder usage is unavailable.');
             driveUsage = data.usage;

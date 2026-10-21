@@ -1,0 +1,37 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const store = () => {
+    const data = new Map();
+    return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), removeItem: key => data.delete(key) };
+};
+(async () => {
+    const localStorage = store(), sessionStorage = store(), calls = [];
+    let response = { ok: true, status: 200, json: async () => ({ success: true, records: [] }) };
+    const window = { fetch: async (...args) => { calls.push(args); return response; }, dispatchEvent() {} };
+    const context = { window, localStorage, sessionStorage, URL, Headers, Request, AbortSignal, CustomEvent: class {}, location: { href: 'http://127.0.0.1:5519/admin.html', hostname: '127.0.0.1', pathname: '/admin.html', port: '5519' } };
+    vm.runInNewContext(fs.readFileSync('js/database-client.js', 'utf8'), context);
+    const db = window.SigmaDatabase;
+    assert.equal(db.isSyntheticRecord({ id: 'topic-472', title: 'Arrays' }), false);
+    assert.equal(db.isSyntheticRecord({ title: 'Sample programs', questions: [{ sampleAnswer: 'Example' }] }), false);
+    assert.equal(db.isSyntheticRecord({ topics: [{ id: 'demo-topic-1' }] }), true);
+    assert.equal(db.isSyntheticRecord({ user: { createdVia: 'system-seed' } }), true);
+    assert.equal(db.url('subjects'), 'http://localhost/sigma-elms/php/api/subjects.php');
+    assert.throws(() => db.url('../users'));
+    sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify({ token: 'in-memory-only-token', userId: 'verified-1' }));
+    sessionStorage.setItem('sigma-authenticated-user', JSON.stringify({ id: 'verified-1', role: 'Teacher' }));
+    assert.equal(db.currentUser().id, 'verified-1');
+    await db.request('subjects');
+    assert.equal(calls.at(-1)[1].headers.get('Authorization'), 'Bearer in-memory-only-token');
+    await db.fetch('https://example.org/file.pdf');
+    assert.equal(calls.at(-1)[1].headers, undefined);
+    response = { ok: false, status: 422, json: async () => ({ success: false, code: 'synthetic_record_rejected', error: 'Rejected' }) };
+    assert.equal(await db.save('subjects', { subject: {} }), false);
+    response = { ok: true, status: 200, json: async () => ({ success: false, error: 'Not saved' }) };
+    await assert.rejects(db.request('subjects'));
+    const before = calls.length;
+    db.preserveLegacy('sigma-admin-subjects', '[{"id":"existing-device-record"}]');
+    assert.equal(calls.length, before);
+    assert.ok(localStorage.getItem('sigma-database-review:sigma-admin-subjects'));
+    console.log('Database transport checks passed. No network or database writes.');
+})().catch(error => { console.error(error); process.exitCode = 1; });

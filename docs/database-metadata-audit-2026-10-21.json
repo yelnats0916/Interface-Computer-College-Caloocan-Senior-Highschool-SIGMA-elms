@@ -1,0 +1,347 @@
+{
+    "tables": [
+        {
+            "table": "ai_analytics_state",
+            "rows": 4,
+            "columns": [
+                "user_id",
+                "kind",
+                "payload",
+                "revision",
+                "updated_at"
+            ]
+        },
+        {
+            "table": "ai_grade_insight_views",
+            "rows": 2,
+            "columns": [
+                "user_id",
+                "view_key",
+                "generation_id",
+                "updated_at"
+            ]
+        },
+        {
+            "table": "ai_insight_cards",
+            "rows": 8,
+            "columns": [
+                "id",
+                "user_id",
+                "kind",
+                "card_id",
+                "signature",
+                "payload",
+                "created_at",
+                "is_deleted",
+                "deleted_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "ai_insight_controls",
+            "rows": 0,
+            "columns": [
+                "source_type",
+                "source_id",
+                "user_id",
+                "hidden",
+                "is_deleted",
+                "changed_by",
+                "changed_at"
+            ]
+        },
+        {
+            "table": "ai_logs",
+            "rows": 28,
+            "columns": [
+                "id",
+                "user_id",
+                "feature",
+                "payload",
+                "created_at",
+                "is_deleted",
+                "deleted_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "announcements",
+            "rows": 1,
+            "columns": [
+                "id",
+                "title",
+                "content",
+                "author_id",
+                "author_name",
+                "author_role",
+                "audience",
+                "is_deleted",
+                "deleted_at",
+                "deleted_by",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        {
+            "table": "application_login_challenges",
+            "rows": 0,
+            "columns": [
+                "token_hash",
+                "user_id",
+                "expires_at"
+            ]
+        },
+        {
+            "table": "application_presence",
+            "rows": 0,
+            "columns": [
+                "token_hash",
+                "user_id",
+                "online_since",
+                "last_seen"
+            ]
+        },
+        {
+            "table": "grade_publications",
+            "rows": 0,
+            "columns": [
+                "record_key",
+                "kind",
+                "scope_json",
+                "payload",
+                "revision",
+                "updated_at"
+            ]
+        },
+        {
+            "table": "grade_sync_attempts",
+            "rows": 0,
+            "columns": [
+                "client_hash",
+                "attempts",
+                "blocked_until"
+            ]
+        },
+        {
+            "table": "grade_sync_tokens",
+            "rows": 2,
+            "columns": [
+                "token_hash",
+                "user_id",
+                "expires_at"
+            ]
+        },
+        {
+            "table": "quizzes",
+            "rows": 0,
+            "columns": [
+                "id",
+                "code",
+                "title",
+                "description",
+                "status",
+                "author_id",
+                "author_name",
+                "author_role",
+                "questions",
+                "total_questions",
+                "total_points",
+                "time_limit",
+                "icon",
+                "color",
+                "is_ai",
+                "is_deleted",
+                "deleted_at",
+                "created_at",
+                "updated_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "record_lifecycle_events",
+            "rows": 3,
+            "columns": [
+                "id",
+                "table_name",
+                "record_id",
+                "action",
+                "actor_id",
+                "created_at"
+            ]
+        },
+        {
+            "table": "school_years",
+            "rows": 0,
+            "columns": [
+                "id",
+                "year_start",
+                "year_end",
+                "q1_start",
+                "q1_end",
+                "q2_start",
+                "q2_end",
+                "q3_start",
+                "q3_end",
+                "q4_start",
+                "q4_end",
+                "status",
+                "gdrive_folder_id",
+                "gdrive_folder_url",
+                "is_deleted",
+                "archived_at",
+                "created_at",
+                "updated_at",
+                "deleted_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "sections",
+            "rows": 0,
+            "columns": [
+                "id",
+                "name",
+                "grade_level",
+                "room",
+                "school_year",
+                "start_time",
+                "end_time",
+                "days",
+                "schedule",
+                "daily_schedules",
+                "teacher",
+                "teacher_role",
+                "teachers",
+                "adviser",
+                "adviser_id",
+                "subject",
+                "subjects",
+                "students",
+                "students_count",
+                "status",
+                "is_deleted",
+                "created_at",
+                "updated_at",
+                "deleted_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "service_vault_login_attempts",
+            "rows": 0,
+            "columns": [
+                "client_hash",
+                "attempts",
+                "blocked_until",
+                "updated_at"
+            ]
+        },
+        {
+            "table": "service_vault_sessions",
+            "rows": 1,
+            "columns": [
+                "token_hash",
+                "user_id",
+                "expires_at",
+                "created_at"
+            ]
+        },
+        {
+            "table": "subjects",
+            "rows": 0,
+            "columns": [
+                "id",
+                "code",
+                "name",
+                "units",
+                "type",
+                "strand",
+                "weights",
+                "active_quarters",
+                "status",
+                "topics",
+                "materials",
+                "is_deleted",
+                "created_at",
+                "updated_at",
+                "deleted_at",
+                "deleted_by"
+            ]
+        },
+        {
+            "table": "system_service_settings",
+            "rows": 1,
+            "columns": [
+                "id",
+                "encrypted_settings",
+                "updated_at",
+                "key_location"
+            ]
+        },
+        {
+            "table": "users",
+            "rows": 14,
+            "columns": [
+                "id",
+                "first_name",
+                "middle_name",
+                "last_name",
+                "full_name",
+                "email",
+                "password",
+                "role",
+                "status",
+                "gender",
+                "branch",
+                "department",
+                "grade_level",
+                "grade_section",
+                "strand",
+                "avatar",
+                "permissions",
+                "totp_secret",
+                "totp_enabled",
+                "terms_accepted",
+                "terms_accepted_at",
+                "is_deleted",
+                "created_at",
+                "updated_at",
+                "deleted_at",
+                "deleted_by"
+            ]
+        }
+    ],
+    "passwords": {
+        "hashed": 14,
+        "legacy": 0,
+        "empty": 0
+    },
+    "explicitSyntheticPayloads": [
+        {
+            "table": "subjects",
+            "field": "topics",
+            "reviewCount": 0
+        },
+        {
+            "table": "subjects",
+            "field": "materials",
+            "reviewCount": 0
+        },
+        {
+            "table": "ai_logs",
+            "field": "payload",
+            "reviewCount": 0
+        },
+        {
+            "table": "ai_insight_cards",
+            "field": "payload",
+            "reviewCount": 0
+        },
+        {
+            "table": "ai_analytics_state",
+            "field": "payload",
+            "reviewCount": 0
+        }
+    ],
+    "legacyIdentityReviewCount": 3
+}

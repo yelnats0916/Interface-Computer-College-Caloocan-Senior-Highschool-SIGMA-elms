@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS `users` (
     `strand` VARCHAR(100) NULL DEFAULT '',
     `avatar` LONGTEXT NULL,
     `permissions` JSON NULL,
+    `totp_secret` VARCHAR(64) NULL,
+    `totp_enabled` TINYINT(1) NOT NULL DEFAULT 0,
+    `terms_accepted` TINYINT(1) NOT NULL DEFAULT 0,
+    `terms_accepted_at` DATETIME NULL,
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
     `deleted_at` DATETIME NULL,
     `deleted_by` VARCHAR(50) NULL,
@@ -55,6 +59,8 @@ CREATE TABLE IF NOT EXISTS `school_years` (
     `deleted_at` DATETIME NULL,
     `deleted_by` VARCHAR(50) NULL,
     `archived_at` VARCHAR(40) NULL,
+    `gdrive_folder_id` VARCHAR(128) NULL,
+    `gdrive_folder_url` VARCHAR(255) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY `uq_year_range` (`year_start`, `year_end`)
@@ -123,16 +129,20 @@ CREATE TABLE IF NOT EXISTS `subjects` (
 -- Table: announcements
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `announcements` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `title` VARCHAR(150) NOT NULL,
+    `id` VARCHAR(128) NOT NULL PRIMARY KEY,
+    `title` VARCHAR(255) NOT NULL,
     `content` TEXT NOT NULL,
-    `author_id` INT UNSIGNED NOT NULL,
-    `target_role` ENUM('all', 'teacher', 'student') NOT NULL DEFAULT 'all',
+    `author_id` VARCHAR(50) NOT NULL,
+    `author_name` VARCHAR(120) NULL,
+    `author_role` VARCHAR(50) NULL,
+    `audience` VARCHAR(50) NOT NULL DEFAULT 'all',
     `is_deleted` TINYINT(1) NOT NULL DEFAULT 0,
     `deleted_at` DATETIME NULL,
     `deleted_by` VARCHAR(50) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_announcement_author` (`author_id`),
+    FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -140,7 +150,7 @@ CREATE TABLE IF NOT EXISTS `announcements` (
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `audit_logs` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `user_id` INT UNSIGNED NULL,
+    `user_id` VARCHAR(50) NULL,
     `action` VARCHAR(255) NOT NULL,
     `ip_address` VARCHAR(45) NULL,
     `user_agent` VARCHAR(255) NULL,
@@ -151,19 +161,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ------------------------------------------------------------------------------
--- Initial Seed Accounts (Password: Password123 for all test accounts)
--- Note: '$2y$10$w8T.7eFv4M2a.3iO9l9hPeJk.q3NfQG1p9tJq2O7q1z6W4w8r7i7q' is 'Password123'
--- ------------------------------------------------------------------------------
-INSERT INTO `school_years` (`year_label`, `is_active`) VALUES
-('SY 2026-2027', 1)
-ON DUPLICATE KEY UPDATE `is_active` = 1;
-
-INSERT INTO `users` (`school_id`, `name`, `email`, `password`, `role`, `grade_level`, `status`) VALUES
-('ADMIN-001', 'System Administrator', 'admin@interface.edu.ph', '$2y$10$eA0nS3KjG9KkFjL0Z8fOu.91.B.O4u5yQfO5gJ8jZ7J3n1z2n3n4.', 'admin', NULL, 'active'),
-('TCH-1001', 'Prof. Maria Santos', 'teacher@interface.edu.ph', '$2y$10$eA0nS3KjG9KkFjL0Z8fOu.91.B.O4u5yQfO5gJ8jZ7J3n1z2n3n4.', 'teacher', NULL, 'active'),
-('STU-2026-001', 'Stanley Tan', 'student@interface.edu.ph', '$2y$10$eA0nS3KjG9KkFjL0Z8fOu.91.B.O4u5yQfO5gJ8jZ7J3n1z2n3n4.', 'student', 'Grade 12', 'active')
-ON DUPLICATE KEY UPDATE `status` = 'active';
+-- No automatic seed accounts or academic records. Provision a verified administrator separately.
 
 -- ------------------------------------------------------------------------------
 -- Table: quizzes (Quiz Library / Storage)

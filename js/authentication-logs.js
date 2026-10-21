@@ -34,7 +34,7 @@
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 5000);
             try {
-                const response = await fetch(`${base}?action=client_network`, { cache:'no-store', signal:controller.signal });
+                const response = await window.SigmaDatabase.fetch(`${base}?action=client_network`, { cache:'no-store', signal:controller.signal });
                 const result = await response.json();
                 if (response.ok && result.success && typeof result.ip === 'string') networkIp = result.ip;
             } finally { clearTimeout(timer); }

@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Sync security & reCAPTCHA config from server
     const recaptchaApiUrl = resolveAuthApiUrl('action=recaptcha_config');
     const recaptchaConfigReady = recaptchaApiUrl
-        ? fetch(recaptchaApiUrl)
+        ? window.SigmaDatabase.fetch(recaptchaApiUrl)
             .then(res => res.json())
             .then(data => {
                 if (data && data.success && data.threshold) {
@@ -240,110 +240,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return deduplicated;
     }
 
-    function buildManagedUserPassword(user) {
-        const safeLastName = String(user?.lastName || 'user')
-            .trim()
-            .replace(/[^a-zA-Z0-9]/g, '')
-            .toLowerCase();
-        const userId = String(user?.uid || user?.id || '').trim().replace(/^USER-/i, '');
-        return `${safeLastName}${userId}`;
-    }
-
-    function purgeLegacyManagedUsers() {
-        if (localStorage.getItem(MANAGED_USERS_RESET_KEY) === 'true') {
-            return;
-        }
-
-        const normalizedUsers = getStoredUsers().filter(Boolean).map((user) => ({
-            ...user,
-            createdVia: user.createdVia || 'admin-panel'
-        }));
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUsers));
-        localStorage.setItem('sigma-users-list', JSON.stringify(normalizedUsers));
-        localStorage.setItem(MANAGED_USERS_RESET_KEY, 'true');
-    }
-
-    function seedMasterAdmin() {
-        const permanentUsers = [
-            {
-                id: "0000000",
-                uid: "0000000",
-                firstName: "Stanley",
-                middleName: "Vargas",
-                lastName: "Garcia",
-                fullName: "Stanley Vargas Garcia",
-                email: "stanley.garcia@gmail.com",
-                password: "garcia0000000",
-                role: "Master Admin",
-                type: "Master Admin",
-                status: "Active",
-                totp_enabled: false,
-                totpEnabled: false,
-                gender: "Male",
-                branch: "Main Campus",
-                createdAt: "2026-06-01T08:00:00+08:00",
-                createdVia: "system-seed"
-            },
-            {
-                id: "1111111",
-                uid: "1111111",
-                firstName: "Maria",
-                middleName: "Santos",
-                lastName: "Ramos",
-                fullName: "Maria Santos Ramos",
-                email: "maria.ramos@gmail.com",
-                password: "ramos1111111",
-                role: "Teacher",
-                type: "Teacher",
-                status: "Active",
-                totp_enabled: false,
-                totpEnabled: false,
-                gender: "Female",
-                branch: "Main Campus",
-                department: "Senior High School - Faculty",
-                createdAt: "2026-09-03T08:00:00+08:00",
-                createdVia: "system-seed"
-            },
-            {
-                id: "2222222",
-                uid: "2222222",
-                firstName: "Juan",
-                middleName: "Abad",
-                lastName: "Dela Cruz",
-                fullName: "Juan Abad Dela Cruz",
-                email: "juan.delacruz@gmail.com",
-                password: "delacruz2222222",
-                role: "Student",
-                type: "Student",
-                status: "Active",
-                totp_enabled: false,
-                totpEnabled: false,
-                gender: "Male",
-                branch: "Main Campus",
-                gradeSection: "Grade 11 - ICT A",
-                strand: "TVL - ICT",
-                createdAt: "2026-09-03T08:00:00+08:00",
-                createdVia: "system-seed"
-            }
-        ];
-
-        try {
-            const users = getStoredUsers();
-            let changed = false;
-            permanentUsers.forEach(pu => {
-                const idx = users.findIndex(u => String(u.uid || u.id) === pu.id);
-                if (idx === -1) {
-                    users.push(pu);
-                    changed = true;
-                }
-            });
-            if (changed) {
-                localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-                localStorage.setItem('sigma-users-list', JSON.stringify(users));
-            }
-        } catch (e) {
-            console.error('Failed to seed permanent users:', e);
-        }
+    let loginCandidate = null;
+    function findManagedAccount(value) {
+        const candidate = loginCandidate || window.SigmaDatabase?.currentUser();
+        const key = String(value || '').trim().toLowerCase();
+        return candidate && [candidate.id, candidate.uid, candidate.email].some(id => String(id || '').toLowerCase() === key) ? candidate : null;
     }
 
     function getRedirectForRole(role) {
@@ -353,96 +254,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (normalizedRole.includes('student') || normalizedRole.includes('learner')) return 'student.html';
         return 'index.html';
     }
-
-    function findManagedAccount(loginValue) {
-        let submitted = String(loginValue || '').trim().toLowerCase();
-        if (!submitted) return null;
-        const cleanSubmitted = submitted.replace(/^user-/i, '').trim();
-
-        // Hardcoded Permanent Users Fallback (Always saved in code)
-        if (submitted === "0000000" || submitted === "stanley.garcia@gmail.com" || submitted === "stanleygarcia@gmail.com" || submitted === "stanley@gmail.com" || submitted === "stanley") {
-            return {
-                id: "0000000",
-                uid: "0000000",
-                firstName: "Stanley",
-                middleName: "Vargas",
-                lastName: "Garcia",
-                fullName: "Stanley Vargas Garcia",
-                email: "stanley.garcia@gmail.com",
-                password: "garcia0000000",
-                role: "Master Admin",
-                type: "Master Admin",
-                status: "Active",
-                createdVia: "system-seed"
-            };
-        }
-
-        if (submitted === "1111111" || submitted === "maria.ramos@gmail.com" || submitted === "mariaramos@gmail.com" || submitted === "teacher1111111@gmail.com" || submitted === "teacher@gmail.com" || submitted === "teacher1111111" || submitted === "maria.delacruz@gmail.com" || submitted === "mariadelacruz@gmail.com") {
-            return {
-                id: "1111111",
-                uid: "1111111",
-                firstName: "Maria",
-                middleName: "Santos",
-                lastName: "Ramos",
-                fullName: "Maria Santos Ramos",
-                email: "maria.ramos@gmail.com",
-                password: "ramos1111111",
-                role: "Teacher",
-                type: "Teacher",
-                status: "Active",
-                gender: "Female",
-                branch: "Main Campus",
-                department: "Senior High School - Faculty",
-                createdVia: "system-seed"
-            };
-        }
-
-        if (submitted === "2222222" || submitted === "juan.delacruz@gmail.com" || submitted === "juandelacruz@gmail.com" || submitted === "student2222222@gmail.com" || submitted === "student@gmail.com" || submitted === "student2222222") {
-            return {
-                id: "2222222",
-                uid: "2222222",
-                firstName: "Juan",
-                middleName: "Abad",
-                lastName: "Dela Cruz",
-                fullName: "Juan Abad Dela Cruz",
-                email: "juan.delacruz@gmail.com",
-                password: "delacruz2222222",
-                role: "Student",
-                type: "Student",
-                status: "Active",
-                gender: "Male",
-                branch: "Main Campus",
-                gradeSection: "Grade 11 - ICT A",
-                strand: "TVL - ICT",
-                createdVia: "system-seed"
-            };
-        }
-
-        // If no @ is provided, we'll also test it as a gmail prefix
-        const submittedAsGmail = submitted.includes('@') ? submitted : `${submitted}@gmail.com`;
-
-        return getStoredUsers()
-            .find((user) => {
-                if (!user) return false;
-
-                const id = String(user.uid || user.id || '').trim().toLowerCase();
-                const cleanId = id.replace(/^user-/i, '').trim();
-                const email = String(user.email || '').trim().toLowerCase();
-                const emailPrefix = email.split('@')[0];
-
-                // Matches ID, Clean ID, Exact Email, or Email Prefix
-                return submitted === id ||
-                    submitted === cleanId ||
-                    cleanSubmitted === id ||
-                    cleanSubmitted === cleanId ||
-                    submitted === email ||
-                    submitted === emailPrefix ||
-                    submittedAsGmail === email;
-            }) || null;
-    }
-
-    seedMasterAdmin();
-    purgeLegacyManagedUsers();
 
     const HELP_CATEGORIES = [
         { id: 'faq-help', label: 'FAQ', icon: 'fa-solid fa-circle-question' },
@@ -924,12 +735,23 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const matchedUser = findManagedAccount(id);
+        let matchedUser;
+        try {
+            sessionStorage.removeItem('sigma-grade-sync-session');
+            sessionStorage.removeItem('sigma-login-challenge');
+            loginCandidate = null;
+            const result = await window.SigmaDatabase.request('session', { data: { action: 'credentials', login: id, password: pass } });
+            matchedUser = result.user;
+            loginCandidate = result.user;
+            sessionStorage.setItem('sigma-login-challenge', JSON.stringify({ token: result.challenge, userId: matchedUser.id }));
+            gradeSyncOtp = '';
+        } catch (error) {
+            setLoading(formType, false);
+            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Database sign-in failed.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            return;
+        }
         const accountKey = String(matchedUser?.uid || matchedUser?.id || id).trim();
-        const defaultCalculatedPass = matchedUser ? buildManagedUserPassword(matchedUser) : '';
-        const userExplicitPassword = matchedUser ? String(matchedUser.password || matchedUser.initialPassword || matchedUser.defaultPassword || defaultCalculatedPass) : '';
         const account = matchedUser ? {
-            password: userExplicitPassword,
             redirect: getRedirectForRole(matchedUser.type || matchedUser.role),
             role: String(matchedUser.type || matchedUser.role || '').trim().toLowerCase(),
             status: String(matchedUser.status || 'active').trim().toLowerCase()
@@ -975,41 +797,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // Step 5: Verify Password
-        const enteredPass = String(pass || '');
-        const isPasswordCorrect = (account.password === enteredPass) ||
-            (matchedUser.password && String(matchedUser.password) === enteredPass) ||
-            (matchedUser.initialPassword && String(matchedUser.initialPassword) === enteredPass) ||
-            (matchedUser.defaultPassword && String(matchedUser.defaultPassword) === enteredPass) ||
-            (defaultCalculatedPass && defaultCalculatedPass === enteredPass) ||
-            (String(matchedUser.uid || matchedUser.id || '') === enteredPass);
-
-        if (!isPasswordCorrect) {
-            const securityConfig = getLoginSecurityConfig();
-            const nextPasswordAttempts = incrementPasswordAttempts(accountKey);
-            setLoading(formType, false);
-            resetRecaptcha(formType);
-            const err = formType === 'modal' ? ui.errors.modalPass : ui.errors.pass;
-            const inp = formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass;
-            if (nextPasswordAttempts >= securityConfig.passwordAttempts) {
-                const users = getStoredUsers();
-                const userIdx = users.findIndex(u => String(u.uid || u.id || '') === String(accountKey));
-                if (userIdx !== -1) {
-                    users[userIdx].status = 'Locked';
-                    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-                }
-
-                sessionLockedAccounts.add(accountKey);
-                recordAuthenticationEvent('Failed login attempt', matchedUser, 'failed', 'Incorrect password. Account locked after repeated failures.');
-                recordAuthenticationEvent('Account locked after failed sign-ins', matchedUser, 'warning');
-                showError(err, "The account is locked. Please contact Administrative personnel", false, inp);
-                return;
-            }
-            recordAuthenticationEvent('Failed login attempt', matchedUser, 'failed', 'Incorrect password.');
-            showError(err, "Wrong password.", false, inp);
-            return;
-        }
-
+        // Password and account state are verified by the database.
         if (account.status !== 'active') {
             setLoading(formType, false);
             resetRecaptcha(formType);
@@ -1083,6 +871,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         async function finalizeLogin() {
+            try {
+                const result = await window.SigmaDatabase.request('grade_sync', { data: { action: 'login', login: id, password: pass, otp: gradeSyncOtp } });
+                sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify({ token: result.token, userId: result.userId }));
+                sessionStorage.removeItem('sigma-grade-sync-error');
+                sessionStorage.removeItem('sigma-login-challenge');
+            } catch (error) {
+                setLoading(formType, false);
+                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Database sign-in failed.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+                return;
+            }
             setLoading(formType, false);
             sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
 
@@ -1112,26 +910,10 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             sessionStorage.setItem('sigma-login-explicit', 'true');
             localStorage.setItem('sigma-logged-in-user', JSON.stringify(userSessionObj));
-            sessionStorage.removeItem('sigma-grade-sync-session');
-            try {
-                const url = ['localhost', '127.0.0.1'].includes(location.hostname) && location.port && !['80', '443'].includes(location.port)
-                    ? 'http://localhost/sigma-elms/php/api/grade_sync.php'
-                    : new URL(location.pathname.includes('/php/') ? 'api/grade_sync.php' : 'php/api/grade_sync.php', location.href).href;
-                const target = new URL(url);
-                if (target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) throw new Error('HTTPS is required for live grade sign-in.');
-                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(15000),
-                    body: JSON.stringify({ action: 'login', login: id, password: pass, otp: gradeSyncOtp }) });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || 'Live grade sign-in failed.');
-                sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify({ token: result.token, userId: result.userId }));
-                sessionStorage.removeItem('sigma-grade-sync-error');
-            } catch (error) {
-                sessionStorage.setItem('sigma-grade-sync-error', error.message || 'Live grade connection unavailable.');
-            }
             localStorage.setItem('currentUser', JSON.stringify(userSessionObj));
             localStorage.setItem('sigma-login-explicit', 'true');
             recordAuthenticationEvent('Login successful', userSessionObj, 'success');
-            window.location.href = account.redirect;
+            window.location.replace(account.redirect);
         }
 
         const targetUserId = String(matchedUser.uid || matchedUser.id || '').trim();
@@ -1150,11 +932,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const authApiUrl = resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`);
         try {
             if (!authApiUrl) throw new Error('static-host');
-            const checkRes = await fetch(authApiUrl);
+            const checkRes = await window.SigmaDatabase.fetch(authApiUrl);
             const checkData = await checkRes.json();
             if (checkData && checkData.success) {
                 backendHandled = true;
-                const termsDone = !!checkData.termsAccepted || (localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true');
+                const termsDone = !!checkData.termsAccepted;
 
                 if (checkData.totpEnabled) {
                     // 2nd time / Returning login -> Prompt for 6-digit authenticator code (no QR barcode or key)
@@ -1169,27 +951,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         } catch (e) {
-            if (!isStaticHost) console.warn('Backend 2FA check offline / unavailable, enforcing local 2FA:', e);
+            if (!isStaticHost) console.warn('Backend 2FA check unavailable:', e);
         }
 
-        // If backend was not reached or user is in localStorage table (offline / static server)
         if (!backendHandled) {
-            const localTerms = localStorage.getItem('sigma-terms-accepted-' + targetUserId) === 'true';
-            // A user is enrolled ONLY if THIS user completed QR setup on this device:
-            // their own enabled flag is set AND their own secret exists.
-            const isLocal2faEnabled = isUserLocally2faEnrolled(targetUserId);
-
             setLoading(formType, false);
-            if (isLocal2faEnabled) {
-                // Returning login -> Prompt for 6-digit authenticator code
-                open2faModal(targetUserId, () => proceedAfterAuth(localTerms));
-                return;
-            } else {
-                // 1st time login -> Mandatory 2FA QR Code Setup Wizard
-                open2faSetupModal(targetUserId, () => proceedAfterAuth(localTerms));
-                return;
-            }
+            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, 'The security database could not be reached. Please retry signing in.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
         }
+
     }
 
     let gradeSyncOtp = '';
@@ -1500,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             if (verifyApiUrl) {
                 try {
-                    const res = await fetch(verifyApiUrl, {
+                    const res = await window.SigmaDatabase.fetch(verifyApiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1521,12 +1290,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // Local fallback only when the server is unreachable / static host.
-            // Codes are checked ONLY against this user's own secret. No master/bypass codes.
-            if (!verified && !serverRejected) {
-                const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
-                verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
-            }
 
             if (verified) {
                 gradeSyncOtp = code;
@@ -1589,7 +1352,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const setupApiUrl = resolveAuthApiUrl();
         if (setupApiUrl) {
             try {
-                const res = await fetch(setupApiUrl, {
+                const res = await window.SigmaDatabase.fetch(setupApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1603,23 +1366,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     current2faSetupFromServer = true;
                 }
             } catch (e) {
-                console.warn('Backend 2FA setup unavailable, using local setup:', e);
+                console.warn('Backend 2FA setup unavailable:', e);
             }
         }
 
         current2faSetupFromServer = !!setupData; // false if falling back to local
 
         if (!setupData) {
-            // Local 2FA setup fallback (for offline, Live Server, or localStorage users)
-            const localSecret = getOrCreateUser2faSecret(userId);
-            const userLabel = encodeURIComponent(`SIGMA:${userId}`);
-            const otpauthUrl = `otpauth://totp/${userLabel}?secret=${localSecret}&issuer=SIGMA&algorithm=SHA1&digits=6&period=30`;
-            const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(otpauthUrl)}`;
-            setupData = {
-                secret: localSecret,
-                otpauth_url: otpauthUrl,
-                qr_image_url: qrImageUrl
-            };
+            if (err) {
+                err.textContent = 'The security database could not start authenticator setup. Sign in again and retry.';
+                err.classList.remove('hidden');
+            }
+            return;
         }
 
         // Instant client-side QR generation (0ms latency, zero external API lag)
@@ -1699,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             if (setupVerifyApiUrl) {
                 try {
-                    const res = await fetch(setupVerifyApiUrl, {
+                    const res = await window.SigmaDatabase.fetch(setupVerifyApiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1720,11 +1478,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // Local fallback only for locally-generated setups. No master/bypass codes.
-            if (!verified && !serverRejected && !current2faSetupFromServer) {
-                const localSecret = localStorage.getItem(get2faSecretKey(current2faUserId));
-                verified = localSecret ? await verifyTotpCode(localSecret, code) : false;
-            }
 
             if (verified) {
                 gradeSyncOtp = code;
@@ -1791,59 +1544,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ── SELF-SERVICE 2FA RESET ──────────────────────────────────────────────
+    // Reset only after the server confirms a fully verified account or administrator.
     document.getElementById('landing2faResetSelfBtn')?.addEventListener('click', async () => {
         const uid = current2faUserId;
-        if (!uid) return;
-
-        const confirmMsg = 'Did you lose your 6-digit code or delete Google Authenticator?\n\nClicking OK will reset your 2FA and immediately display the QR barcode setup screen.';
-        if (!confirm(confirmMsg)) return;
-
         const btn = document.getElementById('landing2faResetSelfBtn');
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'Resetting 2FA...';
+        const err = document.getElementById('landing2faVerifyError');
+        const showResetError = message => {
+            if (err) {
+                err.textContent = message;
+                err.classList.remove('hidden');
+                err.setAttribute('role', 'alert');
+            }
+        };
+        if (!uid) {
+            showResetError('Your sign-in has expired. Go back to Login and sign in again.');
+            return;
         }
-
+        if (btn) { btn.disabled = true; btn.textContent = 'Checking recovery options...'; }
+        if (err) err.classList.add('hidden');
         try {
-            const disableApiUrl = resolveAuthApiUrl();
-            if (disableApiUrl) {
-                await fetch(disableApiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'disable_2fa', id: uid })
-                });
-            }
-        } catch (e) {
-            console.warn('Backend disable_2fa unavailable, proceeding with local reset:', e);
-        }
-
-        localStorage.removeItem('sigma-terms-accepted-' + uid);
-        localStorage.removeItem('sigma-2fa-enabled-' + uid);
-        localStorage.removeItem('sigma-2fa-secret-' + uid);
-        markLocalUser2faEnabled(uid, false);
-
-        // Save the ORIGINAL success callback before open2faSetupModal overwrites it.
-        // Using current2faSuccessCallback inside the new callback causes infinite recursion.
-        const originalSuccessCallback = current2faSuccessCallback;
-
-        // Immediately transition to 2FA QR barcode setup wizard
-        open2faSetupModal(uid, () => {
-            if (typeof originalSuccessCallback === 'function') {
-                originalSuccessCallback();
-            } else {
-                const localTerms = localStorage.getItem('sigma-terms-accepted-' + uid) === 'true';
-                if (!localTerms) {
-                    openTermsAgreementModal(uid, () => { window.location.reload(); });
-                } else {
-                    window.location.reload();
-                }
-            }
-        });
-
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = 'Lost code or deleted app? Reset 2FA';
+            await window.SigmaDatabase.request('auth', { data: { action: 'disable_2fa', id: uid } });
+            // A successful reset revokes old sessions. Start again with the account password.
+            sessionStorage.removeItem('sigma-login-challenge');
+            sessionStorage.removeItem('sigma-grade-sync-session');
+            window.backToLoginForm();
+            showError(ui.errors.pass, 'Authenticator reset confirmed. Sign in again to set up your new authenticator.', false, ui.inputs.pass);
+        } catch (error) {
+            showResetError(error.message || 'Recovery is unavailable. Your authenticator has not been changed. Please try again.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Lost code or deleted app? Reset 2FA'; }
         }
     });
 
@@ -2040,32 +1769,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const uid = currentTermsUserId;
         const cb = currentTermsSuccessCallback;
 
+        let saved = false;
         try {
-            if (uid) {
-                localStorage.setItem('sigma-terms-accepted-' + uid, 'true');
-                const termsApiUrl = resolveAuthApiUrl();
-                if (termsApiUrl) {
-                    await fetch(termsApiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'accept_terms',
-                            id: uid
-                        })
-                    });
-                }
-            }
-        } catch (e) {
-            console.warn('Accept terms error:', e);
+            if (!uid) throw new Error('Sign in again before accepting the agreement.');
+            await window.SigmaDatabase.request('auth', { data: { action: 'accept_terms', id: uid } });
+            localStorage.setItem('sigma-terms-accepted-' + uid, 'true');
+            saved = true;
+        } catch (error) {
+            if (err) { err.textContent = error.message || 'The agreement could not be saved. Please retry.'; err.classList.remove('hidden'); }
         } finally {
             if (btn) btn.disabled = false;
             if (spinner) spinner.classList.add('hidden');
             if (label) label.textContent = 'Accept & Enter Portal';
-            closeTermsAgreementModal();
-            if (typeof cb === 'function') {
-                cb();
-            }
         }
+        if (saved) {
+            closeTermsAgreementModal();
+            if (typeof cb === 'function') cb();
+        }
+
     });
 
     function syncLoginMaintenanceBanners() {

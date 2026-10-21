@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/includes/data_provenance.php';
 header('Content-Type: application/json'); header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/ai_record_store.php';
 restrictServiceOrigin();
@@ -22,7 +23,7 @@ try{
     $input=$_GET;
     if($method==='POST'){
         $raw=file_get_contents('php://input',false,null,0,512001);if(strlen($raw)>512000)throw new InvalidArgumentException('Too much AI record data.');
-        $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR);
+        $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR); sigmaRequireRealRecords($input);
     }elseif($method!=='GET')throw new InvalidArgumentException('Unsupported request method.');
     $action=$input['action']??'';
     aiInsightControls($db);

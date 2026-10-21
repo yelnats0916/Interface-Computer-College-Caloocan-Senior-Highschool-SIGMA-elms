@@ -27,6 +27,7 @@ config/*.json
 
 # ─── Scratch & Verification Scripts ───────────────────────
 scratch/
+tmp/
 
 # ─── Database Backups / Dumps ─────────────────────────────
 database/backups/*.sql

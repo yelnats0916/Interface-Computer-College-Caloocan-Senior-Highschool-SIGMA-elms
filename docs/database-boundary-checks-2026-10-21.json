@@ -1,0 +1,147 @@
+{
+  "checks": [
+    {
+      "endpoint": "session.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "users.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "subjects.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "sections.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "quiz_library.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "school_years.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "grade_sync.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "presence.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "ai_records.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "record_lifecycle.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "backup.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "auth.php?id=no-account-used",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "auth.php?action=ai_vault",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "auth.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "upload.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "sigma_chat.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "quiz_ai.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "submission_ai.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "analytics_ai.php",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "endpoint": "session preflight",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "endpoint": "subjects preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "sections preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "users preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "school_years preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "quiz_library preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "backup preflight",
+      "status": 204,
+      "passed": true
+    },
+    {
+      "endpoint": "presence preflight",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "endpoint": "foreign origin",
+      "status": 403,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "testAccountsInserted": 0,
+  "aiProviderCalls": 0
+}

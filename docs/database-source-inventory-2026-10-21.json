@@ -1,0 +1,7770 @@
+{
+  "date": "2026-10-21",
+  "scope": "Reference inventory only; not proof of completed integration or end-to-end acceptance. No user records, source values, passwords, or service settings exported.",
+  "javascriptFiles": 82,
+  "totals": {
+    "directStorageCalls": 1421,
+    "storageWrapperCalls": 360,
+    "requestReferences": 56
+  },
+  "files": [
+    {
+      "file": "js/academic-calendar.js",
+      "references": [
+        {
+          "line": 200,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 257,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/activity-logs.js",
+      "references": [
+        {
+          "line": 53,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 437,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 441,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 473,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 914,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/admin-insight-report.js",
+      "references": [
+        {
+          "line": 109,
+          "category": "requestReferences"
+        },
+        {
+          "line": 111,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 120,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 122,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 131,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 133,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1028,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/admin-session-controls.js",
+      "references": [
+        {
+          "line": 36,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/admin.js",
+      "references": [
+        {
+          "line": 4,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 251,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 255,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 356,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 358,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 361,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 379,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 383,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 388,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 389,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 390,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 396,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 409,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 416,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 422,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 497,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 501,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 521,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 571,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1126,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1201,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1599,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1688,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1766,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2384,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2386,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2482,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2729,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2800,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2832,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2838,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2841,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2931,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2934,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2939,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2940,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2941,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2947,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2950,
+          "category": "requestReferences"
+        },
+        {
+          "line": 2995,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3029,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3030,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3098,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3108,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3111,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3112,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3113,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3116,
+          "category": "requestReferences"
+        },
+        {
+          "line": 3209,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3219,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3625,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3757,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3805,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4153,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4159,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4170,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4187,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4480,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4481,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4787,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4794,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4838,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4839,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4842,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5257,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5265,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5934,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 5966,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7198,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7200,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7201,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7401,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7539,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7554,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7661,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7692,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7853,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7876,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7880,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7948,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7953,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8051,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8052,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8079,
+          "category": "requestReferences"
+        },
+        {
+          "line": 8083,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8097,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8142,
+          "category": "requestReferences"
+        },
+        {
+          "line": 8146,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8147,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8148,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8177,
+          "category": "requestReferences"
+        },
+        {
+          "line": 8182,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8183,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8212,
+          "category": "requestReferences"
+        },
+        {
+          "line": 8217,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8218,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8232,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8233,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8234,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8235,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8872,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8883,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8894,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8942,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8943,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8944,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9439,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9440,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10250,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10251,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10262,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10273,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10274,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10275,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10279,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10334,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10335,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10344,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10355,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10356,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10357,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10361,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10411,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10592,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10593,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10708,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10746,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11042,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11064,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11571,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11774,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11867,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11936,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12000,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12172,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12174,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12436,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12452,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12454,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12598,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12621,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12680,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12681,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12855,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12856,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12880,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 13073,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13102,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 13423,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13424,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13465,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 13695,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14132,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14171,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14277,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14370,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14395,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14443,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14543,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14616,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14635,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14763,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15286,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15386,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15427,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15588,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15968,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16032,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16088,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16140,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16203,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16271,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16363,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16394,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16564,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16620,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16636,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16819,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16915,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16991,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17128,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17151,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17206,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17227,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17236,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17246,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17522,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17524,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17536,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17540,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17749,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17832,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18014,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18019,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18020,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18134,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18211,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18324,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18334,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18378,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18499,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18589,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18927,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19122,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19172,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19173,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19175,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19176,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19191,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19368,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19437,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19489,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19525,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19549,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19593,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19632,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19698,
+          "category": "requestReferences"
+        },
+        {
+          "line": 19790,
+          "category": "requestReferences"
+        },
+        {
+          "line": 19846,
+          "category": "requestReferences"
+        },
+        {
+          "line": 19889,
+          "category": "requestReferences"
+        },
+        {
+          "line": 19925,
+          "category": "requestReferences"
+        },
+        {
+          "line": 19996,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20012,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20131,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20188,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20249,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20290,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20327,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20458,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20519,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20524,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20525,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20699,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20777,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20820,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20968,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20974,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21009,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21037,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21042,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21088,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21093,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21164,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21167,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21171,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21263,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21264,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21550,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21556,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/ai-database-store.js",
+      "references": [
+        {
+          "line": 11,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17,
+          "category": "requestReferences"
+        },
+        {
+          "line": 35,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 41,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 53,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 58,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 59,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 62,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 71,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 101,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 102,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 130,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 162,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/ai-log-details.js",
+      "references": [
+        {
+          "line": 485,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 542,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 610,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 808,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 812,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 813,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 823,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 824,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 829,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/ai-log-preview.js",
+      "references": [
+        {
+          "line": 6,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/ai-log-store.js",
+      "references": [
+        {
+          "line": 50,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 55,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 65,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 97,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 101,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 117,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 120,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/ai-routing-settings.js",
+      "references": [
+        {
+          "line": 17,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 307,
+          "category": "requestReferences"
+        },
+        {
+          "line": 465,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/analytics-ai-client.js",
+      "references": [
+        {
+          "line": 16,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/analytics-unread.js",
+      "references": [
+        {
+          "line": 6,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 40,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/announcements.js",
+      "references": [
+        {
+          "line": 14,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 133,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 141,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 214,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 288,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 293,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 307,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 448,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 450,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 463,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 470,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 473,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 502,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 505,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 547,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 550,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 569,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 622,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 916,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 953,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1003,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1015,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1025,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1033,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2899,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2905,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2938,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2949,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3062,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3077,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3091,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3101,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3243,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3357,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3363,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3392,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3398,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4818,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4821,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4832,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4839,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4841,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4895,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4904,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 5168,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5172,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5174,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5610,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/assessments-page.js",
+      "references": [
+        {
+          "line": 273,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 326,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 500,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 675,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 687,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 689,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1653,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1708,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/audit-log-search.js",
+      "references": []
+    },
+    {
+      "file": "js/authentication-logs.js",
+      "references": [
+        {
+          "line": 24,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 37,
+          "category": "requestReferences"
+        },
+        {
+          "line": 45,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/calendar.js",
+      "references": [
+        {
+          "line": 979,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 980,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1009,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/classroom-room.js",
+      "references": [
+        {
+          "line": 35,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 227,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 249,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 346,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 386,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 475,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 962,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 969,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1015,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1033,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1049,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1057,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1197,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1231,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1394,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1442,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1581,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1775,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1785,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1795,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1817,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1837,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1838,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1839,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1908,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2031,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2176,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2341,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2421,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2436,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3221,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4078,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4082,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/curriculum-release.js",
+      "references": [
+        {
+          "line": 5,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 50,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 59,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 101,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 136,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 199,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 237,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 248,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 314,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 325,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 459,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 647,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 790,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1180,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1260,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1261,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1262,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1399,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1400,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1401,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1402,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1404,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1405,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1487,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1513,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1829,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1875,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2843,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4724,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6191,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6753,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6756,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6910,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6912,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6995,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7036,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7038,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7177,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7178,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7180,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7197,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7198,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7299,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7327,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7355,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7385,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7523,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7566,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7569,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7602,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7604,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7608,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7709,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7770,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7776,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7783,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7929,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7974,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7980,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7987,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8137,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8162,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8197,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8198,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8199,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8200,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8201,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8202,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8203,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8204,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8252,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8273,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8726,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8749,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8767,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8779,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9306,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9329,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9349,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9365,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9949,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9972,
+          "category": "storageWrapperCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/database-client.js",
+      "references": [
+        {
+          "line": 4,
+          "category": "requestReferences"
+        },
+        {
+          "line": 20,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 54,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 55,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 60,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 61,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/date-time-inputs.js",
+      "references": []
+    },
+    {
+      "file": "js/dialog.js",
+      "references": []
+    },
+    {
+      "file": "js/document-viewer.js",
+      "references": []
+    },
+    {
+      "file": "js/excel-export.js",
+      "references": [
+        {
+          "line": 507,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/grade-sync.js",
+      "references": [
+        {
+          "line": 8,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16,
+          "category": "requestReferences"
+        },
+        {
+          "line": 23,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 45,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/index.js",
+      "references": [
+        {
+          "line": 12,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 31,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 37,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 59,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 65,
+          "category": "requestReferences"
+        },
+        {
+          "line": 72,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 94,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 215,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 216,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 217,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 218,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 219,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 617,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 618,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 619,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 620,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 666,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 667,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 740,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 741,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 743,
+          "category": "requestReferences"
+        },
+        {
+          "line": 746,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 817,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 831,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 875,
+          "category": "requestReferences"
+        },
+        {
+          "line": 876,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 877,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 878,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 885,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 909,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 910,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 911,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 912,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 913,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 914,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 935,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1161,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1162,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1169,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1172,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1182,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1194,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1272,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1355,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1457,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1481,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1561,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1571,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1572,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1573,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1585,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1796,
+          "category": "requestReferences"
+        },
+        {
+          "line": 1797,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1929,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1931,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/institution-branding.js",
+      "references": [
+        {
+          "line": 29,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 122,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 124,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 127,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/live-reload-lifecycle.js",
+      "references": []
+    },
+    {
+      "file": "js/log-pagination.js",
+      "references": [
+        {
+          "line": 28,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 68,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/notification-logs.js",
+      "references": [
+        {
+          "line": 29,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 70,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 173,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/notifications.js",
+      "references": [
+        {
+          "line": 29,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 43,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 68,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 81,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 151,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 158,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 182,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 205,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 227,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 228,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 234,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 243,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 245,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 358,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 361,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 367,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 382,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 429,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 436,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 468,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 556,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 873,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 883,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 900,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/offline-assessments.js",
+      "references": [
+        {
+          "line": 3,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 133,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 217,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 261,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/online-presence.js",
+      "references": [
+        {
+          "line": 53,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 66,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/page-skeleton.js",
+      "references": []
+    },
+    {
+      "file": "js/panels.js",
+      "references": []
+    },
+    {
+      "file": "js/performance-report.js",
+      "references": [
+        {
+          "line": 176,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 313,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 345,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 812,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 819,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/policy-nav.js",
+      "references": [
+        {
+          "line": 11,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 35,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 41,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 46,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 51,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 61,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 68,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 75,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 90,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 107,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 117,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 118,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 151,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 155,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 156,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 187,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 188,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 196,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 197,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/private-assessment-comments.js",
+      "references": [
+        {
+          "line": 5,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 55,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 74,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 86,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 99,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/profile-view.js",
+      "references": [
+        {
+          "line": 14,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 38,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 75,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 95,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 118,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 137,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 146,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 152,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 165,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 173,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 179,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 188,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 204,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 206,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 210,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 215,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 223,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 224,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 226,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 227,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 233,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 238,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 255,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 266,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 304,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 376,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 381,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 396,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 401,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 413,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 414,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 862,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 874,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1056,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1486,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1490,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1492,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1494,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1498,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1975,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1977,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2121,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2123,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2206,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2208,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2288,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2329,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2468,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2474,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2484,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2485,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2486,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2600,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2825,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2826,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2827,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2828,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2829,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/profile.js",
+      "references": []
+    },
+    {
+      "file": "js/qrcode.min.js",
+      "references": []
+    },
+    {
+      "file": "js/quiz-components.js",
+      "references": []
+    },
+    {
+      "file": "js/quiz-creator.js",
+      "references": [
+        {
+          "line": 11,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 37,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 41,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 58,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 74,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 79,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 90,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 136,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 260,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 265,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 266,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 292,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 294,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 319,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2126,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2155,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2156,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2157,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2158,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2159,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2910,
+          "category": "requestReferences"
+        },
+        {
+          "line": 2989,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3034,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3144,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4815,
+          "category": "requestReferences"
+        },
+        {
+          "line": 4831,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5763,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5767,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5768,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5781,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5782,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5783,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5784,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5809,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5850,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/recaptcha-client.js",
+      "references": [
+        {
+          "line": 9,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/record-lifecycle.js",
+      "references": [
+        {
+          "line": 3,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 145,
+          "category": "requestReferences"
+        },
+        {
+          "line": 202,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 331,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/release-workspace.js",
+      "references": [
+        {
+          "line": 60,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 67,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 199,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/reset-confirmed-task.js",
+      "references": []
+    },
+    {
+      "file": "js/resources-view.js",
+      "references": [
+        {
+          "line": 18,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 30,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 58,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 64,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 80,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 81,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 120,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 175,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 178,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 184,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 203,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 285,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 392,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 444,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 450,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 512,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 632,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 636,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 696,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 749,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 791,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 812,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 847,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2500,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2507,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2609,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2610,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2793,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2803,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2860,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/search-results.js",
+      "references": [
+        {
+          "line": 154,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 220,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 271,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 272,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 287,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 415,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 487,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 496,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 538,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 623,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 632,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 649,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 688,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 743,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 794,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/section-subject-lock.js",
+      "references": [
+        {
+          "line": 3,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/section-teacher-picker.js",
+      "references": [
+        {
+          "line": 16,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 140,
+          "category": "storageWrapperCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sections-panel.js",
+      "references": []
+    },
+    {
+      "file": "js/secure-input-guard.js",
+      "references": []
+    },
+    {
+      "file": "js/service-vault-security.js",
+      "references": [
+        {
+          "line": 6,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 63,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/settings-view.js",
+      "references": [
+        {
+          "line": 13,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 64,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 71,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 85,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 123,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 139,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 428,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 446,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1079,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1083,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1100,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1107,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1115,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1130,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1137,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1144,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1390,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1404,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1417,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1426,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1433,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1436,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/shared-components.js",
+      "references": [
+        {
+          "line": 10,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 366,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 369,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 375,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 378,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 407,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 457,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 470,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 479,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 495,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 537,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 554,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 562,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 566,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 575,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 582,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 588,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 604,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 607,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2139,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2140,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2141,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2142,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2144,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2145,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2288,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2291,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2295,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2306,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2310,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2372,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2448,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2530,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2582,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2584,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2590,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2644,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2645,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2646,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2647,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2651,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2652,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2710,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2732,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2740,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2744,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2761,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2806,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2850,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2883,
+          "category": "requestReferences"
+        },
+        {
+          "line": 2911,
+          "category": "requestReferences"
+        },
+        {
+          "line": 2920,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2937,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2939,
+          "category": "requestReferences"
+        },
+        {
+          "line": 2969,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2970,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3188,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3189,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3377,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3589,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3626,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3669,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3671,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3692,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3712,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3718,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3763,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3774,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3784,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3787,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3887,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3942,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4182,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4192,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4446,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4459,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4465,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4478,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4484,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4495,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4509,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4641,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4642,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4719,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4981,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4993,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5287,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5469,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5560,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5607,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5608,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5609,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6025,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6059,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6405,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6448,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6473,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6528,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6569,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6575,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6601,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6651,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6652,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6697,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6791,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6810,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6870,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6913,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6943,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7008,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7011,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7125,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7276,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7296,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7441,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7460,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7503,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7768,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7846,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7852,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8086,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8155,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8166,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8174,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9489,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9502,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9930,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10285,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10297,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10298,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10362,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10415,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10427,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10428,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10481,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10546,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10553,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10560,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10587,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10595,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10599,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10605,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10830,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10874,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10903,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10904,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10905,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10906,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10984,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 11095,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 11426,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12925,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13837,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13838,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13839,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13840,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14006,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14009,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14010,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14011,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14012,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14013,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14023,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14026,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14027,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14028,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14057,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14099,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14123,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14142,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15085,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15091,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15100,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15107,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15110,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15115,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15124,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15127,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15156,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15162,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15188,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15203,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15205,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15218,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15220,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15324,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15325,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15381,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15382,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15383,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15384,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15385,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15386,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15462,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15467,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15471,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15482,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15488,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15490,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15494,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15501,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15524,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15573,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15636,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15638,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15659,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15665,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15675,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15677,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15680,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15681,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15682,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15683,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15684,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15685,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15686,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15687,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15732,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15738,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15805,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15806,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15807,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15808,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16402,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16513,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16531,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16553,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16556,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16768,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16879,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16880,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 16906,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16907,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17008,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17034,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17035,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17036,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17152,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17157,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17177,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17537,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17568,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17855,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17919,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17921,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 17997,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18004,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18013,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18014,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18017,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18056,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18160,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18182,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18207,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18216,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18229,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18273,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19461,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19501,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19693,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19917,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19953,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20120,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20209,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20531,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20566,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20635,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20701,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20774,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20778,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20787,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20911,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20912,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20931,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20950,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20959,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20970,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20974,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21579,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21580,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21585,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21611,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22008,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22105,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22240,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22414,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22522,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22527,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22583,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22586,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22660,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22663,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22933,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23122,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 23124,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23132,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23140,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23179,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23180,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23181,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23183,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23184,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23216,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23217,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23225,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23432,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23464,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23472,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23561,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23566,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23623,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23631,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23697,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23732,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23740,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23788,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24196,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24292,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24325,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24326,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24327,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24328,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24420,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24430,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24431,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24432,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24433,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24434,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24435,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24437,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24438,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24465,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24524,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24525,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24526,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24527,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24528,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24529,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24531,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24532,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24563,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24643,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24661,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24711,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24726,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24749,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24755,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24783,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24790,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24807,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24861,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24864,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24871,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24874,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24888,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24908,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24915,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24929,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24936,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24945,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24948,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25786,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25829,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25865,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25921,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26009,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26012,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26212,
+          "category": "requestReferences"
+        },
+        {
+          "line": 26291,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26389,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26402,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26403,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26443,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26615,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26738,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 26908,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27300,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27302,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27438,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27472,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27473,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27474,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27475,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27480,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27481,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27482,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27483,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27494,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27605,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27606,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27607,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27608,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27977,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28181,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28319,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28494,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28973,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29066,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29709,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29710,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29711,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29712,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29716,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29718,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29816,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29820,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29832,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 30565,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 31982,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32172,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32196,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32227,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32355,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32738,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32739,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32744,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32748,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32749,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32750,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32752,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32765,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32768,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32817,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32836,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32872,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32879,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33058,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33262,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33281,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33303,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33304,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 33327,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33349,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33350,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33351,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33382,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33388,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33397,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33398,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33605,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33656,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33670,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33691,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33712,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33776,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33788,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33793,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33797,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33803,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33814,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33901,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33904,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33923,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33926,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33933,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33954,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33958,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33961,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33986,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 33991,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34013,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34050,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34053,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34063,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34067,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34090,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34160,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34175,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34209,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34232,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34234,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34257,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34281,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34289,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34294,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34303,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34310,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34332,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34348,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34349,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34350,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34351,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34352,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 34421,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 35318,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 35333,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 35347,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 35356,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36040,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36059,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36069,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36075,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36080,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36081,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36104,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36108,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36112,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36190,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36226,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36227,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36232,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36254,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36261,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36284,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36304,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36305,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36310,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36313,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36447,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36451,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/shared-grade-record.js",
+      "references": [
+        {
+          "line": 65,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 67,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 97,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 134,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 137,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 140,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 142,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 171,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 187,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 205,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 227,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 352,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 354,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 361,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 387,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 392,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 428,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 430,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 449,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 460,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 510,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 607,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 643,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 663,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 691,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 735,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sidebar.js",
+      "references": []
+    },
+    {
+      "file": "js/sigma-ai-results.js",
+      "references": [
+        {
+          "line": 17,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 29,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 95,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 97,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 157,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 159,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 213,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 219,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 277,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 280,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 352,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 355,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 464,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 585,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 590,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 596,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 628,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 848,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 851,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 852,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 936,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 939,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 988,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 995,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 999,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1011,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1575,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1633,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1635,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sigma-analytics.js",
+      "references": [
+        {
+          "line": 22,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 139,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 142,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 161,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 172,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 732,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 737,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 749,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 787,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 853,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 998,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1007,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1510,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1574,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1576,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1578,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1581,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1620,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1741,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1819,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1821,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2046,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2065,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2140,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2932,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3025,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3027,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3301,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3302,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3993,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4281,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4282,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4378,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sigma-chat-client.js",
+      "references": [
+        {
+          "line": 85,
+          "category": "requestReferences"
+        },
+        {
+          "line": 95,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sigma-conversations.js",
+      "references": [
+        {
+          "line": 12,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 84,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 85,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 119,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 129,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/sigma-unread.js",
+      "references": []
+    },
+    {
+      "file": "js/slideshow-settings.js",
+      "references": [
+        {
+          "line": 13,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 183,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/student-analytics.js",
+      "references": [
+        {
+          "line": 109,
+          "category": "requestReferences"
+        },
+        {
+          "line": 260,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 319,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 353,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 364,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/student-coursework-notifications.js",
+      "references": [
+        {
+          "line": 12,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 36,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/student-insight-view.js",
+      "references": []
+    },
+    {
+      "file": "js/student-submission-analytics.js",
+      "references": []
+    },
+    {
+      "file": "js/student.js",
+      "references": [
+        {
+          "line": 5,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 64,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 71,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 74,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 250,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 253,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 263,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 266,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 277,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 279,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 283,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 402,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 545,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 548,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 592,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 609,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 622,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 628,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 631,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 635,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 759,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 788,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 839,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 936,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 942,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1008,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1036,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1445,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1696,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1834,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 2601,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2845,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3383,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3393,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3734,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4178,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4183,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4220,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4221,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4224,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4651,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4676,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4884,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5004,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5100,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5713,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5803,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 5925,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5926,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5960,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6058,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6086,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6111,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6192,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 6919,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6980,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7004,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7701,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7786,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7798,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8222,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/subject-content-editor.js",
+      "references": [
+        {
+          "line": 115,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/subject-editor.js",
+      "references": [
+        {
+          "line": 15,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 31,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 32,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 34,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 403,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 423,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 429,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 432,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 436,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 485,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 583,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 584,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 790,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 805,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 811,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 821,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 826,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 845,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 899,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 948,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1006,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1874,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1885,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3901,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4894,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5019,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6079,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6562,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6762,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7080,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7097,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7541,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7551,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7608,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7616,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7649,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8697,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8698,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8699,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8700,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8704,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8706,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 9433,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10204,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10338,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10349,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10370,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10514,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10592,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10603,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10616,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10725,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10737,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 10825,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10880,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10896,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 10951,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11024,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11175,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 11177,
+          "category": "storageWrapperCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/subject-grade-insights.js",
+      "references": [
+        {
+          "line": 34,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 46,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 48,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 54,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 104,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 108,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 114,
+          "category": "requestReferences"
+        },
+        {
+          "line": 134,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 149,
+          "category": "requestReferences"
+        },
+        {
+          "line": 177,
+          "category": "requestReferences"
+        },
+        {
+          "line": 196,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/submission-ai-client.js",
+      "references": [
+        {
+          "line": 19,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 32,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 46,
+          "category": "requestReferences"
+        },
+        {
+          "line": 73,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 92,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 93,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 101,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 105,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 124,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 170,
+          "category": "requestReferences"
+        },
+        {
+          "line": 176,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 192,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/system-settings-history.js",
+      "references": []
+    },
+    {
+      "file": "js/tab-session.js",
+      "references": [
+        {
+          "line": 45,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 48,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 56,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 69,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 85,
+          "category": "requestReferences"
+        },
+        {
+          "line": 93,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 94,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 98,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 99,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 100,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/teacher-analytics.js",
+      "references": [
+        {
+          "line": 69,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 175,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/teacher-grade-insights.js",
+      "references": [
+        {
+          "line": 8,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 22,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 30,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 74,
+          "category": "requestReferences"
+        }
+      ]
+    },
+    {
+      "file": "js/teacher.js",
+      "references": [
+        {
+          "line": 16,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 72,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 73,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 103,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 105,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 112,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 119,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 137,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 138,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 164,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 175,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 189,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 190,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 214,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 215,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 216,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 217,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 218,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 219,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 279,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 286,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 289,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 314,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 845,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 911,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 923,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1084,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1093,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1160,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1173,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1183,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1184,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1260,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1261,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1262,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1263,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1592,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1632,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 1633,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 2290,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3167,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 3871,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3893,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3894,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 3913,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4284,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4299,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4517,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 4520,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4524,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 4938,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5967,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5973,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5977,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5992,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5995,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 5998,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6050,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6084,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6276,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6293,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6448,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 6470,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7061,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7095,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7150,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7178,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7187,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7270,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7271,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7336,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7347,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7470,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 7665,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 7808,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8044,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8124,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8125,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8126,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8301,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8302,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8303,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8304,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8306,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8307,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 8393,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8419,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8735,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 8781,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 9779,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 12578,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12595,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12599,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12690,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12710,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 12713,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 13248,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 13867,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 13870,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14049,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14051,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14136,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14186,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14188,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14344,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14345,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14347,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14371,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14399,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14427,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14457,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14595,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14638,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14641,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14674,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14676,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 14680,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14781,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14841,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14847,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 14854,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15000,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15045,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15051,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15058,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15208,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15233,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15268,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15269,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15270,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15271,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15272,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15273,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15274,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15275,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 15323,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15344,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15797,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15820,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15838,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 15850,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16372,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16395,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16415,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16431,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 16979,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 17002,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18279,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 18280,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18289,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18707,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 18846,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19066,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 19084,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 19116,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19117,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19133,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19135,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19178,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19236,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19253,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 19343,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 19749,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 19750,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20098,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20109,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20155,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20195,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20196,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20197,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20216,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20224,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20225,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20230,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 20278,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20279,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20744,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20832,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20833,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20907,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20961,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20962,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20988,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 21269,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21351,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21353,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21355,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21357,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21421,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21448,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 21451,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23024,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23025,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23055,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23675,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23687,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23717,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23729,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23812,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23847,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23856,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23910,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23911,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23912,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23913,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23914,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23915,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23916,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23917,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23918,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23919,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23920,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 23921,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 24622,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 25316,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25320,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 25330,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27031,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27090,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27649,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27656,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27697,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27698,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27701,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27831,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27834,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27846,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27848,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27858,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27861,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 27933,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27935,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27944,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 27946,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 28005,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 28016,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/time-picker-dial.js",
+      "references": []
+    },
+    {
+      "file": "js/topbar.js",
+      "references": [
+        {
+          "line": 673,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 674,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 699,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 756,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 766,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 992,
+          "category": "storageWrapperCalls"
+        },
+        {
+          "line": 993,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1050,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1062,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1085,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 1929,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/user-profile-sync.js",
+      "references": [
+        {
+          "line": 22,
+          "category": "directStorageCalls"
+        }
+      ]
+    },
+    {
+      "file": "js/welcome-banner-settings.js",
+      "references": [
+        {
+          "line": 8,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 20,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 106,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 108,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 109,
+          "category": "directStorageCalls"
+        },
+        {
+          "line": 111,
+          "category": "directStorageCalls"
+        }
+      ]
+    }
+  ],
+  "phpApiFiles": [
+    "php/api/ai_records.php",
+    "php/api/analytics_ai.php",
+    "php/api/auth.php",
+    "php/api/backup.php",
+    "php/api/grade_sync.php",
+    "php/api/presence.php",
+    "php/api/quiz_ai.php",
+    "php/api/quiz_library.php",
+    "php/api/record_lifecycle.php",
+    "php/api/school_years.php",
+    "php/api/sections.php",
+    "php/api/session.php",
+    "php/api/sigma_chat.php",
+    "php/api/subjects.php",
+    "php/api/submission_ai.php",
+    "php/api/upload.php",
+    "php/api/users.php"
+  ]
+}

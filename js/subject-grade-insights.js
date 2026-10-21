@@ -174,7 +174,7 @@
                         : new URL(location.pathname.includes('/php/') ? 'api/analytics_ai.php' : 'php/api/analytics_ai.php', location.href).href;
                     const snapshot = { studentId: userId, scope: overall ? 'overall' : 'subject', quarter: evidence.quarter,
                         areas: [{ id: overall ? 'overall-grades' : 'subject-grades', records }] };
-                    const response = await fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal,
+                    const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal,
                         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'student', maxCards: 1, snapshot, language:window.getSigmaAiLanguage?.('insights')||'en' }) });
                     const result = await response.json();
                     if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'Subject insights unavailable.');

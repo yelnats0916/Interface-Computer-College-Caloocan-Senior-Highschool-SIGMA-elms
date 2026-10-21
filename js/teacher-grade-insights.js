@@ -71,7 +71,7 @@
             const snapshot = { teacherId: id, scope: 'class', areas: [{ id: 'class-grades', records: [{ id: 'class-summary',
                 subjectId: evidence.subject, sectionId: evidence.section, ...evidence }] }] };
             try {
-                const response = await fetch(api, { method: 'POST', credentials: 'include', signal: AbortSignal.timeout(90000),
+                const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: AbortSignal.timeout(90000),
                     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'teacher', maxCards: 1, snapshot, language }) });
                 const result = await response.json();
                 if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error('Class insights unavailable.');

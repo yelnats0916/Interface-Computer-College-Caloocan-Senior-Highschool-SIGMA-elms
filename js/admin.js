@@ -41,32 +41,8 @@ var currentOverviewPage = window.currentOverviewPage || 1;
 var totalOverviewPages = window.totalOverviewPages || 3;
 
 function getLoggedInAdminUser() {
-    let authUser = {};
-    try {
-        authUser = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}');
-    } catch {}
-    const allUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
-    const authId = String(authUser.uid || authUser.id || '');
-    const authEmail = (authUser.email || '').toLowerCase();
-
-    // 1. If explicit authenticated user found in DB:
-    let loggedIn = (authId ? allUsers.find(u => String(u.uid || u.id) === authId) : null)
-        || (authEmail ? allUsers.find(u => u.email && u.email.toLowerCase() === authEmail) : null);
-
-    if (loggedIn) return loggedIn;
-
-    // 2. If authUser in sessionStorage has an explicit role:
-    if (authUser && (authUser.role || authUser.type)) {
-        return authUser;
+        return window.SigmaDatabase?.currentUser() || {};
     }
-
-    // 3. In Admin portal, default institutional logged-in user is Master Admin (Stanley Garcia - 0000000)
-    const masterAdmin = allUsers.find(u => String(u.uid || u.id) === '0000000')
-        || allUsers.find(u => (u.role || u.type || '').toLowerCase().includes('master'))
-        || { id: '0000000', uid: '0000000', role: 'Master Admin', type: 'Master Admin', firstName: 'Stanley', lastName: 'Garcia' };
-
-    return masterAdmin;
-}
 window.getLoggedInAdminUser = getLoggedInAdminUser;
 
 function normalizeUserRole(role) {
@@ -84,322 +60,13 @@ window.normalizeUserRole = normalizeUserRole;
 
 
 
-// User data must be preserved across admin roles. Master Admin seeding is handled below.
+// Server records are authoritative. Unreviewed browser copies are kept separately.
 
-// SEED MASTER ADMIN & PERMANENT USERS: Ensure Stanley Garcia (0000000), Teacher (1111111), and Student (2222222) exist
-(function initializeUserSequences() {
-    const USER_STORAGE_KEY = 'sigma-admin-users';
-    const masterAdmin = {
-        id: "0000000",
-        uid: "0000000",
-        firstName: "Stanley",
-        middleName: "Vargas",
-        lastName: "Garcia",
-        fullName: "Stanley Vargas Garcia",
-        email: "stanley.garcia@gmail.com",
-        password: "garcia0000000",
-        role: "Master Admin",
-        type: "Master Admin",
-        status: "Active",
-        gender: "Male",
-        branch: "Main Campus",
-        seq: 0,
-        createdAt: "2026-06-01T08:00:00+08:00",
-        createdVia: "system-seed",
-        permissions: { bio: true, achievements: true, subjects: true, sections: true }
-    };
-
-    const permanentTeacher = {
-        id: "1111111",
-        uid: "1111111",
-        firstName: "Maria",
-        middleName: "Santos",
-        lastName: "Ramos",
-        fullName: "Maria Santos Ramos",
-        email: "maria.ramos@gmail.com",
-        password: "ramos1111111",
-        role: "Teacher",
-        type: "Teacher",
-        status: "Active",
-        gender: "Female",
-        branch: "Main Campus",
-        department: "Senior High School - Faculty",
-        section: "",
-        sections: [],
-        assignedSections: [],
-        subject: "",
-        subjects: [],
-        assignedSubjects: [],
-        createdAt: "2026-09-02T08:00:00+08:00",
-        createdVia: "system-seed",
-        permissions: { bio: true, achievements: true, subjects: true, sections: true, actionView: true, actionEdit: true }
-    };
-
-    const permanentStudent = {
-        id: "2222222",
-        uid: "2222222",
-        firstName: "Juan",
-        middleName: "Abad",
-        lastName: "Dela Cruz",
-        fullName: "Juan Abad Dela Cruz",
-        email: "juan.delacruz@gmail.com",
-        password: "delacruz2222222",
-        role: "Student",
-        type: "Student",
-        status: "Active",
-        gender: "Male",
-        branch: "Main Campus",
-        gradeSection: "Grade 11 - ICT A",
-        strand: "TVL - ICT",
-        createdAt: "2026-09-03T08:00:00+08:00",
-        createdVia: "system-seed",
-        permissions: { bio: true, achievements: true, subjects: true, sections: true, actionView: true }
-    };
-
-    try {
-        let users = getStoredJson(USER_STORAGE_KEY, []);
-        const mergeUser = (map, user) => {
-            if (!user) return;
-            const id = String(user.uid || user.id || user.email || '').trim().toLowerCase();
-            if (!id) return;
-            map.set(id, { ...(map.get(id) || {}), ...user });
-        };
-
-        // Recover original creation dates from untouched storage keys if available
-        const originalCreationDates = new Map();
-        ['sigma-student-users', 'sigma-teacher-users'].forEach((storageKey) => {
-            try {
-                const stored = getStoredJson(storageKey, []);
-                if (Array.isArray(stored)) {
-                    stored.forEach((u) => {
-                        const uid = String(u.uid || u.id || u.email || '').trim().toLowerCase();
-                        if (uid && u.createdAt && !String(u.createdAt).includes('2026-08-')) {
-                            originalCreationDates.set(uid, u.createdAt);
-                        }
-                    });
-                }
-            } catch (e) {}
-        });
-
-        const mergedUsers = new Map();
-        ['sigma-admin-users', 'sigma-users-list', 'sigma-teacher-users', 'sigma-student-users'].forEach((storageKey) => {
-            try {
-                const storedUsers = getStoredJson(storageKey, []);
-                if (Array.isArray(storedUsers)) {
-                    storedUsers.forEach((user) => mergeUser(mergedUsers, user));
-                }
-            } catch (e) {}
-        });
-        users.forEach((user) => mergeUser(mergedUsers, user));
-        users = Array.from(mergedUsers.values());
-
-        // Thorough automated migration to @gmail.com with surname across all users
-        users.forEach(u => {
-            if (!u) return;
-            const uid = String(u.uid || u.id || '').replace(/^#/, '').trim();
-            if (uid === '0000000' || String(u.role || u.type || '').toLowerCase().includes('master')) {
-                u.id = '0000000';
-                u.uid = '0000000';
-                u.firstName = 'Stanley';
-                u.middleName = 'Vargas';
-                u.lastName = 'Garcia';
-                u.fullName = 'Stanley Vargas Garcia';
-                u.email = 'stanley.garcia@gmail.com';
-                u.role = 'Master Admin';
-                u.type = 'Master Admin';
-                u.createdAt = '2026-06-01T08:00:00+08:00';
-            } else if (uid === '1111111' || (String(u.role || u.type || '').toLowerCase().includes('teach') && (u.firstName === 'Maria' || String(u.email).includes('1111111')))) {
-                u.id = '1111111';
-                u.uid = '1111111';
-                u.firstName = 'Maria';
-                u.middleName = 'Santos';
-                u.lastName = 'Ramos';
-                u.fullName = 'Maria Santos Ramos';
-                u.email = 'maria.ramos@gmail.com';
-                u.password = 'ramos1111111';
-                u.role = 'Teacher';
-                u.type = 'Teacher';
-                u.createdAt = '2026-09-02T08:00:00+08:00';
-            } else if (uid === '2222222' || (String(u.role || u.type || '').toLowerCase().includes('stud') && (u.firstName === 'Juan' || String(u.email).includes('2222222')))) {
-                u.id = '2222222';
-                u.uid = '2222222';
-                u.firstName = 'Juan';
-                u.middleName = 'Abad';
-                u.lastName = 'Dela Cruz';
-                u.fullName = 'Juan Abad Dela Cruz';
-                u.email = 'juan.delacruz@gmail.com';
-                u.password = 'delacruz2222222';
-                u.role = 'Student';
-                u.type = 'Student';
-                u.createdAt = '2026-09-03T08:00:00+08:00';
-            } else if (u.email && (u.email.includes('@icc') || !u.email.includes('@gmail.com'))) {
-                const fn = (u.firstName || 'user').toLowerCase().replace(/[^a-z0-9]/g, '');
-                const ln = (u.lastName || 'account').toLowerCase().replace(/[^a-z0-9]/g, '');
-                u.email = `${fn}.${ln}@gmail.com`;
-            }
-        });
-        
-        // 1. Ensure Master Admin exists
-        const masterIdx = users.findIndex(u => String(u.uid || u.id) === masterAdmin.id);
-        if (masterIdx === -1) {
-            users.unshift(masterAdmin);
-        } else {
-            users[masterIdx] = {
-                ...masterAdmin,
-                ...users[masterIdx],
-                email: masterAdmin.email,
-                role: "Master Admin",
-                type: "Master Admin",
-                status: users[masterIdx].status || "Active",
-                gender: (!users[masterIdx].gender || users[masterIdx].gender === 'Not specified') ? "Male" : users[masterIdx].gender,
-                permissions: {
-                    ...masterAdmin.permissions,
-                    ...(users[masterIdx].permissions || {})
-                }
-            };
-        }
-
-        // 2. Ensure Permanent Teacher (1111111) exists
-        const teacherIdx = users.findIndex(u => String(u.uid || u.id) === permanentTeacher.id);
-        if (teacherIdx === -1) {
-            users.push(permanentTeacher);
-        } else {
-            users[teacherIdx] = {
-                ...permanentTeacher,
-                ...users[teacherIdx],
-                email: permanentTeacher.email,
-                lastName: permanentTeacher.lastName,
-                fullName: permanentTeacher.fullName,
-                password: permanentTeacher.password,
-                role: "Teacher",
-                type: "Teacher",
-                status: users[teacherIdx].status || "Active"
-            };
-        }
-
-        // 3. Ensure Permanent Student (2222222) exists
-        const studentIdx = users.findIndex(u => String(u.uid || u.id) === permanentStudent.id);
-        if (studentIdx === -1) {
-            users.push(permanentStudent);
-        } else {
-            users[studentIdx] = {
-                ...permanentStudent,
-                ...users[studentIdx],
-                email: permanentStudent.email,
-                lastName: permanentStudent.lastName,
-                fullName: permanentStudent.fullName,
-                password: permanentStudent.password,
-                role: "Student",
-                type: "Student",
-                status: users[studentIdx].status || "Active"
-            };
-        }
-
-        // 4. STRICT CREATION DATE & TIME CHRONOLOGY:
-        const nonMasterUsers = users.filter(u => String(u.uid || u.id) !== '0000000' && !String(u.role || u.type || '').toLowerCase().includes('master'));
-        const masterUser = users.find(u => String(u.uid || u.id) === '0000000' || String(u.role || u.type || '').toLowerCase().includes('master')) || masterAdmin;
-
-        // Sort ascending by authentic creation date and time (oldest first):
-        nonMasterUsers.sort((a, b) => {
-            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return timeA - timeB;
-        });
-
-        nonMasterUsers.forEach((u, idx) => {
-            u.seq = idx + 1;
-        });
-
-        masterUser.seq = 0;
-        masterUser.createdAt = '2026-06-01T08:00:00+08:00';
-
-        users = [masterUser, ...nonMasterUsers];
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-        localStorage.setItem('sigma-users-list', JSON.stringify(users));
-
-        // 4. REAL USER ACCOUNT ACTIVITY & REGISTRATION PERSISTENCE:
-        // Strictly use actual login sessions (zero fake/fabricated active times)
-        const authUserRaw = sessionStorage.getItem('sigma-authenticated-user');
-        let currentAuthId = '0000000';
-        try {
-            if (authUserRaw) {
-                const parsedAuth = JSON.parse(authUserRaw);
-                currentAuthId = String(parsedAuth.uid || parsedAuth.id || '0000000').trim();
-            }
-        } catch (e) {}
-
-        users = users.map((u) => {
-            const uid = String(u.uid || u.id || '').trim();
-            let lastLogin = null;
-
-            if (uid === currentAuthId || uid === '0000000' || uid === String(masterAdmin.id)) {
-                // Currently authenticated user is actively logged in
-                lastLogin = new Date().toISOString();
-            } else if (u.hasRealLoginSession && u.lastLogin) {
-                // Keep only genuinely recorded logins from login portal
-                lastLogin = u.lastLogin;
-            } else {
-                // Never logged in - zero fake times
-                lastLogin = null;
-            }
-
-            return {
-                ...u,
-                lastLogin,
-                lastActive: lastLogin
-            };
-        });
-
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-        localStorage.setItem('sigma-users-list', JSON.stringify(users));
-    } catch (e) {
-        console.error('Failed to initialize user sequences:', e);
-    }
-})();
+// No permanent browser identities.
+// Account records are loaded from the database; no browser seed accounts.
 
 // SEED DEFAULT ACADEMIC DATA (Teachers, Students & Subjects for Assign flows)
-(function seedDefaultAcademicData() {
-    try {
-        const USER_STORAGE_KEY = window.USER_STORAGE_KEY || 'sigma-admin-users';
-        const SUBJECTS_STORAGE_KEY = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-
-        let users = getStoredJson(USER_STORAGE_KEY, []);
-        const hasTeachers = users.some(u => String(u.role || u.type || '').toLowerCase().includes('teach'));
-        const hasStudents = users.some(u => String(u.role || u.type || '').toLowerCase().includes('stud'));
-
-        if (!hasTeachers || !hasStudents) {
-            const defaultTeachers = [
-                { id: "1111111", uid: "1111111", firstName: "Maria", middleName: "Santos", lastName: "Ramos", fullName: "Maria Santos Ramos", email: "maria.ramos@gmail.com", password: "ramos1111111", role: "Teacher", type: "Teacher", status: "Active", gender: "Female", branch: "Main Campus", department: "Senior High School - Faculty", section: "", sections: [], assignedSections: [], subject: "", subjects: [], assignedSubjects: [], createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
-            ];
-
-            const defaultStudents = [
-                { id: "2222222", uid: "2222222", firstName: "Juan", middleName: "Abad", lastName: "Dela Cruz", fullName: "Juan Abad Dela Cruz", email: "juan.delacruz@gmail.com", password: "delacruz2222222", role: "Student", type: "Student", status: "Active", gender: "Male", branch: "Main Campus", gradeSection: "Grade 11 - ICT A", strand: "TVL - ICT", createdAt: "2026-09-03T08:00:00+08:00", createdVia: "system-seed" }
-            ];
-
-            if (!hasTeachers) {
-                defaultTeachers.forEach(t => {
-                    if (!users.some(u => String(u.uid || u.id) === t.id)) users.push(t);
-                });
-            }
-            if (!hasStudents) {
-                defaultStudents.forEach(s => {
-                    if (!users.some(u => String(u.uid || u.id) === s.id)) users.push(s);
-                });
-            }
-
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-            localStorage.setItem('sigma-users-list', JSON.stringify(users));
-        }
-
-        let subjects = getStoredJson(SUBJECTS_STORAGE_KEY, []);
-        if (!Array.isArray(subjects)) {
-            subjects = [];
-            localStorage.setItem(SUBJECTS_STORAGE_KEY, JSON.stringify(subjects));
-        }
-    } catch (e) {
-        console.error('Failed to seed academic data:', e);
-    }
-})();
+// Empty database collections remain empty; no synthetic academic records.
 
 
 
@@ -1924,13 +1591,7 @@ function getAttendanceDateFilterConfig(range) {
     };
 }
 
-const DEFAULT_ATTENDANCE_REPORT_ITEMS = [
-    { id: 1, section: 'Grade 11 - Einstein', sectionName: 'Einstein', gradeLevel: 'Grade 11', subject: 'Statistics and Probability', teacher: 'Jose Cruz Dela Pena', enrolled: 40, present: 0, absent: 0, late: 0 },
-    { id: 2, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Oral Communication', teacher: 'Maria Santos Ramos', enrolled: 44, present: 0, absent: 0, late: 0 },
-    { id: 3, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Empowerment Technologies', teacher: 'Jose Cruz Dela Pena', enrolled: 42, present: 0, absent: 0, late: 0 },
-    { id: 4, section: 'Grade 11 - Rizal', sectionName: 'Rizal', gradeLevel: 'Grade 11', subject: 'Computer Programming 1', teacher: 'Maria Santos Ramos', enrolled: 45, present: 0, absent: 0, late: 0 },
-    { id: 5, section: 'Grade 12 - Newton', sectionName: 'Newton', gradeLevel: 'Grade 12', subject: 'General Mathematics', teacher: 'Jose Cruz Dela Pena', enrolled: 38, present: 0, absent: 0, late: 0 }
-];
+const DEFAULT_ATTENDANCE_REPORT_ITEMS = [];
 
 function getAttendanceReportBaseItems() {
     let adminSecs = [];
@@ -3286,7 +2947,7 @@ window.executeDeleteAccount = function () {
             try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
         })();
         const usersApiUrl = typeof resolveUsersApiUrl === 'function' ? resolveUsersApiUrl() : 'php/api/users.php';
-        fetch(usersApiUrl, {
+        window.SigmaDatabase.fetch(usersApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
             body: JSON.stringify({ action: 'delete', id: userId, actor: currentActor })
@@ -3440,6 +3101,14 @@ window.resetUser2FA = function (userId) {
 
     const executeReset2FA = async () => {
         try {
+            let base = 'php/api/auth.php';
+            const resetResponse = await window.SigmaDatabase.fetch(base, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'disable_2fa', id: cleanId })
+            });
+            const resetResult = await resetResponse.json();
+            if (!resetResponse.ok || !resetResult.success) throw new Error(resetResult.error || '2FA reset failed');
             if (user) {
                 user.totp_enabled = 0;
                 user.totp_secret = null;
@@ -3447,18 +3116,9 @@ window.resetUser2FA = function (userId) {
                     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
                 }
             }
-            localStorage.removeItem('sigma-terms-accepted-' + cleanId);
             localStorage.removeItem('sigma-2fa-enabled-' + cleanId);
             localStorage.removeItem('sigma-2fa-secret-' + cleanId);
 
-            let base = 'php/api/auth.php';
-            const resetResponse = await fetch(base, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'disable_2fa', id: cleanId })
-            });
-            const resetResult = await resetResponse.json();
-            if (!resetResponse.ok || !resetResult.success) throw new Error(resetResult.error || '2FA reset failed');
             window.SigmaAuthenticationLogs?.record({ event:'Google Authenticator 2FA reset', user, outcome:'warning' });
 
             const successTitle = '2FA Reset Successfully';
@@ -3482,7 +3142,7 @@ window.resetUser2FA = function (userId) {
             if (typeof window.showSigmaDialog === 'function') {
                 window.showSigmaDialog({
                     title: 'Reset Failed',
-                    desc: 'Unable to connect to the authentication server to reset 2FA.',
+                    desc: e.message || 'Unable to connect to the authentication server to reset 2FA.',
                     icon: 'fa-solid fa-circle-exclamation text-red-500',
                     confirmText: 'OK',
                     isNotification: true
@@ -8410,31 +8070,16 @@ const resolveSchoolYearApiUrl = () => {
     return 'php/api/school_years.php';
 };
 
-const syncSchoolYearToDB = async (payload) => {
-    try {
-        const url = resolveSchoolYearApiUrl();
-        const currentActor = (() => {
-            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
-        })();
-        const reqPayload = Object.assign({ actor: currentActor }, payload);
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
-            body: JSON.stringify(reqPayload)
-        });
-    } catch (e) {
-        console.warn('School year DB sync offline or unavailable, cached in localStorage.');
-    }
-};
-window.syncSchoolYearToDB = syncSchoolYearToDB;
+const syncSchoolYearToDB = window.syncSchoolYearToDB;
 
 const fetchSchoolYearsFromDB = async () => {
     try {
         const url = resolveSchoolYearApiUrl();
-        const res = await fetch(url);
+        const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+        if (data && data.success && Array.isArray(data.records)) {
+            window.SigmaDatabase?.preserveLegacy('sigma_school_year_records', localStorage.getItem('sigma_school_year_records'));
             schoolYearRecords = data.records;
             saveSYToStorage();
             if (typeof renderSchoolYearTable === 'function') renderSchoolYearTable();
@@ -8488,60 +8133,18 @@ const resolveUsersApiUrl = () => {
     return 'php/api/users.php';
 };
 
-const syncUserToDB = async (payload, action = 'save') => {
-    try {
-        const url = resolveUsersApiUrl();
-        const bodyObj = (action === 'save' || action === 'create_missing')
-            ? { action, user: payload }
-            : { action: action, ...payload };
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyObj)
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.error || 'User database save failed.');
-        return true;
-    } catch (e) {
-        console.warn('User DB sync offline or unavailable, cached in localStorage.');
-        window.showToast?.('Account saved locally only. Database sync failed; retry saving when connected.', 'error');
-        return false;
-    }
-};
-window.syncUserToDB = syncUserToDB;
+const syncUserToDB = window.syncUserToDB;
 
 const fetchUsersFromDB = async () => {
     try {
         const url = resolveUsersApiUrl();
-        const res = await fetch(url);
+        const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.success && Array.isArray(data.records)) {
-            let currentLocal = getStoredJson(USER_STORAGE_KEY, []);
-            const databaseIds = new Set(data.records.map(user => String(user.id || user.uid || '')));
-            // Import local-only teaching accounts without replacing any existing database account.
-            for (const user of currentLocal) {
-                const id = String(user.id || user.uid || '');
-                const role = String(user.role || user.type || '').toLowerCase();
-                if (id && !databaseIds.has(id) && ['student', 'teacher'].includes(role) && user.password && !user.isDeleted && !user.is_deleted) {
-                    await syncUserToDB(user, 'create_missing');
-                }
-            }
-            const map = new Map();
-            // Start with DB records (authoritative)
-            data.records.forEach(u => {
-                const id = String(u.id || u.uid || '');
-                if (id) map.set(id, u);
-            });
-            // Merge any local-only users created offline
-            currentLocal.forEach(u => {
-                const id = String(u.id || u.uid || '');
-                if (id && !map.has(id)) {
-                    map.set(id, u);
-                }
-            });
-            const merged = Array.from(map.values());
-            window.saveStoredJson(USER_STORAGE_KEY, merged);
+            window.SigmaDatabase?.preserveLegacy(USER_STORAGE_KEY, localStorage.getItem(USER_STORAGE_KEY));
+            window.saveStoredJson(USER_STORAGE_KEY, data.records);
+            window.saveStoredJson('sigma-users-list', data.records);
             if (typeof renderUserAccountsTable === 'function') renderUserAccountsTable();
             if (typeof updateUserMetricCards === 'function') updateUserMetricCards();
         }
@@ -8563,48 +8166,19 @@ const resolveSectionsApiUrl = () => {
 };
 window.resolveSectionsApiUrl = resolveSectionsApiUrl;
 
-const syncSectionToDB = async (sectionData, action = 'save') => {
-    try {
-        const url = resolveSectionsApiUrl();
-        const bodyObj = (action === 'save')
-            ? { action: 'save', section: sectionData }
-            : { action: action, ...sectionData };
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyObj)
-        });
-    } catch (e) {
-        console.warn('Section DB sync offline or unavailable, cached in localStorage.');
-    }
-};
-window.syncSectionToDB = syncSectionToDB;
+const syncSectionToDB = window.syncSectionToDB;
 
-const deleteSectionFromDB = async (sectionIdOrName) => {
-    try {
-        const url = resolveSectionsApiUrl();
-        const currentActor = (() => {
-            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
-        })();
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
-            body: JSON.stringify({ action: 'delete', id: sectionIdOrName, actor: currentActor })
-        });
-    } catch (e) {
-        console.warn('Section DB delete offline or unavailable.');
-    }
-};
-window.deleteSectionFromDB = deleteSectionFromDB;
+const deleteSectionFromDB = window.deleteSectionFromDB;
 
 const fetchSectionsFromDB = async () => {
     try {
         const url = resolveSectionsApiUrl();
-        const res = await fetch(url);
+        const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+        if (data && data.success && Array.isArray(data.records)) {
             // When database has records, database is authoritative
+            window.SigmaDatabase?.preserveLegacy(SECTIONS_STORAGE_KEY, localStorage.getItem(SECTIONS_STORAGE_KEY));
             window.saveStoredJson(SECTIONS_STORAGE_KEY, data.records);
             if (typeof window.renderSectionsTable === 'function') window.renderSectionsTable();
             if (typeof window.updateSectionMetricCards === 'function') window.updateSectionMetricCards();
@@ -8627,48 +8201,19 @@ const resolveSubjectsApiUrl = () => {
 };
 window.resolveSubjectsApiUrl = resolveSubjectsApiUrl;
 
-const syncSubjectToDB = async (subjectData, action = 'save') => {
-    try {
-        const url = resolveSubjectsApiUrl();
-        const bodyObj = (action === 'save')
-            ? { action: 'save', subject: subjectData }
-            : { action: action, ...subjectData };
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyObj)
-        });
-    } catch (e) {
-        console.warn('Subject DB sync offline or unavailable, cached in localStorage.');
-    }
-};
-window.syncSubjectToDB = syncSubjectToDB;
+const syncSubjectToDB = window.syncSubjectToDB;
 
-const deleteSubjectFromDB = async (subjectCodeOrId) => {
-    try {
-        const url = resolveSubjectsApiUrl();
-        const currentActor = (() => {
-            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
-        })();
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
-            body: JSON.stringify({ action: 'delete', code: subjectCodeOrId, actor: currentActor })
-        });
-    } catch (e) {
-        console.warn('Subject DB delete offline or unavailable.');
-    }
-};
-window.deleteSubjectFromDB = deleteSubjectFromDB;
+const deleteSubjectFromDB = window.deleteSubjectFromDB;
 
 const fetchSubjectsFromDB = async () => {
     try {
         const url = resolveSubjectsApiUrl();
-        const res = await fetch(url);
+        const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+        if (data && data.success && Array.isArray(data.records)) {
             const subjKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
+            window.SigmaDatabase?.preserveLegacy(subjKey, localStorage.getItem(subjKey));
             window.saveStoredJson(subjKey, data.records);
             if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
             if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
@@ -10434,8 +9979,8 @@ window.performSYSave = function (formValues) {
         saveBtn.disabled = true;
         loading.classList.remove('hidden');
 
-        // Simulate API Call
-        setTimeout(() => {
+        // Confirm the database before presenting a saved school year.
+        setTimeout(async () => {
             const isEditing = currentSYRecordId !== null;
             const existingRecord = isEditing ? schoolYearRecords.find(r => r.id === currentSYRecordId) : null;
             
@@ -10471,6 +10016,12 @@ window.performSYSave = function (formValues) {
                 status: targetStatus
             };
 
+            if (!await syncSchoolYearToDB(savedRecord)) {
+                saveBtn.disabled = false;
+                loading.classList.add('hidden');
+                return;
+            }
+
             if (isEditing) {
                 schoolYearRecords = schoolYearRecords.map((record) => (
                     record.id === currentSYRecordId ? savedRecord : (targetStatus === 'Active' ? { ...record, status: 'Inactive' } : record)
@@ -10485,7 +10036,6 @@ window.performSYSave = function (formValues) {
             renderSchoolYearTable();
             updateGlobalSYDisplay();
             saveSYToStorage(); // Save to localStorage
-            syncSchoolYearToDB(savedRecord); // Sync to MySQL database
             window.checkQuarterEndReminders();
             initialSYValues = {};
             saveBtn.disabled = false;
@@ -13769,16 +13319,8 @@ function getAdminTopicSubjectAndData(subjectId, subjectName, sectionName) {
         rawTopicsToProcess = adminSubj.topics;
     }
 
-    const isFakeTopic = (t) => {
-        if (!t) return true;
-        if (typeof window.isFakeSampleTopic === 'function') return window.isFakeSampleTopic(t);
-        return false;
-    };
-    const isFakeMat = (m) => {
-        if (!m) return true;
-        if (typeof window.isFakeSampleMaterial === 'function') return window.isFakeSampleMaterial(m);
-        return false;
-    };
+    const isFakeTopic = (t) => !t || Boolean(window.SigmaDatabase?.isSyntheticRecord(t));
+    const isFakeMat = (m) => !m || Boolean(window.SigmaDatabase?.isSyntheticRecord(m));
     const cleanSecStr = (s) => String(s || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/[^a-z0-9]/g, '').toLowerCase();
     const activeSecClean = cleanSecStr(sectionName);
 
@@ -17463,10 +17005,6 @@ function renderSectionsTable() {
                         return uFull === targetLower || uShort === targetLower;
                     });
                 let resolvedTeacherId = rawObjId || String(matchedTeacher?.uid || matchedTeacher?.id || '').replace(/^ID:\s*/i, '').replace(/^#/, '').trim();
-                if (!resolvedTeacherId) {
-                    const lowerTName = tName.trim().toLowerCase();
-                    if (lowerTName.includes('maria') && lowerTName.includes('ramos')) resolvedTeacherId = '1111111';
-                }
                 const teacherRef = {
                     ...(matchedTeacher || {}),
                     ...(typeof t === 'object' && t ? t : {}),
@@ -20156,7 +19694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setDriveConnectionStatus('Checking configuration...');
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await fetch(apiUrl);
+            const res = await window.SigmaDatabase.fetch(apiUrl);
             if (res.ok) {
                 const data = await res.json();
                 if (data.google_drive) {
@@ -20248,7 +19786,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await fetch(apiUrl, {
+            const res = await window.SigmaDatabase.fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20304,7 +19842,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await fetch(apiUrl, {
+            const res = await window.SigmaDatabase.fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20347,7 +19885,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const status = document.getElementById('gdrive-page-capacity-save-status');
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await fetch(apiUrl, {
+            const res = await window.SigmaDatabase.fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20383,7 +19921,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await fetch(apiUrl, {
+            const res = await window.SigmaDatabase.fetch(apiUrl, {
                 method: 'POST',
                 body: formData
             });
@@ -20454,7 +19992,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.loadAiPageData = async function () {
         try {
-            const res = await fetch(resolveAuthApiUrl('action=ai_vault'));
+            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=ai_vault'));
             const data = await res.json().catch(() => null);
             if (data && data.success) {
                 window.renderAiRouting?.(data);
@@ -20470,7 +20008,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.persistAiRoutingSettings = async function (routing) {
-        const response = await fetch(resolveAuthApiUrl(), {
+        const response = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'save_ai_routing', ...routing })
@@ -20589,7 +20127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const request = new AbortController();
         aiKeyDetectionRequest = request;
         try {
-            const response = await fetch(resolveAuthApiUrl(), {
+            const response = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: request.signal,
                 body: JSON.stringify({ action: 'discover_ai_key', id: key.id })
             });
@@ -20646,7 +20184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         aiKeyDetectionTimer = setTimeout(async () => {
             aiKeyDetectionRequest = new AbortController();
             try {
-                const response = await fetch(resolveAuthApiUrl(), {
+                const response = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     signal: aiKeyDetectionRequest.signal,
@@ -20707,7 +20245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(resolveAuthApiUrl(), {
+            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20748,7 +20286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirmDelete) return;
 
         try {
-            const res = await fetch(resolveAuthApiUrl(), {
+            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20785,7 +20323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(resolveAuthApiUrl(), {
+            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -20916,7 +20454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function readRecaptchaPageConfig() {
         if (window.SigmaRecaptcha?.getConfig) return window.SigmaRecaptcha.getConfig();
-        const res = await fetch(resolveAuthApiUrl('action=recaptcha_config'));
+        const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=recaptcha_config'));
         const data = await res.json();
         if (res.ok === false || !data?.success) throw new Error(data?.error || 'Cannot load reCAPTCHA configuration.');
         return data;
@@ -20977,7 +20515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recaptchaPageState.busy = true;
         window.updateRecaptchaSaveButtons();
         try {
-            const res = await fetch(resolveAuthApiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const res = await window.SigmaDatabase.fetch(resolveAuthApiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await res.json();
             if (res.ok === false || !result?.success) throw new Error(result?.error || 'Could not save reCAPTCHA settings.');
             const data = await readRecaptchaPageConfig();
