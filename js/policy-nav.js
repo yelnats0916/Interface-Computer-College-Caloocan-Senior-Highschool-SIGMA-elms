@@ -164,22 +164,10 @@
             link.href = `${link.getAttribute('href')}?from=${encodeURIComponent(ctx.role)}`;
         });
 
-        // 4. Help Center button:
-        // When inside user account (Admin, Teacher, Student), hide Help Center button in the navbar.
-        // When viewed from login page / guest mode, keep Help Center button accessible.
+        // Help Center remains available on policy pages, including role-origin links.
         const helpBtn = document.getElementById('entryHelpCenterBtn');
         const helpMobileBtn = document.getElementById('helpCenterNavMenuBtn');
-
-        if (isRoleContext) {
-            if (helpBtn) {
-                helpBtn.style.display = 'none';
-                helpBtn.classList.add('hidden');
-            }
-            if (helpMobileBtn) {
-                helpMobileBtn.style.display = 'none';
-                helpMobileBtn.classList.add('hidden');
-            }
-        } else {
+        {
             if (helpBtn) {
                 helpBtn.style.removeProperty('display');
                 helpBtn.classList.remove('hidden');
