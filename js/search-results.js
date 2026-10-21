@@ -829,7 +829,7 @@
         const school = window.SigmaSchoolProfileView?.getProfile();
         if (school && matchesQuery(`School Profile Institution ${school.schoolName}`, raw)) {
             addResult({id:'public-school-profile-view', title:'School Profile', category:'page',
-                roleLabel:'Institution', subtitle:school.schoolName, detail:'View school information'});
+                roleLabel:'Institution', subtitle:school.schoolName, detail:'View school information', schoolLogo:school.logo});
         }
         // 3. Scan Navigation Pages
         document.querySelectorAll('#sidebar .nav-link, #sidebar .nav-sublink').forEach(link => {
@@ -1031,7 +1031,16 @@
         const isAdmin = !isClass && !isPage && !isStudent && !isTeacher && (item.category === 'user' || item.category === 'admin' || itemRole.includes('admin') || itemRole.includes('master'));
 
         let iconOrAvatarHtml = '';
-        if (item.avatar) {
+        if (item.id === 'public-school-profile-view') {
+            let logo = 'image/ICC logo.jpg';
+            try {
+                const candidate = new URL(item.schoolLogo || logo, location.href);
+                if (['http:', 'https:', 'blob:'].includes(candidate.protocol) || /^data:image\/(png|jpe?g|gif|webp);/i.test(item.schoolLogo || '')) logo = candidate.href;
+            } catch (_) {}
+            iconOrAvatarHtml = `<img src="${escapeHtml(logo)}" alt="School profile logo"
+                class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full object-contain bg-white aspect-square flex-shrink-0 border border-slate-200"
+                onerror="this.onerror=null;this.src='image/ICC logo.jpg';">`;
+        } else if (item.avatar) {
             iconOrAvatarHtml = `
                 <img src="${escapeHtml(item.avatar)}" alt="${escapeHtml(item.title)}" 
                     class="search-result-avatar w-[34px] h-[34px] sm:w-[38px] sm:h-[38px] rounded-full object-cover aspect-square flex-shrink-0 border border-slate-200" 
