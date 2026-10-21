@@ -1235,7 +1235,7 @@
         const filteredTeachers = teachers.filter(t => {
             if (!q) return true;
             const target = `${t.name} ${t.section} ${t.department} ${t.email}`.toLowerCase();
-            return target.includes(q);
+            return window.SigmaSearch.text(target, q);
         });
 
         html += `

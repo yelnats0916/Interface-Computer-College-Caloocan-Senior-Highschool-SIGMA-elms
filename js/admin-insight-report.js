@@ -603,8 +603,7 @@
 
         let matchingUsers = cleanQuery
             ? users.filter(user => 
-                String(user.name || '').toLowerCase().includes(cleanQuery) || 
-                String(user.id || '').toLowerCase().includes(cleanQuery)
+                window.SigmaSearch.record(cleanQuery, [user.id], [user.name])
               )
             : users.filter(user => (user.cards || []).length > 0);
 

@@ -1,3 +1,23 @@
+// Shared matching for structured directories and selection lists.
+window.SigmaSearch = Object.freeze({
+    text(value, query) {
+        const terms = String(query || '').trim().toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+        if (!terms.length) return true;
+        const words = String(value || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+        return terms.every(term => words.some(word => word.startsWith(term.replace(/^#/, ''))));
+    },
+    id(value, query) {
+        return String(value || '').trim().toLowerCase().replace(/^#/, '').startsWith(String(query || '').trim().toLowerCase().replace(/^#/, ''));
+    },
+    record(query, ids, fields) {
+        const q = String(query || '').trim();
+        if (!q) return true;
+        return /^#?\d+$/.test(q)
+            ? ids.some(id => window.SigmaSearch.id(id, q))
+            : window.SigmaSearch.text(fields.filter(Boolean).join(' '), q);
+    }
+});
+
 /**
  * SIGMA ELMS - Shared UI Component Controllers & Canonical Utilities
  *

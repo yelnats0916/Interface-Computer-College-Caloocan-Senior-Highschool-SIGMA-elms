@@ -3999,7 +3999,7 @@ window.initializeSharedCurriculumRelease = function () {
         rows.forEach(row => {
             const name = (row.dataset.studentName || '').toLowerCase();
             const id = (row.dataset.studentId || '').toLowerCase();
-            if (!q || name.includes(q) || id.includes(q)) {
+            if (window.SigmaSearch.record(q, [id], [name])) {
                 row.classList.remove('hidden');
                 row.classList.add('flex');
             } else {
@@ -10337,7 +10337,7 @@ window.initializeSharedCurriculumRelease = function () {
         const q = query.toLowerCase().trim();
         list.querySelectorAll('.topic-student-item').forEach(btn => {
             const name = (btn.dataset.name || '').toLowerCase();
-            btn.style.display = name.includes(q) ? '' : 'none';
+            btn.style.display = window.SigmaSearch.text(name, q) ? '' : 'none';
         });
     };
 };

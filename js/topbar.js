@@ -827,21 +827,9 @@ function initSharedTopbarInteractions() {
         }
     }
 
-    // Strict word start matching helper
+    // Match labels from the start of each word.
     function strictWordMatch(text, query) {
-        if (!text || !query) return false;
-        const lowerText = text.toLowerCase();
-        const lowerQuery = query.toLowerCase();
-
-        if (lowerQuery.length === 1) {
-            const words = lowerText.split(/[\s\-_.:#@/()]+/);
-            return words.some(w => w.startsWith(lowerQuery));
-        }
-
-        const words = lowerText.split(/[\s\-_.:#@/()]+/);
-        const matchesWordStart = words.some(w => w.startsWith(lowerQuery));
-        const exactSubstring = lowerText.includes(lowerQuery);
-        return matchesWordStart || exactSubstring;
+        return Boolean(text && String(query || '').trim()) && window.SigmaSearch.text(text, query);
     }
 
     function getSearchScopeData() {
@@ -874,8 +862,8 @@ function initSharedTopbarInteractions() {
         // Strictly reject emails
         if (isEmailAddress(lowerText)) return false;
 
-        // Result MUST start with query (first letter match)
-        return lowerText.startsWith(lowerQuery);
+        // Match the start of each word in a page label.
+        return window.SigmaSearch.text(lowerText, lowerQuery);
     }
 
     function alignSearchDropdown() {

@@ -197,19 +197,9 @@
             results.push(item);
         }
 
-        // Flexible search matcher: checks if target contains query, or matches individual words
+        // Directory and class results match word starts, never arbitrary substrings.
         function matchesQuery(targetText, queryStr) {
-            if (!targetText || !queryStr) return false;
-            const t = String(targetText).toLowerCase().trim();
-            const q = String(queryStr).toLowerCase().trim();
-            if (!q) return false;
-            if (t.includes(q)) return true;
-            // Multi-word support: every term in query must match
-            const terms = q.split(/\s+/).filter(Boolean);
-            if (terms.length > 1 && terms.every(term => t.includes(term))) {
-                return true;
-            }
-            return false;
+            return Boolean(targetText && String(queryStr || '').trim()) && window.SigmaSearch.text(targetText, queryStr);
         }
 
         const portalRole = getPortalRole();
@@ -322,12 +312,8 @@
             const sectionStr = String(u.section || u.gradeSection || u.gradeLevel || '');
             const deptStr = String(u.department || '');
 
-            const isMatch = matchesQuery(fullName, raw) ||
-                            matchesQuery(u.firstName, raw) ||
-                            matchesQuery(u.lastName, raw) ||
-                            matchesQuery(idStr, raw) ||
-                            matchesQuery(sectionStr, raw) ||
-                            matchesQuery(deptStr, raw);
+            const isMatch = window.SigmaSearch.record(raw, [idStr],
+                [fullName, u.firstName, u.middleName, u.lastName, sectionStr, deptStr]);
 
             if (isMatch && fullName) {
                 const isTeacher = role.includes('teacher') || role.includes('faculty') || role.includes('instructor');

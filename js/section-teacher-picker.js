@@ -139,7 +139,7 @@
     function search() {
         const users=window.getStoredJson(window.USER_STORAGE_KEY || 'sigma-admin-users', []);
         const q=query.toLowerCase();
-        results=users.filter(u=>/teach|faculty|instructor/i.test(String(u.type||u.role||''))).filter(u=>!q || [nameOf(u),u.firstName,u.middleName,u.lastName,u.uid,u.id,u.email].some(v=>String(v||'').toLowerCase().includes(q)));
+        results=users.filter(u=>/teach|faculty|instructor/i.test(String(u.type||u.role||''))).filter(u=>window.SigmaSearch.record(q,[u.uid,u.id],[nameOf(u),u.firstName,u.middleName,u.lastName,u.email]));
         const dropdown=document.getElementById('section-subpage-teacher-dropdown');
         dropdown.classList.remove('hidden');
         dropdown.innerHTML=results.map((u,i)=>{

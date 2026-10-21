@@ -2336,7 +2336,7 @@
             const name = String(t.fullName || (t.firstName + ' ' + t.lastName) || t.name || '').toLowerCase();
             const id = String(t.id || t.uid || t.employeeId || '').toLowerCase();
             const email = String(t.email || '').toLowerCase();
-            return name.includes(q) || id.includes(q) || email.includes(q);
+            return window.SigmaSearch.record(q, [id], [name, t.middleName, email]);
         });
 
         window._lastFilteredTeachers = filtered;

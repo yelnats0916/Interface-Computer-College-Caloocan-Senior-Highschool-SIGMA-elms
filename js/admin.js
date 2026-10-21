@@ -2089,11 +2089,11 @@ window.applyAttendanceSearch = function (resetPage = true) {
     const allRows = window.getAttendanceReportRows(dateRange);
     const filtered = allRows.filter(r => {
         const matchesQuery = !query ||
-            String(r.section || '').toLowerCase().includes(query) ||
-            String(r.sectionName || '').toLowerCase().includes(query) ||
-            String(r.gradeLevel || '').toLowerCase().includes(query) ||
-            String(r.subject || '').toLowerCase().includes(query) ||
-            String(r.teacher || '').toLowerCase().includes(query);
+            window.SigmaSearch.text(r.section, query) ||
+            window.SigmaSearch.text(r.sectionName, query) ||
+            window.SigmaSearch.text(r.gradeLevel, query) ||
+            window.SigmaSearch.text(r.subject, query) ||
+            window.SigmaSearch.text(r.teacher, query);
 
         let matchesSection = true;
         if (sectionFilter) {
@@ -2193,7 +2193,7 @@ window.applyPerformanceSearch = function () {
     const rows = document.querySelectorAll('#performanceReportTableBody tr');
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        const matchesQuery = !query || text.includes(query);
+        const matchesQuery = window.SigmaSearch.text(text, query);
         const matchesSubject = !subjectFilter || text.includes(subjectFilter);
         const matchesType = !typeFilter || text.includes(typeFilter);
 
@@ -3262,20 +3262,13 @@ function getFilteredUsersBySearch(searchState) {
         const mnameLower = middleName.toLowerCase();
         const fullName = [fnameLower, mnameLower, lnameLower].filter(Boolean).join(' ')
             || String(user.fullName || '').trim().toLowerCase();
-        const nameWords = fullName.split(/\s+/).filter(Boolean);
         const normalizedRole = normalizeUserRole(user.type || user.role || '').toLowerCase();
         const userStatus = String(user.status || 'Active').toLowerCase();
 
         let matchesSearch = true;
         const searchTarget = query || idQuery || nameQuery;
         if (searchTarget) {
-            // IDs match from the first digit; names match from the start of a word.
-            const idPrefix = searchTarget.replace(/^#/, '');
-            const isIdSearch = /^\d+$/.test(idPrefix);
-            const searchWords = searchTarget.split(/\s+/).filter(Boolean);
-            matchesSearch = isIdSearch
-                ? idLower.replace(/^#/, '').startsWith(idPrefix)
-                : searchWords.every(part => nameWords.some(word => word.startsWith(part)));
+            matchesSearch = window.SigmaSearch.record(searchTarget, [idLower], [fullName]);
         }
 
         let matchesRole = true;
@@ -11815,11 +11808,8 @@ window.renderExistingSectionsList = function (query = '') {
 
     if (cleanQ) {
         profiles = profiles.filter(p => {
-            return (p.name || '').toLowerCase().includes(cleanQ) ||
-                   (p.gradeLevel || '').toLowerCase().includes(cleanQ) ||
-                   (p.schoolYear || '').toLowerCase().includes(cleanQ) ||
-                   (p.room || '').toLowerCase().includes(cleanQ) ||
-                   window.formatSectionTeacherDisplayName(p.adviser).toLowerCase().includes(cleanQ);
+            return window.SigmaSearch.text([p.name, p.gradeLevel, p.schoolYear, p.room,
+                window.formatSectionTeacherDisplayName(p.adviser)].filter(Boolean).join(' '), cleanQ);
         });
     }
 
@@ -16144,7 +16134,7 @@ window.handleSubpageTeacherSearch = function (query = '') {
         const full = `${t.firstName || ''} ${t.lastName || ''}`.toLowerCase();
         const uid = String(t.uid || t.id || '').toLowerCase();
         const email = String(t.email || '').toLowerCase();
-        return full.includes(q) || uid.includes(q) || email.includes(q);
+        return window.SigmaSearch.record(q, [uid], [full, t.middleName, email]);
     }) : teachers;
 
     const teacherRows = filtered.length === 0
@@ -16399,7 +16389,7 @@ window.handleSubpageSubjectSearch = function (query = '') {
     const filtered = q ? unassignedSubjects.filter(s => {
         const name = (s.name || '').toLowerCase();
         const code = (s.code || '').toLowerCase();
-        return name.includes(q) || code.includes(q);
+        return window.SigmaSearch.text(`${name} ${code}`, q);
     }) : unassignedSubjects;
 
     if (filtered.length === 0) {
@@ -16571,7 +16561,7 @@ window.handleSubpageStudentsSearch = function (query = '') {
         const full = String(s.fullName || '').toLowerCase();
         const sid = String(s.uid || s.id || '').toLowerCase();
         const email = String(s.email || '').toLowerCase();
-        return fname.includes(q) || lname.includes(q) || full.includes(q) || sid.includes(q) || email.includes(q);
+        return window.SigmaSearch.record(q, [sid], [fname, s.middleName, lname, full, email]);
     }) : students;
 
     const studentRows = filtered.length === 0
@@ -16921,7 +16911,7 @@ function getFilteredSectionsBySearch(searchState) {
 
         let matchesSearch = true;
         if (query) {
-            matchesSearch = secName.includes(query) || secRoom.includes(query) || secStrand.includes(query);
+            matchesSearch = window.SigmaSearch.text(`${secName} ${secRoom} ${secStrand}`, query);
         } else if (room) {
             matchesSearch = secRoom.includes(room);
         }
@@ -17132,7 +17122,7 @@ function getFilteredSubjectsBySearch(searchState) {
 
         let matchesSearch = true;
         if (query) {
-            matchesSearch = subCode.includes(query) || subName.includes(query);
+            matchesSearch = window.SigmaSearch.text(`${subCode} ${subName}`, query);
         }
 
         const matchesType = !type || type === 'all' || type === 'all types' || subCode.includes(type) || String(sub.type || '').toLowerCase().includes(type);

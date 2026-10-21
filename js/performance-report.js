@@ -91,7 +91,7 @@ window.applyPerformanceSearch=function(){
  const type=document.getElementById('perf-filter-type')?.value||'';
  const selectedQuarter=Number(document.getElementById('perf-filter-quarter')?.value)||0;
 
- const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!selectedQuarter||r.quarter===selectedQuarter)&&(!subject||r.subject===subject)&&(!type||r.type===type)&&JSON.stringify([r.student.fullName,r.student.name,r.student.studentNumber,r.student.id,r.student.uid,r.student.lrn,r.subject,r.section]).toLowerCase().includes(q));
+ const filtered=records.map((r,index)=>({...r,index})).filter(r=>(!selectedQuarter||r.quarter===selectedQuarter)&&(!subject||r.subject===subject)&&(!type||r.type===type)&&window.SigmaSearch.record(q,[r.student.studentNumber,r.student.id,r.student.uid,r.student.lrn],[r.student.fullName,r.student.name,r.subject,r.section]));
 
  const percentages=filtered.filter(r=>r.status==='graded'&&r.score!==null&&r.max>0).map(r=>r.score/r.max*100);
 

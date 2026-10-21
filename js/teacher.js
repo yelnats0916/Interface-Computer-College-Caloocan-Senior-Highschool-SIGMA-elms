@@ -10918,7 +10918,7 @@ function initTeacherPortal() {
         rows.forEach(row => {
             const name = (row.dataset.studentName || '').toLowerCase();
             const id = (row.dataset.studentId || '').toLowerCase();
-            if (!q || name.includes(q) || id.includes(q)) {
+            if (window.SigmaSearch.record(q, [id], [name])) {
                 row.classList.remove('hidden');
                 row.classList.add('flex');
             } else {
@@ -17366,7 +17366,7 @@ function initTeacherPortal() {
         const q = query.toLowerCase().trim();
         list.querySelectorAll('.topic-student-item').forEach(btn => {
             const name = (btn.dataset.name || '').toLowerCase();
-            btn.style.display = name.includes(q) ? '' : 'none';
+            btn.style.display = window.SigmaSearch.text(name, q) ? '' : 'none';
         });
     };
 
@@ -19979,7 +19979,7 @@ function initTeacherPortal() {
             const nameEl = row.querySelector('span.text-sm.font-bold');
             if (nameEl) {
                 const name = nameEl.textContent.toLowerCase();
-                row.style.display = name.includes(q) ? '' : 'none';
+                row.style.display = window.SigmaSearch.text(name, q) ? '' : 'none';
             }
         });
     };
@@ -21217,7 +21217,7 @@ function initTeacherPortal() {
         const rows = document.querySelectorAll('.teacher-grade-row');
         rows.forEach(r => {
             const data = r.getAttribute('data-search') || '';
-            if (!q || data.includes(q)) {
+            if (window.SigmaSearch.text(data, q)) {
                 r.style.display = '';
             } else {
                 r.style.display = 'none';
