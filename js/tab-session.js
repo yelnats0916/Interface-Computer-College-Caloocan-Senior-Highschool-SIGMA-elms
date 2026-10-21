@@ -78,6 +78,7 @@
 
     const isLoginPage = /\/(?:index\.html)?$/i.test(location.pathname);
     let verification = null;
+    let verifiedToken = null;
     let gateMessage = 'Checking your session...';
     const gateStyle = document.createElement('style');
     gateStyle.textContent = 'html[data-sigma-session-check] body > :not(#sigma-session-status){visibility:hidden!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
@@ -133,7 +134,7 @@
         return null;
     }
     window.SigmaSessionNavigation = Object.freeze({ portalForRole });
-    function verifyDatabaseSession() {
+    function verifyDatabaseSession({ background = false } = {}) {
         if (verification) return verification;
         const user = getTabSessionUser();
         if (!user) {
@@ -145,7 +146,9 @@
             return Promise.resolve();
         }
         const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
-        setGate('Checking your session...');
+        // Keep an already verified dashboard visible during routine focus checks.
+        // Initial loads, history restoration, and changed identities still use the gate.
+        if (!background || verifiedToken !== token) setGate('Checking your session...');
         verification = (async () => {
             try {
                 const result = await window.SigmaDatabase.request('session');
@@ -160,15 +163,18 @@
                     return;
                 }
                 syncTabIdentity();
+                verifiedToken = token;
                 setGate(null);
                 window.dispatchEvent(new Event('sigma:database-session-ready'));
             } catch (error) {
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
                 if (error.status === 401 || error.status === 403) {
+                    verifiedToken = null;
+                    setGate('Checking your session...');
                     clearIdentity();
                     if (!isLoginPage) window.location.replace(new URL('index.html', document.baseURI).href);
                 } else {
-                    setGate('Your session could not be verified. Check that XAMPP Apache and MySQL are running, then retry.');
+                    setGate('Your session could not be verified. Check your connection and retry.');
                     window.dispatchEvent(new CustomEvent('sigma:database-error', { detail: { endpoint: 'session', message: error.message } }));
                 }
             } finally {
@@ -188,14 +194,14 @@
             wasHidden = true;
             return;
         }
-        if (wasHidden) verifyDatabaseSession();
+        if (wasHidden) verifyDatabaseSession({ background: true });
         if (wasHidden && syncTabIdentity()) {
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
         wasHidden = false;
     });
     window.addEventListener('focus', () => {
-        verifyDatabaseSession();
+        verifyDatabaseSession({ background: true });
         if (syncTabIdentity()) {
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
