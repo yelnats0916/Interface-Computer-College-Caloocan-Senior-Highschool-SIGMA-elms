@@ -248,19 +248,53 @@
         `;
     }
 
+    let liveMetrics = null;
+    let liveMetricsError = '';
+    let liveMetricsPending = false;
+    function liveMetricHtml(id) {
+        const health = id === 'metric-health';
+        const title = health ? 'System Health' : 'Database Load';
+        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4><span class="text-xs font-semibold text-black-fade">${liveMetrics ? (health ? 'Responding' : 'Connected') : liveMetricsError ? 'Unavailable' : 'Checking'}</span></div>`;
+        if (!liveMetrics) return header + `<p class="text-xs text-black-fade py-5">${escapeHtml(liveMetricsError || 'Reading live measurements…')}</p><button type="button" class="text-xs underline" onclick="window.refreshLiveSystemMetrics()">Retry</button>`;
+        const data = liveMetrics;
+        const rows = health
+            ? [['API round trip', data.roundTripMs + ' ms'], ['PHP processing', data.application.processingMs + ' ms'], ['Database check', 'Passed']]
+            : [['SELECT 1 query', data.database.queryMs + ' ms'], ['Database tables', data.database.tables], ['Allocated table storage', (data.database.allocatedBytes / 1048576).toFixed(2) + ' MB']];
+        return header + `<div class="space-y-3 py-4">` + rows.map(([label,value]) => `<div class="flex justify-between gap-3 text-xs"><span class="text-black-fade">${label}</span><strong class="text-black">${escapeHtml(String(value))}</strong></div>`).join('') + `</div><p class="text-xs text-black-fade">Checked ${escapeHtml(new Date(data.checkedAt).toLocaleTimeString())}</p><p class="text-xs text-black-fade mt-2">${health ? 'Current request only; uptime history is not monitored.' : 'Point-in-time query; cache hit rate and connection pools are not monitored. Storage is approximate.'}</p>`;
+    }
+    function paintLiveMetrics() {
+        document.querySelectorAll('[data-live-system-metric]').forEach(node => {
+            node.innerHTML = liveMetricHtml(node.dataset.liveSystemMetric);
+        });
+    }
+    window.refreshLiveSystemMetrics = async function () {
+        if (liveMetricsPending || !document.getElementById('dashboard-metrics-container') || !window.SigmaDatabase?.currentUser()?.id) return;
+        liveMetricsPending = true;
+        try {
+            const started = performance.now();
+            const result = await window.SigmaDatabase.request('system_metrics');
+            liveMetrics = { ...result, roundTripMs: Math.round(performance.now() - started) };
+            liveMetricsError = '';
+        } catch (error) {
+            liveMetrics = null;
+            liveMetricsError = error.message || 'Measurements are unavailable. Retry when connected.';
+        } finally {
+            liveMetricsPending = false;
+            paintLiveMetrics();
+        }
+    };
+    window.addEventListener('sigma:database-session-ready', () => window.refreshLiveSystemMetrics());
+    setInterval(() => {
+        if (!document.hidden) window.refreshLiveSystemMetrics();
+    }, 60000);
+
     function renderMetricCardHtml(item) {
         if (!item) return '';
 
         if (['metric-health', 'metric-database'].includes(item.id)) {
-            const description = item.id === 'metric-health'
-                ? 'Uptime and response-time monitoring are not connected.'
-                : 'Query latency, cache hit rate, and connection pools are not measured.';
             return `<div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
-                ${renderMetricHeaderHtml(item.title, 'Not monitored', item.status.icon || '')}
-                <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-4">
-                    <p class="text-sm font-semibold text-black">No live measurements</p>
-                    <p class="text-xs text-black-fade">${description}</p>
-                </div></div>`;
+                <div data-live-system-metric="${item.id}">${liveMetricHtml(item.id)}</div>
+            </div>`;
         }
 
         if (item.type === 'status-metric') {
@@ -449,6 +483,7 @@
         container.innerHTML = initialCards.map(item => renderMetricCardHtml(item)).join('');
 
         wireInteractiveSwitchers();
+        window.refreshLiveSystemMetrics();
         window.updateAiDisplay?.();
         window.syncGoogleDriveStorageMetric?.();
         window.syncSecurityMetric?.();
