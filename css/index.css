@@ -1767,3 +1767,14 @@ body #entryHelpCenterBtnSmall:is(:hover, :focus-visible) i::before {
     -webkit-text-fill-color: #FFD000 !important;
     opacity: 1 !important;
 }
+/* Desktop Help Center heading matches the landing-page Help Center button. */
+@media (min-width: 1024px) {
+    body.help-center-active #mainNav #navIcon {
+        font-size: 1.875rem !important;
+        line-height: 2.25rem !important;
+    }
+    body.help-center-active #mainNav #navTitle {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem !important;
+    }
+}
