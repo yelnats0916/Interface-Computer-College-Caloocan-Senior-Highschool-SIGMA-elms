@@ -925,6 +925,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 token: loginSession.token, userId: loginSession.userId, issuedAt: Date.now()
             }));
             window.location.replace(account.redirect);
+            return { success: true, redirecting: true };
         }
 
         const targetUserId = String(matchedUser.uid || matchedUser.id || '').trim();
@@ -933,6 +934,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setLoading(formType, false);
             if (!isTermsAccepted) {
                 openTermsAgreementModal(targetUserId, finalizeLogin);
+                return { success: true, awaitingTerms: true };
             } else {
                 return await finalizeLogin();
             }
@@ -977,6 +979,35 @@ document.addEventListener('DOMContentLoaded', function () {
     let current2faSuccessCallback = null;
     let current2faSetupFromServer = false; // true = QR came from PHP backend; local fallback must not override
 
+    const verificationLoaders = new Map();
+    function setVerificationLoading(form, loading) {
+        if (!form) return;
+        const previous = verificationLoaders.get(form);
+        if (!loading) {
+            if (!previous) return;
+            previous.clear();
+            previous.controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+            form.classList.remove('sigma-verification-pending');
+            verificationLoaders.delete(form);
+            const back = document.getElementById('landing2faGlobalBackBtn');
+            if (back) back.disabled = previous.backDisabled;
+            return;
+        }
+        if (previous) return;
+        const controls = Array.from(form.querySelectorAll('input,button,select,textarea')).map(control => [control, control.disabled]);
+        controls.forEach(([control]) => { control.disabled = true; });
+        const back = document.getElementById('landing2faGlobalBackBtn');
+        const backDisabled = back?.disabled || false;
+        if (back) back.disabled = true;
+        form.classList.add('sigma-verification-pending');
+        const clear = window.SigmaContentLoading.show(form);
+        form.querySelector('.sigma-content-loading-overlay')?.setAttribute('aria-label', 'Verifying login');
+        verificationLoaders.set(form, {clear, controls, backDisabled});
+    }
+    window.addEventListener('pageshow', event => {
+        if (event.persisted) Array.from(verificationLoaders.keys()).forEach(form => setVerificationLoading(form, false));
+    });
+
     // ── IN-PLACE 2FA NAVIGATION & SCROLL TO TOP ────────────────────────────
     function scrollLandingToTop() {
         try {
@@ -1018,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.ensureLandingAtTop = ensureLandingAtTop;
 
     window.backToLoginForm = function () {
+        if (verificationLoaders.size) return;
         document.getElementById('landing2faVerifyView')?.classList.add('hidden');
         document.getElementById('landing2faSetupView')?.classList.add('hidden');
         document.getElementById('landing2faGlobalBackBtn')?.classList.add('hidden');
@@ -1249,6 +1281,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('landing2faVerifyForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const form = e.currentTarget;
+        if (verificationLoaders.has(form)) return;
+        let redirecting = false;
         const input = document.getElementById('landing2faVerifyCodeInput');
         const err = document.getElementById('landing2faVerifyError');
         const btn = document.getElementById('landing2faVerifySubmitBtn');
@@ -1268,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (btn) btn.disabled = true;
+        setVerificationLoading(form, true);
         if (spinner) spinner.classList.remove('hidden');
         if (label) label.textContent = 'Verifying...';
         if (err) err.classList.add('hidden');
@@ -1284,6 +1319,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (label) label.textContent = 'Signing in...';
                 const outcome = await current2faSuccessCallback();
                 if (outcome?.success === false) throw new Error(outcome.error);
+                redirecting = outcome?.redirecting === true;
             }
         } catch (error) {
             const connectionFailure = ['AbortError', 'TimeoutError', 'TypeError'].includes(error.name);
@@ -1297,9 +1333,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             if (input) input.focus();
         } finally {
-            if (btn) btn.disabled = false;
-            if (spinner) spinner.classList.add('hidden');
-            if (label) label.textContent = 'Verify & Log In';
+            if (!redirecting) {
+                setVerificationLoading(form, false);
+                if (spinner) spinner.classList.add('hidden');
+                if (label) label.textContent = 'Verify & Log In';
+                if (err && !err.classList.contains('hidden')) input?.focus({ preventScroll: true });
+            }
         }
     });
 
@@ -1406,6 +1445,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('landing2faSetupForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const form = e.currentTarget;
+        if (verificationLoaders.has(form)) return;
+        let redirecting = false;
         const input = document.getElementById('landing2faSetupCodeInput');
         const err = document.getElementById('landing2faSetupError');
         const btn = document.getElementById('landing2faSetupSubmitBtn');
@@ -1425,7 +1467,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (btn) btn.disabled = true;
+        setVerificationLoading(form, true);
         if (spinner) spinner.classList.remove('hidden');
         if (label) label.textContent = 'Verifying...';
         if (err) err.classList.add('hidden');
@@ -1467,7 +1509,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 markLocalUser2faEnabled(current2faUserId, true);
                 recordAuthenticationEvent('Google Authenticator 2FA enabled', findManagedAccount(current2faUserId), 'success');
                 if (typeof current2faSuccessCallback === 'function') {
-                    current2faSuccessCallback();
+                    if (label) label.textContent = 'Signing in...';
+                    const outcome = await current2faSuccessCallback();
+                    if (outcome?.success === false) throw new Error(outcome.error);
+                    redirecting = outcome?.redirecting === true;
                 }
             } else {
                 if (err) {
@@ -1486,9 +1531,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 err.classList.remove('hidden');
             }
         } finally {
-            if (btn) btn.disabled = false;
-            if (spinner) spinner.classList.add('hidden');
-            if (label) label.textContent = 'Verify & Log In';
+            if (!redirecting) {
+                setVerificationLoading(form, false);
+                if (spinner) spinner.classList.add('hidden');
+                if (label) label.textContent = 'Verify & Log In';
+                if (err && !err.classList.contains('hidden')) input?.focus({ preventScroll: true });
+            }
         }
     });
 

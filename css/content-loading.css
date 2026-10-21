@@ -20,3 +20,9 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
 .sigma-pending-content--compact .sigma-dot-spinner { --sigma-loader-size:24px; }
 .sigma-pending-chart > :not([data-sigma-overview-loader]) { visibility:hidden; }
 .sigma-overview-loader { position:absolute; inset:0; z-index:2; min-height:0; background:#fff; }
+
+/* Keep the verification form's footprint while its content is busy, at every viewport size. */
+.sigma-verification-pending > :not(.sigma-content-loading-overlay) { visibility:hidden; }
+.sigma-verification-pending { min-width:0; width:100%; box-sizing:border-box; }
+.sigma-verification-pending .sigma-content-loading-overlay { max-width:100%; }
+#landing2faGlobalBackBtn:disabled { pointer-events:none; cursor:wait; }
