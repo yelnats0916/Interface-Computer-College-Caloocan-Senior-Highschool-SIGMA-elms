@@ -192,6 +192,12 @@ try {
     }
 
     $action = trim($payload['action'] ?? '');
+    if ($action === 'cancel_service_vault_verification') {
+        $actor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
+        if (!serviceVaultAdmin($actor)) jsonOut(['success'=>false,'error'=>'Administrator access required.'],403);
+        recordServiceVaultVerification($pdo, (string)$actor['id'], 'canceled');
+        jsonOut(['success'=>true]);
+    }
     if ($action === 'authorize_service_vault') {
         try { jsonOut(['success' => true, 'token' => authorizeServiceVault($payload), 'expires_in' => 900]); }
         catch (InvalidArgumentException | RuntimeException $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 403); }

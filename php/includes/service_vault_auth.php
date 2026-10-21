@@ -13,6 +13,14 @@ function serviceVaultAdmin(array $user): bool {
     return $role === 'admin' && ($permissions['settingsMain'] ?? false) === true && ($permissions['settingsApi'] ?? false) === true;
 }
 
+function recordServiceVaultVerification(PDO $db, string $id, string $outcome): void {
+    $actions = ['success'=>'Administrator settings verification succeeded', 'failed'=>'Administrator settings verification failed', 'canceled'=>'Administrator settings verification canceled'];
+    if (!isset($actions[$outcome])) throw new InvalidArgumentException('Invalid verification outcome.');
+    $db->prepare('INSERT INTO audit_logs(user_id,action,ip_address,user_agent) VALUES(?,?,?,?)')->execute([
+        $id, $actions[$outcome], $_SERVER['REMOTE_ADDR'] ?? null, substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
+    ]);
+}
+
 function authorizeServiceVault(array $input): string {
     if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true) && !serviceRequestIsSecure()) throw new RuntimeException('HTTPS is required for administrator credentials.');
     $db = serviceSettingsPdo();
@@ -36,12 +44,14 @@ function authorizeServiceVault(array $input): string {
         $count = $attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'] . ' UTC') <= time() ? 1 : (int)($attempt['attempts'] ?? 0) + 1;
         $save = $db->prepare('INSERT INTO service_vault_login_attempts(client_hash, attempts, blocked_until) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts), blocked_until=VALUES(blocked_until), updated_at=CURRENT_TIMESTAMP');
         $save->execute([$client, $count, $count >= 5 ? gmdate('Y-m-d H:i:s', time() + 300) : null]);
+        recordServiceVaultVerification($db, $id, 'failed');
         throw new RuntimeException('The administrator password is incorrect.');
     }
     $db->prepare('DELETE FROM service_vault_login_attempts WHERE client_hash = ?')->execute([$client]);
     $token = bin2hex(random_bytes(32));
     $db->prepare('DELETE FROM service_vault_sessions WHERE expires_at < UTC_TIMESTAMP()')->execute();
     $db->prepare('INSERT INTO service_vault_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))')->execute([hash('sha256', $token), $user['id']]);
+    recordServiceVaultVerification($db, $id, 'success');
     return $token;
 }
 

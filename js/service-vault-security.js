@@ -24,6 +24,10 @@
             });
         });
     }
+    function recordVerificationActivity(outcome) {
+        const names = { success: 'Administrator settings verification succeeded', failed: 'Administrator settings verification failed', canceled: 'Administrator settings verification canceled' };
+        window.recordActivityLog?.(names[outcome], { module: 'Security', details: 'Protected integration settings verification. No credentials are recorded.' });
+    }
     function authorize(api) {
         if (pending) return pending;
         pending = new Promise((resolve, reject) => {
@@ -37,6 +41,11 @@
             const close = () => { form.reset(); dialog.close(); dialog.remove(); };
             const cancel = () => {
                 if (submitting) return;
+                originalFetch(new URL('auth.php', api).href, {
+                    method: 'POST', keepalive: true,
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token || '') },
+                    body: JSON.stringify({ action: 'cancel_service_vault_verification' })
+                }).then(async response => { if (response.ok && (await response.json()).success) recordVerificationActivity('canceled'); }).catch(() => {});
                 close();
                 const failure = Object.assign(new Error('Credential verification canceled.'), { code: 'VAULT_AUTH_CANCELED' });
                 reject(failure);
@@ -62,7 +71,11 @@
                         signal: AbortSignal.timeout(15000),
                         body: JSON.stringify({ action: 'authorize_service_vault', login: form.elements.login.value.trim(), password: form.elements.password.value }) });
                     const result = await response.json();
-                    if (!response.ok || !result.success || !/^[a-f0-9]{64}$/.test(result.token || '')) throw new Error(result.error || 'Administrator verification failed.');
+                    if (!response.ok || !result.success || !/^[a-f0-9]{64}$/.test(result.token || '')) {
+                        if (result.error === 'The administrator password is incorrect.') recordVerificationActivity('failed');
+                        throw new Error(result.error || 'Administrator verification failed.');
+                    }
+                    recordVerificationActivity('success');
                     token = result.token;
                     expires = Date.now() + Number(result.expires_in || 900) * 1000;
                     close(); resolve();
