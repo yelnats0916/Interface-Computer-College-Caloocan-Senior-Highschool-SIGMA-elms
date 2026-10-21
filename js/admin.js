@@ -7565,56 +7565,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateOverviewCharts();
 });
 
-const SYSTEM_STATUS_CONFIG = {
-    operational: {
-        label: 'Operational',
-        message: 'All systems running normally',
-        color: '#15803d',
-        latency: 'Fast',
-        uptime: '99.9',
-        latencyPercent: '100%'
-    },
-    stable: {
-        label: 'Stable',
-        message: 'System is running with minor issues',
-        color: '#2563eb',
-        latency: 'Normal',
-        uptime: '95.2',
-        latencyPercent: '85%'
-    },
-    degraded: {
-        label: 'Degraded',
-        message: 'Some services are experiencing slowdowns',
-        color: '#ca8a04',
-        latency: 'Slow',
-        uptime: '75.4',
-        latencyPercent: '50%'
-    },
-    partial_outage: {
-        label: 'Partial Outage',
-        message: 'Some modules are currently unavailable',
-        color: '#ea580c',
-        latency: 'Slow',
-        uptime: '55.0',
-        latencyPercent: '30%'
-    },
-    critical: {
-        label: 'Critical',
-        message: 'System is experiencing major failures',
-        color: '#dc2626',
-        latency: 'Very Slow',
-        uptime: '30.1',
-        latencyPercent: '10%'
-    },
-    offline: {
-        label: 'Offline',
-        message: 'System is currently offline',
-        color: '#000000',
-        latency: 'Very Slow',
-        uptime: '0',
-        latencyPercent: '0%'
-    }
-};
+// No uptime or response-time telemetry is configured. A manual status must
+// never manufacture measured percentages or performance figures.
+const SYSTEM_STATUS_CONFIG = Object.fromEntries(
+    ['operational', 'stable', 'degraded', 'partial_outage', 'critical', 'offline'].map(key => [key, {
+        label: 'Not monitored', message: 'Live system monitoring is not connected.',
+        color: '#64748b', latency: 'Not measured', uptime: '—', latencyPercent: '0%'
+    }])
+);
 
 window.updateSystemStatus = function (statusKey) {
     const config = SYSTEM_STATUS_CONFIG[statusKey];

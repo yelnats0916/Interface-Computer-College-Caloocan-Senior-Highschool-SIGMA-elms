@@ -64,10 +64,10 @@
             type: 'status-metric',
             title: 'System Health',
             desc: 'Server uptime and API response latency',
-            status: { label: 'Operational', color: '#15803d' },
-            uptime: '99.9',
-            message: 'All Systems Running Normally',
-            latency: { label: 'Fast', percent: '100%', color: '#15803d' }
+            status: { label: 'Not monitored', color: '#64748b' },
+            uptime: '—',
+            message: 'Uptime monitoring is not connected.',
+            latency: { label: 'Not measured', percent: '0%', color: '#64748b' }
         },
         {
             id: 'metric-ai',
@@ -113,10 +113,10 @@
             type: 'db-load',
             title: 'Database Load',
             desc: 'Query latency and database connection pool',
-            status: { label: 'Healthy', icon: 'fa-database', color: '#15803d' },
-            queryLatency: '48ms',
-            cacheHitRate: '98.4%',
-            activeConnections: '24 Active Pools'
+            status: { label: 'Not monitored', icon: 'fa-database', color: '#64748b' },
+            queryLatency: '—',
+            cacheHitRate: 'Not measured',
+            activeConnections: 'Not measured'
         },
         {
             id: 'metric-grading',
@@ -250,6 +250,18 @@
 
     function renderMetricCardHtml(item) {
         if (!item) return '';
+
+        if (['metric-health', 'metric-database'].includes(item.id)) {
+            const description = item.id === 'metric-health'
+                ? 'Uptime and response-time monitoring are not connected.'
+                : 'Query latency, cache hit rate, and connection pools are not measured.';
+            return `<div data-id="${item.id}" class="sigma-card pocket-card p-4 flex flex-col justify-between">
+                ${renderMetricHeaderHtml(item.title, 'Not monitored', item.status.icon || '')}
+                <div class="metric-body-centered flex-1 flex flex-col items-center justify-center text-center gap-1.5 py-4">
+                    <p class="text-sm font-semibold text-black">No live measurements</p>
+                    <p class="text-xs text-black-fade">${description}</p>
+                </div></div>`;
+        }
 
         if (item.type === 'status-metric') {
             return `
