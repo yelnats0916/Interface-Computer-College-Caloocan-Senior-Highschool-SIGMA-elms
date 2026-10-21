@@ -678,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.onpopstate = (e) => {
-        const view = e.state?.view || 'landing';
+        const view = window.location.hash.toLowerCase() === '#help' ? 'help' : (e.state?.view || 'landing');
         switchView(view, false);
     };
 
@@ -1056,6 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 3. Focus back on ID input for immediate fresh typing
         setTimeout(() => {
+            if (activeViewName !== 'landing' || window.location.hash.toLowerCase() === '#help') return;
             try { ui.inputs.id?.focus({ preventScroll: true }); } catch (_) { ui.inputs.id?.focus(); }
             ensureLandingAtTop();
         }, 100);
@@ -1889,11 +1890,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const finalStart = (hashView === 'help' || hashView === 'landing') ? hashView : 'landing';
     switchView(finalStart, false);
 
-    // Browser reload & back/forward cache (pageshow) listener: ensure page always defaults to login
+    // Restore the public route on reload and history restoration.
     window.addEventListener('pageshow', function () {
-        if (typeof window.backToLoginForm === 'function') {
-            window.backToLoginForm();
-        }
+        const view = window.location.hash.toLowerCase() === '#help' ? 'help' : 'landing';
+        switchView(view, false);
+    });
+    window.addEventListener('hashchange', () => {
+        const view = window.location.hash.toLowerCase() === '#help' ? 'help' : 'landing';
+        if (activeViewName !== view) switchView(view, false);
     });
 
 });
