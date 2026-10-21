@@ -678,7 +678,7 @@ function renderUserAccountsTable() {
     tableBody.innerHTML = paginatedUsers.map((user, rowIdx) => {
         const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : '';
         const isThisUserMaster = String(user.uid || user.id || '').replace(/^#/, '').trim() === '0000000' || String(user.role || user.type || '').toLowerCase().includes('master');
-        const rowNumber = startIndex + rowIdx + 1;
+        const rowNumber = totalItems - startIndex - rowIdx;
         const fullName = user.fullName || `${user.firstName || ''} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName || ''}`.trim() || 'N/A';
         const initials = getUserInitials(fullName);
         const photo = resolveUserAvatar(user, rowIdx);
@@ -3269,11 +3269,6 @@ function getFilteredUsersBySearch(searchState) {
 
     // REVERSE STACK: Strictly by date and time created (newest at top, oldest at bottom)
     return filtered.sort((a, b) => {
-        const isMasterA = String(a.uid || a.id) === '0000000' || String(a.role || a.type || '').toLowerCase().includes('master');
-        const isMasterB = String(b.uid || b.id) === '0000000' || String(b.role || b.type || '').toLowerCase().includes('master');
-        if (isMasterA) return 1;
-        if (isMasterB) return -1;
-
         // 1. Strictly by Date and Time Created: Newest date & time is ALWAYS at the top, oldest at the bottom
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
