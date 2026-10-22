@@ -1793,18 +1793,7 @@ function initSharedTopbarInteractions() {
             }
         }
         if (!container.children.length) {
-            container.innerHTML = `
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p class="text-xs font-black text-emerald-700 uppercase tracking-widest mb-1">Academic Status</p>
-                    <p class="text-sm font-bold text-slate-800">1st Quarter GWA: 94.25</p>
-                    <p class="text-[11px] text-slate-500 mt-1">Excellent performance. Keep it up!</p>
-                </div>
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p class="text-xs font-black text-yellow-600 uppercase tracking-widest mb-1">Attendance Rate</p>
-                    <p class="text-sm font-bold text-slate-800">98.5% Attendance</p>
-                    <p class="text-[11px] text-slate-500 mt-1">Zero unexcused absences recorded.</p>
-                </div>
-            `;
+            container.innerHTML = '<div class="sigma-pending-content sigma-pending-content--compact" role="status" aria-label="Loading"><span class="sigma-dot-spinner" aria-hidden="true"></span></div>';
         }
     }
 

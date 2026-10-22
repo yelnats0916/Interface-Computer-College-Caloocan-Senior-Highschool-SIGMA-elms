@@ -8,8 +8,8 @@
         const storageKey = 'sigma-insight-read-v1:' + owner;
         let saved;
         try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { saved = {}; }
-        const unread = new Set(saved.unread || []);
-        const read = new Set(saved.read || []);
+        const unread = new Set();
+        const read = new Set(Array.isArray(saved?.read) ? saved.read.map(String) : []);
         const badge = document.createElement('span');
         badge.className = 'mobile-subbar-badge hidden';
         badge.setAttribute('aria-hidden', 'true');
@@ -18,12 +18,15 @@
             panel.id === 'analytics-dropdown' ? !panel.classList.contains('hidden') : panel.classList.contains('open'));
         function render() {
             const kind = location.pathname.includes('teacher') ? 'teacher' : 'student';
-            for (const card of window.SigmaAiDatabase?.getState(kind, owner)?.cards || []) {
-                if (card.id && !read.has(String(card.id))) unread.add(String(card.id));
-            }
+            const controller = kind === 'teacher' ? window.SigmaTeacherAnalytics : window.SigmaStudentAnalytics;
+            const cards = window.SigmaAiDatabase?.getStatus(kind, owner) === 'ready' ? controller?.getCards?.() || [] : [];
+            const available = new Set(cards.filter(card => card?.id && !card.hidden && !card.isDeleted).map(card => String(card.id)));
+            // Rebuild from real currently available cards, not DOM placeholders or saved badge totals.
+            unread.clear();
+            available.forEach(id => { if (!read.has(id)) unread.add(id); });
             document.querySelectorAll('.sigma-card--insight[data-id]').forEach(card => {
                 const id = card.dataset.id;
-                if (!read.has(id)) unread.add(id);
+                if (!available.has(id)) { card.querySelector('.sigma-insight-new-badge')?.remove(); return; }
                 const actions = card.querySelector('.sigma-insight-actions');
                 card.querySelector('.sigma-insight-unread-dot')?.remove();
                 const newBadge = card.querySelector('.sigma-insight-new-badge');
@@ -37,7 +40,7 @@
                 }
             });
             const serialized = JSON.stringify({ unread: [...unread], read: [...read] });
-            if (localStorage.getItem(storageKey) !== serialized) localStorage.setItem(storageKey, serialized);
+            try { if (localStorage.getItem(storageKey) !== serialized) localStorage.setItem(storageKey, serialized); } catch (_) {}
             const count = unread.size > 99 ? '99+' : String(unread.size);
             if (badge.textContent !== count) badge.textContent = count;
             badge.classList.toggle('hidden', unread.size === 0);
@@ -63,10 +66,9 @@
             });
         }
         window.addEventListener('sigma:analytics-insight', event => {
-            if (!event.detail || read.has(String(event.detail.id))) return;
-            unread.add(String(event.detail.id));
             render();
         });
+        window.addEventListener('sigma:refresh-analytics-cards', render);
         window.markInsightRead = id => { read.add(String(id)); unread.delete(String(id)); render(); };
         window.addEventListener('storage', event => {
             if (event.key !== storageKey) return;

@@ -157,11 +157,8 @@
         },
         getState(kind, id) {
             const memory = states.get(key(kind, id))?.state;
-            if (memory && Array.isArray(memory.cards) && memory.cards.length > 0) return memory;
-            try {
-                const cached = JSON.parse(localStorage.getItem(key(kind, id)) || "null");
-                if (cached && Array.isArray(cached.cards) && cached.cards.length > 0) return cached;
-            } catch {}
+            // An empty server response is authoritative. Offline cache recovery is
+            // handled explicitly by ensureState, never by substituting stale cards here.
             return memory || { cards: [] };
         },
         logsReady: () => logReady,
