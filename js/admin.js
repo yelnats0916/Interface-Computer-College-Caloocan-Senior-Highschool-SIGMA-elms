@@ -5115,6 +5115,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.showSection = function (sectionId, navId) {
+        if (['settings-ai-view', 'settings-gdrive-view', 'settings-recaptcha-view'].includes(sectionId) && !window.SigmaServiceVault?.isVerified()) {
+            sectionId = 'settings-integrations-view'; navId = 'nav-settings-integrations';
+        }
         window.invalidateSigmaViewCaches?.();
         if (sectionId !== 'settings-integrations-view' && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.showSection(sectionId, navId))) return;
         if (sectionId !== 'settings-limits-view' && window.confirmAdvancedLimitsLeave && !window.confirmAdvancedLimitsLeave(() => window.showSection(sectionId, navId))) return;
@@ -5257,9 +5260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-                if (sectionId === 'settings-integrations-view' && typeof window.loadAiPageData === 'function') {
-            window.loadAiPageData();
-        }
+        if (sectionId === 'settings-integrations-view') window.loadIntegrationOverview?.();
         if (sectionId === 'settings-ai-view') {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('System Settings', 'SIGMA AI Integration Engines');
@@ -5505,6 +5506,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.switchTab = function (rawTabId, skipHashUpdate = false) {
         const tabId = String(rawTabId || '').replace(/^#/, '').replace(/_/g, '-');
+        if (/^(?:nav-)?settings-(?:ai|gemini|groq|gdrive|recaptcha)(?:-view)?$/.test(tabId) && !window.SigmaServiceVault?.isVerified()) {
+            window.switchTab('nav-settings-integrations');
+            return;
+        }
         if (!['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api'].includes(tabId) && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
         if (!['nav-settings-limits', 'settings-limits-view', 'settings-limits', 'nav-settings-limits-view'].includes(tabId) && window.confirmAdvancedLimitsLeave && !window.confirmAdvancedLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
         if (tabId && !tabId.includes('profile') && !tabId.includes('edit-user')) {
@@ -19596,10 +19601,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             setDriveConnectionStatus('Status unavailable', 'failed');
             console.warn('[SIGMA] Google Drive status query error:', e);
-        }
+        } finally { window.SigmaServiceVault?.finishLoading(); }
     };
 
-    window.openGoogleDriveSettingsPage = function () {
+    window.openGoogleDriveSettingsPage = async function () {
+        if (!await window.SigmaServiceVault?.verifyPanel('drive')) return;
         if (typeof window.switchTab === 'function') {
             window.switchTab('nav-settings-gdrive');
         } else if (typeof window.showSection === 'function') {
@@ -19819,7 +19825,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     window.resolveAuthApiUrl = resolveAuthApiUrl;
 
-    window.openRecaptchaSettingsPage = function () {
+    window.openRecaptchaSettingsPage = async function () {
+        if (!await window.SigmaServiceVault?.verifyPanel('recaptcha')) return;
         if (typeof window.switchTab === 'function') {
             window.switchTab('nav-settings-recaptcha');
         } else if (typeof window.showSection === 'function') {
@@ -19835,7 +19842,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.openAiSettingsPage = function () {
+    window.openAiSettingsPage = async function () {
+        if (!await window.SigmaServiceVault?.verifyPanel('ai')) return;
         if (typeof window.switchTab === 'function') {
             window.switchTab('nav-settings-ai');
         } else if (typeof window.showSection === 'function') {
@@ -19847,6 +19855,20 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.hash = 'settings-ai-view';
             window.loadAiPageData?.();
         }
+    };
+
+    window.loadIntegrationOverview = async function () {
+        const statuses = document.querySelectorAll('.gemini-status-text,.groq-status-text');
+        try {
+            const response = await window.SigmaDatabase.fetch(resolveAuthApiUrl('action=integration_status'));
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error('Integration status unavailable');
+            for (const provider of ['gemini', 'groq']) {
+                document.querySelectorAll('.' + provider + '-status-text').forEach(status => {
+                    status.textContent = data.providers?.[provider]?.configured ? 'Configured' : 'Not Configured';
+                });
+            }
+        } catch (_) { statuses.forEach(status => { status.textContent = 'Status unavailable'; }); }
     };
 
     window.loadAiPageData = async function () {
@@ -19862,13 +19884,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             if (e.code === 'VAULT_AUTH_CANCELED') {
                 const feedback = document.getElementById('ai-routing-feedback');
-                if (feedback) feedback.textContent = 'Administrator verification is required to load these settings.';
+                if (feedback) feedback.textContent = '';
                 return;
             }
             console.warn('[SIGMA] AI vault load error:', e);
             const feedback = document.getElementById('ai-routing-feedback');
             window.renderSigmaLoadStatus(feedback, 'Unable to connect to AI settings.', window.loadAiPageData);
-        }
+        } finally { window.SigmaServiceVault?.finishLoading(); }
     };
 
     window.persistAiRoutingSettings = async function (routing) {
@@ -20345,7 +20367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (status) status.textContent = error.code === 'VAULT_AUTH_CANCELED' ? 'Verification required' : 'Connection unavailable';
             window.updateRecaptchaSecretSavedState(null, false);
             if (error.code !== 'VAULT_AUTH_CANCELED') console.warn('[SIGMA] reCAPTCHA configuration unavailable:', error.message);
-        }
+        } finally { window.SigmaServiceVault?.finishLoading(); }
         window.updateRecaptchaSaveButtons();
     };
     window.saveRecaptchaPageSettings = async function (scope = 'keys') {

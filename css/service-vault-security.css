@@ -32,4 +32,4 @@
 .service-vault-auth .service-vault-auth-actions button:focus-visible { outline: 2px solid #15803d; outline-offset: 3px; }
 .service-vault-auth .service-vault-auth-actions button:disabled { transform: none; cursor: wait; }
 
-.service-vault-canceled-notice { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:16px 0; padding:12px 16px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#000; font:400 14px/1.5 Inter,Arial,sans-serif; }
+.service-vault-indicator { position:fixed; left:24px; bottom:24px; z-index:100001; max-width:calc(100vw - 48px); padding:14px 18px; border:1px solid #e2e8f0; border-left:4px solid #15803d; border-radius:12px; background:#fff; color:#000; box-shadow:0 4px 18px #0002; font:400 14px/1.5 Inter,Arial,sans-serif; }

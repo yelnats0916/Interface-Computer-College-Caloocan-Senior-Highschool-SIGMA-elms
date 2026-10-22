@@ -13,11 +13,14 @@ function serviceVaultAdmin(array $user): bool {
     return $role === 'admin' && ($permissions['settingsMain'] ?? false) === true && ($permissions['settingsApi'] ?? false) === true;
 }
 
-function recordServiceVaultVerification(PDO $db, string $id, string $outcome): void {
+function recordServiceVaultVerification(PDO $db, string $id, string $outcome, string $panel = ''): void {
     $actions = ['success'=>'Administrator settings verification succeeded', 'failed'=>'Administrator settings verification failed', 'canceled'=>'Administrator settings verification canceled'];
     if (!isset($actions[$outcome])) throw new InvalidArgumentException('Invalid verification outcome.');
     require_once __DIR__.'/activity_audit.php';
-    sigmaRecordActivity($db,$id,$actions[$outcome],'Security',sigmaActivityContext($actions[$outcome])['details']);
+    $panels = ['ai'=>'SIGMA AI Integration Engines','drive'=>'Google Drive Cloud Storage','recaptcha'=>'Google reCAPTCHA Protection'];
+    $details = sigmaActivityContext($actions[$outcome])['details'];
+    if (isset($panels[$panel])) $details = 'API panel: '.$panels[$panel]."\n".$details;
+    sigmaRecordActivity($db,$id,$actions[$outcome],'Security',$details);
 }
 
 function authorizeServiceVault(array $input): string {
@@ -43,14 +46,14 @@ function authorizeServiceVault(array $input): string {
         $count = $attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'] . ' UTC') <= time() ? 1 : (int)($attempt['attempts'] ?? 0) + 1;
         $save = $db->prepare('INSERT INTO service_vault_login_attempts(client_hash, attempts, blocked_until) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts), blocked_until=VALUES(blocked_until), updated_at=CURRENT_TIMESTAMP');
         $save->execute([$client, $count, $count >= 5 ? gmdate('Y-m-d H:i:s', time() + 300) : null]);
-        recordServiceVaultVerification($db, $id, 'failed');
+        recordServiceVaultVerification($db, $id, 'failed', (string)($input['panel'] ?? ''));
         throw new RuntimeException('The administrator password is incorrect.');
     }
     $db->prepare('DELETE FROM service_vault_login_attempts WHERE client_hash = ?')->execute([$client]);
     $token = bin2hex(random_bytes(32));
     $db->prepare('DELETE FROM service_vault_sessions WHERE expires_at < UTC_TIMESTAMP()')->execute();
     $db->prepare('INSERT INTO service_vault_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))')->execute([hash('sha256', $token), $user['id']]);
-    recordServiceVaultVerification($db, $id, 'success');
+    recordServiceVaultVerification($db, $id, 'success', (string)($input['panel'] ?? ''));
     return $token;
 }
 

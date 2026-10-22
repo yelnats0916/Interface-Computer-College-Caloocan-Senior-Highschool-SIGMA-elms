@@ -2,6 +2,15 @@
     'use strict';
     const originalFetch = window.fetch.bind(window);
     let token = '', expires = 0, pending = null, canceled = false, authorizationEpoch = 0;
+    let indicatorTimer;
+    const panels = { ai: 'SIGMA AI Integration Engines', drive: 'Google Drive Cloud Storage', recaptcha: 'Google reCAPTCHA Protection' };
+    function indicator(message, loading = false) {
+        clearTimeout(indicatorTimer);
+        document.querySelector('.service-vault-indicator')?.remove();
+        const notice = document.createElement('div'); notice.className = 'service-vault-indicator'; notice.setAttribute('role', 'status'); notice.textContent = message; notice.dataset.loading = String(loading);
+        document.body.append(notice);
+        if (!loading) indicatorTimer = setTimeout(() => notice.remove(), 5000);
+    }
     const canceledError = () => Object.assign(new Error('Administrator verification was canceled.'), { code: 'VAULT_AUTH_CANCELED' });
     function configureFields() {
         try { localStorage.removeItem('sigma-api-keys'); localStorage.removeItem('sigma-api-vault-pass'); } catch (_) {}
@@ -25,34 +34,11 @@
             });
         });
     }
-    function recordVerificationActivity(outcome) {
+    function recordVerificationActivity(outcome, panel) {
         const names = { success: 'Administrator settings verification succeeded', failed: 'Administrator settings verification failed', canceled: 'Administrator settings verification canceled' };
-        window.recordActivityLog?.(names[outcome], { module: 'Security', details: 'Protected integration settings verification. No credentials are recorded.' });
+        window.recordActivityLog?.(names[outcome], { module: 'Security', details: 'API panel: ' + (panels[panel] || 'Protected settings') + '\nNo credentials are recorded.' });
     }
-    function showCanceledNotice() {
-        const section = document.querySelector('.dynamic-section:not(.hidden)[id^="settings-"]');
-        if (!section || section.querySelector('.service-vault-canceled-notice')) return;
-        const notice = document.createElement('div'); notice.className = 'service-vault-canceled-notice'; notice.setAttribute('role', 'status');
-        const message = document.createElement('span'); message.textContent = 'Verification canceled. Protected settings remain locked.';
-        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'sigma-retry-link'; retry.textContent = 'Verify';
-        retry.onclick = () => {
-            canceled = false;
-            const loader = section.id === 'settings-gdrive-view' ? window.loadGoogleDrivePageData
-                : section.id === 'settings-recaptcha-view' ? window.loadRecaptchaPageData : window.loadAiPageData;
-            loader?.();
-        };
-        notice.append(message, retry);
-        const heading = section.querySelector('h2');
-        if (heading) heading.after(notice); else section.prepend(notice);
-        if (section.id === 'settings-integrations-view') section.querySelectorAll('.gemini-status-text,.groq-status-text').forEach(status => { status.textContent = 'Verification required'; });
-    }
-    // Only a deliberate settings action can resume prompts after cancellation.
-    // Background loads, focus events and requests already in flight stay canceled.
-    document.addEventListener('click', event => {
-        if (!event.isTrusted || !canceled || event.target.closest('.service-vault-auth')) return;
-        if (event.target.closest('[id^="settings-"] button, [id^="settings-"] a, [id^="settings-"] summary')) canceled = false;
-    }, true);
-    function authorize(api) {
+    function authorize(api, panel = '') {
         if (canceled) return Promise.reject(canceledError());
         if (pending) return pending;
         pending = new Promise((resolve, reject) => {
@@ -73,10 +59,10 @@
                 originalFetch(new URL('auth.php', api).href, {
                     method: 'POST', keepalive: true,
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
-                    body: JSON.stringify({ action: 'cancel_service_vault_verification' })
-                }).then(async response => { if (response.ok && (await response.json()).success) recordVerificationActivity('canceled'); }).catch(() => {});
+                    body: JSON.stringify({ action: 'cancel_service_vault_verification', panel })
+                }).then(async response => { if (response.ok && (await response.json()).success) recordVerificationActivity('canceled', panel); }).catch(() => {});
                 close();
-                showCanceledNotice();
+                indicator('Verification canceled' + (panels[panel] ? ': ' + panels[panel] : '') + '.');
                 if (opener?.isConnected) opener.focus({ preventScroll: true });
                 reject(canceledError());
             };
@@ -92,15 +78,15 @@
                 try {
                     const response = await originalFetch(new URL('auth.php', api).href, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token || '') },
                         signal: AbortSignal.timeout(15000),
-                        body: JSON.stringify({ action: 'authorize_service_vault', login: form.elements.login.value.trim(), password: form.elements.password.value }) });
+                        body: JSON.stringify({ action: 'authorize_service_vault', panel, login: form.elements.login.value.trim(), password: form.elements.password.value }) });
                     const result = await response.json();
                     if (!response.ok || !result.success || !/^[a-f0-9]{64}$/.test(result.token || '')) {
-                        if (result.error === 'The administrator password is incorrect.') recordVerificationActivity('failed');
+                        if (result.error === 'The administrator password is incorrect.') recordVerificationActivity('failed', panel);
                         throw new Error(result.error || 'Administrator verification failed.');
                     }
-                    recordVerificationActivity('success');
+                    recordVerificationActivity('success', panel);
+                    indicator('Administrator verified. Loading ' + (panels[panel] || 'settings') + '…', true);
                     settled = true; canceled = false;
-                    document.querySelectorAll('.service-vault-canceled-notice').forEach(notice => notice.remove());
                     token = result.token;
                     expires = Date.now() + Number(result.expires_in || 900) * 1000;
                     close(); resolve();
@@ -117,6 +103,19 @@
         }).finally(() => { pending = null; });
         return pending;
     }
+    window.SigmaServiceVault = {
+        isVerified: () => Boolean(token && expires > Date.now()),
+        finishLoading() {
+            if (document.querySelector('.service-vault-indicator[data-loading="true"]')) indicator('Administrator verified.');
+        },
+        async verifyPanel(panel) {
+            if (!panels[panel]) return false;
+            canceled = false;
+            const api = new URL(window.resolveAuthApiUrl?.() || 'php/api/auth.php', location.href);
+            try { await authorize(api, panel); return true; }
+            catch (error) { if (error.code !== 'VAULT_AUTH_CANCELED') indicator(error.message); return false; }
+        }
+    };
     window.fetch = async function (resource, options = {}) {
         let api;
         try { api = new URL(typeof resource === 'string' ? resource : resource.url, location.href); } catch (_) { return originalFetch(resource, options); }
@@ -131,7 +130,9 @@
         let response = await request();
         if (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === 'VAULT_AUTH_REQUIRED') {
             token = ''; expires = 0;
-            if (canceled || requestEpoch !== authorizationEpoch) throw canceledError();
+            // Integration requests never open a password prompt as a side effect.
+            // The Configure / Manage AI handlers verify before changing pages.
+            if (!/\/users\.php$/.test(api.pathname) || canceled || requestEpoch !== authorizationEpoch) throw canceledError();
             await authorize(api);
             response = await request();
         }

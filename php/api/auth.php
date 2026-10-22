@@ -64,6 +64,20 @@ try {
             jsonOut(publicRecaptchaConfig($services['recaptcha'] ?? []));
         }
 
+        if ($action === 'integration_status') {
+            $actor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
+            if (!serviceVaultAdmin($actor)) jsonOut(['success'=>false,'error'=>'Administrator access required.'],403);
+            $services = file_exists($rootDir . '/config/services.php') ? require($rootDir . '/config/services.php') : [];
+            $providers = [];
+            foreach (['gemini','groq'] as $provider) {
+                $configured = !empty($services[$provider]['api_key']);
+                foreach ($services['ai_vault'] ?? [] as $key) {
+                    if (($key['provider'] ?? '') === $provider && !empty($key['api_key'])) $configured = true;
+                }
+                $providers[$provider] = ['configured'=>$configured];
+            }
+            jsonOut(['success'=>true,'providers'=>$providers]);
+        }
         if ($action === 'ai_vault' || $action === 'ai_config') {
             requireServiceVaultAccess();
             $services = file_exists($rootDir . '/config/services.php') ? require($rootDir . '/config/services.php') : [];
@@ -196,7 +210,7 @@ try {
     if ($action === 'cancel_service_vault_verification') {
         $actor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
         if (!serviceVaultAdmin($actor)) jsonOut(['success'=>false,'error'=>'Administrator access required.'],403);
-        recordServiceVaultVerification($pdo, (string)$actor['id'], 'canceled');
+        recordServiceVaultVerification($pdo, (string)$actor['id'], 'canceled', (string)($payload['panel'] ?? ''));
         jsonOut(['success'=>true]);
     }
     if ($action === 'authorize_service_vault') {
