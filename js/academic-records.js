@@ -17,7 +17,6 @@
     }
     function report(error) {
         const message = 'Live learning sync: ' + error.message;
-        window.SigmaAnnouncements?.showToast?.(message, 'error');
         window.showToast?.(message, 'error');
         console.warn(message);
         window.dispatchEvent(new CustomEvent('sigma:academic-sync-error', { detail: message }));

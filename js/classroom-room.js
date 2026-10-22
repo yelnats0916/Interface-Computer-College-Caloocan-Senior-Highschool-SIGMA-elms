@@ -3946,7 +3946,7 @@
                 if (typeof window.showToastNotification === 'function') {
                     window.showToastNotification(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`, 'warning');
                 } else {
-                    alert(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
+                    window.SigmaFeedback.notice(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
                 }
                 window.closeAttendanceExportModal();
                 return;
@@ -3966,7 +3966,7 @@
                 if (typeof window.showToastNotification === 'function') {
                     window.showToastNotification('No recorded attendance entries found to export.', 'warning');
                 } else {
-                    alert('No recorded attendance entries found to export.');
+                    window.SigmaFeedback.notice('No recorded attendance entries found to export.');
                 }
                 window.closeAttendanceExportModal();
                 return;

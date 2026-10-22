@@ -1039,47 +1039,8 @@
     }
 
     // Modern Custom Toast Notification Panel (Replaces ugly browser alert popups)
-    function showToastNotice({ title = 'Notice', message = '', type = 'warning' }) {
-        let container = document.getElementById('sigma-announcement-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'sigma-announcement-toast-container';
-            container.className = 'sigma-toast-container';
-            document.body.appendChild(container);
-        }
-
-        const iconClass = type === 'error'
-            ? 'fa-circle-xmark text-rose-500'
-            : (type === 'info' ? 'fa-circle-info text-blue-500' : 'fa-triangle-exclamation text-amber-500');
-
-        const toast = document.createElement('div');
-        toast.className = `sigma-toast-panel sigma-toast-${type}`;
-        toast.innerHTML = `
-            <div class="sigma-toast-icon">
-                <i class="fa-solid ${iconClass}"></i>
-            </div>
-            <div class="sigma-toast-content">
-                <div class="sigma-toast-title">${title}</div>
-                <div class="sigma-toast-desc">${message}</div>
-            </div>
-            <button type="button" class="sigma-toast-close" title="Dismiss">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        `;
-
-        const closeBtn = toast.querySelector('.sigma-toast-close');
-        let timer = null;
-        const removeToast = () => {
-            if (timer) clearTimeout(timer);
-            toast.classList.add('hide');
-            setTimeout(() => {
-                if (toast.parentElement) toast.remove();
-            }, 250);
-        };
-        if (closeBtn) closeBtn.addEventListener('click', removeToast);
-        timer = setTimeout(removeToast, 4500);
-
-        container.appendChild(toast);
+    function showToastNotice(input, type = 'warning') {
+        return window.SigmaFeedback.notify(input, type);
     }
 
     // Audience / Section options by Role (Monochrome FontAwesome icons only)
@@ -3672,11 +3633,11 @@
                                 <i class="fa-solid fa-trash-can text-slate-700"></i>
                                 <span>Delete Post</span>
                             </button>` : `
-                            <button type="button" class="sigma-card-options-item" onclick="if(navigator.clipboard){navigator.clipboard.writeText(window.location.href); if(typeof window.showToast==='function') window.showToast('Post link copied to clipboard'); else alert('Post link copied');}">
+                            <button type="button" class="sigma-card-options-item" onclick="if(navigator.clipboard){navigator.clipboard.writeText(window.location.href); if(typeof window.showToast==='function') window.showToast('Post link copied to clipboard'); else window.SigmaFeedback.notice('Post link copied');}">
                                 <i class="fa-solid fa-link text-slate-700"></i>
                                 <span>Copy Link</span>
                             </button>
-                            <button type="button" class="sigma-card-options-item" onclick="if(typeof window.showToast==='function') window.showToast('Post reported to administrator'); else alert('Post reported to administrator');">
+                            <button type="button" class="sigma-card-options-item" onclick="if(typeof window.showToast==='function') window.showToast('Post reported to administrator'); else window.SigmaFeedback.notice('Post reported to administrator');">
                                 <i class="fa-regular fa-flag text-slate-700"></i>
                                 <span>Report Post</span>
                             </button>`}

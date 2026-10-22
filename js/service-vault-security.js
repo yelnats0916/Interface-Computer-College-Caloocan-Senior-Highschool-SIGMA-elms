@@ -2,14 +2,11 @@
     'use strict';
     const originalFetch = window.fetch.bind(window);
     let token = '', expires = 0, pending = null, canceled = false, authorizationEpoch = 0;
-    let indicatorTimer;
     const panels = { ai: 'SIGMA AI Integration Engines', drive: 'Google Drive Cloud Storage', recaptcha: 'Google reCAPTCHA Protection', recovery: 'Record Recovery' };
-    function indicator(message, loading = false) {
-        clearTimeout(indicatorTimer);
-        document.querySelector('.service-vault-indicator')?.remove();
-        const notice = document.createElement('div'); notice.className = 'service-vault-indicator'; notice.setAttribute('role', 'status'); notice.textContent = message; notice.dataset.loading = String(loading);
-        document.body.append(notice);
-        if (!loading) indicatorTimer = setTimeout(() => notice.remove(), 5000);
+    function indicator(message, loading = false, type = 'info') {
+        window.SigmaFeedback.notify(message, loading ? 'progress' : type, {
+            id:'administrator-verification', placement:'bottom-left', compact:true, persistent:loading
+        });
     }
     const canceledError = () => Object.assign(new Error('Administrator verification was canceled.'), { code: 'VAULT_AUTH_CANCELED' });
     function configureFields() {
@@ -85,7 +82,7 @@
                         throw new Error(result.error || 'Administrator verification failed.');
                     }
                     recordVerificationActivity('success', panel);
-                    indicator('Administrator verified. Loading ' + (panels[panel] || 'settings') + '…', true);
+                    indicator('Administrator verified. Loading ' + (panels[panel] || 'settings') + '…', true, 'success');
                     settled = true; canceled = false;
                     token = result.token;
                     expires = Date.now() + Number(result.expires_in || 900) * 1000;
@@ -106,14 +103,14 @@
     window.SigmaServiceVault = {
         isVerified: () => Boolean(token && expires > Date.now()),
         finishLoading() {
-            if (document.querySelector('.service-vault-indicator[data-loading="true"]')) indicator('Administrator verified.');
+            if (document.querySelector('[data-feedback-id="administrator-verification"].sigma-feedback-progress')) indicator('Administrator verified.', false, 'success');
         },
         async verifyPanel(panel) {
             if (!panels[panel]) return false;
             canceled = false;
             const api = new URL(window.resolveAuthApiUrl?.() || 'php/api/auth.php', location.href);
             try { await authorize(api, panel); return true; }
-            catch (error) { if (error.code !== 'VAULT_AUTH_CANCELED') indicator(error.message); return false; }
+            catch (error) { if (error.code !== 'VAULT_AUTH_CANCELED') indicator(error.message, false, 'error'); return false; }
         }
     };
     window.fetch = async function (resource, options = {}) {

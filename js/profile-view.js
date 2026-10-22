@@ -2835,7 +2835,7 @@
                     } else if (typeof window.showGlobalToast === 'function') {
                         window.showGlobalToast('Profile picture exceeds the 10MB limit.', 'error');
                     } else {
-                        alert('Profile picture exceeds the 10MB limit.');
+                        window.SigmaFeedback.notice('Profile picture exceeds the 10MB limit.');
                     }
                     avatarInput.value = '';
                     return;

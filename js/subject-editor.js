@@ -3287,7 +3287,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please provide a Subject Code.');
             } else {
-                alert('Please provide a Subject Code.');
+                window.SigmaFeedback.notice('Please provide a Subject Code.');
             }
             document.getElementById('edit-subject-code')?.focus();
             return false;
@@ -3296,7 +3296,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please provide a Subject Name.');
             } else {
-                alert('Please provide a Subject Name.');
+                window.SigmaFeedback.notice('Please provide a Subject Name.');
             }
             document.getElementById('edit-subject-name')?.focus();
             return false;
@@ -3305,7 +3305,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please specify the Units.');
             } else {
-                alert('Please specify the Units.');
+                window.SigmaFeedback.notice('Please specify the Units.');
             }
             document.getElementById('edit-subject-units')?.focus();
             return false;
@@ -3314,7 +3314,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please select a Strand Requirement.');
             } else {
-                alert('Please select a Strand Requirement.');
+                window.SigmaFeedback.notice('Please select a Strand Requirement.');
             }
             document.getElementById('edit-subject-strand')?.focus();
             return false;
@@ -3323,7 +3323,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please select the Assessment Weights.');
             } else {
-                alert('Please select the Assessment Weights.');
+                window.SigmaFeedback.notice('Please select the Assessment Weights.');
             }
             document.getElementById('edit-subject-weights')?.focus();
             return false;
@@ -3332,7 +3332,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Please select at least 2 active quarters.');
             } else {
-                alert('Please select at least 2 active quarters.');
+                window.SigmaFeedback.notice('Please select at least 2 active quarters.');
             }
             return false;
         }
@@ -4869,7 +4869,7 @@ window.addSubjectTopic = function () {
         const topicQuarter = (quarterSelect ? quarterSelect.value : (window.editingTopicState?.quarter || window.currentSubjectTopicQuarter)) || activeQuarters[0] || 'q1';
 
         if (!title) {
-            alert('Please enter a topic title.');
+            window.SigmaFeedback.notice('Please enter a topic title.');
             titleInput?.focus();
             return;
         }
@@ -4993,7 +4993,7 @@ window.addSubjectTopic = function () {
         const topicQuarter = (quarterSelect ? quarterSelect.value : (window.editingTopicState?.quarter || window.currentSubjectTopicQuarter)) || activeQuarters[0] || 'q1';
 
         if (!title) {
-            alert('Please enter a topic title.');
+            window.SigmaFeedback.notice('Please enter a topic title.');
             titleInput?.focus();
             return;
         }
@@ -5244,7 +5244,7 @@ window.addSubjectTopic = function () {
                 } else if (typeof window.showGlobalToast === 'function') {
                     window.showGlobalToast('Cover template image exceeds the 5MB limit.', 'error');
                 } else {
-                    alert('Cover template image exceeds the 5MB limit.');
+                    window.SigmaFeedback.notice('Cover template image exceeds the 5MB limit.');
                 }
                 input.value = '';
                 return;
@@ -8426,13 +8426,13 @@ window.addSubjectTopic = function () {
             if (window.editingMaterialState.type === 'Video') {
                 const isMp4 = file.name.toLowerCase().endsWith('.mp4') || file.type === 'video/mp4';
                 if (!isMp4) {
-                    alert('Only .mp4 video files are supported for upload.');
+                    window.SigmaFeedback.notice('Only .mp4 video files are supported for upload.');
                     input.value = '';
                     return;
                 }
                 const maxVideoMb = Number(limits.video?.max || (Number(limits.video?.mp4 || limits.video?.std || 500) + Number(limits.video?.ext || 0))) || 550;
                 if (file.size > maxVideoMb * 1024 * 1024) {
-                    alert(`Selected video file exceeds the system limit of ${maxVideoMb} MB.`);
+                    window.SigmaFeedback.notice(`Selected video file exceeds the system limit of ${maxVideoMb} MB.`);
                     input.value = '';
                     return;
                 }
@@ -8445,7 +8445,7 @@ window.addSubjectTopic = function () {
                 else if (ext === 'txt') maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
 
                 if (file.size > maxDocMb * 1024 * 1024) {
-                    alert(`Selected document exceeds the system limit of ${maxDocMb} MB.`);
+                    window.SigmaFeedback.notice(`Selected document exceeds the system limit of ${maxDocMb} MB.`);
                     input.value = '';
                     return;
                 }
@@ -8490,7 +8490,7 @@ window.addSubjectTopic = function () {
         } else if (targetField === 'rubric') {
             const maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
             if (file.size > maxDocMb * 1024 * 1024) {
-                alert(`Selected rubric exceeds the system limit of ${maxDocMb} MB.`);
+                window.SigmaFeedback.notice(`Selected rubric exceeds the system limit of ${maxDocMb} MB.`);
                 input.value = '';
                 return;
             }
@@ -8549,7 +8549,7 @@ window.addSubjectTopic = function () {
         } else if (targetField === 'guidelines') {
             const maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
             if (file.size > maxDocMb * 1024 * 1024) {
-                alert(`Selected guidelines document exceeds the system limit of ${maxDocMb} MB.`);
+                window.SigmaFeedback.notice(`Selected guidelines document exceeds the system limit of ${maxDocMb} MB.`);
                 input.value = '';
                 return;
             }
@@ -8565,7 +8565,7 @@ window.addSubjectTopic = function () {
         } else if (targetField === 'perfRubric') {
             const maxDocMb = Number(limits.docx?.max || (Number(limits.docx?.std || limits.docx?.reg || 500) + Number(limits.docx?.ext || 50))) || 550;
             if (file.size > maxDocMb * 1024 * 1024) {
-                alert(`Selected rubric exceeds the system limit of ${maxDocMb} MB.`);
+                window.SigmaFeedback.notice(`Selected rubric exceeds the system limit of ${maxDocMb} MB.`);
                 input.value = '';
                 return;
             }
@@ -10079,13 +10079,13 @@ window.addSubjectTopic = function () {
         const type = window.editingMaterialState.type || 'Lesson';
 
         if (!topicId) {
-            alert('Please select a topic.');
+            window.SigmaFeedback.notice('Please select a topic.');
             topicSelect?.focus();
             return;
         }
 
         if (!title) {
-            alert('Please enter a material title.');
+            window.SigmaFeedback.notice('Please enter a material title.');
             titleInput?.focus();
             return;
         }
@@ -10098,14 +10098,14 @@ window.addSubjectTopic = function () {
                 const val = (urlInput ? urlInput.value : state.videoUrl) || '';
                 const ytId = _getYouTubeId(val.trim());
                 if (!ytId) {
-                    alert('Please enter a valid YouTube video link.');
+                    window.SigmaFeedback.notice('Please enter a valid YouTube video link.');
                     urlInput?.focus();
                     return;
                 }
                 state.videoUrl = val.trim();
             } else if (state.sourceType === 'file') {
                 if (!state.fileName && !state.videoUrl) {
-                    alert('Please upload an MP4 video file.');
+                    window.SigmaFeedback.notice('Please upload an MP4 video file.');
                     return;
                 }
             }
@@ -10401,13 +10401,13 @@ window.addSubjectTopic = function () {
         const type = window.editingMaterialState.type || 'Lesson';
 
         if (!topicId) {
-            alert('Please select a topic.');
+            window.SigmaFeedback.notice('Please select a topic.');
             topicSelect?.focus();
             return;
         }
 
         if (!title) {
-            alert('Please enter a material title.');
+            window.SigmaFeedback.notice('Please enter a material title.');
             titleInput?.focus();
             return;
         }
@@ -10420,14 +10420,14 @@ window.addSubjectTopic = function () {
                 const val = (urlInput ? urlInput.value : state.videoUrl) || '';
                 const ytId = _getYouTubeId(val.trim());
                 if (!ytId) {
-                    alert('Please enter a valid YouTube video link.');
+                    window.SigmaFeedback.notice('Please enter a valid YouTube video link.');
                     urlInput?.focus();
                     return;
                 }
                 state.videoUrl = val.trim();
             } else if (state.sourceType === 'file') {
                 if (!state.fileName && !state.videoUrl) {
-                    alert('Please upload an MP4 video file.');
+                    window.SigmaFeedback.notice('Please upload an MP4 video file.');
                     return;
                 }
             }
@@ -10926,7 +10926,7 @@ window.addSubjectTopic = function () {
 
         if (!isStandaloneMode) {
             if (!code || !name) {
-                alert('Please provide both a Subject Code and Subject Name.');
+                window.SigmaFeedback.notice('Please provide both a Subject Code and Subject Name.');
                 window.handleSubjectStep(1);
                 return;
             }
@@ -11143,7 +11143,7 @@ window.addSubjectTopic = function () {
                     buttonText: 'OK'
                 });
             } else {
-                alert('Subject deletion requires Master Admin authorization or explicit delete permissions.');
+                window.SigmaFeedback.notice('Subject deletion requires Master Admin authorization or explicit delete permissions.');
             }
             return;
         }

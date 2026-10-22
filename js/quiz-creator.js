@@ -167,7 +167,7 @@ function _saveBeforeExit() {
 
         // Resolve active user
         const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
-        if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); return; }
+        if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); window.SigmaFeedback.dismiss('quiz-save'); return; }
         const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
         const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
         const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
@@ -409,7 +409,7 @@ window.handleImageUpload = function (event) {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum of ${MAX_GENERAL_IMAGES} banner images per quiz.`);
+            window.SigmaFeedback.notice(`Maximum of ${MAX_GENERAL_IMAGES} banner images per quiz.`);
         }
         if (event.target) event.target.value = '';
         return;
@@ -425,7 +425,7 @@ window.handleImageUpload = function (event) {
                     type: 'warning'
                 });
             } else {
-                alert(`"${file.name}" exceeds the 5MB image limit.`);
+                window.SigmaFeedback.notice(`"${file.name}" exceeds the 5MB image limit.`);
             }
             return;
         }
@@ -475,7 +475,7 @@ window.changeQuizGeneralImage = function (gIdx, event) {
                 type: 'warning'
             });
         } else {
-            alert('Image file size must be under 5MB.');
+            window.SigmaFeedback.notice('Image file size must be under 5MB.');
         }
         if (event.target) event.target.value = '';
         return;
@@ -583,7 +583,7 @@ window.addQuestion = function (type = 'Multiple Choice') {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
         }
         return;
     }
@@ -636,7 +636,7 @@ window.duplicateQuestion = function (idx) {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
         }
         return;
     }
@@ -1961,40 +1961,12 @@ window.confirmSaveQuizFromModal = function () {
     window.executeSaveQuizToLibrary(pendingSaveStayInStorage, pendingSaveIsDraft);
 };
 
-let quizSaveToastTimeout = null;
-
-window.showSaveQuizIndicator = function (state = 'saving', message = '', duration = 2800) {
-    const toast = document.getElementById('quiz-save-toast');
-    const spinner = document.getElementById('quiz-save-toast-spinner');
-    const icon = document.getElementById('quiz-save-toast-icon');
-    const text = document.getElementById('quiz-save-toast-text');
-
-    if (!toast) return;
-
-    if (quizSaveToastTimeout) {
-        clearTimeout(quizSaveToastTimeout);
-        quizSaveToastTimeout = null;
-    }
-
-    if (state === 'saving') {
-        toast.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[3000] flex items-center gap-2.5 px-5 py-2.5 rounded-2xl shadow-2xl bg-white border border-slate-200 text-slate-900 font-[\'Inter\'] transition-all duration-200 pointer-events-none animate-in fade-in slide-in-from-top-3';
-        if (spinner) spinner.classList.remove('hidden');
-        if (icon) icon.className = 'hidden';
-        if (text) text.textContent = message || 'Saving Quiz...';
-    } else if (state === 'success') {
-        toast.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[3000] flex items-center gap-2.5 px-5 py-2.5 rounded-2xl shadow-2xl bg-[#0f172a] text-white border border-slate-700 font-[\'Inter\'] transition-all duration-200 pointer-events-none animate-in fade-in slide-in-from-top-3';
-        if (spinner) spinner.classList.add('hidden');
-        if (icon) icon.className = 'fa-solid fa-circle-check text-emerald-400 text-sm';
-        if (text) text.textContent = message || 'Saved successfully!';
-
-        quizSaveToastTimeout = setTimeout(() => {
-            toast.classList.add('hidden');
-            toast.classList.remove('flex');
-        }, duration);
-    } else if (state === 'hide') {
-        toast.classList.add('hidden');
-        toast.classList.remove('flex');
-    }
+window.showSaveQuizIndicator = function (state = 'saving', message = '', duration = 4500) {
+    const id = 'quiz-save';
+    if (state === 'hide') { window.SigmaFeedback.dismiss(id); return; }
+    return window.SigmaFeedback.notify(message || (state === 'saving' ? 'Saving quiz…' : state === 'error' ? 'Quiz could not be saved.' : 'Quiz saved.'),
+        state === 'saving' ? 'progress' : state === 'error' ? 'error' : 'success',
+        { id, placement:'top-center', compact:state !== 'error', persistent:state === 'saving', duration });
 };
 
 window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = false) {
@@ -2004,199 +1976,203 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
     // Show instant saving loading indicator
     window.showSaveQuizIndicator('saving', isDraft ? 'Saving draft to your library...' : 'Saving quiz to library...');
 
-    setTimeout(() => {
-        const totalPoints = questions.reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
-        const library = getStoredQuizLibrary();
-
-        const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
-        if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); return; }
-        const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
-        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
-        const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
-
-        let savedQuizId = currentQuizId;
-
-        if (savedQuizId) {
-            const existingIdx = library.findIndex(q => q.id === savedQuizId);
-            if (existingIdx !== -1) {
-                let existingCode = library[existingIdx].code || currentQuizCode;
-                if (!existingCode) {
-                    const digits = String(savedQuizId).replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000));
-                    existingCode = `#QZ-${digits.padStart(4, '0')}`;
-                }
-                library[existingIdx].code = existingCode;
-                currentQuizCode = existingCode;
-                library[existingIdx].title = title;
-                library[existingIdx].desc = desc;
-                library[existingIdx].questionsCount = questions.length;
-                library[existingIdx].totalPoints = totalPoints;
-                library[existingIdx].status = isDraft ? 'draft' : 'published';
-                library[existingIdx].isDraft = !!isDraft;
-                library[existingIdx].isNew = !isDraft; // Only published quizzes can be isNew
-                library[existingIdx].createdTimestamp = Date.now();
-                library[existingIdx].icon = currentQuizIcon;
-                library[existingIdx].color = currentQuizColor;
-                library[existingIdx].authorId = library[existingIdx].authorId || authorId;
-                library[existingIdx].authorName = (library[existingIdx].authorName && library[existingIdx].authorName !== 'You' && library[existingIdx].authorName !== 'Self') ? library[existingIdx].authorName : authorName;
-                library[existingIdx].authorRole = library[existingIdx].authorRole || authorRole;
-                library[existingIdx].questions = JSON.parse(JSON.stringify(questions));
-                if (window._quizIsAIGenerated && window._quizAiGenerationId) {
-                    library[existingIdx].source = 'ai'; library[existingIdx].isAi = true; library[existingIdx].is_ai = 1;
-                    library[existingIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
-                }
-            } else {
-                // ID not found — check if there's an existing entry with the same code (e.g., autosave draft)
-                const codeToFind = currentQuizCode;
-                const codeIdx = codeToFind ? library.findIndex(q => q.code && q.code === codeToFind) : -1;
-                if (codeIdx !== -1) {
-                    // Update the code-matched entry and adopt its id
-                    savedQuizId = library[codeIdx].id;
-                    currentQuizId = savedQuizId;
-                    library[codeIdx].title = title;
-                    library[codeIdx].desc = desc;
-                    library[codeIdx].questionsCount = questions.length;
-                    library[codeIdx].totalPoints = totalPoints;
-                    library[codeIdx].status = isDraft ? 'draft' : 'published';
-                    library[codeIdx].isDraft = !!isDraft;
-                    library[codeIdx].isNew = !isDraft;
-                    library[codeIdx].createdTimestamp = Date.now();
-                    library[codeIdx].icon = currentQuizIcon;
-                    library[codeIdx].color = currentQuizColor;
-                    library[codeIdx].authorId = library[codeIdx].authorId || authorId;
-                    library[codeIdx].authorName = (library[codeIdx].authorName && library[codeIdx].authorName !== 'You' && library[codeIdx].authorName !== 'Self') ? library[codeIdx].authorName : authorName;
-                    if (window._quizIsAIGenerated) {
-                        library[codeIdx].source = 'ai';
-                        library[codeIdx].isAi = true;
-                        library[codeIdx].is_ai = 1;
-                        if (window._quizAiGenerationId) library[codeIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
-                    }
-                    library[codeIdx].questions = JSON.parse(JSON.stringify(questions));
-                }
-                // else: id was provided but not found and no code match — fall through to else branch below
-                // (reset savedQuizId so the else branch runs)
-                else { savedQuizId = null; }
-            }
-        }
-        if (!savedQuizId) {
-            savedQuizId = 'quiz-' + Date.now();
-            let generatedCode = currentQuizCode;
-            if (!generatedCode) {
-                const digits = String(savedQuizId).replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000));
-                generatedCode = `#QZ-${digits.padStart(4, '0')}`;
-            }
-            currentQuizCode = generatedCode;
-            const newQuiz = {
-                id: savedQuizId,
-                code: generatedCode,
-                title: title,
-                desc: desc,
-                subject: 'General',
-                questionsCount: questions.length,
-                totalPoints: totalPoints,
-                createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                createdTimestamp: Date.now(),
-                isNew: !isDraft, // Only published quizzes can be isNew
-                authorId: authorId,
-                authorName: authorName,
-                authorRole: authorRole,
-                status: isDraft ? 'draft' : 'published',
-                isDraft: !!isDraft,
-                icon: currentQuizIcon,
-                color: currentQuizColor,
-                source: window._quizIsAIGenerated ? 'ai' : 'manual',
-                isAi: !!window._quizIsAIGenerated,
-                is_ai: window._quizIsAIGenerated ? 1 : 0,
-                ...(window._quizAiGenerationId ? { aiGeneration: { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() } } : {}),
-                questions: JSON.parse(JSON.stringify(questions))
-            };
-            library.unshift(newQuiz);
-            currentQuizId = savedQuizId;
-        }
-
-        currentQuizTitle = title;
-        currentQuizDesc = desc;
-
-        if (savedQuizId) {
-            try {
-                const url = new URL(window.location.href);
-                url.searchParams.set('mode', 'edit');
-                url.searchParams.set('id', savedQuizId);
-                window.history.replaceState({ quizId: savedQuizId }, '', url.toString());
-            } catch(e) {}
-            localStorage.setItem('sigma_active_quiz_creator_id', savedQuizId);
-        }
-
-        saveStoredQuizLibrary(library);
-
-        // Sync changes across all attached subject topics and materials
-        if (typeof window.syncQuizUpdatesAcrossAllSubjectsAndMaterials === 'function') {
-            window.syncQuizUpdatesAcrossAllSubjectsAndMaterials(savedQuizId, {
-                title: title,
-                desc: desc,
-                totalPoints: totalPoints,
-                questionsCount: questions.length,
-                questions: questions,
-                icon: currentQuizIcon,
-                color: currentQuizColor,
-                code: currentQuizCode
-            });
-        }
-
-        // ── Server storage mode: also persist to MySQL ────────────────────
-        if (window.SIGMA_USE_SERVER_STORAGE && typeof window.saveQuizToServer === 'function') {
-            const entry = library.find(q => q.id === savedQuizId);
-            if (entry) window.saveQuizToServer(entry);
-        }
-        saveSessionSnapshot();
-        initialQuizSavedSnapshot = window.getQuizContentSnapshot();
-        window.syncQuizSaveButtonState();
-
-        // Broadcast storage change to other tabs and opener
-        localStorage.setItem('sigma_pending_selected_quiz_id', savedQuizId);
-        localStorage.setItem('sigma_quiz_updated', JSON.stringify({ id: savedQuizId, code: currentQuizCode, title, points: totalPoints, questionsCount: questions.length, timestamp: Date.now() }));
-        localStorage.setItem('sigma_materials_broadcast', Date.now().toString());
-        localStorage.setItem('sigma_storage_sync', Date.now().toString());
-        localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
+    setTimeout(async () => {
         try {
-            window.dispatchEvent(new CustomEvent('sigma_quiz_updated', { detail: { quizId: savedQuizId, title, points: totalPoints, questionsCount: questions.length } }));
-        } catch (e) {}
+            const totalPoints = questions.reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
+            const library = getStoredQuizLibrary();
 
-        // Notify opener tab if quiz creator was launched from an active admin modal
-        if (window.opener && !window.opener.closed) {
+            const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
+            if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); window.SigmaFeedback.dismiss('quiz-save'); return; }
+            const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
+            const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
+            const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
+
+            let savedQuizId = currentQuizId;
+
+            if (savedQuizId) {
+                const existingIdx = library.findIndex(q => q.id === savedQuizId);
+                if (existingIdx !== -1) {
+                    let existingCode = library[existingIdx].code || currentQuizCode;
+                    if (!existingCode) {
+                        const digits = String(savedQuizId).replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000));
+                        existingCode = `#QZ-${digits.padStart(4, '0')}`;
+                    }
+                    library[existingIdx].code = existingCode;
+                    currentQuizCode = existingCode;
+                    library[existingIdx].title = title;
+                    library[existingIdx].desc = desc;
+                    library[existingIdx].questionsCount = questions.length;
+                    library[existingIdx].totalPoints = totalPoints;
+                    library[existingIdx].status = isDraft ? 'draft' : 'published';
+                    library[existingIdx].isDraft = !!isDraft;
+                    library[existingIdx].isNew = !isDraft; // Only published quizzes can be isNew
+                    library[existingIdx].createdTimestamp = Date.now();
+                    library[existingIdx].icon = currentQuizIcon;
+                    library[existingIdx].color = currentQuizColor;
+                    library[existingIdx].authorId = library[existingIdx].authorId || authorId;
+                    library[existingIdx].authorName = (library[existingIdx].authorName && library[existingIdx].authorName !== 'You' && library[existingIdx].authorName !== 'Self') ? library[existingIdx].authorName : authorName;
+                    library[existingIdx].authorRole = library[existingIdx].authorRole || authorRole;
+                    library[existingIdx].questions = JSON.parse(JSON.stringify(questions));
+                    if (window._quizIsAIGenerated && window._quizAiGenerationId) {
+                        library[existingIdx].source = 'ai'; library[existingIdx].isAi = true; library[existingIdx].is_ai = 1;
+                        library[existingIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
+                    }
+                } else {
+                    // ID not found — check if there's an existing entry with the same code (e.g., autosave draft)
+                    const codeToFind = currentQuizCode;
+                    const codeIdx = codeToFind ? library.findIndex(q => q.code && q.code === codeToFind) : -1;
+                    if (codeIdx !== -1) {
+                        // Update the code-matched entry and adopt its id
+                        savedQuizId = library[codeIdx].id;
+                        currentQuizId = savedQuizId;
+                        library[codeIdx].title = title;
+                        library[codeIdx].desc = desc;
+                        library[codeIdx].questionsCount = questions.length;
+                        library[codeIdx].totalPoints = totalPoints;
+                        library[codeIdx].status = isDraft ? 'draft' : 'published';
+                        library[codeIdx].isDraft = !!isDraft;
+                        library[codeIdx].isNew = !isDraft;
+                        library[codeIdx].createdTimestamp = Date.now();
+                        library[codeIdx].icon = currentQuizIcon;
+                        library[codeIdx].color = currentQuizColor;
+                        library[codeIdx].authorId = library[codeIdx].authorId || authorId;
+                        library[codeIdx].authorName = (library[codeIdx].authorName && library[codeIdx].authorName !== 'You' && library[codeIdx].authorName !== 'Self') ? library[codeIdx].authorName : authorName;
+                        if (window._quizIsAIGenerated) {
+                            library[codeIdx].source = 'ai';
+                            library[codeIdx].isAi = true;
+                            library[codeIdx].is_ai = 1;
+                            if (window._quizAiGenerationId) library[codeIdx].aiGeneration = { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() };
+                        }
+                        library[codeIdx].questions = JSON.parse(JSON.stringify(questions));
+                    }
+                    // else: id was provided but not found and no code match — fall through to else branch below
+                    // (reset savedQuizId so the else branch runs)
+                    else { savedQuizId = null; }
+                }
+            }
+            if (!savedQuizId) {
+                savedQuizId = 'quiz-' + Date.now();
+                let generatedCode = currentQuizCode;
+                if (!generatedCode) {
+                    const digits = String(savedQuizId).replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000));
+                    generatedCode = `#QZ-${digits.padStart(4, '0')}`;
+                }
+                currentQuizCode = generatedCode;
+                const newQuiz = {
+                    id: savedQuizId,
+                    code: generatedCode,
+                    title: title,
+                    desc: desc,
+                    subject: 'General',
+                    questionsCount: questions.length,
+                    totalPoints: totalPoints,
+                    createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    createdTimestamp: Date.now(),
+                    isNew: !isDraft, // Only published quizzes can be isNew
+                    authorId: authorId,
+                    authorName: authorName,
+                    authorRole: authorRole,
+                    status: isDraft ? 'draft' : 'published',
+                    isDraft: !!isDraft,
+                    icon: currentQuizIcon,
+                    color: currentQuizColor,
+                    source: window._quizIsAIGenerated ? 'ai' : 'manual',
+                    isAi: !!window._quizIsAIGenerated,
+                    is_ai: window._quizIsAIGenerated ? 1 : 0,
+                    ...(window._quizAiGenerationId ? { aiGeneration: { code: window._quizAiGenerationId, model: window._quizAiModel || '', provider: window._quizAiProvider || '', generatedAt: new Date().toISOString() } } : {}),
+                    questions: JSON.parse(JSON.stringify(questions))
+                };
+                library.unshift(newQuiz);
+                currentQuizId = savedQuizId;
+            }
+
+            currentQuizTitle = title;
+            currentQuizDesc = desc;
+
+            if (savedQuizId) {
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('mode', 'edit');
+                    url.searchParams.set('id', savedQuizId);
+                    window.history.replaceState({ quizId: savedQuizId }, '', url.toString());
+                } catch(e) {}
+                localStorage.setItem('sigma_active_quiz_creator_id', savedQuizId);
+            }
+
+            if (await saveStoredQuizLibrary(library) === false) throw new Error('Quiz could not be saved. Keep this page open and try again.');
+
+            // Sync changes across all attached subject topics and materials
+            if (typeof window.syncQuizUpdatesAcrossAllSubjectsAndMaterials === 'function') {
+                window.syncQuizUpdatesAcrossAllSubjectsAndMaterials(savedQuizId, {
+                    title: title,
+                    desc: desc,
+                    totalPoints: totalPoints,
+                    questionsCount: questions.length,
+                    questions: questions,
+                    icon: currentQuizIcon,
+                    color: currentQuizColor,
+                    code: currentQuizCode
+                });
+            }
+
+            // ── Server storage mode: also persist to MySQL ────────────────────
+            if (window.SIGMA_USE_SERVER_STORAGE && typeof window.saveQuizToServer === 'function') {
+                const entry = library.find(q => q.id === savedQuizId);
+                if (entry && !await window.saveQuizToServer(entry)) throw new Error('Quiz changes are kept in this browser, but the live save was not confirmed. Try saving again.');
+            }
+            saveSessionSnapshot();
+            initialQuizSavedSnapshot = window.getQuizContentSnapshot();
+            window.syncQuizSaveButtonState();
+
+            // Broadcast storage change to other tabs and opener
+            localStorage.setItem('sigma_pending_selected_quiz_id', savedQuizId);
+            localStorage.setItem('sigma_quiz_updated', JSON.stringify({ id: savedQuizId, code: currentQuizCode, title, points: totalPoints, questionsCount: questions.length, timestamp: Date.now() }));
+            localStorage.setItem('sigma_materials_broadcast', Date.now().toString());
+            localStorage.setItem('sigma_storage_sync', Date.now().toString());
+            localStorage.setItem('sigma_quiz_broadcast', Date.now().toString());
             try {
-                window.opener._quizStorageListCache = null;
-                window.opener.selectedStorageQuizId = savedQuizId;
-                if (window.opener.editingMaterialState) {
-                    window.opener.editingMaterialState.selectedQuizId = savedQuizId;
-                    window.opener.editingMaterialState.selectedQuizTitle = title;
-                    window.opener.editingMaterialState.selectedQuizPoints = totalPoints;
-                    window.opener.editingMaterialState.selectedQuizQuestions = questions.length;
-                    window.opener.editingMaterialState.selectedQuizQuestionsCount = questions.length;
-                    window.opener.editingMaterialState.icon = currentQuizIcon;
-                    window.opener.editingMaterialState.color = currentQuizColor;
-                }
-                if (typeof window.opener.renderMaterialEditorForm === 'function') {
-                    window.opener.renderMaterialEditorForm();
-                }
-                if (typeof window.opener.renderMaterialAttachedFilePanel === 'function') {
-                    window.opener.renderMaterialAttachedFilePanel();
-                }
-                if (typeof window.opener.renderSubjectTopics === 'function') {
-                    window.opener.renderSubjectTopics();
-                }
-                if (typeof window.opener.renderQuizStorageCards === 'function') {
-                    window.opener.renderQuizStorageCards();
-                }
-                if (typeof window.opener.renderQuizStoragePickerContent === 'function') {
-                    window.opener.renderQuizStoragePickerContent();
-                }
-                if (!stayInStorage && typeof window.opener.confirmSelectedStorageQuiz === 'function') {
-                    window.opener.confirmSelectedStorageQuiz();
-                }
+                window.dispatchEvent(new CustomEvent('sigma_quiz_updated', { detail: { quizId: savedQuizId, title, points: totalPoints, questionsCount: questions.length } }));
             } catch (e) {}
-        }
 
-        window.showSaveQuizIndicator('success', isDraft ? 'Draft saved successfully!' : 'Quiz saved to library!');
+            // Notify opener tab if quiz creator was launched from an active admin modal
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener._quizStorageListCache = null;
+                    window.opener.selectedStorageQuizId = savedQuizId;
+                    if (window.opener.editingMaterialState) {
+                        window.opener.editingMaterialState.selectedQuizId = savedQuizId;
+                        window.opener.editingMaterialState.selectedQuizTitle = title;
+                        window.opener.editingMaterialState.selectedQuizPoints = totalPoints;
+                        window.opener.editingMaterialState.selectedQuizQuestions = questions.length;
+                        window.opener.editingMaterialState.selectedQuizQuestionsCount = questions.length;
+                        window.opener.editingMaterialState.icon = currentQuizIcon;
+                        window.opener.editingMaterialState.color = currentQuizColor;
+                    }
+                    if (typeof window.opener.renderMaterialEditorForm === 'function') {
+                        window.opener.renderMaterialEditorForm();
+                    }
+                    if (typeof window.opener.renderMaterialAttachedFilePanel === 'function') {
+                        window.opener.renderMaterialAttachedFilePanel();
+                    }
+                    if (typeof window.opener.renderSubjectTopics === 'function') {
+                        window.opener.renderSubjectTopics();
+                    }
+                    if (typeof window.opener.renderQuizStorageCards === 'function') {
+                        window.opener.renderQuizStorageCards();
+                    }
+                    if (typeof window.opener.renderQuizStoragePickerContent === 'function') {
+                        window.opener.renderQuizStoragePickerContent();
+                    }
+                    if (!stayInStorage && typeof window.opener.confirmSelectedStorageQuiz === 'function') {
+                        window.opener.confirmSelectedStorageQuiz();
+                    }
+                } catch (e) {}
+            }
+
+            window.showSaveQuizIndicator('success', isDraft ? 'Draft saved successfully!' : 'Quiz saved to library!');
+        } catch (error) {
+            window.showSaveQuizIndicator('error', error.message || 'Quiz could not be saved. Keep this page open and try again.');
+        }
     }, 400);
 };
 
@@ -3725,7 +3701,7 @@ window.processAIGenFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert('Only .mp4 video files are supported. Please upload an MP4 video.');
+            window.SigmaFeedback.notice('Only .mp4 video files are supported. Please upload an MP4 video.');
         }
         return;
     }
@@ -3742,7 +3718,7 @@ window.processAIGenFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert('Unsupported file format. Please upload a document (.docx, .pdf, .txt, .md, .pptx), image, or .mp4 video.');
+            window.SigmaFeedback.notice('Unsupported file format. Please upload a document (.docx, .pdf, .txt, .md, .pptx), image, or .mp4 video.');
         }
         return;
     }
@@ -3757,7 +3733,7 @@ window.processAIGenFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert(`File size exceeds the ${limitLabel} limit.`);
+            window.SigmaFeedback.notice(`File size exceeds the ${limitLabel} limit.`);
         }
         return;
     }
@@ -4153,7 +4129,7 @@ window.openAIGeneratorModal = function () {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
         }
         return;
     }
@@ -4786,7 +4762,7 @@ window.executeAIQuestionGeneration = async function () {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
         }
         return;
     }
@@ -4905,7 +4881,7 @@ window.openImportQuestionsModal = function () {
                 type: 'warning'
             });
         } else {
-            alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
         }
         return;
     }
@@ -5157,7 +5133,7 @@ window.processImportedFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert('Images and videos cannot be uploaded in Import Questions. Please use Generate Questions with SIGMA AI.');
+            window.SigmaFeedback.notice('Images and videos cannot be uploaded in Import Questions. Please use Generate Questions with SIGMA AI.');
         }
         return;
     }
@@ -5172,7 +5148,7 @@ window.processImportedFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert('Unsupported file format. Please upload a .docx, .pdf, .txt, .md, or .pptx document.');
+            window.SigmaFeedback.notice('Unsupported file format. Please upload a .docx, .pdf, .txt, .md, or .pptx document.');
         }
         return;
     }
@@ -5185,7 +5161,7 @@ window.processImportedFile = async function (file) {
                 type: 'warning'
             });
         } else {
-            alert('File size exceeds the 10MB limit.');
+            window.SigmaFeedback.notice('File size exceeds the 10MB limit.');
         }
         return;
     }
@@ -5630,7 +5606,7 @@ window.executeImportQuestions = async function () {
                     type: 'warning'
                 });
             } else {
-                alert(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
+                window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
             }
             return;
         }

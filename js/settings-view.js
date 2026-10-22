@@ -145,18 +145,8 @@
     }
 
     function showToast(message, icon = 'fa-circle-check') {
-        const existing = document.getElementById('sigma-settings-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'sigma-settings-toast';
-        toast.className = 'sigma-settings-toast';
-        toast.innerHTML = `<i class="fa-solid ${icon} text-emerald-400"></i><span>${_esc(message)}</span>`;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            if (toast) toast.remove();
-        }, 3200);
+        const type = icon.includes('exclamation') || /^(Unable|Could not|Failed)/i.test(message) ? 'error' : 'success';
+        return window.SigmaFeedback.notify(message, type);
     }
 
     function renderSettingsView(containerId = 'user-settings-view', activeTab = 'notifications') {
@@ -1063,12 +1053,12 @@
         const email = activeUser.email;
 
         if (!fname || !lname) {
-            alert('First name and last name cannot be empty.');
+            window.SigmaFeedback.notice('First name and last name cannot be empty.');
             return;
         }
 
         if (!gender) {
-            alert('Please select a gender.');
+            window.SigmaFeedback.notice('Please select a gender.');
             window.toggleSelfEditGenderDropdown?.();
             return;
         }

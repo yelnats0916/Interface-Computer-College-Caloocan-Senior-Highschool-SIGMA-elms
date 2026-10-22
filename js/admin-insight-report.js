@@ -135,7 +135,7 @@
                                 selection.clear();
                                 await loadData(true);
                             } catch (error) {
-                                window.alert(error.message || 'Unable to update insights.');
+                                window.SigmaFeedback.notice(error.message || 'Unable to update insights.', 'error');
                             } finally {
                                 managementBusy = false;
                                 renderGenerates();

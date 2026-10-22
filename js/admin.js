@@ -2834,7 +2834,7 @@ window.executeDeleteAccount = function () {
     if (!input || !userId) return;
 
     if (input.value.trim().toUpperCase() !== 'DELETE') {
-        alert('Please type DELETE to confirm');
+        window.SigmaFeedback.notice('Please type DELETE to confirm');
         return;
     }
 
@@ -3047,7 +3047,7 @@ window.resetUser2FA = function (userId) {
             } else if (typeof window.showUserConfirm === 'function') {
                 window.showUserConfirm(successTitle, successDesc, null, true);
             } else {
-                alert(successDesc);
+                window.SigmaFeedback.notice(successDesc, 'success');
             }
         } catch (e) {
             console.error('Reset 2FA error:', e);
@@ -3060,7 +3060,7 @@ window.resetUser2FA = function (userId) {
                     isNotification: true
                 });
             } else {
-                alert('Failed to reset 2FA.');
+                window.SigmaFeedback.notice('Failed to reset 2FA.', 'error');
             }
         }
     };
@@ -3645,7 +3645,7 @@ window.activateSchoolYear = function () {
     const endDate = document.getElementById('sy-input-end')?.value;
 
     if (!year || !semester) {
-        alert('Please fill in both School Year and Quarter');
+        window.SigmaFeedback.notice('Please fill in both School Year and Quarter');
         return;
     }
 
@@ -3674,7 +3674,7 @@ window.activateSchoolYear = function () {
     updateGlobalSYDisplay();
     renderSchoolYearCard(syData);
     window.toggleSYForm();
-    alert(`School Year ${year} - ${semester} has been activated globally.`);
+    window.SigmaFeedback.notice(`School Year ${year} - ${semester} has been activated globally.`, 'success');
 };
 
 window.toggleEditAboutField = function (field, shouldSave) {
@@ -4027,7 +4027,7 @@ window.saveSettings = function () {
             btn.disabled = false;
             btn.innerHTML = originalText;
             btn.classList.replace('bg-emerald-600', 'bg-[#123524]');
-            alert('System settings have been updated successfully.');
+            window.SigmaFeedback.notice('System settings have been updated successfully.', 'success');
         }, 1500);
     }, 1000);
 };
@@ -4119,7 +4119,7 @@ window.showMaintenancePermissionDenied = function () {
             true
         );
     } else {
-        alert('Only Master Administrators are permitted to activate maintenance mode or update the restricted access notice.');
+        window.SigmaFeedback.notice('Only Master Administrators are permitted to activate maintenance mode or update the restricted access notice.');
     }
 };
 
@@ -4217,7 +4217,7 @@ window.applyAdminMaintenanceToggleChange = function (enabled) {
             confirmText: 'OK'
         });
     } else {
-        alert(nextState
+        window.SigmaFeedback.notice(nextState
             ? 'Maintenance mode activated. Regular users were logged out and access is now restricted.'
             : 'Maintenance mode has been turned off. The system is now operational and open for all users.');
     }
@@ -4291,7 +4291,7 @@ window.saveMaintenanceMessageOnly = function () {
             confirmText: 'OK'
         });
     } else {
-        alert('Restricted access notice updated successfully!');
+        window.SigmaFeedback.notice('Restricted access notice updated successfully!', 'success');
     }
 };
 
@@ -4325,7 +4325,7 @@ window.handleAdminEmergencyForceLogout = function () {
     if (typeof window.broadcastForceLogout === 'function') {
         window.broadcastForceLogout('Emergency session termination by Administrator.');
     }
-    alert('Force logout broadcasted! All student and teacher sessions disconnected.');
+    window.SigmaFeedback.notice('Force logout broadcasted! All student and teacher sessions disconnected.', 'success');
 };
 
 window.resetSettings = function () {
@@ -4337,10 +4337,10 @@ window.resetSettings = function () {
 window.handleSliderUpload = function () {
     const count = document.querySelectorAll('#slider-manager-grid .group').length;
     if (count >= 7) {
-        alert('Maximum of 7 slides allowed.');
+        window.SigmaFeedback.notice('Maximum of 7 slides allowed.');
         return;
     }
-    alert('Image upload dialog would open here.');
+    window.SigmaFeedback.notice('Image upload dialog would open here.', 'info');
 };
 
 window.removeSlide = function (btn) {
@@ -6024,7 +6024,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const city = document.getElementById('edit-branch-city').value.trim();
 
         if (!name || !city) {
-            alert('Branch Name and City are required.');
+            window.SigmaFeedback.notice('Branch Name and City are required.');
             return;
         }
 
@@ -6151,7 +6151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.showToast === 'function') {
                     window.showToast('School profile image exceeds the 10MB limit.', 'error');
                 } else {
-                    alert('School profile image exceeds the 10MB limit.');
+                    window.SigmaFeedback.notice('School profile image exceeds the 10MB limit.');
                 }
                 profilePictureInput.value = '';
                 return;
@@ -6220,7 +6220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof window.showToast === 'function') {
                     window.showToast('Profile picture exceeds the 10MB limit.', 'error');
                 } else {
-                    alert('Profile picture exceeds the 10MB limit.');
+                    window.SigmaFeedback.notice('Profile picture exceeds the 10MB limit.');
                 }
                 userProfilePictureInput.value = '';
                 return;
@@ -7112,7 +7112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderUserAccountsTable();
             populateAdministratorSelect();
 
-            alert(`${userData.role} Account Created Successfully!`);
+            window.SigmaFeedback.notice(`${userData.role} Account Created Successfully!`, 'success');
         });
     }
 
@@ -9703,7 +9703,7 @@ window.deleteSYToTrash = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'You do not have permission to delete or move school years to the trash bin.', null, true);
         } else {
-            alert('Permission Denied: You do not have permission to delete or move school years to the trash bin.');
+            window.SigmaFeedback.notice('Permission Denied: You do not have permission to delete or move school years to the trash bin.');
         }
         return;
     }
@@ -9715,7 +9715,7 @@ window.deleteSYToTrash = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Cannot Move Active Year', 'Cannot move the currently active school year to the trash bin. Please set another year as active first.', null, true);
         } else {
-            alert('Cannot move the currently active school year to the trash bin. Please set another year as active first.');
+            window.SigmaFeedback.notice('Cannot move the currently active school year to the trash bin. Please set another year as active first.');
         }
         return;
     }
@@ -9745,7 +9745,7 @@ window.restoreSYFromTrash = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'You do not have permission to restore school years from the trash bin.', null, true);
         } else {
-            alert('Permission Denied.');
+            window.SigmaFeedback.notice('Permission Denied.');
         }
         return;
     }
@@ -9767,7 +9767,7 @@ window.permanentDeleteSY = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'You do not have permission to permanently delete school years.', null, true);
         } else {
-            alert('Permission Denied.');
+            window.SigmaFeedback.notice('Permission Denied.');
         }
         return;
     }
@@ -9811,7 +9811,7 @@ window.handleSYDelete = function () {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'You do not have permission to delete or move school years to the trash bin.', null, true);
         } else {
-            alert('Permission Denied: You do not have permission to delete or move school years to the trash bin.');
+            window.SigmaFeedback.notice('Permission Denied: You do not have permission to delete or move school years to the trash bin.');
         }
         return;
     }
@@ -9945,12 +9945,12 @@ window.handleSYSave = function () {
         : 'Are you sure you want to create this school year configuration?';
 
     if (!formValues.yearStart || !formValues.yearEnd) {
-        alert('Please provide both Year Start and Year End.');
+        window.SigmaFeedback.notice('Please provide both Year Start and Year End.');
         return;
     }
 
     if (Number(formValues.yearEnd) < Number(formValues.yearStart)) {
-        alert('Year End must be equal to or greater than Year Start.');
+        window.SigmaFeedback.notice('Year End must be equal to or greater than Year Start.');
         return;
     }
 
@@ -10071,7 +10071,7 @@ window.promptArchiveSchoolYear = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'Only Master Administrators are permitted to archive a school year.', null, true);
         } else {
-            alert('Only Master Administrators are permitted to archive a school year.');
+            window.SigmaFeedback.notice('Only Master Administrators are permitted to archive a school year.');
         }
         return;
     }
@@ -10197,7 +10197,7 @@ window.executeArchiveSchoolYear = function (recordId) {
         if (typeof window.showUserConfirm === 'function') {
             window.showUserConfirm('Permission Denied', 'Only Master Administrators are permitted to archive a school year.', null, true);
         } else {
-            alert('Only Master Administrators are permitted to archive a school year.');
+            window.SigmaFeedback.notice('Only Master Administrators are permitted to archive a school year.');
         }
         return;
     }
@@ -10561,7 +10561,7 @@ window.toggleSectionOverlay = function (show, sectionId = null) {
                     const plainList = prereqs.missing.map(m => `• ${m.label}: ${m.desc}`).join('\n');
                     window.showAlertDialog('Prerequisites Required', `Before creating a section, please create the following first:\n\n${plainList}`);
                 } else {
-                    alert('Before creating a section, please create teacher users, student users, and subjects first.');
+                    window.SigmaFeedback.notice('Before creating a section, please create teacher users, student users, and subjects first.');
                 }
                 return;
             }
@@ -11359,7 +11359,7 @@ window.handleScheduleDayTimeChange = function (day, type, value, inputEl) {
                     icon: 'fa-solid fa-clock'
                 });
             } else {
-                alert('End Time must be later than Start Time within the same 24-hour day (00:00 – 11:59 PM). Schedules cannot exceed 11:59 PM or roll over into the next day.');
+                window.SigmaFeedback.notice('End Time must be later than Start Time within the same 24-hour day (00:00 – 11:59 PM). Schedules cannot exceed 11:59 PM or roll over into the next day.');
             }
             item.endTime = '';
             if (inputEl) inputEl.value = '';
@@ -11410,7 +11410,7 @@ window.applyMasterTimeToActiveDays = function () {
                 icon: 'fa-solid fa-clock'
             });
         } else {
-            alert('Please enter both Start Time and End Time in the Quick Set box first.');
+            window.SigmaFeedback.notice('Please enter both Start Time and End Time in the Quick Set box first.');
         }
         return;
     }
@@ -11422,7 +11422,7 @@ window.applyMasterTimeToActiveDays = function () {
                 icon: 'fa-solid fa-clock'
             });
         } else {
-            alert('End Time must be later than Start Time within the same 24-hour day (00:00 – 11:59 PM). Schedules cannot exceed 11:59 PM or roll over into the next day.');
+            window.SigmaFeedback.notice('End Time must be later than Start Time within the same 24-hour day (00:00 – 11:59 PM). Schedules cannot exceed 11:59 PM or roll over into the next day.');
         }
         return;
     }
@@ -11956,7 +11956,7 @@ window.handleSectionNext = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Missing Section Name', 'Please enter a name for this section (e.g. Einstein, Rizal).');
             } else {
-                alert('Please enter a name for this section.');
+                window.SigmaFeedback.notice('Please enter a name for this section.');
             }
             return;
         }
@@ -11966,7 +11966,7 @@ window.handleSectionNext = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Missing Grade Level', 'Please select a Grade Level (Grade 11 or Grade 12).');
             } else {
-                alert('Please select a Grade Level (Grade 11 or Grade 12).');
+                window.SigmaFeedback.notice('Please select a Grade Level (Grade 11 or Grade 12).');
             }
             return;
         }
@@ -11976,7 +11976,7 @@ window.handleSectionNext = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Missing Room Number', 'Please enter a Room number for this section (e.g. 401, 302).');
             } else {
-                alert('Please enter a Room number for this section.');
+                window.SigmaFeedback.notice('Please enter a Room number for this section.');
             }
             return;
         }
@@ -11986,7 +11986,7 @@ window.handleSectionNext = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Missing School Year', 'Please select a School Year.');
             } else {
-                alert('Please select a School Year.');
+                window.SigmaFeedback.notice('Please select a School Year.');
             }
             return;
         }
@@ -11997,7 +11997,7 @@ window.handleSectionNext = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Duplicate Section Name', `A section named "${duplicate.name}" already exists for ${duplicate.gradeLevel || duplicate.grade} in School Year ${duplicate.schoolYear}. Please use a unique section name.`);
             } else {
-                alert(`A section named "${duplicate.name}" already exists for ${duplicate.gradeLevel || duplicate.grade} in School Year ${duplicate.schoolYear}.`);
+                window.SigmaFeedback.notice(`A section named "${duplicate.name}" already exists for ${duplicate.gradeLevel || duplicate.grade} in School Year ${duplicate.schoolYear}.`);
             }
             return;
         }
@@ -12299,7 +12299,7 @@ window.deleteSection = function (sectionNameToDelete = null) {
                 buttonText: 'OK'
             });
         } else {
-            alert('Section deletion requires Master Admin authorization or explicit delete permissions.');
+            window.SigmaFeedback.notice('Section deletion requires Master Admin authorization or explicit delete permissions.');
         }
         return;
     }
@@ -14098,7 +14098,7 @@ window.handleSectionSave = function (status, createAnother = false) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Duplicate Section & Subject', errorMsg);
         } else {
-            alert(errorMsg);
+            window.SigmaFeedback.notice(errorMsg, 'error');
         }
         return;
     }
@@ -14112,7 +14112,7 @@ window.handleSectionSave = function (status, createAnother = false) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Room Schedule Conflict', conflictMsg);
         } else {
-            alert(conflictMsg);
+            window.SigmaFeedback.notice(conflictMsg);
         }
         return;
     }
@@ -14125,7 +14125,7 @@ window.handleSectionSave = function (status, createAnother = false) {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Teacher Conflict', msg);
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -14140,7 +14140,7 @@ window.handleSectionSave = function (status, createAnother = false) {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Student Conflict', msg);
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -14695,7 +14695,7 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Subject Required', msg);
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -14706,7 +14706,7 @@ window.openSectionSubpage = function (subpageType, isChangeMode = false) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Schedule Required', msg);
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -14873,7 +14873,7 @@ window.confirmSectionSubpage = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Schedule Conflict Detected', msg);
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -14884,7 +14884,7 @@ window.confirmSectionSubpage = function () {
             if (typeof window.showAlertDialog === 'function') {
                 window.showAlertDialog('Incomplete Schedule', msg);
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -14898,7 +14898,7 @@ window.confirmSectionSubpage = function () {
                 if (typeof window.showAlertDialog === 'function') {
                     window.showAlertDialog('Teacher Conflict Detected', msg);
                 } else {
-                    alert(msg);
+                    window.SigmaFeedback.notice(msg);
                 }
                 return;
             }
@@ -15182,7 +15182,7 @@ window.notifySingleAdviserLimit = function () {
     if (typeof window.showAlertDialog === 'function') {
         window.showAlertDialog(title, message);
     } else {
-        alert(message);
+        window.SigmaFeedback.notice(message);
     }
 };
 
@@ -16065,7 +16065,7 @@ window.selectSubpageTeacher = function (fullName, id = '') {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Teacher Conflict Detected', msg);
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -16352,7 +16352,7 @@ window.selectSubpageSubject = function (subjectName) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Subject Already Assigned', msg);
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -16499,7 +16499,7 @@ window.addSubpageStudent = function (studentId) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog('Student Conflict Detected', msg);
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -17751,7 +17751,7 @@ window.handleUserStepNext = function () {
                 } else if (typeof window.showUserConfirm === 'function') {
                     window.showUserConfirm('Duplicate Account Detected', dupMsg, null, true);
                 } else {
-                    alert(dupMsg);
+                    window.SigmaFeedback.notice(dupMsg);
                 }
                 return;
             }
@@ -19730,12 +19730,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.loadGoogleDriveFolderUsage();
                 }
                 if (window.showToast) window.showToast('Google Drive Settings Saved Successfully');
-                else alert('Google Drive Settings Saved Successfully');
+                else window.SigmaFeedback.notice('Google Drive Settings Saved Successfully', 'success');
             } else {
-                alert(data?.error || 'Failed to save Google Drive configuration.');
+                window.SigmaFeedback.notice(data?.error || 'Failed to save Google Drive configuration.', 'error');
             }
         } catch (e) {
-            alert('Failed to connect to backend upload API. Ensure Apache/PHP is running.');
+            window.SigmaFeedback.notice('Failed to connect to backend upload API. Ensure Apache/PHP is running.', 'error');
         } finally {
             if (saveBtn) {
                 saveBtn.disabled = false;
@@ -19799,11 +19799,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.showToast) window.showToast('Service Account Key Updated Successfully');
             } else {
                 if (statusEl) statusEl.textContent = 'Upload failed: ' + (data?.error || 'Invalid file');
-                alert(data?.error || 'Failed to upload service account key.');
+                window.SigmaFeedback.notice(data?.error || 'Failed to upload service account key.', 'error');
             }
         } catch (e) {
             if (statusEl) statusEl.textContent = 'Error connecting to upload API';
-            alert('Could not upload key file. Ensure Apache/PHP is running.');
+            window.SigmaFeedback.notice('Could not upload key file. Ensure Apache/PHP is running.', 'error');
         }
     };
 
@@ -20121,7 +20121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!idVal && !keyVal) {
-            alert('Please paste a valid API key.');
+            window.SigmaFeedback.notice('Please paste a valid API key.');
             return;
         }
 
@@ -20151,13 +20151,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.toggleAddAiKeyForm(false);
                 await window.loadAiPageData();
                 if (window.showToast) window.showToast('API Key saved to vault successfully.');
-                else alert('API Key saved to vault successfully.');
+                else window.SigmaFeedback.notice('API Key saved to vault successfully.', 'success');
             } else {
-                alert(data?.error || 'Failed to save API key.');
+                window.SigmaFeedback.notice(data?.error || 'Failed to save API key.', 'error');
             }
         } catch (err) {
             console.error('[SIGMA] Save AI key error:', err);
-            alert('Failed to connect to backend server.');
+            window.SigmaFeedback.notice('Failed to connect to backend server.', 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -20187,11 +20187,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 await window.loadAiPageData();
                 if (window.showToast) window.showToast('API key removed from vault.');
             } else {
-                alert(data?.error || 'Failed to delete API key.');
+                window.SigmaFeedback.notice(data?.error || 'Failed to delete API key.', 'error');
             }
         } catch (err) {
             console.error('[SIGMA] Delete AI key error:', err);
-            alert('Failed to connect to backend server.');
+            window.SigmaFeedback.notice('Failed to connect to backend server.', 'error');
         }
     };
 
@@ -20679,7 +20679,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (window.showToast) {
-            window.showToast(`Initial default password filled (${defaultPass})`);
+            window.showToast('Default password filled.', 'info');
         }
     };
 
@@ -20886,7 +20886,7 @@ window.requestDeactivateUser = function (userId) {
         if (window.showUserConfirm) {
             window.showUserConfirm('Action Prohibited', 'You cannot deactivate your own active account while logged in.', null, true);
         } else {
-            alert('You cannot deactivate your own active account while logged in.');
+            window.SigmaFeedback.notice('You cannot deactivate your own active account while logged in.');
         }
         return;
     }
@@ -20899,7 +20899,7 @@ window.requestDeactivateUser = function (userId) {
             if (window.showUserConfirm) {
                 window.showUserConfirm('Action Prohibited', 'Cannot deactivate the last remaining Master Admin account.', null, true);
             } else {
-                alert('Cannot deactivate the last remaining Master Admin account.');
+                window.SigmaFeedback.notice('Cannot deactivate the last remaining Master Admin account.');
             }
             return;
         }

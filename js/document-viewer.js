@@ -384,7 +384,7 @@
                 navigatePreview(targetUrl);
             } else {
                 if (previewWindow) previewWindow.close();
-                alert('PDF document file not found.');
+                window.SigmaFeedback.notice('PDF document file not found.', 'error');
             }
             return;
         }

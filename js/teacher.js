@@ -3725,7 +3725,7 @@ function initTeacherPortal() {
                 if (typeof window.showToastNotification === 'function') {
                     window.showToastNotification(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`, 'warning');
                 } else {
-                    alert(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
+                    window.SigmaFeedback.notice(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
                 }
                 window.closeAttendanceExportModal();
                 return;
@@ -3746,7 +3746,7 @@ function initTeacherPortal() {
                 if (typeof window.showToastNotification === 'function') {
                     window.showToastNotification('No recorded attendance entries found to export.', 'warning');
                 } else {
-                    alert('No recorded attendance entries found to export.');
+                    window.SigmaFeedback.notice('No recorded attendance entries found to export.');
                 }
                 window.closeAttendanceExportModal();
                 return;
@@ -12464,7 +12464,7 @@ function initTeacherPortal() {
             if (typeof window.showToast === 'function') {
                 window.showToast('This rubric was set by the admin and cannot be changed.', 'error');
             } else {
-                alert('This rubric was set by the admin and cannot be changed or replaced.');
+                window.SigmaFeedback.notice('This rubric was set by the admin and cannot be changed or replaced.');
             }
             return;
         }
@@ -12612,7 +12612,7 @@ function initTeacherPortal() {
             if (typeof window.showToast === 'function') {
                 window.showToast('This rubric was set by the admin and cannot be deleted.', 'error');
             } else {
-                alert('This rubric was set by the admin and cannot be deleted.');
+                window.SigmaFeedback.notice('This rubric was set by the admin and cannot be deleted.');
             }
             return;
         }
@@ -20656,7 +20656,7 @@ function initTeacherPortal() {
             'Attached files:',
             files
         ].join('\n');
-        window.alert(message);
+        window.SigmaFeedback.notice(message);
     };
 
     window.submitAttendance = function () {
@@ -21371,7 +21371,7 @@ function initTeacherPortal() {
         const description = descInput ? descInput.value.trim() : '';
 
         if (!title) {
-            alert('Please enter a title for the material.');
+            window.SigmaFeedback.notice('Please enter a title for the material.');
             return;
         }
 
@@ -21386,7 +21386,7 @@ function initTeacherPortal() {
                 const fileInput = document.getElementById('teacher-mat-video-file-input');
                 const file = fileInput && fileInput.files[0];
                 if (!file) {
-                    alert('Please select an MP4 video file.');
+                    window.SigmaFeedback.notice('Please select an MP4 video file.');
                     return;
                 }
                 url = URL.createObjectURL(file);
@@ -21398,7 +21398,7 @@ function initTeacherPortal() {
                 url = urlInput ? urlInput.value.trim() : '';
                 const videoIdMatch = url.match(/(?:youtu\.be\/|(?:www\.|m\.|music\.)?youtube(?:-nocookie)?\.com\/(?:.*v(?:i)?[\/=]|.*[\?&]v=|embed\/|v\/|shorts\/|live\/|e\/))([\w-]{11})/i);
                 if (!videoIdMatch) {
-                    alert('Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).');
+                    window.SigmaFeedback.notice('Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).');
                     return;
                 }
                 url = `https://www.youtube.com/embed/${videoIdMatch[1]}?enablejsapi=1`;
@@ -21837,7 +21837,7 @@ function initTeacherPortal() {
         if (file) {
             const isMp4 = file.name.toLowerCase().endsWith('.mp4') || file.type === 'video/mp4';
             if (!isMp4) {
-                alert('Only .mp4 video files are allowed for upload.');
+                window.SigmaFeedback.notice('Only .mp4 video files are allowed for upload.');
                 input.value = '';
                 label.textContent = 'No video file selected';
                 label.classList.add('text-slate-400');
@@ -21850,7 +21850,7 @@ function initTeacherPortal() {
                 : { video: { max: 225 } };
             const maxVideoMb = Number(limits.video?.max || (Number(limits.video?.mp4 || limits.video?.std || 200) + Number(limits.video?.ext || 25))) || 225;
             if (file.size > maxVideoMb * 1024 * 1024) {
-                alert(`The selected video exceeds the system limit of ${maxVideoMb} MB.`);
+                window.SigmaFeedback.notice(`The selected video exceeds the system limit of ${maxVideoMb} MB.`);
                 input.value = '';
                 label.textContent = 'No video file selected';
                 label.classList.add('text-slate-400');
@@ -23620,7 +23620,7 @@ function initTeacherPortal() {
 
     window.toggleMaterialSelection = (el, type) => {
         if (!selectedTopicForRelease) {
-            alert('Please choose a topic first.');
+            window.SigmaFeedback.notice('Please choose a topic first.');
             return;
         }
 
@@ -25164,7 +25164,7 @@ function initTeacherPortal() {
             if (typeof window.showToast === 'function') {
                 window.showToast('Quiz HPS is locked and calculated automatically from question points in Quiz Creator.', 'info');
             } else {
-                alert('Quiz HPS is locked and calculated automatically from question points in Quiz Creator.');
+                window.SigmaFeedback.notice('Quiz HPS is locked and calculated automatically from question points in Quiz Creator.');
             }
             return;
         }
@@ -25247,7 +25247,7 @@ function initTeacherPortal() {
             submitBtn.onclick = () => {
                 const rawVal = input ? parseInt(input.value, 10) : NaN;
                 if (isNaN(rawVal) || rawVal < 1 || rawVal > 1000) {
-                    alert('Please enter a valid HPS between 1 and 1000.');
+                    window.SigmaFeedback.notice('Please enter a valid HPS between 1 and 1000.');
                     return;
                 }
 

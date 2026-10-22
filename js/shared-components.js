@@ -12106,7 +12106,7 @@ window.openSharedDocViewer = function (encodedOrPlainUrl, encodedOrPlainTitle, t
 
 window.previewDocumentFromRegistry = function (pk) {
     const entry = (window._sigmaPreviewRegistry || {})[pk];
-    if (!entry) { alert('File not available. Please re-upload.'); return; }
+    if (!entry) { window.SigmaFeedback.notice('File not available. Please re-upload.', 'error'); return; }
     const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes((entry.type || '').toLowerCase()) || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(entry.title || '');
     if (isImage) {
         let targetUrl = (entry.url && entry.url !== '#' && entry.url !== 'undefined') ? entry.url : '';
@@ -22772,7 +22772,7 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
             } else if (typeof window.showGlobalToast === 'function') {
                 window.showGlobalToast(msg, 'warning');
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -22787,7 +22787,7 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
             } else if (typeof window.showGlobalToast === 'function') {
                 window.showGlobalToast(msg, 'warning');
             } else {
-                alert(msg);
+                window.SigmaFeedback.notice(msg);
             }
             return;
         }
@@ -24185,7 +24185,7 @@ window.enterStudentSubmissionMode = function (subjectId, topicIdx, tab, activeId
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast(msg, 'warning');
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -24200,7 +24200,7 @@ window.enterStudentSubmissionMode = function (subjectId, topicIdx, tab, activeId
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast(msg, 'warning');
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -24300,7 +24300,7 @@ window.handleStudentQuizRetake = function (subjectId, topicIdx, tab, activeIdx, 
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast(msg, 'warning');
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -25255,7 +25255,7 @@ window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxA
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast('Please attach at least one answer file before submitting.', 'error');
         } else {
-            alert('Please attach at least one answer file before submitting.');
+            window.SigmaFeedback.notice('Please attach at least one answer file before submitting.');
         }
         return;
     }
@@ -25271,7 +25271,7 @@ window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxA
         } else if (typeof window.showGlobalToast === 'function') {
             window.showGlobalToast(msg, 'warning');
         } else {
-            alert(msg);
+            window.SigmaFeedback.notice(msg);
         }
         return;
     }
@@ -33322,7 +33322,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                     }
                 });
             } else {
-                alert(message);
+                window.SigmaFeedback.notice(message);
                 const target = path.includes('/php/') ? '../index.html' : 'index.html';
                 window.location.href = target;
             }
@@ -36871,52 +36871,7 @@ window.queueTeacherReleaseToast = function (item) {
 };
 
 window.showTeacherReleaseToast = function (message, type = 'released') {
-    if (!message) return;
-    let container = document.getElementById('sigma-release-toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'sigma-release-toast-container';
-        container.className = 'sigma-release-toast-container';
-        document.body.appendChild(container);
-    }
-
-    const isUnreleased = type === 'unreleased' || /unreleased/i.test(message);
-    const iconHtml = isUnreleased
-        ? `<div class="w-7 h-7 rounded-full bg-white text-amber-700 flex items-center justify-center shrink-0 text-xs font-bold shadow-xs"><i class="fa-solid fa-arrow-rotate-left"></i></div>`
-        : `<div class="w-7 h-7 rounded-full bg-white text-[#15803d] flex items-center justify-center shrink-0 text-xs font-bold shadow-xs"><i class="fa-solid fa-check"></i></div>`;
-
-    const toast = document.createElement('div');
-    toast.className = `sigma-release-toast-panel${isUnreleased ? ' is-unreleased' : ''}`;
-    toast.setAttribute('title', 'Click to dismiss');
-    toast.setAttribute('role', 'status');
-    toast.innerHTML = `
-        ${iconHtml}
-        <div class="sigma-release-toast-content">
-            <p class="sigma-release-toast-text">${typeof window.escapeHtml === 'function' ? window.escapeHtml(message) : message}</p>
-        </div>
-    `;
-
-    let timer = null;
-    const removeToast = () => {
-        if (timer) clearTimeout(timer);
-        toast.classList.add('hide');
-        setTimeout(() => {
-            if (toast.parentElement) toast.remove();
-        }, 300);
-    };
-
-    // Click anywhere on the toast indicator to dismiss automatically
-    toast.addEventListener('click', removeToast);
-
-    toast.addEventListener('mouseenter', () => {
-        if (timer) clearTimeout(timer);
-    });
-    toast.addEventListener('mouseleave', () => {
-        timer = setTimeout(removeToast, 3500);
-    });
-
-    timer = setTimeout(removeToast, 4500);
-    container.appendChild(toast);
+    return window.SigmaFeedback.notify(message, type === 'unreleased' ? 'warning' : 'success', { placement:'bottom-left', compact:true });
 };
 
 (function protectQuizClipboard() {
