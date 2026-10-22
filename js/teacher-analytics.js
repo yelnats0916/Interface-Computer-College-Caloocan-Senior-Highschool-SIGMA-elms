@@ -114,7 +114,7 @@
         clearTimeout(dailyTimer);
         if (!teacherId() || !rules?.nextDailyRun) return;
         dailyTimer = setTimeout(async () => {
-            try { await root.SigmaTeacherAnalytics.analyze(); }
+            try { await root.SigmaTeacherAnalytics.analyze({ automatic: true }); }
             finally { scheduleDaily(); }
         }, Math.max(1000, rules.nextDailyRun(Date.now()) - Date.now()));
     }
@@ -133,8 +133,8 @@
             if (!state.usedProvider) return [];
             try { return present(restrictTeacherLinks((state.cards || []).filter(card => typeof card.title === 'string' && card.analyses?.length === 1 && rules.normalizeActionLabel(card.analyses[0].actionLabel)), input, root.location.href), state.lastAnalyzed); } catch { return []; }
         },
-        async analyze() {
-            if (root.SigmaLiveAnalytics) return root.SigmaLiveAnalytics.analyze();
+        async analyze({ automatic = false } = {}) {
+            if (root.SigmaLiveAnalytics) return root.SigmaLiveAnalytics.analyze({ automatic });
             if (running || !rules) return;
             const expectedId = teacherId();
             return rules.withGenerationLock(root, storageKey(expectedId), async () => {

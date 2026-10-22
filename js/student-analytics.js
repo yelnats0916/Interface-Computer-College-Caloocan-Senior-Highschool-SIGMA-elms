@@ -266,17 +266,14 @@
         root.syncMobileAnalyticsCards?.();
     }
     root.addEventListener?.('sigma:refresh-analytics-cards', refresh);
-    function status(message) {
+    function status() {
         document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => {
             button.disabled = running;
-            button.title = message;
-            button.setAttribute('aria-label', message);
+            button.title = running ? 'Refreshing insights…' : 'Refresh insights';
+            button.setAttribute('aria-label', button.title);
             button.querySelector('i')?.classList.toggle('fa-spin', running);
         });
-        document.querySelectorAll('.sigma-analysis-status').forEach(element => {
-            element.textContent = message;
-            element.hidden = !message;
-        });
+        document.querySelectorAll('.sigma-analysis-status').forEach(element => element.remove());
     }
     async function snapshot(id) {
         const values = [];
@@ -427,12 +424,6 @@
         if (event.target.closest('.sigma-analyze-button:not(.sigma-insight-mark-all)')) analyze();
     });
     function init() {
-        document.querySelectorAll('.sigma-rail-header, #analytics-dropdown .mobile-panel-header').forEach(header => {
-            const element = document.createElement('p');
-            element.className = 'sigma-analysis-status';
-            element.setAttribute('role', 'status');
-            header.after(element);
-        });
         status('');
         refresh();
         schedule();

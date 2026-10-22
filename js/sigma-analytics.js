@@ -953,7 +953,7 @@
             } else {
                 headerEl.innerHTML = `
                     <span class="sigma-rail-header__title pocket-rail-header__title">${title}</span>
-                    <button type="button" class="sigma-analyze-button" title="Analyze Now" aria-label="Analyze Now"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
+                    <button type="button" class="sigma-analyze-button" title="Refresh insights" aria-label="Refresh insights"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
                     <button type="button" class="sigma-insight-search-toggle" title="Search insights" aria-label="Search insights"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
                 `;
             }

@@ -4,20 +4,30 @@
     const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
     const api = () => location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
         : new URL('php/api/analytics_ai.php', location.href).href;
-    function status(message, busy = false) {
-        document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => {
-            button.disabled = busy; button.title = message; button.setAttribute('aria-label', message);
+    const refreshButtons = () => document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)');
+    function setManualBusy(busy) {
+        refreshButtons().forEach(button => {
+            button.disabled = busy;
+            button.title = busy ? 'Refreshing insights…' : 'Refresh insights';
+            button.setAttribute('aria-label', button.title);
+            button.setAttribute('aria-busy', String(busy));
             button.querySelector('i')?.classList.toggle('fa-spin', busy);
         });
-        document.querySelectorAll('.sigma-analysis-status').forEach(node => { node.textContent = message; node.hidden = !message; });
     }
     async function analyze(options = {}) {
         const actor = window.SigmaAcademicRecords?.actor();
         const id = String(actor?.id || '');
         if (!id || window.SigmaAcademicRecords.role() !== kind) return;
-        if (pending.has(id)) return pending.get(id);
-        const task = (async () => {
-            status('Analyzing your latest learning records…', true);
+        const existing = pending.get(id);
+        if (existing) {
+            // A click can join a background check without launching another generation.
+            if (!options.automatic) { existing.manual = true; setManualBusy(true); }
+            return existing.promise;
+        }
+        const run = { manual: !options.automatic };
+        if (run.manual) setManualBusy(true);
+        pending.set(id, run);
+        run.promise = (async () => {
             try {
                 await window.SigmaAcademicRecords.flush();
                 const response = await window.SigmaDatabase.fetch(api(), { method: 'POST', credentials: 'include',
@@ -25,17 +35,20 @@
                     body: JSON.stringify({ kind, feature: 'analytics', language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
                 const result = await response.json();
                 if (!response.ok || !result.success) throw new Error(result.error || 'Learning insights are unavailable.');
-                if (window.SigmaAcademicRecords.actor().id !== id) return;
+                if (String(window.SigmaAcademicRecords.actor()?.id || '') !== id) return;
                 snapshots[kind] = result.snapshot;
                 await window.SigmaAiDatabase.ensureState(kind, id, true);
                 window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
-                status(result.cards?.length ? 'Your new learning insights have been saved.' : result.reason || 'No new supported learning evidence.');
+                if (run.manual) window.SigmaFeedback?.notify(result.cards?.length ? 'Your learning insights have been updated.' : 'No new insights available yet.', result.cards?.length ? 'success' : 'info');
             } catch (error) {
-                status(error.message);
-                if (!options.automatic) window.SigmaAnnouncements?.showToast?.(error.message, 'error');
-            } finally { pending.delete(id); document.querySelectorAll('.sigma-analyze-button').forEach(button => { button.disabled = false; button.querySelector('i')?.classList.remove('fa-spin'); }); }
+                console.warn('[SIGMA] Learning insights check failed:', error);
+                if (run.manual && String(window.SigmaAcademicRecords.actor()?.id || '') === id) window.SigmaFeedback?.notify('Insights could not be refreshed. Please try again.', 'error');
+            } finally {
+                pending.delete(id);
+                if (run.manual) setManualBusy(false);
+            }
         })();
-        pending.set(id, task); return task;
+        return run.promise;
     }
     window.SigmaLiveAnalytics = { analyze, snapshots };
     let installed = false, timer;
@@ -43,6 +56,8 @@
         const controller = kind === 'teacher' ? window.SigmaTeacherAnalytics : window.SigmaStudentAnalytics;
         if (!controller || installed) return;
         installed = true;
+        document.querySelectorAll('.sigma-analysis-status').forEach(node => node.remove());
+        setManualBusy(false);
         controller.setProvider(async () => { throw new Error('Use the server learning evidence controller.'); });
         controller.liveProviderConnected = true;
         controller.refresh?.();
