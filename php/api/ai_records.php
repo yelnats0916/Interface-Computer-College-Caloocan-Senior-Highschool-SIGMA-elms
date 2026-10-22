@@ -190,6 +190,16 @@ try{
         if(!$admin&&($user!==$actor||$kind!==$role))throw new RuntimeException('This insight belongs to another account.');
         if(!in_array($kind,['student','teacher'],true)||!is_string($user)||strlen($user)>50)throw new InvalidArgumentException('Invalid insight owner.');
         $result=$action==='save_state'&&$method==='POST'?saveAiAnalyticsState($db,$user,$kind,$input['state']??[],(int)($input['revision']??-1)):aiAnalyticsState($db,$user,$kind);
+        if(!$admin && $action==='state'){
+            require_once __DIR__.'/../includes/academic_evidence.php';
+            $q=$db->prepare('SELECT * FROM users WHERE id=?');$q->execute([$actor]);$reader=$q->fetch();
+            $result['state']['cards']=array_values(array_filter($result['state']['cards']??[],function($card)use($db,$reader,$kind){
+                $permission=$kind==='student'?'studentGrades':match($card['area']??''){'released-learning'=>'teacherMaterials','attendance-review'=>'teacherAttendance',default=>'teacherGrades'};
+                if(!sigmaActorPermission($reader,$permission))return false;
+                foreach($card['evidenceScopes']??[] as $scope)try{academicScope($db,$reader,(string)$scope['subjectId'],(string)$scope['sectionId']);}catch(Throwable $e){return false;}
+                return true;
+            }));
+        }
         echo json_encode(['success'=>true]+$result);
     }else throw new InvalidArgumentException('Unsupported AI record action.');
 }catch(Throwable $e){http_response_code($e instanceof InvalidArgumentException?400:409);echo json_encode(['success'=>false,'error'=>$e->getMessage()]);}

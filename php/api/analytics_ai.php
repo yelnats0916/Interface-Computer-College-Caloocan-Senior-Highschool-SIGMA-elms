@@ -97,6 +97,9 @@ try {
     foreach($result['cards'] as $index=>&$card){
         $card['id']=$result['generationId'].'-'.$index;$card['generationId']=$result['generationId'];$card['createdAt']=$now;
         $card['categories']=array_column($card['analyses'],'category');
+        $card['evidenceScopes']=[];
+        foreach($input['snapshot']['areas'] as $area)if($area['id']===$card['area'])foreach($area['records'] as $record)if(in_array($record['id'],$card['evidenceIds'],true))$card['evidenceScopes'][]=['subjectId'=>$record['subjectId'],'sectionId'=>$record['sectionId']];
+
         if($feature==='grade_insights')$card['insightSourceId']=$result['generationId'].':'.$index;
     }unset($card);
     $db->beginTransaction();
