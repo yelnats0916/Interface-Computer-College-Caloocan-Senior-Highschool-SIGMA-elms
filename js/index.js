@@ -463,6 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const text = btn.querySelector('.btn-text');
         const spinner = btn.querySelector('.fa-spin');
         btn.disabled = isLoading;
+        btn.setAttribute('aria-busy', String(isLoading));
         if (isLoading) {
             if (spinner) {
                 spinner.classList.remove('hidden');
@@ -953,17 +954,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (checkData.totpEnabled) {
                     // 2nd time / Returning login -> Prompt for 6-digit authenticator code (no QR barcode or key)
-                    setLoading(formType, false);
                     open2faModal(targetUserId, () => proceedAfterAuth(termsDone));
+                    setLoading(formType, false);
                     return;
                 } else {
                     // 1st time login -> Mandatory 2FA QR Code Setup Wizard
+                    const opened = await open2faSetupModal(targetUserId, () => proceedAfterAuth(termsDone));
+                    if (!opened) throw new Error('Authenticator setup unavailable');
                     setLoading(formType, false);
-                    open2faSetupModal(targetUserId, () => proceedAfterAuth(termsDone));
                     return;
                 }
             }
         } catch (e) {
+            backendHandled = false;
             if (!isStaticHost) console.warn('Backend 2FA check unavailable:', e);
         }
 
@@ -1350,11 +1353,6 @@ document.addEventListener('DOMContentLoaded', function () {
             document.activeElement.blur();
         }
 
-        // Dismiss modal if login was initiated from floating modal
-        if (typeof closeLogin === 'function') {
-            closeLogin();
-        }
-
         ensureLandingAtTop();
 
         const qrBox = document.getElementById('landing2faSetupQrBox');
@@ -1398,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 err.textContent = 'Authenticator setup could not be started. Sign in again and retry.';
                 err.classList.remove('hidden');
             }
-            return;
+            return false;
         }
 
         // Instant client-side QR generation (0ms latency, zero external API lag)
@@ -1427,6 +1425,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (secretTxt) secretTxt.textContent = setupData.secret;
 
+        // Dismiss modal if login was initiated from floating modal
+        if (typeof closeLogin === 'function') {
+            closeLogin();
+        }
+
         // In-place card transition: Hide logo seal & login form, show top-left back button & setup view
         document.getElementById('landingLoginLogoWrap')?.classList.add('hidden');
         document.getElementById('landingLoginForm')?.classList.add('hidden');
@@ -1441,6 +1444,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
             ensureLandingAtTop();
         }, 150);
+        return Boolean(setupView);
     }
 
     document.getElementById('landing2faSetupForm')?.addEventListener('submit', async (e) => {
