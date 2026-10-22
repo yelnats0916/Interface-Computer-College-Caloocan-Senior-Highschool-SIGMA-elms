@@ -752,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function () {
             gradeSyncOtp = '';
         } catch (error) {
             setLoading(formType, false);
-            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Database sign-in failed.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
             return;
         }
         const accountKey = String(matchedUser?.uid || matchedUser?.id || id).trim();
@@ -883,8 +883,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 sessionStorage.removeItem('sigma-login-challenge');
             } catch (error) {
                 setLoading(formType, false);
-                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Database sign-in failed.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
-                return { success: false, error: error.message || 'Database sign-in failed.' };
+                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+                return { success: false, error: error.message || 'Sign-in failed. Please try again.' };
             }
             setLoading(formType, false);
             sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
@@ -969,7 +969,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!backendHandled) {
             setLoading(formType, false);
-            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, 'The security database could not be reached. Please retry signing in.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, 'The sign-in service could not be reached. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
         }
 
     }
@@ -1395,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!setupData) {
             if (err) {
-                err.textContent = 'The security database could not start authenticator setup. Sign in again and retry.';
+                err.textContent = 'Authenticator setup could not be started. Sign in again and retry.';
                 err.classList.remove('hidden');
             }
             return;

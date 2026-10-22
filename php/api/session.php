@@ -11,7 +11,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') exit;
 require_once dirname(__DIR__, 2) . '/config/database.php';
 function sessionReply(array $result, int $status = 200): void { http_response_code($status); echo json_encode($result); exit; }
 try {
-    if (!$pdo) sessionReply(['success' => false, 'error' => 'Database sign-in is unavailable. No local account fallback is allowed.'], 503);
+    if (!$pdo) sessionReply(['success' => false, 'error' => 'Sign-in is temporarily unavailable. Please try again.'], 503);
     $local = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
     if (!$local && !serviceRequestIsSecure()) sessionReply(['success' => false, 'error' => 'HTTPS is required.'], 403);
     $method = $_SERVER['REQUEST_METHOD'] ?? '';
@@ -35,7 +35,7 @@ try {
     if (($input['action'] ?? '') !== 'credentials') sessionReply(['success' => false, 'error' => 'Unknown action.'], 400);
     $login = trim((string)($input['login'] ?? ''));
     $password = (string)($input['password'] ?? '');
-    if ($login === '' || strlen($login) > 150 || $password === '' || strlen($password) > 256) sessionReply(['success' => false, 'error' => 'Enter your database account ID or email and password.'], 400);
+    if ($login === '' || strlen($login) > 150 || $password === '' || strlen($password) > 256) sessionReply(['success' => false, 'error' => 'Enter your account ID or Gmail and password.'], 400);
     $client = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ':session:' . strtolower($login));
     $stmt = $pdo->prepare('SELECT * FROM grade_sync_attempts WHERE client_hash=?'); $stmt->execute([$client]); $attempt = $stmt->fetch();
     if ($attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'].' UTC') > time()) sessionReply(['success'=>false,'error'=>'Too many attempts. Try again in five minutes.'],429);
@@ -45,7 +45,7 @@ try {
         sigmaRecordAuthentication($pdo, $user['id'] ?? null, 'Failed login attempt', 'failed');
         $count = $attempt && empty($attempt['blocked_until']) ? (int)$attempt['attempts']+1 : 1;
         $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
-        sessionReply(['success'=>false,'error'=>'Invalid credentials or inactive database account.'],401);
+        sessionReply(['success'=>false,'error'=>'Incorrect account ID, Gmail, or password, or your account is inactive.'],401);
     }
     $pdo->prepare('DELETE FROM grade_sync_attempts WHERE client_hash=?')->execute([$client]);
     $token = bin2hex(random_bytes(32));
@@ -53,4 +53,4 @@ try {
     $pdo->prepare('INSERT INTO application_login_challenges(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 5 MINUTE))')->execute([hash('sha256',$token),$user['id']]);
     sessionReply(['success'=>true,'user'=>sigmaPublicUser($user),'challenge'=>$token]);
 } catch (JsonException $error) { sessionReply(['success'=>false,'error'=>'Invalid JSON.'],400); }
-catch (Throwable $error) { error_log('SIGMA session error: '.$error->getMessage()); sessionReply(['success'=>false,'error'=>'Database sign-in could not be completed.'],503); }
+catch (Throwable $error) { error_log('SIGMA session error: '.$error->getMessage()); sessionReply(['success'=>false,'error'=>'Sign-in could not be completed. Please try again.'],503); }

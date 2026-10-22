@@ -42,9 +42,9 @@ try {
             sigmaRecordAuthentication($pdo, $user['id'] ?? null, 'Failed login attempt', 'failed');
             $count=($attempt && empty($attempt['blocked_until']))?(int)$attempt['attempts']+1:1;
             $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
-            gradeReply(['success'=>false,'error'=>'Database sign-in failed. Check that this account is synced and the credentials are correct.'],401);
+            gradeReply(['success'=>false,'error'=>'Sign-in failed. Check your account ID, Gmail, and password.'],401);
         }
-        if (empty($user['totp_enabled'])) gradeReply(['success'=>false,'code'=>'two_factor_setup_required','error'=>'Complete database authenticator setup before signing in.'],403);
+        if (empty($user['totp_enabled'])) gradeReply(['success'=>false,'code'=>'two_factor_setup_required','error'=>'Complete authenticator setup before signing in.'],403);
         if (empty($user['terms_accepted'])) gradeReply(['success'=>false,'code'=>'terms_required','error'=>'Accept the terms agreement before entering the portal.'],403);
         if (password_get_info($user['password'])['algo'] === null || password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
             $pdo->prepare('UPDATE users SET password=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);

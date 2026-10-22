@@ -17949,7 +17949,7 @@ window.updateUserPreview = function () {
 
     // Password = lowercase(lastname) + id  e.g. garcia26-01-03-1
     const password = lname && id !== 'Not generated yet'
-        ? `${lname.toLowerCase()}${id}`
+        ? buildManagedUserPassword(lname, id)
         : null;
 
     const prevId = document.getElementById('user-preview-id');
@@ -18141,7 +18141,7 @@ window.handleUserSave = function () {
                 role: role,
                 type: role.toUpperCase(),
                 status: 'Active',
-                password: lname ? `${lname.toLowerCase()}${id}` : id,
+                password: buildManagedUserPassword(lname, id),
                 permissions: defaultPerms
             };
 

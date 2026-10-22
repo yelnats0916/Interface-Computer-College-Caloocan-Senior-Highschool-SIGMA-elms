@@ -47,7 +47,7 @@ function jsonOut(array $data, int $code = 200): void {
 }
 
 if (!$pdo) {
-    jsonOut(['success' => false, 'error' => 'Database connection unavailable'], 503);
+    jsonOut(['success' => false, 'error' => 'The service is temporarily unavailable. Please try again.'], 503);
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
