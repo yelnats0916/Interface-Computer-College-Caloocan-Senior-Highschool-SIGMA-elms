@@ -11,15 +11,20 @@
     <link rel="stylesheet" href="css/feedback.css?v=20261022_feedback_v29">
     <script src="js/feedback.js?v=20261022_quiz_session_v36"></script>
     <style>
-        html.sigma-entry-loading::before { content:""; position:fixed; inset:0; z-index:2147483646; background:#fff; }
-        html.sigma-entry-loading::after { content:""; position:fixed; --sigma-full-loader-size:clamp(48px,8vmin,72px); left:calc(50% - var(--sigma-full-loader-size)/2); top:calc(50% - var(--sigma-full-loader-size)/2); width:var(--sigma-full-loader-size); height:var(--sigma-full-loader-size); background:radial-gradient(circle at 50% 10%, rgba(0,0,0,.55) 0 6%, transparent 7%), radial-gradient(circle at 78% 22%, rgba(0,0,0,.48) 0 6%, transparent 7%), radial-gradient(circle at 90% 50%, rgba(0,0,0,.41) 0 6%, transparent 7%), radial-gradient(circle at 78% 78%, rgba(0,0,0,.34) 0 6%, transparent 7%), radial-gradient(circle at 50% 90%, rgba(0,0,0,.27) 0 6%, transparent 7%), radial-gradient(circle at 22% 78%, rgba(0,0,0,.20) 0 6%, transparent 7%), radial-gradient(circle at 10% 50%, rgba(0,0,0,.13) 0 6%, transparent 7%), radial-gradient(circle at 22% 22%, rgba(0,0,0,.08) 0 6%, transparent 7%); z-index:2147483647; animation:sigma-entry-spin 1s steps(8,end) infinite; }
+        #sigma-entry-loader { display:none; }
+        html.sigma-entry-loading { overflow:hidden; }
+        html.sigma-entry-loading #sigma-entry-loader { position:fixed; inset:0; z-index:2147483647; display:grid; place-items:center; background:#fff; }
+        html.sigma-entry-loading body > :not(#sigma-entry-loader):not(script):not(style) { visibility:hidden !important; }
+        #sigma-entry-loader > span { display:block; width:clamp(48px,8vmin,72px); height:clamp(48px,8vmin,72px); background:radial-gradient(circle at 50% 10%, rgba(0,0,0,.55) 0 6%, transparent 7%), radial-gradient(circle at 78% 22%, rgba(0,0,0,.48) 0 6%, transparent 7%), radial-gradient(circle at 90% 50%, rgba(0,0,0,.41) 0 6%, transparent 7%), radial-gradient(circle at 78% 78%, rgba(0,0,0,.34) 0 6%, transparent 7%), radial-gradient(circle at 50% 90%, rgba(0,0,0,.27) 0 6%, transparent 7%), radial-gradient(circle at 22% 78%, rgba(0,0,0,.20) 0 6%, transparent 7%), radial-gradient(circle at 10% 50%, rgba(0,0,0,.13) 0 6%, transparent 7%), radial-gradient(circle at 22% 22%, rgba(0,0,0,.08) 0 6%, transparent 7%); animation:sigma-entry-spin 1s steps(8,end) infinite; }
         @keyframes sigma-entry-spin { to { transform:rotate(360deg); } }
     </style>
     <script>
         document.documentElement.classList.add('sigma-entry-loading');
         const clearEntryLoading = () => document.documentElement.classList.remove('sigma-entry-loading');
-        document.addEventListener('DOMContentLoaded', clearEntryLoading, {once:true});
-        window.addEventListener('pageshow', clearEntryLoading);
+        // Reveal after the login controller has selected and prepared its initial view.
+        window.addEventListener('sigma:login-ready', () => requestAnimationFrame(clearEntryLoading), {once:true});
+        document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(() => requestAnimationFrame(clearEntryLoading)), {once:true});
+        window.addEventListener('pageshow', event => { if (event.persisted) clearEntryLoading(); });
         // Do not trap the login page behind an overlay if an optional resource stalls.
         setTimeout(clearEntryLoading, 15000);
     </script>
@@ -29,8 +34,8 @@
     <link rel="icon" type="image/jpeg" href="image/ICC logo.jpg">
 
     <!-- FONTS: Google Inter + Font Awesome Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
 
     <!-- CRITICAL INLINE STYLES: Prevents navbar shifting, FOUC, and image blowouts on initial page load -->
     <link rel="stylesheet" href="css/login-critical.css?v=20261005mobileHelpNav1">
@@ -52,6 +57,7 @@
 </head>
 
 <body class="flex flex-col bg-gray-50 overflow-x-hidden min-h-screen">
+    <div id="sigma-entry-loader" role="status" aria-label="Loading login page"><span aria-hidden="true"></span></div>
 
     <!-- =============================================================
          NAVIGATION: Fixed top navbar with ICC branding
@@ -780,7 +786,7 @@
     <script src="js/recaptcha-client.js?v=20261021_database_foundation_v5"></script>
     <script src="js/audit-display.js?v=20261022_audit_spacing_v24"></script>
 <script src="js/authentication-logs.js?v=20261022_audit_spacing_v24"></script>
-    <script src="js/index.js?v=20261022_admin_device_v37"></script>
+    <script src="js/index.js?v=20261022_login_initial_v38"></script>
     <script src="js/institution-branding.js?v=20261010sharedLogo177"></script>
 </body>
 

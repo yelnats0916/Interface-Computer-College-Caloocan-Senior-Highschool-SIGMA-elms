@@ -1951,6 +1951,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const hashView = targetView === 'help' ? 'help' : (window.location.hash.replace('#', '') || 'landing');
     const finalStart = (hashView === 'help' || hashView === 'landing') ? hashView : 'landing';
     switchView(finalStart, false);
+    window.dispatchEvent(new Event('sigma:login-ready'));
 
     // Restore the public route on reload and history restoration.
     window.addEventListener('pageshow', function () {
