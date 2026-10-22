@@ -100,7 +100,9 @@ try{
         }else{
             if($role!=='student')throw new RuntimeException('Only the enrolled student can submit their own work.');
             if(!academicRelease($db,$subject,$section,$item,$actor['id']))throw new RuntimeException('This assessment is not released to you.');
-            $text=academicText($input['text']??'',60000);$identity=academicText($input['attemptIdentity']??'',4000);
+            $text=trim(is_string($input['text']??null)?$input['text']:'');
+            if(mb_strlen($text)>60000)throw new InvalidArgumentException('The complete submitted text exceeds the supported evaluation size.');
+            $identity=academicText($input['attemptIdentity']??'',4000);
             if(!$identity)throw new InvalidArgumentException('Submission attempt is required.');
             $previous=academicRead($db,'submission',$subject,$section,$actor['id'],$item['id']);
             academicWrite($db,$actor,'submission',$subject,$section,$actor['id'],$item['id'],['text'=>$text,'attemptIdentity'=>$identity,'submittedAt'=>gmdate('c'),'readable'=>(bool)$text]);
