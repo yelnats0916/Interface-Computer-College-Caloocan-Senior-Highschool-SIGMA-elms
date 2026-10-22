@@ -200,10 +200,7 @@
             input.onsearch = () => { if (!input.value) { detailQuery = ''; render(); } };
             wrap.append(input); search.append(wrap, submit); toolbar.append(tabs, search);
             toolbar.hidden = Boolean(selectedRecord);
-            const navigation = document.createElement('div'); navigation.className = 'audit-detail-navigation';
-            const back = document.createElement('button'); back.type = 'button'; back.className = 'sigma-btn sigma-btn-white sigma-btn-md'; back.textContent = 'Back to Authentication Logs'; back.onclick = window.closeAuthenticationLogDetails; navigation.append(back);
-            if (selectedRecord && selectedUser.userId) { const all = document.createElement('button'); all.type = 'button'; all.className = 'sigma-retry-link'; all.textContent = 'View all authentication for this user'; all.onclick = () => openUser(selectedUser); navigation.append(all); }
-            header.append(navigation, title, identity, toolbar);
+            header.append(title, identity, toolbar);
         }
         document.getElementById('authentication-log-preview')?.remove();
         const records = read().filter(item => item && (!selectedRecord || item.id === selectedRecord) && (!selectedUser || selectedRecord ||

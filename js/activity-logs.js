@@ -300,13 +300,7 @@
             toolbar.hidden = Boolean(selectedRecord);
             toolbar.append(tabs, searchForm);
 
-            const navigation = document.createElement('div'); navigation.className = 'audit-detail-navigation';
-            const back = document.createElement('button'); back.type = 'button'; back.className = 'sigma-btn sigma-btn-white sigma-btn-md'; back.textContent = 'Back to Activity Logs'; back.onclick = closeDetails;
-            navigation.append(back);
-            if (selectedRecord && selectedUser.userId && selectedUser.userId !== 'ID not recorded') {
-                const all = document.createElement('button'); all.type = 'button'; all.className = 'sigma-retry-link'; all.textContent = 'View all activity for this user'; all.onclick = () => openUser(selectedUser); navigation.append(all);
-            }
-            header.append(navigation, title, identity, toolbar);
+            header.append(title, identity, toolbar);
         }
 
         // Adjust Table Header depending on main table vs drilldown

@@ -133,9 +133,7 @@
             const submit = document.createElement('button'); submit.type='submit'; submit.className='sigma-btn sigma-btn-primary'; submit.textContent='Search';
             form.append(input,submit); form.onsubmit=event=>{event.preventDefault();detailQuery=input.value;render();window.SigmaLogPagination?.reset(table);};
             toolbar.hidden = selection.kind === 'record';
-            const navigation=document.createElement('div');navigation.className='audit-detail-navigation';
-            const back=document.createElement('button');back.type='button';back.className='sigma-btn sigma-btn-white sigma-btn-md';back.textContent='Back to Notification Logs';back.onclick=()=>{selection=null;render();window.SigmaLogPagination?.reset(table);};navigation.append(back);
-            toolbar.append(tabs,form); panel.append(navigation,title,identity,toolbar);
+            toolbar.append(tabs,form); panel.append(title,identity,toolbar);
             if (selection.kind === 'record') {
                 const record=recorded.find(item=>String(item.id)===selection.recordId);
                 if(record){
