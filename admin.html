@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="js/admin-device-access.js?v=20261022_admin_device_v37"></script>
     <link rel="stylesheet" href="css/feedback.css?v=20261022_feedback_v29">
     <script src="js/feedback.js?v=20261022_quiz_session_v36"></script>
     <meta name="google" content="notranslate">
@@ -228,6 +229,10 @@
                 display: none !important;
             }
         }
+        html.sigma-admin-device-restricted, html.sigma-admin-device-restricted body { overflow:hidden !important; }
+        html.sigma-admin-device-restricted #mobile-blocked-screen { display:grid !important; place-items:center; overflow-y:auto !important; }
+        #admin-device-exit { margin-top:24px; min-height:44px; width:100%; padding:12px 16px; border:0; border-radius:10px; background:#15803d; color:#fff; font:600 13px/1.4 Inter,sans-serif; cursor:pointer; }
+        #admin-device-exit:focus-visible { outline:2px solid #15803d; outline-offset:3px; }
     </style>
     <script>
         (function() {
@@ -254,7 +259,7 @@
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_loading_phases_v34">
     <link rel="stylesheet" href="css/content-loading.css?v=20261022_dots_only_v21">
     <script src="js/content-loading.js?v=20261022_dots_only_v21"></script>
-    <script src="js/tab-session.js?v=20261022_quiz_session_v36"></script>
+    <script src="js/tab-session.js?v=20261022_admin_device_v37"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/release-panel.css?v=20261021_selection_container_alignment_v31">
@@ -263,7 +268,7 @@
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
     <script src="js/page-skeleton.js?v=20261022_refresh_shimmer_v20"></script>
     <!-- Blocked Access for Mobile/Tablet -->
-    <div id="mobile-blocked-screen" role="region" aria-label="Desktop access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
+    <div id="mobile-blocked-screen" role="region" aria-label="Admin access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
         <div class="flex flex-col items-center w-full max-w-xs text-center">
 
             <!-- Logo -->
@@ -273,10 +278,10 @@
 
             <!-- Headline -->
             <h1 style="font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em; line-height: 1.15; text-transform: uppercase; margin: 0 0 6px 0;">
-                Desktop Access
+                Admin Access
             </h1>
             <p style="font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 900; color: #dc2626; letter-spacing: -0.02em; line-height: 1.15; text-transform: uppercase; margin: 0 0 20px 0;">
-                Required
+                Unavailable
             </p>
 
             <!-- Divider -->
@@ -284,8 +289,10 @@
 
             <!-- Description -->
             <p style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; color: #000000; line-height: 1.65; margin: 0; padding: 0 8px;">
-                To maintain institutional security and full management capabilities, the Administrator Portal is exclusively accessible via desktop systems.
+                Admin access is unavailable on this device. Please use a supported device to continue.
             </p>
+
+            <button type="button" id="admin-device-exit">Sign Out and Return to Login</button>
 
             <!-- Footer -->
             <div style="margin-top: 36px; padding-top: 20px; border-top: 1px solid #f1f5f9; width: 100%;">
@@ -302,18 +309,24 @@
     <script>
         (() => {
             const mobile = window.matchMedia('(max-width: 1023.98px)');
+            const isRestricted = () => window.SigmaAdminDeviceAccess?.restricted() ?? mobile.matches;
+            document.getElementById('admin-device-exit').onclick = async event => {
+                event.currentTarget.disabled = true;
+                event.currentTarget.textContent = 'Signing out…';
+                await window.SigmaSessionNavigation.signOutToLogin();
+            };
             const locked = new Set();
             const screen = document.getElementById('mobile-blocked-screen');
             const notice = screen.firstElementChild;
             const fitNotice = () => {
-                if (!mobile.matches) return;
+                if (!isRestricted()) return;
                 const style = getComputedStyle(screen);
                 const availableHeight = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
                 const scale = Math.min(1, availableHeight / Math.max(1, notice.offsetHeight));
                 screen.style.setProperty('--access-notice-scale', String(Math.max(0, scale)));
             };
             const syncAccessBlock = () => {
-                if (!mobile.matches) {
+                if (!isRestricted()) {
                     locked.forEach(element => element.inert = false);
                     locked.clear();
                     return;

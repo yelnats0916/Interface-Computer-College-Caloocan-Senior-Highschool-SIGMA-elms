@@ -192,6 +192,19 @@
         portalForRole,
         isVerified: isSessionVerified,
         recheck: () => verifyDatabaseSession({ background: true }),
+        async signOutToLogin() {
+            if (signingOut) return;
+            signingOut = true;
+            try {
+                await Promise.race([window.SigmaDatabase?.revokeSession(), new Promise(resolve => setTimeout(resolve, 2500))]);
+            } finally {
+                verifiedToken = null;
+                clearIdentity();
+                sessionStorage.removeItem('sigma-login-explicit');
+                localStorage.removeItem('sigma-login-explicit');
+                window.location.replace(new URL('index.html', document.baseURI).href);
+            }
+        },
         async ensureVerified() {
             if (!isSessionVerified()) await verifyDatabaseSession({ background: true });
             return isSessionVerified();

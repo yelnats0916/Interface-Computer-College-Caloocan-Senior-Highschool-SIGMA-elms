@@ -746,14 +746,19 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.removeItem('sigma-grade-sync-session');
             sessionStorage.removeItem('sigma-login-challenge');
             loginCandidate = null;
-            const result = await window.SigmaDatabase.request('session', { data: { action: 'credentials', login: id, password: pass } });
+            const result = await window.SigmaDatabase.request('session', { data: { action: 'credentials', login: id, password: pass, adminDeviceRestricted: window.SigmaAdminDeviceAccess?.restricted() === true } });
             matchedUser = result.user;
+            if (/^(admin|administrator|masteradmin)$/.test(String(matchedUser?.role || '').replace(/[\s_-]/g, '').toLowerCase()) && window.SigmaAdminDeviceAccess?.restricted()) {
+                setLoading(formType, false);
+                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, window.SigmaAdminDeviceAccess.message);
+                return;
+            }
             loginCandidate = result.user;
             sessionStorage.setItem('sigma-login-challenge', JSON.stringify({ token: result.challenge, userId: matchedUser.id }));
             gradeSyncOtp = '';
         } catch (error) {
             setLoading(formType, false);
-            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, error.code === 'admin_device_restricted' ? null : formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
             return;
         }
         const accountKey = String(matchedUser?.uid || matchedUser?.id || id).trim();

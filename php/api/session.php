@@ -48,6 +48,12 @@ try {
         sessionReply(['success'=>false,'error'=>'Incorrect account ID, Gmail, or password, or your account is inactive.'],401);
     }
     $pdo->prepare('DELETE FROM grade_sync_attempts WHERE client_hash=?')->execute([$client]);
+    $role = preg_replace('/[\s_-]+/', '', strtolower($user['role'] ?? ''));
+    $mobileAgent = preg_match('/Android|iPhone|iPad|iPod|Mobile|Tablet|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
+    if (in_array($role, ['admin','administrator','masteradmin'], true) && (($input['adminDeviceRestricted'] ?? false) === true || $mobileAgent)) {
+        sigmaRecordAuthentication($pdo, $user['id'], 'Admin sign-in restricted on unsupported device', 'blocked', 'Credentials were valid. Sign-in stopped before authenticator verification.');
+        sessionReply(['success'=>false,'code'=>'admin_device_restricted','error'=>'Admin access is unavailable on this device. Please use a supported device to continue.'],403);
+    }
     $token = bin2hex(random_bytes(32));
     $pdo->prepare('DELETE FROM application_login_challenges WHERE expires_at<UTC_TIMESTAMP() OR user_id=?')->execute([$user['id']]);
     $pdo->prepare('INSERT INTO application_login_challenges(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 5 MINUTE))')->execute([hash('sha256',$token),$user['id']]);
