@@ -1387,9 +1387,9 @@ textarea::placeholder {
         display: none !important;
     }
 
-    footer {
+    #landingFooter {
         margin-top: 0 !important;
-        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: 0 !important;
     }
 }
 
@@ -1794,5 +1794,13 @@ body #entryHelpCenterBtnSmall i {
     body.help-center-active #mainNav #navTitle {
         font-size: 1.25rem !important;
         line-height: 1.75rem !important;
+    }
+}
+
+/* Keep mobile footer padding inside its content, without a separate empty band. */
+@media (max-width:1023px) {
+    #landingFooter .landing-footer-content {
+        border-bottom:0;
+        padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
     }
 }

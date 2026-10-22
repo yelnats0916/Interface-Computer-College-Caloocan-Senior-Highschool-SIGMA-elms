@@ -5802,9 +5802,9 @@
     }
 
     /* Footer on mobile landing page: below the fold, only visible on scroll */
-    body.flex.flex-col.bg-gray-50 footer {
+    #landingFooter {
         margin-top: 0 !important;
-        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: 0 !important;
     }
 }
 
