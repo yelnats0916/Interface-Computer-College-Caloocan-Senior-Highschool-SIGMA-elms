@@ -36,7 +36,7 @@
                     && String(item.recipientId || '') === String(log.recipientId || '')) : [];
                 if (candidates.length !== 1) continue;
                 if (!Array.isArray(log.recipients) && Array.isArray(candidates[0].recipients)) { log.recipients = candidates[0].recipients; changed = true; }
-                for (const field of ['senderId', 'senderName', 'senderRole', 'senderType']) {
+                for (const field of ['senderId', 'senderName', 'senderRole', 'senderType', 'body']) {
                     if (!log[field] && candidates[0][field]) { log[field] = String(candidates[0][field]); changed = true; }
                 }
             }
@@ -131,7 +131,7 @@
         const id = JSON.stringify([role, String(notif.id), recipientId]);
         const existing = logs.find(log => log.id === id);
         if (existing) {
-            for (const field of ['senderId', 'senderName', 'senderRole', 'senderType']) {
+            for (const field of ['senderId', 'senderName', 'senderRole', 'senderType', 'body']) {
                 if (!existing[field] && notif[field]) existing[field] = String(notif[field]);
             }
             if (notif.read && !existing.readAt) existing.readAt = new Date().toISOString();
@@ -141,7 +141,7 @@
                 senderId: String(notif.senderId || ''), senderName: String(notif.senderName || ''),
                 senderRole: String(notif.senderRole || ''), senderType: String(notif.senderType || ''),
                 recipient: String(notif.recipientName || notif.targetTeacher || recipientId || (notif.assignmentScope?.section ? `${role}: ${notif.assignmentScope.section}` : `${role} audience`)),
-                type: String(notif.type || 'General'), title: String(notif.title || 'Notification'),
+                type: String(notif.type || 'General'), title: String(notif.title || 'Notification'), body: String(notif.body || ''),
                 related: String(notif.target?.materialTitle || notif.assignmentScope?.subjectName || notif.assignmentScope?.subjectId || ''),
                 recipients: Array.isArray(notif.recipients) ? notif.recipients : null,
                 channel: 'In-app', status, timestamp: new Date().toISOString(),

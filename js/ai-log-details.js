@@ -46,7 +46,7 @@
     }
     const idOf = user => String(user.uid || user.id || '');
     const nameOf = user => [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ')
-        || user.fullName || user.name || user.email || idOf(user);
+        || user.fullName || user.name || user.email || idOf(user) || 'Account name not recorded';
     const roleOf = user => window.normalizeUserRole?.(user.role || user.type) || user.role || user.type || 'Unknown';
     function categories(user) {
         const role = String(roleOf(user)).toLowerCase();
@@ -81,7 +81,7 @@
         button.setAttribute('aria-label', 'View AI usage for ' + nameOf(user));
         const identity = node('span', undefined, 'ai-log-user-identity');
         const rawUserId = String(idOf(user) || '').replace(/^ID:\s*/i, '').trim();
-        identity.append(node('span', nameOf(user), 'sigma-table-primary-text'), node('span', rawUserId ? 'ID: ' + rawUserId : '', 'ai-log-user-id text-black-fade'));
+        identity.append(node('span', nameOf(user), 'sigma-table-primary-text'), node('span', rawUserId ? 'ID: ' + rawUserId : 'Account ID not recorded', 'ai-log-user-id text-black-fade'));
         button.append(avatar(user), identity);
         button.addEventListener('click', () => open(user, button));
         return button;
@@ -340,12 +340,12 @@
         if (record.evidenceSources?.length) {
             const list = node('ul', undefined, 'ai-log-insight-sources');
             for (const item of record.evidenceSources) {
-                const entry = node('li', item.label);
+                const entry = node('li', window.SigmaAuditDisplay.text(item.label, 'Source label not recorded'));
                 entry.title = item.records.map(record => [record.title, record.subjectId, record.sectionId].filter(Boolean).join(' - ')).join('\n');
                 list.append(entry);
             }
             source.append(list);
-        } else source.textContent = 'Not recorded';
+        } else source.textContent = 'Evidence sources were not captured for this request.';
         const content = node('td', undefined, 'ai-log-message-content');
         appendInsightText(content, record.response || 'Not recorded');
         const { action, menu, notice } = createLogRecordActions(record, 'Insight actions');
@@ -784,10 +784,10 @@
                 if (!feature || !log.userId || Number.isNaN(timestamp.getTime())) throw new TypeError('Invalid AI log record');
                 return { id: log.id, userId: String(log.userId), feature: feature[0], label: feature[1],
                     source: log.source, evidenceSources: log.evidenceSources, cardRecordId: log.cardRecordId, cardRemoved: log.cardRemoved, cardRemovedAt: log.cardRemovedAt, cardRemovedBy: log.cardRemovedBy,
-                    prompt: String(log.prompt || ''), actionDescription: String(log.actionDescription || ''), response: String(log.response || ''), model: String(log.model || 'Not recorded'),
+                    prompt: window.SigmaAuditDisplay.text(log.prompt, 'Request content not recorded'), actionDescription: window.SigmaAuditDisplay.text(log.actionDescription, ''), response: window.SigmaAuditDisplay.text(log.response, 'Response content not recorded'), model: window.SigmaAuditDisplay.text(log.model, 'Model not recorded'),
                     status: ['Success', 'Failed', 'Fallback Used'].includes(log.status) ? log.status : 'Not recorded', timestamp,
                     messages: Array.isArray(log.messages) ? log.messages.filter(message => message && ['user', 'assistant'].includes(message.role)).map(message => ({
-                        role: message.role, text: String(message.text || ''), timestamp: String(message.timestamp || ''), model: String(message.model || '')
+                        role: message.role, text: window.SigmaAuditDisplay.text(message.text, 'Message content not recorded'), timestamp: String(message.timestamp || ''), model: String(message.model || '')
                     })) : [] };
             });
             refresh();

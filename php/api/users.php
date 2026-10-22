@@ -331,7 +331,7 @@ try {
             : ($password !== '' ? 'Reset User Password'
             : (($existingUser['status'] ?? '') !== $status ? 'Changed User Status'
             : (($existingUser['permissions'] ?? '') !== $perms ? 'Updated User Permissions' : 'Updated User Profile')));
-        sigmaRecordActivity($pdo, (string)$databaseActor['id'], $activity, 'Users', 'Account '.$id);
+        sigmaRecordActivity($pdo, (string)$databaseActor['id'], $activity, 'Users', 'Account ID: '.$id.' · Name: '.$fullName.' · Role: '.$role.' · Status: '.$status);
         if ($pdo->inTransaction()) $pdo->commit();
 
         $fetchStmt = $pdo->prepare("SELECT * FROM `users` WHERE `id` = :id LIMIT 1");

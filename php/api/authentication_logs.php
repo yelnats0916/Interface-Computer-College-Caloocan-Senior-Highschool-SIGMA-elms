@@ -20,17 +20,18 @@ try {
         authLogReply(['success'=>true]);
     }
     if ($_SERVER['REQUEST_METHOD']!=='GET') authLogReply(['success'=>false,'error'=>'Unsupported method.'],405);
-    $query=$pdo->query("SELECT a.*,u.full_name,u.role,u.avatar FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id WHERE a.is_deleted=0 AND a.action LIKE 'AUTH:%' ORDER BY a.created_at DESC,a.id DESC");
+    require_once __DIR__.'/../includes/audit_context.php';
+    $query=$pdo->query("SELECT a.*,c.payload AS event_context,u.full_name,u.role,u.avatar FROM audit_logs a LEFT JOIN audit_log_context c ON c.audit_id=a.id LEFT JOIN users u ON u.id=a.user_id WHERE a.is_deleted=0 AND a.action LIKE 'AUTH:%' ORDER BY a.created_at DESC,a.id DESC");
     $records=[];
     while($row=$query->fetch(PDO::FETCH_ASSOC)) {
-        $event=json_decode(substr($row['action'],5),true); if(!is_array($event)||empty($event['event']))continue;
+        $event=json_decode($row['event_context']??'null',true);if(!is_array($event))$event=json_decode(substr($row['action'],5),true); if(!is_array($event)||empty($event['event']))continue;
         $ua=$row['user_agent']??'';
         $browser=str_contains($ua,'Edg/')?'Edge':(str_contains($ua,'Firefox/')?'Firefox':(str_contains($ua,'Chrome/')?'Chrome':(str_contains($ua,'Safari/')?'Safari':'Browser')));
         $platform=str_contains($ua,'Windows')?'Windows':(str_contains($ua,'Android')?'Android':(preg_match('/iPhone|iPad|iPod/',$ua)?'iOS':(str_contains($ua,'Mac OS')?'macOS':'Device not recorded')));
         $records[]=['id'=>'server-auth-'.$row['id'],'source'=>'server','timestamp'=>str_replace(' ','T',$row['created_at']).'Z',
-            'event'=>$event['event'],'outcome'=>$event['outcome']??'success','details'=>$event['details']??'',
-            'userId'=>$row['user_id']??'','userName'=>$row['full_name']??'Unknown account','userRole'=>$row['role']??'Not recorded','userAvatar'=>$row['avatar']??'',
-            'actorId'=>'','actorName'=>'','ip'=>$row['ip_address']??'','device'=>$browser.' / '.$platform];
+            'event'=>$event['event'],'outcome'=>$event['outcome']??'success','details'=>sigmaAuthenticationContext($event['event'],$event['details']??''),
+            'userId'=>$row['user_id']??'','userName'=>sigmaAuditText($row['full_name']??'')?:'Account name not recorded','userRole'=>sigmaAuditText($row['role']??'')?:'Role not recorded','userAvatar'=>$row['avatar']??'',
+            'actorId'=>'','actorName'=>'','ip'=>sigmaAuditText($row['ip_address']??'')?:'IP address not recorded','device'=>$browser.' / '.$platform];
     }
     authLogReply(['success'=>true,'records'=>$records]);
 } catch (JsonException $error) { authLogReply(['success'=>false,'error'=>'Invalid request.'],400); }

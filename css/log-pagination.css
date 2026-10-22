@@ -19,3 +19,7 @@
 .sigma-audit-table tbody tr.sigma-log-empty-row > td { padding: 24px 16px !important; background: #fff !important; text-align: center; }
 
 .sigma-log-page-controls[hidden] { display:none !important; }
+
+.audit-detail-navigation { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+
+:is(#audit-activity-view,#audit-auth-view,#audit-notifications-view) .ai-log-detail-toolbar[hidden] { display:none !important; }

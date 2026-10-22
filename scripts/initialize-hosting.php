@@ -8,7 +8,7 @@ $expected = 'sigma-elms_db';
 if ($pdo->query('SELECT DATABASE()')->fetchColumn() !== $expected) throw new RuntimeException('Unexpected database: installation stopped.');
 $existing = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
 if ($existing) throw new RuntimeException('Initial installation requires the empty hosting database. Existing records were not modified.');
-foreach (['schema.sql', 'application_sessions.sql', 'service_secrets.sql', 'record_lifecycle.sql', 'profile_photos.sql', 'user_id_sequences.sql', 'academic_evidence.sql'] as $name) {
+foreach (['schema.sql', 'application_sessions.sql', 'service_secrets.sql', 'record_lifecycle.sql', 'profile_photos.sql', 'user_id_sequences.sql', 'academic_evidence.sql', 'audit_log_context.sql'] as $name) {
     $pdo->exec(file_get_contents(__DIR__ . '/database/' . $name));
 }
 // Add the derived/publication tables using their canonical definition.

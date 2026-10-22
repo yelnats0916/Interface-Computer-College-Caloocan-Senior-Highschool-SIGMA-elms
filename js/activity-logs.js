@@ -5,7 +5,7 @@
     'use strict';
 
     const KEY = 'sigma-activity-logs-v1';
-    let selectedUser = null;
+    let selectedUser = null, selectedRecord = null;
     let selectedCategory = 'All Activities';
     let detailQuery = '';
 
@@ -80,7 +80,7 @@
                     }
                 }
                 return {
-                    id: item.id || `act-${Math.random().toString(36).slice(2, 8)}`,
+                    id: item.id || '',
                     userId: item.userId || item.actorId || 'ID not recorded',
                     userName: item.userName || item.actor || 'User',
                     userRole: item.userRole || item.role || 'User',
@@ -88,7 +88,7 @@
                     activity: item.activity || item.action || 'Activity Recorded',
                     module: item.module || 'System',
                     details: details || '',
-                    timestamp: item.timestamp || new Date().toISOString()
+                    timestamp: item.timestamp || ''
                 };
             });
         } catch (_) {
@@ -107,7 +107,7 @@
     let serverRecords = [], serverError = '', pending = null;
     const read = () => [...serverRecords, ...readLocal().filter(item => !serverRecords.some(remote =>
         remote.userId === item.userId && remote.activity === item.activity
-        && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000))];
+        && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000))].map(window.SigmaAuditDisplay.activity);
     async function refresh() {
         if (!document.getElementById('audit-activity-view') || !window.SigmaDatabase?.currentUser()?.id) return;
         if (pending) return pending;
@@ -141,19 +141,21 @@
         }
     }
 
-    function openUser(userRecord) {
+    function openUser(userRecord, isolated = false) {
+        selectedRecord = isolated ? userRecord.id : null;
         selectedUser = userRecord;
         selectedCategory = 'All Activities';
         detailQuery = '';
-        window.pushModalHistoryState?.('activity-account-details', () => openUser(userRecord));
+        window.pushModalHistoryState?.('activity-account-details', () => openUser(userRecord, isolated));
         render();
+        window.SigmaLogPagination?.reset(document.querySelector('#audit-activity-view table'));
         const header = document.getElementById('activity-account-details');
         header?.scrollIntoView({ block: 'start' });
         header?.querySelector('h2')?.focus({ preventScroll: true });
     }
 
     function closeDetails() {
-        selectedUser = null;
+        selectedUser = null; selectedRecord = null;
         selectedCategory = 'All Activities';
         detailQuery = '';
         render();
@@ -204,7 +206,7 @@
             const title = document.createElement('h2');
             title.className = 'ai-log-detail-title';
             title.tabIndex = -1;
-            title.textContent = 'User Activity Details';
+            title.textContent = selectedRecord ? 'Activity Record Details' : 'User Activity Details';
 
             const identity = document.createElement('div');
             identity.className = 'ai-log-detail-identity';
@@ -248,7 +250,7 @@
 
             const tabs = document.createElement('div');
             tabs.className = 'ai-log-category-tabs';
-            const categories = ['All Activities', 'System', 'Grades', 'Assessments', 'Curriculum', 'Submissions', 'Classes', 'Users'];
+            const categories = ['All Activities', 'System', 'Security', 'Attendance', 'Grades', 'Assessments', 'Curriculum', 'Submissions', 'Classes', 'Users'];
             categories.forEach(cat => {
                 const tabBtn = document.createElement('button');
                 tabBtn.type = 'button';
@@ -295,9 +297,16 @@
 
             wrap.append(searchInput);
             searchForm.append(wrap, submitBtn);
+            toolbar.hidden = Boolean(selectedRecord);
             toolbar.append(tabs, searchForm);
 
-            header.append(title, identity, toolbar);
+            const navigation = document.createElement('div'); navigation.className = 'audit-detail-navigation';
+            const back = document.createElement('button'); back.type = 'button'; back.className = 'sigma-btn sigma-btn-white sigma-btn-md'; back.textContent = 'Back to Activity Logs'; back.onclick = closeDetails;
+            navigation.append(back);
+            if (selectedRecord && selectedUser.userId && selectedUser.userId !== 'ID not recorded') {
+                const all = document.createElement('button'); all.type = 'button'; all.className = 'sigma-retry-link'; all.textContent = 'View all activity for this user'; all.onclick = () => openUser(selectedUser); navigation.append(all);
+            }
+            header.append(navigation, title, identity, toolbar);
         }
 
         // Adjust Table Header depending on main table vs drilldown
@@ -335,10 +344,11 @@
         const globalSearch = window.getAuditLogSearchQuery?.() || '';
 
         const records = allRecords.filter(item => {
-            if (!item || !item.timestamp) return false;
+            if (!item) return false;
+            if (selectedRecord && item.id !== selectedRecord) return false;
             if (selectedUser) {
                 // Must match the selected user
-                if (item.userId !== selectedUser.userId) return false;
+                if (!selectedRecord && item.userId !== selectedUser.userId) return false;
                 // Category match
                 if (selectedCategory !== 'All Activities' && clean(item.module).toLowerCase() !== selectedCategory.toLowerCase()) {
                     return false;
@@ -385,9 +395,10 @@
             if (selectedUser) {
                 // 1. Activity column
                 const actTd = document.createElement('td');
-                const actTitle = document.createElement('p');
+                const actTitle = document.createElement(selectedRecord ? 'p' : 'button');
                 actTitle.className = 'text-black font-medium';
                 actTitle.textContent = record.activity;
+                if (!selectedRecord) { actTitle.type = 'button'; actTitle.className = 'ai-log-interaction-button'; actTitle.onclick = () => openUser(record, true); }
                 actTd.append(actTitle);
 
                 // 2. Module column (normal plain text, not badge)
@@ -399,23 +410,14 @@
 
                 // 3. Details column
                 const detTd = document.createElement('td');
-                const cleanDetails = clean(record.details);
-                if (cleanDetails && cleanDetails !== '—' && cleanDetails !== '--' && cleanDetails !== '-') {
-                    detTd.className = 'text-black';
-                    detTd.textContent = cleanDetails;
-                } else {
-                    const dashSpan = document.createElement('span');
-                    dashSpan.className = 'gradebook-dash text-black-fade font-normal select-none';
-                    dashSpan.style.setProperty('color', 'rgba(0, 0, 0, 0.45)', 'important');
-                    dashSpan.textContent = '-';
-                    detTd.append(dashSpan);
-                }
+                detTd.className = 'text-black';
+                detTd.textContent = window.SigmaAuditDisplay.activity(record).details;
 
                 // 4. Timestamp column
                 const timeTd = document.createElement('td');
                 const timeEl = document.createElement('time');
                 timeEl.className = 'text-black-fade';
-                timeEl.dateTime = new Date(record.timestamp).toISOString();
+                timeEl.dateTime = Number.isFinite(Date.parse(record.timestamp)) ? new Date(record.timestamp).toISOString() : '';
                 timeEl.textContent = formatDate(record.timestamp);
                 timeTd.append(timeEl);
 
@@ -488,7 +490,7 @@
                 userBtn.className = 'ai-log-user-button';
                 userBtn.dataset.userId = cleanId;
                 userBtn.setAttribute('aria-label', 'View activity for ' + record.userName);
-                userBtn.onclick = () => openUser(record);
+                userBtn.onclick = () => openUser(record, !record.userId || record.userId === 'ID not recorded');
 
                 const avatar = document.createElement('span');
                 avatar.className = 'ai-log-avatar';
@@ -515,7 +517,7 @@
 
                 const idSpan = document.createElement('span');
                 idSpan.className = 'ai-log-user-id text-black-fade';
-                idSpan.textContent = cleanId ? 'ID: ' + cleanId : '';
+                idSpan.textContent = cleanId ? 'ID: ' + cleanId : 'Account ID not recorded';
 
                 identity.append(nameSpan, idSpan);
                 userBtn.append(avatar, identity);
@@ -528,7 +530,7 @@
                 actBtn.className = 'ai-log-interaction-button';
                 actBtn.textContent = record.activity;
                 actBtn.setAttribute('aria-label', `View ${record.activity} activity for ${record.userName}`);
-                actBtn.onclick = () => openUser(record);
+                actBtn.onclick = () => openUser(record, true);
                 actTd.append(actBtn);
                 if (record.details) {
                     const actDetail = document.createElement('p');
@@ -548,7 +550,7 @@
                 const timeTd = document.createElement('td');
                 const timeEl = document.createElement('time');
                 timeEl.className = 'text-black-fade';
-                timeEl.dateTime = new Date(record.timestamp).toISOString();
+                timeEl.dateTime = Number.isFinite(Date.parse(record.timestamp)) ? new Date(record.timestamp).toISOString() : '';
                 timeEl.textContent = formatDate(record.timestamp);
                 timeTd.append(timeEl);
 

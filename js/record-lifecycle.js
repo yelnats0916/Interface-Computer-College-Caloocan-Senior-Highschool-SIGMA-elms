@@ -159,7 +159,7 @@
                     const date = record.deletedAt ? new Date(record.deletedAt.includes('T') ? record.deletedAt : record.deletedAt.replace(' ', 'T') + 'Z').toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : 'Not recorded';
                     [record.label, record.deletedByName || record.deletedBy || 'Not recorded', date].forEach((text, index) => {
                         const cell = document.createElement('td'); cell.dataset.label = ['Record', 'Removed By', 'Removed At'][index];
-                        if (index === 1) cell.append(removerIdentity(record)); else cell.textContent = text;
+                        if (index === 1) cell.append(removerIdentity(record)); else cell.textContent = window.SigmaAuditDisplay.text(text, index === 0 ? 'Record label not captured' : 'Not recorded');
                         if (index === 0 && select.value === 'all') {
                             const type = document.createElement('p'); type.className = 'removed-records-type text-black-fade'; type.textContent = names[record.recordType] || record.recordType;
                             cell.append(type);

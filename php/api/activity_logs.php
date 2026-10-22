@@ -20,16 +20,20 @@ try {
         activityLogReply(['success'=>true]);
     }
     if ($_SERVER['REQUEST_METHOD']!=='GET') activityLogReply(['success'=>false,'error'=>'Unsupported method.'],405);
-    $query=$pdo->query("SELECT a.*,u.full_name,u.role,u.avatar FROM audit_logs a LEFT JOIN users u ON BINARY u.id=BINARY a.user_id WHERE a.is_deleted=0 AND a.action NOT LIKE 'AUTH:%' ORDER BY a.created_at DESC,a.id DESC");
+    require_once __DIR__.'/../includes/audit_context.php';
+    $accounts=[];foreach($pdo->query('SELECT id,full_name,first_name,middle_name,last_name FROM users')->fetchAll() as $account)$accounts[(string)$account['id']]=$account['full_name']?:trim($account['first_name'].' '.$account['middle_name'].' '.$account['last_name']);
+    $query=$pdo->query("SELECT a.*,c.payload AS event_context,u.full_name,u.role,u.avatar FROM audit_logs a LEFT JOIN audit_log_context c ON c.audit_id=a.id LEFT JOIN users u ON BINARY u.id=BINARY a.user_id WHERE a.is_deleted=0 AND a.action NOT LIKE 'AUTH:%' ORDER BY a.created_at DESC,a.id DESC");
     $records=[];
     while($row=$query->fetch(PDO::FETCH_ASSOC)) {
-        $event=str_starts_with($row['action'],'ACT:') ? json_decode(substr($row['action'],4),true) : null;
+        $event=json_decode($row['event_context']??'null',true);
+        if(!is_array($event))$event=str_starts_with($row['action'],'ACT:') ? json_decode(substr($row['action'],4),true) : null;
         $activity=$event['activity'] ?? $row['action'];
         $activity=preg_replace('/^Created explicitly requested fictional (.*?) account (.*?) \(roster [0-9]+\)$/','Created $1 account $2',$activity);
-        $module=$event['module'] ?? (stripos($activity,'account')!==false||stripos($activity,'profile')!==false ? 'Users' : 'System');
+        $context=sigmaActivityContext($activity,$event['details']??'',$accounts);
+        $module=sigmaAuditText($event['module']??'')?:$context['module'];
         $records[]=['id'=>'server-activity-'.$row['id'],'source'=>'server','timestamp'=>str_replace(' ','T',$row['created_at']).'Z',
-            'activity'=>$activity,'module'=>$module,'details'=>$event['details']??'',
-            'userId'=>$row['user_id']??'','userName'=>$row['full_name']??'Unknown account','userRole'=>$row['role']??'Not recorded','userAvatar'=>$row['avatar']??''];
+            'activity'=>$activity,'module'=>$module,'details'=>$context['details'],
+            'userId'=>$row['user_id']??'','userName'=>sigmaAuditText($row['full_name']??'')?:'Account name not recorded','userRole'=>sigmaAuditText($row['role']??'')?:'Role not recorded','userAvatar'=>$row['avatar']??''];
     }
     require_once __DIR__.'/../includes/record_lifecycle.php';
     foreach(lifecycleEvents($pdo) as $event) {

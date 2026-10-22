@@ -4,17 +4,19 @@
     'use strict';
 
     const KEY = 'sigma-authentication-logs-v1';
-    let selectedUser = null;
+    let selectedUser = null, selectedRecord = null;
     let category = 'All Logs', detailQuery = '';
     const categoryOf = event => /recaptcha/i.test(event) ? 'reCAPTCHA' : /authenticator|2fa/i.test(event) ? 'Google Authenticator' : /password reset/i.test(event) ? 'Password Reset' : /lock|inactive/i.test(event) ? 'Account Access' : 'Login';
-    function openUser(record) {
+    function openUser(record, isolated = false) {
+        selectedRecord = isolated ? record.id : null;
         selectedUser = record;
         category = 'All Logs'; detailQuery = '';
-        window.pushModalHistoryState?.('authentication-account-details', () => openUser(record));
+        window.pushModalHistoryState?.('authentication-account-details', () => openUser(record, isolated));
         render();
+        window.SigmaLogPagination?.reset(document.querySelector('#audit-auth-view table'));
         document.getElementById('authentication-account-details')?.scrollIntoView({ block:'start' });
     }
-    window.closeAuthenticationLogDetails = () => { selectedUser = null; render(); };
+    window.closeAuthenticationLogDetails = () => { selectedUser = null; selectedRecord = null; render(); };
     const now = () => new Date().toISOString();
     const clean = value => String(value || '').trim();
     const idOf = user => clean(user?.uid || user?.id || user?.userId);
@@ -30,7 +32,7 @@
         const local = readLocal().filter(item => !serverRecords.some(remote =>
             remote.userId === item.userId && remote.event === item.event
             && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000));
-        return [...serverRecords, ...local];
+        return [...serverRecords, ...local].map(window.SigmaAuditDisplay.authentication);
     };
     async function refreshServerHistory() {
         if (!document.getElementById('audit-auth-view') || !window.SigmaDatabase?.currentUser()?.id) return;
@@ -75,9 +77,7 @@
         return `${browser} / ${platform}`;
     };
     const escape = value => clean(value).replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
-    const date = value => new Date(value).toLocaleString('en-US', {
-        timeZone:'Asia/Manila', month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'
-    });
+    const date = value => window.SigmaAuditDisplay.date(value);
 
     function record(input) {
         const subject = input?.user || input?.subject || currentUser() || {};
@@ -171,7 +171,7 @@
         header.hidden = !selectedUser;
         header.replaceChildren();
         if (selectedUser) {
-            const title = document.createElement('h2'); title.className = 'ai-log-detail-title'; title.textContent = 'Authentication Details';
+            const title = document.createElement('h2'); title.className = 'ai-log-detail-title'; title.textContent = selectedRecord ? 'Authentication Record Details' : 'Authentication Details';
             const identity = document.createElement('div'); identity.className = 'ai-log-detail-identity';
             const identityRow = document.createElement('div'); identityRow.className = 'ai-log-detail-name-row';
             const avatar = document.createElement('span'); avatar.className = 'ai-log-avatar'; avatar.setAttribute('aria-hidden', 'true');
@@ -199,10 +199,14 @@
             search.onsubmit = event => { event.preventDefault(); detailQuery = input.value.trim(); render(); };
             input.onsearch = () => { if (!input.value) { detailQuery = ''; render(); } };
             wrap.append(input); search.append(wrap, submit); toolbar.append(tabs, search);
-            header.append(title, identity, toolbar);
+            toolbar.hidden = Boolean(selectedRecord);
+            const navigation = document.createElement('div'); navigation.className = 'audit-detail-navigation';
+            const back = document.createElement('button'); back.type = 'button'; back.className = 'sigma-btn sigma-btn-white sigma-btn-md'; back.textContent = 'Back to Authentication Logs'; back.onclick = window.closeAuthenticationLogDetails; navigation.append(back);
+            if (selectedRecord && selectedUser.userId) { const all = document.createElement('button'); all.type = 'button'; all.className = 'sigma-retry-link'; all.textContent = 'View all authentication for this user'; all.onclick = () => openUser(selectedUser); navigation.append(all); }
+            header.append(navigation, title, identity, toolbar);
         }
         document.getElementById('authentication-log-preview')?.remove();
-        const records = read().filter(item => item && Number.isFinite(Date.parse(item.timestamp)) && (!selectedUser ||
+        const records = read().filter(item => item && (!selectedRecord || item.id === selectedRecord) && (!selectedUser || selectedRecord ||
             (Boolean(item.sample) === Boolean(selectedUser.sample) && selectedUser.userId && item.userId === selectedUser.userId &&
             (category === 'All Logs' || categoryOf(item.event) === category) &&
             (!detailQuery || [item.event,item.details,item.ip,item.device,date(item.timestamp)].join(' ').toLowerCase().includes(detailQuery.toLowerCase())))))
@@ -250,9 +254,16 @@
             identity.append(name);
             row.firstElementChild.replaceChildren(identity);
             timestamp.className = 'ai-log-timestamp';
-            timestamp.dateTime = new Date(record.timestamp).toISOString();
+            timestamp.dateTime = Number.isFinite(Date.parse(record.timestamp)) ? new Date(record.timestamp).toISOString() : '';
             timestamp.textContent = date(record.timestamp);
             row.children[3].replaceChildren(timestamp);
+            if (!selectedRecord) {
+                const eventText = row.children[1].querySelector('.auth-event .text-black');
+                if (eventText) {
+                    const link = document.createElement('button'); link.type = 'button'; link.className = 'ai-log-interaction-button'; link.textContent = record.event; link.onclick = () => openUser(record, true); eventText.replaceWith(link);
+                }
+            }
+
 
             const actionTd = document.createElement('td');
             const actionsWrap = document.createElement('div');

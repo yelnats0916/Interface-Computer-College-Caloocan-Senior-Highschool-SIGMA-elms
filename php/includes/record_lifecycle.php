@@ -89,6 +89,7 @@ function lifecycleChange(PDO $db, string $table, string $id, string $action, str
                 $q=$db->prepare('SELECT COUNT(*) FROM users WHERE grade_section=?'); $q->execute([$record['name']]);
                 if($q->fetchColumn())throw new RuntimeException('Accounts still reference this section. Reassign them first.');
             }
+            if ($table === 'audit_logs') $db->prepare('DELETE FROM audit_log_context WHERE audit_id=?')->execute([$id]);
             $db->prepare("DELETE FROM `$table` WHERE id=?")->execute([$id]);
         } else {
             $db->prepare("UPDATE `$table` SET is_deleted=?, deleted_at=" . ($action === 'remove' ? 'UTC_TIMESTAMP()' : 'NULL') . ', deleted_by=? WHERE id=?')

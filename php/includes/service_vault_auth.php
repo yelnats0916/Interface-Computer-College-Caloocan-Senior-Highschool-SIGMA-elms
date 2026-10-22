@@ -16,9 +16,8 @@ function serviceVaultAdmin(array $user): bool {
 function recordServiceVaultVerification(PDO $db, string $id, string $outcome): void {
     $actions = ['success'=>'Administrator settings verification succeeded', 'failed'=>'Administrator settings verification failed', 'canceled'=>'Administrator settings verification canceled'];
     if (!isset($actions[$outcome])) throw new InvalidArgumentException('Invalid verification outcome.');
-    $db->prepare('INSERT INTO audit_logs(user_id,action,ip_address,user_agent) VALUES(?,?,?,?)')->execute([
-        $id, $actions[$outcome], $_SERVER['REMOTE_ADDR'] ?? null, substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255)
-    ]);
+    require_once __DIR__.'/activity_audit.php';
+    sigmaRecordActivity($db,$id,$actions[$outcome],'Security',sigmaActivityContext($actions[$outcome])['details']);
 }
 
 function authorizeServiceVault(array $input): string {

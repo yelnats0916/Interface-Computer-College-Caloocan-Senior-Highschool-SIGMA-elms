@@ -109,18 +109,18 @@
         panel.replaceChildren(); panel.hidden = !selection;
         document.getElementById('audit-notifications-view')?.toggleAttribute('data-notification-detail-open', Boolean(selection));
         const matchesPerson = (log, side) => selection?.id && String(log[side + 'Id'] || '') === selection.id;
-        const belongs = log => !selection || (selection.kind === 'person'
+        const belongs = log => !selection || (selection.kind === 'record' ? String(log.id) === selection.recordId : selection.kind === 'person'
             ? (direction !== 'received' && matchesPerson(log, 'sender')) || (direction !== 'sent' && matchesPerson(log, 'recipient'))
             : selection.kind === 'group' ? String(log.notificationId) === selection.notificationId && log.role === selection.role
             : !log.senderId && log.senderName === selection.name);
         if (selection) {
-            const title = document.createElement('h2'); title.className = 'ai-log-detail-title'; title.tabIndex = -1; title.textContent = selection.kind === 'group' ? 'Notification Recipient Details' : 'Notification Activity Details';
-            const identity = document.createElement('div'); identity.className = 'notification-detail-identity'; identity.append(selection.avatar.cloneNode(true));
+            const title = document.createElement('h2'); title.className = 'ai-log-detail-title'; title.tabIndex = -1; title.textContent = selection.kind === 'record' ? 'Notification Record Details' : selection.kind === 'group' ? 'Notification Recipient Details' : 'Notification Activity Details';
+            const identity = document.createElement('div'); identity.className = 'notification-detail-identity'; if(selection.avatar) identity.append(selection.avatar.cloneNode(true));
             const name = document.createElement('div'); name.className = 'notification-detail-identity-text';
             const fullName = document.createElement('div'); fullName.textContent = selection.name;
             const context = document.createElement('p'); context.className='notification-detail-context';
             context.textContent = selection.kind === 'person' ? [selection.role, 'Account ID: ' + selection.id].filter(Boolean).join(' | ')
-                : selection.kind === 'group' ? 'Notification recipients' : 'System notification sender';
+                : selection.kind === 'record' ? 'Notification ID: ' + window.SigmaAuditDisplay.text(selection.notificationId, 'Not recorded') : selection.kind === 'group' ? 'Notification recipients' : 'System notification sender';
             name.append(fullName,context); identity.append(name);
             const toolbar = document.createElement('div'); toolbar.className = 'ai-log-detail-toolbar';
             const tabs = document.createElement('div'); tabs.className = 'ai-log-category-tabs';
@@ -131,7 +131,20 @@
             const input = document.createElement('input'); input.type='search'; input.className='sigma-input'; input.placeholder='Search notification logs'; input.setAttribute('aria-label','Search notification logs'); input.value=detailQuery;
             const submit = document.createElement('button'); submit.type='submit'; submit.className='sigma-btn sigma-btn-primary'; submit.textContent='Search';
             form.append(input,submit); form.onsubmit=event=>{event.preventDefault();detailQuery=input.value;render();window.SigmaLogPagination?.reset(table);};
-            toolbar.append(tabs,form); panel.append(title,identity,toolbar);
+            toolbar.hidden = selection.kind === 'record';
+            const navigation=document.createElement('div');navigation.className='audit-detail-navigation';
+            const back=document.createElement('button');back.type='button';back.className='sigma-btn sigma-btn-white sigma-btn-md';back.textContent='Back to Notification Logs';back.onclick=()=>{selection=null;render();window.SigmaLogPagination?.reset(table);};navigation.append(back);
+            toolbar.append(tabs,form); panel.append(navigation,title,identity,toolbar);
+            if (selection.kind === 'record') {
+                const record=recorded.find(item=>String(item.id)===selection.recordId);
+                if(record){
+                    const details=document.createElement('dl');details.className='ai-log-conversation-details';
+                    for(const [label,value] of [['Notification',record.title],['Message',record.body],['Channel',record.channel],['Related item',record.related]]){
+                        const entry=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=label;description.textContent=window.SigmaAuditDisplay.text(value,label==='Message'?'Message content was not captured in this log.':'Not recorded');entry.append(term,description);details.append(entry);
+                    }
+                    panel.append(details);
+                }
+            }
             if (selection.kind === 'group') { const note=document.createElement('p');note.className='text-sm text-black-fade';note.textContent='Individual names appear only when a recipient record was saved. A group entry does not confirm delivery to each member.';panel.append(note); }
         }
         let displayRecords = !selection ? recorded.filter(log => !log.feedConfirmedAt || !recorded.some(group =>
@@ -159,7 +172,7 @@
             const cell = (primary, secondary) => {
                 const td = document.createElement('td');
                 const line = document.createElement('div');
-                line.textContent = primary;
+                line.textContent = window.SigmaAuditDisplay.text(primary, 'Not recorded');
                 td.append(line);
                 if (secondary) {
                     const detail = document.createElement('div');
@@ -196,7 +209,7 @@
                     const image = document.createElement('img'); image.src = src; image.alt = ''; image.onerror = fallback; avatar.append(image);
                 } else fallback();
                 const text = document.createElement('div'); text.className = 'notification-log-person-text';
-                const primary = document.createElement(target ? 'button' : 'div'); primary.textContent = name;
+                const primary = document.createElement(target ? 'button' : 'div'); primary.textContent = window.SigmaAuditDisplay.text(name, 'Account name not recorded');
                 if (target) { primary.type='button';primary.className='notification-log-name-link';primary.onclick=()=>openDetails({...target,name,avatar}); }
                 text.append(primary);
                 const cleanDetailId = String(detail || '').replace(/^ID:\s*/i, '').trim();
@@ -212,8 +225,14 @@
             const groupName = recipientName === 'admin audience' ? 'All Administrators'
                 : recipientName.replace(/^student:\s*(.+)$/i, '$1 Students');
             person(groupName, String(log.recipientId || ''), log.recipientId ? 'person' : 'group', accountFor(log.recipientId), log.recipientId ? {kind:'person',id:String(log.recipientId),role:log.role} : {kind:'group',notificationId:String(log.notificationId),role:log.role});
-            cell(log.title, [log.type, log.related].filter(Boolean).join(' / '));
-            cell(log.status === 'Stored in-app' ? 'Created' : log.status === 'Failed to store' ? 'Failed' : log.status);
+            cell(window.SigmaAuditDisplay.text(log.title, 'Notification title not recorded'), [log.type, log.related].filter(Boolean).join(' / '));
+            if (selection?.kind !== 'record') {
+                const titleCell=row.lastElementChild, label=titleCell.firstElementChild;
+                const link=document.createElement('button');link.type='button';link.className='ai-log-interaction-button';link.textContent=label.textContent;
+                link.onclick=()=>openDetails({kind:'record',recordId:String(log.id),notificationId:String(log.notificationId||''),name:window.SigmaAuditDisplay.text(log.title,'Notification record'),avatar:row.querySelector('.notification-log-avatar')});label.replaceWith(link);
+            }
+
+            cell(log.status === 'Stored in-app' ? 'Created' : log.status === 'Failed to store' ? 'Failed' : window.SigmaAuditDisplay.text(log.status,'Delivery status not recorded'));
             if (selection) cell(log.recipientReadUnknown ? 'Not recorded' : log.readAt ? 'Read' : 'Unread', log.readAt ? formatDate(log.readAt) : '');
             cell(formatDate(log.timestamp));
             const action = document.createElement('td');
