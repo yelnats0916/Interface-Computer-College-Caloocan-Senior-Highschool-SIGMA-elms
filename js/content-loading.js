@@ -16,7 +16,7 @@
         const overlay = document.createElement('div');
         overlay.className = 'sigma-content-loading-overlay';
         overlay.setAttribute('role', 'status');
-        overlay.setAttribute('aria-label', 'Loading content');
+        overlay.setAttribute('aria-label', 'Loading');
         const spinner = document.createElement('span');
         spinner.className = 'sigma-dot-spinner';
         spinner.setAttribute('aria-hidden', 'true');
@@ -65,11 +65,9 @@
     }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
     document.addEventListener('DOMContentLoaded', () => watch(document.body), {once:true});
     function html(options = {}) {
-        const escape = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
         const mode = options.page ? ' sigma-content-loading-state--page' : options.inline ? ' sigma-content-loading-state--inline' : options.compact ? ' sigma-content-loading-state--compact' : '';
-        return `<span class="sigma-content-loading-state${mode}" role="status" aria-live="polite" aria-busy="true" aria-label="${escape(options.label || 'Loading content')}" ${options.page ? 'data-sigma-loading-page' : ''}>
+        return `<span class="sigma-content-loading-state${mode}" role="status" aria-live="polite" aria-busy="true" aria-label="Loading" ${options.page ? 'data-sigma-loading-page' : ''}>
             <span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span>
-            <span class="sigma-content-loading-copy"><span>Loading content…</span>${options.inline ? '' : '<span>Please wait a moment.</span>'}</span>
         </span>`;
     }
     function render(content, options) {
