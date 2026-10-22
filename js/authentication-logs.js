@@ -20,11 +20,32 @@
     const idOf = user => clean(user?.uid || user?.id || user?.userId);
     const nameOf = user => clean(user?.fullName || user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(' ')) || 'Unknown account';
     const roleOf = user => clean(user?.role || user?.type) || 'Not recorded';
-    const read = () => {
+    const readLocal = () => {
         try { const records = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(records) ? records : []; }
         catch (_) { return []; }
     };
     const write = records => { try { localStorage.setItem(KEY, JSON.stringify(records.slice(0, 500))); } catch (_) { /* Logging must not interrupt authentication. */ } };
+    let serverRecords = [], serverError = '', loadingServer = null;
+    const read = () => {
+        const local = readLocal().filter(item => !serverRecords.some(remote =>
+            remote.userId === item.userId && remote.event === item.event
+            && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000));
+        return [...serverRecords, ...local];
+    };
+    async function refreshServerHistory() {
+        if (!document.getElementById('audit-auth-view') || !window.SigmaDatabase?.currentUser()?.id) return;
+        if (loadingServer) return loadingServer;
+        loadingServer = (async () => {
+            try {
+                const result = await window.SigmaDatabase.request('authentication_logs');
+                serverRecords = Array.isArray(result.records) ? result.records : [];
+                serverError = '';
+            } catch (error) {
+                serverError = error.message || 'Server authentication history could not be loaded.';
+            } finally { loadingServer = null; render(); }
+        })();
+        return loadingServer;
+    }
     // Start on page load so login redirects can use already-observed metadata.
     let networkIp = '';
     const networkReady = (async () => {
@@ -72,10 +93,10 @@
             actorId: idOf(actor), actorName: nameOf(actor),
             device: clean(input?.device) || device(), ip: networkIp, details: clean(input?.details)
         };
-        const records = read(); records.unshift(item); write(records);
+        const records = readLocal(); records.unshift(item); write(records);
         if (!item.ip) networkReady.then(() => {
             if (!networkIp) return;
-            const saved = read();
+            const saved = readLocal();
             const target = saved.find(entry => entry.id === item.id);
             if (!target || target.ip) return;
             target.ip = networkIp; write(saved);
@@ -90,10 +111,19 @@
         if (record.outcome === 'warning') return 'auth-event-dot--warning';
         return 'auth-event-dot--success';
     }
-    function deleteAuthenticationLog(id) {
+    async function deleteAuthenticationLog(id) {
         if (!id) return;
         try {
-            const records = read();
+            if (String(id).startsWith('server-auth-')) {
+                await window.SigmaDatabase.request('authentication_logs', {data:{action:'delete', id}});
+                const deleted = serverRecords.find(item => item.id === id);
+                if (deleted) write(readLocal().filter(item => !(item.userId === deleted.userId && item.event === deleted.event
+                    && Math.abs(Date.parse(item.timestamp) - Date.parse(deleted.timestamp)) < 10000)));
+                serverRecords = serverRecords.filter(item => item.id !== id);
+                await refreshServerHistory();
+                return;
+            }
+            const records = readLocal();
             const filtered = records.filter(item => String(item.id) !== String(id));
             write(filtered);
             window.dispatchEvent(new CustomEvent('sigma-authentication-log-deleted', { detail: { id } }));
@@ -104,7 +134,7 @@
                 window.SigmaLogPagination.reset(table);
             }
         } catch (err) {
-            console.error('[Authentication Logs] Delete error:', err);
+            window.showToast?.(err.message || 'Authentication log could not be deleted.', 'error');
         }
     }
     window.deleteAuthenticationLog = deleteAuthenticationLog;
@@ -112,6 +142,11 @@
     function render() {
         const table = document.querySelector('#audit-auth-view table[aria-label="Authentication logs"]');
         const body = table?.tBodies?.[0]; if (!body) return;
+        let status = document.getElementById('authentication-server-status');
+        if (!status) { status = document.createElement('p'); status.id = 'authentication-server-status'; status.className = 'text-sm text-black-fade mb-3'; status.setAttribute('role','status'); table.parentElement.before(status); }
+        status.hidden = !serverError;
+        status.textContent = serverError ? `${serverError} Showing only history available in this browser.` : '';
+
         const theadRow = table?.tHead?.rows?.[0];
         if (theadRow) {
             let actionTh = theadRow.querySelector('th[data-auth-actions]');
@@ -296,9 +331,15 @@
         }
     });
 
-    window.SigmaAuthenticationLogs = { record, records:read, render, deleteLog: deleteAuthenticationLog };
+    window.SigmaAuthenticationLogs = { record, records:read, refresh:refreshServerHistory, render, deleteLog: deleteAuthenticationLog };
     window.renderAuthenticationLogs = render;
     window.addEventListener('storage', event => { if (event.key === KEY) render(); });
     window.addEventListener('sigma-authentication-log', render);
-    document.addEventListener('DOMContentLoaded', render);
+    document.addEventListener('DOMContentLoaded', () => { render(); refreshServerHistory(); });
+    window.addEventListener('sigma:database-session-ready', refreshServerHistory);
+    window.addEventListener('focus', refreshServerHistory);
+    setInterval(() => {
+        const section = document.getElementById('audit-auth-view');
+        if (document.visibilityState === 'visible' && section && !section.classList.contains('hidden')) refreshServerHistory();
+    }, 30000);
 })();

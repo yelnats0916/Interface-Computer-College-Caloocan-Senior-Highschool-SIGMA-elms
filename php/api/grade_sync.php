@@ -5,6 +5,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/service_vault_auth.php';
 require_once __DIR__ . '/../includes/data_provenance.php';
 require_once __DIR__ . '/../includes/application_auth.php';
+require_once __DIR__ . '/../includes/authentication_audit.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -62,6 +63,7 @@ try {
             $valid=TotpService::verifyCode($user['totp_secret'],(string)($input['otp'] ?? ''));
         }
         if (!$valid) {
+            sigmaRecordAuthentication($pdo, $user['id'] ?? null, 'Failed login attempt', 'failed');
             $count=($attempt && empty($attempt['blocked_until']))?(int)$attempt['attempts']+1:1;
             $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
             gradeReply(['success'=>false,'error'=>'Database sign-in failed. Check that this account is synced and the credentials are correct.'],401);
@@ -76,6 +78,7 @@ try {
         $token=bin2hex(random_bytes(32));
         $pdo->prepare('DELETE FROM grade_sync_tokens WHERE expires_at<UTC_TIMESTAMP()')->execute();
         $pdo->prepare('INSERT INTO grade_sync_tokens VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 12 HOUR))')->execute([hash('sha256',$token),$user['id']]);
+        sigmaRecordAuthentication($pdo, $user['id'], 'Login successful');
         gradeReply(['success'=>true,'token'=>$token,'userId'=>$user['id']]);
     }
     $token=sigmaApplicationToken();

@@ -3,6 +3,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/service_vault_auth.php';
 require_once __DIR__ . '/../includes/application_auth.php';
+require_once __DIR__ . '/../includes/authentication_audit.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -24,8 +25,11 @@ try {
     if (strlen($raw) > 8192) sessionReply(['success' => false, 'error' => 'Request too large.'], 413);
     $input = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
     if (($input['action'] ?? '') === 'logout') {
+        $actor = sigmaApplicationUser($pdo);
         $hash = hash('sha256', sigmaApplicationToken());
-        $pdo->prepare('DELETE FROM grade_sync_tokens WHERE token_hash=?')->execute([$hash]);
+        $delete = $pdo->prepare('DELETE FROM grade_sync_tokens WHERE token_hash=?');
+        $delete->execute([$hash]);
+        if ($actor && $delete->rowCount() > 0) sigmaRecordAuthentication($pdo, $actor['id'], 'Logout successful');
         sessionReply(['success' => true]);
     }
     if (($input['action'] ?? '') !== 'credentials') sessionReply(['success' => false, 'error' => 'Unknown action.'], 400);
@@ -38,6 +42,7 @@ try {
     $stmt = $pdo->prepare('SELECT * FROM users WHERE (id=? OR LOWER(email)=LOWER(?)) AND is_deleted=0 LIMIT 1'); $stmt->execute([$login,$login]); $user=$stmt->fetch();
     $valid = $user && strtolower($user['status']) === 'active' && (password_verify($password,$user['password']) || (password_get_info($user['password'])['algo'] === null && hash_equals($user['password'],$password)));
     if (!$valid) {
+        sigmaRecordAuthentication($pdo, $user['id'] ?? null, 'Failed login attempt', 'failed');
         $count = $attempt && empty($attempt['blocked_until']) ? (int)$attempt['attempts']+1 : 1;
         $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
         sessionReply(['success'=>false,'error'=>'Invalid credentials or inactive database account.'],401);

@@ -33,6 +33,7 @@ $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/totp_service.php';
 require_once $rootDir . '/php/includes/application_auth.php';
+require_once __DIR__ . '/../includes/authentication_audit.php';
 require_once $rootDir . '/php/includes/recaptcha_service.php';
 require_once $rootDir . '/php/includes/recaptcha_config.php';
 require_once $rootDir . '/php/includes/ai_routing_config.php';
@@ -634,6 +635,7 @@ try {
         sigmaTwoFactorRateLimit($pdo, $userId);
         $isValid = TotpService::verifyCode($user['totp_secret'], $code);
         sigmaTwoFactorRateLimit($pdo, $userId, $isValid);
+        sigmaRecordAuthentication($pdo, $userId, $isValid ? 'Google Authenticator 2FA verified' : 'Google Authenticator 2FA verification failed', $isValid ? 'success' : 'failed');
         if (!$isValid) {
             jsonOut(['success' => false, 'error' => 'Invalid or expired 6-digit authenticator code. Check your device time.'], 401);
         }
@@ -642,6 +644,7 @@ try {
         $upd = $pdo->prepare("UPDATE users SET totp_enabled = 1 WHERE id = ?");
         $upd->execute([$userId]);
         $pdo->prepare('DELETE FROM grade_sync_tokens WHERE user_id=?')->execute([$userId]);
+        sigmaRecordAuthentication($pdo, $userId, 'Google Authenticator 2FA enabled');
 
         jsonOut([
             'success' => true,
@@ -669,6 +672,7 @@ try {
         sigmaTwoFactorRateLimit($pdo, $userId);
         $isValid = TotpService::verifyCode($user['totp_secret'], $code);
         sigmaTwoFactorRateLimit($pdo, $userId, $isValid);
+        sigmaRecordAuthentication($pdo, $userId, $isValid ? 'Google Authenticator 2FA verified' : 'Google Authenticator 2FA verification failed', $isValid ? 'success' : 'failed');
         if (!$isValid) {
             jsonOut(['success' => false, 'error' => 'Invalid 6-digit code. Please check Google Authenticator on your phone.'], 401);
         }
@@ -695,6 +699,7 @@ try {
         $now = gmdate('Y-m-d H:i:s');
         $upd = $pdo->prepare("UPDATE users SET terms_accepted = 1, terms_accepted_at = ? WHERE id = ?");
         $upd->execute([$now, $userId]);
+        sigmaRecordAuthentication($pdo, $userId, 'Terms and privacy agreement accepted');
 
         jsonOut([
             'success'         => true,
@@ -733,6 +738,7 @@ try {
         } catch (PDOException $error) {
             if ($error->getCode() !== '42S02') throw $error;
         }
+        sigmaRecordAuthentication($pdo, $userId, 'Google Authenticator 2FA disabled', 'warning', 'Reset by authorized administrator.');
         $pdo->commit();
 
         jsonOut([
