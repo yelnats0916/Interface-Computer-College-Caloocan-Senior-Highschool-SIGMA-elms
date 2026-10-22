@@ -1167,6 +1167,30 @@ section[data-sigma-skeleton-active="true"] {
     display: block !important;
 }
 
+/* Initial page shimmer owns the first paint. Section loaders become visible
+   automatically when the shell/session shimmer is released. */
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(.sigma-dot-spinner,i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin,.sigma-content-loading-overlay) {
+    visibility:hidden !important;
+    animation:none !important;
+}
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(.sigma-content-loading-state,.sigma-pending-content) {
+    position:relative !important;
+    overflow:hidden !important;
+    background:var(--sigma-skeleton-base,#e2e8f0) !important;
+    border-radius:20px;
+}
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(.sigma-content-loading-state,.sigma-pending-content)::after {
+    content:'';
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:-38%;
+    width:38%;
+    pointer-events:none;
+    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.08) 20%,rgba(255,255,255,.85) 50%,rgba(255,255,255,.08) 80%,transparent 100%);
+    animation:sigma-sweep-band 1.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sigma-skeleton-block::after { animation: none !important; }
     html.sigma-initial-loading body :is(#main-content, #admin-main, header, #sidebar) *::after { animation: none !important; }
