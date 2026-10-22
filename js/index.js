@@ -743,6 +743,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let matchedUser;
         try {
+            sessionStorage.removeItem('sigma-skip-login-recovery');
             sessionStorage.removeItem('sigma-grade-sync-session');
             sessionStorage.removeItem('sigma-login-challenge');
             loginCandidate = null;

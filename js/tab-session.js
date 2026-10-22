@@ -80,6 +80,7 @@
     let verification = null;
     let verifiedToken = null;
     let signingOut = false;
+    let loginRecoveryAttempted = false;
     let gateMessage = 'Checking your session...';
     const gateStyle = document.createElement('style');
     gateStyle.textContent = 'html[data-sigma-session-check]:not([data-sigma-session-shimmer]) body > :not(#sigma-session-status){visibility:hidden!important} html[data-sigma-session-shimmer] #sigma-session-status{display:none!important} html[data-sigma-session-shimmer] body{pointer-events:none!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
@@ -161,6 +162,7 @@
         event.preventDefault();
         if (signingOut) return;
         signingOut = true;
+        sessionStorage.setItem('sigma-skip-login-recovery', 'true');
         setGate('Signing out…');
         // Existing logout handlers still clear/revoke the session during this click.
         // Paint the spinner before starting the document navigation.
@@ -195,6 +197,7 @@
         async signOutToLogin() {
             if (signingOut) return;
             signingOut = true;
+            sessionStorage.setItem('sigma-skip-login-recovery', 'true');
             try {
                 await Promise.race([window.SigmaDatabase?.revokeSession(), new Promise(resolve => setTimeout(resolve, 2500))]);
             } finally {
@@ -258,12 +261,16 @@
             if (!response.ok) throw new Error('Session verification unavailable.');
             const result = await response.json();
             if (!result.success || idOf(result.user) !== idOf(candidate.user)) continue;
-            if (signingOut) return false;
+            if (signingOut || (isLoginPage && readJson(sessionStorage, 'sigma-login-challenge'))) return false;
+            const portal = portalForRole(result.user.role);
+            if (!portal) continue;
+            if (isLoginPage && portal === 'admin.html' && window.SigmaAdminDeviceAccess?.restricted()) continue;
             sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify(candidate.session));
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
             sessionStorage.setItem('currentUser', JSON.stringify(result.user));
             // Reload with identity available before role scripts initialize; preserve the URL/hash.
-            window.location.reload();
+            if (isLoginPage) window.location.replace(new URL(portal, document.baseURI).href);
+            else window.location.reload();
             return true;
         }
         return false;
@@ -273,7 +280,13 @@
         if (verification) return verification;
         const user = getTabSessionUser();
         if (!user) {
-            if (isLoginPage) return Promise.resolve();
+            if (isLoginPage) {
+                if (loginRecoveryAttempted || sessionStorage.getItem('sigma-skip-login-recovery') === 'true'
+                    || readJson(sessionStorage, 'sigma-login-challenge')) return Promise.resolve();
+                loginRecoveryAttempted = true;
+                verification = recoverFromOpenTab().catch(() => false).finally(() => { verification = null; });
+                return verification;
+            }
             setGate('Checking your session...');
             verification = recoverFromOpenTab().then(recovered => {
                 if (!recovered && !signingOut) {
@@ -338,7 +351,8 @@
         && handoffAge >= 0 && handoffAge < 30000
         && location.pathname.endsWith('/' + portalForRole(arrivingUser.role));
     if (immediateLogin) verifiedToken = arrivingToken;
-    verifyDatabaseSession({ background: !!immediateLogin });
+    const initialVerification = verifyDatabaseSession({ background: !!immediateLogin });
+    if (isLoginPage) window.sigmaLoginSessionReady = initialVerification;
 
     let wasHidden = false;
     document.addEventListener('visibilitychange', () => {
