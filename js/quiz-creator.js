@@ -101,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.updateGlobalSYDisplay === 'function') {
         window.updateGlobalSYDisplay();
     }
-    initUserAvatar();
     if (window.SigmaPageLoading?.waitForInitial) {
         window.SigmaPageLoading.waitForInitial(initQuizCreator).catch(console.error);
     } else {
@@ -256,6 +255,14 @@ function resolveEditorQuiz(quizId) {
 }
 
 async function initQuizCreator() {
+    if (!await window.SigmaSessionNavigation?.ensureVerified()) return;
+    const creatorUser = window.getTabSessionUser?.();
+    const creatorRole = String(creatorUser?.role || creatorUser?.type || '').replace(/[\s_-]/g, '').toLowerCase();
+    if (!['admin','administrator','masteradmin','teacher','faculty','instructor'].includes(creatorRole)) {
+        location.replace(window.SigmaSessionNavigation.portalForRole(creatorRole) || 'index.html');
+        return;
+    }
+    initUserAvatar();
     try {
         const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
         if (raw) {

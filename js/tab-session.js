@@ -184,7 +184,19 @@
         if (['student', 'learner'].includes(value)) return 'student.html';
         return null;
     }
-    window.SigmaSessionNavigation = Object.freeze({ portalForRole });
+    function isSessionVerified() {
+        const session = readJson(sessionStorage, 'sigma-grade-sync-session');
+        return !signingOut && Boolean(verifiedToken && session?.token === verifiedToken && getTabSessionUser());
+    }
+    window.SigmaSessionNavigation = Object.freeze({
+        portalForRole,
+        isVerified: isSessionVerified,
+        recheck: () => verifyDatabaseSession({ background: true }),
+        async ensureVerified() {
+            if (!isSessionVerified()) await verifyDatabaseSession({ background: true });
+            return isSessionVerified();
+        }
+    });
     // Recover into a fresh tab without putting bearer tokens in shared localStorage.
     let sessionChannel = null;
     let lastActiveAt = Date.now();

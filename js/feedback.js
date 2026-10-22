@@ -47,6 +47,7 @@
         active.set(id,{close}); stack.append(toast); resume();
         return { id, close };
     }
+    window.showValidationToast = (input) => notify(input, 'warning');
     window.SigmaFeedback = { notify, dismiss, notice:(message,type='warning',options={})=>notify(message,type,options) };
     // Existing feature controllers use all three names. Keep one implementation.
     window.showToast = window.showToastNotification = window.showGlobalToast = (message,type='info',options={}) => notify(message,type,options);

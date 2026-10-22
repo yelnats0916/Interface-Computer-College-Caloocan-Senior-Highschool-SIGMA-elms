@@ -2912,30 +2912,53 @@ window.SIGMA_USE_SERVER_STORAGE = true;
  * Results are stored in window._quizLibraryServerData and automatically
  * merged by getStoredQuizLibrary() on subsequent calls.
  */
-window.fetchQuizLibraryFromServer = async function () {
-    if (!window.SIGMA_USE_SERVER_STORAGE) return;
+let quizLibraryRequest = null;
+let quizLibraryBlockedIdentity = '';
+let quizLibraryLoadedIdentity = '';
+function quizLibraryIdentity() {
+    if (!/(?:admin|teacher|quiz-creator)[.](?:html|php)$/.test(location.pathname.toLowerCase())) return '';
+    if (!window.SigmaSessionNavigation?.isVerified()) return '';
+    const user = window.getTabSessionUser?.();
+    const role = String(user?.role || user?.type || '').replace(/[\s_-]/g, '').toLowerCase();
+    if (!['admin','administrator','masteradmin','teacher','faculty','instructor'].includes(role)) return '';
     try {
-        const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl());
-        if (!res.ok) {
-            console.warn('[SIGMA] Quiz library server fetch HTTP error:', res.status);
-            return;
-        }
-        const data = await res.json();
-        if (data.success && Array.isArray(data.quizzes)) {
-            if (JSON.stringify(window._quizLibraryServerData || []) === JSON.stringify(data.quizzes)) return;
+        const session = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null');
+        return session?.token ? String(user.id || user.uid) + ':' + session.token : '';
+    } catch (_) { return ''; }
+}
+window.fetchQuizLibraryFromServer = async function () {
+    const identity = quizLibraryIdentity();
+    if (!window.SIGMA_USE_SERVER_STORAGE || !identity || identity === quizLibraryBlockedIdentity) return;
+    if (quizLibraryRequest?.identity === identity) return quizLibraryRequest.promise;
+    const current = { identity };
+    quizLibraryRequest = current;
+    current.promise = (async () => {
+        try {
+            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl());
+            if (quizLibraryIdentity() !== identity) return;
+            if (res.status === 401 || res.status === 403) {
+                quizLibraryBlockedIdentity = identity;
+                window._quizLibraryServerData = [];
+                if (res.status === 401) void window.SigmaSessionNavigation.recheck?.();
+                return;
+            }
+            if (!res.ok) throw new Error('Quiz library could not be loaded.');
+            const data = await res.json();
+            if (quizLibraryIdentity() !== identity) return;
+            if (!data.success || !Array.isArray(data.quizzes)) throw new Error('Quiz library response was unavailable.');
+            if (quizLibraryLoadedIdentity === identity && JSON.stringify(window._quizLibraryServerData || []) === JSON.stringify(data.quizzes)) return;
+            quizLibraryLoadedIdentity = identity;
             window._quizLibraryServerData = data.quizzes;
             window.dispatchEvent(new CustomEvent('sigma:quiz-library-loaded'));
-            if (typeof window.renderQuizStoragePickerContent === 'function') {
-                window.renderQuizStoragePickerContent();
-            }
-            if (typeof window.renderQuizLibraryModal === 'function') {
-                window.renderQuizLibraryModal();
-            }
-        }
-    } catch (e) {
-        console.warn('[SIGMA] Quiz library server fetch failed:', e);
-    }
+            window.renderQuizStoragePickerContent?.();
+            window.renderQuizLibraryModal?.();
+        } catch (error) {
+            console.warn('[SIGMA] Quiz library could not be loaded:', error);
+        } finally { if (quizLibraryRequest === current) quizLibraryRequest = null; }
+    })();
+    return current.promise;
 };
+window.addEventListener('sigma:database-session-ready', () => window.fetchQuizLibraryFromServer());
 
 /**
  * Save a single quiz object to the server via POST /php/api/quiz_library.php.
