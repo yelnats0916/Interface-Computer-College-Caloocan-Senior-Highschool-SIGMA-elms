@@ -846,7 +846,7 @@
         schoolHost.replaceChildren();
 
         if (isLoading) {
-            schoolHost.append(el('p', 'Loading AI analytics overview...', 'insight-report-empty'));
+            window.SigmaContentLoading.render(schoolHost, {page:true, label:'Loading AI analytics'});
             return;
         }
 
@@ -903,7 +903,7 @@
         }
 
         if (isLoading) {
-            generatesHost.append(el('p', 'Loading user insights...', 'insight-report-empty'));
+            window.SigmaContentLoading.render(generatesHost, {page:true, label:'Loading user insights'});
             return;
         }
 

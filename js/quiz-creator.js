@@ -1336,7 +1336,7 @@ function renderQuestions() {
             if (window.SigmaQuizComponents && typeof window.SigmaQuizComponents.renderQuestionCard === 'function') {
                 mainContainer.innerHTML = window.SigmaQuizComponents.renderQuestionCard(q, idx, isAnswerKeyOpen, isNewlyAdded);
             } else {
-                mainContainer.innerHTML = `<div class="p-8 text-center text-slate-500 font-medium">Loading question...</div>`;
+                window.SigmaContentLoading.render(mainContainer, {label:'Loading question'});
             }
 
             if (isNewlyAdded) {

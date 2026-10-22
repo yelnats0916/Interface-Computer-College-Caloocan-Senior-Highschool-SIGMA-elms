@@ -43,7 +43,7 @@
     const iconRegions = new Set();
     const iconSizes = new ResizeObserver(entries => entries.forEach(({target, contentRect}) => {
         target.querySelectorAll(iconSelector).forEach(icon => {
-            if (!icon.closest('button,[role="button"]')) icon.style.setProperty('--sigma-loader-size', `${Math.round(Math.max(20, Math.min(48, Math.min(contentRect.width, contentRect.height) * .18)))}px`);
+            if (!icon.closest('button,[role="button"]')) icon.style.setProperty('--sigma-loader-size', `${Math.round(Math.max(20, Math.min(target.hasAttribute('data-sigma-loading-page') ? 72 : 48, Math.min(contentRect.width, contentRect.height) * .18)))}px`);
         });
         if (!target.querySelector(iconSelector)) { iconSizes.unobserve(target); iconRegions.delete(target); }
     }));
@@ -64,5 +64,17 @@
         });
     }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
     document.addEventListener('DOMContentLoaded', () => watch(document.body), {once:true});
-    window.SigmaContentLoading = {show};
+    function html(options = {}) {
+        const escape = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+        const mode = options.page ? ' sigma-content-loading-state--page' : options.inline ? ' sigma-content-loading-state--inline' : options.compact ? ' sigma-content-loading-state--compact' : '';
+        return `<span class="sigma-content-loading-state${mode}" role="status" aria-live="polite" aria-busy="true" aria-label="${escape(options.label || 'Loading content')}" ${options.page ? 'data-sigma-loading-page' : ''}>
+            <span class="sigma-dot-spinner" data-sigma-auto-spinner aria-hidden="true"></span>
+            <span class="sigma-content-loading-copy"><span>Loading content…</span>${options.inline ? '' : '<span>Please wait a moment.</span>'}</span>
+        </span>`;
+    }
+    function render(content, options) {
+        if (!content) return;
+        content.innerHTML = html(options);
+    }
+    window.SigmaContentLoading = {show, html, render};
 })();

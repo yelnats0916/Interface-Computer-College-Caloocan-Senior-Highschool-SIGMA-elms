@@ -254,6 +254,7 @@
         const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4>${liveMetrics ? `<span class="text-xs font-semibold" style="color:#15803d">${health ? 'Responding' : 'Connected'} <i class="fa-solid ${health ? 'fa-circle' : 'fa-database'}" style="font-size:9px" aria-hidden="true"></i></span>` : ''}</div>`;
         if (!liveMetrics) {
             const loading = liveMetricsPending;
+            if (loading) return header + window.SigmaContentLoading.html({compact:true, label:'Loading system measurements'});
             const heading = loading ? 'Loading measurements' : health ? 'No health data yet' : 'No database metrics yet';
             const message = loading ? 'Please wait while we check the server.'
                 : liveMetricsError ? 'We couldn’t retrieve the latest measurements. Please try again.'

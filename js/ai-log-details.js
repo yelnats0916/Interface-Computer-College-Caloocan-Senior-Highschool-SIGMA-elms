@@ -620,7 +620,9 @@
             const td = node('td');
             tr.className = 'sigma-log-empty-row';
             td.colSpan = 5;
-            td.innerHTML = window.renderSigmaEmptyState({ icon: 'fa-solid fa-robot', title: window.getAuditLogSearchQuery?.() ? 'No matching AI logs.' : users.length ? 'No AI logs yet' : 'No user accounts available.', subtitle: window.getAuditLogSearchQuery?.() ? '' : users.length ? 'Recorded AI requests will appear here.' : 'AI logs will appear when accounts have recorded activity.' });
+            td.innerHTML = window.SigmaAiDatabase?.getLogStatus?.().state === 'loading'
+                ? window.SigmaContentLoading.html({label:'Loading AI logs'})
+                : window.renderSigmaEmptyState({ icon: 'fa-solid fa-robot', title: window.getAuditLogSearchQuery?.() ? 'No matching AI logs.' : users.length ? 'No AI logs yet' : 'No user accounts available.', subtitle: window.getAuditLogSearchQuery?.() ? '' : users.length ? 'Recorded AI requests will appear here.' : 'AI logs will appear when accounts have recorded activity.' });
             tr.append(td);
             body.append(tr);
         }

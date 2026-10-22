@@ -41,6 +41,10 @@
         panel.replaceChildren(element('h2', 'AI Usage', 'text-sm font-bold text-black'));
         if (snapshot.state !== 'ready') {
             panel.append(element('p', snapshot.state === 'loading' ? 'Loading recorded AI activity…' : snapshot.state === 'signed-out' ? 'Sign in to view AI usage.' : 'Unable to load recorded AI activity.', 'text-sm text-black-fade'));
+            if (snapshot.state === 'loading') {
+                panel.lastElementChild?.remove();
+                const loading = element('div'); window.SigmaContentLoading.render(loading, {compact:true, label:'Loading AI usage'}); panel.append(loading);
+            }
             if (snapshot.state === 'error') {
                 const status = element('div', '', 'sigma-load-status sigma-load-status--inline');
                 window.renderSigmaLoadStatus(status, 'Unable to load recorded AI activity.', () => window.SigmaAiDatabase?.reloadLogs().catch(() => {}));
@@ -332,7 +336,9 @@
         toolbar.append(refresh); panel.append(toolbar);
         if (error || driveUsageLoading || !driveUsage) {
             const message = element('p', error || (driveUsageLoading ? 'Checking the ELMS folder and subfolders…' : 'Folder usage has not loaded yet.'), 'text-sm text-black-fade mt-4');
-            message.setAttribute('role', 'status'); panel.append(message);
+            message.setAttribute('role', 'status');
+            if (driveUsageLoading && !error) window.SigmaContentLoading.render(message, {compact:true, label:'Loading folder usage'});
+            panel.append(message);
         }
         if (driveUsage) {
             const limit = Number(driveUsage.limit_bytes) || (15 * 1024 * 1024 * 1024);

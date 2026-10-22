@@ -139,7 +139,7 @@
         }
 
         async function load() {
-            notice.hidden = false; notice.textContent = 'Loading...'; select.disabled = true;
+            notice.hidden = false; window.SigmaContentLoading.render(notice, {inline:true, label:'Loading removed records'}); select.disabled = true;
             try {
                 let result;
                 try { result = select.value === 'submission_files' ? {tables:[],records:[]} : await window.SigmaAiDatabase.request('record_lifecycle', { table: select.value }, true); }

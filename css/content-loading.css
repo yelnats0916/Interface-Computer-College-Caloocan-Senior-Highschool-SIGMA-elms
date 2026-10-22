@@ -26,3 +26,15 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
 .sigma-verification-pending { min-width:0; width:100%; box-sizing:border-box; }
 .sigma-verification-pending .sigma-content-loading-overlay { max-width:100%; }
 #landing2faGlobalBackBtn:disabled { pointer-events:none; cursor:wait; }
+
+/* Content refreshes share one layout and wording; initial page shimmer is unchanged. */
+.sigma-content-loading-state { display:flex; width:100%; min-width:0; min-height:clamp(140px,22vh,220px); padding:24px 16px; box-sizing:border-box; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center; }
+.sigma-content-loading-state .sigma-dot-spinner { --sigma-loader-size:36px; }
+.sigma-content-loading-state--page { min-height:clamp(260px,55vh,560px); }
+.sigma-content-loading-state--page .sigma-dot-spinner { --sigma-loader-size:64px; }
+.sigma-content-loading-state--compact { min-height:100px; padding:16px 12px; gap:12px; }
+.sigma-content-loading-state--inline { width:auto; min-height:0; padding:0; flex-direction:row; justify-content:flex-start; gap:8px; text-align:left; }
+.sigma-content-loading-state--inline .sigma-dot-spinner { --sigma-loader-size:20px; }
+.sigma-content-loading-copy { display:flex; flex-direction:column; gap:4px; }
+.sigma-content-loading-copy > span { padding:0 !important; margin:0 !important; color:rgba(0,0,0,.55); font:500 14px/1.5 Inter,Arial,sans-serif; }
+.sigma-content-loading-copy > span + span { font-size:12px; color:rgba(0,0,0,.45); }

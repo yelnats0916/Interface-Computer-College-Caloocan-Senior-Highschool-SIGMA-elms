@@ -160,7 +160,8 @@
         if (!evidence.assessments.some(row => row.score != null) && !evidence.grades.some(value => typeof value === 'number')) {
             show(overall ? 'No grades recorded yet.' : 'No grades recorded yet for this subject.'); return;
         }
-        show('Loading grade insights...');
+        element.dataset.insightEmpty = 'true';
+        window.SigmaContentLoading.render(element, {compact:true, label:'Loading grade insights'});
         if (!pending.has(fingerprint)) {
             const generate = async () => {
                 // Another tab may have finished while this tab waited for the lock.

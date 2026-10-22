@@ -64,7 +64,8 @@
         };
         const cached = readStoredInsight(key);
         if (cached) { render(cached); return; }
-        show('Loading class insights…', 'loading');
+        show('', 'loading');
+        window.SigmaContentLoading.render(element, {compact:true, label:'Loading class insights'});
         if (!pending.has(key)) pending.set(key, (async () => {
             const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/analytics_ai.php' : 'php/api/analytics_ai.php', location.href).href;
