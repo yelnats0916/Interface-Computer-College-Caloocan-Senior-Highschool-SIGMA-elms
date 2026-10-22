@@ -77,6 +77,9 @@
     window.syncTabIdentity = syncTabIdentity;
 
     const isLoginPage = /\/(?:index\.html)?$/i.test(location.pathname);
+    // Help is public even though it shares the login document.
+    const isPublicHelpRoute = () => isLoginPage && (location.hash.toLowerCase() === '#help'
+        || sessionStorage.getItem('sigma_target_view') === 'help');
     let verification = null;
     let verifiedToken = null;
     let signingOut = false;
@@ -250,7 +253,7 @@
             return Number(matches(b)) - Number(matches(a)) || Number(b.lastActiveAt) - Number(a.lastActiveAt);
         });
         for (const candidate of recovery.candidates) {
-            if (signingOut) return false;
+            if (signingOut || isPublicHelpRoute()) return false;
             // Do not trust a browser user object as authentication or authorization.
             const response = await window.SigmaDatabase.fetch(window.SigmaDatabase.url('session'), {
                 cache: 'no-store', credentials: 'omit',
@@ -261,7 +264,7 @@
             if (!response.ok) throw new Error('Session verification unavailable.');
             const result = await response.json();
             if (!result.success || idOf(result.user) !== idOf(candidate.user)) continue;
-            if (signingOut || (isLoginPage && readJson(sessionStorage, 'sigma-login-challenge'))) return false;
+            if (signingOut || isPublicHelpRoute() || (isLoginPage && readJson(sessionStorage, 'sigma-login-challenge'))) return false;
             const portal = portalForRole(result.user.role);
             if (!portal) continue;
             if (isLoginPage && portal === 'admin.html' && window.SigmaAdminDeviceAccess?.restricted()) continue;
@@ -276,7 +279,7 @@
         return false;
     }
     function verifyDatabaseSession({ background = false } = {}) {
-        if (signingOut) return Promise.resolve();
+        if (signingOut || isPublicHelpRoute()) return Promise.resolve();
         if (verification) return verification;
         const user = getTabSessionUser();
         if (!user) {
@@ -311,6 +314,7 @@
                 if (!portal) throw Object.assign(new Error('This account has no portal access.'), { status: 403 });
                 sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
                 sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+                if (isPublicHelpRoute()) return;
                 if (isLoginPage || (!location.pathname.endsWith('/' + portal) && !location.pathname.endsWith('/quiz-creator.html'))) {
                     window.location.replace(new URL(portal, document.baseURI).href);
                     return;

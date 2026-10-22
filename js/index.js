@@ -565,6 +565,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function syncHelpReturnLink() {
+        const link = document.getElementById('helpCenterBackLink');
+        if (!link) return;
+        const user = window.getTabSessionUser?.();
+        const portal = user && window.SigmaSessionNavigation?.portalForRole(user.role || user.type);
+        link.href = portal || 'index.html#login';
+        link.lastElementChild.textContent = portal ? 'Back to Dashboard' : 'Back to Login';
+        link.onclick = event => {
+            if (portal) return;
+            event.preventDefault();
+            switchView('landing');
+        };
+    }
+
     /* ===== VIEW SWITCHER ===== */
     function switchView(viewName, updateHistory = true, clearForm = true) {
         activeViewName = viewName;
@@ -668,6 +682,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             
             if (viewName === 'help') {
+                syncHelpReturnLink();
                 try {
                     sessionStorage.setItem('sigma_policy_from', 'help');
                     sessionStorage.setItem('sigma_last_login_view', 'help');
@@ -1923,6 +1938,10 @@ document.addEventListener('DOMContentLoaded', function () {
     ui.btns.entryHelp.forEach(b => b.onclick = () => switchView('help'));
     document.getElementById('backToLoginLogo')?.addEventListener('click', (e) => {
         e.preventDefault();
+        if (activeViewName === 'help') {
+            document.getElementById('helpCenterBackLink')?.click();
+            return;
+        }
         switchView('landing');
     });
 
