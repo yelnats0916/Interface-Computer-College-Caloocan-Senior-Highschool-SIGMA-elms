@@ -82,13 +82,28 @@
     let signingOut = false;
     let gateMessage = 'Checking your session...';
     const gateStyle = document.createElement('style');
-    gateStyle.textContent = 'html[data-sigma-session-check] body > :not(#sigma-session-status){visibility:hidden!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
+    gateStyle.textContent = 'html[data-sigma-session-check]:not([data-sigma-session-shimmer]) body > :not(#sigma-session-status){visibility:hidden!important} html[data-sigma-session-shimmer] #sigma-session-status{display:none!important} html[data-sigma-session-shimmer] body{pointer-events:none!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
     document.head.appendChild(gateStyle);
     const spinnerStyle = document.createElement('style');
     spinnerStyle.textContent = '#sigma-session-status .sigma-transition-spinner{width:clamp(48px,8vmin,72px);height:clamp(48px,8vmin,72px);background:radial-gradient(circle at 50% 10%, rgba(0,0,0,.55) 0 6%, transparent 7%), radial-gradient(circle at 78% 22%, rgba(0,0,0,.48) 0 6%, transparent 7%), radial-gradient(circle at 90% 50%, rgba(0,0,0,.41) 0 6%, transparent 7%), radial-gradient(circle at 78% 78%, rgba(0,0,0,.34) 0 6%, transparent 7%), radial-gradient(circle at 50% 90%, rgba(0,0,0,.27) 0 6%, transparent 7%), radial-gradient(circle at 22% 78%, rgba(0,0,0,.20) 0 6%, transparent 7%), radial-gradient(circle at 10% 50%, rgba(0,0,0,.13) 0 6%, transparent 7%), radial-gradient(circle at 22% 22%, rgba(0,0,0,.08) 0 6%, transparent 7%);animation:sigma-transition-spin 1s steps(8,end) infinite}@keyframes sigma-transition-spin{to{transform:rotate(360deg)}}#sigma-session-status p{color:rgba(0,0,0,.5);font:14px Inter,Arial,sans-serif}';
     document.head.appendChild(spinnerStyle);
+    let shellBusyState = null;
+    function syncShellBusy() {
+        if (!document.body) return;
+        if (document.documentElement.hasAttribute('data-sigma-session-shimmer')) {
+            if (!shellBusyState) shellBusyState = {inert:document.body.inert, busy:document.body.getAttribute('aria-busy')};
+            document.body.inert = true;
+            document.body.setAttribute('aria-busy','true');
+        } else if (shellBusyState) {
+            document.body.inert = shellBusyState.inert;
+            if (shellBusyState.busy === null) document.body.removeAttribute('aria-busy');
+            else document.body.setAttribute('aria-busy',shellBusyState.busy);
+            shellBusyState = null;
+        }
+    }
     function renderGate() {
         if (!document.body || isLoginPage) return;
+        syncShellBusy();
         let status = document.getElementById('sigma-session-status');
         if (!document.documentElement.hasAttribute('data-sigma-session-check')) {
             status?.remove();
@@ -128,7 +143,15 @@
     function setGate(message) {
         if (isLoginPage) return;
         gateMessage = message || 'Checking your session...';
-        document.documentElement.toggleAttribute('data-sigma-session-check', !!message);
+        const root = document.documentElement;
+        const hadShimmer = root.hasAttribute('data-sigma-session-shimmer');
+        // A saved tab identity still needs server verification, but can use the normal
+        // masked, non-interactive page shell instead of hiding the entire document.
+        const useShimmer = message === 'Checking your session...' && !signingOut && Boolean(getTabSessionUser());
+        root.toggleAttribute('data-sigma-session-shimmer', useShimmer);
+        if (useShimmer) root.classList.add('sigma-initial-loading');
+        root.toggleAttribute('data-sigma-session-check', !!message);
+        if (hadShimmer && !useShimmer) window.dispatchEvent(new Event('sigma:session-loading-complete'));
         renderGate();
     }
     document.addEventListener('DOMContentLoaded', renderGate);

@@ -15,7 +15,12 @@
     let earlyRouteObserver;
 
     function revealInitial(force = false) {
-        if (initialDismissed) return;
+        // Refreshes in all tabs retain the same shimmer until session verification ends.
+        if (document.documentElement.hasAttribute('data-sigma-session-shimmer')) return;
+        if (initialDismissed) {
+            document.documentElement.classList.remove('sigma-initial-loading');
+            return;
+        }
         if (!force && initialPending > 0) return;
         initialDismissed = true;
         if (earlyRouteObserver) earlyRouteObserver.disconnect();
@@ -841,6 +846,10 @@
     } else {
         initial();
     }
+
+    window.addEventListener('sigma:session-loading-complete', () => {
+        requestAnimationFrame(() => revealInitial(true));
+    });
 
     window.addEventListener('pageshow', event => {
         revealInitial(true);
