@@ -70,7 +70,25 @@
             document.getElementById('audit-ai-view').after(page);
         }
     }
+    let opening = null;
     async function open() {
+        if (opening) return opening;
+        opening = (async () => {
+            const page = document.getElementById('settings-recovery-view');
+            if (!page) return;
+            const notice = page.querySelector('[role=status]');
+            if (notice) { notice.textContent = ''; notice.hidden = true; }
+            if (!await window.SigmaServiceVault?.verifyPanel('recovery')) {
+                window.switchTab?.('nav-dashboard');
+                return;
+            }
+            try { await loadRecovery(); }
+            finally { window.SigmaServiceVault?.finishLoading(); }
+        })();
+        try { await opening; }
+        finally { opening = null; }
+    }
+    async function loadRecovery() {
         const page = document.getElementById('settings-recovery-view');
         if (!page) return;
         const select = page.querySelector('select'), notice = page.querySelector('[role=status]'), body = page.querySelector('tbody');

@@ -17,9 +17,10 @@ function recordServiceVaultVerification(PDO $db, string $id, string $outcome, st
     $actions = ['success'=>'Administrator settings verification succeeded', 'failed'=>'Administrator settings verification failed', 'canceled'=>'Administrator settings verification canceled'];
     if (!isset($actions[$outcome])) throw new InvalidArgumentException('Invalid verification outcome.');
     require_once __DIR__.'/activity_audit.php';
-    $panels = ['ai'=>'SIGMA AI Integration Engines','drive'=>'Google Drive Cloud Storage','recaptcha'=>'Google reCAPTCHA Protection'];
+    $panels = ['ai'=>'SIGMA AI Integration Engines','drive'=>'Google Drive Cloud Storage','recaptcha'=>'Google reCAPTCHA Protection','recovery'=>'Record Recovery'];
     $details = sigmaActivityContext($actions[$outcome])['details'];
-    if (isset($panels[$panel])) $details = 'API panel: '.$panels[$panel]."\n".$details;
+    if ($panel === 'recovery') $details = ['success'=>'Administrator identity was verified for Record Recovery.', 'failed'=>'The administrator verification attempt for Record Recovery failed.', 'canceled'=>'Administrator verification for Record Recovery was canceled.'][$outcome];
+    if (isset($panels[$panel])) $details = ($panel === 'recovery' ? 'Protected page: ' : 'API panel: ').$panels[$panel]."\n".$details;
     sigmaRecordActivity($db,$id,$actions[$outcome],'Security',$details);
 }
 

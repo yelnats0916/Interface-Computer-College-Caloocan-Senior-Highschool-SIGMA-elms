@@ -3,7 +3,7 @@
     const originalFetch = window.fetch.bind(window);
     let token = '', expires = 0, pending = null, canceled = false, authorizationEpoch = 0;
     let indicatorTimer;
-    const panels = { ai: 'SIGMA AI Integration Engines', drive: 'Google Drive Cloud Storage', recaptcha: 'Google reCAPTCHA Protection' };
+    const panels = { ai: 'SIGMA AI Integration Engines', drive: 'Google Drive Cloud Storage', recaptcha: 'Google reCAPTCHA Protection', recovery: 'Record Recovery' };
     function indicator(message, loading = false) {
         clearTimeout(indicatorTimer);
         document.querySelector('.service-vault-indicator')?.remove();
@@ -36,7 +36,7 @@
     }
     function recordVerificationActivity(outcome, panel) {
         const names = { success: 'Administrator settings verification succeeded', failed: 'Administrator settings verification failed', canceled: 'Administrator settings verification canceled' };
-        window.recordActivityLog?.(names[outcome], { module: 'Security', details: 'API panel: ' + (panels[panel] || 'Protected settings') + '\nNo credentials are recorded.' });
+        window.recordActivityLog?.(names[outcome], { module: 'Security', details: (panel === 'recovery' ? 'Protected page: ' : 'API panel: ') + (panels[panel] || 'Protected settings') + '\nNo credentials are recorded.' });
     }
     function authorize(api, panel = '') {
         if (canceled) return Promise.reject(canceledError());
@@ -120,7 +120,7 @@
         let api;
         try { api = new URL(typeof resource === 'string' ? resource : resource.url, location.href); } catch (_) { return originalFetch(resource, options); }
         const local = ['localhost', '127.0.0.1'].includes(location.hostname) && ['localhost', '127.0.0.1'].includes(api.hostname);
-        if (!(api.origin === location.origin || local) || !/\/php\/api\/(auth|upload|users)\.php$/.test(api.pathname)) return originalFetch(resource, options);
+        if (!(api.origin === location.origin || local) || !/\/php\/api\/(auth|upload|users|record_lifecycle)\.php$/.test(api.pathname)) return originalFetch(resource, options);
         const request = () => {
             const headers = new Headers(options.headers || (typeof resource !== 'string' ? resource.headers : undefined));
             if (token && expires > Date.now()) headers.set('Authorization', 'Bearer ' + token);
