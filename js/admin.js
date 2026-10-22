@@ -19590,6 +19590,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             throw new Error('Configuration unavailable');
         } catch (e) {
+            if (e.code === 'VAULT_AUTH_CANCELED') {
+                setDriveConnectionStatus('Verification required');
+                return;
+            }
             setDriveConnectionStatus('Status unavailable', 'failed');
             console.warn('[SIGMA] Google Drive status query error:', e);
         }
@@ -19856,6 +19860,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.renderSigmaLoadStatus(feedback, 'Unable to load AI settings.', window.loadAiPageData);
             }
         } catch (e) {
+            if (e.code === 'VAULT_AUTH_CANCELED') {
+                const feedback = document.getElementById('ai-routing-feedback');
+                if (feedback) feedback.textContent = 'Administrator verification is required to load these settings.';
+                return;
+            }
             console.warn('[SIGMA] AI vault load error:', e);
             const feedback = document.getElementById('ai-routing-feedback');
             window.renderSigmaLoadStatus(feedback, 'Unable to connect to AI settings.', window.loadAiPageData);
@@ -20333,9 +20342,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showRecaptchaDraft();
         } catch (error) {
             recaptchaPageState.saved = null;
-            if (status) status.textContent = 'Connection unavailable';
+            if (status) status.textContent = error.code === 'VAULT_AUTH_CANCELED' ? 'Verification required' : 'Connection unavailable';
             window.updateRecaptchaSecretSavedState(null, false);
-            console.warn('[SIGMA] reCAPTCHA configuration unavailable:', error.message);
+            if (error.code !== 'VAULT_AUTH_CANCELED') console.warn('[SIGMA] reCAPTCHA configuration unavailable:', error.message);
         }
         window.updateRecaptchaSaveButtons();
     };

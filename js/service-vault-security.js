@@ -1,7 +1,8 @@
 (function () {
     'use strict';
     const originalFetch = window.fetch.bind(window);
-    let token = '', expires = 0, pending = null;
+    let token = '', expires = 0, pending = null, canceled = false, authorizationEpoch = 0;
+    const canceledError = () => Object.assign(new Error('Administrator verification was canceled.'), { code: 'VAULT_AUTH_CANCELED' });
     function configureFields() {
         try { localStorage.removeItem('sigma-api-keys'); localStorage.removeItem('sigma-api-vault-pass'); } catch (_) {}
         document.querySelectorAll('input').forEach(input => {
@@ -28,7 +29,31 @@
         const names = { success: 'Administrator settings verification succeeded', failed: 'Administrator settings verification failed', canceled: 'Administrator settings verification canceled' };
         window.recordActivityLog?.(names[outcome], { module: 'Security', details: 'Protected integration settings verification. No credentials are recorded.' });
     }
+    function showCanceledNotice() {
+        const section = document.querySelector('.dynamic-section:not(.hidden)[id^="settings-"]');
+        if (!section || section.querySelector('.service-vault-canceled-notice')) return;
+        const notice = document.createElement('div'); notice.className = 'service-vault-canceled-notice'; notice.setAttribute('role', 'status');
+        const message = document.createElement('span'); message.textContent = 'Verification canceled. Protected settings remain locked.';
+        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'sigma-retry-link'; retry.textContent = 'Verify';
+        retry.onclick = () => {
+            canceled = false;
+            const loader = section.id === 'settings-gdrive-view' ? window.loadGoogleDrivePageData
+                : section.id === 'settings-recaptcha-view' ? window.loadRecaptchaPageData : window.loadAiPageData;
+            loader?.();
+        };
+        notice.append(message, retry);
+        const heading = section.querySelector('h2');
+        if (heading) heading.after(notice); else section.prepend(notice);
+        if (section.id === 'settings-integrations-view') section.querySelectorAll('.gemini-status-text,.groq-status-text').forEach(status => { status.textContent = 'Verification required'; });
+    }
+    // Only a deliberate settings action can resume prompts after cancellation.
+    // Background loads, focus events and requests already in flight stay canceled.
+    document.addEventListener('click', event => {
+        if (!event.isTrusted || !canceled || event.target.closest('.service-vault-auth')) return;
+        if (event.target.closest('[id^="settings-"] button, [id^="settings-"] a, [id^="settings-"] summary')) canceled = false;
+    }, true);
     function authorize(api) {
+        if (canceled) return Promise.reject(canceledError());
         if (pending) return pending;
         pending = new Promise((resolve, reject) => {
             const dialog = document.createElement('dialog');
@@ -37,25 +62,23 @@
             dialog.innerHTML = '<form><h2 id="service-vault-auth-title">Administrator Verification</h2><label>Login ID<input name="login" autocomplete="username" readonly aria-readonly="true" required maxlength="150"></label><label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label><p class="service-vault-error" role="alert" hidden></p><div class="service-vault-auth-actions"><button type="button" class="sigma-dialog-btn-cancel" data-cancel>Cancel</button><button type="submit" class="sigma-dialog-btn-confirm">Verify</button></div></form>';
             document.body.append(dialog);
             const form = dialog.querySelector('form');
-            let submitting = false;
+            let submitting = false, settled = false;
+            const opener = document.activeElement;
             const close = () => { form.reset(); dialog.close(); dialog.remove(); };
             const cancel = () => {
-                if (submitting) return;
+                if (submitting || settled) return;
+                settled = true; canceled = true; authorizationEpoch++;
+                let sessionToken = '';
+                try { sessionToken = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token || ''; } catch (_) {}
                 originalFetch(new URL('auth.php', api).href, {
                     method: 'POST', keepalive: true,
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token || '') },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken },
                     body: JSON.stringify({ action: 'cancel_service_vault_verification' })
                 }).then(async response => { if (response.ok && (await response.json()).success) recordVerificationActivity('canceled'); }).catch(() => {});
                 close();
-                const failure = Object.assign(new Error('Credential verification canceled.'), { code: 'VAULT_AUTH_CANCELED' });
-                reject(failure);
-                // Cancel leaves protected settings rather than exposing their
-                // unloaded default values as if they were the saved configuration.
-                if (typeof window.switchTab === 'function') {
-                    window.switchTab('nav-dashboard');
-                } else {
-                    window.location.replace(new URL('admin.html#nav-dashboard', location.href).href);
-                }
+                showCanceledNotice();
+                if (opener?.isConnected) opener.focus({ preventScroll: true });
+                reject(canceledError());
             };
             dialog.querySelector('[data-cancel]').onclick = cancel;
             dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
@@ -76,6 +99,8 @@
                         throw new Error(result.error || 'Administrator verification failed.');
                     }
                     recordVerificationActivity('success');
+                    settled = true; canceled = false;
+                    document.querySelectorAll('.service-vault-canceled-notice').forEach(notice => notice.remove());
                     token = result.token;
                     expires = Date.now() + Number(result.expires_in || 900) * 1000;
                     close(); resolve();
@@ -102,9 +127,11 @@
             if (token && expires > Date.now()) headers.set('Authorization', 'Bearer ' + token);
             return originalFetch(resource, { ...options, headers });
         };
+        const requestEpoch = authorizationEpoch;
         let response = await request();
         if (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === 'VAULT_AUTH_REQUIRED') {
             token = ''; expires = 0;
+            if (canceled || requestEpoch !== authorizationEpoch) throw canceledError();
             await authorize(api);
             response = await request();
         }
