@@ -1,0 +1,10 @@
+/* Shared load-error spacing and existing retry/refresh text controls. */
+.sigma-load-status { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:flex-start; gap:8px; padding:16px 24px; margin:0; color:rgba(0,0,0,.55); font-size:14px; line-height:1.5; }
+.sigma-load-status[hidden] { display:none !important; }
+.sigma-load-status--inline { padding:0; }
+.sigma-load-status > p { padding:0 !important; margin:0 !important; }
+.sigma-retry-link { display:inline-flex !important; align-items:center; justify-content:center; gap:6px; width:auto !important; min-width:0 !important; height:auto !important; min-height:0 !important; padding:0 !important; margin:0; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; color:#15803d !important; font:inherit; font-weight:600; line-height:inherit; text-decoration:none !important; cursor:pointer; vertical-align:baseline; }
+.sigma-retry-link:hover:not(:disabled) { text-decoration:underline !important; text-underline-offset:3px; }
+.sigma-retry-link:focus-visible { outline:2px solid #15803d; outline-offset:4px; }
+.sigma-retry-link:disabled { opacity:.5; cursor:wait; }
+@media(max-width:600px) { .sigma-load-status { padding:12px 16px; } .sigma-load-status--inline { padding:0; } }

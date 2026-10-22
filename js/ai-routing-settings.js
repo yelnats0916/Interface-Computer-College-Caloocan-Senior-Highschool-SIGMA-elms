@@ -42,8 +42,9 @@
         if (snapshot.state !== 'ready') {
             panel.append(element('p', snapshot.state === 'loading' ? 'Loading recorded AI activity…' : snapshot.state === 'signed-out' ? 'Sign in to view AI usage.' : 'Unable to load recorded AI activity.', 'text-sm text-black-fade'));
             if (snapshot.state === 'error') {
-                const retry = element('button', 'Retry', 'sigma-btn sigma-btn-white sigma-btn-md'); retry.type = 'button';
-                retry.onclick = () => window.SigmaAiDatabase?.reloadLogs().catch(() => {}); panel.append(retry);
+                const status = element('div', '', 'sigma-load-status sigma-load-status--inline');
+                window.renderSigmaLoadStatus(status, 'Unable to load recorded AI activity.', () => window.SigmaAiDatabase?.reloadLogs().catch(() => {}));
+                panel.lastElementChild?.remove(); panel.append(status);
             }
             return;
         }

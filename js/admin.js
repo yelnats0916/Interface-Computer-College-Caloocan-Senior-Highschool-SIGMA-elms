@@ -19969,12 +19969,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.renderAiRouting?.(data);
             } else {
                 const feedback = document.getElementById('ai-routing-feedback');
-                if (feedback) feedback.textContent = 'Unable to load AI settings. Refresh to retry.';
+                window.renderSigmaLoadStatus(feedback, 'Unable to load AI settings.', window.loadAiPageData);
             }
         } catch (e) {
             console.warn('[SIGMA] AI vault load error:', e);
             const feedback = document.getElementById('ai-routing-feedback');
-            if (feedback) feedback.textContent = 'Unable to connect to AI settings. Refresh to retry.';
+            window.renderSigmaLoadStatus(feedback, 'Unable to connect to AI settings.', window.loadAiPageData);
         }
     };
 

@@ -143,7 +143,7 @@
         const table = document.querySelector('#audit-auth-view table[aria-label="Authentication logs"]');
         const body = table?.tBodies?.[0]; if (!body) return;
         let status = document.getElementById('authentication-server-status');
-        if (!status) { status = document.createElement('p'); status.id = 'authentication-server-status'; status.className = 'text-sm text-black-fade mb-3'; status.setAttribute('role','status'); table.parentElement.before(status); }
+        if (!status) { status = document.createElement('p'); status.id = 'authentication-server-status'; status.className = 'sigma-load-status'; status.setAttribute('role','status'); table.parentElement.before(status); }
         status.hidden = !serverError;
         status.textContent = serverError ? `${serverError} Showing only history available in this browser.` : '';
 

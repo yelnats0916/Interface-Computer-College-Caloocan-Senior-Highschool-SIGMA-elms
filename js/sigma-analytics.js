@@ -262,7 +262,7 @@
                 <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center"><i class="fa-solid ${loading ? 'fa-spinner fa-spin' : health ? 'fa-heart-pulse' : 'fa-database'} text-lg text-black-fade" aria-hidden="true"></i></div>
                 <p class="text-sm font-semibold text-black">${heading}</p>
                 <p class="text-xs text-black-fade leading-relaxed">${message}</p>
-                ${loading ? '' : '<button type="button" class="text-xs font-semibold underline cursor-pointer" onclick="window.refreshLiveSystemMetrics()">Retry</button>'}
+                ${loading ? '' : '<button type="button" class="sigma-retry-link" onclick="window.refreshLiveSystemMetrics()">Refresh</button>'}
             </div>`;
         }
         const data = liveMetrics;
@@ -374,7 +374,7 @@
                             <span id="ai-usage-percent" class="text-[11px] font-bold text-black">${item.quotaPercent}</span>
                         </div>
                         <div id="ai-capacity-track" class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="ai-usage-bar" class="w-[0%] h-full bg-[#15803d] rounded-full transition-all duration-500"></div></div>
-                        <button type="button" id="ai-usage-retry" class="text-xs underline cursor-pointer" onclick="window.retryAiUsage?.()" hidden>Retry</button>
+                        <button type="button" id="ai-usage-retry" class="sigma-retry-link" onclick="window.retryAiUsage?.()" hidden>Refresh</button>
                     </div>
                 </div>
             `;
@@ -1026,7 +1026,7 @@
                 if (status === 'loading') {
                     container.innerHTML = renderSigmaInsightSkeletonCardHtml();
                 } else if (status === 'error') {
-                    container.innerHTML = '<p class="sigma-insight-search-empty" role="status">Unable to load insights.</p><button type="button" class="sigma-btn sigma-btn-white sigma-btn-sm" onclick="window.retrySigmaInsights()">Retry</button>';
+                    container.innerHTML = '<div class="sigma-load-status" role="status"><span>Unable to load insights.</span><button type="button" class="sigma-retry-link" onclick="window.retrySigmaInsights()">Refresh</button></div>';
                 } else {
                     container.innerHTML = query ? '<p class="sigma-insight-search-empty" role="status">No matching insights</p>' : renderPocketCardZeroStateHtml();
                 }

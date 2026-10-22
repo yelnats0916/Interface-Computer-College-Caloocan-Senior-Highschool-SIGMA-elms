@@ -197,6 +197,18 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
     }, { capture: true, passive: true });
 })();
 
+window.renderSigmaLoadStatus = function (container, message, retry) {
+    if (!container) return;
+    container.classList.add('sigma-load-status');
+    const text = document.createElement('span'); text.textContent = message;
+    container.replaceChildren(text);
+    if (typeof retry === 'function') {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'sigma-retry-link'; button.textContent = 'Refresh';
+        button.onclick = async () => { button.disabled = true; try { await retry(); } finally { button.disabled = false; } };
+        container.append(button);
+    }
+};
+
 // One empty-state layout: 36px fade icon, 14px/700 title, 12px/500 fade subtitle.
 window.renderSigmaEmptyState = function (options) {
     const opts = options || {};

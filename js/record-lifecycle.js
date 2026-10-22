@@ -319,32 +319,9 @@
         select.onchange = reloadFirstPage; await load();
     }
     window.renderRecordRecovery = open;
-    window.renderRecordLifecycleEvents = async () => {
-        const table = document.querySelector('#audit-activity-view .sigma-audit-table');
-        if (!table || !window.SigmaAiDatabase) return;
-        let notice = table.parentElement.querySelector('[data-lifecycle-audit-status]');
-        if (!notice) {
-            notice = document.createElement('p'); notice.dataset.lifecycleAuditStatus = 'true'; notice.setAttribute('role', 'status'); table.after(notice);
-        }
-        notice.hidden = true;
-        try {
-            const result = await window.SigmaAiDatabase.request('record_lifecycle', { view: 'events' }, true);
-            if (!Array.isArray(result.events) || !result.events.length) return;
-            const renderRow = event => {
-                const row = document.createElement('tr');
-                const identity = document.createElement('td'); identity.append(removerIdentity({ deletedByUser: event.actor }));
-                const action = document.createElement('td'); action.textContent = { remove: 'Record Deleted', restore: 'Record Restored', purge: 'Record Permanently Deleted' }[event.action] || event.action;
-                const record = document.createElement('p'); record.className = 'text-sm text-black-fade'; record.textContent = event.recordId; action.append(record);
-                const module = document.createElement('td'); module.textContent = names[event.recordType] || event.recordType;
-                const time = document.createElement('td'); time.textContent = new Date(event.timestamp.replace(' ', 'T') + 'Z').toLocaleString('en-US', { timeZone: 'Asia/Manila' });
-                row.append(identity, action, module, time); return row;
-            };
-            if (window.SigmaLogPagination) {
-                window.SigmaLogPagination.setRecords(table, result.events, renderRow);
-                window.SigmaLogPagination.filter(table, window.getAuditLogSearchQuery?.() || '');
-            } else table.tBodies[0].replaceChildren(...result.events.map(renderRow));
-        } catch (error) { notice.textContent = 'Unable to load record activity. Refresh to retry.'; notice.hidden = false; }
-    };
+    // The activity feed owns the table; lifecycle events are included in its server response.
+    window.renderRecordLifecycleEvents = () => window.SigmaActivityLogs?.refresh();
+
     install();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
     window.addEventListener('load', install);

@@ -26,6 +26,7 @@ if ($requestMethod === 'OPTIONS') {
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
+require_once __DIR__ . '/../includes/activity_audit.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -320,6 +321,7 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM `sections` WHERE `id` = :id LIMIT 1");
         $stmt->execute([':id' => $secId]);
         $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved Section', 'Classes', 'Section '.$secId);
 
         jsonResponse([
             'success' => true,

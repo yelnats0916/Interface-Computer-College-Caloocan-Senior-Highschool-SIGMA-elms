@@ -94,7 +94,7 @@
         } catch (_) {
             if (!element.isConnected || element.dataset.teacherInsightKey !== key) return;
             show('Class insights unavailable. ', 'error');
-            const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Retry'; retry.className = 'underline cursor-pointer';
+            const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Refresh'; retry.className = 'sigma-retry-link'; retry.style.marginInlineStart = '8px';
             retry.onclick = () => window.refreshTeacherGradeInsight(element, evidence); element.append(retry);
         } finally { pending.delete(key); }
     };

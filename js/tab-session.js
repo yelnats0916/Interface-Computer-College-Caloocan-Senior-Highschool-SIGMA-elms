@@ -112,7 +112,7 @@
         status.appendChild(message);
         if (gateMessage !== 'Checking your session...' && !signingOut) {
             const retry = document.createElement('button');
-            retry.type = 'button'; retry.textContent = 'Retry';
+            retry.type = 'button'; retry.textContent = 'Refresh'; retry.className = 'sigma-retry-link';
             retry.addEventListener('click', () => verifyDatabaseSession());
             status.appendChild(retry);
             const login = document.createElement('button');

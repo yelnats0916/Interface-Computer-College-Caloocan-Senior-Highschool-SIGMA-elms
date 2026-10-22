@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
+require_once __DIR__ . '/../includes/activity_audit.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' ? [] : ['admin', 'masteradmin', 'administrator']));
 require_once $rootDir . '/php/includes/gdrive_service.php';
 
@@ -267,6 +268,7 @@ try {
             error_log("GDrive folder provisioning warning: " . $t->getMessage());
         }
 
+        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved School Year', 'System', 'School year '.$yearStart.'-'.$yearEnd);
         $pdo->commit();
 
         jsonResponse([

@@ -917,6 +917,7 @@
     <style id="dynamic-print-page">
         @page { size: auto; margin: 0mm; }
     </style>
+    <link rel="stylesheet" href="css/retry-links.css?v=20261022_retry_v1">
 </head>
 
 <body class="min-h-screen flex flex-col antialiased selection:bg-[#15803d] selection:text-white">
@@ -1044,10 +1045,7 @@
                     <i class="fa-solid fa-download"></i>
                     <span>Download File</span>
                 </a>
-                <button onclick="location.reload()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-rotate-right"></i>
-                    <span>Retry</span>
-                </button>
+                <button type="button" onclick="location.reload()" class="sigma-retry-link">Refresh</button>
             </div>
         </div>
     </div>

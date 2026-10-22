@@ -62,384 +62,12 @@
             .some(v => v != null && String(v).trim().toLowerCase() === String(userId).trim().toLowerCase()));
     }
 
-    // Baseline catalog of actions across all roles and system corners
-    function generateBaselineLogs() {
-        const now = Date.now();
-        const m = min => new Date(now - min * 60 * 1000).toISOString();
-        const h = hrs => new Date(now - hrs * 3600 * 1000).toISOString();
-        const d = days => new Date(now - days * 86400 * 1000).toISOString();
-
-        return [
-            // Admin actions
-            {
-                id: 'act-adm-001',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Updated School Year Configuration',
-                module: 'System',
-                details: 'Set active academic term to 2026–2027 Quarter 1 and published calendar dates',
-                timestamp: m(15)
-            },
-            {
-                id: 'act-adm-002',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Modified AI Routing Provider',
-                module: 'System',
-                details: 'Switched primary LLM routing provider to Gemini 2.0 Flash with auto-fallback',
-                timestamp: m(48)
-            },
-            {
-                id: 'act-adm-003',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Created Academic Section',
-                module: 'Classes',
-                details: 'Added Grade 10 - Rizal (Senior High Track, Max Capacity: 45 students)',
-                timestamp: h(2)
-            },
-            {
-                id: 'act-adm-004',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Assigned Class Adviser',
-                module: 'Classes',
-                details: 'Assigned Jane Smith as official class adviser for Grade 10 - Rizal',
-                timestamp: h(3)
-            },
-            {
-                id: 'act-adm-005',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Created User Account',
-                module: 'Users',
-                details: 'Created faculty credentials for Sarah Connor (TCH-2026-015, Science Dept)',
-                timestamp: h(4)
-            },
-            {
-                id: 'act-adm-006',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Updated User Profile',
-                module: 'Users',
-                details: 'Modified contact telephone and official department for Mark Kevin (TCH-2026-002)',
-                timestamp: h(6)
-            },
-            {
-                id: 'act-adm-007',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Reset User Password',
-                module: 'Security',
-                details: 'Generated temporary login credentials for student Stanley Tan upon verification',
-                timestamp: h(8)
-            },
-            {
-                id: 'act-adm-008',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Published Campus Announcement',
-                module: 'Announcements',
-                details: 'Broadcasted campus-wide notice: Midterm Assessment Schedule and Guidelines',
-                timestamp: h(12)
-            },
-            {
-                id: 'act-adm-009',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Pinned Global Announcement',
-                module: 'Announcements',
-                details: 'Pinned portal banner: Scheduled Database Maintenance Window on Sunday 2:00 AM',
-                timestamp: d(1)
-            },
-            {
-                id: 'act-adm-010',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Updated Security & reCAPTCHA Policy',
-                module: 'Security',
-                details: 'Enforced score threshold 0.7 for all teacher and administrative login requests',
-                timestamp: d(1.5)
-            },
-            {
-                id: 'act-adm-011',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Exported Audit Trail Report',
-                module: 'System',
-                details: 'Generated and downloaded CSV audit report covering recent authentication logs',
-                timestamp: d(2)
-            },
-            {
-                id: 'act-adm-012',
-                userId: 'ADM-2026-001',
-                userName: 'Master Admin',
-                userRole: 'Administrator',
-                userAvatar: '',
-                activity: 'Restored Archived System Record',
-                module: 'System',
-                details: 'Restored curriculum topic #402 from Record Recovery workstation',
-                timestamp: d(3)
-            },
-
-            // Teacher actions (Jane Smith, Mark Kevin)
-            {
-                id: 'act-tch-001',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Modified Grade Entry - Math 101',
-                module: 'Grades',
-                details: 'Updated Quarter 1 Written Work scores for Grade 10 - Section Emerald',
-                timestamp: m(32)
-            },
-            {
-                id: 'act-tch-002',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Created Assessment',
-                module: 'Assessments',
-                details: 'Created draft for "Quarter 1 Mathematics Mastery Examination" (50 items, 60 mins)',
-                timestamp: h(1)
-            },
-            {
-                id: 'act-tch-003',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Published Scheduled Assessment',
-                module: 'Assessments',
-                details: 'Published "Algebra & Functions Quiz 2" with deadline set to Oct 22, 2026',
-                timestamp: h(3)
-            },
-            {
-                id: 'act-tch-004',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Graded Coursework Submission',
-                module: 'Submissions',
-                details: 'Evaluated problem set submission for Stanley Tan (Score: 98/100, Excellent work)',
-                timestamp: h(5)
-            },
-            {
-                id: 'act-tch-005',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Uploaded Lesson Module',
-                module: 'Curriculum',
-                details: 'Uploaded study material "Unit 2 - Polynomial Equations & Graphs.pdf"',
-                timestamp: h(7)
-            },
-            {
-                id: 'act-tch-006',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Submitted Quarter Grades for Approval',
-                module: 'Grades',
-                details: 'Submitted Quarter 1 gradebook for Section Emerald to Department Head',
-                timestamp: d(1)
-            },
-            {
-                id: 'act-tch-007',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Recorded Daily Class Attendance',
-                module: 'Classes',
-                details: 'Recorded attendance for Section Emerald (39 Present, 1 Excused, 0 Absent)',
-                timestamp: d(1.2)
-            },
-            {
-                id: 'act-tch-008',
-                userId: 'TCH-2026-001',
-                userName: 'Jane Smith',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Posted Class Announcement',
-                module: 'Announcements',
-                details: 'Posted class bulletin: "Reminder to bring scientific calculator for Thursday quiz"',
-                timestamp: d(2)
-            },
-
-            // Teacher actions (Mark Kevin)
-            {
-                id: 'act-tch-009',
-                userId: 'TCH-2026-002',
-                userName: 'Mark Kevin',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Created Interactive Topic',
-                module: 'Curriculum',
-                details: 'Created interactive lesson topic: "Cellular Mitosis & Microscopic Phases"',
-                timestamp: m(55)
-            },
-            {
-                id: 'act-tch-010',
-                userId: 'TCH-2026-002',
-                userName: 'Mark Kevin',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Released Topic Learning Content',
-                module: 'Curriculum',
-                details: 'Released Week 4 curriculum readings to all enrolled Biology 10 sections',
-                timestamp: h(4)
-            },
-            {
-                id: 'act-tch-011',
-                userId: 'TCH-2026-002',
-                userName: 'Mark Kevin',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Reopened Assessment Submission',
-                module: 'Assessments',
-                details: 'Granted 24-hour individual resubmission window for Stanley Tan (STU-2026-001)',
-                timestamp: h(9)
-            },
-            {
-                id: 'act-tch-012',
-                userId: 'TCH-2026-002',
-                userName: 'Mark Kevin',
-                userRole: 'Teacher',
-                userAvatar: '',
-                activity: 'Exported Gradebook Master Sheet',
-                module: 'Grades',
-                details: 'Generated Excel master grade sheet for Grade 10 - Section Einstein',
-                timestamp: d(2.5)
-            },
-
-            // Student actions (Stanley Tan)
-            {
-                id: 'act-stu-001',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Turned in Assignment Submission',
-                module: 'Submissions',
-                details: 'Uploaded solution file "Lab Report 3 - Chemical Reactions & Catalysts.pdf"',
-                timestamp: m(10)
-            },
-            {
-                id: 'act-stu-002',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Submitted Assessment Answers',
-                module: 'Assessments',
-                details: 'Completed and submitted "Biology Unit 1 Quiz" (Score: 48/50, 96%)',
-                timestamp: m(40)
-            },
-            {
-                id: 'act-stu-003',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Started Timed Assessment',
-                module: 'Assessments',
-                details: 'Initiated attempt for "Quarter 1 Mathematics Examination" (Attempt 1 of 1)',
-                timestamp: h(1.5)
-            },
-            {
-                id: 'act-stu-004',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Accessed Learning Module',
-                module: 'Curriculum',
-                details: 'Downloaded lecture document "Chapter 2 - Newtonian Dynamics Reference Guide.pdf"',
-                timestamp: h(3.5)
-            },
-            {
-                id: 'act-stu-005',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Viewed Graded Assessment Results',
-                module: 'Assessments',
-                details: 'Viewed question-by-question answer key and teacher notes for Quiz 1',
-                timestamp: h(6)
-            },
-            {
-                id: 'act-stu-006',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Consulted SigmaBot AI Tutor',
-                module: 'AI Assistant',
-                details: 'Queried step-by-step factoring method for quadratic equations with negative coefficients',
-                timestamp: h(10)
-            },
-            {
-                id: 'act-stu-007',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Viewed Academic Gradebook Report',
-                module: 'Grades',
-                details: 'Accessed Quarter 1 summary report card and verified transmutation remarks',
-                timestamp: d(1.8)
-            },
-            {
-                id: 'act-stu-008',
-                userId: 'STU-2026-001',
-                userName: 'Stanley Tan',
-                userRole: 'Student',
-                userAvatar: '',
-                activity: 'Resubmitted Coursework Assignment',
-                module: 'Submissions',
-                details: 'Uploaded revised version 2 of English Thesis Abstract upon feedback',
-                timestamp: d(3.2)
-            }
-        ];
-    }
-
-    const read = () => {
+    const readLocal = () => {
         try {
             const raw = localStorage.getItem(KEY);
-            let items = raw ? JSON.parse(raw) : null;
-            if (!Array.isArray(items) || !items.length) {
-                items = generateBaselineLogs();
-                localStorage.setItem(KEY, JSON.stringify(items));
-            }
+            const saved = raw ? JSON.parse(raw) : [];
+            const items = Array.isArray(saved) ? saved.filter(item => item && !/^act-(adm|tch|stu)-[0-9]{3}$/.test(String(item.id))) : [];
+            if (Array.isArray(saved) && items.length !== saved.length) localStorage.setItem(KEY, JSON.stringify(items));
             return items.map(item => {
                 let details = item.details || item.description || '';
                 if (details === '—' || details === '--' || details === '-') details = '';
@@ -464,7 +92,7 @@
                 };
             });
         } catch (_) {
-            return generateBaselineLogs();
+            return [];
         }
     };
 
@@ -476,10 +104,30 @@
         }
     };
 
-    function deleteActivityLog(id) {
+    let serverRecords = [], serverError = '', pending = null;
+    const read = () => [...serverRecords, ...readLocal().filter(item => !serverRecords.some(remote =>
+        remote.userId === item.userId && remote.activity === item.activity
+        && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000))];
+    async function refresh() {
+        if (!document.getElementById('audit-activity-view') || !window.SigmaDatabase?.currentUser()?.id) return;
+        if (pending) return pending;
+        pending = (async () => {
+            try {
+                const result = await window.SigmaDatabase.request('activity_logs');
+                serverRecords = Array.isArray(result.records) ? result.records : []; serverError = '';
+            } catch (error) { serverError = error.message || 'Unable to load activity logs.'; }
+            finally { pending = null; render(); }
+        })();
+        return pending;
+    }
+    async function deleteActivityLog(id) {
         if (!id) return;
         try {
-            const records = read();
+            if (String(id).startsWith('server-')) {
+                await window.SigmaDatabase.request('activity_logs', {data:{action:'delete',id}});
+                await refresh(); return;
+            }
+            const records = readLocal();
             const filtered = records.filter(item => String(item.id) !== String(id));
             write(filtered);
             window.dispatchEvent(new CustomEvent('sigma-activity-logs-updated', { detail: { id, deleted: true } }));
@@ -489,7 +137,7 @@
                 window.SigmaLogPagination.reset(table);
             }
         } catch (err) {
-            console.error('[Activity Logs] Delete error:', err);
+            window.showToast?.(err.message || 'Activity log could not be deleted.', 'error');
         }
     }
 
@@ -516,6 +164,17 @@
         const table = document.querySelector('#audit-activity-view table[aria-label="Activity logs"]');
         const body = document.getElementById('activity-log-rows') || table?.tBodies?.[0];
         if (!table || !body) return;
+        let notice = document.getElementById('activity-server-status');
+        if (!notice) { notice = document.createElement('div'); notice.id = 'activity-server-status'; notice.setAttribute('role','status'); table.after(notice); }
+        notice.hidden = !serverError;
+        notice.replaceChildren();
+        if (serverError) {
+            notice.className = 'sigma-load-status';
+            const message = document.createElement('span'); message.textContent = 'Unable to load activity logs.';
+            const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'sigma-retry-link'; retry.textContent = 'Refresh'; retry.onclick = refresh;
+            notice.append(message,retry);
+        }
+
 
         const section = document.getElementById('audit-activity-view');
         section?.toggleAttribute('data-activity-detail-open', Boolean(selectedUser));
@@ -812,7 +471,8 @@
                     }
                 });
 
-                menu.append(deleteBtn);
+                if (String(record.id).startsWith('server-lifecycle-')) toggle.hidden = true;
+                else menu.append(deleteBtn);
                 actionsWrap.append(toggle, menu);
                 actionTd.append(actionsWrap);
 
@@ -920,9 +580,10 @@
         }
 
         const user = options.user || currentUser || {};
-        const userId = clean(options.userId || user.uid || user.id || user.studentNumber || user.employeeId || 'SYS-001');
-        const userName = clean(options.userName || user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Master Admin');
-        const userRole = clean(options.userRole || user.role || user.type || 'Administrator');
+        const userId = clean(options.userId || user.uid || user.id || user.studentNumber || user.employeeId);
+        if (!userId || !currentUser) return null;
+        const userName = clean(options.userName || user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown account');
+        const userRole = clean(options.userRole || user.role || user.type || 'Not recorded');
         const userAvatar = clean(options.userAvatar || user.avatar || user.profilePicture || '');
 
         const item = {
@@ -937,7 +598,7 @@
             timestamp: options.timestamp || new Date().toISOString()
         };
 
-        const records = read();
+        const records = readLocal();
         records.unshift(item);
         write(records);
         window.dispatchEvent(new CustomEvent('sigma-activity-logs-updated', { detail: item }));
@@ -970,6 +631,7 @@
     window.SigmaActivityLogs = {
         record: recordActivityLog,
         getLogs: read,
+        refresh,
         deleteLog: deleteActivityLog,
         render
     };
@@ -987,10 +649,16 @@
         if (!event.key || event.key === KEY) render();
     });
     window.addEventListener('sigma-activity-logs-updated', render);
+    window.addEventListener('sigma:database-session-ready', refresh);
+    window.addEventListener('focus', refresh);
+    setInterval(() => {
+        const section = document.getElementById('audit-activity-view');
+        if (document.visibilityState === 'visible' && section && !section.classList.contains('hidden')) refresh();
+    }, 30000);
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', render);
+        document.addEventListener('DOMContentLoaded', () => { render(); refresh(); });
     } else {
-        render();
+        render(); refresh();
     }
 })();
