@@ -1,33 +1,58 @@
 (function () {
     'use strict';
-    function install() {
-        const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
-        const controller = kind === 'teacher' ? window.SigmaTeacherAnalytics : window.SigmaStudentAnalytics;
-        if (!controller || controller.liveProviderConnected) return;
-        controller.setProvider(async request => {
-            const user = kind === 'teacher' ? window.getLoggedInTeacherUser?.() : window.getLoggedInStudentUser?.();
-            const id = String(user?.id || user?.uid || '');
-            if (!id || String(request.snapshot?.[kind + 'Id'] || '') !== id) throw new Error('Analytics evidence does not match the signed-in account.');
-            const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
-                : new URL(location.pathname.includes('/php/') ? 'api/analytics_ai.php' : 'php/api/analytics_ai.php', location.href).href;
-            const timeout = new AbortController();
-            const timer = setTimeout(() => timeout.abort(), 30000);
-            try {
-                const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: timeout.signal, headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ kind, snapshot: request.snapshot, maxCards: request.maxCards, language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
-                const result = await response.json();
-                if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'AI returned invalid analytics.');
-                if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI returned analytics without a generation ID.');
-                return result;
-            } catch (error) {
-                if (error.name === 'AbortError') throw new Error('Analytics request timed out. Please try again later.');
-                throw error;
-            } finally { clearTimeout(timer); }
+    const snapshots = {}, pending = new Map();
+    const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
+    const api = () => location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/analytics_ai.php'
+        : new URL('php/api/analytics_ai.php', location.href).href;
+    function status(message, busy = false) {
+        document.querySelectorAll('.sigma-analyze-button:not(.sigma-insight-mark-all)').forEach(button => {
+            button.disabled = busy; button.title = message; button.setAttribute('aria-label', message);
+            button.querySelector('i')?.classList.toggle('fa-spin', busy);
         });
+        document.querySelectorAll('.sigma-analysis-status').forEach(node => { node.textContent = message; node.hidden = !message; });
+    }
+    async function analyze(options = {}) {
+        const actor = window.SigmaAcademicRecords?.actor();
+        const id = String(actor?.id || '');
+        if (!id || window.SigmaAcademicRecords.role() !== kind) return;
+        if (pending.has(id)) return pending.get(id);
+        const task = (async () => {
+            status('Analyzing your latest learning records…', true);
+            try {
+                await window.SigmaAcademicRecords.flush();
+                const response = await window.SigmaDatabase.fetch(api(), { method: 'POST', credentials: 'include',
+                    signal: AbortSignal.timeout(130000), headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kind, feature: 'analytics', language: window.getSigmaAiLanguage?.('insights') || 'en' }) });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.error || 'Learning insights are unavailable.');
+                if (window.SigmaAcademicRecords.actor().id !== id) return;
+                snapshots[kind] = result.snapshot;
+                await window.SigmaAiDatabase.ensureState(kind, id, true);
+                window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+                status(result.cards?.length ? 'Your new learning insights have been saved.' : result.reason || 'No new supported learning evidence.');
+            } catch (error) {
+                status(error.message);
+                if (!options.automatic) window.SigmaAnnouncements?.showToast?.(error.message, 'error');
+            } finally { pending.delete(id); document.querySelectorAll('.sigma-analyze-button').forEach(button => { button.disabled = false; button.querySelector('i')?.classList.remove('fa-spin'); }); }
+        })();
+        pending.set(id, task); return task;
+    }
+    window.SigmaLiveAnalytics = { analyze, snapshots };
+    let installed = false, timer;
+    function install() {
+        const controller = kind === 'teacher' ? window.SigmaTeacherAnalytics : window.SigmaStudentAnalytics;
+        if (!controller || installed) return;
+        installed = true;
+        controller.setProvider(async () => { throw new Error('Use the server learning evidence controller.'); });
         controller.liveProviderConnected = true;
         controller.refresh?.();
-        window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
+        setTimeout(() => analyze({ automatic: true }), 1500);
     }
+    function changed() { clearTimeout(timer); timer = setTimeout(() => analyze({ automatic: true }), 2500); }
+    window.addEventListener('sigma:database-session-ready', changed);
+    window.addEventListener('sigma:academic-records-saved', changed);
+    window.addEventListener('sigma:grades-published', changed);
+    window.addEventListener('sigma:grades-submitted', changed);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
     window.addEventListener('load', install);
     document.addEventListener('sigma:teacher-portal-ready', install);

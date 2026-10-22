@@ -184,12 +184,12 @@
             const categories = new Set();
             card.analyses.forEach(analysis => {
                 if (!CATEGORIES.includes(analysis.category) || categories.has(analysis.category)
-                    || typeof analysis.text !== 'string' || !analysis.text.trim() || analysis.text.length > 2500) {
+                    || typeof analysis.text !== 'string' || !analysis.text.trim() || analysis.text.length > 5000) {
                     throw new Error('Invalid analytics content.');
                 }
                 categories.add(analysis.category);
                 if (!normalizeActionLabel(analysis.actionLabel)) throw new Error('Each insight must choose exactly one action label.');
-                if (analysis.context !== undefined && (typeof analysis.context !== 'string' || analysis.context.length > 2500)) throw new Error('Invalid insight context.');
+                if (analysis.context !== undefined && (typeof analysis.context !== 'string' || analysis.context.length > 5000)) throw new Error('Invalid insight context.');
                 if (analysis.showAdviceLabel !== undefined && typeof analysis.showAdviceLabel !== 'boolean') throw new Error('Invalid advice label visibility.');
             });
             if (!Array.isArray(card.evidenceIds) || !card.evidenceIds.length
@@ -293,6 +293,7 @@
         return { studentId: id, areas: values };
     }
     async function analyze({ automatic = false } = {}) {
+        if (root.SigmaLiveAnalytics) return root.SigmaLiveAnalytics.analyze({ automatic });
         const id = studentId();
         return withGenerationLock(root, key(id), () => analyzeUnlocked(id, automatic));
     }
@@ -415,7 +416,7 @@
                 id: escapeText(card.id), area: card.area, categories: card.categories,
                 categoryIcon: INSIGHT_ICONS[normalizeInsightIcon(card.icon)].className, concernTitle: escapeText(normalizeInsightTitle(card.title)),
                 date: card.createdAt ? new Date(card.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : date, datePlacement: 'footer',
-                subject: 'Your Submissions', subjectIcon: 'fa-file-lines',
+                subject: 'Your Learning Insights', subjectIcon: 'fa-lightbulb',
                 concernHighlight: '',
                 previewText: renderInsightSections(card.analyses, root.location.href),
                 concernText: renderInsightSections(card.analyses, root.location.href)

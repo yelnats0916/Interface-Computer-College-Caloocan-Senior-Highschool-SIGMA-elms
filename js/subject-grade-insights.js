@@ -77,11 +77,6 @@
         const evidenceSources = [{ id: overall ? 'overall-grades' : 'subject-grades',
             label: overall ? 'Overall Grades — Published Grade Records' : 'Subject Grades — Grade and Assessment Records',
             records: records.map(row => ({ id: row.id, title: row.subject, subjectId: row.subjectId, sectionId: row.sectionId })) }];
-        const recordLog = values => {
-            try { return window.SigmaAiLogs?.record({ userId, feature: 'grade_insights', prompt: title,
-                actionDescription: title, evidenceSources, gradeEvidenceKey: evidenceKey, gradeViewKey: viewKey, timestamp: new Date().toISOString(), ...values }); }
-            catch (error) { console.warn('Grade insight log could not be saved.', error); }
-        };
         const language = window.getSigmaAiLanguage?.('insights') || 'en';
         const fingerprint = JSON.stringify(stableValue({ userId, ...canonicalEvidence(evidence), language, insightPolicyVersion }));
         const evidenceKey = JSON.stringify(stableValue({ userId, ...canonicalEvidence(evidence), language }));
@@ -109,10 +104,7 @@
                             window.dispatchEvent(new Event('sigma:grade-insight-view-updated'));
                         }
                     } catch (_) {}
-                    const sourceLogId = text.insightSourceId?.replace(/:\d+$/, '');
-                    Promise.resolve(window.SigmaAiLogs?.whenSaved?.(sourceLogId)).then(() =>
-                        window.SigmaAiDatabase?.request('ai_records', { action: 'grade_insight_view', userId, viewKey, generationId: text.generationId })
-                    ).catch(() => {});
+                    window.SigmaAiDatabase?.request('ai_records', { action: 'grade_insight_view', userId, viewKey, generationId: text.generationId }).catch(() => {});
                 }
                 window.restoreSigmaInsightTimestamp?.(element, text, userId,
                     () => element.dataset.insightFingerprint === fingerprint,
@@ -176,19 +168,19 @@
                     const snapshot = { studentId: userId, scope: overall ? 'overall' : 'subject', quarter: evidence.quarter,
                         areas: [{ id: overall ? 'overall-grades' : 'subject-grades', records }] };
                     const response = await window.SigmaDatabase.fetch(api, { method: 'POST', credentials: 'include', signal: controller.signal,
-                        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'student', maxCards: 1, snapshot, language:window.getSigmaAiLanguage?.('insights')||'en' }) });
+                        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'student', maxCards: 1, snapshot, gradeEvidenceKey: evidenceKey, language:window.getSigmaAiLanguage?.('insights')||'en' }) });
                     const result = await response.json();
                     if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error(result.error || 'Subject insights unavailable.');
-                    if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Subject insight was returned without a generation ID.');
-                    const cards = window.SigmaInsightRules.validateCards(result, snapshot);
+                    if (result.cards.length && !/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Subject insight was returned without a generation ID.');
+                    const cards = window.SigmaInsightRules.validateCards(result, result.snapshot || snapshot);
                     const createdAt = new Date().toISOString();
-                    const logId = recordLog({ timestamp: createdAt, response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
-                    const card = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt,
+                    const logId = result.generationId;
+                    const card = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: result.cards[0]?.createdAt || createdAt,
                         ...(logId ? { insightSourceId: `${logId}:0` } : {}) } : null;
                     if (card) saveResult(fingerprint, card);
                     return card || 'Not enough recorded evidence for a subject insight yet.';
                 } catch (error) {
-                    recordLog({ response: error.message || 'Grade insights unavailable.', status: 'Failed' });
+                    console.warn('Grade insights unavailable:', error.message);
                     const text = 'SIGMA AI Grade Insights are unavailable. Your recorded grades are unchanged.';
                     return text;
                 } finally { clearTimeout(timer); }

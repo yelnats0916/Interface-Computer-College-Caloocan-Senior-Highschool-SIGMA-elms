@@ -29,8 +29,9 @@ try{
         if (!$admin) { http_response_code(403); echo json_encode(['success'=>false,'error'=>'Only administrators can read AI activity.']); exit; }
         echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]); exit;
     }
-    if (!$localRecords) {
-        http_response_code(403); echo json_encode(['success'=>false,'error'=>'This AI record feature is not available on the hosted site yet.']); exit;
+    if (!$localRecords && in_array($action,['save_state','save_log'],true)) {
+        // Learning generation saves on the server. Browser caches cannot fabricate cards, logs or quota state.
+        http_response_code(403);echo json_encode(['success'=>false,'error'=>'Learning AI results must be generated and saved by the server.']);exit;
     }
     aiInsightControls($db);
     if($action==='latest_grade_insight'&&$method==='POST'){
@@ -56,7 +57,7 @@ try{
                 if(!$latest||strtotime($card['createdAt']??'')>strtotime($latest['createdAt']??''))$latest=$card;
             }
         }
-        echo json_encode(['success'=>true,'card'=>$latest]);
+        echo json_encode(['success'=>true,'card'=>$latest]);exit;
     }elseif($action==='grade_insight_view'&&$method==='POST'){
         $owner=$input['userId']??$actor;
         if($owner!==$actor || $role!=='student')throw new RuntimeException('Only the student can identify their displayed insight.');
@@ -66,7 +67,7 @@ try{
         foreach($q->fetchAll() as $row){$log=json_decode($row['payload'],true);if(($log['generationId']??'')===$generation&&in_array($log['status']??'',['Success','Fallback Used'],true)){$found=true;break;}}
         if(!$found)throw new RuntimeException('The displayed insight must be saved before it can be synced.');
         $db->prepare('INSERT INTO ai_grade_insight_views(user_id,view_key,generation_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE generation_id=VALUES(generation_id)')->execute([$owner,hash('sha256',$view),$generation]);
-        echo json_encode(['success'=>true]);
+        echo json_encode(['success'=>true]);exit;
     }elseif($action==='manage_insights'&&$method==='POST'){
         if(!$admin)throw new RuntimeException('Only administrators can manage insights.');
         $operation=$input['operation']??'';$items=$input['items']??[];

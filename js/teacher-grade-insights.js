@@ -76,11 +76,10 @@
                     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'grade_insights', kind: 'teacher', maxCards: 1, snapshot, language }) });
                 const result = await response.json();
                 if (!response.ok || !result.success || !Array.isArray(result.cards)) throw new Error('Class insights unavailable.');
-                if (!/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Class insight was returned without a generation ID.');
-                const cards = window.SigmaInsightRules.validateCards(result, snapshot);
-                const logId = window.SigmaAiLogs?.record({ userId: id, feature: 'grade_insights', timestamp: new Date().toISOString(), prompt: 'Class Grades: ' + evidence.subject,
-                        response: JSON.stringify(cards), model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId, status: result.status || 'Success' });
-                const text = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: new Date().toISOString(),
+                if (result.cards.length && !/^(INSG|INSC|INSGR|INSS|INSA)-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('Class insight was returned without a generation ID.');
+                const cards = window.SigmaInsightRules.validateCards(result, result.snapshot || snapshot);
+                const logId = result.generationId;
+                const text = cards[0] ? { ...cards[0], generationId: result.generationId, createdAt: result.cards[0]?.createdAt || new Date().toISOString(),
                     ...(logId ? { insightSourceId: `${logId}:0` } : {}) } : null;
                 if (text) saveStoredInsight(key, text);
                 return text;

@@ -18671,6 +18671,11 @@ window.syncSharedScoreAndStatus = function (params) {
         });
     }
 
+    if (window.SigmaAcademicRecords && window.SigmaAcademicRecords.role() !== 'student' && source !== 'attendance') {
+        window.SigmaAcademicRecords.save({ type: 'score', subjectId, section, studentId: sId,
+            itemId, title: taskTitle, topicIdx, itemIdx: topicItemIdx ?? itemIdx, score: finalScore,
+            ...(params.teacherFeedback || params.feedback ? {feedback: params.teacherFeedback || params.feedback} : {}) }).catch(() => {});
+    }
     return { score: finalScore, status: tone };
 };
 
@@ -23382,6 +23387,8 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         } catch (error) {
             console.warn('Submission saved, but teacher notification could not be sent:', error);
         }
+        window.SigmaAcademicRecords?.submit({ subjectId, section: currentSection, itemId: currentAssessmentId,
+            title: currentAssessmentTitle, topicIdx: topIdx, itemIdx: activeIdx }, currentAttemptRecord).catch(() => {});
         window.SigmaSubmissionAi?.queueAfterSubmission(subjectId, topIdx, tab, activeIdx);
         return subData;
     } catch (e) {
@@ -23617,6 +23624,12 @@ window.submitSubmissionComment = function (subjectId, tab, activeIdx, topicIdx, 
         }
     }
     localStorage.setItem(key, JSON.stringify(subData));
+    const aiContext = window._sigmaSubmissionFeedbackContext;
+    if ((isTeacher || isAdmin) && aiContext && curPage === 1) {
+        window.SigmaAcademicRecords?.save({ type: 'teacher_feedback', subjectId, section: aiContext.section,
+            studentId: aiContext.studentId, itemId: aiContext.assessmentId, attemptIdentity: aiContext.identity, text }).catch(() => {});
+    }
+
     inputEl.value = '';
 
     try {
@@ -23753,6 +23766,7 @@ window.deleteStudentSubmissionComment = function (subjectId, tab, activeIdx, top
             }
         }
         localStorage.setItem(key, JSON.stringify(subData));
+        if (isTeacher) window.SigmaAcademicRecords?.clearTeacherFeedback();
 
         window._suppressSubmissionScrollToTop = true;
         if (typeof window.switchTopicTab === 'function') {
@@ -23844,6 +23858,7 @@ window.deleteSubmissionReply = function (subjectId, tab, activeIdx, replyIdx, to
         }
 
         localStorage.setItem(key, JSON.stringify(subData));
+        if (isTeacher) window.SigmaAcademicRecords?.clearTeacherFeedback();
 
         const savedScroll = { x: window.scrollX, y: window.scrollY };
         window._suppressSubmissionScrollToTop = true;
@@ -28056,7 +28071,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             role, key: aiSubmissionKey, attemptPage: aiAttemptPage, submission: subData, identity: window.SigmaSubmissionAi.identity(activeAttempt),
             studentId: String(studentUser.id || studentUser.uid || studentUser.studentId || studentUser.lrn || ''),
             enabled: hasAiAssistant, hasEvaluation: Boolean(subData.aiEvaluation),
-            subjectId, topicIdx, tab, activeIdx, title: displayTitle,
+            subjectId, section: targetSection || section || '', assessmentId: assIdStr, topicIdx, tab, activeIdx, title: displayTitle,
             instructions: String(ass.instructions || ass.description || ''), maxScore: assMaxScore,
             files: activeAttemptFiles.filter(file => file.type !== 'quiz' && file.url !== 'quiz'),
             answers: activeAttempt.answers || activeAttempt.userAnswers || {},
@@ -28065,6 +28080,7 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
             criteria: (isCriteriaAiAuto ? allDepedDimensions : activeCriteriaList).map(criterion => ({ id: criterion.id, title: criterion.title })),
             autoSelect: isCriteriaAiAuto
         } : null;
+        if (window._sigmaSubmissionAiContext) setTimeout(() => window.SigmaSubmissionAi?.hydrate(window._sigmaSubmissionFeedbackContext || window._sigmaSubmissionAiContext), 0);
         if (role === 'teacher') window.SigmaSubmissionAi?.scheduleAutomatic(window._sigmaSubmissionAiContext);
         const feedbackBase = window._sigmaSubmissionAiContext;
         window._sigmaSubmissionFeedbackContext = feedbackBase ? {

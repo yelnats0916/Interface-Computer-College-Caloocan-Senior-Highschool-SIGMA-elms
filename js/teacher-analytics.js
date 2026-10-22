@@ -127,13 +127,14 @@
         setProvider(adapter) { if (typeof adapter !== 'function') throw new Error('Invalid analytics provider.'); provider = adapter; scheduleDaily(); },
         getCards() {
             if (!rules || !teacherId()) return [];
-            const input = snapshot();
+            const input = root.SigmaLiveAnalytics?.snapshots.teacher || snapshot();
             const state = readState(input.teacherId);
             if (!provider) return present(restrictTeacherLinks(rules.validateCards(fallback(input), input), input, root.location.href), state.lastAnalyzed);
             if (!state.usedProvider) return [];
             try { return present(restrictTeacherLinks((state.cards || []).filter(card => typeof card.title === 'string' && card.analyses?.length === 1 && rules.normalizeActionLabel(card.analyses[0].actionLabel)), input, root.location.href), state.lastAnalyzed); } catch { return []; }
         },
         async analyze() {
+            if (root.SigmaLiveAnalytics) return root.SigmaLiveAnalytics.analyze();
             if (running || !rules) return;
             const expectedId = teacherId();
             return rules.withGenerationLock(root, storageKey(expectedId), async () => {

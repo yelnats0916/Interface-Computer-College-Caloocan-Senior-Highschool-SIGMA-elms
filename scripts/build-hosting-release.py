@@ -52,7 +52,7 @@ DirectoryIndex index.html
         files['public/' + folder + '/.htaccess'] = b'Require all denied\n'
     for name in ['index.php', 'admin.php', 'teacher.php', 'student.php']:
         files['public/php/' + name] = (ROOT / 'php' / name).read_bytes()
-    for name in ['schema.sql', 'application_sessions.sql', 'service_secrets.sql', 'record_lifecycle.sql', 'profile_photos.sql', 'user_id_sequences.sql']:
+    for name in ['schema.sql', 'application_sessions.sql', 'service_secrets.sql', 'record_lifecycle.sql', 'profile_photos.sql', 'user_id_sequences.sql', 'academic_evidence.sql']:
         sql = (ROOT / 'database' / name).read_text(encoding='utf-8')
         sql = re.sub(r'^(?:CREATE DATABASE[^;]*;|USE[^;]*;)\s*', '', sql, flags=re.I | re.M)
         if re.search(r'^\s*(?:INSERT|REPLACE|UPDATE|DELETE|DROP|TRUNCATE)\b', sql, re.I | re.M):

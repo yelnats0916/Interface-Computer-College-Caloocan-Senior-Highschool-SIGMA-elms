@@ -1,6 +1,30 @@
 (function () {
     'use strict';
     const pending = new Set();
+    const hydrated = new Set();
+    async function hydrate(context) {
+        if (!context || !window.SigmaAcademicRecords || !context.section || !context.assessmentId) return;
+        const key = [context.studentId, context.subjectId, context.section, context.assessmentId, context.identity].join(':');
+        if (hydrated.has(key)) return;
+        hydrated.add(key);
+        try {
+            const result = await window.SigmaAcademicRecords.request({ subjectId: context.subjectId, section: context.section,
+                studentId: context.studentId, itemId: context.assessmentId }, true);
+            let changed = false;
+            for (const type of ['evaluation', 'feedback']) {
+                const record = result.records?.[type];
+                if (!record || record.attemptIdentity !== context.identity) continue;
+                const current = type === 'feedback' ? readFeedback(context).length : readEvaluation(context.key)?.aiEvaluation;
+                if (current) continue;
+                save({ ...context, mode: type === 'feedback' ? 'feedback' : 'evaluation' }, record.result); changed = true;
+            }
+            if (changed && window._sigmaSubmissionAiContext?.identity === context.identity) {
+                window._suppressSubmissionScrollToTop = true;
+                try { window.switchTopicTab?.(context.tab, context.activeIdx); } finally { window._suppressSubmissionScrollToTop = false; }
+            }
+        } catch { hydrated.delete(key); }
+    }
+
     const fields = ['aiSuggestedScore', 'aiCommentary', 'aiEvaluatedCriteria', 'aiEvaluation'];
     const identity = attempt => JSON.stringify([attempt?.submittedAt || attempt?.completedAt || attempt?.submissionDate || '', attempt?.attemptNumber || '',
         (attempt?.files || []).map(file => [file.name || file.fileName || '', file.size || 0, String(file.url || file.fileUrl || '').length])]);
@@ -124,7 +148,7 @@
         localStorage.setItem(stateKey(context), JSON.stringify({ status: 'pending', startedAt: Date.now(), message: 'Evaluating submission...' }));
         setTimeout(() => window.evaluateSelectedSubmissionWithAi(null, context), 0);
     }
-    window.SigmaSubmissionAi = { readEvaluation, readFeedback, readFeedbackTimestamp, feedbackVersion, identity, save, readDocument, scheduleAutomatic, state,
+    window.SigmaSubmissionAi = { hydrate, readEvaluation, readFeedback, readFeedbackTimestamp, feedbackVersion, identity, save, readDocument, scheduleAutomatic, state,
         queueAfterSubmission: (subjectId, topicIdx, tab, activeIdx) => queuedRoutes.add([subjectId, topicIdx, tab, activeIdx].join('_')) };
     window.evaluateSelectedSubmissionWithAi = async function (button, suppliedContext) {
         const context = suppliedContext || window._sigmaSubmissionAiContext;
@@ -156,14 +180,12 @@
         const timer = setTimeout(() => controller.abort(), 130000);
         try {
             const rubricText = feedback && !context.rubric.url && !context.rubric.text ? '' : await readDocument(context.rubric);
-            const work = [];
-            for (const file of context.files) work.push(await readDocument(file));
-            if (context.answers && Object.keys(context.answers).length) work.push(JSON.stringify({ questions: context.questions, answers: context.answers }));
-            if (!work.length) throw new Error('Select a student with submitted work first.');
-            const submissionText = work.join('\n\n');
-            if (submissionText.length > 60000) throw new Error('The combined submission is too long for one evaluation.');
-            const evidence = { assessmentType: context.assessmentType || context.tab, isQuiz: Boolean(context.isQuiz), title: context.title, instructions: context.instructions, maxScore: context.maxScore, rubricText, submissionText, criteria: context.criteria, autoSelect: context.autoSelect };
-            if (feedback) Object.assign(evidence, { mode: 'feedback', teacherScore: context.teacherScore, teacherFeedback: context.teacherFeedback });
+            await window.SigmaAcademicRecords.flush();
+            const evidence = { subjectId: context.subjectId, section: context.section, studentId: context.studentId,
+                itemId: context.assessmentId, title: context.title, topicIdx: context.topicIdx, itemIdx: context.activeIdx,
+                attemptIdentity: context.identity, criteria: context.criteria, autoSelect: context.autoSelect };
+            if (rubricText) await window.SigmaAcademicRecords.save({ ...evidence, type: 'rubric', rubricUrl: context.rubric.url, text: rubricText });
+            if (feedback) evidence.mode = 'feedback';
             const api = location.port && !['80', '443'].includes(location.port) ? 'http://localhost/sigma-elms/php/api/submission_ai.php'
                 : new URL(location.pathname.includes('/php/') ? 'api/submission_ai.php' : 'php/api/submission_ai.php', location.href).href;
             sent = true;
@@ -174,10 +196,6 @@
             if (!expectedId.test(String(result.generationId || result.evaluationId || ''))) throw new Error('AI completed, but no generation ID was returned. Try again.');
             save(context, result);
             localStorage.setItem(stateKey(context), JSON.stringify({ status: 'complete', message: '' }));
-            const user = context.role === 'student' ? window.getLoggedInStudentUser?.() : window.getLoggedInTeacherUser?.();
-            if (user?.id || user?.uid) window.SigmaAiLogs?.record({ userId: String(user.id || user.uid), feature: feedback ? 'submission_feedback' : 'submission_evaluation', timestamp: new Date().toISOString(), prompt: context.title,
-                actionDescription: feedback ? 'Generate SIGMA AI Feedback after grading' : 'Evaluate submitted work against the grading rubric', response: JSON.stringify(feedback ? result.feedback : { score: result.score, criteria: result.criteria, commentary: result.commentary }),
-                model: result.model, provider: result.provider, keyId: result.keyId, keyLabel: result.keyLabel, generationId: result.generationId || result.evaluationId, status: result.status });
             if (isCurrent()) {
                 const previous = window._suppressSubmissionScrollToTop;
                 window._suppressSubmissionScrollToTop = true;
