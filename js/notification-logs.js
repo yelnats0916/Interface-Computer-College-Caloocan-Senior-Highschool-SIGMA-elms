@@ -274,7 +274,13 @@
             const row = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = selection ? 7 : 6;
-            td.textContent = selection?.kind === 'group' ? 'No individual recipient records were saved for this notification.' : (detailQuery || window.getAuditLogSearchQuery?.()) ? 'No matching notification logs.' : 'No notification logs yet.';
+            row.className = 'sigma-log-empty-row';
+            const isSearch = Boolean(detailQuery || window.getAuditLogSearchQuery?.());
+            td.innerHTML = window.renderSigmaEmptyState({
+                icon: 'fa-solid fa-bell',
+                title: isSearch ? 'No matching notification logs' : selection?.kind === 'group' ? 'No recipient records yet' : 'No notification logs yet',
+                subtitle: isSearch ? 'Try another search or clear your filters.' : selection?.kind === 'group' ? 'Individual recipient records will appear here when available.' : 'Recorded notifications will appear here.'
+            });
             row.append(td);
             body.append(row);
         }

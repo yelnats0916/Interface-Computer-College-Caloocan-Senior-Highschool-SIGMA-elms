@@ -210,7 +210,14 @@
         body.replaceChildren();
         if (!records.length) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="5" class="text-center text-black-fade">No authentication events recorded yet.</td>';
+            row.className = 'sigma-log-empty-row';
+            const td = document.createElement('td'); td.colSpan = 5;
+            td.innerHTML = window.renderSigmaEmptyState({
+                icon: 'fa-solid fa-right-to-bracket',
+                title: detailQuery ? 'No matching authentication logs' : selectedUser ? 'No authentication logs in this category' : 'No authentication logs yet',
+                subtitle: detailQuery ? 'Try another search or clear your filters.' : 'Recorded sign-in and account security events will appear here.'
+            });
+            row.append(td);
             body.append(row);
             window.SigmaLogPagination?.setRecords?.(table, [], () => row, { reset:true });
             return;

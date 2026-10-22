@@ -57,7 +57,10 @@
                     const row = document.createElement('tr'), cell = document.createElement('td');
                     row.dataset.auditSearchEmpty = 'true';
                     cell.colSpan = table.tHead?.rows[0]?.cells.length || 1;
-                    cell.textContent = 'No matching logs.'; row.append(cell); nodes.push(row);
+                    row.className = 'sigma-log-empty-row';
+                    const icons = {'audit-ai-view':'fa-robot', 'audit-activity-view':'fa-shoe-prints', 'audit-auth-view':'fa-right-to-bracket', 'audit-notifications-view':'fa-bell'};
+                    cell.innerHTML = window.renderSigmaEmptyState({icon:'fa-solid ' + (icons[owner] || 'fa-folder-open'), title:'No matching logs', subtitle:'Try another search or clear your filters.'});
+                    row.append(cell); nodes.push(row);
                 } else nodes.push(...emptyRows);
             }
             // Disconnect while replacing the current page so our own writes do not reset the source.

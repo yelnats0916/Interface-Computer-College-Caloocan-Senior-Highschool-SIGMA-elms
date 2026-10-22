@@ -705,10 +705,13 @@
             const row = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = selectedUser ? 5 : 4;
-            td.className = 'text-center text-black-fade py-6';
-            td.textContent = selectedUser
-                ? (detailQuery ? 'No activities matching your search criteria.' : 'No activities recorded for this category.')
-                : (globalSearch ? 'No matching activity logs.' : 'No activity events recorded yet.');
+            row.className = 'sigma-log-empty-row';
+            const isSearch = Boolean(detailQuery || globalSearch);
+            td.innerHTML = window.renderSigmaEmptyState({
+                icon: 'fa-solid fa-shoe-prints',
+                title: isSearch ? 'No matching activity logs' : selectedUser ? 'No activities in this category' : 'No activity logs yet',
+                subtitle: isSearch ? 'Try another search or clear your filters.' : selectedUser ? 'Recorded account activity will appear here.' : 'Recorded activity events will appear here.'
+            });
             row.append(td);
             body.append(row);
             if (window.SigmaLogPagination?.setRecords) {
