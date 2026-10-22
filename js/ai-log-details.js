@@ -161,7 +161,7 @@
             open(user, button);
             window.SigmaLogPagination?.reset(detail.querySelector('table'));
         });
-        text.append(nameLink, node('p', roleOf(user) + ' | Account ID: ' + idOf(user), 'text-black-fade'));
+        text.append(nameLink, window.SigmaAuditDisplay.details('Role: ' + roleOf(user) + '\nAccount ID: ' + (idOf(user) || 'Not recorded')));
         row.append(avatar(user), text);
         identity.append(row);
         const metadata = node('dl', undefined, 'ai-log-interaction-metadata');
@@ -652,7 +652,7 @@
         const nameRow = node('div', undefined, 'ai-log-detail-name-row');
         const heading = node('h2', 'AI Usage Details', 'ai-log-detail-title');
         const identityText = node('div', undefined, 'ai-log-detail-identity-text');
-        identityText.append(node('p', nameOf(user), 'ai-log-detail-name'), node('p', roleOf(user) + ' | Account ID: ' + idOf(user), 'text-black-fade'));
+        identityText.append(node('p', nameOf(user), 'ai-log-detail-name'), window.SigmaAuditDisplay.details('Role: ' + roleOf(user) + '\nAccount ID: ' + (idOf(user) || 'Not recorded')));
         nameRow.append(avatar(user), identityText);
         identity.append(nameRow);
         const search = node('form', undefined, 'ai-log-search');

@@ -23,3 +23,12 @@
 .audit-detail-navigation { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
 
 :is(#audit-activity-view,#audit-auth-view,#audit-notifications-view) .ai-log-detail-toolbar[hidden] { display:none !important; }
+
+/* Audit context uses real rows and spacing rather than punctuation separators. */
+html body .sigma-audit-details-cell { text-align:left !important; }
+html body .sigma-audit-details { display:flex; flex-direction:column; gap:6px; margin:0; text-align:left !important; line-height:1.5; overflow-wrap:anywhere; }
+html body .sigma-audit-detail-field { display:grid; grid-template-columns:minmax(100px,150px) minmax(0,1fr); align-items:start; column-gap:12px; row-gap:2px; }
+html body .sigma-audit-detail-label, html body .sigma-audit-detail-value { margin:0; text-align:left !important; font-weight:400; }
+@media(max-width:600px) {
+    html body .sigma-audit-detail-field { grid-template-columns:minmax(0,1fr); }
+}

@@ -12,8 +12,8 @@ function sigmaActivityContext(string $activity,string $details='',array $account
         $derived=['succeeded'=>'Administrator identity was verified for protected integration settings.','failed'=>'The verification attempt for protected integration settings failed.','canceled'=>'Verification for protected integration settings was canceled.'][strtolower($match[1])]??'';
     }elseif(preg_match('/^(Created|Saved|Updated|Deleted|Restored|Deactivated|Activated|Locked|Unlocked)\s+(?:(Master Admin|Admin|Teacher|Student)\s+)?account\s+([^\s()]+)/i',$activity,$match)){
         $module='Users';$id=$match[3];$derived='Account ID: '.$id;
-        if(!empty($match[2]))$derived.=' · Role at event: '.$match[2];
-        if(isset($accounts[$id]))$derived.=' · Current account name: '.$accounts[$id];
+        if(!empty($match[2]))$derived.="\nRole at event: ".$match[2];
+        if(isset($accounts[$id]))$derived.="\nCurrent account name: ".$accounts[$id];
     }elseif(preg_match('/account|profile|password|permission/i',$activity))$module='Users';
     elseif(preg_match('/subject|curriculum|material|topic/i',$activity))$module='Curriculum';
     elseif(preg_match('/section|class/i',$activity))$module='Classes';

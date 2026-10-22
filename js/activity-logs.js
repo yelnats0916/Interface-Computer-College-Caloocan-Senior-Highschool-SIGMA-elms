@@ -73,10 +73,10 @@
                 if (details === '—' || details === '--' || details === '-') details = '';
                 if (!details) {
                     if (item.announcementId || item.module === 'Announcements') {
-                        details = [item.title ? `"${item.title}"` : '', item.audience ? `Audience: ${item.audience}` : '', item.section ? `Section: ${item.section}` : '', item.subjectId ? `Subject: ${item.subjectId}` : ''].filter(Boolean).join(' · ');
+                        details = [item.title ? `"${item.title}"` : '', item.audience ? `Audience: ${item.audience}` : '', item.section ? `Section: ${item.section}` : '', item.subjectId ? `Subject: ${item.subjectId}` : ''].filter(Boolean).join('\n');
                     }
                     if (!details) {
-                        details = [item.assessment, item.section, item.subjectId].filter(Boolean).join(' · ');
+                        details = [item.assessment, item.section, item.subjectId].filter(Boolean).join('\n');
                     }
                 }
                 return {
@@ -239,7 +239,7 @@
             const userMetaP = document.createElement('p');
             userMetaP.className = 'text-black-fade';
             const cleanUserId = String(selectedUser.userId || '').replace(/^ID:\s*/i, '');
-            userMetaP.textContent = `${selectedUser.userRole || 'User'} | Account ID: ${cleanUserId || 'Not recorded'}`;
+            userMetaP.append(window.SigmaAuditDisplay.details(`Role: ${selectedUser.userRole || 'Not recorded'}\nAccount ID: ${cleanUserId || 'Not recorded'}`));
 
             textWrap.append(userNameP, userMetaP);
             identityRow.append(avatarSpan, textWrap);
@@ -410,8 +410,8 @@
 
                 // 3. Details column
                 const detTd = document.createElement('td');
-                detTd.className = 'text-black';
-                detTd.textContent = window.SigmaAuditDisplay.activity(record).details;
+                detTd.className = 'text-black sigma-audit-details-cell';
+                detTd.append(window.SigmaAuditDisplay.details(window.SigmaAuditDisplay.activity(record).details));
 
                 // 4. Timestamp column
                 const timeTd = document.createElement('td');
@@ -533,9 +533,9 @@
                 actBtn.onclick = () => openUser(record, true);
                 actTd.append(actBtn);
                 if (record.details) {
-                    const actDetail = document.createElement('p');
+                    const actDetail = document.createElement('div');
                     actDetail.className = 'ai-log-request-preview';
-                    actDetail.textContent = record.details;
+                    actDetail.append(window.SigmaAuditDisplay.details(record.details));
                     actTd.append(actDetail);
                 }
 

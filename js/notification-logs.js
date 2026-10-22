@@ -119,8 +119,9 @@
             const name = document.createElement('div'); name.className = 'notification-detail-identity-text';
             const fullName = document.createElement('div'); fullName.textContent = selection.name;
             const context = document.createElement('p'); context.className='notification-detail-context';
-            context.textContent = selection.kind === 'person' ? [selection.role, 'Account ID: ' + selection.id].filter(Boolean).join(' | ')
+            context.textContent = selection.kind === 'person' ? ['Role: ' + window.SigmaAuditDisplay.text(selection.role), 'Account ID: ' + selection.id].join('\n')
                 : selection.kind === 'record' ? 'Notification ID: ' + window.SigmaAuditDisplay.text(selection.notificationId, 'Not recorded') : selection.kind === 'group' ? 'Notification recipients' : 'System notification sender';
+            const contextText = context.textContent; context.replaceChildren(window.SigmaAuditDisplay.details(contextText));
             name.append(fullName,context); identity.append(name);
             const toolbar = document.createElement('div'); toolbar.className = 'ai-log-detail-toolbar';
             const tabs = document.createElement('div'); tabs.className = 'ai-log-category-tabs';
@@ -177,7 +178,7 @@
                 if (secondary) {
                     const detail = document.createElement('div');
                     detail.className = 'text-sm text-black-fade';
-                    detail.textContent = secondary;
+                    detail.append(window.SigmaAuditDisplay.details(secondary));
                     td.append(detail);
                 }
                 row.append(td);
@@ -225,7 +226,7 @@
             const groupName = recipientName === 'admin audience' ? 'All Administrators'
                 : recipientName.replace(/^student:\s*(.+)$/i, '$1 Students');
             person(groupName, String(log.recipientId || ''), log.recipientId ? 'person' : 'group', accountFor(log.recipientId), log.recipientId ? {kind:'person',id:String(log.recipientId),role:log.role} : {kind:'group',notificationId:String(log.notificationId),role:log.role});
-            cell(window.SigmaAuditDisplay.text(log.title, 'Notification title not recorded'), [log.type, log.related].filter(Boolean).join(' / '));
+            cell(window.SigmaAuditDisplay.text(log.title, 'Notification title not recorded'), [log.type ? 'Type: ' + log.type : '', log.related ? 'Related item: ' + log.related : ''].filter(Boolean).join('\n'));
             if (selection?.kind !== 'record') {
                 const titleCell=row.lastElementChild, label=titleCell.firstElementChild;
                 const link=document.createElement('button');link.type='button';link.className='ai-log-interaction-button';link.textContent=label.textContent;

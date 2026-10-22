@@ -20,7 +20,7 @@
                 : /failed/i.test(title) ? 'The verification attempt for protected integration settings failed.' : 'Verification for protected integration settings was canceled.';
         }
         const account = /^(?:Created|Saved|Updated|Deleted|Restored|Deactivated|Activated|Locked|Unlocked)\s+(?:(Master Admin|Admin|Teacher|Student)\s+)?account\s+([^\s()]+)/i.exec(title);
-        if (!details && account) details = `Account ID: ${account[2]}${account[1] ? ' · Role at event: ' + account[1] : ''}`;
+        if (!details && account) details = `Account ID: ${account[2]}${account[1] ? '\nRole at event: ' + account[1] : ''}`;
         return { ...record, id:identifier(record,'activity'), activity: title, module, details: details || 'Additional context was not captured for this event.',
             userName: text(record.userName, 'Account name not recorded'), userRole: text(record.userRole, 'Role not recorded') };
     }
@@ -36,5 +36,19 @@
         const parsed = Date.parse(value);
         return Number.isFinite(parsed) ? new Date(parsed).toLocaleString('en-US', { timeZone:'Asia/Manila', month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) : 'Timestamp not recorded';
     }
-    window.SigmaAuditDisplay = { text, activity, authentication, date };
+    function details(value) {
+        const container = document.createElement('div');
+        container.className = 'sigma-audit-details';
+        for (const part of text(value, 'Additional context was not captured for this event.').split(/[·|\n]+/).map(line => line.trim()).filter(Boolean)) {
+            const field = /^([A-Za-z][A-Za-z ]{1,59}):[ ]*(.*)$/.exec(part);
+            if (field) {
+                const row = document.createElement('div'); row.className = 'sigma-audit-detail-field';
+                const label = document.createElement('span'); label.className = 'sigma-audit-detail-label'; label.textContent = field[1] + ':';
+                const content = document.createElement('span'); content.className = 'sigma-audit-detail-value'; content.textContent = field[2] || 'Not recorded';
+                row.append(label, content); container.append(row);
+            } else { const line = document.createElement('div'); line.textContent = part; container.append(line); }
+        }
+        return container;
+    }
+    window.SigmaAuditDisplay = { text, activity, authentication, date, details };
 })();

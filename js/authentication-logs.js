@@ -182,7 +182,7 @@
             else avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
             const text = document.createElement('div'); text.className = 'ai-log-detail-identity-text';
             const name = document.createElement('p'); name.className = 'ai-log-detail-name'; name.textContent = selectedUser.userName;
-            const context = document.createElement('p'); context.textContent = `${selectedUser.userRole} | Account ID: ${selectedUser.userId}`;
+            const context = document.createElement('p'); context.append(window.SigmaAuditDisplay.details(`Role: ${selectedUser.userRole}\nAccount ID: ${selectedUser.userId || 'Not recorded'}`));
             text.append(name, context); identityRow.append(avatar, text); identity.append(identityRow);
             const toolbar = document.createElement('div'); toolbar.className = 'ai-log-detail-toolbar';
             const tabs = document.createElement('div'); tabs.className = 'ai-log-category-tabs';
@@ -240,6 +240,8 @@
             const ip = record.ip ? escape(record.ip) : 'Not recorded';
             row.innerHTML = `<td><div class="flex items-center gap-3">${avatar}<div><p class="text-black">${escape(record.userName)}</p><p class="text-sm text-black-fade">${escape(record.userRole)}</p>${actor}</div></div></td><td><div class="auth-event"><span class="auth-event-dot ${statusClass(record)}" aria-hidden="true"></span><div><span class="text-black">${escape(record.event)}</span>${record.details ? `<p class="text-sm text-black-fade mt-1">${escape(record.details)}</p>` : ''}</div></div></td><td><div class="flex flex-col"><span class="text-black">${ip}</span><span class="text-sm text-black-fade">${escape(record.device)}</span></div></td><td><span class="text-sm text-black-fade">${escape(date(record.timestamp))}</span></td>`;
             const timestamp = document.createElement('time');
+            const detail = row.children[1].querySelector('.text-sm');
+            if (detail) detail.replaceChildren(window.SigmaAuditDisplay.details(record.details));
             const identity = document.createElement('div');
             identity.className = 'flex items-center gap-3';
             const profile = row.firstElementChild.querySelector('img, [aria-hidden="true"]');
