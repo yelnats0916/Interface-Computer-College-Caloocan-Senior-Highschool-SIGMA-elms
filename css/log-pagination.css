@@ -17,3 +17,5 @@
 
 /* Shared audit log empty states, including search with no matches. */
 .sigma-audit-table tbody tr.sigma-log-empty-row > td { padding: 24px 16px !important; background: #fff !important; text-align: center; }
+
+.sigma-log-page-controls[hidden] { display:none !important; }

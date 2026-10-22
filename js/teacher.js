@@ -21108,7 +21108,7 @@ function initTeacherPortal() {
                     <!-- Students Grades Table -->
                     <div class="teacher-grades-modal-table border border-slate-200 rounded-xl sm:rounded-2xl overflow-hidden bg-white shadow-xs">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-xs" style="--report-grade-columns:${reportQuarters.length + 1}">
+                            <table data-sigma-paginate class="w-full text-left border-collapse text-xs" style="--report-grade-columns:${reportQuarters.length + 1}">
                                 <thead>
                                     <tr class="bg-[#15803d] text-white select-none">
                                         <th class="px-3 sm:px-4 py-2 sm:py-3 font-semibold text-white tracking-normal font-['Inter'] border-r border-[#166534] text-[11px] sm:text-xs" style="border-right: 1px solid #166534 !important;">Students</th>

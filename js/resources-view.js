@@ -1206,33 +1206,7 @@
             const countTo = Math.min(_currentPage * pageSize, filtered.length);
             const countText = `${countFrom}-${countTo} of ${filtered.length}`;
 
-            // Calculate page numbers with ellipsis
-            const spread = (typeof window !== 'undefined' && window.innerWidth <= 600) ? 1 : 2;
-            const numbers = [...new Set([1, ...Array.from({ length: spread * 2 + 1 }, (_, index) => _currentPage - spread + index).filter(n => n >= 1 && n <= totalPages), totalPages])].sort((a, b) => a - b);
-
-            let buttonsHtml = `
-                <button type="button" class="sigma-pagination-btn sigma-pagination-btn--nav btn-resource-page" data-page="${_currentPage - 1}" aria-label="Previous page" title="Previous page" ${_currentPage <= 1 ? 'disabled' : ''}>
-                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-                </button>
-            `;
-
-            numbers.forEach((num, idx) => {
-                if (idx > 0 && num > numbers[idx - 1] + 1) {
-                    buttonsHtml += `<span class="sigma-pagination-ellipsis">...</span>`;
-                }
-                const isActive = num === _currentPage;
-                buttonsHtml += `
-                    <button type="button" class="sigma-pagination-btn sigma-pagination-btn--number btn-resource-page ${isActive ? 'is-active' : ''}" data-page="${num}" aria-label="Page ${num}" title="Page ${num}" ${isActive ? 'aria-current="page"' : ''}>
-                        ${num}
-                    </button>
-                `;
-            });
-
-            buttonsHtml += `
-                <button type="button" class="sigma-pagination-btn sigma-pagination-btn--nav btn-resource-page" data-page="${_currentPage + 1}" aria-label="Next page" title="Next page" ${_currentPage >= totalPages ? 'disabled' : ''}>
-                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
-                </button>
-            `;
+            const buttonsHtml = window.SigmaTablePagination.controlsHtml(_currentPage, totalPages, 'btn-resource-page');
 
             paginationHtml = `
                 <nav class="sigma-log-pagination" aria-label="Resources pagination">
@@ -1666,6 +1640,7 @@
 
         const filtered = filterResourcesList(allResources);
         contentContainer.innerHTML = buildContentHtml(filtered);
+        requestAnimationFrame(() => window.SigmaTablePagination.alignActive(contentContainer));
 
         // Update active class on view toggles
         const gridBtn = section.querySelector('#btn-view-grid');

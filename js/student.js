@@ -1536,6 +1536,10 @@ function initStudentPortal() {
         } else if (isClassroomTab && pagination) {
             pagination.innerHTML = '';
         }
+        if (isClassroomTab) {
+            const table = body.closest('table');
+            if (table) { table.dataset.sigmaPaginate = ''; window.SigmaTablePagination?.attach(table); }
+        }
     }
 
     window.renderStudentAttendanceHistory = function () {

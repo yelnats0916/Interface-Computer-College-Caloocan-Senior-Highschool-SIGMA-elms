@@ -8180,3 +8180,34 @@ html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-pr
 html body :is(#student-preview-modal, #sigma-quiz-form-modal, #universal-quiz-preview-modal) .sigma-quiz-matching-rows [ondragover].border-black {
     box-shadow: none !important;
 }
+
+/* Ten numbered pages per group. Keep navigation reachable on narrow tables. */
+.sigma-group-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:nowrap; gap:6px; min-width:0; max-width:100%; box-sizing:border-box; }
+.sigma-group-pagination > .sigma-pagination-btn { flex:0 0 auto; }
+.sigma-pagination-numbers { display:flex; align-items:center; gap:6px; min-width:0; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; padding:3px; }
+.sigma-pagination-numbers > .sigma-pagination-btn { flex:0 0 auto; }
+.sigma-group-pagination .sigma-pagination-btn:focus-visible { outline:2px solid #15803d !important; outline-offset:1px; }
+.sigma-log-page-controls, .sigma-directory-page-controls { min-width:0; max-width:100%; }
+@media (max-width:600px) {
+    .sigma-group-pagination, .sigma-pagination-numbers { gap:3px; }
+    .sigma-group-pagination { width:100%; }
+    .sigma-directory-page-controls { width:100%; }
+}
+
+.sigma-table-list-pagination { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:16px; background:#fff; }
+.sigma-table-list-pagination[hidden] { display:none !important; }
+.sigma-table-list-count { color:rgba(0,0,0,.45); font:400 12px/1.5 Inter,Arial,sans-serif; }
+.sigma-table-list-controls { min-width:0; max-width:100%; }
+table[data-sigma-paginate] { scroll-margin-top:140px; }
+table[data-sigma-paginate] tbody tr[hidden] { display:none !important; }
+@media (max-width:600px) {
+    .sigma-table-list-pagination { justify-content:center; }
+    .sigma-table-list-count { width:100%; text-align:center; }
+    .sigma-table-list-controls { width:100%; }
+}
+@media print {
+    .sigma-table-list-pagination { display:none !important; }
+    table[data-sigma-paginate] tbody tr[hidden] { display:table-row !important; }
+}
+
+.record-mobile-grade-card[hidden] { display:none !important; }

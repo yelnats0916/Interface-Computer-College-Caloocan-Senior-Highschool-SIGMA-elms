@@ -4,6 +4,7 @@
  */
 ?>
     <!-- CORE SHARED COMPONENT CONTROLLERS -->
+    <script src="../js/table-pagination.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/table-pagination.js') ?>"></script>
     <?php if (($topbarHeaderId ?? '') === 'admin-header'): ?>
     <link rel="stylesheet" href="../css/log-pagination.css?v=<?= filemtime(dirname(__DIR__, 2) . '/css/log-pagination.css') ?>">
     <script src="../js/log-pagination.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/log-pagination.js') ?>"></script>

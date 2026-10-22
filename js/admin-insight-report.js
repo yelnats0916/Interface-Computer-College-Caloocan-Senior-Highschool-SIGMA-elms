@@ -570,19 +570,8 @@
             if (totalPages > 1) {
                 paginationWrap.replaceChildren();
                 
-                const prevBtn = el('button', 'Previous', 'insight-user-page-btn');
-                prevBtn.type = 'button';
-                prevBtn.disabled = currentPage <= 1;
-                prevBtn.onclick = () => navigateInsights(() => { insightPages[`${user.id}:${title}`] = currentPage - 1; });
-
-                const pageInfo = el('span', `Page ${currentPage} of ${totalPages}`, 'insight-user-page-info');
-
-                const nextBtn = el('button', 'Next', 'insight-user-page-btn');
-                nextBtn.type = 'button';
-                nextBtn.disabled = currentPage >= totalPages;
-                nextBtn.onclick = () => navigateInsights(() => { insightPages[`${user.id}:${title}`] = currentPage + 1; });
-
-                paginationWrap.append(prevBtn, pageInfo, nextBtn);
+                window.SigmaTablePagination.mount(paginationWrap, currentPage, totalPages, page =>
+                    navigateInsights(() => { insightPages[`${user.id}:${title}`] = page; }));
             }
         }
 
@@ -736,13 +725,10 @@
         if (totalPages > 1) {
             const pagination = el('nav', undefined, 'insight-user-pagination');
             pagination.setAttribute('aria-label', 'User directory pagination');
-            const previous = el('button', 'Previous', 'insight-user-page-btn');
-            previous.type = 'button'; previous.disabled = directoryPage === 1;
-            previous.onclick = () => navigateInsights(() => { directoryPage--; });
-            const next = el('button', 'Next', 'insight-user-page-btn');
-            next.type = 'button'; next.disabled = directoryPage === totalPages;
-            next.onclick = () => navigateInsights(() => { directoryPage++; });
-            pagination.append(previous, el('span', `Page ${directoryPage} of ${totalPages} · ${matchingUsers.length} users`, 'insight-user-page-info'), next);
+            const count = el('span', `${matchingUsers.length} users`, 'insight-user-page-info');
+            const controls = el('div', undefined, 'sigma-directory-page-controls');
+            window.SigmaTablePagination.mount(controls, directoryPage, totalPages, page => navigateInsights(() => { directoryPage = page; }));
+            pagination.append(count, controls);
             directory.append(pagination);
         }
         return directory;

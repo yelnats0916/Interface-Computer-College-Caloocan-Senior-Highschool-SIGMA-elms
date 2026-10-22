@@ -73,28 +73,10 @@
             const count = document.createElement('span'); count.className = 'sigma-log-page-count text-black-fade';
             count.textContent = (records.length ? (page - 1) * pageSize + 1 : 0) + '-' + Math.min(page * pageSize, records.length) + ' of ' + records.length;
             const controls = document.createElement('div'); controls.className = 'sigma-log-page-controls';
-            function button(label, target, icon = '') {
-                const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', label); button.title = label;
-                button.className = 'sigma-pagination-btn ' + (icon ? 'sigma-pagination-btn--nav' : 'sigma-pagination-btn--number');
-                if (icon) { const symbol = document.createElement('i'); symbol.className = 'fa-solid ' + icon; symbol.setAttribute('aria-hidden', 'true'); button.append(symbol); }
-                else button.textContent = String(target);
-                button.disabled = target < 1 || target > pages;
-                if (!icon && target === page) { button.setAttribute('aria-current', 'page'); button.classList.add('is-active'); }
-                button.onclick = () => {
-                    if (target === page) return;
-                    page = target; paint();
-                    scrollToPageStart(table);
-                };
-                controls.append(button);
-            }
-            button('Previous page', page - 1, 'fa-chevron-left');
-            const spread = innerWidth <= 600 ? 1 : 2;
-            const numbers = [...new Set([1, ...Array.from({ length: spread * 2 + 1 }, (_, index) => page - spread + index).filter(number => number >= 1 && number <= pages), pages])].sort((a, b) => a - b);
-            numbers.forEach((number, index) => {
-                if (index && number > numbers[index - 1] + 1) { const gap = document.createElement('span'); gap.textContent = '...'; controls.append(gap); }
-                button('Page ' + number, number);
+            controls.hidden = pages <= 1;
+            window.SigmaTablePagination.mount(controls, page, pages, target => {
+                page = target; paint(); scrollToPageStart(table);
             });
-            button('Next page', page + 1, 'fa-chevron-right');
             if(table.dataset.pageSizeOptions){
                 const group=document.createElement('div');group.style.cssText='display:flex;align-items:center;gap:16px';
                 const label=document.createElement('label');label.textContent='Rows per page ';
