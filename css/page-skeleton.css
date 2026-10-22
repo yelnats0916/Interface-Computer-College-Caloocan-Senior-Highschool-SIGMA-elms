@@ -1167,6 +1167,14 @@ section[data-sigma-skeleton-active="true"] {
     display: block !important;
 }
 
+/* Hide the actual action glyphs, date labels and profile chevron while their
+   button surfaces shimmer. Icon-specific colors must not reveal them early. */
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(#student-header,#teacher-header,#admin-header,header) :is(.header-icon-btn,.header-profile-btn,.mobile-subbar-btn) *,
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(#student-header,#teacher-header,#admin-header,header) :is(.header-icon-btn,.header-profile-btn,.mobile-subbar-btn) *::before,
+html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(#student-header,#teacher-header,#admin-header,header) :is(.header-icon-btn,.header-profile-btn,.mobile-subbar-btn) *::after {
+    visibility: hidden !important;
+}
+
 /* Initial page shimmer owns the first paint. Section loaders become visible
    automatically when the shell/session shimmer is released. */
 html:is(.sigma-initial-loading,[data-sigma-session-shimmer]) body :is(.sigma-dot-spinner,i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin,.sigma-content-loading-overlay) {
