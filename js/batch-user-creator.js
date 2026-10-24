@@ -1405,17 +1405,7 @@
 
         if (!batchEntries.length) {
             if (summaryBar) summaryBar.classList.add('hidden');
-            container.innerHTML = `
-                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-8 text-center space-y-2">
-                    <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto text-[#15803d]">
-                        <i class="fa-solid fa-users-viewfinder text-lg"></i>
-                    </div>
-                    <p class="text-sm font-bold text-black">No Imported Accounts Yet</p>
-                    <p class="text-xs text-slate-500 max-w-md mx-auto">
-                        Upload an Excel (.xlsx, .csv), Word (.docx, .doc), or PDF (.pdf) file above to automatically populate and review user account forms here.
-                    </p>
-                </div>
-            `;
+            container.innerHTML = '';
             updateBatchStepHeaderUI();
             return;
         }
@@ -1963,7 +1953,7 @@
             showNoticeDialog('Import Error', err?.message || `Could not read "${fileName}". Please check the file and try again.`, true);
         } finally {
             if (uploadLabel) {
-                uploadLabel.textContent = 'Click to upload or drag & drop PDF, Word (.docx, .doc), or Excel (.xlsx, .csv)';
+                uploadLabel.textContent = 'Attach User Accounts File';
             }
         }
     }

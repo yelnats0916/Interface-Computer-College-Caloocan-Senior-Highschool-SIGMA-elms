@@ -5997,19 +5997,14 @@
                     <div id="batch-user-form-body" class="flex-1 custom-scrollbar px-10 py-6">
                         <!-- STEP 1: UPLOAD & REVIEW ACCOUNTS -->
                         <div id="batch-user-step-1" class="space-y-6">
-                            <!-- Upload & Template Card -->
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 space-y-4">
-                                <div class="flex flex-wrap items-center justify-between gap-3">
-                                    <div>
-                                        <h3 class="text-base font-bold text-black font-['Inter']">Import User Accounts File</h3>
-                                        <p class="text-xs text-slate-500 mt-0.5">
-                                            Upload an Excel (.xlsx, .csv), Word Document (.docx, .doc), or PDF (.pdf) containing user details. Missing fields will be left blank for review.
-                                        </p>
-                                    </div>
+                            <!-- Upload & Template Section (Matching Upload Panel Style) -->
+                            <div class="space-y-2">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <label for="batch-user-file-input" class="text-xs sm:text-sm font-bold text-black capitalize tracking-normal ml-0.5">Import User Accounts File <span class="text-red-500">*</span></label>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <button type="button" onclick="window.downloadBatchUserTemplate('xlsx')"
                                             class="sigma-btn sigma-btn-white sigma-btn-sm gap-2 text-xs font-semibold cursor-pointer">
-                                            <i class="fa-solid fa-download text-[#15803d]"></i>
+                                            <i class="fa-solid fa-file-excel text-[#15803d]"></i>
                                             <span>Template (.xlsx)</span>
                                         </button>
                                         <button type="button" onclick="window.downloadBatchUserTemplate('docx')"
@@ -6027,33 +6022,29 @@
 
                                 <div id="batch-user-dropzone"
                                     onclick="document.getElementById('batch-user-file-input')?.click()"
-                                    class="border-2 border-dashed border-slate-300 hover:border-[#15803d] bg-white hover:bg-emerald-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2">
-                                    <div class="flex items-center justify-center gap-3 text-[#15803d]">
-                                        <i class="fa-solid fa-file-excel text-2xl"></i>
-                                        <i class="fa-solid fa-file-word text-2xl text-blue-600"></i>
-                                        <i class="fa-solid fa-file-pdf text-2xl text-rose-600"></i>
+                                    class="sigma-dashed-dropzone rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-center text-center font-['Inter'] group cursor-pointer transition-all w-full">
+                                    <div class="sigma-dropzone-icon-box w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-lg sm:text-xl mb-2 shadow-2xs text-black-fade">
+                                        <i class="fa-solid fa-folder-open"></i>
                                     </div>
-                                    <p id="batch-upload-status-label" class="text-sm font-bold text-black font-['Inter']">
-                                        Click to upload or drag &amp; drop PDF, Word (.docx, .doc), or Excel (.xlsx, .csv)
-                                    </p>
-                                    <p class="text-xs text-slate-500">
-                                        Columns: Institutional Role, Firstname, Middlename, Lastname, Gender, Gmail
-                                    </p>
-                                    <div id="batch-uploaded-file-badge" class="hidden pt-1 flex flex-wrap items-center justify-center gap-2">
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#15803d] text-xs font-bold">
-                                            <i class="fa-solid fa-file-circle-check"></i>
-                                            <span id="batch-uploaded-file-name"></span>
-                                        </span>
-                                        <button type="button" id="batch-view-uploaded-doc-btn"
-                                            onclick="event.stopPropagation(); window.openUploadedBatchFileInViewer()"
-                                            class="hidden inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-colors cursor-pointer">
-                                            <i class="fa-solid fa-eye"></i>
-                                            <span>View in Built-in Viewer</span>
-                                        </button>
-                                        <span class="hidden">
-                                        </span>
-                                    </div>
+                                    <p id="batch-upload-status-label" class="text-xs sm:text-sm font-bold text-black">Attach User Accounts File</p>
+                                    <p class="text-[11px] sm:text-xs text-black-fade mt-0.5">Choose From Excel (.xlsx, .csv), Word (.docx, .doc), Or PDF (.pdf) Files Or Drag &amp; Drop Here</p>
                                 </div>
+
+                                <div id="batch-uploaded-file-badge" class="hidden sigma-attached-file-panel sigma-black-fade-panel group relative rounded-xl p-2.5 sm:p-3.5 flex items-center justify-between font-['Inter'] hover:border-slate-300 transition-all shadow-2xs">
+                                    <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                                            <i class="fa-solid fa-file-circle-check text-sm sm:text-base text-[#15803d]"></i>
+                                        </div>
+                                        <span id="batch-uploaded-file-name" class="text-xs sm:text-sm font-bold text-black truncate"></span>
+                                    </div>
+                                    <button type="button" id="batch-view-uploaded-doc-btn"
+                                        onclick="event.stopPropagation(); window.openUploadedBatchFileInViewer()"
+                                        class="hidden sigma-btn sigma-btn-white h-7 sm:h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-lg font-['Inter'] cursor-pointer gap-1.5">
+                                        <i class="fa-solid fa-eye text-blue-600"></i>
+                                        <span>View in Built-in Viewer</span>
+                                    </button>
+                                </div>
+
                                 <input type="file" id="batch-user-file-input" class="hidden"
                                     accept=".xlsx,.xls,.csv,.docx,.doc,.pdf"
                                     onchange="window.handleBatchFileInputChange(this)">
@@ -7006,7 +6997,7 @@
     <script src="js/system-settings-history.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/ai-routing-settings.js?v=20261023_audit_permissions_v75"></script>
     <script src="js/admin.js?v=20261024_search_numbers_v197"></script>
-    <script src="js/batch-user-creator.js?v=20261024_batch_user_v3"></script>
+    <script src="js/batch-user-creator.js?v=20261024_batch_user_v4"></script>
     <script src="js/gdrive-account.js?v=20261023_drive_account_v102"></script>
     <script src="js/section-subject-lock.js?v=20261020_subject_activity_lock_v84"></script>
     <script src="js/section-teacher-picker.js?v=20261022_structured_search_v17"></script>
