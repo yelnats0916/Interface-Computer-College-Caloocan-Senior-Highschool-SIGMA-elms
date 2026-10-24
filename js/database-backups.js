@@ -79,7 +79,9 @@
             const selected = button.dataset.recoveryTab === kind;
             button.classList.toggle('active', selected); button.setAttribute('aria-current', selected ? 'page' : 'false');
         });
-        window.setPortalHeader?.('System Settings', detail ? 'Manage Backups' : 'Backup & Recovery');
+        if (!page()?.classList.contains('hidden')) {
+            window.setPortalHeader?.('System Settings', detail ? 'Manage Backups' : 'Backup & Recovery');
+        }
         clearTimeout(timer);
     }
     function install() {

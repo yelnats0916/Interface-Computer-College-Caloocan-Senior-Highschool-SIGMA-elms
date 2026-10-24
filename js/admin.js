@@ -4022,17 +4022,21 @@ window.switchSettingsTab = function (tabId) {
         activeTitleEl.textContent = titleMap[tabId] || 'System Settings';
     }
 
-    if (typeof window.setPortalHeader === 'function') {
-        window.setPortalHeader('System Settings');
-    } else {
-        const brandHeader = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
-        if (brandHeader) brandHeader.textContent = 'System Settings';
-    }
+    const settingsView = document.getElementById('settings-view');
+    const isSettingsVisible = Boolean(settingsView && !settingsView.classList.contains('hidden'));
+    if (isSettingsVisible) {
+        if (typeof window.setPortalHeader === 'function') {
+            window.setPortalHeader('System Settings');
+        } else {
+            const brandHeader = document.getElementById('nav-context-text') || document.getElementById('header-brand-title');
+            if (brandHeader) brandHeader.textContent = 'System Settings';
+        }
 
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
 
     if (typeof updateSettingsPanel === 'function') updateSettingsPanel(tabId);
 };
@@ -18953,10 +18957,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 15);
     });
 
-    // Initial navigation based on hash or saved tab
+    // Initial navigation based on hash or saved tab (run synchronously on DOMContentLoaded to avoid route/title flashes)
     const rawInitialHash = (window.location.hash || '').replace(/^#/, '').trim();
     if (rawInitialHash) {
-        setTimeout(() => handleAdminRouteOrPopState(false), 20);
+        handleAdminRouteOrPopState(false);
     } else {
         // Check saved active tab in sessionStorage
         const savedTab = sessionStorage.getItem('sigma-admin-active-tab');
@@ -18964,13 +18968,13 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const { navId } = JSON.parse(savedTab);
                 if (navId) {
-                    setTimeout(() => window.switchTab(navId), 20);
+                    window.switchTab(navId);
                     return;
                 }
             } catch (e) {}
         }
         // Default to dashboard if no hash or saved tab
-        setTimeout(() => window.switchTab('nav-dashboard', true), 20);
+        window.switchTab('nav-dashboard', true);
     }
 
 
