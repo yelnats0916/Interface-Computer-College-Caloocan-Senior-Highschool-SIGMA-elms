@@ -74,10 +74,16 @@ jobs:
           scp "${opts[@]}" output/all-draft-coursework/coursework-documents.zip "$target:/home/sigma-elms/coursework-documents.zip"
           scp "${opts[@]}" output/all-draft-coursework/all-draft-coursework-bundle.json "$target:/home/sigma-elms/sigma-private/all-draft-coursework-bundle.json"
           scp "${opts[@]}" scripts/install-all-draft-coursework.php "$target:/home/sigma-elms/sigma-private/install-all-draft-coursework.php"
-          ssh "${opts[@]}" "$target" 'python3 -c '\''import zipfile, pathlib; z = pathlib.Path("/home/sigma-elms/coursework-documents.zip"); d = pathlib.Path("/home/sigma-elms/sigma-private/announcement-uploads/documents"); d.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(z).extractall(d); z.unlink(); print("Extracted coursework files to", d)'\'''
+          ssh "${opts[@]}" "$target" 'python3 -c '\''import zipfile, pathlib; z = pathlib.Path("/home/sigma-elms/coursework-documents.zip"); d = pathlib.Path("/home/sigma-elms/sigma-private/announcement-uploads/documents"); d.mkdir(parents=True, exist_ok=True); d.chmod(0o755); zipfile.ZipFile(z).extractall(d); z.unlink(); [p.chmod(0o755 if p.is_dir() else 0o644) for p in d.rglob("*")]; print("Extracted", len(list(d.glob("*"))), "coursework files to", d)'\'''
           ssh "${opts[@]}" "$target" "php /home/sigma-elms/sigma-private/install-all-draft-coursework.php /home/sigma-elms/www /home/sigma-elms/sigma-private/all-draft-coursework-bundle.json 0000000"
       - name: Check public login
         run: curl --fail --silent --show-error --location --max-time 30 https://sigma-elms.alwaysdata.net/index.html --output /dev/null
+      - name: Verify coursework document access
+        run: |
+          sample=$(python -c "import json; b = json.load(open('output/all-draft-coursework/all-draft-coursework-bundle.json')); print(next(m['url'] for s in b['subjects'] for t in s['topics'] for m in t.get('materials', []) if m.get('url')))")
+          echo "Verifying: https://sigma-elms.alwaysdata.net/$sample"
+          curl --fail --silent --show-error --location --max-time 30 "https://sigma-elms.alwaysdata.net/$sample" --output /dev/null
+          echo "Verified document download HTTP 200 OK" 
       - name: Remove runner deployment key
         if: always()
         run: rm -f ~/.ssh/alwaysdata
