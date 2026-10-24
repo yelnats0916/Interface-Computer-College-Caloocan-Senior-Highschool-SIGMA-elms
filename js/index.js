@@ -1479,6 +1479,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (secretTxt) secretTxt.textContent = setupData.secret;
+        if (setupData?.secret) {
+            localStorage.setItem(get2faSecretKey(userId), setupData.secret);
+        }
 
         // Dismiss modal if login was initiated from floating modal
         if (typeof closeLogin === 'function') {

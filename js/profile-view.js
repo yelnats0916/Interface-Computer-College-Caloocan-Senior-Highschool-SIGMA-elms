@@ -1180,9 +1180,30 @@
             lockIcon.className = isLocked ? 'fa-solid fa-lock-open text-base text-black' : 'fa-solid fa-lock text-base text-black';
         }
 
+        const userHas2FA = window.userHasAccessed2FA ? window.userHasAccessed2FA(userData, userData?.id || userData?.uid || window.currentViewingUserId || window.currentEditingUserId) : false;
         const reset2faBtn = document.getElementById('profile-reset-2fa-btn');
         if (reset2faBtn) {
-            reset2faBtn.classList.toggle('hidden', !canEditThisUser || (isSelfUser && !isViewerMaster) || !canActionPassword);
+            const isVisible = canEditThisUser && (!isSelfUser || isViewerMaster) && canActionPassword;
+            reset2faBtn.classList.toggle('hidden', !isVisible);
+            reset2faBtn.disabled = !userHas2FA;
+            reset2faBtn.classList.toggle('is-locked', !userHas2FA);
+            reset2faBtn.classList.toggle('opacity-50', !userHas2FA);
+            reset2faBtn.classList.toggle('cursor-not-allowed', !userHas2FA);
+            reset2faBtn.classList.toggle('pointer-events-none', !userHas2FA);
+            reset2faBtn.title = userHas2FA ? '' : 'Locked: User has not accessed or set up 2FA QR code yet';
+            const sub = reset2faBtn.querySelector('.text-xs');
+            if (sub) {
+                sub.textContent = userHas2FA ? 'Unbind Google Authenticator to issue a new QR barcode' : 'Locked: User has not accessed or set up 2FA yet';
+            }
+        }
+        const actionsReset2faBtn = document.getElementById('profile-actions-reset-2fa-btn');
+        if (actionsReset2faBtn) {
+            actionsReset2faBtn.disabled = !userHas2FA;
+            actionsReset2faBtn.classList.toggle('is-locked', !userHas2FA);
+            actionsReset2faBtn.classList.toggle('opacity-50', !userHas2FA);
+            actionsReset2faBtn.classList.toggle('cursor-not-allowed', !userHas2FA);
+            actionsReset2faBtn.classList.toggle('pointer-events-none', !userHas2FA);
+            actionsReset2faBtn.title = userHas2FA ? '' : 'Locked: User has not accessed or set up 2FA QR code yet';
         }
 
         const deleteBtn = document.getElementById('profile-delete-btn');

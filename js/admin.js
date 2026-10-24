@@ -642,6 +642,7 @@ function renderUserAccountsTable() {
         // Connect real last login / activity timestamp
         const createdDateText = formatUserCreatedDate(user.createdAt);
 
+        const userHas2FA = window.userHasAccessed2FA ? window.userHasAccessed2FA(user, id) : false;
         const defaultProfileAvatarHtml = `<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>`;
         const avatarElement = photo
             ? `<img src="${escapeHtml(photo)}" alt="${escapeHtml(fullName)}" class="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" onerror="this.outerHTML='<div class=\\'w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0 border border-slate-200/70 select-none overflow-hidden\\'><i class=\\'fa-solid fa-user text-xs text-[#94a3b8]\\'></i></div>'">`
@@ -695,10 +696,20 @@ function renderUserAccountsTable() {
                                     <i class="fa-solid fa-circle-user"></i>
                                     <span>View Profile</span>
                                 </button>
-                                ${canEditThisUser && (isViewerMaster || viewerPerms.actionPassword !== false) ? `<button onclick="window.resetUser2FA('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item">
-                                    <i class="fa-solid fa-qrcode"></i>
-                                    <span>Reset 2FA</span>
-                                </button>` : ''}
+                                ${canEditThisUser && (isViewerMaster || viewerPerms.actionPassword !== false) ? (
+                                    userHas2FA ? `
+                                        <button onclick="window.resetUser2FA('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item">
+                                            <i class="fa-solid fa-qrcode text-emerald-500"></i>
+                                            <span>Reset 2FA</span>
+                                        </button>
+                                    ` : `
+                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Locked: User has not accessed or set up 2FA QR code yet" onclick="event.stopPropagation();">
+                                            <i class="fa-solid fa-qrcode text-slate-400"></i>
+                                            <span>Reset 2FA</span>
+                                            <i class="fa-solid fa-lock text-[11px] ml-auto text-slate-400"></i>
+                                        </button>
+                                    `
+                                ) : ''}
                                 ${canLockThisUser && !isDeactivated ? `
                                 <button onclick="window.toggleUserLock('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item text-black">
                                     <i class="fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'} text-black"></i>
@@ -3016,6 +3027,41 @@ window.toggleUserLock = function (userId) {
     }
 };
 
+window.userHasAccessed2FA = function (user, userId) {
+    const cleanId = String(userId || user?.uid || user?.id || '').replace(/^#/, '').trim();
+    if (!cleanId && !user) return false;
+
+    if (user && typeof user === 'object') {
+        if (user.totp_enabled === true || user.totp_enabled === 1 || user.totp_enabled === '1') return true;
+        if (user.totpEnabled === true || user.totpEnabled === 1 || user.totpEnabled === '1') return true;
+        if (user.has2fa === true || user.has2fa === 1 || user.has2fa === '1') return true;
+        if (user.totpSecretGenerated === true || user.totpSecretGenerated === 1) return true;
+        if (typeof user.totp_secret === 'string' && user.totp_secret.trim() !== '') return true;
+        if (typeof user.totpSecret === 'string' && user.totpSecret.trim() !== '') return true;
+    }
+
+    if (cleanId) {
+        try {
+            if (localStorage.getItem('sigma-2fa-enabled-' + cleanId) === 'true') return true;
+            const sec = localStorage.getItem('sigma-2fa-secret-' + cleanId);
+            if (sec && String(sec).trim() !== '') return true;
+
+            const allUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
+            const cached = allUsers.find(u => String(u?.uid || u?.id || '').replace(/^#/, '').trim() === cleanId);
+            if (cached) {
+                if (cached.totp_enabled === true || cached.totp_enabled === 1 || cached.totp_enabled === '1') return true;
+                if (cached.totpEnabled === true || cached.totpEnabled === 1 || cached.totpEnabled === '1') return true;
+                if (cached.has2fa === true || cached.has2fa === 1 || cached.has2fa === '1') return true;
+                if (cached.totpSecretGenerated === true || cached.totpSecretGenerated === 1) return true;
+                if (typeof cached.totp_secret === 'string' && cached.totp_secret.trim() !== '') return true;
+                if (typeof cached.totpSecret === 'string' && cached.totpSecret.trim() !== '') return true;
+            }
+        } catch (_) {}
+    }
+
+    return false;
+};
+
 window.resetUser2FA = function (userId) {
     if (!userId) return;
 
@@ -3035,6 +3081,20 @@ window.resetUser2FA = function (userId) {
     if (!user || !window.canCurrentAdminManageRole(user.role || user.type)
         || (normalizeUserRole(actor.role || actor.type) !== 'Master Admin' && actor.permissions?.actionPassword === false)) return;
     const userName = user ? (user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || cleanId) : cleanId;
+    const userHas2FA = window.userHasAccessed2FA ? window.userHasAccessed2FA(user, cleanId) : false;
+    if (!userHas2FA) {
+        const lockedDesc = `${userName} (${cleanId}) has not accessed or received their 2FA QR barcode yet. Reset 2FA will only unlock once they have received their QR setup screen.`;
+        if (typeof window.showSigmaDialog === 'function') {
+            window.showSigmaDialog({
+                title: '2FA Not Yet Activated',
+                desc: lockedDesc,
+                icon: 'fa-solid fa-lock text-slate-500',
+                confirmText: 'OK',
+                isNotification: true
+            });
+        }
+        return;
+    }
 
     const executeReset2FA = async () => {
         try {
@@ -3048,13 +3108,19 @@ window.resetUser2FA = function (userId) {
             if (!resetResponse.ok || !resetResult.success) throw new Error(resetResult.error || '2FA reset failed');
             if (user) {
                 user.totp_enabled = 0;
+                user.totpEnabled = false;
                 user.totp_secret = null;
+                user.has2fa = false;
+                user.totpSecretGenerated = false;
                 if (typeof USER_STORAGE_KEY !== 'undefined') {
                     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
                 }
             }
             localStorage.removeItem('sigma-2fa-enabled-' + cleanId);
             localStorage.removeItem('sigma-2fa-secret-' + cleanId);
+            if (typeof renderUserAccountsTable === 'function') {
+                renderUserAccountsTable();
+            }
 
             window.SigmaAuthenticationLogs?.record({ event:'Google Authenticator 2FA reset', user, outcome:'warning' });
 
