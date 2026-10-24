@@ -1863,6 +1863,53 @@
             text-align: center !important;
             box-sizing: border-box;
         }
+        /* Quiz form guidance has separate desktop and mobile reading scales. */
+        html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+        #ai-generator-modal .sigma-question-upload-meta,
+        #import-questions-modal .sigma-question-upload-meta {
+            font-size: 13px !important;
+            line-height: 1.55 !important;
+            overflow-wrap: anywhere;
+        }
+        html body #import-questions-modal #import-paste-textarea, html body #ai-generator-modal #ai-gen-topic {
+            font-family: 'Inter', Arial, sans-serif !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 16px !important;
+            background: #f8fafc !important;
+            padding: 14px !important;
+            font-weight: 400 !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+        }
+        html body #import-questions-modal #import-paste-textarea::placeholder, html body #ai-generator-modal #ai-gen-topic::placeholder {
+            font-size: inherit !important;
+            font-weight: 400 !important;
+            line-height: inherit !important;
+        }
+        #import-paste-label { font-size: 14px !important; line-height: 1.5 !important; }
+        html body #import-questions-modal #import-paste-helper kbd { font-size: 12px !important; }
+        @media (min-width: 1024px) {
+            html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+            #ai-generator-modal .sigma-question-upload-meta,
+            #import-questions-modal .sigma-question-upload-meta { font-size: 14px !important; }
+            html body #import-questions-modal #import-paste-textarea, html body #ai-generator-modal #ai-gen-topic { font-size: 16px !important; }
+            #import-paste-label { font-size: 15px !important; }
+            html body #import-questions-modal #import-paste-helper kbd { font-size: 13px !important; }
+        }
+        @media (max-width: 639.98px) {
+            html body #import-questions-modal #import-paste-helper, #ai-bloom-description, #ai-blueprint-error,
+            #ai-generator-modal .sigma-question-upload-meta,
+            #import-questions-modal .sigma-question-upload-meta { font-size: 11px !important; line-height: 1.5 !important; }
+            html body #import-questions-modal #import-paste-textarea, html body #ai-generator-modal #ai-gen-topic { font-size: 12px !important; line-height: 1.6 !important; padding: 10px !important; border-radius: 12px !important; }
+            #import-paste-label { font-size: 12px !important; }
+            html body #import-questions-modal #import-paste-helper kbd { font-size: 10px !important; }
+            html body #import-questions-modal #import-paste-helper { margin-top: 4px; margin-bottom: 6px; }
+        }
+        html body #import-questions-modal #import-paste-textarea:focus,
+        html body #ai-generator-modal #ai-gen-topic:focus {
+            border-color: #FFD000 !important;
+            background: #fff !important;
+        }
     </style>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261012standardAvatar513">
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_navbar_shimmer_v41">
@@ -2228,7 +2275,7 @@
                     <div id="ai-generation-settings" class="hidden space-y-4 sm:space-y-5">
                         <div class="space-y-1.5">
                             <label for="ai-gen-topic" class="block text-xs sm:text-sm font-semibold text-black">Additional Instructions (Optional)</label>
-                            <textarea id="ai-gen-topic" rows="3" maxlength="2000" placeholder="Specify the topic, pages, or learning objectives to focus on." oninput="window.syncAIGenerateButtonState()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-black resize-y leading-relaxed"></textarea>
+                            <textarea id="ai-gen-topic" rows="3" maxlength="2000" placeholder="Specify the topic, pages, or learning objectives to focus on." oninput="window.syncAIGenerateButtonState()" class="sigma-one-border-textarea w-full bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-black resize-y leading-relaxed"></textarea>
                         </div>
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 w-full relative z-30" id="ai-gen-engine-type-row">
 
@@ -2640,7 +2687,7 @@
                         <textarea id="import-paste-textarea" maxlength="10000"
                             placeholder="What is the capital of the Philippines?&#10;Define photosynthesis.&#10;What are the three branches of government?"
                             oninput="window.updateImportPreviewCounter()"
-                            class="flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-[10px] sm:text-[11px] font-sans text-black outline-none focus:bg-white focus:border-[#FFD000] transition-all placeholder:text-black-fade placeholder:text-[9.5px] sm:placeholder:text-[10.5px] min-h-[140px] sm:min-h-[180px] resize-y leading-relaxed"></textarea>
+                            class="sigma-one-border-textarea flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-[10px] sm:text-[11px] font-sans text-black outline-none focus:bg-white focus:border-[#FFD000] transition-all placeholder:text-black-fade placeholder:text-[9.5px] sm:placeholder:text-[10.5px] min-h-[140px] sm:min-h-[180px] resize-y leading-relaxed"></textarea>
                     </div>
                 </div>
             </div>
