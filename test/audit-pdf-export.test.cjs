@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     for(const width of [1440,375]){
         const context=await browser.newContext({viewport:{width,height:800},acceptDownloads:true});const page=await context.newPage();
         await page.route('http://audit.test/**',route=>{const file=new URL(route.request().url()).pathname.slice(1);if(file.startsWith('js/vendor/'))return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(file)});return route.fulfill({contentType:'text/html',body:'<html><body>'+['ai','activity','auth','notifications'].map(kind=>`<section id="audit-${kind==='notifications'?'notifications':kind}-view"><div><table class="sigma-audit-table"><tbody></tbody></table></div></section>`).join('')+'</body></html>'});});
-        await page.goto('http://audit.test/');await page.addStyleTag({content:fs.readFileSync('css/shared-components.css','utf8')+fs.readFileSync('css/forms.css','utf8')+fs.readFileSync('css/audit-pdf-export.css','utf8')});
+        await page.goto('http://audit.test/');const adminHtml=fs.readFileSync('admin.html','utf8');const cssFiles=[...adminHtml.matchAll(/<link[^>]*href="(css\/[^"?]+)(?:\?[^"]*)?"[^>]*>/g)].map(match=>match[1]);for(const file of cssFiles)await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
         await page.evaluate(()=>{
             window.canViewAuditLog=()=>true;window.getAuditLogSearchQuery=()=> 'Activity 1';
             const users=[{id:'101',firstName:'Mary Ann',middleName:'Cruz',lastName:'De la Rosa',role:'Teacher'},{id:'202',firstName:'Stanley',lastName:'Garcia',role:'Admin'}];
@@ -13,8 +13,9 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
         });
         await page.addScriptTag({content:fs.readFileSync('js/audit-pdf-export.js','utf8')});await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
         assert.equal(await page.locator('[data-audit-export]').count(),4);
+        assert.equal(await page.locator('[data-audit-export=notifications]').evaluate(e=>getComputedStyle(e).height),width<640?'40px':'46px');
         await page.locator('[data-audit-export=notifications]').click();await page.waitForFunction(()=>document.querySelector('[data-count]').textContent==='3 matching records');
-        const modal=page.locator('#audit-pdf-export');assert(await modal.getByLabel('Search name or ID').count()===0); // The visible label is User, separate from Log Type.
+        const modal=page.locator('#audit-pdf-export');for(const selector of ['.sigma-modal-footer [data-download]','.sigma-modal-footer [data-close]','.audit-export-direction'])assert.equal(await modal.locator(selector).evaluate(e=>getComputedStyle(e).height),width<640?'40px':'46px');assert.equal(await modal.locator('.sigma-modal-header [data-close]').evaluate(e=>getComputedStyle(e).height),width<640?'34px':'40px');assert(await modal.getByLabel('Search name or ID').count()===0); // The visible label is User, separate from Log Type.
         await modal.locator('[name=user]').fill('Mary Ann');assert.equal(await modal.locator('[data-count]').textContent(),'3 matching records');
         await modal.locator('.audit-export-direction summary').click();await modal.locator('[data-direction-value=sender]').click();assert.equal(await modal.locator('[data-count]').textContent(),'0 matching records');
         await modal.locator('.audit-export-direction summary').click();await modal.locator('[data-direction-value=recipient]').click();await modal.locator('[name=from]').fill('2026-10-25');await modal.locator('[name=to]').fill('2026-10-25');assert.equal(await modal.locator('[data-count]').textContent(),'3 matching records','Manila midnight boundaries are respected');
