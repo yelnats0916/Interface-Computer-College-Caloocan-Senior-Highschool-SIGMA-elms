@@ -264,6 +264,7 @@ async function initQuizCreator() {
     }
     initUserAvatar();
     void window.fetchQuizLibraryFromServer?.();
+    void window.fetchCourseMaterialsFromDB?.();
     try {
         const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
         if (raw) {
@@ -410,6 +411,7 @@ window.handleImageUpload = function (event) {
     const MAX_GENERAL_IMAGES = 5;
     const remainingSlots = MAX_GENERAL_IMAGES - window.quizGeneralImages.length;
     if (remainingSlots <= 0) {
+        stopPreparing();
         if (typeof window.openAskingPanel === 'function') {
             window.openAskingPanel({
                 title: 'Maximum Images Reached',
@@ -1343,6 +1345,15 @@ function renderQuestions() {
 
             if (window.SigmaQuizComponents && typeof window.SigmaQuizComponents.renderQuestionCard === 'function') {
                 mainContainer.innerHTML = window.SigmaQuizComponents.renderQuestionCard(q, idx, isAnswerKeyOpen, isNewlyAdded);
+                if(q.bloomLevel){
+                    const review=document.createElement('div');review.className='flex flex-col sm:flex-row sm:items-center gap-2 p-3 text-xs sm:text-sm border border-slate-200 rounded-xl mb-3';
+                    const label=document.createElement('label');label.textContent='Thinking Skill';label.htmlFor='quiz-question-bloom-review';
+                    const select=document.createElement('select');select.id='quiz-question-bloom-review';select.className='min-w-0 border border-slate-200 rounded-lg p-2 bg-white';
+                    ['Remember','Understand','Apply','Analyze','Evaluate','Create'].forEach(level=>select.add(new Option(level,level)));select.value=q.bloomLevel;
+                    select.onchange=()=>{q.bloomLevel=select.value;q.bloomRationale='Reviewed by author.';window.syncQuizSaveButtonState?.();};
+                    const note=document.createElement('span');note.className='text-black-fade leading-relaxed break-words';note.textContent=q.bloomRationale||'';
+                    review.append(label,select,note);mainContainer.prepend(review);
+                }
             } else {
                 window.SigmaContentLoading.render(mainContainer, {label:'Loading question'});
             }
@@ -1544,6 +1555,8 @@ window.getQuizContentSnapshot = function () {
         images: (window.quizGeneralImages || []).map(img => ({ id: img.id, title: (img.title || '').trim(), src: img.src })),
         questions: (questions || []).map(q => ({
             type: q.type,
+            bloomLevel: q.bloomLevel || '',
+            bloomRationale: q.bloomRationale || '',
             question: (q.question || '').trim(),
             choices: Array.isArray(q.choices) ? q.choices.map(c => (c || '').trim()) : [],
             pairs: Array.isArray(q.pairs) ? q.pairs.map(p => ({ premise: (p.premise || p.left || '').trim(), target: (p.target || p.right || '').trim(), points: parseInt(p.points) || 1 })) : [],
@@ -2419,6 +2432,12 @@ window.renderLibraryModalQuizzes = function (query = '') {
     const allQuizzes = (typeof getStoredQuizLibrary === 'function') ? getStoredQuizLibrary() : [];
     const isOwn = (item) => (window.isUserQuizOwner ? window.isUserQuizOwner(item, activeUser) : false);
 
+    if(!allQuizzes.length && window._quizLibraryLoading){
+        container.innerHTML='<div class="col-span-full p-8 text-center text-black-fade" role="status"><i class="fa-solid fa-spinner fa-spin" aria-label="Loading quizzes"></i></div>';return;
+    }
+    if(!allQuizzes.length && window._quizLibraryLoadError){
+        container.innerHTML='<div class="col-span-full p-6 text-center text-sm"><button type="button" class="sigma-btn sigma-btn-white sigma-modal-btn" onclick="window.fetchQuizLibraryFromServer()">Retry Loading Quizzes</button></div>';return;
+    }
     // Filter quizzes
     let filtered = allQuizzes.filter(item => {
         if (!item) return false;
@@ -2889,13 +2908,18 @@ const resolveCourseMaterialsApiUrl = () => {
 };
 window.resolveCourseMaterialsApiUrl = resolveCourseMaterialsApiUrl;
 
-window.fetchCourseMaterialsFromDB = async function () {
-    try {
+let courseMaterialsPending = null;
+window.fetchCourseMaterialsFromDB = function () {
+    if (!window.SigmaSessionNavigation?.isVerified()) return Promise.resolve();
+    if (courseMaterialsPending) return courseMaterialsPending;
+    const owner=String(window.SigmaDatabase.currentUser()?.id||'');
+    courseMaterialsPending=(async()=>{ try {
         const url = resolveCourseMaterialsApiUrl();
-        const res = await window.SigmaDatabase.fetch(url);
+        const res = await window.SigmaDatabase.fetch(url, { cache:'no-store' });
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.success && Array.isArray(data.records) && data.records.length > 0) {
+        if (data && data.success && Array.isArray(data.records)) {
+            if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)return;
             window._dbCourseSubjects = data.records;
             if (typeof window.renderMaterialPickerItems === 'function') {
                 window.renderMaterialPickerItems();
@@ -2903,11 +2927,13 @@ window.fetchCourseMaterialsFromDB = async function () {
         }
     } catch (e) {
         console.warn('[SIGMA] Course materials DB fetch offline or unavailable:', e);
-    }
+    } finally {courseMaterialsPending=null;} })();
+    return courseMaterialsPending;
 };
 
 // Initial background fetch from MySQL
 window.fetchCourseMaterialsFromDB();
+for (const name of ['sigma:database-session-ready','online']) window.addEventListener(name, () => window.fetchCourseMaterialsFromDB());
 
 window.getRealCourseMaterials = function () {
     const materialsMap = {};
@@ -3103,6 +3129,7 @@ window.getRealCourseMaterials = function () {
 
                 addEntry({
                     id: matId,
+                    sourceMaterial: mat,
                     subject: `${cleanSubjectName} (${gradeLevel} - ${section})`,
                     cleanSubjectName: cleanSubjectName,
                     gradeLevel: gradeLevel,
@@ -3216,6 +3243,7 @@ window.addEventListener('resize', function () {
 });
 
 window.openMaterialPickerPage = function () {
+    void window.fetchCourseMaterialsFromDB();
     if (typeof currentAIGenFile !== 'undefined' && currentAIGenFile) {
         if (typeof window.showWarningToast === 'function') {
             window.showWarningToast('Borrowing course materials is locked while an uploaded document is active. Remove the file to browse materials.');
@@ -3752,55 +3780,18 @@ window.processAIGenFile = async function (file) {
     window.displayAIGenUploadedFileCard(file);
 
     try {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
-        if ((ext === 'docx' || ext === 'doc') && window.mammoth) {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await window.mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-            currentAIGenFileText = (result.value || '').trim();
-        } else if (ext === 'pdf' && window.pdfjsLib) {
-            if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            }
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n\n';
-            }
-            currentAIGenFileText = fullText.trim();
-        } else if (ext === 'pptx' && window.JSZip) {
-            const arrayBuffer = await file.arrayBuffer();
-            const zip = await window.JSZip.loadAsync(arrayBuffer);
-            const slideFiles = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name));
-            slideFiles.sort((a, b) => {
-                const numA = parseInt(a.match(/slide(\d+)\.xml/i)?.[1] || '0', 10);
-                const numB = parseInt(b.match(/slide(\d+)\.xml/i)?.[1] || '0', 10);
-                return numA - numB;
-            });
-            let fullText = '';
-            for (const slidePath of slideFiles) {
-                const xmlStr = await zip.files[slidePath].async('string');
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlStr, 'text/xml');
-                const textNodes = xmlDoc.getElementsByTagName('a:t');
-                const slideText = Array.from(textNodes).map(n => n.textContent).join(' ');
-                fullText += slideText + '\n\n';
-            }
-            currentAIGenFileText = fullText.trim();
-        } else if (ext === 'txt' || ext === 'md' || ext === 'csv') {
-            currentAIGenFileText = (await file.text()).trim();
-        } else if (isImage) {
-            currentAIGenFileText = `Image Grounding Material: ${cleanName}\nFile Name: ${file.name}\nMedia Format: Image (${ext.toUpperCase()})\nContext: This educational graphic/diagram illustrates visual structures, labeled parts, concepts, and relationships of ${cleanName}. Generate educational quiz question items evaluating visual identification, processes, definitions, and operational comprehension of ${cleanName}.`;
-        } else if (ext === 'mp4') {
-            currentAIGenFileText = `Video Grounding Material: ${cleanName}\nFile Name: ${file.name}\nMedia Format: MP4 Video Lesson\nContext: This educational video demonstrates technical procedures, step-by-step methodologies, subject explanations, and practical takeaways for ${cleanName}. Generate comprehensive quiz questions evaluating core principles, demonstrated phases, terminology, and instructional takeaways from ${cleanName}.`;
-        }
-    } catch (e) {
-        console.warn('Error reading AI file:', e);
+        const extractedText = await window.SigmaQuizGeneration.readFile(file);
+        if(currentAIGenFile!==file)return;
+        currentAIGenFileText = extractedText;
+    } catch (error) {
+        currentAIGenFileText = '';
+        window.showWarningToast?.(error.message);
+        const warning=document.getElementById('ai-gen-validation-warning');
+        const text=document.getElementById('ai-gen-warning-text');
+        if(text)text.textContent=error.message;
+        warning?.classList.remove('hidden');
     }
-
+    if(currentAIGenFile!==file)return;
     // Do NOT put file content inside description textarea anymore.
     // The upload exists as its own file object.
     window.lockAIBorrowAndDescription(file);
@@ -3961,40 +3952,23 @@ window.clearAIGenUploadedFile = function (event) {
     window.syncAIGenerateButtonState();
 };
 
+window.quizGenerationHasSource = function () {
+    const borrow=document.getElementById('ai-panel-borrow');
+    if(borrow&&!borrow.classList.contains('hidden'))return borrowedMaterialsSet.size>0;
+    return Boolean(currentAIGenFile && currentAIGenFileText.trim());
+};
 window.syncAIGenerateButtonState = function () {
-    const submitBtn = document.getElementById('ai-generate-submit-btn');
-    if (!submitBtn) return;
-
-    // Detect which toggle is currently selected
-    const borrowPanel = document.getElementById('ai-panel-borrow');
-    const isBorrowActive = borrowPanel && !borrowPanel.classList.contains('hidden');
-
-    let hasSource = false;
-    if (isBorrowActive) {
-        // Toggle 1: Borrow Material -> requires at least 1 added borrowed material
-        hasSource = typeof borrowedMaterialsSet !== 'undefined' && borrowedMaterialsSet.size > 0;
-    } else {
-        // Toggle 2: Upload Document -> requires an uploaded file OR a description topic
-        const topicInput = document.getElementById('ai-gen-topic');
-        const rawTopic = topicInput ? topicInput.value.trim() : '';
-        hasSource = Boolean(currentAIGenFile) || rawTopic.length > 0;
-    }
-
-    if (hasSource) {
-        // Unlocked state
-        submitBtn.disabled = false;
-        submitBtn.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-        submitBtn.classList.add('cursor-pointer');
-        submitBtn.removeAttribute('title');
-        const warnBanner = document.getElementById('ai-gen-validation-warning');
-        if (warnBanner) warnBanner.classList.add('hidden');
-    } else {
-        // Locked state
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-        submitBtn.classList.remove('cursor-pointer');
-        submitBtn.setAttribute('title', isBorrowActive ? 'Please borrow at least one course material' : 'Please upload a document or enter a topic description');
-    }
+    const ready=window.quizGenerationHasSource();
+    const settings=document.getElementById('ai-generation-settings');
+    if(settings){settings.hidden=!ready;settings.classList.toggle('hidden',!ready);}
+    const valid=window.SigmaQuizGeneration?.sync()!==false;
+    const button=document.getElementById('ai-generate-submit-btn');
+    if(!button)return;
+    button.disabled=!ready||!valid||button.dataset.generating==='true';
+    button.classList.toggle('opacity-40',button.disabled);
+    button.classList.toggle('cursor-not-allowed',button.disabled);
+    button.classList.toggle('pointer-events-none',button.disabled);
+    button.classList.toggle('cursor-pointer',!button.disabled);
 };
 
 let pendingSwitchSourceOption = null;
@@ -4257,6 +4231,7 @@ window.confirmDiscardAction = function () {
 };
 
 window.confirmDiscardAIGenerator = function () {
+    window.SigmaQuizGeneration?.reset();
     const topicInput = document.getElementById('ai-gen-topic');
     const engineSelect = document.getElementById('ai-gen-engine');
     const typeSelect = document.getElementById('ai-gen-type');
@@ -4481,6 +4456,8 @@ window.selectAIType = function (val, label) {
     if (wrapper) wrapper.classList.remove('z-50');
     if (chevron) chevron.classList.remove('rotate-180');
     if (btn) btn.classList.remove('border-[#15803d]', 'border-[#FFD000]', 'bg-white');
+    window.SigmaQuizGeneration?.sync();
+    window.syncAIGenerateButtonState();
 };
 
 window.syncAIDropdownLabels = function () {
@@ -4604,70 +4581,9 @@ window.closeAIConfirmGenerateModal = function () {
 // =========================================================================
 
 window.generateAIQuestions = function () {
-    const borrowPanel = document.getElementById('ai-panel-borrow');
-    const isBorrowActive = borrowPanel && !borrowPanel.classList.contains('hidden');
-
-    let hasSource = false;
-    if (isBorrowActive) {
-        hasSource = typeof borrowedMaterialsSet !== 'undefined' && borrowedMaterialsSet.size > 0;
-        if (!hasSource) {
-            const borrowBtn = document.getElementById('ai-borrow-trigger-btn');
-            if (borrowBtn) {
-                borrowBtn.classList.add('!border-rose-300');
-                setTimeout(() => {
-                    borrowBtn.classList.remove('!border-rose-300');
-                }, 1800);
-            }
-            const warnBanner = document.getElementById('ai-gen-validation-warning');
-            if (warnBanner) {
-                const warnText = document.getElementById('ai-gen-warning-text');
-                if (warnText) warnText.textContent = 'Please borrow at least one course material before generating.';
-                warnBanner.classList.remove('hidden');
-                warnBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-            window.syncAIGenerateButtonState();
-            return;
-        }
-    } else {
-        const topicInput = document.getElementById('ai-gen-topic');
-        const rawTopic = topicInput ? topicInput.value.trim() : '';
-        hasSource = Boolean(currentAIGenFile) || rawTopic.length > 0;
-        if (!hasSource) {
-            const dropzone = document.getElementById('ai-gen-dropzone');
-            if (dropzone) {
-                dropzone.classList.add('!border-rose-400', 'bg-rose-50/20');
-                setTimeout(() => {
-                    dropzone.classList.remove('!border-rose-400', 'bg-rose-50/20');
-                }, 1800);
-            }
-            if (topicInput) {
-                topicInput.focus();
-                topicInput.classList.add('!border-rose-500', 'bg-rose-50/30');
-                setTimeout(() => {
-                    topicInput.classList.remove('!border-rose-500', 'bg-rose-50/30');
-                }, 1800);
-            }
-            const warnBanner = document.getElementById('ai-gen-validation-warning');
-            if (warnBanner) {
-                const warnText = document.getElementById('ai-gen-warning-text');
-                if (warnText) warnText.textContent = 'Please upload a document or enter a topic description before generating.';
-                warnBanner.classList.remove('hidden');
-                warnBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-            window.syncAIGenerateButtonState();
-            return;
-        }
-    }
-
-    // Restriction 2: Question count must be between 1 and 50
-    const countInput = document.getElementById('ai-gen-count');
-    let countVal = parseInt(countInput?.value, 10);
-    if (isNaN(countVal) || countVal < 1) {
-        if (countInput) countInput.value = '1';
-    } else if (countVal > 50) {
-        if (countInput) countInput.value = '50';
-    }
-
+    if(!window.quizGenerationHasSource()){window.syncAIGenerateButtonState();return;}
+    const error=window.SigmaQuizGeneration.error();
+    if(error){window.showWarningToast?.(error);return;}
     window.openAIConfirmGenerateModal();
 };
 
@@ -4678,6 +4594,9 @@ window.executeAIQuestionGeneration = async function () {
     const countInput = document.getElementById('ai-gen-count');
     const difficultyRadio = document.querySelector('input[name="ai-difficulty"]:checked');
     window.closeAIConfirmGenerateModal();
+    submitBtn.dataset.generating = 'true';
+    window.syncAIGenerateButtonState();
+    const stopPreparing = () => { delete submitBtn.dataset.generating; window.syncAIGenerateButtonState(); };
 
     const borrowPanel = document.getElementById('ai-panel-borrow');
     const isBorrowActive = borrowPanel && !borrowPanel.classList.contains('hidden');
@@ -4685,78 +4604,20 @@ window.executeAIQuestionGeneration = async function () {
     const topicInput = document.getElementById('ai-gen-topic');
     const rawTopic = (topicInput?.value || '').trim();
 
-    let topic = '';
+    let topic = currentAIGenFile?.name || 'Borrowed Course Materials';
     let fileContent = '';
-
-    if (isBorrowActive) {
-        // Must pick the selected toggle (Borrow) and its added materials
-        const hasBorrowed = typeof borrowedMaterialsSet !== 'undefined' && borrowedMaterialsSet.size > 0;
-        if (!hasBorrowed) {
-            window.syncAIGenerateButtonState();
-            if (typeof window.showWarningToast === 'function') {
-                window.showWarningToast('Please borrow at least one material before generating.');
-            }
-            return;
-        }
-
-        const materialsMap = (typeof window.getRealCourseMaterials === 'function') ? window.getRealCourseMaterials() : {};
-        const titles = [];
-        const prompts = [];
-        borrowedMaterialsSet.forEach(key => {
-            const data = materialsMap[key];
-            if (data) {
-                if (data.title) titles.push(data.title);
-                if (data.prompt) prompts.push(data.prompt);
-            }
-        });
-        topic = titles.length > 0 ? titles.join(', ') : 'Borrowed Course Materials';
-        fileContent = prompts.join('\n\n---\n\n');
-    } else {
-        // Must pick the selected toggle (Upload) and its added file + topic
-        if (!currentAIGenFile && !rawTopic) {
-            window.syncAIGenerateButtonState();
-            if (typeof window.showWarningToast === 'function') {
-                window.showWarningToast('Please upload a document or enter a topic before generating.');
-            }
-            return;
-        }
-
-        if (currentAIGenFile) {
-            const cleanName = currentAIGenFile.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
-            const ext = (currentAIGenFile.name.split('.').pop() || '').toLowerCase();
-            const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext) || currentAIGenFile.type.startsWith('image/');
-            const isVideo = ext === 'mp4' || currentAIGenFile.type === 'video/mp4';
-            if (isImage || isVideo) {
-                window.showWarningToast?.('Use extracted document text or a written topic for AI generation. Image and video analysis is not connected yet.');
-                return;
-            }
-
-            if (!currentAIGenFileText) {
-                if (isImage) {
-                    currentAIGenFileText = `Image Grounding Material: ${cleanName}\nFile Name: ${currentAIGenFile.name}\nMedia Format: Image (${ext.toUpperCase()})\nContext: This educational graphic/diagram illustrates visual structures, labeled parts, concepts, and relationships of ${cleanName}. Generate educational quiz question items evaluating visual identification, processes, definitions, and operational comprehension of ${cleanName}.`;
-                } else if (isVideo) {
-                    currentAIGenFileText = `Video Grounding Material: ${cleanName}\nFile Name: ${currentAIGenFile.name}\nMedia Format: MP4 Video Lesson\nContext: This educational video demonstrates technical procedures, step-by-step methodologies, subject explanations, and practical takeaways for ${cleanName}. Generate comprehensive quiz questions evaluating core principles, demonstrated phases, terminology, and instructional takeaways from ${cleanName}.`;
-                } else {
-                    try {
-                        currentAIGenFileText = (await currentAIGenFile.text()).trim();
-                    } catch (e) {
-                        console.warn('Error reading AI file:', e);
-                    }
-                }
-            }
-            fileContent = currentAIGenFileText || '';
-            topic = cleanName || 'Uploaded Material';
-            // If textarea also has content, append it as additional context after the file
-            if (rawTopic) {
-                fileContent = fileContent + (fileContent ? '\n\n' : '') + rawTopic;
-                topic = topic + ' — ' + rawTopic;
-            }
-        } else {
-            // Textarea only
-            topic = rawTopic;
-            fileContent = rawTopic;
-        }
-    }
+    try {
+        if(!window.quizGenerationHasSource())throw new Error('Choose a readable material before generating.');
+        if(isBorrowActive){
+            const map=window.getRealCourseMaterials();
+            const entries=Array.from(borrowedMaterialsSet).map(key=>map[key]);
+            const texts=[];
+            for(const entry of entries)texts.push(await window.SigmaQuizGeneration.materialText(entry));
+            fileContent=texts.join('\n\n---\n\n');
+            topic=entries.map(entry=>entry.title).join(', ');
+        }else fileContent=currentAIGenFileText;
+        if(!fileContent.trim())throw new Error('The selected material has no readable text.');
+    }catch(error){window.showWarningToast?.(error.message);stopPreparing();return;}
 
     const selectedType = typeSelect?.value || 'Mixed';
     
@@ -4777,10 +4638,10 @@ window.executeAIQuestionGeneration = async function () {
     }
 
     // Validate count limit (1 - 100, capped by remaining quiz slots)
-    let count = parseInt(countInput?.value, 10);
-    if (isNaN(count) || count < 1) count = 1;
-    if (count > MAX_QUIZ_QUESTIONS) count = MAX_QUIZ_QUESTIONS;
-    if (count > remainingSlots) count = remainingSlots;
+    const blueprint=window.SigmaQuizGeneration.options();
+    const count=blueprint.count;
+    const blueprintError=window.SigmaQuizGeneration.error();
+    if(blueprintError||count>remainingSlots){window.showWarningToast?.(blueprintError||`Only ${remainingSlots} question slots remain.`);stopPreparing();return;}
 
     const difficulty = difficultyRadio?.value || 'Medium';
 
@@ -4799,15 +4660,16 @@ window.executeAIQuestionGeneration = async function () {
         apiUrl.pathname = apiUrl.pathname.replace(/subjects\.php$/, 'quiz_ai.php');
         const response = await window.SigmaDatabase.fetch(apiUrl.href, {
             method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ source: fileContent || topic, type: selectedType, count, difficulty })
+            timeoutMs: 120000, autoReconnect: false, foreground: true,
+            body: JSON.stringify({ source: fileContent, type: selectedType, difficulty, ...blueprint })
         });
         const result = await response.json();
         if (!response.ok || !result.success || !Array.isArray(result.questions) || result.questions.length !== count) throw new Error(result.error || 'AI generation returned invalid questions.');
+        if (!/^ASMTG?-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI generation completed without an assessment ID. Try again.');
         const generated = result.questions;
         const startIndex = questions.length;
         questions.push(...generated);
-        activeQuestionIndex = startIndex < questions.length ? startIndex : Math.max(0, questions.length - 1);
-        if (!/^ASMTG?-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI generation completed without an assessment ID. Try again.');
+        activeQuestionIndex = startIndex;
         window._quizIsAIGenerated = true;
         window._quizAiModel = result.model;
         window._quizAiProvider = result.provider;
@@ -4852,7 +4714,7 @@ window.executeAIQuestionGeneration = async function () {
         if (submitBtn) {
             delete submitBtn.dataset.generating;
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i><span>Generate</span>';
+            submitBtn.innerHTML = '<i class="fa-solid fa-bolt text-xs text-[#FFD000]"></i><span>Generate Questions</span>';
             window.syncAIGenerateButtonState();
         }
     }

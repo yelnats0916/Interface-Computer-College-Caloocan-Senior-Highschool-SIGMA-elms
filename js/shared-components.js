@@ -3025,9 +3025,11 @@ window.fetchQuizLibraryFromServer = async function () {
     if (window._quizLibraryServerOwner !== identity) window._quizLibraryServerData = [];
     const current = { identity };
     quizLibraryRequest = current;
+    window._quizLibraryLoading = true;
+    window._quizLibraryLoadError = false;
     current.promise = (async () => {
         try {
-            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(), { cache: 'no-store' });
+            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(), { cache: 'no-store', foreground: true });
             if (quizLibraryIdentity() !== identity) return;
             if (res.status === 401 || res.status === 403) {
                 quizLibraryBlockedIdentity = identity;
@@ -3047,8 +3049,9 @@ window.fetchQuizLibraryFromServer = async function () {
             window.renderQuizStoragePickerContent?.();
             window.renderQuizLibraryModal?.();
         } catch (error) {
+            window._quizLibraryLoadError = true;
             console.warn('[SIGMA] Quiz library could not be loaded:', error);
-        } finally { if (quizLibraryRequest === current) quizLibraryRequest = null; }
+        } finally { if (quizLibraryRequest === current) { quizLibraryRequest = null; window._quizLibraryLoading = false; window.dispatchEvent(new CustomEvent('sigma:quiz-library-loaded')); } }
     })();
     return current.promise;
 };

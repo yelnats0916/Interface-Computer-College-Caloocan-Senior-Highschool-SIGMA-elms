@@ -15,8 +15,8 @@ if ($origin && ($originHost === ($_SERVER['HTTP_HOST'] ? explode(':', $_SERVER['
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit; }
-$input = file_get_contents('php://input', false, null, 0, 100001);
-if (strlen($input) > 100000) { http_response_code(413); exit; }
+$input = file_get_contents('php://input', false, null, 0, 400001);
+if (strlen($input) > 400000) { http_response_code(413); exit; }
 require_once __DIR__ . '/../includes/quiz_ai_generation.php';
 require_once __DIR__ . '/../includes/ai_generation_id.php';
 require_once __DIR__ . '/../includes/ai_request_auth.php';
@@ -27,7 +27,7 @@ try {
     $services = require dirname(__DIR__, 2) . '/config/services.php';
     $result = generateQuizAi($services, $request, function ($url, $headers, $body) {
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body), CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers), CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 90, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_FOLLOWLOCATION => false]);
+        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($body), CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers), CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 45, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_FOLLOWLOCATION => false]);
         $raw = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);

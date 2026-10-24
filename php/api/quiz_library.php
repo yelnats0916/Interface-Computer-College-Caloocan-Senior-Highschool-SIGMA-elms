@@ -130,14 +130,15 @@ try {
             $stmt = $pdo->prepare("SELECT * FROM `quizzes` WHERE (`id` = :id OR `code` = :code_match) AND `is_deleted` = 0 LIMIT 1");
             $stmt->execute([':id' => $quizId, ':code_match' => $quizId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && strtolower($row['status']??'')==='draft' && (string)$row['author_id']!==(string)$databaseActor['id']) $row=false;
             if (!$row) {
                 jsonResponse(['success' => false, 'error' => 'Quiz not found'], 404);
             }
             jsonResponse(['success' => true, 'quiz' => quizRowToRecord($row)]);
         }
 
-        $query = "SELECT * FROM `quizzes` WHERE `is_deleted` = 0";
-        $params = [];
+        $query = "SELECT * FROM `quizzes` WHERE `is_deleted` = 0 AND (LOWER(status) <> 'draft' OR author_id = :library_owner)";
+        $params = [':library_owner'=>(string)$databaseActor['id']];
 
         if ($status !== '') {
             $query .= " AND `status` = :st";
