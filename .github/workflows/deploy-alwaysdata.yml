@@ -35,27 +35,13 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$ALWAYSDATA_SSH_KEY" > ~/.ssh/alwaysdata
           printf '%s\n' "$ALWAYSDATA_KNOWN_HOSTS" > ~/.ssh/known_hosts
-      - name: Inspect and clean remote hosting
+      - name: Prune remote releases and inspect disk space
         shell: bash
         run: |
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          ssh "${opts[@]}" "$target" "python3 -c \"
-import shutil
-from pathlib import Path
-home = Path('/home/sigma-elms')
-web = home / 'www'
-active = web.resolve().parent if web.exists() else None
-for z in list(home.glob('*.zip')) + list((home / 'sigma-releases').glob('*.zip')):
-    try: z.unlink()
-    except Exception: pass
-releases_dir = home / 'sigma-releases'
-if releases_dir.exists():
-    for r in releases_dir.iterdir():
-        if r.is_dir() and (active is None or r.resolve() != active.resolve()):
-            print('Pruned old release:', r.name)
-            shutil.rmtree(r, ignore_errors=True)
-\" && df -h /home/sigma-elms"
+          scp "${opts[@]}" scripts/clean-hosting-releases.py "$target:/home/sigma-elms/sigma-private/clean-hosting-releases.py"
+          ssh "${opts[@]}" "$target" "python3 /home/sigma-elms/sigma-private/clean-hosting-releases.py && df -h /home/sigma-elms"
       - name: Upload release archive
         shell: bash
         run: |
