@@ -255,7 +255,7 @@
         put(8, initial, 'Initial Grade', null, greenHeader); put(8, quarterly, 'Quarterly Grade', null, greenHeader);
         data.rows.forEach((row, ri) => {
             const r = 10 + ri;
-            put(r, 0, window.getRecordCreationNumber(row, data.rows, 'users'), null, { ...input, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '0' });
+            put(r, 0, ri + 1, null, { ...input, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '0' });
             put(r, 1, row.name, null, input); put(r, 2, String(row.id), null, { ...input, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: '@' });
             groups.forEach((group, gi) => {
                 let sum = 0, max = 0;
@@ -444,7 +444,7 @@
         const green = { fill: { fgColor: { rgb: '15803D' } }, font: { name: 'Calibri', sz: 12, bold: true, color: { rgb: 'FFFFFF' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } };
         students.forEach((student, index) => {
             const r = 8 + index;
-            [window.getRecordCreationNumber(student, students, 'users'), student.name, String(student.id)].forEach((value, c) => { sheet[XLSX.utils.encode_cell({ r, c })] = { t: c === 0 ? 'n' : 's', v: value }; });
+            [index + 1, student.name, String(student.id)].forEach((value, c) => { sheet[XLSX.utils.encode_cell({ r, c })] = { t: c === 0 ? 'n' : 's', v: value }; });
             const grades = quarterReferences.map((reference, index) => {
                 const rowIndex = reference.data.rows.findIndex(row => key(row) === key(student));
                 const row = reference.data.rows[rowIndex];

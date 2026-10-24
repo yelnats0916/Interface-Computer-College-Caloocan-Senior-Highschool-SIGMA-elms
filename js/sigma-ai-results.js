@@ -2107,7 +2107,7 @@
         filtered.forEach((item, index) => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs md:text-sm';
-            const rowNumber = searchQuery || (roleFilter && roleFilter !== 'all') ? index + 1 : window.getRecordCreationNumber(item, records, 'ai_' + tabKey);
+            const rowNumber = searchQuery || (roleFilter && roleFilter !== 'all') ? index + 1 : filtered.length - index;
             const assessmentDetails = splitAssessmentSubject(item.subject);
 
             // Status Badge Color

@@ -1334,7 +1334,7 @@
                         ${pagedItems.map((item, rowIdx) => {
                             const meta = getFileTypeDetails(item.type);
                             const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white';
-                            const displayNo = _searchQuery.trim() ? startIndex + rowIdx + 1 : window.getRecordCreationNumber(item, getStoredResources(), 'resources');
+                            const displayNo = _searchQuery.trim() ? startIndex + rowIdx + 1 : filtered.length - startIndex - rowIdx;
                             const materialName = item.materialTitle || item.description || item.subject || 'General Material';
                             return `
                             <tr class="transition-colors ${rowStripe} hover:bg-slate-50/80">

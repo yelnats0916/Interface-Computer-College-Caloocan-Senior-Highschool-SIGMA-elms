@@ -4172,7 +4172,7 @@
             students = getDemoGradebookStudents(subSec.sectionName);
         }
 
-        const rosterNumbers = new Map(students.map(student => [student, window.getRecordCreationNumber(student, students, 'users')]));
+
         const sortOrder = window.sigmaGradesState.studentSortOrder || 'name-asc';
         students = [...students].sort((a, b) => {
             const nameA = String(a.name || a.fullName || '').trim();
@@ -4203,6 +4203,8 @@
             }
             return nameA.localeCompare(nameB);
         });
+
+        const rosterNumbers = new Map(students.map((student, index) => [student, index + 1]));
 
         let sortIconClass = 'fa-arrow-down-a-z';
         if (sortOrder === 'name-desc') sortIconClass = 'fa-arrow-up-z-a';

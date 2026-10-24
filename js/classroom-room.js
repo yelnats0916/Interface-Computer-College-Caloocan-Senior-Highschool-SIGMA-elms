@@ -2255,7 +2255,7 @@
             const key = Object.keys(statuses).find(key => (student.id && String(key) === String(student.id)) || studentNamesMatch(key,name));
             const status = statuses[student.id] || statuses[name] || statuses[key] || '';
             const label = {P:'Present',A:'Absent',L:'Late',E:'Excused'}[status] || 'Unmarked';
-            return `<tr><td>${window.getRecordCreationNumber(student, students, 'users')}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
+            return `<tr><td>${index + 1}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
         }).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div>`;
         dialog.querySelector('[data-close]').onclick = () => dialog.close();
         dialog.addEventListener('click', event => { if (event.target === dialog) { const rect=dialog.getBoundingClientRect(); if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close(); } });
@@ -2916,13 +2916,13 @@
 
                 html += `
                     <tr>
-                        <td class="attendance-roster-number">${window.getRecordCreationNumber(student, students, 'users')}</td>
+                        <td class="attendance-roster-number">${rosterIndex + 1}</td>
                         <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${window.getRecordCreationNumber(student, students, 'users')}. </span>${escapeHtml(displayName)}</span>
+                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${rosterIndex + 1}. </span>${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -3679,7 +3679,7 @@
             let displayName = formatStudentLastFirstMiddle(student) || student.name || student.fullName || '';
 
             let totalP = 0, totalA = 0, totalL = 0, totalE = 0;
-            const studentRow = [window.getRecordCreationNumber(student, students, 'users'), displayName, String(student.id || student.uid || '')];
+            const studentRow = [index + 1, displayName, String(student.id || student.uid || '')];
 
             datesToExport.forEach(d => {
                 const currentStatuses = statusesForDate(d.dateStr);
