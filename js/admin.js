@@ -17422,7 +17422,7 @@ function renderSubjectsTable() {
         return `
             <tr class="transition-colors ${rowStripe} hover:bg-emerald-50/20">
                 <td class="px-4 py-4 text-center">
-                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${window.hasTableSearchFilters(window.subjectSearchState) ? startIndex + idx + 1 : window.getRecordCreationNumber(sub, getStoredJson(SUBJECTS_STORAGE_KEY, []), 'subjects')}</div>
+                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${window.hasTableSearchFilters(window.subjectSearchState) ? startIndex + idx + 1 : totalItems - startIndex - idx}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${escapeHtml(sub.code)}</div>
