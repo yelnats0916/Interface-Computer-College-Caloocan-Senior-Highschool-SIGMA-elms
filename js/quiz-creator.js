@@ -313,7 +313,7 @@ async function initQuizCreator() {
             currentQuizCode = quiz.code || ('#QZ-' + (String(quiz.id || '').replace(/[^0-9]/g, '').slice(-4) || String(Math.floor(1000 + Math.random() * 9000)).padStart(4, '0')));
             currentQuizTitle = quiz.title || 'Untitled Quiz';
             currentQuizDesc = quiz.desc || '';
-            currentQuizIcon = quiz.icon || 'fa-bolt-lightning';
+            currentQuizIcon = window.normalizeQuizIcon(quiz.icon);
             currentQuizColor = quiz.color || '#FFD000';
             if (titleHeading) titleHeading.textContent = 'Edit Quiz';
             window.updateNavBarQuizTitle(currentQuizTitle);
@@ -334,7 +334,7 @@ async function initQuizCreator() {
             currentQuizCode = null; // Generate new code on save
             currentQuizTitle = `${quiz.title || 'Quiz'} (Customized)`;
             currentQuizDesc = quiz.desc || '';
-            currentQuizIcon = quiz.icon || 'fa-bolt-lightning';
+            currentQuizIcon = window.normalizeQuizIcon(quiz.icon);
             currentQuizColor = quiz.color || '#FFD000';
             if (titleHeading) titleHeading.textContent = 'Customize Quiz';
             window.updateNavBarQuizTitle(currentQuizTitle);
@@ -1688,6 +1688,7 @@ window.randomizeSaveQuizIcon = function () {
 };
 
 window.renderSaveQuizIconPicker = function () {
+    currentQuizIcon = window.normalizeQuizIcon(currentQuizIcon);
     const iconPreview = document.getElementById('save-quiz-icon-preview');
     const iconDisplay = document.getElementById('save-quiz-icon-display');
     const iconOptionsWrap = document.getElementById('save-quiz-icon-options');
@@ -1987,6 +1988,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
 
     setTimeout(async () => {
         try {
+            currentQuizIcon = window.normalizeQuizIcon(currentQuizIcon);
             const totalPoints = questions.reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
             const library = getStoredQuizLibrary();
 

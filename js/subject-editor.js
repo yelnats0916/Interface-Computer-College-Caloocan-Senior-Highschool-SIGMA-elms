@@ -7964,7 +7964,7 @@ window.addSubjectTopic = function () {
                 selectedQuizTitle: m.selectedQuizTitle || m.quizTitle || '',
                 selectedQuizQuestions: m.selectedQuizQuestions || m.quizQuestionsCount || 0,
                 selectedQuizPoints: m.selectedQuizPoints || m.quizPoints || 0,
-                selectedQuizIcon: m.selectedQuizIcon || m.quizIcon || m.icon || '',
+                selectedQuizIcon: window.normalizeQuizIcon(m.selectedQuizIcon || m.quizIcon || m.icon),
                 selectedQuizColor: m.selectedQuizColor || m.quizColor || m.color || '',
                 selectedQuizIsAi: Boolean(m.selectedQuizIsAi || m.isAi),
                 perfGuidelinesFileName: m.perfGuidelinesFileName || '',
@@ -9381,7 +9381,7 @@ window.addSubjectTopic = function () {
             window.editingMaterialState.selectedQuizTitle = quiz.title || 'Untitled Quiz';
             window.editingMaterialState.selectedQuizQuestions = Array.isArray(quiz.questions) ? quiz.questions.length : (quiz.totalQuestions || 0);
             window.editingMaterialState.selectedQuizPoints = quiz.totalPoints || (window.editingMaterialState.selectedQuizQuestions * 10);
-            window.editingMaterialState.selectedQuizIcon = quiz.icon || '';
+            window.editingMaterialState.selectedQuizIcon = window.normalizeQuizIcon(quiz.icon);
             window.editingMaterialState.selectedQuizColor = quiz.color || '';
             window.editingMaterialState.selectedQuizIsAi = Boolean(quiz.isAi || quiz.isAiGenerated || quiz.aiGenerated || quiz.source === 'ai' || quiz.generator === 'ai' || quiz.type === 'ai' || (Array.isArray(quiz.tags) && quiz.tags.includes('ai')) || (quiz.desc && quiz.desc.toLowerCase().includes('ai generated')) || (quiz.title && quiz.title.toLowerCase().includes('ai generated')) || (quiz.title && /\bai\b/i.test(quiz.title)) || quiz.engine);
             if (!document.getElementById('mat-editor-title')?.value && !window.editingMaterialState.title) {

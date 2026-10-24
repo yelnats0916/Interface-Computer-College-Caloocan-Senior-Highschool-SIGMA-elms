@@ -2758,6 +2758,7 @@ window.getStoredQuizLibrary = function () {
 window.saveStoredQuizLibrary = function (library) {
     const cleanList = Array.isArray(library) ? library.filter(q => q && !String(q.id).startsWith('quiz-seed-')).map(q => {
         const copy = { ...q };
+        copy.icon = window.normalizeQuizIcon ? window.normalizeQuizIcon(copy.icon) : (copy.icon || 'fa-bolt-lightning');
         delete copy.isOwner;
         // Never put 'Master Admin' in storage — strictly 'Admin' or 'Teacher'
         copy.authorRole = window.normalizeQuizRole ? window.normalizeQuizRole(copy.authorRole || copy.role) : (String(copy.authorRole || copy.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin');
@@ -11451,6 +11452,11 @@ window.getUnifiedTopicAssessments = function (tab, subjectId, topicIdx, defaultA
  * Shared Attached File/Resource Panel Component
  * Unified renderer for attached document/file cards across all pages (no subtitle, clean original title, badge, icon).
  */
+window.normalizeQuizIcon = function (value) {
+    const supported = new Set(['fa-bolt-lightning','fa-pen-nib','fa-code','fa-laptop-code','fa-brain','fa-book-open','fa-graduation-cap','fa-flask','fa-calculator','fa-atom','fa-palette','fa-lightbulb','fa-bolt','fa-file-pen','fa-file-signature','fa-clipboard-question','fa-clipboard-list']);
+    return String(value || '').trim().split(/\s+/).find(icon => supported.has(icon)) || 'fa-bolt-lightning';
+};
+
 window.getQuizStorageIconInfo = function (quizOrState) {
     if (!quizOrState) {
         return {
@@ -11533,19 +11539,10 @@ window.getQuizStorageIconInfo = function (quizOrState) {
         quiz.selectedQuizIsAi
     );
 
-    const rawIcon = quiz.icon || quiz.selectedQuizIcon || quiz.quizIcon || (isAi ? 'fa-bolt' : (isDraft ? 'fa-file-pen' : 'fa-file-signature'));
+    const rawIcon = window.normalizeQuizIcon(quiz.icon || quiz.selectedQuizIcon || quiz.quizIcon || (isAi ? 'fa-bolt' : (isDraft ? 'fa-file-pen' : 'fa-file-signature')));
     const rawColor = quiz.color || quiz.selectedQuizColor || quiz.quizColor || null;
 
-    let iconCls = 'fa-solid fa-file-signature';
-    if (rawIcon) {
-        if (rawIcon.includes('fa-solid') || rawIcon.includes('fa-regular') || rawIcon.includes('fa-brands')) {
-            iconCls = rawIcon;
-        } else if (rawIcon.startsWith('fa-')) {
-            iconCls = `fa-solid ${rawIcon}`;
-        } else {
-            iconCls = `fa-solid fa-${rawIcon}`;
-        }
-    }
+    let iconCls = `fa-solid ${window.normalizeQuizIcon(rawIcon)}`;
 
     let isHexColor = false;
     let cleanHex = '';

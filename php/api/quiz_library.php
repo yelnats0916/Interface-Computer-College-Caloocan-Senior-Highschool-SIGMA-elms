@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/quiz_icons.php';
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
 require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
@@ -110,7 +111,7 @@ function quizRowToRecord(array $row): array {
         'totalQuestions' => $totalQuestions,
         'totalPoints'    => $totalPoints,
         'timeLimit'      => (int) ($row['time_limit'] ?? 0),
-        'icon'           => (string) ($row['icon'] ?? ''),
+        'icon'           => sigmaNormalizeQuizIcon($row['icon'] ?? ''),
         'color'          => (string) ($row['color'] ?? ''),
         'isAi'           => (bool) ($row['is_ai'] ?? 0),
         'createdAt'      => $row['created_at'] ?? null,
@@ -269,7 +270,7 @@ try {
         }
 
         $timeLimit = (int) ($quiz['timeLimit'] ?? $quiz['time_limit'] ?? 0);
-        $icon = trim((string) ($quiz['icon'] ?? ''));
+        $icon = sigmaNormalizeQuizIcon($quiz['icon'] ?? '');
         $color = trim((string) ($quiz['color'] ?? ''));
         $isAi = (!empty($quiz['isAi']) || !empty($quiz['isAiGenerated']) || !empty($quiz['is_ai']) || (($quiz['source'] ?? '') === 'ai')) ? 1 : 0;
 
