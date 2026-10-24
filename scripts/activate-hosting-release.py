@@ -20,10 +20,27 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
         raise ValueError('Archive must be inside the hosting account.')
     release = HOME / 'sigma-releases' / release_name
     web = HOME / 'www'
+
+    # Pre-clean inactive releases to guarantee disk quota headroom
+    release_root = (HOME / 'sigma-releases').resolve()
+    active_release = None
+    if web.exists():
+        try:
+            active_release = web.resolve().parent.resolve()
+        except Exception:
+            pass
+    if release_root.exists():
+        for candidate in release_root.iterdir():
+            if candidate.is_dir() and candidate.resolve() != active_release:
+                try:
+                    shutil.rmtree(candidate, ignore_errors=True)
+                except Exception:
+                    pass
+
     if release.exists():
         if web.is_symlink() and web.resolve() == (release / 'public').resolve():
             raise RuntimeError('Release is already the active website.')
-        shutil.rmtree(release)
+        shutil.rmtree(release, ignore_errors=True)
     release.mkdir(parents=True, mode=0o700)
     try:
         with zipfile.ZipFile(archive) as bundle:
