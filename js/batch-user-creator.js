@@ -1349,29 +1349,25 @@
     function getRoleSectionMeta(role) {
         if (role === 'Admin') {
             return {
-                title: '1. Admin Accounts',
-                badgeClass: 'bg-emerald-100 text-[#15803d] border-emerald-200',
-                icon: 'fa-solid fa-user-shield text-[#15803d]'
+                title: 'Admin Accounts',
+                badgeClass: 'bg-emerald-100 text-[#15803d] border-emerald-200'
             };
         }
         if (role === 'Teacher') {
             return {
-                title: '2. Teacher Accounts',
-                badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
-                icon: 'fa-solid fa-chalkboard-user text-blue-700'
+                title: 'Teacher Accounts',
+                badgeClass: 'bg-blue-100 text-blue-800 border-blue-200'
             };
         }
         if (role === 'Student') {
             return {
-                title: '3. Student Accounts',
-                badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-                icon: 'fa-solid fa-graduation-cap text-amber-700'
+                title: 'Student Accounts',
+                badgeClass: 'bg-amber-100 text-amber-800 border-amber-200'
             };
         }
         return {
             title: 'Unassigned Role (Select Role Required)',
-            badgeClass: 'bg-rose-100 text-rose-700 border-rose-200',
-            icon: 'fa-solid fa-circle-exclamation text-rose-600'
+            badgeClass: 'bg-rose-100 text-rose-700 border-rose-200'
         };
     }
 
@@ -1605,11 +1601,14 @@
 
         const activeBranch = getActiveBranchName();
         let html = '';
+        let lastRoleKey = null;
 
         pageItems.forEach((item, idxOnPage) => {
             const accountNumber = startIdx + idxOnPage + 1;
             const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
             const meta = getRoleSectionMeta(roleKey);
+            const showGroupHeader = roleKey !== lastRoleKey;
+            lastRoleKey = roleKey;
             const complete = isEntryComplete(item);
             const err = item._errors || {};
             const borderClass = Object.keys(err).length > 0
@@ -1618,24 +1617,20 @@
 
             html += `
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <div class="flex items-center gap-2.5">
-                            <i class="${meta.icon} text-sm"></i>
+                    ${showGroupHeader ? `
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
                             <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
-                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
-                                Account ${accountNumber} of ${totalItems}
-                            </span>
                         </div>
-                    </div>
+                    ` : ''}
 
                     <div id="batch-entry-card-${item._uid}" class="rounded-2xl border-2 ${borderClass} p-5 sm:p-6 space-y-4 shadow-2xs transition-all">
                         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
                             <div class="flex items-center gap-2.5">
-                                <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
-                                    ${accountNumber}
-                                </span>
                                 <span id="batch-card-title-${item._uid}" class="text-sm font-bold text-black font-['Inter']">
                                     ${escapeHtml([item.firstName, item.middleName, item.lastName].filter(Boolean).join(' ') || 'New User Account')}
+                                </span>
+                                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
+                                    Account ${accountNumber} of ${totalItems}
                                 </span>
                             </div>
                             <button type="button" onclick="window.removeBatchUserRow(${item._uid})"
@@ -1759,9 +1754,13 @@
         }
 
         let cardsHtml = '';
+        let lastRoleKey = null;
         pageItems.forEach((item, idxOnPage) => {
             const accountNumber = startIdx + idxOnPage + 1;
-            const meta = getRoleSectionMeta(item.role);
+            const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
+            const meta = getRoleSectionMeta(roleKey);
+            const showGroupHeader = roleKey !== lastRoleKey;
+            lastRoleKey = roleKey;
             const fullName = [item.firstName, item.middleName, item.lastName].filter(Boolean).join(' ');
             const err = item._errors || {};
             const hasEmailErr = Boolean(err.emailPrefix || !item.emailPrefix);
@@ -1769,27 +1768,21 @@
 
             cardsHtml += `
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <div class="flex items-center gap-2.5">
-                            <i class="${meta.icon} text-sm"></i>
+                    ${showGroupHeader ? `
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
                             <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
-                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
-                                Account ${accountNumber} of ${totalItems}
-                            </span>
                         </div>
-                    </div>
+                    ` : ''}
 
                     <div id="batch-step2-card-${item._uid}" class="rounded-2xl border-2 ${cardBorder} p-6 space-y-5 shadow-2xs transition-all">
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
-                                    ${accountNumber}
-                                </span>
-                                <div>
-                                    <h4 class="text-sm font-bold text-black font-['Inter']">${escapeHtml(fullName)}</h4>
-                                    <p class="text-xs text-slate-500">${escapeHtml(item.role)} • ${escapeHtml(item.gender)} • ${escapeHtml(item.branch)}</p>
-                                </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-black font-['Inter']">${escapeHtml(fullName)}</h4>
+                                <p class="text-xs text-slate-500">${escapeHtml(item.role)} • ${escapeHtml(item.gender)} • ${escapeHtml(item.branch)}</p>
                             </div>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
+                                Account ${accountNumber} of ${totalItems}
+                            </span>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1858,24 +1851,29 @@
         }
 
         let cardsHtml = '';
+        let lastRoleKey = null;
         pageItems.forEach((item, idxOnPage) => {
             const accountNumber = startIdx + idxOnPage + 1;
-            const meta = getRoleSectionMeta(item.role);
+            const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
+            const meta = getRoleSectionMeta(roleKey);
+            const showGroupHeader = roleKey !== lastRoleKey;
+            lastRoleKey = roleKey;
             const globalIdx = batchCreatedAccounts.indexOf(item);
 
             cardsHtml += `
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                        <div class="flex items-center gap-2.5">
-                            <i class="${meta.icon} text-sm"></i>
+                    ${showGroupHeader ? `
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
                             <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
+                        </div>
+                    ` : ''}
+
+                    <div class="max-w-xl mx-auto space-y-3 pt-1">
+                        <div class="flex items-center justify-end">
                             <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
                                 Account ${accountNumber} of ${totalItems}
                             </span>
                         </div>
-                    </div>
-
-                    <div class="max-w-xl mx-auto space-y-3 pt-1">
                         <div class="relative overflow-hidden rounded-[24px] bg-[#15803d] p-6 border-2 border-white/20 shadow-none">
                             <div class="absolute top-0 right-0 p-4 opacity-10">
                                 <i class="fa-solid fa-shield-halved text-7xl"></i>

@@ -204,11 +204,25 @@ const vm = require('node:vm');
     // Requirement 5: Remove button must be black text with grey hover highlight
     assert.ok(reviewHtml.includes('text-black hover:bg-slate-100') && !reviewHtml.includes('text-rose-600 hover:text-rose-700'), 'Remove button must use black text with grey hover highlight');
 
-    const adminGroupPos = reviewHtml.indexOf('1. Admin Accounts');
-    const teacherGroupPos = reviewHtml.indexOf('2. Teacher Accounts');
-    const studentGroupPos = reviewHtml.indexOf('3. Student Accounts');
+    const adminGroupPos = reviewHtml.indexOf('Admin Accounts');
+    const teacherGroupPos = reviewHtml.indexOf('Teacher Accounts');
+    const studentGroupPos = reviewHtml.indexOf('Student Accounts');
     assert.ok(adminGroupPos >= 0 && teacherGroupPos > adminGroupPos && studentGroupPos > teacherGroupPos, 'Review form (5 per page) must organize accounts as Admin -> Teacher -> Student');
+    assert.ok(!reviewHtml.includes('1. Admin Accounts') && !reviewHtml.includes('2. Teacher Accounts') && !reviewHtml.includes('3. Student Accounts'), 'Headers must not have numbering');
+    assert.ok(!reviewHtml.includes('fa-user-shield') && !reviewHtml.includes('fa-chalkboard-user') && !reviewHtml.includes('fa-graduation-cap'), 'Headers must not have icons');
     assert.ok(reviewHtml.includes('Account 1 of 3') && reviewHtml.includes('Account 2 of 3') && reviewHtml.includes('Account 3 of 3'), 'Must keep Account n of n badge');
+
+    // Verify grouping: Adding a 2nd Student must keep single grouped 'Student Accounts' header, not duplicate it
+    windowObj.setBatchRoleFilter('Student');
+    windowObj.addBatchUserEmptyRow();
+    const groupedCheckHtml = elements.get('batch-user-review-container').innerHTML;
+    const studentHeaderOccurrences = (groupedCheckHtml.match(/Student Accounts/g) || []).length;
+    assert.equal(studentHeaderOccurrences, 1, 'Multiple accounts of the same role must share 1 header and not duplicate it');
+    // Remove the newly added student row to restore state for remaining tests
+    const uids = Array.from(groupedCheckHtml.matchAll(/removeBatchUserRow\((\d+)\)/g)).map(m => parseInt(m[1], 10));
+    const newlyAddedUid = uids[uids.length - 1];
+    windowObj.removeBatchUserRow(newlyAddedUid);
+    windowObj.setBatchRoleFilter('All');
 
     // Attempt Next with Maria's blank middle name -> must block
     lastAlert = null;
@@ -234,8 +248,10 @@ const vm = require('node:vm');
 
     const step2Html = elements.get('batch-user-step2-container').innerHTML;
     assert.ok(step2Html.includes('@gmail.com') && step2Html.includes('id="batch-email-'), 'Step 2 (Add Credentials) must render editable Gmail input');
-    assert.ok(step2Html.indexOf('1. Admin Accounts') < step2Html.indexOf('2. Teacher Accounts'), 'Step 2 must order Admin before Teacher');
-    assert.ok(step2Html.indexOf('2. Teacher Accounts') < step2Html.indexOf('3. Student Accounts'), 'Step 2 must order Teacher before Student');
+    assert.ok(step2Html.indexOf('Admin Accounts') < step2Html.indexOf('Teacher Accounts'), 'Step 2 must order Admin before Teacher');
+    assert.ok(step2Html.indexOf('Teacher Accounts') < step2Html.indexOf('Student Accounts'), 'Step 2 must order Teacher before Student');
+    assert.ok(!step2Html.includes('1. Admin Accounts') && !step2Html.includes('2. Teacher Accounts') && !step2Html.includes('3. Student Accounts'), 'Step 2 headers must not have numbering');
+    assert.ok(!step2Html.includes('fa-user-shield') && !step2Html.includes('fa-chalkboard-user') && !step2Html.includes('fa-graduation-cap'), 'Step 2 headers must not have icons');
     assert.ok(step2Html.includes('2601015') && step2Html.includes('reyes2601015'), 'Step 2 must preview Admin ID and password');
     assert.ok(step2Html.includes('26010214') && step2Html.includes('rizal26010214'), 'Step 2 must preview Teacher ID and password');
     assert.ok(step2Html.includes('260103121') && step2Html.includes('delacruz260103121'), 'Step 2 must preview Student ID and password');
@@ -263,8 +279,10 @@ const vm = require('node:vm');
     assert.equal(windowObj.userPaginationState.currentPage, 1, 'User Accounts table pagination must reset to page 1 so newest created accounts are shown');
 
     const step3Html = elements.get('batch-user-step3-container').innerHTML;
-    assert.ok(step3Html.indexOf('1. Admin Accounts') < step3Html.indexOf('2. Teacher Accounts'), 'Step 3 must order Admin before Teacher');
-    assert.ok(step3Html.indexOf('2. Teacher Accounts') < step3Html.indexOf('3. Student Accounts'), 'Step 3 must order Teacher before Student');
+    assert.ok(step3Html.indexOf('Admin Accounts') < step3Html.indexOf('Teacher Accounts'), 'Step 3 must order Admin before Teacher');
+    assert.ok(step3Html.indexOf('Teacher Accounts') < step3Html.indexOf('Student Accounts'), 'Step 3 must order Teacher before Student');
+    assert.ok(!step3Html.includes('1. Admin Accounts') && !step3Html.includes('2. Teacher Accounts') && !step3Html.includes('3. Student Accounts'), 'Step 3 headers must not have numbering');
+    assert.ok(!step3Html.includes('fa-user-shield') && !step3Html.includes('fa-chalkboard-user') && !step3Html.includes('fa-graduation-cap'), 'Step 3 headers must not have icons');
     assert.ok(step3Html.includes('Send via Gmail'), 'Step 3 must include Send via Gmail buttons');
 
     // Test Send via Gmail
