@@ -166,7 +166,9 @@ try {
                 if ($targetInput['permissions']['teacherManageAnnouncementComments'] !== ($storedPermissions['teacherManageAnnouncementComments'] ?? false)) jsonResponse(['success'=>false,'error'=>'Only a master admin can grant announcement comment management.'], 403);
             }
         }
-        protectServiceAdministratorAccounts($input);
+        if ($action !== 'create' && empty($input['batch']) && (($input['user']['createdVia'] ?? '') !== 'batch-creator')) {
+            protectServiceAdministratorAccounts($input);
+        }
 
         // ACTION: Deactivate User
         if ($action === 'deactivate') {

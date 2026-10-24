@@ -260,6 +260,7 @@ const vm = require('node:vm');
     await windowObj.handleBatchUserSave();
     assert.equal(elements.get('batch-user-step-3').classList.contains('hidden'), false, 'Step 3 (Send Credentials) must be visible');
     assert.deepEqual(createdPayloads.map(p => p.role), ['Admin', 'Teacher', 'Student'], 'Accounts must be saved in Admin, Teacher, Student sequence');
+    assert.ok(createdPayloads.every(p => p.createdVia === 'batch-creator'), 'All batch created accounts must have createdVia: batch-creator');
 
     const savedAdminUsers = JSON.parse(storage.get('sigma-admin-users') || '[]');
     assert.equal(savedAdminUsers.length, 3, 'All 3 accounts must be saved in sigma-admin-users');

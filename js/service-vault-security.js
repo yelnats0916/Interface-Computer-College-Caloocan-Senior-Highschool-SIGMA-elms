@@ -234,6 +234,10 @@
             // The Configure / Manage AI handlers verify before changing pages.
             if (canceled || requestEpoch !== authorizationEpoch) throw canceledError();
             if (!/\/users\.php$/.test(api.pathname)) throw Object.assign(new Error('Administrator verification expired. Verify again to continue.'),{code:'VAULT_AUTH_REQUIRED'});
+            const batchOverlay = document.getElementById('batch-user-overlay');
+            if (batchOverlay && !batchOverlay.classList.contains('hidden')) {
+                return response;
+            }
             await authorize(api);
             response = await request();
         }

@@ -130,6 +130,11 @@ function restrictServiceOrigin(): void {
 }
 
 function protectServiceAdministratorAccounts(array $input): void {
+    $action = strtolower(trim($input['action'] ?? 'save'));
+    // Creating accounts (batch creation or single user creation) does not require service vault authorization
+    if ($action === 'create' || !empty($input['batch']) || (($input['user']['createdVia'] ?? '') === 'batch-creator') || (($input['createdVia'] ?? '') === 'batch-creator')) {
+        return;
+    }
     $records = isset($input['users']) && is_array($input['users']) ? $input['users'] : [$input['user'] ?? $input];
     foreach ($records as $record) {
         if (!is_array($record)) continue;
