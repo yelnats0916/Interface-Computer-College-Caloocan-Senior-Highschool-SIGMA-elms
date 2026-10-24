@@ -7007,6 +7007,24 @@ window.addSubjectTopic = function () {
         window._currentDetailMaterialIndex = index;
         window._currentDetailMaterialId = m.id || '';
         window._currentDetailMaterialTopicId = m.topicId || '_unassigned';
+        window.editingMaterialState = {
+            index: index,
+            id: m.id || '',
+            type: m.type || 'Lesson',
+            topicId: m.topicId || '',
+            title: m.title || '',
+            description: m.description || '',
+            sourceType: m.sourceType || (m.videoUrl ? 'embed' : 'file'),
+            videoUrl: m.videoUrl || '',
+            fileType: (m.fileType || (m.fileUrl ? m.fileUrl.split(/[?#]/)[0].split('.').pop() : (m.fileName ? m.fileName.split('.').pop() : 'docx'))).toLowerCase(),
+            fileName: m.fileName || m.perfGuidelinesFileName || '',
+            fileSize: m.fileSize || '',
+            fileUrl: m.fileUrl || m.perfGuidelinesUrl || m.url || '',
+            hasRubric: Boolean(m.hasRubric || m.rubricFileName || m.rubricUrl),
+            rubricFileName: m.rubricFileName || m.perfRubricFileName || (typeof m.rubric === 'string' ? m.rubric : (m.rubric?.fileName || '')),
+            rubricFileSize: m.rubricFileSize || '',
+            rubricUrl: m.rubricUrl || m.perfRubricUrl || (typeof m.rubric === 'object' ? (m.rubric?.url || m.rubric?.fileUrl || '') : '') || ''
+        };
         if (m.quarter) {
             window.currentSubjectMaterialQuarter = normalizeQuarterKey(m.quarter);
         } else if (m.topicId && m.topicId !== '_unassigned') {
@@ -7212,34 +7230,24 @@ window.addSubjectTopic = function () {
         }
 
         const rInfo = !isMatQuiz ? resolveMaterialRubric(m, window.originalEditingSubjectId || window.originalEditingSubjectCode) : null;
-        // In master admin view: only show rubric from rInfo (admin-created rubrics).
-        // Never show m.rubricFileName on admin materials in master view — it may have been
-        // set by a View Scope scan and must not bleed through.
         let rubricTitle, rubricUrl;
         if (isMatQuiz) {
             rubricTitle = '';
             rubricUrl = '';
-        } else if (_isMasterAdminView) {
-            const _mRawRole2 = m.authorRole || m.role || (m.isAdmin ? 'Admin' : (m.isTeacher ? 'Teacher' : 'Admin'));
-            const _mIsAdmin2 = (typeof normalizeSubjectAuthorRole === 'function' ? normalizeSubjectAuthorRole(_mRawRole2) : _mRawRole2) === 'Admin';
-            if (_mIsAdmin2) {
-                // Admin master view: only trust rInfo (admin-created rubric), never teacher-uploaded
-                rubricTitle = rInfo?.name || '';
-                rubricUrl = rInfo?.url || '';
-            } else {
-                rubricTitle = rInfo?.name || m.rubricFileName || m.perfRubricFileName || (typeof m.rubric === 'string' && m.rubric ? m.rubric : (m.rubric?.fileName || m.rubric?.title || ''));
-                rubricUrl = rInfo?.url || m.rubricUrl || (m.rubric?.url || m.rubric?.fileUrl || '');
-            }
         } else {
-            rubricTitle = rInfo?.name || m.rubricFileName || m.perfRubricFileName || (typeof m.rubric === 'string' && m.rubric ? m.rubric : (m.rubric?.fileName || m.rubric?.title || ''));
-            rubricUrl = rInfo?.url || m.rubricUrl || (m.rubric?.url || m.rubric?.fileUrl || '');
+            rubricTitle = rInfo?.name || m.rubricFileName || m.perfRubricFileName || m.rubricUrlStorage?.fileName || (typeof m.rubric === 'string' && m.rubric ? m.rubric : (m.rubric?.fileName || m.rubric?.title || ''));
+            rubricUrl = rInfo?.url || m.rubricUrl || m.perfRubricUrl || m.rubricUrlStorage?.url || (typeof m.rubric === 'object' ? (m.rubric?.url || m.rubric?.fileUrl || '') : '') || '';
         }
 
-        const hasRubric = !isMatQuiz && Boolean(rubricTitle || m.hasRubric);
+        const hasRubric = !isMatQuiz && Boolean(rubricTitle || rubricUrl || m.hasRubric || m.rubricFileName || m.rubricUrl);
         if (hasRubric) {
-            if (!rubricTitle) rubricTitle = 'Grading Rubric Criteria';
-            const rubricExt = (rubricTitle.split('.').pop() || 'pdf').toLowerCase();
+            if (!rubricTitle) rubricTitle = m.rubricFileName || m.perfRubricFileName || (typeof m.rubric === 'string' ? m.rubric : '') || 'Grading Rubric Criteria';
+            if (!rubricUrl) rubricUrl = m.rubricUrl || m.perfRubricUrl || m.rubricUrlStorage?.url || (typeof m.rubric === 'object' ? (m.rubric?.url || m.rubric?.fileUrl || '') : '') || '';
+            const rubricUrlExt = rubricUrl ? rubricUrl.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const rubricNameExt = (rubricTitle && rubricTitle.includes('.')) ? rubricTitle.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const rubricExt = (rubricUrlExt || rubricNameExt || 'pdf').toLowerCase();
 
+            const rubricClickAction = `window.previewDocumentItem('${encodeURIComponent(rubricTitle)}', '${encodeURIComponent(rubricUrl)}', '${rubricExt}')`;
             const rubricCardHtml = typeof window.renderSharedAttachedFilePanelHtml === 'function'
                 ? window.renderSharedAttachedFilePanelHtml({
                     title: rubricTitle,
@@ -7248,7 +7256,7 @@ window.addSubjectTopic = function () {
                     badgeText: 'RUBRIC',
                     badgeClassOverride: 'bg-emerald-50 border-emerald-200/70 text-[#15803d]',
                     iconClassOverride: 'fa-file-circle-check text-[#15803d]',
-                    onClick: `window.previewEditorFile('rubric')`,
+                    onClick: rubricClickAction,
                     showKebab: false
                 })
                 : `
@@ -7261,7 +7269,7 @@ window.addSubjectTopic = function () {
                                 <span class="px-2.5 py-0.5 bg-emerald-50 border border-emerald-200/70 text-[#15803d] font-bold rounded-md text-[10px] leading-tight inline-flex items-center justify-center text-center uppercase whitespace-nowrap">${_escape('RUBRIC')}</span>
                             </div>
                             <div class="min-w-0 flex-1 flex flex-col justify-center">
-                                <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
+                                <h4 onclick="${rubricClickAction}" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
                             </div>
                         </div>
 
@@ -7359,19 +7367,22 @@ window.addSubjectTopic = function () {
                     hasAttachedQuiz: true,
                     onClick: `window.openQuizPreviewModal ? window.openQuizPreviewModal('${safeQuizId}') : (window.openQuizCreatorTab ? window.openQuizCreatorTab() : window.open('quiz-creator.html', '_blank'))`
                 });
-            } else if (m.fileName || m.fileUrl || m.file || m.sourceUrl || (m.url && m.url !== 'quiz' && !m.url.includes('youtube.com'))) {
-                const rawFileName = String(m.fileName || '').trim();
-                const fileUrl = m.url || m.fileUrl || m.file || m.sourceUrl || '';
+            } else if (m.fileName || m.fileUrl || m.file || m.sourceUrl || m.perfGuidelinesUrl || (m.url && m.url !== 'quiz' && !m.url.includes('youtube.com'))) {
+                const rawFileName = String(m.fileName || m.perfGuidelinesFileName || '').trim();
+                const fileUrl = m.url || m.fileUrl || m.file || m.sourceUrl || m.perfGuidelinesUrl || m.fileUrlStorage?.url || '';
                 const hasFile = Boolean(rawFileName || fileUrl);
-                const docExt = (m.fileType || (rawFileName ? rawFileName.split('.').pop() : (fileUrl ? fileUrl.split('.').pop() : 'docx'))).toLowerCase();
+                const urlExt = fileUrl ? fileUrl.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+                const nameExt = (rawFileName && rawFileName.includes('.')) ? rawFileName.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+                const docExt = (urlExt || nameExt || m.fileType || 'docx').toLowerCase();
                 const fileName = rawFileName || (hasFile ? (m.title ? `${m.title}.${docExt}` : 'Document') : '');
 
+                const attachedClick = `window.previewDocumentItem('${encodeURIComponent(fileName)}', '${encodeURIComponent(fileUrl)}', '${docExt}')`;
                 if (hasFile && fileName && typeof window.renderSharedAttachedFilePanelHtml === 'function') {
                     attachedFileHtml = window.renderSharedAttachedFilePanelHtml({
                         title: fileName,
                         url: fileUrl,
                         type: docExt,
-                        onClick: `window.previewEditorFile('main')`
+                        onClick: attachedClick
                     });
                 } else {
                     attachedFileHtml = '';
@@ -7380,18 +7391,21 @@ window.addSubjectTopic = function () {
                 attachedFileHtml = '';
             }
         } else {
-            const rawFileName = String(m.fileName || '').trim();
-            const fileUrl = m.url || m.fileUrl || m.file || m.sourceUrl || '';
+            const rawFileName = String(m.fileName || m.perfGuidelinesFileName || '').trim();
+            const fileUrl = m.url || m.fileUrl || m.file || m.sourceUrl || m.perfGuidelinesUrl || m.fileUrlStorage?.url || '';
             const hasFile = Boolean(rawFileName || fileUrl);
-            const docExt = (m.fileType || (rawFileName ? rawFileName.split('.').pop() : (fileUrl ? fileUrl.split('.').pop() : 'docx'))).toLowerCase();
+            const urlExt = fileUrl ? fileUrl.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const nameExt = (rawFileName && rawFileName.includes('.')) ? rawFileName.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const docExt = (urlExt || nameExt || m.fileType || 'docx').toLowerCase();
             const fileName = rawFileName || (hasFile ? (m.title ? `${m.title}.${docExt}` : 'Document') : '');
 
+            const attachedClick = `window.previewDocumentItem('${encodeURIComponent(fileName)}', '${encodeURIComponent(fileUrl)}', '${docExt}')`;
             if (hasFile && fileName && typeof window.renderSharedAttachedFilePanelHtml === 'function') {
                 attachedFileHtml = window.renderSharedAttachedFilePanelHtml({
                     title: fileName,
                     url: fileUrl,
                     type: docExt,
-                    onClick: `window.previewEditorFile('main')`
+                    onClick: attachedClick
                 });
             } else {
                 attachedFileHtml = '';
@@ -8673,22 +8687,33 @@ window.addSubjectTopic = function () {
         let fileObjOrUrl = null;
         let ext = 'docx';
 
+        const detectExt = (name, objOrUrl, defaultExt = 'docx') => {
+            const urlStr = (typeof objOrUrl === 'string') ? objOrUrl : (objOrUrl?.name || '');
+            const uExt = urlStr ? urlStr.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const nExt = (name && name.includes('.')) ? name.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+            const valid = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt', 'text', 'xlsx', 'xls', 'csv'];
+            if (uExt === 'pdf' || nExt === 'pdf') return 'pdf';
+            if (['pptx', 'ppt'].includes(uExt) || ['pptx', 'ppt'].includes(nExt)) return 'pptx';
+            if (['docx', 'doc'].includes(uExt) || ['docx', 'doc'].includes(nExt)) return 'docx';
+            if (['txt', 'text'].includes(uExt) || ['txt', 'text'].includes(nExt)) return 'txt';
+            if (valid.includes(uExt)) return uExt;
+            if (valid.includes(nExt)) return nExt;
+            return defaultExt;
+        };
+
         if (targetField === 'main') {
-            fileName = state.fileName || (state.title ? `${state.title}.${state.fileType || 'docx'}` : 'Document');
             fileObjOrUrl = state.file || state.fileUrl || state.url;
-            ext = (state.fileType || (fileName ? fileName.split('.').pop() : 'docx')).toLowerCase();
-        } else if (targetField === 'rubric') {
-            fileName = state.rubricFileName || 'Rubric';
-            fileObjOrUrl = state.rubricFile || state.rubricUrl;
-            ext = (fileName ? fileName.split('.').pop() : 'docx').toLowerCase();
+            ext = detectExt(state.fileName, fileObjOrUrl, state.fileType || 'docx');
+            fileName = state.fileName || (state.title ? `${state.title}.${ext}` : `Document.${ext}`);
+        } else if (targetField === 'rubric' || targetField === 'perfRubric') {
+            fileName = (targetField === 'perfRubric' ? state.perfRubricFileName : state.rubricFileName) || state.rubricFileName || state.perfRubricFileName || 'Rubric';
+            fileObjOrUrl = (targetField === 'perfRubric' ? state.perfRubricFile : state.rubricFile) || state.rubricFile || state.perfRubricFile || (targetField === 'perfRubric' ? state.perfRubricUrl : state.rubricUrl) || state.rubricUrl || state.perfRubricUrl;
+            ext = detectExt(fileName, fileObjOrUrl, 'pdf');
+            if (fileName === 'Rubric' && ext) fileName = `Rubric.${ext}`;
         } else if (targetField === 'guidelines') {
             fileName = state.perfGuidelinesFileName || 'Guidelines';
             fileObjOrUrl = state.perfGuidelinesFile || state.perfGuidelinesUrl;
-            ext = (fileName ? fileName.split('.').pop() : 'docx').toLowerCase();
-        } else if (targetField === 'perfRubric') {
-            fileName = state.perfRubricFileName || 'Rubric';
-            fileObjOrUrl = state.perfRubricFile || state.perfRubricUrl;
-            ext = (fileName ? fileName.split('.').pop() : 'docx').toLowerCase();
+            ext = detectExt(fileName, fileObjOrUrl, 'docx');
         }
 
         if (!fileName && !fileObjOrUrl) return;

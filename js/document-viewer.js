@@ -238,7 +238,57 @@
         const extractedFileName = urlString && !/^(data|blob):/i.test(urlString)
             ? urlString.split(/[?#]/)[0].split('/').pop().split('\\').pop() : '';
 
-        const determinedType = (fileType || (actualName ? actualName.split('.').pop() : '') || (extractedFileName ? extractedFileName.split('.').pop() : '') || 'docx').toLowerCase();
+        const validDocExts = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt', 'text', 'xlsx', 'xls', 'csv', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+        const getExt = (str) => {
+            if (!str || typeof str !== 'string') return '';
+            const clean = str.split(/[?#]/)[0].trim();
+            if (!clean.includes('.')) return '';
+            const candidate = clean.split('.').pop().toLowerCase();
+            return validDocExts.includes(candidate) ? candidate : '';
+        };
+
+        const rawType = String(fileType || '').trim().toLowerCase();
+        const urlExt = getExt(urlString) || getExt(extractedFileName);
+        const nameExt = getExt(actualName) || getExt(fileName);
+        const blobMime = (fileOrUrl instanceof Blob && fileOrUrl.type) ? fileOrUrl.type.toLowerCase() : '';
+
+        let determinedType = '';
+        if (
+            rawType === 'pdf' ||
+            urlExt === 'pdf' ||
+            nameExt === 'pdf' ||
+            blobMime.includes('pdf') ||
+            /\.pdf(?:[?#]|$)/i.test(urlString) ||
+            /\.pdf$/i.test(actualName)
+        ) {
+            determinedType = 'pdf';
+        } else if (
+            ['pptx', 'ppt'].includes(rawType) ||
+            ['pptx', 'ppt'].includes(urlExt) ||
+            ['pptx', 'ppt'].includes(nameExt) ||
+            blobMime.includes('presentation')
+        ) {
+            determinedType = 'pptx';
+        } else if (
+            ['docx', 'doc'].includes(rawType) ||
+            ['docx', 'doc'].includes(urlExt) ||
+            ['docx', 'doc'].includes(nameExt) ||
+            blobMime.includes('word') ||
+            blobMime.includes('officedocument')
+        ) {
+            determinedType = 'docx';
+        } else if (['txt', 'text'].includes(rawType) || ['txt', 'text'].includes(urlExt) || ['txt', 'text'].includes(nameExt)) {
+            determinedType = 'txt';
+        } else if (validDocExts.includes(rawType)) {
+            determinedType = rawType;
+        } else if (urlExt) {
+            determinedType = urlExt;
+        } else if (nameExt) {
+            determinedType = nameExt;
+        } else {
+            determinedType = 'docx';
+        }
+
         const docId = 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         // Reserve the tab during the click, before IndexedDB awaits consume user activation.
         const mobilePreview = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -377,14 +427,29 @@
         }
 
         // 3. PDF: Always use browser's native built-in PDF viewer tab
-        if (determinedType === 'pdf' || (actualName && actualName.toLowerCase().endsWith('.pdf')) || (extractedFileName && extractedFileName.toLowerCase().endsWith('.pdf'))) {
+        if (determinedType === 'pdf' || (actualName && actualName.toLowerCase().endsWith('.pdf')) || (extractedFileName && extractedFileName.toLowerCase().endsWith('.pdf')) || (urlString && /\.pdf(?:[?#]|$)/i.test(urlString))) {
+            let finalPdfUrl = null;
             if (targetFile) {
-                navigatePreview(URL.createObjectURL(targetFile));
+                finalPdfUrl = URL.createObjectURL(targetFile);
             } else if (targetUrl && !targetUrl.startsWith('image/')) {
-                navigatePreview(targetUrl);
+                finalPdfUrl = (targetUrl.startsWith('blob:') || targetUrl.startsWith('data:') || /^https?:\/\//i.test(targetUrl))
+                    ? targetUrl
+                    : new URL(targetUrl, window.location.href).href;
+            } else if (urlString && !urlString.startsWith('image/')) {
+                finalPdfUrl = (urlString.startsWith('blob:') || urlString.startsWith('data:') || /^https?:\/\//i.test(urlString))
+                    ? urlString
+                    : new URL(urlString, window.location.href).href;
+            }
+
+            if (finalPdfUrl) {
+                navigatePreview(finalPdfUrl);
             } else {
                 if (previewWindow) previewWindow.close();
-                window.SigmaFeedback.notice('PDF document file not found.', 'error');
+                if (window.SigmaFeedback && typeof window.SigmaFeedback.notice === 'function') {
+                    window.SigmaFeedback.notice('PDF document file not found.', 'error');
+                } else {
+                    alert('PDF document file not found.');
+                }
             }
             return;
         }

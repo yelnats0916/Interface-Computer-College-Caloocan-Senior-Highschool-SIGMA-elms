@@ -1333,7 +1333,6 @@
 
                 const fileName = paramRealName || paramName || docData?.fileName || 'Document';
                 const displayDocTitle = paramName || paramRealName || docData?.fileName || 'Document';
-                const fileType = (paramType || docData?.fileType || (fileName.split('.').pop()) || 'docx').toLowerCase();
 
                 let source = paramSrc || docData?.fileUrl || docData?.dataUrl;
                 if (source) {
@@ -1346,8 +1345,35 @@
                     } catch (e) {}
                 }
 
+                const rawParamType = String(paramType || docData?.fileType || '').trim().toLowerCase();
+                const nameExt = fileName && fileName.includes('.') ? fileName.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+                const srcClean = String(source || '').split(/[?#]/)[0].trim();
+                const srcExt = srcClean && srcClean.includes('.') ? srcClean.split('.').pop().toLowerCase() : '';
+
+                let fileType = 'docx';
+                if (rawParamType === 'pdf' || nameExt === 'pdf' || srcExt === 'pdf' || /\.pdf(?:[?#]|$)/i.test(String(source || ''))) {
+                    fileType = 'pdf';
+                } else if (['pptx', 'ppt'].includes(rawParamType) || ['pptx', 'ppt'].includes(nameExt) || ['pptx', 'ppt'].includes(srcExt)) {
+                    fileType = 'pptx';
+                } else if (['txt', 'text'].includes(rawParamType) || ['txt', 'text'].includes(nameExt) || ['txt', 'text'].includes(srcExt)) {
+                    fileType = 'txt';
+                } else {
+                    fileType = 'docx';
+                }
+
                 currentFileName = fileName;
                 currentFileType = fileType;
+
+                // PDF: Redirect directly to browser native viewer
+                if (fileType === 'pdf') {
+                    const resolvedPdfUrl = source
+                        ? ((source.startsWith('blob:') || source.startsWith('data:') || /^https?:\/\//i.test(source)) ? source : new URL(source, window.location.href).href)
+                        : null;
+                    if (resolvedPdfUrl) {
+                        window.location.replace(resolvedPdfUrl);
+                        return;
+                    }
+                }
 
                 // Update UI Header
                 document.title = `${fileName} - Document Viewer`;
@@ -1369,13 +1395,7 @@
                 const paperCanvas = document.getElementById('paper-canvas');
                 const pptxWorkspace = document.getElementById('pptx-workspace');
 
-                if (fileType === 'pdf') {
-                    // PDF: Redirect directly to browser native viewer
-                    if (source) {
-                        window.location.replace(source);
-                        return;
-                    }
-                } else if (fileType === 'pptx') {
+                if (fileType === 'pptx') {
                     document.body.classList.remove('docx-mode');
                     document.body.classList.add('pptx-mode');
                     const printStyle = document.getElementById('dynamic-print-page');

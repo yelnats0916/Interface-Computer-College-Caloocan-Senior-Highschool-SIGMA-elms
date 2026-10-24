@@ -11854,7 +11854,7 @@ window.renderSharedAttachedFilePanelHtml = function (options = {}) {
             window._sigmaPreviewRegistry[pk] = { title: displayTitle, url, type: rawType };
             clickAction = `window.previewDocumentFromRegistry('${pk}')`;
         } else if (isSupportedDoc) {
-            clickAction = `window.previewDocumentItem('${encodeURIComponent(displayTitle)}', '${encodeURIComponent(url || '')}', '${rawType}')`;
+            clickAction = `window.previewDocumentItem('${encodeURIComponent(displayTitle)}', '${encodeURIComponent(url || '')}', '${fileExt || rawType}')`;
         } else if (url) {
             clickAction = `window.open('${url}', '_blank', 'noopener,noreferrer')`;
         }
@@ -12191,7 +12191,25 @@ window.renderSharedLessonsTabHtml = function (options = {}) {
 window.previewDocumentItem = function (encodedTitle, encodedUrl, type) {
     const title = decodeURIComponent(encodedTitle || 'Document');
     const url = decodeURIComponent(encodedUrl || '');
-    const detType = (type || (title ? title.split('.').pop() : '') || '').toLowerCase();
+    const cleanUrl = url.split(/[?#]/)[0].trim();
+    const urlExt = cleanUrl.includes('.') ? cleanUrl.split('.').pop().toLowerCase() : '';
+    const titleExt = (title && title.includes('.')) ? title.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+    const rawType = String(type || '').trim().toLowerCase();
+
+    let detType = 'docx';
+    if (urlExt === 'pdf' || titleExt === 'pdf' || rawType === 'pdf') {
+        detType = 'pdf';
+    } else if (['pptx', 'ppt'].includes(urlExt) || ['pptx', 'ppt'].includes(titleExt) || ['pptx', 'ppt'].includes(rawType)) {
+        detType = 'pptx';
+    } else if (['docx', 'doc'].includes(urlExt) || ['docx', 'doc'].includes(titleExt) || ['docx', 'doc'].includes(rawType)) {
+        detType = 'docx';
+    } else if (['txt', 'text'].includes(urlExt) || ['txt', 'text'].includes(titleExt) || ['txt', 'text'].includes(rawType)) {
+        detType = 'txt';
+    } else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(rawType) || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(urlExt)) {
+        detType = urlExt || rawType;
+    } else {
+        detType = urlExt || titleExt || 'docx';
+    }
     const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(detType) || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(title);
     if (isImage) {
         let targetUrl = (url && url !== '#' && url !== 'undefined' && url !== 'null') ? url : '';
@@ -27057,17 +27075,21 @@ window.renderSharedAssessmentsTabHtml = function (options = {}) {
         // 1. The admin material has a rubric (same file in every section)
         // 2. This section's release has its own rubric
         // 3. This is a teacher-added item for this section with an attached rubric
+        const ownRubricName = ass.rubricFileName || ass.perfRubricFileName || ass.rubricUrlStorage?.fileName || (typeof ass.rubric === 'string' ? ass.rubric : (ass.rubric?.fileName || ass.rubric?.title)) || '';
+        const ownRubricUrl = ass.rubricUrl || ass.perfRubricUrl || ass.rubricUrlStorage?.url || (typeof ass.rubric === 'object' ? (ass.rubric?.url || ass.rubric?.fileUrl || ass.rubric?.file) : '') || '';
         const hasRubric = !isAnyQuiz && Boolean(
             adminMaterialRubric?.name ||
+            ownRubricName ||
+            ownRubricUrl ||
             cfgRubricName ||
             cfgRubricUrl ||
-            (isTeacherAddedItem && (ass.hasRubric || ass.rubricFileName || ass.perfRubricFileName || (ass.rubric && (typeof ass.rubric === 'string' || ass.rubric.fileName || ass.rubric.title || ass.rubric.fileUrl || ass.rubric.url || ass.rubric.file))))
+            ass.hasRubric
         );
-        const teacherRubricName = isTeacherAddedItem ? (ass.rubricFileName || ass.perfRubricFileName || (typeof ass.rubric === 'string' ? ass.rubric : (ass.rubric?.fileName || ass.rubric?.title)) || '') : '';
-        const teacherRubricUrl = isTeacherAddedItem ? (ass.rubricUrl || ass.perfRubricUrl || (typeof ass.rubric === 'object' ? (ass.rubric?.url || ass.rubric?.fileUrl || ass.rubric?.file) : '') || '') : '';
-        const rubricTitle = hasRubric ? (adminMaterialRubric?.name || cfgRubricName || teacherRubricName || 'Grading Rubric Criteria') : '';
-        const rubricUrl = hasRubric ? (adminMaterialRubric?.name ? (adminMaterialRubric.url || '') : (cfgRubricUrl || teacherRubricUrl || '')) : '';
-        const rubricType = hasRubric ? ((ass.rubric?.type || ass.rubric?.fileType || rubricTitle.split('.').pop() || 'docx')).toLowerCase() : 'docx';
+        const rubricTitle = hasRubric ? (adminMaterialRubric?.name || ownRubricName || cfgRubricName || 'Grading Rubric Criteria') : '';
+        const rubricUrl = hasRubric ? (adminMaterialRubric?.name ? (adminMaterialRubric.url || '') : (ownRubricUrl || cfgRubricUrl || '')) : '';
+        const rubricUrlExt = rubricUrl ? rubricUrl.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+        const rubricNameExt = (rubricTitle && rubricTitle.includes('.')) ? rubricTitle.split(/[?#]/)[0].split('.').pop().toLowerCase() : '';
+        const rubricType = hasRubric ? (rubricUrlExt || rubricNameExt || ass.rubric?.type || ass.rubric?.fileType || 'pdf').toLowerCase() : 'pdf';
 
         let rubricDocClick = null;
         if (hasRubric) {
