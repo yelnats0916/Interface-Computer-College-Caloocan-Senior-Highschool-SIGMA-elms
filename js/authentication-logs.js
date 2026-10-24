@@ -27,7 +27,7 @@
         catch (_) { return []; }
     };
     const write = records => { try { localStorage.setItem(KEY, JSON.stringify(records.slice(0, 500))); } catch (_) { /* Logging must not interrupt authentication. */ } };
-    let serverRecords = [], serverError = '', loadingServer = null;
+    let serverRecords = [], serverError = '', loadingServer = null, serverOwner = '';
     const read = () => {
         if (window.canViewAuditLog?.('auth') === false) return [];
         const local = readLocal().filter(item => !serverRecords.some(remote =>
@@ -38,10 +38,13 @@
     async function refreshServerHistory() {
         if (window.canViewAuditLog?.('auth') === false) { serverRecords=[]; render(); return; }
         if (!document.getElementById('audit-auth-view') || !window.SigmaDatabase?.currentUser()?.id) return;
+        const owner = String(window.SigmaDatabase.currentUser().id);
+        if (serverOwner !== owner) { serverRecords = []; serverOwner = owner; }
         if (loadingServer) return loadingServer;
         loadingServer = (async () => {
             try {
                 const result = await window.SigmaDatabase.request('authentication_logs');
+                if (String(window.SigmaDatabase.currentUser()?.id || '') !== owner) return;
                 serverRecords = Array.isArray(result.records) ? result.records : [];
                 serverError = '';
             } catch (error) {
@@ -367,6 +370,10 @@
     document.addEventListener('DOMContentLoaded', () => { render(); refreshServerHistory(); });
     window.addEventListener('sigma:database-session-ready', refreshServerHistory);
     window.addEventListener('focus', refreshServerHistory);
+    window.addEventListener('online', refreshServerHistory);
+    window.addEventListener('hashchange', () => {
+        if (location.hash.includes('nav-audit-auth')) refreshServerHistory();
+    });
     setInterval(() => {
         const section = document.getElementById('audit-auth-view');
         if (document.visibilityState === 'visible' && section && !section.classList.contains('hidden')) refreshServerHistory();

@@ -2704,8 +2704,8 @@ window.isUserQuizOwner = function (quiz, user = null) {
 
 window.getStoredQuizLibrary = function () {
     // ── Server storage mode: use API data when available ──────────────────
-    if (window.SIGMA_USE_SERVER_STORAGE && Array.isArray(window._quizLibraryServerData)) {
-        return window._quizLibraryServerData;
+    if (window.SIGMA_USE_SERVER_STORAGE) {
+        return window._quizLibraryServerOwner === quizLibraryIdentity() && Array.isArray(window._quizLibraryServerData) ? window._quizLibraryServerData : [];
     }
     let list = window.getStoredJson ? window.getStoredJson(window.QUIZ_STORAGE_KEY, null) : null;
     if (!list || !list.length) {
@@ -2951,6 +2951,10 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
         if (window._isQuizStoragePickerOpen && typeof window.renderQuizStoragePickerContent === 'function') {
             window.renderQuizStoragePickerContent();
         }
+        const creatorModal = document.getElementById('open-quiz-library-modal');
+        if (creatorModal && !creatorModal.classList.contains('hidden')) {
+            window.renderLibraryModalQuizzes?.(document.getElementById('library-modal-search-input')?.value || '');
+        }
         const libModal = document.getElementById('quiz-library-modal');
         if (libModal && !libModal.classList.contains('hidden') && typeof window.renderQuizLibraryModal === 'function') {
             window.renderQuizLibraryModal();
@@ -2973,12 +2977,7 @@ window.syncQuizUpdatesAcrossAllSubjectsAndMaterials = function (savedQuizId, qui
 
     window.addEventListener('storage', function (e) {
         if (e.key === 'sigma_quiz_broadcast' || e.key === 'sigma_quiz_updated' || e.key === 'sigma_materials_broadcast' || e.key === (window.QUIZ_STORAGE_KEY || 'sigma_quiz_storage') || e.key === 'sigma-quiz-storage-library' || e.key === 'sigma_pending_selected_quiz_id' || e.key === 'quizLibrary' || e.key === 'sigma_quizzes') {
-            if (e.key !== 'sigma_materials_broadcast') {
-                try {
-                    const savedLibrary = JSON.parse(localStorage.getItem(window.QUIZ_STORAGE_KEY || 'sigma_quiz_storage') || 'null');
-                    if (Array.isArray(savedLibrary)) window._quizLibraryServerData = savedLibrary;
-                } catch (_) { }
-            }
+            void window.fetchQuizLibraryFromServer?.();
             refreshAllQuizStorageViews();
         }
     });
@@ -3023,11 +3022,12 @@ window.fetchQuizLibraryFromServer = async function () {
     const identity = quizLibraryIdentity();
     if (!window.SIGMA_USE_SERVER_STORAGE || !identity || identity === quizLibraryBlockedIdentity) return;
     if (quizLibraryRequest?.identity === identity) return quizLibraryRequest.promise;
+    if (window._quizLibraryServerOwner !== identity) window._quizLibraryServerData = [];
     const current = { identity };
     quizLibraryRequest = current;
     current.promise = (async () => {
         try {
-            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl());
+            const res = await window.SigmaDatabase.fetch(resolveQuizApiUrl(), { cache: 'no-store' });
             if (quizLibraryIdentity() !== identity) return;
             if (res.status === 401 || res.status === 403) {
                 quizLibraryBlockedIdentity = identity;
@@ -3042,6 +3042,7 @@ window.fetchQuizLibraryFromServer = async function () {
             if (quizLibraryLoadedIdentity === identity && JSON.stringify(window._quizLibraryServerData || []) === JSON.stringify(data.quizzes)) return;
             quizLibraryLoadedIdentity = identity;
             window._quizLibraryServerData = data.quizzes;
+            window._quizLibraryServerOwner = identity;
             window.dispatchEvent(new CustomEvent('sigma:quiz-library-loaded'));
             window.renderQuizStoragePickerContent?.();
             window.renderQuizLibraryModal?.();
@@ -3051,7 +3052,9 @@ window.fetchQuizLibraryFromServer = async function () {
     })();
     return current.promise;
 };
-window.addEventListener('sigma:database-session-ready', () => window.fetchQuizLibraryFromServer());
+for (const name of ['sigma:database-session-ready', 'sigma:tab-identity-restored', 'online']) {
+    window.addEventListener(name, () => window.fetchQuizLibraryFromServer());
+}
 
 /**
  * Save a single quiz object to the server via POST /php/api/quiz_library.php.

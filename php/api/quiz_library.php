@@ -13,6 +13,7 @@ require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store');
 require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');

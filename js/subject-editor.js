@@ -8738,6 +8738,7 @@ window.addSubjectTopic = function () {
     window._quizStoragePickerSelectedQuizId = null;
 
     window.openQuizStoragePicker = function () {
+        void window.fetchQuizLibraryFromServer?.();
         window._isQuizStoragePickerOpen = true;
         const editorView = document.getElementById('subject-material-editor-view');
         if (!editorView) return;

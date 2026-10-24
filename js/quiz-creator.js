@@ -29,7 +29,7 @@ const MAX_QUIZ_QUESTIONS = 100;
 const getStoredQuizLibrary = function () {
     if (typeof window.getStoredQuizLibrary === 'function') {
         const res = window.getStoredQuizLibrary();
-        if (Array.isArray(res) && res.length > 0) return res;
+        if (Array.isArray(res)) return res;
     }
     const candidateKeys = [QUIZ_STORAGE_KEY, 'sigma-quiz-storage-library', 'quizLibrary', 'sigma_quizzes_data', 'sigma_quizzes', 'quizzes', 'sigma_teacher_quizzes'];
     for (const k of candidateKeys) {
@@ -263,6 +263,7 @@ async function initQuizCreator() {
         return;
     }
     initUserAvatar();
+    void window.fetchQuizLibraryFromServer?.();
     try {
         const raw = localStorage.getItem(QUIZ_STORAGE_KEY);
         if (raw) {
@@ -2214,6 +2215,7 @@ window.confirmSelectedLibraryQuiz = function () {
 };
 
 window.openQuizLibraryModal = function () {
+    void window.fetchQuizLibraryFromServer?.();
     const modal = document.getElementById('open-quiz-library-modal');
     const searchInput = document.getElementById('library-modal-search-input');
     const clearBtn = document.getElementById('lib-search-clear-btn');
