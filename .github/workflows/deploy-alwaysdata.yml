@@ -40,8 +40,21 @@ jobs:
         run: |
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          scp "${opts[@]}" scripts/clean-hosting-releases.py "$target:/home/sigma-elms/sigma-private/clean-hosting-releases.py"
-          ssh "${opts[@]}" "$target" "python3 /home/sigma-elms/sigma-private/clean-hosting-releases.py && df -h /home/sigma-elms"
+          ssh "${opts[@]}" "$target" 'rm -f /home/sigma-elms/*.zip /home/sigma-elms/sigma-releases/*.zip'
+          ssh "${opts[@]}" "$target" 'python3 - << "EOF"
+import shutil
+from pathlib import Path
+home = Path("/home/sigma-elms")
+web = home / "www"
+active = web.resolve().parent if web.exists() else None
+releases_dir = home / "sigma-releases"
+if releases_dir.exists():
+    for r in releases_dir.iterdir():
+        if r.is_dir() and (active is None or r.resolve() != active.resolve()):
+            print("Pruned old release:", r.name)
+            shutil.rmtree(r, ignore_errors=True)
+EOF'
+          ssh "${opts[@]}" "$target" "df -h /home/sigma-elms"
       - name: Upload release archive
         shell: bash
         run: |
