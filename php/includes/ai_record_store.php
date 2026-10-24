@@ -111,9 +111,9 @@ function saveAiAnalyticsState(PDO $db, string $user, string $kind, array $state,
         return aiAnalyticsState($db,$user,$kind);
     }catch(Throwable $e){if($own&&$db->inTransaction())$db->rollBack();throw $e;}
 }
-function aiRecordLogs(PDO $db): array {
+function aiRecordLogs(PDO $db, bool $exportAll = false): array {
     $logs=[];
-    foreach($db->query('SELECT id,payload,is_deleted,deleted_at,deleted_by FROM ai_logs ORDER BY created_at DESC LIMIT 2000')->fetchAll() as $row){
+    foreach($db->query('SELECT id,payload,is_deleted,deleted_at,deleted_by FROM ai_logs ORDER BY created_at DESC' . ($exportAll ? '' : ' LIMIT 2000'))->fetchAll() as $row){
         $log=json_decode($row['payload'],true); if(!is_array($log))continue;
         $log['creationNumber']=sigmaTableCreationNumber($db,'ai_logs',(string)$row['id']);
         $log['isDeleted']=(bool)$row['is_deleted']; $log['deletedAt']=$row['deleted_at']; $log['deletedBy']=$row['deleted_by'];

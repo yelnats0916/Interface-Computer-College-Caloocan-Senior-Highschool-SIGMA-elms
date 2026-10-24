@@ -32,7 +32,7 @@ try{
             echo json_encode(['success'=>true,'usageOnly'=>true,'logs'=>aiRecordUsage($db)]);exit;
         }
         if (!sigmaActorPermission($actorUser,'auditMain') || !sigmaActorPermission($actorUser,'auditAi')) { http_response_code(403);echo json_encode(['success'=>false,'error'=>'AI log access is not enabled for this account.']);exit; }
-        echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]); exit;
+        echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db, ($_GET['export'] ?? '') === '1')]); exit;
     }
     if (!$localRecords && in_array($action,['save_state','save_log'],true)) {
         // Learning generation saves on the server. Browser caches cannot fabricate cards, logs or quota state.
@@ -186,7 +186,7 @@ try{
         echo json_encode(['success'=>true,'timestamp'=>$timestamp,'hidden'=>$hidden,'deleted'=>$deleted]);
     }elseif($action==='logs'){
         if(!$admin || !sigmaActorPermission($actorUser,'auditMain') || !sigmaActorPermission($actorUser,'auditAi'))throw new RuntimeException('AI log access is not enabled for this account.');
-        echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]);
+        echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db, ($_GET['export'] ?? '') === '1')]);
     }elseif($action==='recover_chat_history'&&$method==='POST'){
         require_once __DIR__.'/../includes/chat_history_recovery.php';
         if(!is_array($input['conversations']??null))throw new InvalidArgumentException('Invalid saved conversations.');

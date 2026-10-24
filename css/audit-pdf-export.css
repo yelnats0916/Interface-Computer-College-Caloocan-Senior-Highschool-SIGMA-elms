@@ -1,0 +1,28 @@
+.audit-export-toolbar{display:flex;justify-content:flex-end;padding:16px 24px 8px;gap:12px}
+#audit-pdf-export{z-index:100000;position:fixed;inset:0;background:#f8fafc;overflow:hidden}
+#audit-pdf-export .sigma-modal-shell{height:100dvh!important;min-height:0!important;max-height:100dvh!important;overflow:hidden!important;max-width:1100px;margin:auto;background:white}
+#audit-pdf-export .sigma-modal-panel{height:100%!important;min-height:0!important;max-height:100%!important;overflow:hidden!important;display:flex;flex-direction:column;min-width:0}
+#audit-pdf-export .sigma-modal-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:24px 32px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+#audit-pdf-export .sigma-modal-body{padding:28px 32px;overflow-x:hidden!important;overflow-y:auto!important;flex:1 1 0%!important;min-height:0!important;max-height:none!important;display:flex;flex-direction:column;gap:24px}
+#audit-pdf-export .sigma-modal-body>*{flex-shrink:0}
+#audit-pdf-export .sigma-modal-footer{position:static!important;display:flex;justify-content:flex-end;gap:12px;padding:20px 32px;border-top:1px solid #e2e8f0;flex-shrink:0}
+#audit-pdf-export fieldset{border:0;margin:0;padding:0;min-width:0}
+#audit-pdf-export legend{font-weight:600;margin-bottom:12px;color:#000}
+#audit-pdf-export label{color:#000;font-size:14px;line-height:1.5}
+#audit-pdf-export input[type=checkbox],#audit-pdf-export input[type=radio]{accent-color:#15803d;flex-shrink:0;width:16px;height:16px}
+#audit-pdf-export .audit-export-all,#audit-pdf-export .audit-export-scopes label{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+#audit-pdf-export .audit-export-types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#audit-pdf-export .audit-export-types label{display:flex;align-items:center;gap:10px;border:1px solid #dce5ef;border-radius:12px;padding:16px}
+#audit-pdf-export .audit-export-types label:has(:checked){background:#f0fdf4;border-color:#15803d}
+#audit-pdf-export .audit-export-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+#audit-pdf-export .audit-export-grid label{display:flex;flex-direction:column;gap:8px;min-width:0}
+#audit-pdf-export .sigma-input{width:100%;min-width:0;box-sizing:border-box;height:46px;padding:10px 12px;border:1px solid #dce5ef;border-radius:10px;background:#f8fafc;color:#000}
+#audit-pdf-export small,#audit-pdf-export [data-count]{color:rgba(0,0,0,.45);font-size:13px}
+#audit-pdf-export [data-error]{color:#b91c1c;font-size:14px;margin:0}
+#audit-pdf-export [data-choices]{max-height:240px;overflow-y:auto;border:1px solid #dce5ef;border-radius:10px;padding:12px}
+#audit-pdf-export [data-choices] label{display:flex;gap:10px;padding:9px;overflow-wrap:anywhere}
+#audit-pdf-export [hidden]{display:none!important}
+@media(max-width:639px){.audit-export-toolbar{padding:12px}.audit-export-toolbar .sigma-btn{font-size:12px;min-height:36px;padding:8px 12px}#audit-pdf-export .sigma-modal-header{padding:16px}#audit-pdf-export .sigma-modal-title{font-size:18px}#audit-pdf-export .sigma-modal-body{padding:18px 16px;gap:20px}#audit-pdf-export .sigma-modal-footer{padding:14px 16px;gap:8px}#audit-pdf-export .sigma-modal-footer .sigma-btn{min-width:0;font-size:12px;padding:10px 14px}#audit-pdf-export label{font-size:12px}#audit-pdf-export .audit-export-types{gap:8px}#audit-pdf-export .audit-export-types label{padding:10px;gap:6px}#audit-pdf-export .audit-export-grid{grid-template-columns:minmax(0,1fr);gap:14px}#audit-pdf-export .sigma-input{height:40px;font-size:12px}#audit-pdf-export small,#audit-pdf-export [data-count]{font-size:11px}}
+
+#audit-pdf-export .audit-export-direction{width:100%;border:1px solid #dce5ef;border-radius:10px;background:#f8fafc}#audit-pdf-export .audit-export-direction summary{min-height:44px;padding:10px 12px;font-weight:400;gap:12px}#audit-pdf-export .audit-export-direction .sigma-quarter-dropdown-menu{width:100%;z-index:10}#audit-pdf-export .audit-export-direction summary i{display:inline-block!important;font-size:10px!important}#audit-pdf-export .audit-export-direction[open] summary i{transform:rotate(180deg)}
+@media(max-width:639px){#audit-pdf-export .audit-export-direction summary{min-height:38px;font-size:12px;}}
