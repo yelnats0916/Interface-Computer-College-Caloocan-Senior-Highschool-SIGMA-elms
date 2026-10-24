@@ -47,6 +47,7 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
         for path in release.rglob('*.php'):
             result = subprocess.run(['/usr/bin/php', '-l', str(path)], env=env, capture_output=True)
             if result.returncode:
+                sys.stderr.write(f"PHP syntax check failed on {path}:\n{result.stderr.decode('utf-8', errors='ignore')}\n")
                 raise RuntimeError('PHP syntax check failed: ' + str(path.relative_to(release)))
         if initialize:
             # Explicit initial setup only: the PHP command refuses nonempty databases.
@@ -55,6 +56,7 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
                   "if (!$pdo || !$pdo->query(\"SHOW TABLES LIKE 'users'\")->fetch()) exit(1);")
         result = subprocess.run(['/usr/bin/php', '-r', verify], env=env, capture_output=True)
         if result.returncode:
+            sys.stderr.write(f"Database preflight failed:\nSTDOUT: {result.stdout.decode('utf-8', errors='ignore')}\nSTDERR: {result.stderr.decode('utf-8', errors='ignore')}\n")
             raise RuntimeError('Release database preflight failed. Existing website remains active.')
         for path in [HOME / 'sigma-releases', release, release / 'public']:
             path.chmod(0o755)
@@ -115,9 +117,16 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
 
 
 if __name__ == '__main__':
+    import traceback
+    import sys
     parser = argparse.ArgumentParser()
     parser.add_argument('--archive', type=Path, required=True)
     parser.add_argument('--release', required=True)
     parser.add_argument('--initialize', action='store_true')
     args = parser.parse_args()
-    activate(args.archive, args.release, args.initialize)
+    try:
+        activate(args.archive, args.release, args.initialize)
+    except Exception as exc:
+        sys.stderr.write(f"\nCRITICAL: Exception during activation: {exc}\n")
+        traceback.print_exc()
+        sys.exit(1)
