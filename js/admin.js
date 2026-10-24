@@ -8225,6 +8225,24 @@ const fetchSubjectsFromDB = () => {
     return subjectFetchInFlight;
 };
 window.fetchSubjectsFromDB = fetchSubjectsFromDB;
+// Apply a deferred catalog refresh after the current pointer/click action completes.
+window.subjectCatalogPointerDown = false;
+document.addEventListener('pointerdown', event => {
+    window.subjectCatalogPointerDown = Boolean(event.target.closest?.('#subjectTableBody .action-dropdown-container'));
+}, true);
+
+for (const eventName of ['click', 'pointerup', 'pointercancel', 'keydown']) {
+    document.addEventListener(eventName, () => {
+        setTimeout(() => {
+            window.subjectCatalogPointerDown = false;
+            const body = document.getElementById('subjectTableBody');
+            if (window.subjectCatalogRenderPending && !body?.querySelector('.action-dots-btn:active, .action-dropdown-menu.show')) {
+                window.renderSubjectsTable?.();
+            }
+        }, 0);
+    });
+}
+
 
 // Initial DB Fetch for subjects
 fetchSubjectsFromDB();
@@ -17374,8 +17392,15 @@ function renderSubjectsTable() {
     window.renderSubjectsTable = renderSubjectsTable;
     const tableBody = document.getElementById('subjectTableBody');
     if (!tableBody) return;
+    if (window.subjectCatalogPointerDown || tableBody.querySelector?.('.action-dropdown-menu.show')) {
+        window.subjectCatalogRenderPending = true;
+        return;
+    }
+    window.subjectCatalogRenderPending = false;
+
     if (!window.subjectCatalogState?.ready) {
         const failed = Boolean(window.subjectCatalogState?.error);
+        tableBody._sigmaSubjectMarkup = null;
         tableBody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-black" role="status">${failed ? 'Unable to load subjects. <button type="button" class="sigma-btn sigma-btn-white" onclick="window.fetchSubjectsFromDB()">Retry</button>' : '<i class="fa-solid fa-spinner fa-spin" aria-label="Loading subjects"></i>'}</td></tr>`;
         const pagination = document.getElementById('subject-pagination-container');
         if (pagination) pagination.innerHTML = '';
@@ -17395,6 +17420,7 @@ function renderSubjectsTable() {
     const paginatedSubjects = displaySubjects.slice(startIndex, startIndex + window.subjectPaginationState.itemsPerPage);
 
     if (displaySubjects.length === 0) {
+        tableBody._sigmaSubjectMarkup = null;
         tableBody.innerHTML = `
             <tr id="subject-empty-state" class="bg-white">
                 <td colspan="9" class="py-32 text-center">
@@ -17410,7 +17436,7 @@ function renderSubjectsTable() {
         return;
     }
 
-    tableBody.innerHTML = paginatedSubjects.map((sub, idx) => {
+    const subjectMarkup = paginatedSubjects.map((sub, idx) => {
         const isDraft = (sub.status || '').toLowerCase() === 'draft';
         const statusHtml = `<div class="text-[14px] font-medium text-center tracking-tight font-['Inter']" style="${isDraft ? 'color: #eab308 !important;' : 'color: #15803d !important;'}">${isDraft ? 'Draft' : 'Published'}</div>`;
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
@@ -17502,6 +17528,12 @@ function renderSubjectsTable() {
             </tr>
         `;
     }).join('');
+    // Keep action buttons mounted when a background refresh returns the same data.
+    if (tableBody._sigmaSubjectMarkup !== subjectMarkup) {
+        tableBody.innerHTML = subjectMarkup;
+        tableBody._sigmaSubjectMarkup = subjectMarkup;
+    }
+
 
 
     renderPaginationControls('subject-pagination-container', totalItems, window.subjectPaginationState, 'onSubjectPageChange');

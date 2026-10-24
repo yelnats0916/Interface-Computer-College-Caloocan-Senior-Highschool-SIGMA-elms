@@ -6,7 +6,7 @@ const cached=[{id:'PD',code:'PD',name:'Personal Development',status:'Draft',type
 const context={console,localStorage:{getItem:()=>JSON.stringify(cached)},SUBJECTS_STORAGE_KEY:'sigma-admin-subjects',
     window:{subjectCatalogState:{ready:false,error:'',records:[]},subjectSearchState:{},subjectPaginationState:{currentPage:1,itemsPerPage:5},location:{hash:'#nav-school-subjects'},hasTableSearchFilters:()=>false,
         SigmaDatabase:{request:()=>new Promise(resolve=>resolveRequest=resolve),preserveLegacy:()=>{}},saveStoredJson:()=>{}},
-    document:{getElementById:id=>id==='subjectTableBody'?body:id==='subject-pagination-container'?pagination:null},
+    document:{addEventListener:()=>{},getElementById:id=>id==='subjectTableBody'?body:id==='subject-pagination-container'?pagination:null},
     getFilteredSubjectsBySearch:()=>context.window.subjectCatalogState.records,escapeHtml:String,renderPaginationControls:()=>{}};
 vm.createContext(context);
 let start=source.indexOf('function renderSubjectsTable() {'),end=source.indexOf('// USER ACCOUNT MANAGEMENT LOGIC',start);
