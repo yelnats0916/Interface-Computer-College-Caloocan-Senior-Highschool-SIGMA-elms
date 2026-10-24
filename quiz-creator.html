@@ -1919,7 +1919,17 @@
         .ai-bloom-option:has(:checked) {border-color:#15803d;background:#f0fdf4;}
         .ai-bloom-option input,.ai-bloom-select-all input {accent-color:#15803d;width:16px;height:16px;flex-shrink:0;}
         .ai-bloom-select-all {display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer;}
-        #ai-mixed-rows select[data-quiz-owned-select] {appearance:auto !important;-webkit-appearance:auto !important;background-image:none !important;padding-right:8px !important;}
+        html body #ai-mixed-rows .ai-question-type-dropdown {display:block;min-width:0;width:100%;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;font-size:14px;}
+        html body #ai-mixed-rows .ai-question-type-dropdown summary {min-height:42px;padding:0 10px;gap:8px;}
+        html body #ai-mixed-rows .ai-question-type-dropdown summary span {min-width:0;overflow:hidden;text-overflow:ellipsis;}
+        html body #ai-mixed-rows .ai-question-type-dropdown summary i {display:inline-block!important;flex-shrink:0;font-size:10px!important;transition:transform .15s;}
+        html body #ai-mixed-rows .ai-question-type-dropdown[open] summary i {transform:rotate(180deg);}
+        html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu {position:fixed;width:auto;max-width:calc(100vw - 16px);overflow-y:auto;z-index:10100;}
+        html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button {display:flex!important;position:static!important;width:100%!important;height:auto!important;min-height:36px!important;padding:8px 10px!important;font-size:14px!important;white-space:normal;text-align:left;}
+        html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button[aria-pressed="true"] {background:#f0fdf4;color:#15803d;}
+        html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button:disabled {opacity:.4;cursor:default;}
+        @media(max-width:639.98px){html body #ai-mixed-rows .ai-question-type-dropdown{font-size:12px;}html body #ai-mixed-rows .ai-question-type-dropdown summary{min-height:36px;padding:0 6px;}html body #ai-mixed-rows .ai-question-type-dropdown .sigma-quarter-dropdown-menu button{font-size:12px!important;}}
+
         @media(max-width:639.98px){#ai-bloom-levels{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}.ai-bloom-option{padding:9px;font-size:12px;gap:6px;}.ai-bloom-select-all{font-size:11px;}.ai-bloom-option input,.ai-bloom-select-all input{width:14px;height:14px;}}
         html body #ai-generator-modal #ai-mixed-rows .ai-blueprint-row > button {
             display:flex !important;position:static !important;align-items:center;justify-content:center;
@@ -3058,11 +3068,11 @@
 <link rel="stylesheet" href="css/sigma-message-format.css?v=20261022_reply_format_v1">
 <script src="js/sigma-message-format.js?v=20261022_reply_format_v1"></script>
 <script src="js/table-pagination.js?v=20261022_page_groups_v22"></script>
-<script src="js/shared-components.js?v=20261025_quiz_controls_v206"></script>
+<script src="js/shared-components.js?v=20261025_quiz_custom_types_v208"></script>
 <script src="js/online-presence.js?v=20261021_database_foundation_v5"></script>
     <script src="js/quiz-components.js?v=20261004alignfix1"></script>
     <script src="js/ai-log-store.js?v=20261010featureStatus291"></script>
-    <script src="js/quiz-generation-controls.js?v=20261025_quiz_controls_v206"></script>
+    <script src="js/quiz-generation-controls.js?v=20261025_quiz_custom_types_v208"></script>
     <script src="js/quiz-creator.js?v=20261024_device_sync_v199"></script>
     <script src="js/notifications.js?v=20261022_audit_context_v23"></script>
     <script src="js/topbar.js?v=20261024_initial_no_bar_v132"></script>

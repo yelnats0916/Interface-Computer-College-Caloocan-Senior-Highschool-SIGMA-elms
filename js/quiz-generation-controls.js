@@ -51,17 +51,23 @@
         const host=el('ai-mixed-rows');if(!host)return;host.replaceChildren();
         rows.forEach((row,index)=>{
             const div=document.createElement('div');div.className='ai-blueprint-row';
-            // Own the native control from creation: shared enhancement must never reparent it on pointerdown.
-            const select=document.createElement('select');select.dataset.quizOwnedSelect='true';select.setAttribute('aria-label','Question type '+(index+1));
-            types.forEach(type=>{const option=new Option(type==='Essay'?'Essay / Paragraph':type,type);option.disabled=rows.some((other,j)=>j!==index&&other.type===type);select.add(option);});select.value=row.type;
-            select.onchange=()=>{row.type=select.value;renderRows();window.syncAIGenerateButtonState?.();};
+            const picker=document.createElement('details');picker.className='sigma-quarter-dropdown ai-question-type-dropdown';
+            const summary=document.createElement('summary');summary.setAttribute('aria-label','Question type '+(index+1));
+            const title=document.createElement('span');title.textContent=row.type==='Essay'?'Essay / Paragraph':row.type;
+            const chevron=document.createElement('i');chevron.className='fa-solid fa-chevron-down';chevron.setAttribute('aria-hidden','true');summary.append(title,chevron);
+            const menu=document.createElement('div');menu.className='sigma-quarter-dropdown-menu';
+            types.forEach(type=>{const option=document.createElement('button');option.type='button';option.textContent=type==='Essay'?'Essay / Paragraph':type;option.setAttribute('aria-pressed',String(type===row.type));option.disabled=rows.some((other,j)=>j!==index&&other.type===type);option.onclick=()=>{row.type=type;picker.open=false;renderRows();window.syncAIGenerateButtonState?.();host.querySelectorAll('summary')[index]?.focus();};menu.append(option);});
+            picker.append(summary,menu);
+            picker.addEventListener('toggle',()=>{if(!picker.open)return;const box=summary.getBoundingClientRect();menu.style.width=box.width+'px';menu.style.left=Math.max(8,Math.min(box.left,innerWidth-box.width-8))+'px';menu.style.maxHeight=Math.max(100,Math.min(240,innerHeight-16))+'px';const height=menu.getBoundingClientRect().height;menu.style.top=Math.max(8,Math.min(box.bottom+4,innerHeight-height-8))+'px';});
+            summary.addEventListener('keydown',event=>{if(event.key==='ArrowDown'){event.preventDefault();picker.open=true;menu.querySelector('button:not(:disabled)')?.focus();}});
+            menu.addEventListener('keydown',event=>{if(event.key==='Escape'){picker.open=false;summary.focus();return;}if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;event.preventDefault();const items=Array.from(menu.querySelectorAll('button:not(:disabled)')),current=items.indexOf(document.activeElement);const next=event.key==='Home'?0:event.key==='End'?items.length-1:(current+(event.key==='ArrowDown'?1:-1)+items.length)%items.length;items[next]?.focus();});
             const input=document.createElement('input');input.type='number';input.min='1';input.step='1';input.inputMode='numeric';input.value=row.count;input.setAttribute('aria-label',row.type+' count');
             input.onkeydown=event=>{if(['e','E','+','-','.',' '].includes(event.key))event.preventDefault();};
             const commit=()=>{const maximum=Math.max(1,capacity()-rows.reduce((sum,other,j)=>sum+(j===index?0:other.count),0));if(Number(input.value)>maximum)window.checkQuizQuestionCapacity?.(Number(input.value)+rows.reduce((sum,other,j)=>sum+(j===index?0:other.count),0));row.count=Math.min(maximum,Math.max(1,Math.trunc(Number(input.value)||1)));input.value=String(row.count);sync();window.syncAIGenerateButtonState?.();};
             input.oninput=commit;input.onblur=commit;
             const remove=document.createElement('button');remove.type='button';remove.className='sigma-btn sigma-btn-white';remove.setAttribute('aria-label','Remove '+row.type);remove.innerHTML='<i class="fa-solid fa-xmark" aria-hidden="true"></i>';remove.disabled=rows.length===1;
             remove.onclick=()=>{const total=options().count;rows.splice(index,1);distribute(total);renderRows();window.syncAIGenerateButtonState?.();};
-            div.append(select,input,remove);host.append(div);
+            div.append(picker,input,remove);host.append(div);
         });sync();
     }
     function renderLevels() {
