@@ -1334,7 +1334,8 @@
         setBtnVisibility(backBtn, batchStep === 2);
         setBtnVisibility(nextBtn, batchStep === 1);
         setBtnVisibility(saveBtn, batchStep === 2);
-        setBtnVisibility(exportAllBtn, batchStep === 3);
+        // Download All Credentials button removed per user request
+        setBtnVisibility(exportAllBtn, false);
         setBtnVisibility(addAnotherBtn, batchStep === 3);
         setBtnVisibility(finishBtn, batchStep === 3);
 
