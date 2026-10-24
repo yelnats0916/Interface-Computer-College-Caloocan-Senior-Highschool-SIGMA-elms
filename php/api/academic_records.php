@@ -2,6 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');
 require_once __DIR__.'/../includes/ai_request_auth.php';
 require_once __DIR__.'/../includes/academic_evidence.php';
+require_once __DIR__.'/../includes/assessment_records.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Headers: Content-Type, Authorization');header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 if(($_SERVER['REQUEST_METHOD']??'')==='OPTIONS')exit;
@@ -13,6 +14,9 @@ try{
     if(strlen($raw)>180000)throw new InvalidArgumentException('Academic record is too large.');
     $input=$method==='POST'?json_decode($raw,true,64,JSON_THROW_ON_ERROR):$_GET;
     sigmaRequireRealRecords($input);$type=$input['type']??'';$role=academicRole($actor);
+    if($method==='GET'&&($input['action']??'')==='sync'){
+        echo json_encode(assessmentSnapshot($db,$actor),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;
+    }
     $targetSections=[];
     if($method==='POST'&&$type==='release'&&in_array(strtolower((string)($input['section']??'')),['','all'],true)){
         $subject=academicSubject($db,(string)($input['subjectId']??''));
@@ -38,7 +42,13 @@ try{
                 if($recordType==='feedback'&&($data['teacherNoteFingerprint']??'')!==hash('sha256',json_encode(academicRead($db,'teacher_feedback',$subject,$section,$student['id'],$item['id']))))continue;
                 if($recordType==='feedback'&&($data['gradeFingerprint']??'')!==hash('sha256',json_encode(academicRead($db,'score',$subject,$section,$student['id'],$item['id']))))continue;
             }
-            if($data)$result[$recordType]=$data;
+            if($data){
+                if($recordType==='submission'&&!$staff){
+                    $config=academicRead($db,'release',$subject,$section,'','assessments')??[];
+                    $data=assessmentPublicRecord($data,!empty($config['assessmentShowCorrectAnswers'][$item['id']]));
+                }
+                $result[$recordType]=$data;
+            }
         }
         echo json_encode(['success'=>true,'records'=>$result]);exit;
     }
@@ -47,7 +57,7 @@ try{
         if(!$staff||!sigmaActorPermission($actor,$role==='teacher'?'teacherMaterials':'subjectPublish'))throw new RuntimeException('You cannot release this learning content.');
         $category=$input['category']??'';if(!in_array($category,['topics','learning','assessments'],true))throw new InvalidArgumentException('Invalid release category.');
         $config=$input['config']??[];
-        $allowed=['publishAll','releasedTopicIds','releasedMaterialIds','hiddenTopicIds','hiddenMaterialIds','topicSchedules','materialSchedules','topicEndSchedules','materialEndSchedules','topicReleaseDates','materialReleaseDates','assignedStudents','assessmentMaxScores','assessmentRubricUrls','assessmentRubrics','assessmentCriteriaAiAuto','assessmentSelectedCriteria','assessmentAiAssisted'];
+        $allowed=['publishAll','releasedTopicIds','releasedMaterialIds','hiddenTopicIds','hiddenMaterialIds','topicSchedules','materialSchedules','topicEndSchedules','materialEndSchedules','topicReleaseDates','materialReleaseDates','assignedStudents','assessmentMaxScores','assessmentRubricUrls','assessmentRubrics','assessmentCriteriaAiAuto','assessmentSelectedCriteria','assessmentAiAssisted','assessmentShowCorrectAnswers','assessmentLatePermissions','assessmentGradingModes','assessmentEssayGradingModes','assessmentManualReviewTypes','assessmentEndSchedules'];
         $config=array_intersect_key($config,array_flip($allowed));
         if(strlen(json_encode($config))>90000)throw new InvalidArgumentException('Release configuration is too large.');
         $catalog=academicItems($subject);$expected=['topics'=>'topic','learning'=>'learning','assessments'=>'assessment'][$category];
@@ -62,6 +72,11 @@ try{
         }
         foreach($config['assignedStudents']??[] as $ids)foreach($ids as $id)academicStudent($db,$section,(string)$id);
         foreach($targetSections?:[$section] as $releaseSection)academicWrite($db,$actor,'release',$subject,$releaseSection,'',$category,$config);
+    }elseif($type==='quiz_attempt'){
+        $record=assessmentSubmitQuiz($db,$actor,$subject,$section,$input);
+        $config=academicRead($db,'release',$subject,$section,'','assessments')??[];
+        $record=assessmentPublicRecord($record,!empty($config['assessmentShowCorrectAnswers'][$record['materialId']]));
+        $db->commit();echo json_encode(['success'=>true,'submission'=>$record],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;
     }elseif($type==='attendance'){
         if(!$staff||!sigmaActorPermission($actor,'teacherAttendance'))throw new RuntimeException('Attendance access is disabled.');
         $date=$input['date']??'';if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date)||!strtotime($date)||$date>academicDay())throw new InvalidArgumentException('Choose a valid attendance date.');
@@ -88,7 +103,16 @@ try{
             if($score==='')$score=null;
             if($score!==null && (!$max||!is_numeric($score)||$score<0||$score>$max))throw new InvalidArgumentException('Save the assessment maximum in the curriculum and enter a score within that maximum.');
             $submission=academicRead($db,'submission',$subject,$section,$student['id'],$item['id']);
-            academicWrite($db,$actor,'score',$subject,$section,$student['id'],$item['id'],['score'=>$score===null?null:(float)$score,'maxScore'=>$max,'feedback'=>academicText($input['feedback']??(academicRead($db,'score',$subject,$section,$student['id'],$item['id'])['feedback']??''),5000),'attemptIdentity'=>$submission['attemptIdentity']??'']);
+            if(!empty($input['attemptIdentity'])&&($submission['attemptIdentity']??'')!==$input['attemptIdentity'])throw new RuntimeException('Open the latest submission before saving its review.');
+            $review=[];
+            foreach(['essayScores','enumItemScores','matchingItemScores','essayGraded'] as $field)if(is_array($input['review'][$field]??null)){
+                foreach($input['review'][$field] as $key=>$value){
+                    if(strlen((string)$key)>100||(!is_numeric($value)&&!is_bool($value)))throw new InvalidArgumentException('Invalid review score.');
+                    $review[$field][(string)$key]=is_bool($value)?$value:max(0,min((float)$max,(float)$value));
+                }
+            }
+            if(strlen(json_encode($review))>20000)throw new InvalidArgumentException('Review data is too large.');
+            academicWrite($db,$actor,'score',$subject,$section,$student['id'],$item['id'],['score'=>$score===null?null:(float)$score,'maxScore'=>$max,'feedback'=>academicText($input['feedback']??(academicRead($db,'score',$subject,$section,$student['id'],$item['id'])['feedback']??''),5000),'attemptIdentity'=>$submission['attemptIdentity']??'']+$review);
         }elseif($type==='rubric'){
             if(!$staff||!sigmaActorPermission($actor,'teacherGrades'))throw new RuntimeException('Only the assigned teacher can provide a rubric.');
             $canonicalUrl=(string)($item['data']['rubricUrl']??$item['data']['rubricFileUrl']??'');
@@ -99,13 +123,31 @@ try{
             academicWrite($db,$actor,'rubric',$subject,$section,'',$item['id'],['text'=>$text,'sourceUrl'=>$canonicalUrl,'source'=>'assigned-teacher-rubric']);
         }else{
             if($role!=='student')throw new RuntimeException('Only the enrolled student can submit their own work.');
-            if(!academicRelease($db,$subject,$section,$item,$actor['id']))throw new RuntimeException('This assessment is not released to you.');
+            if(!sigmaActorPermission($actor,'studentGrades')||strtolower($section['status']??'')!=='deployed'||strtolower($subject['status']??'')!=='published')throw new RuntimeException('This assessment is unavailable.');
+            if(!empty($item['data']['selectedQuizId'])||!empty($item['data']['quizId'])||strtolower($item['data']['type']??$item['data']['category']??'')==='quiz')throw new RuntimeException('Submit this quiz through its quiz player.');
+            $release=academicRelease($db,$subject,$section,$item,$actor['id']);
+            if(!$release)throw new RuntimeException('This assessment is not released to you.');
+            $config=academicRead($db,'release',$subject,$section,'','assessments')??[];
+            if($release['dueAt']&&academicTime($release['dueAt'])<time()&&!($config['assessmentLatePermissions'][$item['id']]??$item['data']['latePermission']??true))throw new RuntimeException('This assessment is closed.');
             $text=trim(is_string($input['text']??null)?$input['text']:'');
             if(mb_strlen($text)>60000)throw new InvalidArgumentException('The complete submitted text exceeds the supported evaluation size.');
             $identity=academicText($input['attemptIdentity']??'',4000);
             if(!$identity)throw new InvalidArgumentException('Submission attempt is required.');
+            $lock=$db->prepare('SELECT id FROM subjects WHERE id=? FOR UPDATE');$lock->execute([$subject['id']]);
             $previous=academicRead($db,'submission',$subject,$section,$actor['id'],$item['id']);
-            academicWrite($db,$actor,'submission',$subject,$section,$actor['id'],$item['id'],['text'=>$text,'attemptIdentity'=>$identity,'submittedAt'=>gmdate('c'),'readable'=>(bool)$text]);
+            $files=[];
+            foreach($input['files']??[] as $file){
+                $url=(string)($file['url']??'');
+                if(!preg_match('~^(https://|/?uploads/)~i',$url)||strlen($url)>4000)throw new InvalidArgumentException('Upload the answer file before submitting it.');
+                $files[]=['name'=>academicText($file['name']??$file['fileName']??'Answer file',200),'url'=>$url,'size'=>max(0,(int)($file['size']??0)),'type'=>academicText($file['type']??'',100)];
+            }
+            $sameAttempt=$previous&&($previous['attemptIdentity']??'')===$identity;
+            $limit=max(1,min(10,(int)($item['data']['maxAttempts']??$item['data']['attempts']??1)));
+            if($previous&&!$sameAttempt&&(int)($previous['attemptsUsed']??1)>=$limit)throw new RuntimeException('The maximum submission attempts have been reached.');
+            academicWrite($db,$actor,'submission',$subject,$section,$actor['id'],$item['id'],['text'=>$text,'attemptIdentity'=>$identity,'submittedAt'=>$previous['submittedAt']??gmdate('c'),'readable'=>(bool)$text,
+                'studentId'=>(string)$actor['id'],'studentName'=>$actor['full_name']??'','subjectId'=>$subject['id'],'section'=>$section['name'],
+                'materialId'=>$item['id'],'assessmentId'=>$item['id'],'title'=>$item['data']['title']??'Assessment','topicIdx'=>$item['topicIdx'],'topicItemIdx'=>$item['itemIdx'],'tab'=>'assessments','quarter'=>$item['data']['quarter']??'',
+                'files'=>$files,'comment'=>academicText($input['comment']??'',5000),'status'=>'Submitted','attemptsUsed'=>$sameAttempt?(int)($previous['attemptsUsed']??1):((int)($previous['attemptsUsed']??0)+1)]);
         }
     }else throw new InvalidArgumentException('Unsupported academic record.');
     $db->commit();

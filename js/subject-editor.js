@@ -355,6 +355,9 @@
 
     function canCurrentSubjectEditorDeleteSubject() {
         if (isCurrentEditorTeacher()) return false;
+        const code=document.getElementById('edit-subject-code')?.value || window.originalEditingSubjectCode || '';
+        const record=_getStored(SUBJECTS_STORAGE_KEY,[]).find(s=>String(s.code).toLowerCase()===String(code).toLowerCase());
+        if(record?.canDelete===false)return false;
         if (typeof window.canCurrentAdminDelete === 'function') {
             return window.canCurrentAdminDelete('subject');
         }
@@ -1513,10 +1516,10 @@
                             <div class="space-y-3">
                                 <div class="flex items-center justify-between ml-1">
                                     <label for="edit-subject-name" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal">Subject Name <span class="text-red-500">*</span></label>
-                                    <span id="edit-subject-name-counter" class="text-xs font-bold text-slate-400 uppercase tracking-widest">0 / 100</span>
+                                    <span id="edit-subject-name-counter" class="text-xs font-bold text-slate-400 uppercase tracking-widest">0 / 150</span>
                                 </div>
-                                <input type="text" id="edit-subject-name" maxlength="100"
-                                    oninput="this.value = this.value.replace(/[^a-zA-Z0-9\s.,!?'&()\-]/g, ''); const cnt = document.getElementById('edit-subject-name-counter'); if (cnt) cnt.textContent = this.value.length + ' / 100'; window.syncDepEdWeightsDefault?.(); window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()"
+                                <input type="text" id="edit-subject-name" maxlength="150"
+                                    oninput="this.value = this.value.replace(/[^a-zA-Z0-9\s.,!?'&()\-]/g, ''); const cnt = document.getElementById('edit-subject-name-counter'); if (cnt) cnt.textContent = this.value.length + ' / 150'; window.syncDepEdWeightsDefault?.(); window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()"
                                     placeholder="Full Subject Name"
                                     class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
                             </div>
@@ -1524,7 +1527,7 @@
                             <div class="grid grid-cols-2 gap-8">
                                 <div class="space-y-3">
                                     <label for="edit-subject-units" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Units <span class="text-red-500">*</span></label>
-                                    <input type="text" id="edit-subject-units" maxlength="2" placeholder="e.g. 3"
+                                    <input type="text" id="edit-subject-units" required inputmode="numeric" maxlength="2" placeholder="e.g. 3"
                                         oninput="this.value = this.value.replace(/[^0-9]/g, ''); window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()"
                                         class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
                                 </div>
@@ -1539,6 +1542,19 @@
                                         </select>
                                         <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <label for="edit-subject-grade" class="sigma-subject-label text-base font-bold text-black">Grade Level</label>
+                                    <select id="edit-subject-grade" class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 px-4 py-4 text-base text-black" onchange="window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()">
+                                        <option value="">Select Grade</option><option value="11">Grade 11</option><option value="12">Grade 12</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-3">
+                                    <label for="edit-subject-hours" class="sigma-subject-label text-base font-bold text-black">Learning Hours <span class="text-red-500">*</span></label>
+                                    <input id="edit-subject-hours" type="text" required inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" autocomplete="off" placeholder="e.g. 80" title="Enter a whole number from 1 to 1280." class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none" oninput="window.handleSubjectLearningHoursInput?.(this)">
                                 </div>
                             </div>
 
@@ -1566,7 +1582,7 @@
                                         <option value="core" data-ww="25" data-pt="50" data-qa="25">Core Subjects (All Strands) — WW 25% · PT 50% · QA 25%</option>
                                         <option value="acad-specialized" data-ww="25" data-pt="45" data-qa="30">Academic Strands (ABM, GAS, HUMSS) — WW 25% · PT 45% · QA 30%</option>
                                         <option value="acad-immersion" data-ww="35" data-pt="40" data-qa="25">Academic Strands (Research / Immersion) — WW 35% · PT 40% · QA 25%</option>
-                                        <option value="tvl-specialized" data-ww="30" data-pt="50" data-qa="20">TVL Strands (ICT & HE) — Applied & Specialized — WW 30% · PT 50% · QA 20%</option>
+                                        <option value="tvl-specialized" data-ww="20" data-pt="60" data-qa="20">TVL Strands (ICT & HE) — Applied & Specialized — WW 20% · PT 60% · QA 20%</option>
                                         <option value="tvl-immersion" data-ww="20" data-pt="60" data-qa="20">TVL Strands (ICT & HE) — Work Immersion / Practicum — WW 20% · PT 60% · QA 20%</option>
                                     </select>
                                     <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
@@ -2103,12 +2119,23 @@
                 if (codeInput) codeInput.value = subjectData.code || '';
                 if (nameInput) nameInput.value = subjectData.name || '';
                 if (unitsInput) unitsInput.value = subjectData.units || '';
+                document.getElementById('edit-subject-grade').value = subjectData.gradeLevel || '';
+                document.getElementById('edit-subject-hours').value = subjectData.learningHours || '';
                 if (typeInput) typeInput.value = subjectData.type || 'Applied';
-                if (strandInput) strandInput.value = subjectData.strand || 'ABM';
+                if (strandInput) {
+                    strandInput.querySelectorAll('option[data-shared-subject]').forEach(option => option.remove());
+                    const strands = subjectData.strand || 'ABM';
+                    if (strands.includes(',') && !Array.from(strandInput.options).some(option => option.value === strands)) {
+                        const option = document.createElement('option');
+                        option.value = strands; option.textContent = strands; option.dataset.sharedSubject = 'true';
+                        strandInput.append(option);
+                    }
+                    strandInput.value = strands;
+                }
 
                 const weightsInput = document.getElementById('edit-subject-weights');
                 if (weightsInput) {
-                    const existingW = (typeof window.getSubjectGradebookWeights === 'function' ? window.getSubjectGradebookWeights(subjectData.name || subjectData.code) : null) || subjectData.weights;
+                    const existingW = subjectData.weights || (typeof window.getSubjectGradebookWeights === 'function' ? window.getSubjectGradebookWeights(subjectData.id || subjectData.code || subjectData.name) : null);
                     let matchedPreset = existingW?.preset;
                     if (!matchedPreset && existingW) {
                         const ww = Number(existingW.ww);
@@ -2297,8 +2324,10 @@
                 if (codeInput) codeInput.value = '';
                 if (nameInput) nameInput.value = '';
                 if (unitsInput) unitsInput.value = '';
+                document.getElementById('edit-subject-grade').value = '';
+                document.getElementById('edit-subject-hours').value = '';
                 if (typeInput) typeInput.value = 'Core';
-                if (strandInput) strandInput.value = 'STEM';
+                if (strandInput) strandInput.value = 'ABM';
 
                 const sem1Checkbox = document.getElementById('edit-subject-sem1');
                 const sem2Checkbox = document.getElementById('edit-subject-sem2');
@@ -2445,6 +2474,8 @@
             if (codeInput) codeInput.value = '';
             if (nameInput) nameInput.value = '';
             if (unitsInput) unitsInput.value = '';
+            document.getElementById('edit-subject-grade').value = '';
+            document.getElementById('edit-subject-hours').value = '';
             if (typeInput) typeInput.value = 'Core';
             if (strandInput) strandInput.value = 'ABM';
             window._userManuallySelectedWeights = false;
@@ -2832,7 +2863,7 @@
         }
         const contentReleaseBtn = document.getElementById('subject-content-release-btn');
         if (contentReleaseBtn) {
-            const showRelease = window.subjectEditorOptions?.focus === 'content' && step === 3;
+            const showRelease = step === 3 && window.canReleaseFromSubjectContent?.() === true;
             contentReleaseBtn.classList.toggle('hidden', !showRelease);
             contentReleaseBtn.style.display = showRelease ? 'flex' : 'none';
         }
@@ -3026,6 +3057,18 @@
         }
     };
 
+    window.isSubjectLearningHoursValid = function (value) {
+        const raw = String(value ?? '').trim();
+        return /^[0-9]{1,4}$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 1280;
+    };
+
+    window.handleSubjectLearningHoursInput = function (input) {
+        if (!input) return;
+        input.value = String(input.value || '').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, 4);
+        window.checkSubjectDraftStatus?.();
+        window.checkSubjectFormValidity?.();
+    };
+
     window.isSubjectStep1Valid = function () {
         const code = (document.getElementById('edit-subject-code')?.value || '').trim();
         const name = (document.getElementById('edit-subject-name')?.value || '').trim();
@@ -3035,7 +3078,8 @@
         const weights = (document.getElementById('edit-subject-weights')?.value || '').trim();
         const activeQuarters = getActiveSubjectQuarters();
 
-        if (!code || !name || !units || !weights) return false;
+        if (!code || !name || (!units || !Number.isFinite(Number(units)) || Number(units) <= 0) || !weights) return false;
+        if (!window.isSubjectLearningHoursValid(document.getElementById('edit-subject-hours')?.value)) return false;
         if (type === 'Specialized' && !strand) return false;
         if (!activeQuarters || activeQuarters.length < 2) return false;
         return true;
@@ -3301,13 +3345,18 @@
             document.getElementById('edit-subject-name')?.focus();
             return false;
         }
-        if (!units) {
+        if (!units || !Number.isFinite(Number(units)) || Number(units) <= 0) {
             if (typeof window.showToast === 'function') {
-                window.showToast('Please specify the Units.');
+                window.showToast('Please provide valid Subject Units.');
             } else {
-                window.SigmaFeedback.notice('Please specify the Units.');
+                window.SigmaFeedback.notice('Please provide valid Subject Units.');
             }
             document.getElementById('edit-subject-units')?.focus();
+            return false;
+        }
+        if (!window.isSubjectLearningHoursValid(document.getElementById('edit-subject-hours')?.value)) {
+            window.showToast?.('Please provide Learning Hours as a whole number from 1 to 1280.');
+            document.getElementById('edit-subject-hours')?.focus();
             return false;
         }
         if (type === 'Specialized' && !strand) {
@@ -3358,6 +3407,8 @@
             code: (document.getElementById('edit-subject-code')?.value || '').trim(),
             name: (document.getElementById('edit-subject-name')?.value || '').trim(),
             units: (document.getElementById('edit-subject-units')?.value || '').trim(),
+            gradeLevel: document.getElementById('edit-subject-grade')?.value || '',
+            learningHours: Number(document.getElementById('edit-subject-hours')?.value) || null,
             type: document.getElementById('edit-subject-type')?.value || 'Core',
             strand: document.getElementById('edit-subject-strand')?.value || 'ABM',
             activeQuarters: getActiveSubjectQuarters(),
@@ -3694,7 +3745,7 @@
             return 'acad-immersion';
         }
 
-        // 3. TVL Strands (ICT & HE) Applied & Specialized (30/50/20) - Interface Computer College Caloocan
+        // 3. TVL Applied & Specialized: DepEd Order 8, s. 2015, Table 5 (20/60/20).
         if (
             sStrand === 'ICT' || sStrand === 'HE' ||
             sStr.includes('programming') || sStr.includes('prog1') || sStr.includes('database') ||
@@ -7189,10 +7240,6 @@ window.addSubjectTopic = function () {
             if (!rubricTitle) rubricTitle = 'Grading Rubric Criteria';
             const rubricExt = (rubricTitle.split('.').pop() || 'pdf').toLowerCase();
 
-            const isTeacherEditor = typeof isCurrentEditorTeacher === 'function' ? isCurrentEditorTeacher() : false;
-            const canAdminDeleteRubric = !isTeacherEditor;
-            const rubricIdentifier = m.id || origIdx || index || 0;
-
             const rubricCardHtml = typeof window.renderSharedAttachedFilePanelHtml === 'function'
                 ? window.renderSharedAttachedFilePanelHtml({
                     title: rubricTitle,
@@ -7202,16 +7249,7 @@ window.addSubjectTopic = function () {
                     badgeClassOverride: 'bg-emerald-50 border-emerald-200/70 text-[#15803d]',
                     iconClassOverride: 'fa-file-circle-check text-[#15803d]',
                     onClick: `window.previewEditorFile('rubric')`,
-                    showKebab: canAdminDeleteRubric,
-                    kebabMenuId: `rubric-kebab-menu-${rubricIdentifier}`,
-                    kebabMenuItems: [
-                        {
-                            label: 'Delete Rubric',
-                            icon: 'fa-solid fa-trash-can text-black',
-                            isDanger: false,
-                            onClick: `window.deleteRubricFromMaterial('${rubricIdentifier}', event)`
-                        }
-                    ]
+                    showKebab: false
                 })
                 : `
                     <div class="sigma-attached-file-panel sigma-black-fade-panel group relative rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex items-center justify-between gap-4 font-['Inter'] select-none">
@@ -7226,25 +7264,7 @@ window.addSubjectTopic = function () {
                                 <h4 onclick="window.previewEditorFile('rubric')" class="sigma-file-panel-title sigma-file-panel-title--clickable text-[12px] sm:text-[19px] font-bold text-black hover:text-[#FFD000] transition-colors truncate leading-snug font-['Inter'] cursor-pointer w-fit max-w-full">${_escape(rubricTitle)}</h4>
                             </div>
                         </div>
-                        ${canAdminDeleteRubric ? `
-                            <div class="relative shrink-0" onclick="event.stopPropagation()">
-                                <button type="button"
-                                    id="rubric-kebab-btn-${rubricIdentifier}"
-                                    onclick="window.toggleSharedKebabMenu(event, 'rubric-kebab-menu-${rubricIdentifier}')"
-                                    title="Options"
-                                    class="mat-kebab-btn w-8 h-8 flex items-center justify-center cursor-pointer text-black focus:outline-none bg-transparent hover:text-[#FFD000]">
-                                    <i class="fa-solid fa-ellipsis-vertical text-base text-black"></i>
-                                </button>
-                                <div id="rubric-kebab-menu-${rubricIdentifier}"
-                                    class="shared-kebab-menu hidden absolute right-0 top-full mt-1.5 w-36 bg-white border border-slate-200/90 rounded-xl shadow-lg overflow-hidden z-[100] font-['Inter'] p-1 space-y-0.5 animate-in fade-in duration-150">
-                                    <button type="button" onclick="window.deleteRubricFromMaterial('${rubricIdentifier}', event)"
-                                        class="w-full text-left px-2.5 py-1.5 hover:bg-slate-100 text-xs font-semibold text-black rounded-lg transition-colors flex items-center gap-2 cursor-pointer">
-                                        <i class="fa-solid fa-trash-can text-xs text-black w-3.5 text-center"></i>
-                                        <span class="text-black">Delete Rubric</span>
-                                    </button>
-                                </div>
-                            </div>
-                        ` : ''}
+
                     </div>
                 `;
 
@@ -8401,7 +8421,9 @@ window.addSubjectTopic = function () {
         `;
     };
 
-    window.handleMaterialFileSelect = function (input, targetField = 'main') {
+    window.handleMaterialFileSelect = async function (input, targetField = 'main') {
+        try {await window.SigmaMaterialLimits.refresh(true);window.SigmaMaterialLimits.assertFiles(Array.from(input.files||[]));}
+        catch(error){input.value='';window.SigmaFeedback.notice(error.message);return;}
         const file = input.files && input.files[0];
         if (!file) return;
 
@@ -10227,6 +10249,7 @@ window.addSubjectTopic = function () {
         const finalItem = {
             id: finalId,
             originalAdminId: finalOriginalAdminId,
+            attachments: existingMat?.attachments || [],
             title,
             description: desc,
             topicId,
@@ -10688,6 +10711,11 @@ window.addSubjectTopic = function () {
 
     function findMatchingSubjectIndex(subjectsList, curCode, curName, origCode, origId, origName) {
         if (!Array.isArray(subjectsList) || subjectsList.length === 0) return -1;
+        for (const identity of [origId, origCode, curCode].filter(Boolean)) {
+            const key = String(identity).trim().toLowerCase();
+            const index = subjectsList.findIndex(subject => subject && [subject.id, subject.code].some(value => String(value || '').trim().toLowerCase() === key));
+            if (index > -1) return index;
+        }
         if (typeof window.findMatchingSubject === 'function') {
             const keysToTry = [origCode, origId, curCode, { code: curCode, name: curName, id: origId }].filter(Boolean);
             for (const k of keysToTry) {
@@ -10896,12 +10924,18 @@ window.addSubjectTopic = function () {
         const subjects = _getStored(SUBJECTS_STORAGE_KEY, []);
         const rawCode = (document.getElementById('edit-subject-code')?.value || window.originalEditingSubjectCode || '').trim();
         const rawName = (document.getElementById('edit-subject-name')?.value || window.originalEditingSubjectName || '').trim();
-        const index = findMatchingSubjectIndex(subjects, rawCode, rawName, window.originalEditingSubjectCode, window.originalEditingSubjectId, window.originalEditingSubjectName);
+        const isNewSubject = !window.isEditingSubject && !isStandaloneMode && !window.originalEditingSubjectId;
+        if (isNewSubject && subjects.some(subject => [subject.id, subject.code].some(value => String(value || '').trim().toLowerCase() === rawCode.toLowerCase()))) {
+            window.showToast?.('A subject with this code already exists. Please use a different Subject Code.');
+            window.handleSubjectStep(1);
+            return false;
+        }
+        const index = isNewSubject ? -1 : findMatchingSubjectIndex(subjects, rawCode, rawName, window.originalEditingSubjectCode, window.originalEditingSubjectId, window.originalEditingSubjectName);
         const existingSubject = index > -1 ? subjects[index] : null;
 
         const code = (rawCode || (existingSubject ? existingSubject.code : '') || (existingSubject ? existingSubject.id : '') || window.originalEditingSubjectId || 'SUBJ-101').trim();
         const name = (rawName || (existingSubject ? existingSubject.name : '') || window.originalEditingSubjectName || 'Subject Content').trim();
-        const units = (document.getElementById('edit-subject-units')?.value || (existingSubject ? existingSubject.units : '3') || '3').trim();
+        const units = (document.getElementById('edit-subject-units')?.value || (existingSubject ? existingSubject.units : '') || '').trim();
         const type = document.getElementById('edit-subject-type')?.value || (existingSubject ? existingSubject.type : 'Core') || 'Core';
         const strand = document.getElementById('edit-subject-strand')?.value || (existingSubject ? existingSubject.strand : 'ABM') || 'ABM';
 
@@ -10928,20 +10962,22 @@ window.addSubjectTopic = function () {
             if (!code || !name) {
                 window.SigmaFeedback.notice('Please provide both a Subject Code and Subject Name.');
                 window.handleSubjectStep(1);
-                return;
+                return false;
             }
 
             if (typeof window.validateSubjectStep1 === 'function' && !window.validateSubjectStep1()) {
                 window.handleSubjectStep(1);
-                return;
+                return false;
             }
         }
 
         if (!isStandaloneMode && window.subjectEditorOptions?.focus === 'info') {
-            if (index < 0) return;
+            if (index < 0) return false;
             subjects[index].code = code;
             subjects[index].name = name;
             subjects[index].units = units;
+            subjects[index].gradeLevel = document.getElementById('edit-subject-grade')?.value || '';
+            subjects[index].learningHours = Number(document.getElementById('edit-subject-hours')?.value);
             subjects[index].type = type;
             subjects[index].strand = strand;
             subjects[index].weights = subjectWeights;
@@ -10971,7 +11007,7 @@ window.addSubjectTopic = function () {
             if (typeof window.showToast === 'function') {
                 window.showToast(status === 'Draft' ? 'Subject saved as draft' : 'Subject updated');
             }
-            return;
+            return true;
         }
 
         const isTeacher = isCurrentEditorTeacher();
@@ -11007,6 +11043,9 @@ window.addSubjectTopic = function () {
             type,
             strand,
             weights: subjectWeights,
+            gradeLevel: document.getElementById('edit-subject-grade')?.value || existingSubject?.gradeLevel || '',
+            learningHours: Number(document.getElementById('edit-subject-hours')?.value) || existingSubject?.learningHours || null,
+            curriculum: existingSubject?.curriculum || null,
             status,
             activeQuarters: getActiveSubjectQuarters(),
             createdAt: (existingSubject ? existingSubject.createdAt : null) || new Date().toISOString(),
@@ -11080,12 +11119,11 @@ window.addSubjectTopic = function () {
         if (typeof window.renderSubjectsTable === 'function') {
             window.renderSubjectsTable();
         }
-        if (typeof window.showToast === 'function') {
-            window.showToast(status === 'Draft' ? 'Subject saved as draft' : 'Subject published successfully');
-        }
-
-        // Show shared creation bar if available (for Admin full subject creation/publishing only)
+        // Prefer the established creation indicator; use shared feedback only as a fallback.
         const isStandaloneOrTeacher = Boolean(editorOpts?.standalone) || isCurrentEditorTeacher();
+        if ((isStandaloneOrTeacher || typeof window.showCreationBar !== 'function') && typeof window.showToast === 'function') {
+            window.showToast(status === 'Draft' ? 'Subject saved as draft' : 'Subject published successfully', 'success');
+        }
         if (!isStandaloneOrTeacher && typeof window.showCreationBar === 'function') {
             window.showCreationBar({
                 type: creationType,
@@ -11104,17 +11142,19 @@ window.addSubjectTopic = function () {
                 onSave();
             }
         }
+        return true;
     };
 
     window.publishAndCreateSubject = function () {
-        window.handleSubjectSave('Published');
+        return window.handleSubjectSave('Published');
     };
 
-    window.saveAndAddAnotherSubject = function () {
-        window.handleSubjectSave('Published');
+    window.saveAndAddAnotherSubject = async function () {
+        if (!await window.handleSubjectSave('Published')) return false;
         window.isEditingSubject = false;
         window.toggleSubjectOverlay(true, null);
         resetSubjectEditorScrollToTop();
+        return true;
     };
 
     window.editSubject = function (code) {
@@ -11123,13 +11163,14 @@ window.addSubjectTopic = function () {
 
     window.editSubjectContent = function (code) {
         if (typeof window.openSharedTopicsAndMaterials === 'function') {
-            window.openSharedTopicsAndMaterials({ subjectId: code });
+            window.openSharedTopicsAndMaterials({ subjectId: code, contentOrigin: 'subject-catalog' });
         } else {
             window.openSubjectEditor(code, 3, {
                 standalone: true,
                 focus: 'content',
                 title: 'Add/Edit Topics & Materials',
-                hideBars: true
+                hideBars: true,
+                contentOrigin: 'subject-catalog'
             });
         }
     };
@@ -11168,16 +11209,19 @@ window.addSubjectTopic = function () {
         }
     };
 
-    window.deleteSubject = function (codeToDelete = null) {
+    window.deleteSubject = async function (codeToDelete = null) {
         const code = codeToDelete || document.getElementById('edit-subject-code')?.value || window.originalEditingSubjectCode || '';
-        if (!code) return;
-
+        if (!code || window._subjectDeletionPending) return;
         const subjects = _getStored(SUBJECTS_STORAGE_KEY, []);
-        const newSubjects = subjects.filter(s => (s.code || '').trim().toLowerCase() !== code.trim().toLowerCase());
-        _saveStored(SUBJECTS_STORAGE_KEY, newSubjects);
-        if (typeof window.deleteSubjectFromDB === 'function') {
-            window.deleteSubjectFromDB(code);
-        }
+        const target=subjects.find(s=>String(s.code).toLowerCase()===String(code).toLowerCase());
+        if(target?.canDelete===false){window.SigmaFeedback.notice(target.deleteReason || 'This subject is in use and cannot be deleted.');return;}
+        if(!canCurrentSubjectEditorDeleteSubject())return;
+        window._subjectDeletionPending=true;
+        let saved=false;
+        try { saved=await window.deleteSubjectFromDB?.(code); }
+        finally { window._subjectDeletionPending=false; }
+        if(!saved){await window.fetchSubjectsFromDB?.();return;}
+        _saveStored(SUBJECTS_STORAGE_KEY, subjects.filter(s => (s.code || '').trim().toLowerCase() !== code.trim().toLowerCase()));
 
         window.toggleSubjectOverlay(false);
 

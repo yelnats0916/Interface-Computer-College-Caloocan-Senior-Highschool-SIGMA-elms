@@ -1,5 +1,8 @@
 <?php
+require_once __DIR__.'/../includes/section_subject_policy.php';
+require_once __DIR__.'/../includes/school_year_policy.php';
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
+require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
  * SIGMA ELMS — Subjects Management REST API
  * 
@@ -27,6 +30,7 @@ $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
+require_once __DIR__ . '/../includes/material_provenance.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -46,6 +50,9 @@ try {
         `code` VARCHAR(50) NOT NULL UNIQUE,
         `name` VARCHAR(150) NOT NULL,
         `units` VARCHAR(10) NULL,
+        `grade_level` VARCHAR(10) NULL,
+        `learning_hours` INT NULL,
+        `curriculum_metadata` LONGTEXT NULL,
         `type` VARCHAR(50) NULL,
         `strand` VARCHAR(50) NULL,
         `weights` LONGTEXT NULL,
@@ -64,6 +71,11 @@ try {
     // Ignore if table exists or permission issue
 }
 
+$subjectColumns = $pdo->query('SHOW COLUMNS FROM subjects')->fetchAll(PDO::FETCH_COLUMN);
+foreach (['grade_level' => 'VARCHAR(10) NULL', 'learning_hours' => 'INT NULL', 'curriculum_metadata' => 'LONGTEXT NULL'] as $column => $definition) {
+    if (!in_array($column, $subjectColumns, true)) $pdo->exec("ALTER TABLE subjects ADD COLUMN `$column` $definition");
+}
+
 function decodeJsonField($raw, $fallback = []) {
     if (empty($raw)) return $fallback;
     if (is_array($raw)) return $raw;
@@ -72,11 +84,19 @@ function decodeJsonField($raw, $fallback = []) {
 }
 
 function subjectRowToRecord(array $row): array {
+    global $pdo;
+    $reason=sigmaSubjectRemovalReason($pdo,$row);
     return [
+        'canDelete'=>$reason==='',
+        'deleteReason'=>$reason,
+        'creationNumber' => sigmaTableCreationNumber($pdo, 'subjects', (string)$row['id']),
         'id'             => (string) $row['id'],
         'code'           => (string) $row['code'],
         'name'           => (string) $row['name'],
         'units'          => (string) ($row['units'] ?? ''),
+        'gradeLevel'     => (string) ($row['grade_level'] ?? ''),
+        'learningHours'  => isset($row['learning_hours']) ? (int)$row['learning_hours'] : null,
+        'curriculum'     => decodeJsonField($row['curriculum_metadata'] ?? null, null),
         'type'           => (string) ($row['type'] ?? 'Core Subject'),
         'strand'         => (string) ($row['strand'] ?? ''),
         'weights'        => decodeJsonField($row['weights'] ?? null, null),
@@ -121,6 +141,7 @@ try {
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $records = array_map('subjectRowToRecord', $rows);
+        usort($records, static fn($a, $b) => $b['creationNumber'] <=> $a['creationNumber']);
 
         jsonResponse([
             'success' => true,
@@ -150,6 +171,13 @@ try {
             $findStmt->execute([':id' => $target, ':code_match' => $target]);
             $foundId = $findStmt->fetchColumn() ?: $target;
 
+            $role=preg_replace('/[\s_-]+/','',strtolower($databaseActor['role']??''));
+            $permissions=json_decode($databaseActor['permissions']??'{}',true)?:[];
+            if($role!=='masteradmin' && (($permissions['subjectDelete']??false)!==true || ($permissions['schoolMain']??true)!==true))jsonResponse(['success'=>false,'error'=>'Subject deletion permission is required.'],403);
+            sigmaLockSchoolYearWrites($pdo);$pdo->beginTransaction();
+            $check=$pdo->prepare('SELECT * FROM subjects WHERE id=? FOR UPDATE');$check->execute([$foundId]);$record=$check->fetch(PDO::FETCH_ASSOC);
+            if(!$record)throw new DomainException('Subject not found.');
+            sigmaAssertSubjectRemovable($pdo,$record);
             $stmt = $pdo->prepare("UPDATE `subjects` SET `is_deleted` = 1, `deleted_at` = UTC_TIMESTAMP(), `deleted_by` = :actor WHERE `id` = :id OR `code` = :code_match");
             $stmt->execute([':id' => $target, ':code_match' => $target, ':actor' => $actor]);
 
@@ -158,6 +186,7 @@ try {
                 $logStmt->execute([$foundId, $actor]);
             } catch (Throwable $e) {}
 
+            $pdo->commit();$pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
             jsonResponse(['success' => true, 'message' => "Subject {$target} deleted successfully"]);
         }
 
@@ -196,23 +225,46 @@ try {
         $name = trim((string) ($subject['name'] ?? ''));
         $id = trim((string) ($subject['id'] ?? $code));
         $units = trim((string) ($subject['units'] ?? ''));
+        if ($units === '' || !is_numeric($units) || (float)$units <= 0) {
+            jsonResponse(['success' => false, 'error' => 'Valid Subject Units are required.'], 400);
+        }
         $type = trim((string) ($subject['type'] ?? 'Core Subject'));
         $strand = trim((string) ($subject['strand'] ?? ''));
+        $gradeLevel = trim((string)($subject['gradeLevel'] ?? ''));
+        $rawLearningHours = trim((string)($subject['learningHours'] ?? ''));
+        if (!preg_match('/^[0-9]{1,4}$/', $rawLearningHours) || (int)$rawLearningHours < 1 || (int)$rawLearningHours > 1280) {
+            jsonResponse(['success' => false, 'error' => 'Learning Hours are required and must be a whole number from 1 to 1280.'], 400);
+        }
+        $learningHours = (int)$rawLearningHours;
+        if (!in_array($gradeLevel, ['', '11', '12'], true)) {
+            jsonResponse(['success' => false, 'error' => 'Select Grade 11 or 12.'], 400);
+        }
+        $curriculum = json_encode($subject['curriculum'] ?? null, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $weights = json_encode($subject['weights'] ?? null);
         $activeQuarters = json_encode($subject['activeQuarters'] ?? ['q1', 'q2']);
         $status = trim((string) ($subject['status'] ?? 'Published'));
+        $pdo->beginTransaction();
+        $previousQuery = $pdo->prepare('SELECT topics,materials FROM subjects WHERE id=? OR code=? LIMIT 1 FOR UPDATE');
+        $previousQuery->execute([$id,$code]);
+        $previousRow = $previousQuery->fetch(PDO::FETCH_ASSOC) ?: [];
+        $previous = ['topics'=>decodeJsonField($previousRow['topics'] ?? null), 'materials'=>decodeJsonField($previousRow['materials'] ?? null)];
+        $subject['topics'] = $subject['topics'] ?? [];
+        $createdMaterials = sigmaStampSubjectMaterials($subject,$previous,$databaseActor);
         $topics = json_encode($subject['topics'] ?? []);
         $materials = json_encode($subject['materials'] ?? []);
 
         $upsertSql = "INSERT INTO `subjects` (
-            `id`, `code`, `name`, `units`, `type`, `strand`,
+            `id`, `code`, `name`, `units`, `grade_level`, `learning_hours`, `curriculum_metadata`, `type`, `strand`,
             `weights`, `active_quarters`, `status`, `topics`, `materials`, `is_deleted`
         ) VALUES (
-            :id, :code, :name, :units, :type, :strand,
+            :id, :code, :name, :units, :grade_level, :learning_hours, :curriculum_metadata, :type, :strand,
             :weights, :active_quarters, :status, :topics, :materials, 0
         ) ON DUPLICATE KEY UPDATE
             `name`            = VALUES(`name`),
             `units`           = VALUES(`units`),
+            `grade_level`     = VALUES(`grade_level`),
+            `learning_hours`  = COALESCE(VALUES(`learning_hours`), `learning_hours`),
+            `curriculum_metadata` = VALUES(`curriculum_metadata`),
             `type`            = VALUES(`type`),
             `strand`          = VALUES(`strand`),
             `weights`         = VALUES(`weights`),
@@ -228,6 +280,9 @@ try {
             ':code'            => $code,
             ':name'            => $name,
             ':units'           => $units,
+            ':grade_level'     => $gradeLevel,
+            ':learning_hours'  => $learningHours,
+            ':curriculum_metadata' => $curriculum,
             ':type'            => $type,
             ':strand'          => $strand,
             ':weights'         => $weights,
@@ -240,7 +295,13 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM `subjects` WHERE `id` = :id OR `code` = :code_match LIMIT 1");
         $stmt->execute([':id' => $id, ':code_match' => $code]);
         $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
-        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved Subject', 'Curriculum', $code.' '.$name);
+        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved Subject', 'Curriculum', 'Subject code: '.$code."\nSubject name: ".$name."\nUnits: ".$savedRow['units']."\nLearning hours: ".$savedRow['learning_hours']." hours\nGrade level: ".$savedRow['grade_level']."\nType: ".$savedRow['type']."\nStatus: ".$savedRow['status']);
+        foreach ($createdMaterials as $material) {
+            sigmaRecordActivity($pdo,(string)$databaseActor['id'],'Created Material','Curriculum',
+                'Subject: '.$code.' '.$name."\nTitle: ".($material['title']??'')."\nType: ".($material['type']??'')."\nDescription: ".($material['description']??''),
+                ['materialId'=>$material['id'],'subjectId'=>$id,'topicId'=>$material['topicId']??null,'material'=>$material]);
+        }
+        $pdo->commit();
 
         jsonResponse([
             'success' => true,
@@ -250,8 +311,16 @@ try {
     }
 
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
+} catch (DomainException $e) {
+    if($pdo->inTransaction())$pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+    jsonResponse(['success'=>false,'error'=>$e->getMessage()],409);
 } catch (PDOException $e) {
+    if($pdo->inTransaction())$pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+    if ($pdo->inTransaction()) $pdo->rollBack();
     jsonResponse(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     jsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
 }

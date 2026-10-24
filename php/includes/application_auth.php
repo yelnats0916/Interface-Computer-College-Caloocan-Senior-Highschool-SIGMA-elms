@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/record_creation_numbers.php';
+require_once __DIR__ . '/maintenance_policy.php';
 /** Shared server identity. Browser user objects and X-Sigma-Actor never authorize a request. */
 function sigmaApplicationToken(): string {
     // Apache on XAMPP may expose Authorization only through getallheaders().
@@ -29,6 +31,10 @@ function sigmaApplicationUser(PDO $db, bool $allowChallenge = false): ?array {
         $stmt->execute([$hash]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
     }
+    if($user && PHP_SAPI!=='cli' && sigmaMaintenanceRestricted($user)){
+        http_response_code(423);header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success'=>false,'code'=>'system_maintenance','error'=>sigmaMaintenanceState(sigmaMaintenanceConfig())['message']]);exit;
+    }
     return $user ?: null;
 }
 
@@ -45,6 +51,15 @@ function sigmaRequireOwnIdentity(PDO $db, string $targetId, bool $allowChallenge
 
 function sigmaRequireApplicationActor(?PDO $db, array $roles = []): array {
     header('Content-Type: application/json; charset=utf-8');
+    if(PHP_SAPI!=='cli' && basename($_SERVER['SCRIPT_NAME']??'')!=='database_backups.php'){
+        $home=getenv('HOME') ?: (getenv('LOCALAPPDATA') ?: sys_get_temp_dir());
+        $backupDir=getenv('SIGMA_BACKUP_DIR') ?: $home.'/sigma-private/database-backups';
+        if(is_file($backupDir.'/restore-active.json')){
+            $lock=fopen($backupDir.'/operation.lock','c');
+            if($lock && flock($lock,LOCK_EX|LOCK_NB)){unlink($backupDir.'/restore-active.json');flock($lock,LOCK_UN);fclose($lock);}
+            else {if($lock)fclose($lock);http_response_code(503);header('Retry-After: 15');echo json_encode(['success'=>false,'code'=>'database_restore_in_progress','error'=>'A database restore is in progress. Please wait before making changes.']);exit;}
+        }
+    }
     if (!$db) {
         http_response_code(503);
         echo json_encode(['success' => false, 'error' => 'Database unavailable.']);
@@ -66,8 +81,10 @@ function sigmaRequireApplicationActor(?PDO $db, array $roles = []): array {
 }
 
 function sigmaPublicUser(array $user): array {
+    global $pdo;
     return [
         'id' => (string)$user['id'], 'uid' => (string)$user['id'],
+        'creationNumber' => $pdo instanceof PDO ? sigmaTableCreationNumber($pdo, 'users', (string)$user['id']) : null,
         'firstName' => $user['first_name'] ?? '', 'middleName' => $user['middle_name'] ?? '', 'lastName' => $user['last_name'] ?? '',
         'fullName' => $user['full_name'] ?: trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')),
         'email' => $user['email'] ?? '', 'role' => $user['role'], 'type' => $user['role'], 'status' => $user['status'],
@@ -110,6 +127,9 @@ function sigmaCanResetAuthenticator(array $actor, array $target): bool {
     if (hash_equals($actorId, $targetId)) return true;
     $actorRole = preg_replace('/[\s_-]+/', '', strtolower($actor['role'] ?? ''));
     $targetRole = preg_replace('/[\s_-]+/', '', strtolower($target['role'] ?? ''));
-    return in_array($actorRole, ['admin', 'administrator', 'masteradmin'], true)
-        && ($targetRole !== 'masteradmin' || $actorRole === 'masteradmin');
+    if ($actorRole === 'masteradmin') return true;
+    if (!in_array($actorRole, ['admin', 'administrator'], true) || $targetRole === 'masteradmin') return false;
+    require_once __DIR__ . '/role_permissions.php';
+    $permission = ['admin'=>'manageAdmins','teacher'=>'manageTeachers','student'=>'manageStudents'][$targetRole] ?? null;
+    return $permission && sigmaActorPermission($actor, $permission) && sigmaActorPermission($actor, 'actionPassword');
 }

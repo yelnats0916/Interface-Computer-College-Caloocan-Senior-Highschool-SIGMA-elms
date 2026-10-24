@@ -6,7 +6,16 @@
 
 function getGdriveAccessToken(string $keyFile) {
     require_once __DIR__ . '/service_secrets.php';
-    $keyData = loadServiceSettings()['google_drive']['service_account'] ?? null;
+    $driveConfig = loadServiceSettings()['google_drive'] ?? [];
+    if (!empty($driveConfig['oauth']['refresh_token'])) {
+        require_once __DIR__.'/gdrive_oauth.php';
+        return sigmaDriveOAuthAccessToken($driveConfig);
+    }
+    return getGdriveServiceAccountAccessToken($driveConfig['service_account'] ?? []);
+}
+
+// Used by service-account connections and owner-scoped maintenance of legacy folders.
+function getGdriveServiceAccountAccessToken(array $keyData) {
     if (!$keyData || empty($keyData['client_email']) || empty($keyData['private_key'])) return null;
 
     $now = time();
@@ -39,16 +48,54 @@ function getGdriveAccessToken(string $keyFile) {
     return $tokenData['access_token'] ?? null;
 }
 
+function sigmaGdriveFolderSegment(string $name): string {
+    $name=trim(preg_replace('/\s+/u',' ',preg_replace('/[\x00-\x1F\/\\\\]+/u',' ',$name)));
+    $aliases=['tasks and materials'=>'Tasks','1. learning materials'=>'Learning Materials',
+        '2. student submissions'=>'Student Submissions','3. quizzes & assessments'=>'Quizzes',
+        '4. faculty & teacher portfolios'=>'Faculty','5. system backups & archives'=>'Backups'];
+    return mb_substr($aliases[mb_strtolower($name)]??$name,0,180);
+}
+
 function findOrCreateGdriveFolder(string $token, string $parentFolderId, string $folderName) {
+    if ($token==='' || $parentFolderId==='') return null;
+    $folderName=sigmaGdriveFolderSegment($folderName);if($folderName==='')return null;
+    require_once __DIR__.'/service_secrets.php';$db=serviceSettingsPdo();
+    $key=hash('sha256',$parentFolderId."\n".mb_strtolower($folderName));$lock='gdf:'.substr($key,0,60);
+    $q=$db->prepare('SELECT GET_LOCK(?,15)');$q->execute([$lock]);
+    if((int)$q->fetchColumn()!==1)return null;
+    try {
+        $cached=null;
+        try{$q=$db->prepare('SELECT folder_id FROM gdrive_folder_registry WHERE path_key=?');$q->execute([$key]);$cached=$q->fetchColumn();}catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;}
+        if($cached){
+            $ch=curl_init('https://www.googleapis.com/drive/v3/files/'.rawurlencode($cached).'?supportsAllDrives=true&fields=id,name,parents,trashed,webViewLink');
+            curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$token],CURLOPT_TIMEOUT=>12]);
+            $file=json_decode(curl_exec($ch),true);$status=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
+            if($status===200 && empty($file['trashed']) && ($file['name']??'')===$folderName && in_array($parentFolderId,$file['parents']??[],true))
+                return ['id'=>$file['id'],'name'=>$file['name'],'url'=>$file['webViewLink']??'https://drive.google.com/drive/folders/'.$file['id']];
+            // A transient failure must never trigger creation of another folder.
+            if($status!==200 && $status!==404)return null;
+        }
+        $folder=sigmaFindOrCreateGdriveFolderUnlocked($token,$parentFolderId,$folderName);
+        if($folder){
+            try{$db->prepare('INSERT INTO gdrive_folder_registry(path_key,parent_id,folder_name,folder_id) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE folder_name=VALUES(folder_name),folder_id=VALUES(folder_id)')->execute([$key,$parentFolderId,$folderName,$folder['id']]);}
+            catch(PDOException $e){if($e->getCode()!=='42S02')throw $e;}
+        }
+        return $folder;
+    } finally {$db->prepare('SELECT RELEASE_LOCK(?)')->execute([$lock]);}
+}
+
+function sigmaFindOrCreateGdriveFolderUnlocked(string $token, string $parentFolderId, string $folderName) {
     if (empty($token) || empty($parentFolderId) || empty($folderName)) return null;
 
     $query = urlencode("'" . $parentFolderId . "' in parents and mimeType = 'application/vnd.google-apps.folder' and name = '" . addslashes($folderName) . "' and trashed = false");
-    $ch = curl_init("https://www.googleapis.com/drive/v3/files?q={$query}&fields=files(id,name,webViewLink)");
+    $ch = curl_init("https://www.googleapis.com/drive/v3/files?q={$query}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id,name,webViewLink)");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer {$token}"]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 12);
     $list = json_decode(curl_exec($ch), true);
+    $listStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    if ($listStatus < 200 || $listStatus >= 300 || !is_array($list)) return null;
 
     if (!empty($list['files'][0]['id'])) {
         return [
@@ -63,7 +110,7 @@ function findOrCreateGdriveFolder(string $token, string $parentFolderId, string 
         'mimeType' => 'application/vnd.google-apps.folder',
         'parents' => [$parentFolderId]
     ]);
-    $chCreate = curl_init("https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink");
+    $chCreate = curl_init("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name,webViewLink");
     curl_setopt($chCreate, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chCreate, CURLOPT_POST, true);
     curl_setopt($chCreate, CURLOPT_POSTFIELDS, $payload);
@@ -94,15 +141,17 @@ function provisionSchoolYearFolders(int $yearStart, int $yearEnd, string $campus
     $keyPath = $rootDir . '/config/google_service_account.json';
 
     $services = file_exists($rootDir . '/config/services.php') ? require($rootDir . '/config/services.php') : [];
-    if (empty($services['google_drive']['service_account']['private_key'])) return null;
-    $rootFolderId = $services['google_drive']['folder_id'] ?? '1qYTOkYZ13nC1ISF_IA2bv97TmMbAyqGK';
+    if (empty($services['google_drive']['service_account']['private_key']) && empty($services['google_drive']['oauth']['refresh_token'])) return null;
+    $rootFolderId = $services['google_drive']['folder_id'] ?? '';
+    if ($rootFolderId === '' || $yearEnd !== $yearStart + 1) return null;
 
     $token = getGdriveAccessToken($keyPath);
     if (!$token) return null;
 
     // Ensure Campus folder exists under Root (e.g. Caloocan Campus)
     $campusFolder = findOrCreateGdriveFolder($token, $rootFolderId, $campusName);
-    $campusParentId = $campusFolder['id'] ?? $rootFolderId;
+    if (empty($campusFolder['id'])) return null;
+    $campusParentId = $campusFolder['id'];
 
     $syFolderName = "S.Y. {$yearStart}-{$yearEnd}";
     $syFolder = findOrCreateGdriveFolder($token, $campusParentId, $syFolderName);
@@ -110,98 +159,21 @@ function provisionSchoolYearFolders(int $yearStart, int $yearEnd, string $campus
 
     $syId = $syFolder['id'];
 
-    // ── 1. Learning Materials ────────────────────────────────────────────────
-    $matFolder = findOrCreateGdriveFolder($token, $syId, '1. Learning Materials');
-    if ($matFolder) {
-        // Grade 11
-        $g11Folder = findOrCreateGdriveFolder($token, $matFolder['id'], 'Grade 11');
-        if ($g11Folder) {
-            $g11Q1 = findOrCreateGdriveFolder($token, $g11Folder['id'], '1st Quarter');
-            if ($g11Q1) {
-                findOrCreateGdriveFolder($token, $g11Q1['id'], 'Empowerment Technologies');
-                findOrCreateGdriveFolder($token, $g11Q1['id'], 'Computer Programming 1');
-                findOrCreateGdriveFolder($token, $g11Q1['id'], 'General Mathematics');
-                findOrCreateGdriveFolder($token, $g11Q1['id'], 'Oral Communication');
-                findOrCreateGdriveFolder($token, $g11Q1['id'], 'Earth and Life Science');
-            }
-            $g11Q2 = findOrCreateGdriveFolder($token, $g11Folder['id'], '2nd Quarter');
-            if ($g11Q2) {
-                findOrCreateGdriveFolder($token, $g11Q2['id'], 'Computer Systems Servicing 1');
-                findOrCreateGdriveFolder($token, $g11Q2['id'], 'Statistics & Probability');
-                findOrCreateGdriveFolder($token, $g11Q2['id'], 'Reading & Writing Skills');
-                findOrCreateGdriveFolder($token, $g11Q2['id'], 'Physical Science');
-            }
-        }
-
-        // Grade 12
-        $g12Folder = findOrCreateGdriveFolder($token, $matFolder['id'], 'Grade 12');
-        if ($g12Folder) {
-            $g12Q1 = findOrCreateGdriveFolder($token, $g12Folder['id'], '1st Quarter');
-            if ($g12Q1) {
-                findOrCreateGdriveFolder($token, $g12Q1['id'], 'Web Development 1');
-                findOrCreateGdriveFolder($token, $g12Q1['id'], '21st Century Literature');
-                findOrCreateGdriveFolder($token, $g12Q1['id'], 'Contemporary Philippine Arts');
-                findOrCreateGdriveFolder($token, $g12Q1['id'], 'Media & Information Literacy');
-            }
-            $g12Q2 = findOrCreateGdriveFolder($token, $g12Folder['id'], '2nd Quarter');
-            if ($g12Q2) {
-                findOrCreateGdriveFolder($token, $g12Q2['id'], 'Database Management Systems');
-                findOrCreateGdriveFolder($token, $g12Q2['id'], 'Practical Research 2');
-                findOrCreateGdriveFolder($token, $g12Q2['id'], 'Work Immersion & Capstone');
-            }
-        }
-
-        // Syllabi & Guides
-        findOrCreateGdriveFolder($token, $matFolder['id'], 'Syllabi & Curriculum Guides');
-    }
-
-    // ── 2. Student Submissions ───────────────────────────────────────────────
-    $submFolder = findOrCreateGdriveFolder($token, $syId, '2. Student Submissions');
-    if ($submFolder) {
-        $sub11 = findOrCreateGdriveFolder($token, $submFolder['id'], 'Grade 11 Submissions');
-        if ($sub11) {
-            findOrCreateGdriveFolder($token, $sub11['id'], '1st Quarter Tasks');
-            findOrCreateGdriveFolder($token, $sub11['id'], '2nd Quarter Tasks');
-        }
-        $sub12 = findOrCreateGdriveFolder($token, $submFolder['id'], 'Grade 12 Submissions');
-        if ($sub12) {
-            findOrCreateGdriveFolder($token, $sub12['id'], '1st Quarter Tasks');
-            findOrCreateGdriveFolder($token, $sub12['id'], '2nd Quarter Tasks');
-        }
-    }
-
-    // ── 3. Quizzes & Assessments ─────────────────────────────────────────────
-    $quizFolder = findOrCreateGdriveFolder($token, $syId, '3. Quizzes & Assessments');
-    if ($quizFolder) {
-        findOrCreateGdriveFolder($token, $quizFolder['id'], 'Question Bank Media');
-        findOrCreateGdriveFolder($token, $quizFolder['id'], 'Exam Diagrams & Figures');
-    }
-
-    // ── 4. Faculty & Teacher Portfolios ──────────────────────────────────────
-    $facFolder = findOrCreateGdriveFolder($token, $syId, '4. Faculty & Teacher Portfolios');
-    if ($facFolder) {
-        findOrCreateGdriveFolder($token, $facFolder['id'], 'Lesson Plans (DLP & DLL)');
-        findOrCreateGdriveFolder($token, $facFolder['id'], 'Class Records & Grading Sheets');
-    }
-
-    // ── 5. System Backups & Archives ─────────────────────────────────────────
-    $backupFolder = findOrCreateGdriveFolder($token, $syId, '5. System Backups & Archives');
-    if ($backupFolder) {
-        findOrCreateGdriveFolder($token, $backupFolder['id'], 'Database SQL Snapshots');
-        findOrCreateGdriveFolder($token, $backupFolder['id'], 'Audit Logs & Exported Reports');
+    // Category roots are shared; actual users, sections, subjects and quarters
+    // are created only when real content is uploaded, never from a fixed subject list.
+    $categories = [];
+    foreach (['materials'=>'Learning Materials','tasks'=>'Tasks','submissions'=>'Student Submissions',
+        'quizzes'=>'Quizzes','faculty'=>'Faculty','backups'=>'Backups'] as $key=>$name) {
+        $folder=findOrCreateGdriveFolder($token,$syId,$name);
+        if (empty($folder['id'])) return null;
+        $categories[$key]=$folder['id'];
     }
 
     return [
         'sy_folder_id'  => $syId,
         'sy_folder_url' => $syFolder['url'],
         'sy_name'       => $syFolderName,
-        'folders'       => [
-            'materials'   => $matFolder['id'] ?? null,
-            'submissions' => $submFolder['id'] ?? null,
-            'quizzes'     => $quizFolder['id'] ?? null,
-            'faculty'     => $facFolder['id'] ?? null,
-            'backups'     => $backupFolder['id'] ?? null
-        ]
+        'folders'       => $categories
     ];
 }
 
@@ -216,7 +188,7 @@ function resolveGdriveFolderPath(string $token, string $rootFolderId, array $pat
     $lastFolder = null;
 
     foreach ($pathSegments as $segment) {
-        $cleanSegment = trim((string)$segment);
+        $cleanSegment = sigmaGdriveFolderSegment((string)$segment);
         if ($cleanSegment === '') continue;
 
         $folder = findOrCreateGdriveFolder($token, $currentParentId, $cleanSegment);

@@ -1,11 +1,21 @@
 (function () {
     'use strict';
     const controllers = new WeakMap();
+    const adminTables = /\/admin\.html$/i.test(location.pathname);
+    const defaultPageSize = adminTables ? 5 : 20;
     const selector = '#audit-ai-view table.sigma-audit-table, #audit-activity-view table.sigma-audit-table, #audit-auth-view table.sigma-audit-table, #audit-notifications-view table.sigma-audit-table, #settings-recovery-view table.sigma-audit-table';
     function scrollToPageStart(table) {
         if (!table) return;
         requestAnimationFrame(() => {
             if (!table.isConnected) return;
+            if (adminTables) {
+                const headerBottom = document.getElementById('admin-header')?.getBoundingClientRect().bottom || 0;
+                const firstRow = Array.from(table.tBodies[0]?.rows || []).find(row => !row.hidden);
+                const top = table.previousElementSibling?.matches('.sigma-log-pagination,.sigma-admin-table-pagination,.sigma-table-list-pagination')
+                    ? table.previousElementSibling.getBoundingClientRect().top : table.getBoundingClientRect().top;
+                const row = firstRow?.getBoundingClientRect();
+                if (top >= headerBottom && row && row.bottom <= innerHeight && row.top >= headerBottom) return;
+            }
             const section = table.closest('.dynamic-section') || table;
             section.tabIndex = -1;
             section.focus({ preventScroll: true });
@@ -21,12 +31,12 @@
         if (controllers.has(table)) return controllers.get(table);
         if (!table.tBodies[0]) return null;
         const footer = document.createElement('nav'); footer.className = 'sigma-log-pagination'; footer.setAttribute('aria-label', 'Table pagination'); footer.hidden = true;
-        table.after(footer);
+        if (adminTables) table.before(footer); else table.after(footer);
         const owner = table.closest('.dynamic-section')?.id || 'logs';
         const storageKey = 'sigma-log-page:' + owner + ':' + (table.getAttribute('aria-label') || table.className);
         let page = 1;
         try { page = Math.max(1, Number(sessionStorage.getItem(storageKey)) || 1); } catch {}
-        let pageSize = Number(table.dataset.pageSize) || 20;
+        let pageSize = Number(table.dataset.pageSize) || defaultPageSize;
         const body = table.tBodies[0];
         let rows = Array.from(body.rows), items = null, renderRow = null, searchText = null, query = '';
         let currentRows = new Map();
@@ -40,7 +50,7 @@
         });
         const observe = () => observer.observe(body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-log-search-match'] });
         function paint() {
-            pageSize = Number(table.dataset.pageSize) || 20;
+            pageSize = Number(table.dataset.pageSize) || defaultPageSize;
             const records = items ? query ? items.filter(item => String(searchText ? searchText(item) : JSON.stringify(item)).toLowerCase().includes(query)) : items
                 : rows.filter(row => row.cells.length > 1 && row.dataset.logSearchMatch !== 'false' && (!query || row.textContent.toLowerCase().includes(query)));
             const pages = Math.max(1, Math.ceil(records.length / pageSize));
@@ -67,7 +77,7 @@
             observer.disconnect();
             if (nodes.length !== body.rows.length || nodes.some((row, index) => body.rows[index] !== row)) body.replaceChildren(...nodes);
             observe();
-            footer.replaceChildren(); footer.hidden = pages === 1 && !table.dataset.pageSizeOptions;
+            footer.replaceChildren(); footer.hidden = !adminTables && pages === 1 && !table.dataset.pageSizeOptions;
             try { sessionStorage.setItem(storageKey, String(page)); } catch {}
             if (footer.hidden) return;
             const count = document.createElement('span'); count.className = 'sigma-log-page-count text-black-fade';
@@ -77,7 +87,11 @@
             window.SigmaTablePagination.mount(controls, page, pages, target => {
                 page = target; paint(); scrollToPageStart(table);
             });
-            if(table.dataset.pageSizeOptions){
+            if (adminTables) {
+                const settings = document.createElement('div'); settings.className = 'sigma-pagination-settings';
+                settings.append(window.SigmaTablePagination.pageSizeControl(pageSize, value => { table.dataset.pageSize = String(value); page = 1; paint(); }), count);
+                footer.append(controls, settings);
+            } else if(table.dataset.pageSizeOptions){
                 const group=document.createElement('div');group.style.cssText='display:flex;align-items:center;gap:16px';
                 const label=document.createElement('label');label.textContent='Rows per page ';
                 const size=document.createElement('select');size.setAttribute('aria-label','Rows per page');

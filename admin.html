@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <script src="js/admin-device-access.js?v=20261022_admin_device_v37"></script>
-    <link rel="stylesheet" href="css/feedback.css?v=20261022_feedback_v29">
-    <script src="js/feedback.js?v=20261022_quiz_session_v36"></script>
+    <link rel="stylesheet" href="css/feedback.css?v=20261024_shared_green_v164">
+    <script src="js/feedback.js?v=20261024_shared_green_v164"></script>
     <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interface Computer College - Admin</title>
@@ -21,31 +21,34 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/admin.css?v=20261020_assessment_student_id_v102">
+    <link rel="stylesheet" href="css/admin.css?v=20261023_year_hover_v97">
     <link rel="stylesheet" href="css/section-teacher-picker.css?v=20261020_teacher_two_pages_v82">
-    <link rel="stylesheet" href="css/topbar.css?v=20261020_original_bolt_restored_v16">
-    <link rel="stylesheet" href="css/forms.css?v=20261020_plain_quarter_context_v13">
+    <link rel="stylesheet" href="css/topbar.css?v=20261024_initial_no_bar_v132">
+    <link rel="stylesheet" href="css/forms.css?v=20261023_panel_hover_v98">
     <link rel="stylesheet" href="css/ai-log-details.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/record-lifecycle.css?v=20261018_toolbar_layout_v14">
-    <link rel="stylesheet" href="css/log-pagination.css?v=20261022_log_layout_v26">
+    <link rel="stylesheet" href="css/database-backups.css?v=20261024_backup_loading_v156">
+    <link rel="stylesheet" href="css/log-pagination.css?v=20261024_rows_v185">
     <link rel="stylesheet" href="css/tailwind.css">
-<link rel="stylesheet" href="css/shared-components.css?v=20261022_page_groups_v22">
+<link rel="stylesheet" href="css/shared-components.css?v=20261024_quiz_badges_v176">
     <link rel="stylesheet" href="css/welcome-panel.css">
-    <link rel="stylesheet" href="css/announcements.css?v=20261021_online_top_left_v27">
+    <link rel="stylesheet" href="css/announcements.css?v=20261023_composer_close_v91">
     <link rel="stylesheet" href="css/announcement-cards.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/calendar.css?v=20261021_event_notification_details_v16">
     <link rel="stylesheet" href="css/notifications.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/admin-insight-report.css?v=20261020_history_label_black_fade_v62">
     <link rel="stylesheet" href="css/classroom-room.css?v=20261018_attendance_avatar_v39">
     <link rel="stylesheet" href="css/settings-view.css?v=20261017_table_dropdowns_v10">
-    <link rel="stylesheet" href="css/service-vault-security.css?v=20261022_feedback_v29">
-    <script src="js/database-client.js?v=20261021_database_foundation_v5"></script>
-<script src="js/service-vault-security.js?v=20261022_feedback_v29"></script>
+    <link rel="stylesheet" href="css/service-vault-security.css?v=20261023_verify_dots_v130">
+    <script src="js/database-client.js?v=20261024_chat_followups_v183"></script>
+    <script src="js/material-limits.js?v=20261023_upload_limits_v115"></script>
+<script src="js/audit-permissions.js?v=20261023_audit_permissions_v75"></script>
+<script src="js/service-vault-security.js?v=20261024_verify_cancel_v171"></script>
     <link rel="stylesheet" href="css/profile.css?v=20261022_profile_divider_spacing_v15">
     <link rel="stylesheet" href="css/topic-detail.css?v=20261021_topic_body_black_v112">
     <link rel="stylesheet" href="css/sidebar.css?v=20261018_flyout_up_v16">
     <link rel="stylesheet" href="css/right-panel.css?v=20261017_table_dropdowns_v10">
-<link rel="stylesheet" href="css/sigma-analytics.css?v=20261021_metric_content_height_v53">
+<link rel="stylesheet" href="css/sigma-analytics.css?v=20261023_ai_metric_layout_v69">
 <link rel="stylesheet" href="css/shared-grade-record.css?v=20261020_published_revision_state_v46">
     <link rel="stylesheet" href="css/mobile.css?v=20261021_topic_body_black_v112">
 
@@ -56,6 +59,9 @@
     <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <!-- XLSX STYLE -->
     <script defer src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
         body {
@@ -235,38 +241,41 @@
         #admin-device-exit:focus-visible { outline:2px solid #15803d; outline-offset:3px; }
     </style>
     <script>
-        (function() {
+        (function () {
             try {
                 var hash = (window.location.hash || '').replace(/^#/, '').trim();
-                if (!hash || hash === 'dashboard' || hash === 'home' || hash === 'nav-dashboard') {
-                    var s = document.createElement('style');
-                    s.id = 'early-dashboard-style';
-                    s.textContent = '#dashboard-view { display: block !important; }';
-                    document.head.appendChild(s);
+                var saved = !hash ? JSON.parse(sessionStorage.getItem('sigma-admin-active-tab') || 'null') : null;
+                var dashboard = hash ? ['dashboard', 'home', 'nav-dashboard'].includes(hash)
+                    : !saved || !saved.navId || saved.navId === 'nav-dashboard';
+                var style = document.createElement('style');
+                if (dashboard) {
+                    style.id = 'early-dashboard-style';
+                    style.textContent = '#dashboard-view { display: block !important; }';
                 } else {
+                    // The router owns route resolution. Never reveal a guessed page during startup.
                     document.documentElement.classList.add('sigma-hash-navigating');
-                    var targetSel = (hash.indexOf('topic-content') === 0 || hash.indexOf('topic_content') === 0) ? '#section-topic-content' : (hash.indexOf('topic-detail') === 0 || hash.indexOf('topic_detail') === 0 || hash.indexOf('topic:') === 0) ? '#section-topic-detail' : (hash.indexOf('classroom') === 0) ? '#classroom-detail-view' : (hash.indexOf('curriculum') === 0) ? '#section-curriculum-page' : (hash.indexOf('grade') === 0 || hash.indexOf('analytics') === 0) ? '#school-grades-view, #reports-performance-view' : (hash.indexOf('attendance') === 0 || hash.indexOf('calendar') === 0) ? '#section-attendance, #reports-attendance-view' : (hash.indexOf('materials') === 0 || hash.indexOf('resources') === 0) ? '#resources-view' : (hash.indexOf('users') === 0) ? '#users-view' : '#section-topic-content';
-                    var rule = targetSel.split(',').map(function(sel) { return '.sigma-hash-navigating ' + sel.trim(); }).join(', ');
-                    var s = document.createElement('style');
-                    s.id = 'sigma-early-hash-style';
-                    s.textContent = '.sigma-hash-navigating #dashboard-view { display: none !important; }\n' + rule + ' { display: block !important; }';
-                    document.head.appendChild(s);
+                    style.id = 'sigma-early-hash-style';
+                    style.textContent = 'html.sigma-hash-navigating #content-sections .dynamic-section, html.sigma-hash-navigating .dynamic-section { display: none !important; }' +
+                        'html.sigma-hash-navigating .dynamic-section { visibility: hidden !important; }' +
+                        '.sigma-hash-navigating #nav-context-text, .sigma-hash-navigating #header-brand-title { visibility: hidden !important; }';
                 }
-            } catch(e) {}
+                document.head.appendChild(style);
+            } catch (error) {}
         })();
     </script>
     <link rel="stylesheet" href="css/dashboard-layout.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_navbar_shimmer_v41">
     <link rel="stylesheet" href="css/content-loading.css?v=20261022_dots_only_v21">
     <script src="js/content-loading.js?v=20261022_dots_only_v21"></script>
-    <script src="js/tab-session.js?v=20261022_public_help_v40"></script>
+    <script src="js/tab-session.js?v=20261024_connection_recovery_v178"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/release-panel.css?v=20261021_selection_container_alignment_v31">
     <link rel="stylesheet" href="css/retry-links.css?v=20261022_retry_v1">
+    <link rel="stylesheet" href="css/maintenance.css?v=20261024_maintenance_notices_v162">
 </head>
 <body class="bg-admin-bg min-h-screen flex flex-col sidebar-collapsed">
-    <script src="js/page-skeleton.js?v=20261022_refresh_shimmer_v20"></script>
+    <script src="js/page-skeleton.js?v=20261023_startup_route_v77"></script>
     <!-- Blocked Access for Mobile/Tablet -->
     <div id="mobile-blocked-screen" role="region" aria-label="Admin access notice" oncontextmenu="return false" ondragstart="return false" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8 lg:hidden" style="z-index: 2147483647 !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" data-no-dismiss="true">
         <div class="flex flex-col items-center w-full max-w-xs text-center">
@@ -389,7 +398,7 @@
                     <span class="header-search-ext flex items-center justify-center pointer-events-none">
                         <i class="fa-solid fa-magnifying-glass text-black text-[13px]"></i>
                     </span>
-                    <input id="searchBar" type="text" placeholder="Search" aria-label="Global search" maxlength="100" autocomplete="off"
+                    <input id="searchBar" type="search" name="sigma-global-search-query" data-lpignore="true" data-1p-ignore="true" placeholder="Search" aria-label="Global search" maxlength="100" autocomplete="off"
                         class="block flex-1 min-w-0 h-[38px] bg-transparent border-none border-0 focus:border-0 focus:border-none focus:border-transparent text-[14.5px] placeholder-black-fade placeholder:font-normal focus:outline-none focus:ring-0 focus:ring-offset-0 focus:shadow-none font-normal text-black font-['Inter']"
                         onkeydown="if(event.key==='Enter'){}">
                     <button id="globalSearchBtn"
@@ -515,7 +524,7 @@
             <!-- Scrollable Notifications Area -->
             <div class="notif-scroll-area custom-scrollbar">
                 <div id="noti-dropdown-feed">
-                    <!-- Injected by js/notifications.js?v=20261021_database_foundation_v5 -->
+                    <!-- Notifications are rendered by the shared notifications component. -->
                 </div>
             </div>
 
@@ -723,7 +732,7 @@
 
 
                 <div class="nav-group">
-                    <a href="#" id="nav-audit-logs" class="nav-link no-underline group">
+                    <a href="#" id="nav-audit-logs" class="nav-link no-underline group hidden">
                         <div class="sidebar-rail-icon">
                             <i class="fa-solid fa-clipboard-list text-xl"></i>
                             <span class="rail-label">Audit Logs</span>
@@ -756,12 +765,12 @@
                             <span>Branding &amp; Appearance</span>
                         </a>
                         <a href="#" id="nav-settings-integrations" data-settings-page="integrations"
-                            class="nav-sublink no-underline">
+                            class="nav-sublink no-underline hidden">
                             <i class="fa-solid fa-plug"></i>
                             <span>Integrations &amp; Storage</span>
                         </a>
-                        <a href="#nav-settings-recovery" id="nav-settings-recovery" data-settings-page="recovery" class="nav-sublink no-underline">
-                            <i class="fa-solid fa-box-archive"></i><span>Record Recovery</span>
+                        <a href="#nav-settings-recovery" id="nav-settings-recovery" data-settings-page="recovery" class="nav-sublink no-underline hidden">
+                            <i class="fa-solid fa-box-archive"></i><span>Backup &amp; Recovery</span>
                         </a>
                     </div>
                 </div>
@@ -835,7 +844,7 @@
                     </div>
                 </section>
 
-                <!-- Shared profile page rendered by js/profile-view.js?v=20261022_feedback_v29 -->
+                <!-- Shared profile page rendered by js/profile-view.js?v=20261023_admin_account_permissions_v78 -->
                 <section id="user-profile-view" class="dynamic-section hidden" data-shared-profile-view>
                     <div class="sigma-content-skeleton sigma-skeleton-generic p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto font-['Inter']" data-sigma-skeleton="generic">
                         <div class="sigma-card sigma-skeleton-card min-h-[100px] rounded-[20px] p-6"></div>
@@ -1330,12 +1339,19 @@
 
                         <!-- Actions & Search Toolbar (Single Unified Row - Shared Code) -->
                         <div id="user-accounts-toolbar" class="px-10 pb-8 flex flex-wrap items-center justify-between gap-4">
-                            <!-- Left: Create User Button -->
-                            <button onclick="window.toggleUserOverlay(true)"
-                                class="sigma-btn sigma-btn-primary sigma-btn-md gap-3 shrink-0">
-                                <i class="fa-solid fa-plus text-xs"></i>
-                                <span>Create User</span>
-                            </button>
+                            <!-- Left: Create User & Batch Create Buttons -->
+                            <div class="flex flex-wrap items-center gap-3 shrink-0">
+                                <button onclick="window.toggleUserOverlay(true)"
+                                    class="sigma-btn sigma-btn-primary sigma-btn-md gap-3 shrink-0">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                    <span>Create User</span>
+                                </button>
+                                <button id="open-batch-user-overlay-btn" onclick="window.toggleBatchUserOverlay(true)"
+                                    class="sigma-btn sigma-btn-white sigma-btn-md gap-2.5 shrink-0 cursor-pointer">
+                                    <i class="fa-solid fa-file-import text-xs text-[#15803d]"></i>
+                                    <span>Batch Create</span>
+                                </button>
+                            </div>
 
                             <!-- Right: Combined Search, Role, Filter, and Search Button -->
                             <div class="flex flex-wrap items-center gap-3">
@@ -1399,6 +1415,7 @@
 
                         <!-- Standardized Institutional Table -->
                         <div class="flex-1 flex flex-col bg-white px-10">
+                            <div id="user-pagination-container" class="sigma-admin-table-pagination"></div>
                             <table class="w-full border-collapse table-fixed">
                                 <colgroup>
                                     <col style="width: 5%;">  <!-- No. -->
@@ -1427,7 +1444,7 @@
                                     <!-- Populated by JS -->
                                 </tbody>
                             </table>
-                            <div id="user-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-between bg-white"></div>
+                            
                         </div>
                     </div>
                 </section>
@@ -1604,11 +1621,6 @@
                             <!-- Pinned Footer Action Bar -->
                             <div class="sigma-modal-footer flex items-center justify-end gap-3 px-8 py-4 border-t border-slate-200 bg-white sticky bottom-0 z-30 font-['Inter']">
                                 <button type="button" id="sy-cancel-btn" onclick="window.handleSYExit()" class="sigma-btn sigma-btn-white sigma-btn-md">Cancel</button>
-                                <button type="button" id="sy-delete-btn" onclick="window.handleSYDelete()"
-                                    class="sigma-btn sigma-btn-white sigma-btn-md gap-2 px-5 cursor-pointer font-['Inter'] hidden text-black">
-                                    <i class="fa-solid fa-trash-can text-xs text-black"></i>
-                                    <span>Delete School Year</span>
-                                </button>
                                 <button type="button" id="sy-save-btn" onclick="window.handleSYSave()"
                                     class="sigma-btn sigma-btn-primary sigma-btn-md gap-2 px-6 cursor-pointer font-['Inter']">
                                     <span id="sy-save-label">Create School Year</span>
@@ -1963,7 +1975,7 @@
                     </div>
                 </div>
 
-                <!-- Shared profile picture overlay rendered by js/profile-view.js?v=20261022_feedback_v29 -->
+                <!-- Shared profile picture overlay rendered by js/profile-view.js?v=20261023_admin_account_permissions_v78 -->
 
                 <!-- SCHOOL PROFILE EDIT OVERLAY (Full Screen Workstation) -->
                 <div id="profile-edit-overlay"
@@ -2180,6 +2192,7 @@
 
                         <!-- Standardized Institutional Shared Table -->
                         <div class="flex-1 flex flex-col bg-white px-10">
+                            <div id="school-year-pagination-container" class="sigma-admin-table-pagination"></div>
                             <table class="w-full border-collapse table-fixed">
                                 <colgroup>
                                     <col style="width: 7%;">  <!-- No. -->
@@ -2209,7 +2222,7 @@
                                 </tbody>
                             </table>
                             <!-- Standardized Shared Pagination -->
-                            <div id="school-year-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-center bg-white"></div>
+                            
                         </div>
                     </div>
                 </section>
@@ -2309,58 +2322,37 @@
 
                 <!-- Card 3: System Lockdown & Maintenance -->
                 <div id="sec-maintenance-panel" class="sigma-settings-panel-card">
-                    <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">System Access &amp; Maintenance</h2>
-                        <p class="sigma-panel-subtitle">Use one control for the important state only: keep the system operational or place it in maintenance mode while Admin access stays available.</p>
+                    <div class="sigma-panel-header"><h2 class="sigma-panel-title">System Access &amp; Maintenance</h2></div>
+                    <div id="sec-maintenance-toggle-row" class="flex items-center justify-between gap-4 py-4">
+                        <div><label for="settings-maintenance-toggle" class="text-sm font-semibold text-black">Maintenance Mode</label><p id="maintenance-mode-description" class="maintenance-mode-description">Temporarily restrict portal access while authorized administrators perform maintenance.</p><p id="maintenance-mode-status" class="maintenance-mode-status" role="status">Loading maintenance status...</p></div>
+                        <label class="sigma-toggle-switch"><input type="checkbox" id="settings-maintenance-toggle" disabled aria-label="Toggle maintenance mode" aria-describedby="maintenance-mode-description maintenance-mode-status" onchange="window.handleAdminMaintenanceToggleChange(this.checked)"><span class="sigma-toggle-slider"></span></label>
                     </div>
-
-                    <div class="space-y-6">
-                        <!-- Maintenance Toggle -->
-                        <div id="sec-maintenance-toggle-row" class="grid grid-cols-1 md:grid-cols-3 items-center py-4 border-b border-slate-50 gap-4">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Maintenance / Lockdown Mode</p>
-                                <span class="text-xs text-black-fade font-medium">Combined access restriction and forced logout</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Immediately logs out active Student and Teacher sessions, then blocks new sign-ins while Master Admins retain full access</p>
-                            </div>
-                            <div class="flex items-center justify-start md:justify-end">
-                                <label class="sigma-toggle-switch cursor-pointer">
-                                    <input type="checkbox" id="settings-maintenance-toggle" aria-label="Toggle restricted access maintenance mode"
-                                        onchange="window.handleAdminMaintenanceToggleChange(this.checked)">
-                                    <span class="sigma-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Notice Message -->
-                        <div id="sec-notice-message-section" class="space-y-3 py-2">
-                            <div id="settings-maintenance-master-note" class="hidden rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-700">
-                                <i class="fa-solid fa-lock mr-1.5"></i>
-                                Only Master Admin can activate maintenance mode or update the restricted access notice.
-                            </div>
-                            <label for="settings-maintenance-message" class="block text-sm font-bold text-black font-['Inter']">
-                                Restricted Access Notice Message
-                            </label>
-                            <p class="text-xs text-black-fade font-medium">
-                                This message is shown to Students and Teachers on the login screen if they attempt to sign in during lockdown.
-                            </p>
-                            <textarea id="settings-maintenance-message" rows="3" maxlength="300"
-                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm font-medium text-black outline-none focus:bg-white focus:border-[#15803d] transition-all font-['Inter']"
-                                placeholder="Enter custom notice message for students and teachers..."></textarea>
-                            <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
-                                <span class="text-[11px] text-black-fade font-medium">Default notice will be used if left empty</span>
-                                <button type="button" id="settings-maintenance-message-save" onclick="window.saveMaintenanceMessageOnly()"
-                                    class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
-                                    <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                    <span>Save Notice Message</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <p id="maintenance-schedule-summary" role="status">Loading maintenance settings...</p>
+                    <div class="maintenance-actions"><button type="button" id="maintenance-schedule-open" class="maintenance-button" disabled>Manage Maintenance</button><button type="button" id="maintenance-retry" class="maintenance-button maintenance-button-secondary" hidden>Retry</button></div>
                 </div>
-
             </div>
+        </section>
+    </div>
+
+    <div id="maintenance-page" class="maintenance-page" hidden>
+        <section class="maintenance-editor" aria-labelledby="maintenance-page-title">
+            <div class="maintenance-page-heading"><h2 id="maintenance-page-title">Maintenance Schedule</h2></div>
+            <p class="maintenance-page-help">Choose a one-time start and end in Manila time. Password verification appears before publishing or changing maintenance.</p>
+            <form id="maintenance-schedule-form">
+                <input id="maintenance-title" aria-label="Notice title" placeholder="Notice title" required maxlength="120" autocomplete="off">
+                <div class="maintenance-time-fields"><div><label for="maintenance-start">Start date and time</label><input id="maintenance-start" type="datetime-local" aria-label="Start date and time" required></div><div><label for="maintenance-end">End date and time</label><input id="maintenance-end" type="datetime-local" aria-label="End date and time" required></div></div>
+                <textarea id="maintenance-message" aria-label="Notice message" placeholder="Notice message" rows="4" required maxlength="1000"></textarea>
+                <p class="maintenance-field-help">Plain text only. Title: up to 120 characters. Message: up to 1,000 characters.</p>
+                <p class="maintenance-field-help">Automatically shown in the calendar for all roles, Important announcements, and the banner below the navbar.</p>
+                <p class="maintenance-field-help">The school name and logo appear publicly. Your administrator account remains the recorded publisher.</p>
+                <p id="maintenance-page-error" role="alert" hidden></p>
+                <div class="maintenance-editor-actions"><button type="button" id="maintenance-new" class="maintenance-button maintenance-button-secondary">Clear Form</button><button type="button" id="maintenance-schedule-cancel" class="maintenance-button maintenance-button-secondary" hidden>Cancel Schedule</button><button type="submit" id="maintenance-page-save" class="maintenance-button" disabled>Save Schedule and Notices</button></div>
+            </form>
+        </section>
+        <section class="maintenance-history" aria-labelledby="maintenance-history-title">
+            <h2 id="maintenance-history-title">Notice History</h2>
+            <div class="maintenance-history-wrap"><table data-sigma-paginate><thead><tr><th>Posted</th><th>Notice</th><th>Maintenance Window</th><th>Published By</th><th>Locations</th><th>Status</th></tr></thead><tbody id="maintenance-history-body"><tr><td colspan="6">Loading notice history...</td></tr></tbody></table></div>
+            <p id="maintenance-history-error" role="status" hidden></p>
         </section>
     </div>
 </section>
@@ -2826,11 +2818,11 @@
                     <div class="gdrive-status-container grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="gdrive-detail-row space-y-1">
                             <span class="text-[11px] font-semibold text-black-fade">Google Account</span>
-                            <p class="text-xs font-semibold text-black break-all" id="gdrive-page-display-email">Not configured</p>
+                            <p class="text-xs font-semibold text-black break-all" id="gdrive-page-display-email">Loading saved settings…</p>
                         </div>
                         <div class="gdrive-detail-row space-y-1">
                             <span class="text-[11px] font-semibold text-black-fade">Storage Folder</span>
-                            <p class="font-semibold text-xs text-black" id="gdrive-page-display-folder-name">Not configured</p>
+                            <p class="font-semibold text-xs text-black" id="gdrive-page-display-folder-name">Loading saved settings…</p>
                         </div>
                     </div>
 
@@ -2875,41 +2867,40 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Account Capacity Tier -->
-                <div class="gdrive-settings-section space-y-3">
-                    <div class="pb-2 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-bold text-black">Account Capacity Tier</h2>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 font-['Inter']">Storage Quota</span>
+                <section class="gdrive-settings-section">
+                    <h3 class="text-sm font-bold text-black">Connect Your Google Account</h3>
+                    <p id="gdrive-oauth-status" role="status" class="text-sm text-black-fade mt-3">Connect your Google account to use its Drive storage for uploaded files.</p>
+                    <div class="flex items-center gap-3 flex-wrap mt-4">
+                        <button type="button" id="gdrive-oauth-connect" disabled class="sigma-btn sigma-btn-primary sigma-btn-md" onclick="window.connectDriveGoogleAccount()">Connect Google Account</button>
                     </div>
-                    <div class="space-y-1.5">
-                        <p class="text-xs text-black-fade">Google Cloud Service Accounts connect to your shared folder without exposing your private Google account limit. Set your storage tier to track usage and total limit accurately.</p>
-                        <div class="flex items-center gap-3 pt-2">
-                            <select id="gdrive-page-capacity-tier" onchange="window.handleGoogleDriveCapacityChange && window.handleGoogleDriveCapacityChange(event)" class="bg-slate-50 border border-slate-200 px-3.5 py-2.5 rounded-xl text-xs font-bold text-black outline-none focus:border-[#15803d] focus:bg-white transition-all font-['Inter'] cursor-pointer">
-                                <option value="15" selected>15 GB (Standard Google Account - Free)</option>
-                                <option value="100">100 GB (Google One Basic)</option>
-                                <option value="200">200 GB (Google One Standard)</option>
-                                <option value="2048">2 TB (Google One Premium)</option>
-                                <option value="5120">5 TB (Google Workspace Enterprise)</option>
-                            </select>
-                            <span id="gdrive-page-capacity-save-status" class="text-xs font-medium text-emerald-600 hidden"><i class="fa-solid fa-check"></i> Saved</span>
-                        </div>
-                    </div>
-                </div>
-
+                </section>
                 <!-- Card 4: Upload JSON Key -->
                 <details class="gdrive-settings-section gdrive-advanced">
                     <summary class="text-sm font-bold text-black cursor-pointer">Advanced Settings</summary>
                     <div class="gdrive-advanced-content">
-
+                    <p class="text-sm text-black-fade">Sensitive credentials. These files contain secrets or private keys and are stored encrypted in the server database. Credential values are not displayed here.</p>
+                    <div class="space-y-3 mt-5">
+                        <h4 class="text-sm font-bold text-black">OAuth Client JSON &mdash; Client ID and Secret</h4>
+                    <ol class="list-decimal pl-5 text-sm text-black space-y-2 mt-4">
+                        <li>Open <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" class="underline">Google Cloud Credentials</a> and create an OAuth client ID with application type Web application.</li>
+                        <li>Add this authorized redirect URI: <code class="break-all">https://sigma-elms.alwaysdata.net/php/api/gdrive_oauth.php?action=callback</code></li>
+                        <li>Download the OAuth client JSON and upload it here. Then use Connect Google Account above.</li>
+                    </ol>
+                    <input id="gdrive-oauth-file" type="file" accept=".json,application/json" class="hidden" onchange="window.uploadDriveOAuthCredentials(event)">
+                        <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" onclick="document.getElementById('gdrive-oauth-file').click()">Upload OAuth Client JSON</button>
+                    </div>
+                    <div class="space-y-3 border-t border-slate-200 pt-5 mt-5">
+                        <h4 class="text-sm font-bold text-black">Service Account JSON &mdash; Private Key</h4>
                     <input type="file" id="gdrive-page-key-file" accept=".json" class="hidden" onchange="window.handleUploadGoogleDriveKeyFilePage(event)">
 
                     <div class="flex items-center gap-3 flex-wrap">
                         <button type="button" onclick="document.getElementById('gdrive-page-key-file').click()"
                             class="sigma-btn sigma-btn-white sigma-btn-md gap-2 cursor-pointer">
                             <i class="fa-solid fa-file-code text-blue-600"></i>
-                            <span>Replace JSON Key</span>
+                            <span>Upload Service Account JSON</span>
                         </button>
-                        <span class="text-xs text-black-fade font-medium" id="gdrive-page-key-status">No credentials configured</span>
+                        <span class="text-xs text-black-fade font-medium" id="gdrive-page-key-status">Loading saved settings…</span>
+                    </div>
                     </div>
                     </div>
                 </details>
@@ -3009,7 +3000,7 @@
                 <div id="ai-functions-panel" role="tabpanel" aria-labelledby="ai-functions-tab" class="ai-settings-section">
                     <h2 class="text-sm font-bold text-black">Function Assignments</h2>
                     <div class="ai-routing-table-wrap">
-                        <table class="sigma-table ai-routing-table">
+                        <table data-sigma-paginate class="sigma-table ai-routing-table">
                             <thead><tr><th scope="col">AI Feature</th><th scope="col">Preferred Provider</th><th scope="col">Default Key</th><th scope="col">Status</th></tr></thead>
                             <tbody id="ai-routing-rows"></tbody>
                         </table>
@@ -3338,7 +3329,8 @@
 
                             <!-- Standardized Institutional Table -->
                             <div class="flex-1 flex flex-col bg-white px-10">
-                                <table class="w-full border-collapse table-fixed">
+                                <div id="section-pagination-container" class="sigma-admin-table-pagination"></div>
+                            <table class="w-full border-collapse table-fixed">
                                     <colgroup>
                                         <col style="width: 5%;">  <!-- No. -->
                                         <col style="width: 12%;"> <!-- Section (Combined with Grade & Strand) -->
@@ -3376,7 +3368,7 @@
                                         <!-- Dynamic Sections will be rendered here -->
                                     </tbody>
                                 </table>
-                                <div id="section-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-center bg-white"></div>
+                                
                             </div>
                 </section>
 
@@ -3547,17 +3539,19 @@
 
                             <!-- Standardized Institutional Table -->
                             <div class="flex-1 flex flex-col bg-white px-10">
-                                <table class="w-full border-collapse table-fixed">
+                                <div id="subject-pagination-container" class="sigma-admin-table-pagination"></div>
+                            <table class="w-full border-collapse table-fixed">
                                     <colgroup>
-                                        <col style="width: 6%;">  <!-- No. -->
-                                        <col style="width: 14%;"> <!-- Code -->
-                                        <col style="width: 25%;"> <!-- Subject -->
-                                        <col style="width: 16%;"> <!-- Type -->
-                                        <col style="width: 10%;"> <!-- Units -->
-                                        <col style="width: 10%;"> <!-- Status -->
-                                        <col style="width: 13%;"> <!-- Date Created -->
-                                        <col style="width: 6%;">  <!-- Action -->
-                                    </colgroup>
+                    <col style="width: 5%;"> <!-- No. -->
+                    <col style="width: 12%;"> <!-- Code -->
+                    <col style="width: 24%;"> <!-- Subject -->
+                    <col style="width: 15%;"> <!-- Type -->
+                    <col style="width: 7%;"> <!-- Units -->
+                    <col style="width: 10%;"> <!-- Learning Hours -->
+                    <col style="width: 8%;"> <!-- Status -->
+                    <col style="width: 13%;"> <!-- Date Created -->
+                    <col style="width: 6%;"> <!-- Action -->
+</colgroup>
                                     <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                                         <tr>
                                             <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
@@ -3570,6 +3564,8 @@
                                                 Type</th>
                                             <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Units</th>
+<th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
+                                                Learning Hours</th>
                                             <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
                                                 Status</th>
                                             <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">
@@ -3583,7 +3579,7 @@
                                         <!-- Will be populated by JS -->
                                     </tbody>
                                 </table>
-                                <div id="subject-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-center bg-white"></div>
+                                
                             </div>
                         </div>
                 </section>
@@ -3614,7 +3610,7 @@
 
                         <!-- Table -->
                         <div class="flex-1 flex flex-col bg-white px-10 overflow-x-auto">
-                            <table class="w-full border-collapse table-fixed" style="min-width: 1392px;">
+                            <table data-sigma-paginate class="w-full border-collapse table-fixed" style="min-width: 1392px;">
                                 <colgroup>
                                     <col style="width: 64px;">
                                     <col style="width: 170px;">
@@ -3671,7 +3667,7 @@
 
                         <!-- Table -->
                         <div class="flex-1 flex flex-col bg-white px-10 overflow-x-auto">
-                            <table class="w-full border-collapse table-fixed" style="min-width: 1392px;">
+                            <table data-sigma-paginate class="w-full border-collapse table-fixed" style="min-width: 1392px;">
                                 <colgroup>
                                     <col style="width: 64px;">
                                     <col style="width: 170px;">
@@ -3730,7 +3726,7 @@
 
                         <!-- Table -->
                         <div class="flex-1 flex flex-col bg-white px-10 overflow-x-auto">
-                            <table class="w-full border-collapse table-fixed" style="min-width: 1392px;">
+                            <table data-sigma-paginate class="w-full border-collapse table-fixed" style="min-width: 1392px;">
                                 <colgroup>
                                     <col style="width: 64px;">
                                     <col style="width: 170px;">
@@ -3984,7 +3980,8 @@
 
                         <!-- Standardized Institutional Table (Exact User Accounts Style, Non-Paneled) -->
                         <div class="flex-1 flex flex-col bg-white px-10">
-                                                        <table class="sigma-table w-full border-collapse table-fixed">
+                                                        <div id="attendance-pagination-container" class="sigma-admin-table-pagination"></div>
+                            <table class="sigma-table w-full border-collapse table-fixed">
                                 <colgroup>
                                     <col style="width: 16%;">  <!-- Section -->
                                     <col style="width: 16%;">  <!-- Subject -->
@@ -4313,7 +4310,7 @@
                                 </tbody>
                             </table>
                             <!-- Pagination Footer -->
-                            <div id="attendance-pagination-container" class="py-6 border-t border-slate-100 flex items-center justify-end bg-white"></div>
+                            
                         </div>
                     </div>
                 </section>
@@ -4452,7 +4449,7 @@
 
                                 <!-- Styled Table -->
                                 <div class="overflow-x-auto bg-white performance-records-table-wrap">
-                                    <table class="sigma-table w-full border-collapse table-fixed font-['Inter']">
+                                    <table data-sigma-paginate class="sigma-table w-full border-collapse table-fixed font-['Inter']">
                                         <colgroup>
                                             <col style="width: 22%;"> <!-- Student Name -->
                                             <col style="width: 14%;"> <!-- Section -->
@@ -4623,6 +4620,7 @@
                             </aside>
                             <div class="flex-1">
 <!-- AI Logs Table -->
+
                                 <div class="sigma-table-container overflow-x-auto">
                                     <table class="sigma-table sigma-audit-table" aria-label="AI interaction logs">
                                         <thead>
@@ -5325,7 +5323,7 @@
 
                             <div class="space-y-3">
                                 <label for="edit-subject-name" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Subject Name <span class="text-red-500">*</span></label>
-                                <input type="text" id="edit-subject-name" maxlength="50"
+                                <input type="text" id="edit-subject-name" maxlength="150"
                                     oninput="this.value = this.value.replace(/[^a-zA-Z0-9\s]/g, ''); if (typeof window.syncDepEdWeightsDefault === 'function') window.syncDepEdWeightsDefault(); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                                     placeholder="Full Subject Name"
                                     class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
@@ -5334,7 +5332,7 @@
                             <div class="grid grid-cols-2 gap-8">
                                 <div class="space-y-3">
                                     <label for="edit-subject-units" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Units <span class="text-red-500">*</span></label>
-                                    <input type="text" id="edit-subject-units" maxlength="2" placeholder="e.g. 3"
+                                    <input type="text" id="edit-subject-units" required inputmode="numeric" maxlength="2" placeholder="e.g. 3"
                                         oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                                         class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
                                 </div>
@@ -5349,6 +5347,19 @@
                                         </select>
                                         <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <label for="edit-subject-grade" class="sigma-subject-label text-base font-bold text-black">Grade Level</label>
+                                    <select id="edit-subject-grade" class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 px-4 py-4 text-base text-black" onchange="window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()">
+                                        <option value="">Select Grade</option><option value="11">Grade 11</option><option value="12">Grade 12</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-3">
+                                    <label for="edit-subject-hours" class="sigma-subject-label text-base font-bold text-black">Learning Hours <span class="text-red-500">*</span></label>
+                                    <input id="edit-subject-hours" type="text" required inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" autocomplete="off" placeholder="e.g. 80" title="Enter a whole number from 1 to 1280." class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none" oninput="window.handleSubjectLearningHoursInput?.(this)">
                                 </div>
                             </div>
 
@@ -5376,7 +5387,7 @@
                                         <option value="core" data-ww="25" data-pt="50" data-qa="25">Core Subjects (All Strands) — WW 25% · PT 50% · QA 25%</option>
                                         <option value="acad-specialized" data-ww="25" data-pt="45" data-qa="30">Academic Strands (ABM, GAS, HUMSS) — WW 25% · PT 45% · QA 30%</option>
                                         <option value="acad-immersion" data-ww="35" data-pt="40" data-qa="25">Academic Strands (Research / Immersion) — WW 35% · PT 40% · QA 25%</option>
-                                        <option value="tvl-specialized" data-ww="30" data-pt="50" data-qa="20">TVL Strands (ICT & HE) — Applied & Specialized — WW 30% · PT 50% · QA 20%</option>
+                                        <option value="tvl-specialized" data-ww="20" data-pt="60" data-qa="20">TVL Strands (ICT & HE) — Applied & Specialized — WW 20% · PT 60% · QA 20%</option>
                                         <option value="tvl-immersion" data-ww="20" data-pt="60" data-qa="20">TVL Strands (ICT & HE) — Work Immersion / Practicum — WW 20% · PT 60% · QA 20%</option>
                                     </select>
                                     <i class="fa-solid fa-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
@@ -5927,6 +5938,156 @@
             </div>
         </div>
 
+        <!-- BATCH CREATE USER ACCOUNTS OVERLAY -->
+        <div id="batch-user-overlay" class="sigma-modal-overlay hidden">
+            <!-- Exit Control (Far Right) -->
+            <button type="button" onclick="window.handleBatchUserExit()"
+                class="fixed top-10 right-10 w-12 h-12 rounded-full hover:bg-slate-200 flex items-center justify-center text-black transition-all z-[1001] cursor-pointer"
+                title="Exit Batch Creator">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="sigma-modal-shell">
+                <div class="sigma-modal-panel">
+                    <!-- Header -->
+                    <div class="border-b border-slate-100 sticky top-0 bg-white z-20">
+                        <div class="px-10 py-5 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <button type="button" id="batch-user-back-btn" onclick="window.handleBatchUserStepBack()"
+                                    title="Back"
+                                    class="hidden w-8 h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 p-0 shadow-none outline-none -ml-1">
+                                    <i class="fa-solid fa-arrow-left text-sm text-black"></i>
+                                </button>
+                                <h2 id="batch-user-editor-title" class="text-2xl font-bold text-black tracking-tight font-['Inter']">Batch Create User Accounts</h2>
+                            </div>
+                        </div>
+                        <!-- Segmented Navigation Header (Matching Create User Account) -->
+                        <div id="batch-user-segmented-header" class="flex w-full bg-slate-100 border-y border-slate-200 pointer-events-none select-none">
+                            <!-- Step 1: Add Account -->
+                            <div id="batch-step-bar-1"
+                                class="flex-1 pt-4 pb-0 flex flex-col items-center justify-between transition-all border-r border-slate-200 bg-[#15803d]/10 pointer-events-none select-none">
+                                <span id="batch-step-bar-1-label"
+                                    class="text-base font-bold capitalize tracking-normal transition-colors text-[#15803d] mb-3">Add Account</span>
+                                <div id="batch-step-bar-1-track"
+                                    class="w-full h-1.5 bg-[#15803d] transition-all"></div>
+                            </div>
+
+                            <!-- Step 2: Add Credentials -->
+                            <div id="batch-step-bar-2"
+                                class="flex-1 pt-4 pb-0 flex flex-col items-center justify-between transition-all border-r border-slate-200 bg-slate-100 pointer-events-none select-none">
+                                <span id="batch-step-bar-2-label"
+                                    class="text-base font-bold capitalize tracking-normal transition-colors text-slate-500 mb-3">Add Credentials</span>
+                                <div id="batch-step-bar-2-track"
+                                    class="w-full h-1.5 bg-slate-200 transition-all"></div>
+                            </div>
+
+                            <!-- Step 3: Send Credentials -->
+                            <div id="batch-step-bar-3"
+                                class="flex-1 pt-4 pb-0 flex flex-col items-center justify-between transition-all bg-slate-100 pointer-events-none select-none">
+                                <span id="batch-step-bar-3-label"
+                                    class="text-base font-bold capitalize tracking-normal transition-colors text-slate-500 mb-3">Send Credentials</span>
+                                <div id="batch-step-bar-3-track"
+                                    class="w-full h-1.5 bg-slate-200 transition-all"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Body -->
+                    <div id="batch-user-form-body" class="flex-1 custom-scrollbar px-10 py-6">
+                        <!-- STEP 1: UPLOAD & REVIEW ACCOUNTS -->
+                        <div id="batch-user-step-1" class="space-y-6">
+                            <!-- Upload & Template Card -->
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 space-y-4">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-bold text-black font-['Inter']">Import User Accounts File</h3>
+                                        <p class="text-xs text-slate-500 mt-0.5">
+                                            Upload an Excel (.xlsx, .csv), Word Document (.docx, .doc), or PDF (.pdf) containing user details. Missing fields will be left blank for review.
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button type="button" onclick="window.downloadBatchUserTemplate()"
+                                            class="sigma-btn sigma-btn-white sigma-btn-sm gap-2 text-xs font-semibold cursor-pointer">
+                                            <i class="fa-solid fa-download text-[#15803d]"></i>
+                                            <span>Download Template (.xlsx)</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="batch-user-dropzone"
+                                    onclick="document.getElementById('batch-user-file-input')?.click()"
+                                    class="border-2 border-dashed border-slate-300 hover:border-[#15803d] bg-white hover:bg-emerald-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2">
+                                    <div class="flex items-center justify-center gap-3 text-[#15803d]">
+                                        <i class="fa-solid fa-file-excel text-2xl"></i>
+                                        <i class="fa-solid fa-file-word text-2xl text-blue-600"></i>
+                                        <i class="fa-solid fa-file-pdf text-2xl text-rose-600"></i>
+                                    </div>
+                                    <p id="batch-upload-status-label" class="text-sm font-bold text-black font-['Inter']">
+                                        Click to upload or drag &amp; drop PDF, Word (.docx, .doc), or Excel (.xlsx, .csv)
+                                    </p>
+                                    <p class="text-xs text-slate-500">
+                                        Columns: Institutional Role, Firstname, Middlename, Lastname, Gender, Gmail
+                                    </p>
+                                    <div id="batch-uploaded-file-badge" class="hidden pt-1">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#15803d] text-xs font-bold">
+                                            <i class="fa-solid fa-file-circle-check"></i>
+                                            <span id="batch-uploaded-file-name"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <input type="file" id="batch-user-file-input" class="hidden"
+                                    accept=".xlsx,.xls,.csv,.docx,.doc,.pdf"
+                                    onchange="window.handleBatchFileInputChange(this)">
+                            </div>
+
+                            <!-- Summary Bar -->
+                            <div id="batch-user-summary-bar" class="hidden"></div>
+
+                            <!-- Review Form Cards (Organized by Admin -> Teacher -> Student) -->
+                            <div id="batch-user-review-container" class="space-y-6"></div>
+                        </div>
+
+                        <!-- STEP 2: REVIEW GENERATED CREDENTIALS (ADMIN -> TEACHER -> STUDENT) -->
+                        <div id="batch-user-step-2" class="hidden space-y-6">
+                            <div id="batch-user-step2-container" class="space-y-6"></div>
+                        </div>
+
+                        <!-- STEP 3: SEND CREDENTIALS (ADMIN -> TEACHER -> STUDENT) -->
+                        <div id="batch-user-step-3" class="hidden space-y-6">
+                            <div id="batch-user-step3-container" class="space-y-6"></div>
+                        </div>
+                    </div>
+
+                    <!-- Pinned Modal Footer -->
+                    <div id="batch-user-modal-footer" class="sigma-modal-footer flex items-center justify-end gap-3 px-10 py-5 border-t border-slate-200 bg-white sticky bottom-0 z-30 font-['Inter']">
+                        <button type="button" id="batch-user-next-btn" onclick="window.handleBatchUserStepNext()"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[120px] cursor-pointer font-['Inter']">
+                            <span>Next</span>
+                        </button>
+                        <button type="button" id="batch-user-save-btn" onclick="window.handleBatchUserSave()"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[160px] hidden cursor-pointer font-['Inter']" style="display: none !important;">
+                            <span id="batch-user-save-label">Create Accounts</span>
+                            <i class="fa-solid fa-circle-notch fa-spin hidden ml-1" id="batch-user-save-loading"></i>
+                        </button>
+                        <button type="button" id="batch-user-export-btn" onclick="window.downloadBatchCreatedCredentialsExcel()"
+                            class="sigma-btn sigma-btn-white sigma-btn-md hidden gap-2 cursor-pointer font-['Inter']" style="display: none !important;">
+                            <i class="fa-solid fa-file-excel text-[#15803d]"></i>
+                            <span>Download All Credentials (.xlsx)</span>
+                        </button>
+                        <button type="button" id="batch-user-add-another-btn" onclick="window.resetBatchUserModal()"
+                            class="sigma-btn sigma-btn-secondary sigma-btn-md hidden gap-2 cursor-pointer font-['Inter']" style="display: none !important;">
+                            <i class="fa-solid fa-users text-xs"></i>
+                            <span>Add Another Batch</span>
+                        </button>
+                        <button type="button" id="batch-user-finish-btn" onclick="window.finishBatchUserCreation()"
+                            class="sigma-btn sigma-btn-primary sigma-btn-md min-w-[140px] hidden cursor-pointer font-['Inter']" style="display: none !important;">
+                            <span>Close &amp; Finish</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- USER PERMISSIONS OVERLAY (Exact School Year Workstation Architecture) -->
 <div id="user-permissions-overlay"
     class="sigma-modal-overlay hidden">
@@ -6098,6 +6259,13 @@
                                     </div>
                                     <input type="checkbox" id="perm-action-delete" aria-label="Can permanently remove user accounts" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
                                 </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4">
+                                        <label for="perm-admin-manage-comments" class="text-sm font-semibold text-slate-900 block cursor-pointer">Manage Announcement Comments</label>
+                                        <span class="text-xs text-slate-500">Can enable or disable comments on their announcements.</span>
+                                    </div>
+                                    <input type="checkbox" id="perm-admin-manage-comments" aria-label="Manage announcement comments" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 shrink-0">
+                                </div>
                                 <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
                                     <div class="pr-4 flex items-center gap-3">
                                         <div class="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
@@ -6251,19 +6419,19 @@
                                         <span class="text-sm font-bold text-slate-900 font-['Inter']">System Maintenance Control</span>
                                     </div>
                                     <p class="text-xs text-slate-500 font-normal">
-                                        Maintenance / Lockdown Mode stays reserved for Master Admin accounts and cannot be delegated to regular Admin users.
+                                        Master Admins can grant maintenance management to selected regular Admins.
                                     </p>
                                     <p class="text-xs text-amber-700 font-medium bg-amber-50 border border-amber-200/60 rounded-xl px-3 py-2">
                                         <i class="fa-solid fa-circle-info mr-1.5"></i>
-                                        Only Master Admin can place the system in maintenance mode or edit the restricted access notice shown during lockdown.
+                                        Only Master Admins can grant this permission. Authorized maintenance administrators retain access during maintenance.
                                     </p>
                                     <!-- Notice Message permission — unchecked by default, only Master Admin can grant -->
                                     <div class="flex items-center justify-between p-3 bg-white border border-slate-200/70 rounded-xl">
                                         <div>
-                                            <label for="perm-notice-message" class="text-xs font-semibold text-slate-900 block cursor-pointer">Notice Message Access</label>
-                                            <span class="text-xs text-slate-500 font-normal">Can edit the restricted access notice shown during lockdown</span>
+                                            <label for="perm-maintenance-manage" class="text-xs font-semibold text-slate-900 block cursor-pointer">Manage System Maintenance</label>
+                                            <span class="text-xs text-slate-500 font-normal">Can schedule maintenance, publish notices, view history, and use the maintenance switch</span>
                                         </div>
-                                        <input type="checkbox" id="perm-notice-message" aria-label="Can edit the restricted access notice shown during lockdown" onchange="window.trackPermissionChanges()" class="w-5 h-5 text-blue-600 accent-blue-600 rounded border-slate-300 cursor-pointer shrink-0">
+                                        <input type="checkbox" id="perm-maintenance-manage" aria-label="Can schedule maintenance, publish notices, view history, and use the maintenance switch" onchange="window.trackPermissionChanges()" class="w-5 h-5 text-blue-600 accent-blue-600 rounded border-slate-300 cursor-pointer shrink-0">
                                     </div>
                                 </div>
                             </div>
@@ -6328,22 +6496,42 @@
                     <div id="perm-panel-security" class="perm-panel space-y-6 hidden">
                         <div class="space-y-4">
                             <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-1.5 h-5 bg-[#15803d] rounded-full"></div>
-                                    <h3 class="text-sm font-bold text-slate-900 font-['Inter'] uppercase tracking-wider">Security & Activity Logs</h3>
-                                </div>
-                                <label for="perm-admin-security-main" class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="perm-admin-security-main" aria-label="Toggle Security and Activity Logs Permissions" onchange="window.togglePermCategory('security')" class="sr-only peer">
-                                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#15803d]"></div>
-                                </label>
+                                <h3 class="text-sm font-bold text-slate-900 font-['Inter'] uppercase tracking-wider">System Settings</h3>
+                                <input type="checkbox" id="perm-admin-settings-main" aria-label="Access System Settings" onchange="window.togglePermCategory('settings')" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer">
                             </div>
-                            <div id="perm-admin-security-sub" class="pl-2 space-y-2.5 transition-all duration-300">
-                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
-                                    <div class="pr-4">
-                                        <label for="perm-security-logs" class="text-sm font-semibold text-slate-900 block cursor-pointer">View System Activity Logs</label>
-                                        <span class="text-xs text-slate-500 font-normal">Can inspect administrative actions, audit trails, and system access history</span>
-                                    </div>
-                                    <input type="checkbox" id="perm-security-logs" aria-label="View System Activity Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
+                            <div id="perm-admin-settings-sub" class="space-y-2.5">
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-settings-api" class="text-sm font-semibold text-slate-900 block cursor-pointer">Manage APIs & Integrations</label><span class="text-xs text-slate-500 font-normal">Can configure AI providers, API keys, Google Drive, reCAPTCHA, and upload limits.</span></div>
+                                    <input type="checkbox" id="perm-settings-api" aria-label="Manage APIs & Integrations" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-settings-recovery" class="text-sm font-semibold text-slate-900 block cursor-pointer">Access Record Recovery</label><span class="text-xs text-slate-500 font-normal">Can view removed records and restore or permanently delete them after administrator verification.</span></div>
+                                    <input type="checkbox" id="perm-settings-recovery" aria-label="Access Record Recovery" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                                <h3 class="text-sm font-bold text-slate-900 font-['Inter'] uppercase tracking-wider">Audit Logs</h3>
+                                <input type="checkbox" id="perm-admin-audit-main" aria-label="Access Audit Logs" onchange="window.togglePermCategory('audit')" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer">
+                            </div>
+                            <div id="perm-admin-audit-sub" class="space-y-2.5">
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-audit-ai" class="text-sm font-semibold text-slate-900 block cursor-pointer">View AI Logs</label><span class="text-xs text-slate-500 font-normal">View recorded AI requests and conversations.</span></div>
+                                    <input type="checkbox" id="perm-audit-ai" aria-label="View AI Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-audit-activity" class="text-sm font-semibold text-slate-900 block cursor-pointer">View Activity Logs</label><span class="text-xs text-slate-500 font-normal">View account actions and changes across the system.</span></div>
+                                    <input type="checkbox" id="perm-audit-activity" aria-label="View Activity Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-audit-auth" class="text-sm font-semibold text-slate-900 block cursor-pointer">View Authentication Logs</label><span class="text-xs text-slate-500 font-normal">View sign-ins, verification events, and sign-outs.</span></div>
+                                    <input type="checkbox" id="perm-audit-auth" aria-label="View Authentication Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4"><label for="perm-audit-notifications" class="text-sm font-semibold text-slate-900 block cursor-pointer">View Notification Logs</label><span class="text-xs text-slate-500 font-normal">View notification delivery and recipient history.</span></div>
+                                    <input type="checkbox" id="perm-audit-notifications" aria-label="View Notification Logs" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 cursor-pointer shrink-0">
                                 </div>
                             </div>
                         </div>
@@ -6379,6 +6567,13 @@
                                         <span class="text-xs text-slate-500">Can upload slides, videos, assignments, and topics.</span>
                                     </div>
                                     <input type="checkbox" id="perm-teacher-materials" aria-label="Can upload slides, videos, assignments, and topics" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 cursor-pointer shrink-0">
+                                </div>
+                                <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
+                                    <div class="pr-4">
+                                        <label for="perm-teacher-manage-comments" class="text-sm font-semibold text-slate-900 block cursor-pointer">Manage Announcement Comments</label>
+                                        <span class="text-xs text-slate-500">Can enable or disable comments on their announcements.</span>
+                                    </div>
+                                    <input type="checkbox" id="perm-teacher-manage-comments" aria-label="Manage announcement comments" onchange="window.trackPermissionChanges()" class="w-6 h-6 text-blue-600 accent-blue-600 rounded-lg border-slate-300 shrink-0">
                                 </div>
                                 <div class="flex items-center justify-between p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl transition-all">
                                     <div class="pr-4">
@@ -6738,71 +6933,79 @@
 
     <!-- SCRIPTS -->
 <script src="js/private-assessment-comments.js?v=20261017_table_dropdowns_v10"></script>
-<script src="js/grade-sync.js?v=20261021_database_foundation_v5"></script>
+<script src="js/grade-sync.js?v=20261023_transient_server_retry_v70"></script>
 <link rel="stylesheet" href="css/sigma-message-format.css?v=20261022_reply_format_v1">
 <script src="js/sigma-message-format.js?v=20261022_reply_format_v1"></script>
-<script src="js/table-pagination.js?v=20261022_page_groups_v22"></script>
-<script src="js/shared-components.js?v=20261022_quiz_session_v36"></script>
+<script src="js/table-pagination.js?v=20261024_rows_v185"></script>
+<script src="js/shared-components.js?v=20261024_assessment_sync_v177"></script>
 <script src="js/online-presence.js?v=20261021_pending_panels_v2"></script>
 <script src="js/offline-assessments.js?v=20261021_topic_assessment_picker_v28"></script>
-<script src="js/academic-records.js?v=20261022_feedback_v29"></script>
-<script src="js/submission-ai-client.js?v=20261022_live_learning_v20"></script>
-    <script src="js/topbar.js?v=20261022_real_insight_counts_v33"></script>
+<script src="js/academic-records.js?v=20261024_assessment_sync_v177"></script>
+<script src="js/submission-ai-client.js?v=20261024_assessment_sync_v177"></script>
+    <script src="js/topbar.js?v=20261024_initial_no_bar_v132"></script>
     <script src="js/school-profile-view.js?v=20261021_readonly_v1"></script>
     <script src="js/search-results.js?v=20261022_structured_search_v17"></script>
-    <script src="js/sigma-chat-client.js?v=20261022_reply_format_v1"></script>
+    <link rel="stylesheet" href="css/sigma-chat-choices.css?v=20261024_chat_followups_v183">
+    <script src="js/sigma-chat-choices.js?v=20261024_chat_followups_v183"></script>
+    <script src="js/sigma-chat-client.js?v=20261024_chat_followups_v183"></script>
     <script src="js/sidebar.js?v=20261018_flyout_up_v15"></script>
-<script src="js/notifications.js?v=20261022_audit_context_v23"></script>
-<script src="js/log-pagination.js?v=20261022_page_groups_v22"></script>
-<script src="js/audit-display.js?v=20261022_audit_spacing_v24"></script>
-<script src="js/notification-logs.js?v=20261022_log_layout_v26"></script>
-<script src="js/authentication-logs.js?v=20261022_log_layout_v26"></script>
-<script src="js/activity-logs.js?v=20261022_log_layout_v26"></script>
+<script src="js/notifications.js?v=20261023_audit_permissions_v75"></script>
+<script src="js/log-pagination.js?v=20261024_rows_v185"></script>
+<script src="js/audit-display.js?v=20261023_activity_context_v51"></script>
+<script src="js/notification-logs.js?v=20261023_audit_permissions_v75"></script>
+<script src="js/authentication-logs.js?v=20261023_audit_permissions_v75"></script>
+<script src="js/activity-logs.js?v=20261023_activity_announcement_details_v89"></script>
 <script src="js/audit-log-search.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/sigma-unread.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/panels.js?v=20261017_table_dropdowns_v13"></script>
-    <script src="js/academic-calendar.js?v=20261021_real_events_only_v17"></script>
-    <script src="js/announcements.js?v=20261022_feedback_v29"></script>
-    <script src="js/quiz-creator.js?v=20261022_quiz_session_v36"></script>
-    <script src="js/calendar.js?v=20261021_event_notification_details_v16"></script>
-    <script src="js/profile-view.js?v=20261022_feedback_v29"></script>
+    <script src="js/academic-calendar.js?v=20261024_maintenance_notices_v162"></script>
+    <script src="js/announcements.js?v=20261024_maintenance_notices_v162"></script>
+    <script src="js/quiz-creator.js?v=20261024_quiz_badges_v176"></script>
+    <script src="js/calendar.js?v=20261024_maintenance_notices_v162"></script>
+    <script src="js/profile-view.js?v=20261023_admin_account_permissions_v78"></script>
     <script src="js/admin-session-controls.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/dialog.js?v=20261021_quiz_exit_standard_buttons_v18"></script>
     <script src="js/document-viewer.js?v=20261022_feedback_v29"></script>
     <script src="js/settings-view.js?v=20261022_feedback_v29"></script>
     <script src="js/user-profile-sync.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/resources-view.js?v=20261022_page_groups_v22"></script>
+    <script src="js/resources-view.js?v=20261023_creation_numbers_v48"></script>
     <link rel="stylesheet" href="css/excel-export.css?v=20261020_semester_export_locks_v2">
-    <script src="js/excel-export.js?v=20261020_subject_scoped_exports_v3"></script>
-    <script src="js/sigma-analytics.js?v=20261022_real_insight_counts_v33"></script>
+    <script src="js/excel-export.js?v=20261023_creation_numbers_v48"></script>
+    <script src="js/sigma-analytics.js?v=20261023_ai_metric_layout_v69"></script>
     <script src="js/student-analytics.js?v=20261022_quiet_insights_v32"></script>
-    <script src="js/shared-grade-record.js?v=20261022_page_groups_v22"></script>
-    <script src="js/subject-content-editor.js?v=20261021_release_shortcut_v3"></script>
-    <script src="js/subject-editor.js?v=20261022_feedback_v29"></script>
+    <script src="js/shared-grade-record.js?v=20261023_creation_numbers_v48"></script>
+    <script src="js/subject-content-editor.js?v=20261023_section_release_v95"></script>
+    <script src="js/subject-editor.js?v=20261024_subject_protection_v175"></script>
     <script src="js/assessments-page.js?v=20261021_database_foundation_v5"></script>
     <script src="js/time-picker-dial.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/classroom-room.js?v=20261022_feedback_v29"></script>
+    <script src="js/attendance-pdf.js?v=20261024_v184"></script>
+    <script src="js/classroom-room.js?v=20261024_pdf_v184"></script>
     <script src="js/release-workspace.js?v=20261021_footer_button_count_v32"></script>
     <script src="js/curriculum-release.js?v=20261022_structured_search_v17"></script>
     <script src="js/recaptcha-client.js?v=20261021_database_foundation_v5"></script>
     <script src="js/system-settings-history.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/ai-routing-settings.js?v=20261022_content_dots_v19"></script>
-    <script src="js/admin.js?v=20261022_account_credentials_v30"></script>
+    <script src="js/ai-routing-settings.js?v=20261023_audit_permissions_v75"></script>
+    <script src="js/admin.js?v=20261024_schedule_v186"></script>
+    <script src="js/batch-user-creator.js?v=20261024_batch_user_v1"></script>
+    <script src="js/gdrive-account.js?v=20261023_drive_account_v102"></script>
     <script src="js/section-subject-lock.js?v=20261020_subject_activity_lock_v84"></script>
     <script src="js/section-teacher-picker.js?v=20261022_structured_search_v17"></script>
     <script src="js/performance-report.js?v=20261022_structured_search_v17"></script>
-    <script src="js/ai-database-store.js?v=20261022_real_insight_counts_v33"></script>
+    <script src="js/ai-database-store.js?v=20261024_recovery_actions_v173"></script>
+    <script src="js/chat-history-recovery.js?v=20261023_conversation_metadata_v67"></script>
     <script src="js/student-insight-view.js?v=20261019_read_more_v47"></script>
-    <script src="js/admin-insight-report.js?v=20261022_feedback_v29"></script>
-    <script src="js/record-lifecycle.js?v=20261022_recovery_verification_v28"></script>
-    <script src="js/ai-log-store.js?v=20261020_grade_evidence_key_v3"></script>
+    <script src="js/admin-insight-report.js?v=20261023_visible_only_v121"></script>
+    <script src="js/record-lifecycle.js?v=20261024_recovery_speed_v172"></script>
+    <script src="js/database-backups.js?v=20261024_rows_v185"></script>
+    <script src="js/ai-log-store.js?v=20261023_conversation_metadata_v67"></script>
     <script src="js/ai-log-preview.js?v=20261017_table_dropdowns_v10"></script>
-    <script src="js/ai-log-details.js?v=20261022_audit_spacing_v24"></script>
+    <script src="js/ai-log-details.js?v=20261023_audit_permissions_v75"></script>
     <script src="js/institution-branding.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/slideshow-settings.js?v=20261017_table_dropdowns_v10"></script>
     <script src="js/welcome-banner-settings.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/sigma-conversations.css?v=20261018_tint_v24">
-    <script src="js/sigma-conversations.js?v=20261022_reply_format_v1"></script>
-    <script src="js/sigma-ai-results.js?v=20261022_reply_format_v1"></script>
+    <script src="js/sigma-conversations.js?v=20261024_chat_followups_v183"></script>
+    <script src="js/sigma-ai-results.js?v=20261023_shared_log_avatars_v53"></script>
+    <script src="js/maintenance.js?v=20261024_maintenance_notices_v162"></script>
 </body>
 </html>

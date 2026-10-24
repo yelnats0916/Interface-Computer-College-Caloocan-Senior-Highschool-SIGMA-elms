@@ -30,6 +30,7 @@
         subjects: 'Subjects',
         quizzes: 'Quizzes',
         announcements: 'Announcements',
+        announcement_comments: 'Announcement Comments',
         ai_logs: 'AI Logs',
         ai_insight_cards: 'AI Insights',
         submission_files: 'Submission Files'
@@ -41,6 +42,7 @@
         'subjects',
         'quizzes',
         'announcements',
+        'announcement_comments',
         'ai_logs',
         'ai_insight_cards',
         'submission_files'
@@ -72,6 +74,7 @@
     }
     let opening = null;
     async function open() {
+        if (window.canAccessAdminSection && !window.canAccessAdminSection('settings-recovery-view')) { window.switchTab?.('nav-dashboard'); return; }
         if (opening) return opening;
         opening = (async () => {
             const page = document.getElementById('settings-recovery-view');
@@ -79,7 +82,11 @@
             const notice = page.querySelector('[role=status]');
             if (notice) { notice.textContent = ''; notice.hidden = true; }
             if (!await window.SigmaServiceVault?.verifyPanel('recovery')) {
-                window.switchTab?.('nav-dashboard');
+                if (window.SigmaServiceVault?.wasCanceled?.()) window.switchTab?.('nav-dashboard');
+                else if (notice) {
+                    notice.textContent = 'Verification could not be completed. Reopen Record Recovery to retry.';
+                    notice.hidden = false;
+                }
                 return;
             }
             try { await loadRecovery(); }
@@ -89,6 +96,7 @@
         finally { opening = null; }
     }
     async function loadRecovery() {
+        if (window.canAccessAdminSection && !window.canAccessAdminSection('settings-recovery-view')) return;
         const page = document.getElementById('settings-recovery-view');
         if (!page) return;
         const select = page.querySelector('select'), notice = page.querySelector('[role=status]'), body = page.querySelector('tbody');
@@ -157,6 +165,12 @@
         }
 
         async function load() {
+            // Select the initial feature before requesting it; avoid a second round trip.
+            if (!select.options.length) {
+                select.add(new Option('All', 'all'));
+                featureOrder.forEach(table => select.add(new Option(names[table], table)));
+                select.value = 'all';
+            }
             notice.hidden = false; window.SigmaContentLoading.render(notice, {inline:true, label:'Loading removed records'}); select.disabled = true;
             try {
                 let result;
@@ -164,13 +178,6 @@
                 catch (error) { if (!localFiles().length) throw error; result = {tables:[],records:[]}; }
                 if (!result.tables.includes('submission_files')) result.tables.push('submission_files');
                 body.replaceChildren();
-                if (!select.options.length) {
-                    select.add(new Option('All', 'all'));
-                    featureOrder.forEach(table => {
-                        select.add(new Option(names[table], table));
-                    });
-                    select.value = 'all'; select.disabled = false; return load();
-                }
                 const records = [...(result.records || []), ...(['all','submission_files'].includes(select.value) ? localFiles() : [])];
                 const renderRow = record => {
                     const row = document.createElement('tr');
@@ -257,7 +264,7 @@
                                                 if (typeof window.fetchQuizLibraryFromServer === 'function') await window.fetchQuizLibraryFromServer();
                                                 if (typeof window.renderQuizLibraryFeed === 'function') window.renderQuizLibraryFeed();
                                                 window.dispatchEvent(new Event('sigma:quizzes-updated'));
-                                            } else if (rType === 'announcements') {
+                                            } else if (rType === 'announcements' || rType === 'announcement_comments') {
                                                 if (window.SigmaAnnouncements?.refreshAllFeeds) window.SigmaAnnouncements.refreshAllFeeds();
                                                 window.dispatchEvent(new Event('sigma:announcements-updated'));
                                             } else if (rType === 'ai_insight_cards' || rType === 'ai_logs') {

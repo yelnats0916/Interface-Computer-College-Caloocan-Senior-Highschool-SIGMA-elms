@@ -3,11 +3,11 @@
 .sigma-feedback-stack--bottom-left { left:24px; bottom:calc(24px + env(safe-area-inset-bottom,0px)); }
 .sigma-feedback-stack--top-right { top:calc(24px + env(safe-area-inset-top,0px)); right:24px; }
 .sigma-feedback-stack--top-center { top:calc(20px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%); }
-html body .sigma-feedback-toast { --feedback-accent:#15803d; display:flex; align-items:center; gap:10px; width:100%; min-height:48px; margin:0; padding:12px 16px; box-sizing:border-box; border:1px solid var(--feedback-accent); border-radius:8px; box-shadow:0 4px 12px #0002; color:#fff; background:var(--feedback-accent); pointer-events:auto; cursor:default; animation:sigmaFeedbackIn .2s ease-out; }
-html body .sigma-feedback-info { --feedback-accent:#334155; }
-html body .sigma-feedback-warning { --feedback-accent:#b45309; }
-html body .sigma-feedback-error { --feedback-accent:#b91c1c; }
-html body .sigma-feedback-progress { --feedback-accent:#334155; color:#000; background:#fff; border-color:#e2e8f0; }
+html body .sigma-feedback-toast { --feedback-accent:var(--icc-green,#15803d); display:flex; align-items:center; gap:10px; width:100%; min-height:48px; margin:0; padding:12px 16px; box-sizing:border-box; border:1px solid var(--feedback-accent); border-radius:8px; box-shadow:0 4px 12px #0002; color:#fff; background:var(--feedback-accent); pointer-events:auto; cursor:default; animation:sigmaFeedbackIn .2s ease-out; }
+html body .sigma-feedback-info { --feedback-accent:var(--icc-green,#15803d); }
+html body .sigma-feedback-warning { --feedback-accent:var(--icc-green,#15803d); }
+html body .sigma-feedback-error { --feedback-accent:var(--icc-green,#15803d); }
+html body .sigma-feedback-progress { --feedback-accent:var(--icc-green,#15803d); color:#000; background:#fff; border-color:var(--feedback-accent); }
 html body .sigma-feedback-card { align-items:flex-start; border-radius:14px; padding:14px 16px; border:1px solid #e2e8f0; border-left:4px solid var(--feedback-accent); color:#000; background:#fff; }
 html body .sigma-feedback-icon { flex:0 0 24px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; font-size:16px; color:inherit; }
 html body .sigma-feedback-card .sigma-feedback-icon { color:var(--feedback-accent); }

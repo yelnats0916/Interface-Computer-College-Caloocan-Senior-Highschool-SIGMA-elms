@@ -2,6 +2,7 @@
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
 header('Content-Type: application/json'); header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/ai_record_store.php';
+require_once __DIR__ . '/../includes/role_permissions.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Sigma-Actor');
@@ -11,7 +12,7 @@ $localRecords = in_array($_SERVER['REMOTE_ADDR']??'', ['127.0.0.1','::1'],true)
     && in_array(strtolower(parse_url('http://'.($_SERVER['HTTP_HOST']??''),PHP_URL_HOST)?:''),['localhost','127.0.0.1','[::1]'],true);
 try{
     $db=serviceSettingsPdo(); $actor=lifecycleActor();
-    $q=$db->prepare('SELECT role FROM users WHERE id=? AND is_deleted=0 AND LOWER(status)=\'active\'');$q->execute([$actor]);$role=strtolower(preg_replace('/[\s_-]+/','',$q->fetchColumn()?:''));
+    $q=$db->prepare('SELECT * FROM users WHERE id=? AND is_deleted=0 AND LOWER(status)=\'active\'');$q->execute([$actor]);$actorUser=$q->fetch(PDO::FETCH_ASSOC);$role=strtolower(preg_replace('/[\s_-]+/','',$actorUser['role']??''));
     if(!$role){
         echo json_encode(['success'=>false,'code'=>'account_not_synced','error'=>'AI records are unavailable until this account is synced to the database and active.']);
         exit;
@@ -27,6 +28,10 @@ try{
     // Usage is a read-only view of server records for a verified administrator.
     if ($action === 'logs' && $method === 'GET') {
         if (!$admin) { http_response_code(403); echo json_encode(['success'=>false,'error'=>'Only administrators can read AI activity.']); exit; }
+        if (($input['view']??'') === 'usage') {
+            echo json_encode(['success'=>true,'usageOnly'=>true,'logs'=>aiRecordUsage($db)]);exit;
+        }
+        if (!sigmaActorPermission($actorUser,'auditMain') || !sigmaActorPermission($actorUser,'auditAi')) { http_response_code(403);echo json_encode(['success'=>false,'error'=>'AI log access is not enabled for this account.']);exit; }
         echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]); exit;
     }
     if (!$localRecords && in_array($action,['save_state','save_log'],true)) {
@@ -180,8 +185,12 @@ try{
         }
         echo json_encode(['success'=>true,'timestamp'=>$timestamp,'hidden'=>$hidden,'deleted'=>$deleted]);
     }elseif($action==='logs'){
-        if(!$admin)throw new RuntimeException('Only administrators can read all AI logs.');
+        if(!$admin || !sigmaActorPermission($actorUser,'auditMain') || !sigmaActorPermission($actorUser,'auditAi'))throw new RuntimeException('AI log access is not enabled for this account.');
         echo json_encode(['success'=>true,'logs'=>aiRecordLogs($db)]);
+    }elseif($action==='recover_chat_history'&&$method==='POST'){
+        require_once __DIR__.'/../includes/chat_history_recovery.php';
+        if(!is_array($input['conversations']??null))throw new InvalidArgumentException('Invalid saved conversations.');
+        echo json_encode(['success'=>true]+sigmaRecoverChatHistory($db,$actor,$input['conversations']));
     }elseif($action==='save_log'&&$method==='POST'){
         $log=$input['log']??[];if(!$admin&&($log['userId']??'')!==$actor)throw new RuntimeException('This log belongs to another account.');
         saveAiLog($db,$log);echo json_encode(['success'=>true]);

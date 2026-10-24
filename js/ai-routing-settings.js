@@ -23,14 +23,26 @@
         if (status.state !== 'ready') return { ...status, logs: [] };
         const dateKey = value => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
         const today = dateKey(Date.now());
-        const logs = database.getLogs().filter(log => {
-            if (log.isDeleted || !Number.isFinite(Date.parse(log.timestamp))) return false;
+        const todayUtc = new Date(today + 'T00:00:00Z');
+        const weekStart = new Date(todayUtc);
+        weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7);
+        const weekEnd = new Date(weekStart); weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+        const seen = new Set();
+        const logs = (database.getUsageLogs?.() || database.getLogs()).filter(log => {
+            const id = log.generationId || log.id;
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            if (log.isDeleted || log.usageExcluded === true || !Number.isFinite(Date.parse(log.timestamp))) return false;
             if (provider && log.provider !== provider) return false;
             if (!period) return true;
             const stamp = dateKey(log.timestamp);
+            if (period === 'weekly') {
+                const day = new Date(stamp + 'T00:00:00Z');
+                return day >= weekStart && day < weekEnd;
+            }
             return period === 'monthly' ? stamp.slice(0, 7) === today.slice(0, 7) : stamp === today;
         });
-        return { state: 'ready', logs };
+        return { ...status, state: 'ready', logs };
     };
 
     window.renderAiSettingsUsage = function () {
@@ -307,10 +319,9 @@
         window.syncGoogleDriveStorageMetric();
         window.renderGoogleDriveSettingsUsage();
         try {
-            const url = new URL(window.resolveUploadApiUrl(), location.href);
-            url.searchParams.set('action', 'folder_usage');
+            const url = new URL('storage_usage.php', new URL(window.resolveUploadApiUrl(), location.href));
             const response = await window.SigmaDatabase.fetch(url.href);
-            const data = await response.json();
+            const data = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
             if (!response.ok || !data.success) throw new Error(data.error || 'Folder usage is unavailable.');
             driveUsage = data.usage;
             driveUsageLoading = false;
@@ -390,13 +401,18 @@
     };
 
     window.refreshAiFeatureStatuses = function () {
-        const logs = window.SigmaAiLogs?.getRecords() || [];
+        const snapshot = window.getAiUsageSnapshot();
+        const logs = snapshot.logs;
         features.forEach(([id]) => {
             const cell = byId('ai-status-for-' + id);
             if (!cell) return;
             cell.replaceChildren();
+            if (snapshot.state !== 'ready') {
+                cell.textContent = snapshot.state === 'loading' ? 'Loading activity…' : snapshot.state === 'signed-out' ? 'Sign in to view activity' : 'Activity unavailable';
+                return;
+            }
             const last = logs.filter(log => log.feature === id).sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))[0];
-            if (!last) { cell.textContent = 'Not used yet'; return; }
+            if (!last) { cell.textContent = 'No recorded requests'; return; }
             const status = element('span', last.status, 'ai-feature-status');
             status.dataset.status = last.status;
             cell.append(status);

@@ -29,12 +29,14 @@
     const write = records => { try { localStorage.setItem(KEY, JSON.stringify(records.slice(0, 500))); } catch (_) { /* Logging must not interrupt authentication. */ } };
     let serverRecords = [], serverError = '', loadingServer = null;
     const read = () => {
+        if (window.canViewAuditLog?.('auth') === false) return [];
         const local = readLocal().filter(item => !serverRecords.some(remote =>
             remote.userId === item.userId && remote.event === item.event
             && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000));
         return [...serverRecords, ...local].map(window.SigmaAuditDisplay.authentication);
     };
     async function refreshServerHistory() {
+        if (window.canViewAuditLog?.('auth') === false) { serverRecords=[]; render(); return; }
         if (!document.getElementById('audit-auth-view') || !window.SigmaDatabase?.currentUser()?.id) return;
         if (loadingServer) return loadingServer;
         loadingServer = (async () => {
@@ -112,6 +114,7 @@
         return 'auth-event-dot--success';
     }
     async function deleteAuthenticationLog(id) {
+        if (window.canViewAuditLog?.('auth') === false) return;
         if (!id) return;
         try {
             if (String(id).startsWith('server-auth-')) {
@@ -142,6 +145,7 @@
     function render() {
         const table = document.querySelector('#audit-auth-view table[aria-label="Authentication logs"]');
         const body = table?.tBodies?.[0]; if (!body) return;
+        if (window.canViewAuditLog?.('auth') === false) { body.replaceChildren(); document.getElementById('authentication-account-details')?.replaceChildren(); return; }
         let status = document.getElementById('authentication-server-status');
         if (!status) { status = document.createElement('p'); status.id = 'authentication-server-status'; status.className = 'sigma-load-status'; status.setAttribute('role','status'); table.parentElement.before(status); }
         status.hidden = !serverError;
@@ -174,7 +178,7 @@
             const title = document.createElement('h2'); title.className = 'ai-log-detail-title'; title.textContent = selectedRecord ? 'Authentication Record Details' : 'Authentication Details';
             const identity = document.createElement('div'); identity.className = 'ai-log-detail-identity';
             const identityRow = document.createElement('div'); identityRow.className = 'ai-log-detail-name-row';
-            const avatar = document.createElement('span'); avatar.className = 'ai-log-avatar'; avatar.setAttribute('aria-hidden', 'true');
+            const avatar = document.createElement('span'); avatar.className = 'ai-log-avatar sigma-user-avatar sigma-user-avatar--sm'; avatar.setAttribute('aria-hidden', 'true');
             const selectedAvatarSrc = (typeof window.resolveUserAvatar === 'function'
                 ? window.resolveUserAvatar({ id: selectedUser.userId, name: selectedUser.userName, avatar: selectedUser.userAvatar })
                 : '') || selectedUser.userAvatar || '';
@@ -228,20 +232,28 @@
             const rowAvatarSrc = (typeof window.resolveUserAvatar === 'function'
                 ? window.resolveUserAvatar({ id: record.userId, name: record.userName, avatar: record.userAvatar })
                 : '') || record.userAvatar || '';
-            const avatar = typeof window.renderUserAvatarHtml === 'function'
-                ? window.renderUserAvatarHtml({ id: record.userId, name: record.userName, avatar: rowAvatarSrc }, 'sm')
-                : (rowAvatarSrc
-                    ? `<img src="${escape(rowAvatarSrc)}" alt="" class="w-8 h-8 rounded-full object-cover">`
-                    : '<div class="w-8 h-8 rounded-full bg-[#e2e8f0] flex items-center justify-center shrink-0" aria-hidden="true"><i class="fa-solid fa-user text-xs text-[#94a3b8]"></i></div>');
-            const actor = record.actorId && record.actorId !== record.userId ? `<p class="text-xs text-black-fade mt-1">By ${escape(record.actorName)}</p>` : '';
             const ip = record.ip ? escape(record.ip) : 'Not recorded';
-            row.innerHTML = `<td><div class="flex items-center gap-3">${avatar}<div><p class="text-black">${escape(record.userName)}</p><p class="text-sm text-black-fade">${escape(record.userRole)}</p>${actor}</div></div></td><td><div class="auth-event"><span class="auth-event-dot ${statusClass(record)}" aria-hidden="true"></span><div><span class="text-black">${escape(record.event)}</span>${record.details ? `<p class="text-sm text-black-fade mt-1">${escape(record.details)}</p>` : ''}</div></div></td><td><div class="flex flex-col"><span class="text-black">${ip}</span><span class="text-sm text-black-fade">${escape(record.device)}</span></div></td><td><span class="text-sm text-black-fade">${escape(date(record.timestamp))}</span></td>`;
+            row.innerHTML = `<td></td><td><div class="auth-event"><span class="auth-event-dot ${statusClass(record)}" aria-hidden="true"></span><div><span class="text-black">${escape(record.event)}</span>${record.details ? `<p class="text-sm text-black-fade mt-1">${escape(record.details)}</p>` : ''}</div></div></td><td><div class="flex flex-col"><span class="text-black">${ip}</span><span class="text-sm text-black-fade">${escape(record.device)}</span></div></td><td><span class="text-sm text-black-fade">${escape(date(record.timestamp))}</span></td>`;
             const timestamp = document.createElement('time');
             const detail = row.children[1].querySelector('.text-sm');
             if (detail) detail.replaceChildren(window.SigmaAuditDisplay.details(record.details));
             const identity = document.createElement('div');
             identity.className = 'flex items-center gap-3';
-            const profile = row.firstElementChild.querySelector('img, [aria-hidden="true"]');
+            const profile = document.createElement('span');
+            profile.className = 'ai-log-avatar sigma-user-avatar sigma-user-avatar--sm';
+            profile.setAttribute('aria-hidden', 'true');
+            const showProfileIcon = () => {
+                const icon = document.createElement('i');
+                icon.className = 'fa-solid fa-user';
+                profile.replaceChildren(icon);
+            };
+            if (rowAvatarSrc) {
+                const photo = document.createElement('img');
+                photo.src = rowAvatarSrc;
+                photo.alt = '';
+                photo.addEventListener('error', showProfileIcon, { once:true });
+                profile.append(photo);
+            } else showProfileIcon();
             const name = document.createElement(!selectedUser && record.userId ? 'button' : 'span');
             name.className = 'text-black';
             if (name.tagName === 'BUTTON') {
@@ -249,7 +261,7 @@
                 name.onclick = () => openUser(record);
             }
             name.textContent = record.userName;
-            if (profile) identity.append(profile);
+            identity.append(profile);
             identity.append(name);
             row.firstElementChild.replaceChildren(identity);
             timestamp.className = 'ai-log-timestamp';
@@ -359,4 +371,5 @@
         const section = document.getElementById('audit-auth-view');
         if (document.visibilityState === 'visible' && section && !section.classList.contains('hidden')) refreshServerHistory();
     }, 30000);
+    window.addEventListener('sigma:audit-permissions-changed', refreshServerHistory);
 })();

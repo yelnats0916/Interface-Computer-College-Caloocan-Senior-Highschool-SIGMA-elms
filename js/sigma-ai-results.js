@@ -537,6 +537,7 @@
 
             return [{
                 id: genId,
+                creationNumber: log.creationNumber,
                 userId,
                 name: userName(user),
                 role,
@@ -1102,9 +1103,9 @@
         const user = profileFor(item.userId) || item;
         const src = (typeof window.resolveUserAvatar === 'function' ? window.resolveUserAvatar(user) : '') || item.avatarUrl;
         if (src && /^(https?:|data:image\/|blob:|\.?\.?\/|image\/|uploads\/)/i.test(src)) {
-            return `<span class="ai-log-avatar" aria-hidden="true"><img src="${escapeHtml(src)}" alt="" onerror="this.parentElement.innerHTML='<i class=\\\'fa-solid fa-user\\\'></i>'"></span>`;
+            return `<span class="ai-log-avatar sigma-user-avatar sigma-user-avatar--sm" aria-hidden="true"><img src="${escapeHtml(src)}" alt="" onerror="this.parentElement.innerHTML='<i class=\\\'fa-solid fa-user\\\'></i>'"></span>`;
         }
-        return '<span class="ai-log-avatar" aria-hidden="true"><i class="fa-solid fa-user"></i></span>';
+        return '<span class="ai-log-avatar sigma-user-avatar sigma-user-avatar--sm" aria-hidden="true"><i class="fa-solid fa-user"></i></span>';
     }
 
     window.closeBotConversationPage = function () {
@@ -2106,7 +2107,7 @@
         filtered.forEach((item, index) => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs md:text-sm';
-            const rowNumber = filtered.length - index;
+            const rowNumber = window.getRecordCreationNumber(item, records, 'ai_' + tabKey);
             const assessmentDetails = splitAssessmentSubject(item.subject);
 
             // Status Badge Color

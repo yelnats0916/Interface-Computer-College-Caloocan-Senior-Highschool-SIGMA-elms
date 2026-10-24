@@ -5,23 +5,49 @@ function serviceRequestIsSecure(): bool {
     return in_array(strtolower($_SERVER['HTTPS'] ?? ''), ['on', '1'], true) || (string)($_SERVER['SERVER_PORT'] ?? '') === '443';
 }
 
-function serviceVaultAdmin(array $user): bool {
+function serviceVaultAdmin(array $user, string $scope = 'integrations'): bool {
     $role = preg_replace('/[\s_-]+/', '', strtolower($user['role'] ?? ''));
     if (strtolower($user['status'] ?? '') !== 'active' || !empty($user['is_deleted'])) return false;
     if ($role === 'masteradmin') return true;
+    if($scope==='maintenance'){require_once __DIR__.'/maintenance_policy.php';return sigmaMaintenanceCanManage($user);}
+    if (in_array($scope,['backups','recovery'],true)) return false;
     $permissions = json_decode($user['permissions'] ?? '{}', true) ?: [];
-    return $role === 'admin' && ($permissions['settingsMain'] ?? false) === true && ($permissions['settingsApi'] ?? false) === true;
+    $key = $scope === 'recovery' ? 'settingsRecovery' : 'settingsApi';
+    return $role === 'admin' && ($permissions['settingsMain'] ?? true) === true && ($permissions[$key] ?? false) === true;
 }
 
 function recordServiceVaultVerification(PDO $db, string $id, string $outcome, string $panel = ''): void {
     $actions = ['success'=>'Administrator settings verification succeeded', 'failed'=>'Administrator settings verification failed', 'canceled'=>'Administrator settings verification canceled'];
     if (!isset($actions[$outcome])) throw new InvalidArgumentException('Invalid verification outcome.');
     require_once __DIR__.'/activity_audit.php';
-    $panels = ['ai'=>'SIGMA AI Integration Engines','drive'=>'Google Drive Cloud Storage','recaptcha'=>'Google reCAPTCHA Protection','recovery'=>'Record Recovery'];
+    $panels = ['ai'=>'SIGMA AI Integration Engines','drive'=>'Google Drive Cloud Storage','recaptcha'=>'Google reCAPTCHA Protection','recovery'=>'Record Recovery','backups'=>'Database Backups','maintenance'=>'System Maintenance'];
     $details = sigmaActivityContext($actions[$outcome])['details'];
     if ($panel === 'recovery') $details = ['success'=>'Administrator identity was verified for Record Recovery.', 'failed'=>'The administrator verification attempt for Record Recovery failed.', 'canceled'=>'Administrator verification for Record Recovery was canceled.'][$outcome];
     if (isset($panels[$panel])) $details = ($panel === 'recovery' ? 'Protected page: ' : 'API panel: ').$panels[$panel]."\n".$details;
     sigmaRecordActivity($db,$id,$actions[$outcome],'Security',$details);
+}
+
+function serviceRecoveryRefreshCookie(string $tab): string {
+    if(!preg_match('/^[a-f0-9]{32}$/D',$tab))throw new InvalidArgumentException('Invalid recovery visit.');
+    return 'sigma_recovery_refresh_'.$tab;
+}
+function serviceRecoveryRefreshOptions(int $expires): array {
+    return ['expires'=>$expires,'path'=>'/php/api/auth.php','secure'=>serviceRequestIsSecure(),'httponly'=>true,'samesite'=>'Strict'];
+}
+function serviceRecoveryRefreshPayload(string $cookie,string $tab,string $sessionHash,string $owner,string $key): ?array {
+    try{
+        $payload=decryptServiceSettings(base64_decode($cookie,true)?:'',hash_hkdf('sha256',$key,32,'sigma-recovery-refresh-v1'));
+        if(($payload['tab']??'')!==$tab||($payload['owner']??'')!==$owner||!hash_equals($payload['session']??'',$sessionHash)||(int)($payload['expires']??0)<=time()||!preg_match('/^[a-f0-9]{64}$/D',$payload['token']??''))return null;
+        return $payload;
+    }catch(Throwable $error){return null;}
+}
+function resumeServiceRecoveryVerification(string $tab): ?array {
+    $name=serviceRecoveryRefreshCookie($tab);$cookie=$_COOKIE[$name]??'';if(!$cookie)return null;
+    require_once __DIR__.'/application_auth.php';$db=serviceSettingsPdo();$actor=sigmaApplicationUser($db);
+    if(!$actor||!serviceVaultAdmin($actor,'backups'))return null;
+    $payload=serviceRecoveryRefreshPayload($cookie,$tab,hash('sha256',sigmaApplicationToken()),(string)$actor['id'],serviceMasterKey());if(!$payload)return null;
+    $query=$db->prepare('SELECT expires_at FROM service_vault_sessions WHERE token_hash=? AND user_id=? AND expires_at>UTC_TIMESTAMP()');$query->execute([hash('sha256',$payload['token']),$actor['id']]);$expiry=$query->fetchColumn();if(!$expiry)return null;
+    return ['token'=>$payload['token'],'expires_in'=>max(0,min($payload['expires'],strtotime($expiry.' UTC'))-time())];
 }
 
 function authorizeServiceVault(array $input): string {
@@ -29,7 +55,8 @@ function authorizeServiceVault(array $input): string {
     $db = serviceSettingsPdo();
     require_once __DIR__ . '/application_auth.php';
     $actor = sigmaApplicationUser($db);
-    if (!$actor || !serviceVaultAdmin($actor)) throw new RuntimeException('Sign in as an authorized administrator before verifying your password.');
+    $scope = in_array($input['panel']??'',['recovery','backups','maintenance'],true) ? $input['panel'] : 'integrations';
+    if (!$actor || !serviceVaultAdmin($actor, $scope)) throw new RuntimeException('Sign in as an authorized administrator before verifying your password.');
     $client = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? 'unknown');
     $check = $db->prepare('SELECT attempts, blocked_until FROM service_vault_login_attempts WHERE client_hash = ?');
     $check->execute([$client]);
@@ -42,7 +69,7 @@ function authorizeServiceVault(array $input): string {
     $stmt = $db->prepare('SELECT id, role, status, is_deleted, password, permissions FROM users WHERE id = ? AND is_deleted = 0 LIMIT 1');
     $stmt->execute([$id]);
     $user = $stmt->fetch();
-    $valid = $password !== '' && $user && (password_verify($password, $user['password']) || (password_get_info($user['password'])['algo'] === null && hash_equals($user['password'], $password))) && serviceVaultAdmin($user);
+    $valid = $password !== '' && $user && (password_verify($password, $user['password']) || (password_get_info($user['password'])['algo'] === null && hash_equals($user['password'], $password))) && serviceVaultAdmin($user, $scope);
     if (!$valid) {
         $count = $attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'] . ' UTC') <= time() ? 1 : (int)($attempt['attempts'] ?? 0) + 1;
         $save = $db->prepare('INSERT INTO service_vault_login_attempts(client_hash, attempts, blocked_until) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts), blocked_until=VALUES(blocked_until), updated_at=CURRENT_TIMESTAMP');
@@ -55,19 +82,25 @@ function authorizeServiceVault(array $input): string {
     $db->prepare('DELETE FROM service_vault_sessions WHERE expires_at < UTC_TIMESTAMP()')->execute();
     $db->prepare('INSERT INTO service_vault_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))')->execute([hash('sha256', $token), $user['id']]);
     recordServiceVaultVerification($db, $id, 'success', (string)($input['panel'] ?? ''));
+    if(in_array($scope,['recovery','backups'],true)&&isset($input['recoveryTab'])){
+        $tab=(string)$input['recoveryTab'];$name=serviceRecoveryRefreshCookie($tab);
+        $payload=['tab'=>$tab,'owner'=>$id,'session'=>hash('sha256',sigmaApplicationToken()),'token'=>$token,'expires'=>time()+900];
+        $cookie=base64_encode(encryptServiceSettings($payload,hash_hkdf('sha256',serviceMasterKey(),32,'sigma-recovery-refresh-v1')));
+        setcookie($name,$cookie,serviceRecoveryRefreshOptions($payload['expires']));
+    }
     return $token;
 }
 
-function requireServiceVaultAccess(): void {
+function requireServiceVaultAccess(string $scope = 'integrations'): void {
     // Local credential management now uses the same verified database identity.
     $host = strtolower(parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST) ?: '');
-    if (in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)
+    if ($scope!=='maintenance' && in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)
         && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) {
         require_once __DIR__ . '/application_auth.php';
         $actor = sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
-        if (!serviceVaultAdmin($actor)) {
+        if (!serviceVaultAdmin($actor, $scope)) {
             http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'This administrator cannot manage service credentials.']);
+            echo json_encode(['success' => false, 'error' => $scope === 'recovery' ? 'This administrator cannot access Record Recovery.' : 'This administrator cannot manage service credentials.']);
             exit;
         }
         return;
@@ -80,10 +113,10 @@ function requireServiceVaultAccess(): void {
         $stmt = serviceSettingsPdo()->prepare('SELECT u.role, u.status, u.is_deleted, u.permissions FROM service_vault_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>UTC_TIMESTAMP()');
         $stmt->execute([hash('sha256', $token)]);
         $user = $stmt->fetch();
-        if ($user && serviceVaultAdmin($user)) return;
+        if ($user && serviceVaultAdmin($user, $scope)) return;
     }
     http_response_code(403);
-    echo json_encode(['success' => false, 'code' => 'VAULT_AUTH_REQUIRED', 'error' => 'Verify administrator credentials to manage service keys.']);
+    echo json_encode(['success' => false, 'code' => 'VAULT_AUTH_REQUIRED', 'error' => $scope === 'recovery' ? 'Verify administrator credentials to access Record Recovery.' : 'Verify administrator credentials to manage service keys.']);
     exit;
 }
 

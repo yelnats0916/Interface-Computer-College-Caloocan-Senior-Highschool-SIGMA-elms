@@ -460,11 +460,11 @@
                                     </div>
                                 </div>
                                 <div id="user-profile-action-btn-wrap" class="relative self-end mb-6">
-                                    <!-- 1. Settings Gear Button (Only for "Edit Account" mode) -->
+                                    <!-- Account settings for authorized profile management. -->
                                     <button type="button" id="profile-settings-btn"
                                         onclick="window.toggleProfileSettingsMenu(event)"
                                         class="hidden w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-black transition-all group shadow-sm"
-                                        title="Account Settings">
+                                        title="Account Settings" aria-label="Account Settings">
                                         <i class="fa-solid fa-gear text-base group-hover:rotate-90 transition-transform duration-500 text-black"></i>
                                     </button>
                                     <div id="profile-settings-modal"
@@ -1072,11 +1072,11 @@
             if (totalMasters <= 1) canDeactivateThisUser = false;
         }
         const cleanDeleteId = String(userData.id || userData.uid || '').replace(/^#/, '').trim();
-        const canDeleteThisUser = canDeactivateThisUser && !isTargetMaster && cleanDeleteId !== '1111111' && cleanDeleteId !== '2222222';
+        const canDeleteThisUser = canDelete && canDeactivateThisUser && !isTargetMaster && cleanDeleteId !== '1111111' && cleanDeleteId !== '2222222';
 
         if (settingsBtn) {
             const isTargetAdmin = isTargetMaster || isRowAdmin;
-            const isHidden = !(isViewProfileMode || isEditAccountMode) || isNavSelf || userData.fromSearch === true || isTargetAdmin;
+            const isHidden = !(isViewProfileMode || isEditAccountMode) || isNavSelf || userData.fromSearch === true || (isTargetAdmin && !canEditThisUser);
             settingsBtn.classList.toggle('hidden', isHidden);
             const backBtn = document.getElementById('profile-settings-back-btn');
             if (backBtn) {
@@ -1086,7 +1086,7 @@
             if (infoBtn) infoBtn.classList.toggle('hidden', !canEditThisUser);
             const permsBtn = document.getElementById('profile-edit-permissions-btn');
             if (permsBtn) {
-                permsBtn.classList.toggle('hidden', !canEditThisUser);
+                permsBtn.classList.toggle('hidden', !canEditThisUser || (isTargetAdmin && !isViewerMaster));
             }
             const permsLabel = document.getElementById('profile-edit-permissions-label');
             if (permsLabel) {
@@ -1103,7 +1103,7 @@
         const statusLabel = document.getElementById('profile-status-label');
         const statusDesc = document.getElementById('profile-status-desc');
         if (statusBtn && statusIcon && statusLabel) {
-            if (!canDeactivateThisUser) {
+            if (!canDeactivateThisUser || !canActionDeactivate) {
                 statusBtn.classList.add('hidden');
             } else {
                 statusBtn.classList.remove('hidden');
@@ -1168,7 +1168,7 @@
         if (lockBtn) {
             // Hierarchy rule: When account is deactivated, it cannot be locked nor unlocked
             const isTargetDeactivated = (userData.status || '').toLowerCase() === 'inactive' || (userData.status || '').toLowerCase() === 'deactivated';
-            lockBtn.classList.toggle('hidden', isSelf || isSelfUser || isTargetMaster || !canActionLock || isTargetDeactivated);
+            lockBtn.classList.toggle('hidden', isSelf || isSelfUser || isTargetMaster || !canEditThisUser || !canActionLock || isTargetDeactivated);
         }
         if (lockLabel) {
             lockLabel.textContent = isLocked ? 'Unlock Account' : 'Lock Account';
@@ -1182,7 +1182,7 @@
 
         const reset2faBtn = document.getElementById('profile-reset-2fa-btn');
         if (reset2faBtn) {
-            reset2faBtn.classList.toggle('hidden', (isSelfUser && !isViewerMaster) || !canActionPassword);
+            reset2faBtn.classList.toggle('hidden', !canEditThisUser || (isSelfUser && !isViewerMaster) || !canActionPassword);
         }
 
         const deleteBtn = document.getElementById('profile-delete-btn');
@@ -1232,7 +1232,7 @@
         const bannerButtonsContainer = (settingsBtn || actionsBtn)?.closest('.relative');
         if (bannerButtonsContainer) {
             const isTargetAdmin = isTargetMaster || isRowAdmin;
-            const isContHidden = isNavSelf || (!isEditAccountMode && !isViewProfileMode) || userData.fromSearch === true || isTargetAdmin;
+            const isContHidden = isNavSelf || (!isEditAccountMode && !isViewProfileMode) || userData.fromSearch === true || (isTargetAdmin && !canEditThisUser);
             bannerButtonsContainer.classList.toggle('hidden', isContHidden);
         }
 

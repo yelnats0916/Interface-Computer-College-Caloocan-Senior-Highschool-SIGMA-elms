@@ -11,13 +11,28 @@
         return prefix+'-legacy-'+(hash>>>0).toString(16);
     }
     function activity(record) {
-        const title = text(record.activity || record.action, 'Activity recorded');
+        let title = text(record.activity || record.action, 'Activity recorded');
         let module = text(record.module, 'System');
         let details = text(record.details || record.description, '');
+        if (details === 'Additional context was not captured for this event.') details = '';
+        const units = /^Assigned user-approved provisional units to subject ([^:]+): ([0-9.]+) units; ICC confirmation pending$/i.exec(title);
+        const imported = /^Imported user-requested DepEd-based draft subject ([^:]+): (.*); school scheduling pending confirmation$/i.exec(title);
+        const renamed = /^Removed imported strand suffix from subject ([^;]+); strand remains stored separately$/i.exec(title);
+        if (units) {
+            title = 'Updated Subject Units'; module = 'Curriculum';
+            details ||= `Subject code: ${units[1]}\nUnits: ${units[2]}\nUnit basis: Provisional application convention; ICC confirmation pending.`;
+        } else if (imported) {
+            title = 'Created Subject'; module = 'Curriculum';
+            details ||= `Subject code: ${imported[1]}\nSubject name: ${imported[2]}\nStatus: Draft\nScheduling: Pending school confirmation.`;
+        } else if (renamed) {
+            title = 'Updated Subject Name'; module = 'Curriculum';
+            details ||= `Subject code: ${renamed[1]}\nChange: Removed the strand suffix from the subject name.\nStrand: Stored separately.`;
+        }
         if (/^Administrator settings verification/i.test(title)) {
             module = 'Security';
-            details ||= /succeeded/i.test(title) ? 'Administrator identity was verified for protected integration settings.'
+            const result = /succeeded/i.test(title) ? 'Administrator identity was verified for protected integration settings.'
                 : /failed/i.test(title) ? 'The verification attempt for protected integration settings failed.' : 'Verification for protected integration settings was canceled.';
+            details = details ? details.replace('No credentials are recorded.', result) : result;
         }
         const account = /^(?:Created|Saved|Updated|Deleted|Restored|Deactivated|Activated|Locked|Unlocked)\s+(?:(Master Admin|Admin|Teacher|Student)\s+)?account\s+([^\s()]+)/i.exec(title);
         if (!details && account) details = `Account ID: ${account[2]}${account[1] ? '\nRole at event: ' + account[1] : ''}`;

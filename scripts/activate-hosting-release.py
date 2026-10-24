@@ -57,6 +57,13 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
     for path in (release / 'public').rglob('*'):
         path.chmod(0o755 if path.is_dir() else 0o644)
     (release / 'operations').chmod(0o700)
+    # Uploaded announcement files must survive replacing the public release.
+    upload_store = HOME / 'sigma-private/announcement-uploads'
+    upload_store.mkdir(parents=True, exist_ok=True, mode=0o755)
+    public_uploads = release / 'public/uploads'
+    if public_uploads.exists() or public_uploads.is_symlink():
+        raise RuntimeError('Uploads must be runtime storage, not release contents.')
+    public_uploads.symlink_to(upload_store, target_is_directory=True)
     web = HOME / 'www'
     previous = str(web.resolve())
     if web.is_symlink():

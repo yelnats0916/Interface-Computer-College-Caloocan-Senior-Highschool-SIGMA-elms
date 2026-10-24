@@ -32,13 +32,16 @@
         if (generationId && !/^[A-Z]{3,8}-\d{4}-\d{4,}$/.test(generationId)) throw new TypeError('Invalid AI generation ID');
         return { id: String(log.id || crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-')),
             userId: String(log.userId), feature: log.feature, timestamp: timestamp.toISOString(),
+            conversationId: String(log.conversationId || log.historyRecovery?.conversationId || ''), conversationTitle: String(log.conversationTitle || ''),
+            historyRecovery: log.historyRecovery || null,
             prompt: String(log.prompt || ''), response: String(log.response || ''), actionDescription: String(log.actionDescription || ''),
-            model: String(log.model || 'Not recorded'), status: ['Success', 'Failed', 'Fallback Used'].includes(log.status) ? log.status : 'Not recorded',
+            model: String(log.model || 'Not recorded'), status: ['Success', 'Failed', 'Fallback Used', 'Recovered'].includes(log.status) ? log.status : 'Not recorded',
             ...(generationId ? { generationId } : {}),
             ...(log.provider && ['gemini', 'groq'].includes(log.provider) ? { provider: log.provider } : {}),
             ...(log.keyId ? { keyId: String(log.keyId), keyLabel: String(log.keyLabel || 'API Key') } : {}),
             evidenceSources: normalizeEvidenceSources(log.evidenceSources),
             ...(log.feature === 'grade_insights' && typeof log.gradeEvidenceKey === 'string' ? { gradeEvidenceKey: log.gradeEvidenceKey, gradeViewKey: String(log.gradeViewKey || '') } : {}),
+            usageExcluded: log.usageExcluded === true, usageExclusionReason: String(log.usageExclusionReason || ''),
             isDeleted: Boolean(log.isDeleted), deletedAt: log.deletedAt || null, deletedBy: log.deletedBy || null,
             cardRecordId: log.cardRecordId || null, cardRemoved: Boolean(log.cardRemoved), cardRemovedAt: log.cardRemovedAt || null, cardRemovedBy: log.cardRemovedBy || null,
             source: log.source && ['student', 'teacher'].includes(log.source.kind) && log.source.cardId && log.source.signature
@@ -52,7 +55,8 @@
         } catch { return []; }
     }
     function save(logs) {
-        localStorage.setItem(key, JSON.stringify(logs));
+        try { localStorage.setItem(key, JSON.stringify(logs)); }
+        catch (error) { console.warn('AI log cache is unavailable; continuing with database persistence.', error); }
         window.dispatchEvent(new Event('sigma:ai-logs-updated'));
     }
     // Call only after an actual provider request completes; chat placeholders are not logs.

@@ -207,9 +207,17 @@ try {
     }
 
     $action = trim($payload['action'] ?? '');
+    if($action==='resume_recovery_verification'){
+        $grant=resumeServiceRecoveryVerification((string)($payload['recoveryTab']??''));
+        jsonOut($grant?['success'=>true]+$grant:['success'=>false]);
+    }
+    if($action==='clear_recovery_verification'){
+        setcookie(serviceRecoveryRefreshCookie((string)($payload['recoveryTab']??'')),'',serviceRecoveryRefreshOptions(time()-3600));
+        jsonOut(['success'=>true]);
+    }
     if ($action === 'cancel_service_vault_verification') {
         $actor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator']);
-        if (!serviceVaultAdmin($actor)) jsonOut(['success'=>false,'error'=>'Administrator access required.'],403);
+        if (!serviceVaultAdmin($actor, in_array($payload['panel']??'',['recovery','backups','maintenance'],true) ? $payload['panel'] : 'integrations')) jsonOut(['success'=>false,'error'=>'Administrator access required.'],403);
         recordServiceVaultVerification($pdo, (string)$actor['id'], 'canceled', (string)($payload['panel'] ?? ''));
         jsonOut(['success'=>true]);
     }
@@ -217,7 +225,14 @@ try {
         try { jsonOut(['success' => true, 'token' => authorizeServiceVault($payload), 'expires_in' => 900]); }
         catch (InvalidArgumentException | RuntimeException $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 403); }
     }
-    if (in_array($action, ['save_ai_routing', 'save_recaptcha_config', 'discover_ai_key', 'save_ai_vault_key', 'save_ai_config', 'save_ai_designations', 'set_active_ai_key', 'delete_ai_key', 'test_ai_vault_key', 'test_ai_connection'], true)) requireServiceVaultAccess();
+    if ($action==='save_recaptcha_config') {
+        if (($payload['scope']??'')==='defense') {
+            $actor=sigmaRequireApplicationActor($pdo,['admin','masteradmin','administrator']);
+            require_once $rootDir.'/php/includes/role_permissions.php';
+            if(!sigmaActorPermission($actor,'settingsSecurity'))jsonOut(['success'=>false,'error'=>'Permission required.'],403);
+        } else requireServiceVaultAccess();
+    }
+    if (in_array($action, ['save_ai_routing', 'discover_ai_key', 'save_ai_vault_key', 'save_ai_config', 'save_ai_designations', 'set_active_ai_key', 'delete_ai_key', 'test_ai_vault_key', 'test_ai_connection'], true)) requireServiceVaultAccess();
 
     if ($action === 'save_ai_routing') {
         $services = file_exists($rootDir . '/config/services.php') ? require($rootDir . '/config/services.php') : [];

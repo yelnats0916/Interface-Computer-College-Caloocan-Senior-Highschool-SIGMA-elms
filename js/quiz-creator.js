@@ -2625,7 +2625,7 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
             : (isDraft ? `<i class="fa-solid fa-file-pen text-sm text-amber-800"></i>` : `<i class="fa-solid fa-file-signature text-sm text-[#15803d]"></i>`));
 
     const activeBorderClass = (!isDraft && isSelected)
-        ? 'bg-emerald-50/70 !border-2 !border-[#15803d] [outline:2px_solid_#15803d] [outline-offset:2px] shadow-xs'
+        ? 'sigma-quiz-card-selected bg-emerald-50/70'
         : (isCurrentActive
             ? 'bg-emerald-50/60 !border-2 !border-emerald-400 shadow-2xs'
             : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100/80 shadow-2xs');
@@ -2657,7 +2657,7 @@ window._renderSingleLibraryModalCard = function (quiz, currentQuizId) {
                             <h5 class="text-sm font-bold text-black break-words line-clamp-1 flex-1 min-w-0" title="${escapeHtml(quiz.title || 'Untitled Quiz')}">${escapeHtml(quiz.title || 'Untitled Quiz')}</h5>
                             <div class="flex items-center gap-1 shrink-0 flex-wrap">
                                 ${isDraft ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[8px] font-black uppercase tracking-wider">DRAFT</span>` : ''}
-                                ${isAiQuiz ? `<span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 text-[8px] font-black uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-bolt text-[8px] text-[#FFD000]"></i> AI GENERATED</span>` : ''}
+                                ${isAiQuiz ? `<span class="sigma-quiz-generated-badge"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Generated</span>` : ''}
                                 ${isRecent ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-[#15803d] text-[8px] font-black uppercase tracking-wider">NEW</span>` : ''}
                                 ${isCurrentActive ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[8px] font-bold">CURRENT</span>` : ''}
                             </div>

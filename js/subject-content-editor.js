@@ -21,7 +21,13 @@
     }
 
     window.usesCombinedSubjectContent = usesCombinedSubjectContent;
+    window.canReleaseFromSubjectContent = function () {
+        const opts = window.subjectEditorOptions || {};
+        const section = String(opts.section || opts.selectedSection || '').trim();
+        return opts.focus === 'content' && opts.contentOrigin !== 'subject-catalog' && section !== '' && section.toLowerCase() !== 'all';
+    };
     window.openReleaseFromSubjectContent = function () {
+        if (!window.canReleaseFromSubjectContent()) return;
         const subjectId = window.originalEditingSubjectId || window.originalEditingSubjectCode || sharedContentSubjectId();
         const section = window.activeSubjectEditorSection || sharedContentSection(window.subjectEditorOptions);
         const quarter = window.currentSubjectMaterialQuarter || window.currentSubjectTopicQuarter || 'q1';
@@ -124,7 +130,7 @@
         const opts = options || {};
         const subjectId = sharedContentSubjectId(opts.subjectId);
         if (!subjectId || typeof window.openSubjectEditor !== 'function') return;
-        const section = sharedContentSection(opts);
+        const section = opts.contentOrigin === 'subject-catalog' ? '' : sharedContentSection(opts);
         window.activeCurriculumScope = 'master';
         window.activeCurriculumScopeLabel = 'Master Syllabus';
         window.openSubjectEditor(subjectId, 3, {
@@ -134,6 +140,7 @@
             hideBars: true,
             section: section,
             selectedSection: section,
+            contentOrigin: opts.contentOrigin || 'section',
             onBack: opts.onBack || null,
             onExit: opts.onExit || null,
             onSave: opts.onSave || null

@@ -23,6 +23,7 @@ desktop.ini
 config/database.php
 config/google_service_account.json
 config/*.json
+private-credentials/
 *.json.key
 
 # ─── Scratch & Verification Scripts ───────────────────────

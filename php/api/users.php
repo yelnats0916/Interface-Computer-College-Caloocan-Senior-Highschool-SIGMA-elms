@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
+require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
  * SIGMA ELMS — User Management REST API
  * 
@@ -41,6 +42,7 @@ if (!$pdo) {
 }
 
 function userRowToRecord(array $row): array {
+    global $pdo;
     $permissions = [];
     if (!empty($row['permissions'])) {
         $permissions = is_string($row['permissions']) ? json_decode($row['permissions'], true) : $row['permissions'];
@@ -53,6 +55,7 @@ function userRowToRecord(array $row): array {
     }
 
     return [
+        'creationNumber' => sigmaTableCreationNumber($pdo, 'users', (string)$row['id']),
         'id'           => (string) $row['id'],
         'uid'          => (string) $row['id'],
         'firstName'    => (string) ($row['first_name'] ?? ''),
@@ -136,7 +139,7 @@ try {
         $action = trim($input['action'] ?? 'save');
         $targetInput = $input['user'] ?? $input;
         $targetId = trim($targetInput['id'] ?? $targetInput['uid'] ?? '');
-        $targetStmt = $pdo->prepare('SELECT role, permissions FROM users WHERE id=?');
+        $targetStmt = $pdo->prepare('SELECT role, permissions, status, password FROM users WHERE id=?');
         $targetStmt->execute([$targetId]);
         $targetAccount = $targetStmt->fetch(PDO::FETCH_ASSOC) ?: null;
         if ($action === 'create') $targetAccount = null;
@@ -147,11 +150,21 @@ try {
         if ($actorRole !== 'masteradmin') {
             foreach (array_filter([$requestedRole, $targetAccount['role'] ?? null]) as $managedRole) {
                 $permission = ['Admin'=>'manageAdmins','Teacher'=>'manageTeachers','Student'=>'manageStudents'][$managedRole] ?? null;
-                if ($managedRole === 'Master Admin' || !$permission || ($actorPermissions[$permission] ?? false) !== true) jsonResponse(['success'=>false,'error'=>'Your role cannot manage this account.'], 403);
+                if ($managedRole === 'Master Admin' || !$permission || !sigmaActorPermission($databaseActor, $permission)) jsonResponse(['success'=>false,'error'=>'Your role cannot manage this account.'], 403);
             }
             $actionPermission = ['delete'=>'actionDelete','restore'=>'actionDelete','deactivate'=>'actionDeactivate','activate'=>'actionDeactivate','change_password'=>'actionPassword'][$action] ?? null;
-            if ($actionPermission && ($actorPermissions[$actionPermission] ?? false) !== true) jsonResponse(['success'=>false,'error'=>'Your role cannot perform this account action.'], 403);
+            if ($actionPermission && !sigmaActorPermission($databaseActor, $actionPermission)) jsonResponse(['success'=>false,'error'=>'Your role cannot perform this account action.'], 403);
+            if ($targetAccount && isset($targetInput['status']) && strcasecmp($targetInput['status'], $targetAccount['status']) !== 0) {
+                $statuses = array_map('strtolower', [$targetInput['status'], $targetAccount['status']]);
+                $statusPermission = count(array_intersect($statuses, ['inactive','deactivated'])) ? 'actionDeactivate' : 'actionLock';
+                if (!sigmaActorPermission($databaseActor, $statusPermission)) jsonResponse(['success'=>false,'error'=>'Your role cannot change this account status.'], 403);
+            }
+            if ($targetAccount && !empty($targetInput['password']) && !sigmaActorPermission($databaseActor, 'actionPassword')) jsonResponse(['success'=>false,'error'=>'Your role cannot change this account password.'], 403);
             if (isset($targetInput['permissions']) && in_array($requestedRole, ['Admin','Master Admin'], true) && ($targetAccount === null || json_decode($targetAccount['permissions'] ?? '{}', true) != $targetInput['permissions'])) jsonResponse(['success'=>false,'error'=>'Only a master admin can grant administrator permissions.'], 403);
+            if (isset($targetInput['permissions']['teacherManageAnnouncementComments'])) {
+                $storedPermissions = json_decode($targetAccount['permissions'] ?? '{}', true) ?: [];
+                if ($targetInput['permissions']['teacherManageAnnouncementComments'] !== ($storedPermissions['teacherManageAnnouncementComments'] ?? false)) jsonResponse(['success'=>false,'error'=>'Only a master admin can grant announcement comment management.'], 403);
+            }
         }
         protectServiceAdministratorAccounts($input);
 
@@ -277,7 +290,8 @@ try {
         $section = (string) ($userObj['gradeSection'] ?? $userObj['grade_section'] ?? '');
         $strand = (string) ($userObj['strand'] ?? '');
         $avatar = $userObj['avatar'] ?? null;
-        $perms = json_encode(sigmaNormalizeRolePermissions($role, $userObj['permissions'] ?? null));
+        $permissionInput = $userObj['permissions'] ?? ($existingUser ? json_decode($existingUser['permissions'] ?? '{}', true) : null);
+        $perms = json_encode(sigmaNormalizeRolePermissions($role, $permissionInput));
 
         $upsertSql = "
             INSERT INTO `users` (

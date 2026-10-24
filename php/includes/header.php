@@ -10,9 +10,9 @@ require_once __DIR__ . '/../../config/app.php';
 
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/feedback.css?v=20261022_feedback_v29">
+    <link rel="stylesheet" href="../css/feedback.css?v=20261024_shared_green_v164">
     <link rel="stylesheet" href="../css/content-loading.css?v=20261022_dots_only_v21">
-    <script src="../js/feedback.js?v=20261022_quiz_session_v36"></script>
+    <script src="../js/feedback.js?v=20261024_shared_green_v164"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title><?= htmlspecialchars($pageTitle ?? (APP_NAME . ' - ' . SCHOOL_NAME)) ?></title>
     <link rel="icon" type="image/jpeg" href="../image/ICC logo.jpg">

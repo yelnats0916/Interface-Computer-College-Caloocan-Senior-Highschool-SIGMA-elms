@@ -1,5 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
+require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
+require_once dirname(__DIR__) . '/includes/school_year_policy.php';
 /**
  * SIGMA ELMS — School Year Management REST API
  * 
@@ -39,7 +41,12 @@ if (!$pdo) {
 }
 
 function rowToRecord(array $row): array {
+    global $pdo;
+    $removalReason = sigmaSchoolYearRemovalReason($pdo, $row);
     return [
+        'canDelete' => $removalReason === '',
+        'deleteReason' => $removalReason,
+        'creationNumber' => sigmaTableCreationNumber($pdo, 'school_years', (string)$row['id']),
         'id'              => (string) $row['id'],
         'yearStart'       => (int) $row['year_start'],
         'yearEnd'         => (int) $row['year_end'],
@@ -65,7 +72,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     if ($method === 'GET') {
-        $stmt = $pdo->prepare("SELECT * FROM school_years WHERE is_deleted = 0 ORDER BY year_start DESC");
+        $role = preg_replace('/[\s_-]+/', '', strtolower($databaseActor['role'] ?? ''));
+        $where = in_array($role,['admin','masteradmin','administrator'],true) ? '' : 'WHERE is_deleted = 0';
+        $stmt = $pdo->prepare("SELECT * FROM school_years $where ORDER BY year_start DESC");
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $records = array_map('rowToRecord', $rows);
@@ -73,7 +82,7 @@ try {
         // Find active school year
         $activeRecord = null;
         foreach ($records as $r) {
-            if ($r['status'] === 'Active') {
+            if (!$r['isDeleted'] && $r['status'] === 'Active') {
                 $activeRecord = $r;
                 break;
             }
@@ -102,6 +111,9 @@ try {
             }
 
             $pdo->beginTransaction();
+            $target = $pdo->prepare('SELECT id FROM school_years WHERE id = ? AND is_deleted = 0 FOR UPDATE');
+            $target->execute([$recordId]);
+            if (!$target->fetchColumn()) throw new DomainException('School year not found. Refresh the list and try again.');
             // Deactivate others
             $pdo->exec("UPDATE school_years SET status = 'Inactive' WHERE status = 'Active'");
             // Activate target
@@ -122,6 +134,15 @@ try {
             }
 
             $pdo->beginTransaction();
+            $target = $pdo->prepare('SELECT id FROM school_years WHERE id = ? AND is_deleted = 0 FOR UPDATE');
+            $target->execute([$recordId]);
+            if (!$target->fetchColumn()) throw new DomainException('School year not found. Refresh the list and try again.');
+            if ($activateNextId) {
+                if ($activateNextId === $recordId) throw new InvalidArgumentException('Choose a different school year to activate.');
+                $target->execute([$activateNextId]);
+                if (!$target->fetchColumn()) throw new DomainException('The next school year is unavailable. Refresh the list and try again.');
+                $pdo->exec("UPDATE school_years SET status = 'Inactive' WHERE status = 'Active'");
+            }
             $stmt = $pdo->prepare("UPDATE school_years SET status = 'Completed (Archived)', archived_at = NOW() WHERE id = ?");
             $stmt->execute([$recordId]);
 
@@ -144,6 +165,18 @@ try {
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
             $actor = (string)$databaseActor['id'];
 
+            $role = preg_replace('/[\s_-]+/', '', strtolower($databaseActor['role'] ?? ''));
+            $permissions = json_decode($databaseActor['permissions'] ?? '{}', true) ?: [];
+            if ($role !== 'masteradmin' && (($permissions['syDelete'] ?? false) !== true || ($permissions['schoolMain'] ?? true) !== true)) {
+                jsonResponse(['success'=>false,'error'=>'You do not have permission to remove school years.'],403);
+            }
+            sigmaLockSchoolYearWrites($pdo);
+            $pdo->beginTransaction();
+            $target = $pdo->prepare('SELECT * FROM school_years WHERE id=? FOR UPDATE');
+            $target->execute([$recordId]); $year=$target->fetch(PDO::FETCH_ASSOC);
+            if (!$year) throw new DomainException('School year not found.');
+            sigmaAssertSchoolYearRemovable($pdo,$year);
+
             $stmt = $pdo->prepare("UPDATE school_years SET is_deleted = 1, deleted_at = UTC_TIMESTAMP(), deleted_by = ? WHERE id = ?");
             $stmt->execute([$actor, $recordId]);
 
@@ -152,6 +185,8 @@ try {
                 $logStmt->execute([$recordId, $actor]);
             } catch (Throwable $e) {}
 
+            $pdo->commit();
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
             jsonResponse(['success' => true, 'message' => 'School year deleted successfully']);
         }
 
@@ -186,6 +221,19 @@ try {
             $headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
             $actor = (string)$databaseActor['id'];
 
+            $role = preg_replace('/[\s_-]+/', '', strtolower($databaseActor['role'] ?? ''));
+            $permissions = json_decode($databaseActor['permissions'] ?? '{}', true) ?: [];
+            if ($role !== 'masteradmin' && (($permissions['syDelete'] ?? false) !== true || ($permissions['schoolMain'] ?? true) !== true)) {
+                jsonResponse(['success'=>false,'error'=>'You do not have permission to remove school years.'],403);
+            }
+            sigmaLockSchoolYearWrites($pdo);
+            $pdo->beginTransaction();
+            $target = $pdo->prepare('SELECT * FROM school_years WHERE id=? FOR UPDATE');
+            $target->execute([$recordId]); $year=$target->fetch(PDO::FETCH_ASSOC);
+            if (!$year) throw new DomainException('School year not found.');
+            sigmaAssertSchoolYearRemovable($pdo,$year);
+            if (empty($year['is_deleted'])) throw new DomainException('Move this unused year to Trash before permanently deleting it.');
+
             $stmt = $pdo->prepare("DELETE FROM school_years WHERE id = ?");
             $stmt->execute([$recordId]);
 
@@ -194,29 +242,31 @@ try {
                 $logStmt->execute([$recordId, $actor]);
             } catch (Throwable $e) {}
 
+            $pdo->commit();
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
             jsonResponse(['success' => true, 'message' => 'School year permanently deleted']);
         }
 
         // ── Action: SAVE / CREATE / UPDATE ─────────────────────────
-        $yearStart = (int) ($payload['yearStart'] ?? 0);
-        $yearEnd   = (int) ($payload['yearEnd'] ?? 0);
-
-        if ($yearStart <= 0 || $yearEnd <= 0) {
-            jsonResponse(['success' => false, 'error' => 'Invalid year range provided'], 400);
+        if (!in_array($action, ['save', 'create', 'update'], true)) {
+            jsonResponse(['success'=>false, 'error'=>'Unknown school-year action.'], 400);
         }
-
-        $id        = (string) ($payload['id'] ?? ('sy-' . $yearStart . '-' . $yearEnd));
-        $q1Start   = $payload['q1Start'] ?: null;
-        $q1End     = $payload['q1End'] ?: null;
-        $q2Start   = $payload['q2Start'] ?: null;
-        $q2End     = $payload['q2End'] ?: null;
-        $q3Start   = $payload['q3Start'] ?: null;
-        $q3End     = $payload['q3End'] ?: null;
-        $q4Start   = $payload['q4Start'] ?: null;
-        $q4End     = $payload['q4End'] ?: null;
-        $status    = (string) ($payload['status'] ?? 'Inactive');
-
+        $record = sigmaValidateSchoolYear($payload);
+        $yearStart = $record['yearStart']; $yearEnd = $record['yearEnd'];
+        $id = (string)($payload['id'] ?? ('sy-' . $yearStart . '-' . $yearEnd));
+        if ($id === '' || strlen($id) > 64) throw new InvalidArgumentException('Invalid school-year ID.');
+        foreach (['q1Start','q1End','q2Start','q2End','q3Start','q3End','q4Start','q4End','status'] as $key) $$key = $record[$key];
+        // Serialize creation and updates, including two administrators saving at once.
+        if ((int)$pdo->query("SELECT GET_LOCK('sigma_school_year_write', 10)")->fetchColumn() !== 1) {
+            jsonResponse(['success'=>false, 'error'=>'Another school year is being saved. Please try again.'], 409);
+        }
         $pdo->beginTransaction();
+        $creating = $action === 'create';
+        if ($action === 'save') {
+            $find = $pdo->prepare('SELECT id FROM school_years WHERE id = ?'); $find->execute([$id]);
+            $creating = !$find->fetchColumn();
+        }
+        $previous = sigmaCheckSchoolYearConflict($pdo, $record, $id, $creating);
 
         // If this record is being saved as Active, ensure no other record is Active
         if ($status === 'Active') {
@@ -224,83 +274,49 @@ try {
             $stmtDeact->execute([$id]);
         }
 
-        $sql = "INSERT INTO school_years (
-                    id, year_start, year_end,
-                    q1_start, q1_end, q2_start, q2_end,
-                    q3_start, q3_end, q4_start, q4_end,
-                    status, is_deleted
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-                ON DUPLICATE KEY UPDATE
-                    year_start = VALUES(year_start),
-                    year_end = VALUES(year_end),
-                    q1_start = VALUES(q1_start),
-                    q1_end = VALUES(q1_end),
-                    q2_start = VALUES(q2_start),
-                    q2_end = VALUES(q2_end),
-                    q3_start = VALUES(q3_start),
-                    q3_end = VALUES(q3_end),
-                    q4_start = VALUES(q4_start),
-                    q4_end = VALUES(q4_end),
-                    status = VALUES(status),
-                    is_deleted = is_deleted";
+        $sql = $creating
+            ? "INSERT INTO school_years (year_start, year_end, q1_start, q1_end, q2_start, q2_end, q3_start, q3_end, q4_start, q4_end, status, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            : "UPDATE school_years SET year_start=?, year_end=?, q1_start=?, q1_end=?, q2_start=?, q2_end=?, q3_start=?, q3_end=?, q4_start=?, q4_end=?, status=? WHERE id=?";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
-            $id, $yearStart, $yearEnd,
+            $yearStart, $yearEnd,
             $q1Start, $q1End, $q2Start, $q2End,
             $q3Start, $q3End, $q4Start, $q4End,
-            $status
+            $status, $id
         ]);
 
-        $gdriveFolderId = null;
-        $gdriveFolderUrl = null;
+        sigmaRecordActivity($pdo, (string)$databaseActor['id'], $creating ? 'Created School Year' : 'Updated School Year', 'System', 'School year '.$yearStart.'-'.$yearEnd);
+        $pdo->commit();
+        $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+        $gdriveFolderId = $previous['gdrive_folder_id'] ?? null;
+        $gdriveFolderUrl = $previous['gdrive_folder_url'] ?? null;
         try {
-            if (function_exists('provisionSchoolYearFolders')) {
-                $gdriveRes = provisionSchoolYearFolders($yearStart, $yearEnd);
-                if ($gdriveRes && !empty($gdriveRes['sy_folder_id'])) {
-                    $gdriveFolderId = $gdriveRes['sy_folder_id'];
-                    $gdriveFolderUrl = $gdriveRes['sy_folder_url'];
-                    $upd = $pdo->prepare("UPDATE school_years SET gdrive_folder_id = ?, gdrive_folder_url = ? WHERE id = ?");
-                    $upd->execute([$gdriveFolderId, $gdriveFolderUrl, $id]);
+            if (!$gdriveFolderId && function_exists('provisionSchoolYearFolders')) {
+                $drive = provisionSchoolYearFolders($yearStart, $yearEnd);
+                if (!empty($drive['sy_folder_id'])) {
+                    $folder = $pdo->prepare('UPDATE school_years SET gdrive_folder_id=?, gdrive_folder_url=? WHERE id=?');
+                    $folder->execute([$drive['sy_folder_id'], $drive['sy_folder_url'] ?? '', $id]);
                 }
             }
-        } catch (Throwable $t) {
-            error_log("GDrive folder provisioning warning: " . $t->getMessage());
-        }
-
-        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved School Year', 'System', 'School year '.$yearStart.'-'.$yearEnd);
-        $pdo->commit();
+        } catch (Throwable $warning) { error_log('School-year folder provisioning could not complete.'); }
+        $saved = $pdo->prepare('SELECT * FROM school_years WHERE id = ?');
+        $saved->execute([$id]);
 
         jsonResponse([
             'success' => true,
             'message' => 'School year saved successfully',
-            'record'  => rowToRecord([
-                'id'                => $id,
-                'year_start'        => $yearStart,
-                'year_end'          => $yearEnd,
-                'q1_start'          => $q1Start,
-                'q1_end'            => $q1End,
-                'q2_start'          => $q2Start,
-                'q2_end'            => $q2End,
-                'q3_start'          => $q3Start,
-                'q3_end'            => $q3End,
-                'q4_start'          => $q4Start,
-                'q4_end'            => $q4End,
-                'status'            => $status,
-                'gdrive_folder_id'  => $gdriveFolderId,
-                'gdrive_folder_url' => $gdriveFolderUrl,
-                'is_deleted'        => 0,
-                'archived_at'       => null,
-                'created_at'        => null,
-                'updated_at'        => null,
-            ])
+            'record' => rowToRecord($saved->fetch(PDO::FETCH_ASSOC))
         ]);
     }
 
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    jsonResponse(['success' => false, 'error' => $e->getMessage()], 500);
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+    $code = $e instanceof InvalidArgumentException ? 422 : ($e instanceof DomainException ? 409 : 500);
+    if ($e instanceof PDOException && ($e->errorInfo[1] ?? null) == 1062) $code = 409;
+    jsonResponse(['success' => false, 'error' => $code === 409 ? ($e instanceof DomainException ? $e->getMessage() : 'This school year already exists. Refresh the list to view it.') : ($code === 422 ? $e->getMessage() : 'School year could not be saved. Please try again.')], $code);
 }

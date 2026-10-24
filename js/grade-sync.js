@@ -15,7 +15,7 @@
         if (!auth.token || ![actor.id, actor.uid].filter(Boolean).map(String).includes(String(auth.userId))) throw new Error('Sign in again to connect live grade updates.');
         const response = await window.SigmaDatabase.fetch(endpoint(), { method: input ? 'POST' : 'GET', headers: { Authorization: `Bearer ${auth.token}`, ...(input ? { 'Content-Type': 'application/json' } : {}) },
             cache: 'no-store', signal: AbortSignal.timeout(15000), ...(input ? { body: JSON.stringify(input) } : {}) });
-        const result = await response.json();
+        const result = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || 'Unable to sync grades. Please try again.');
         return result;
     }
@@ -65,7 +65,8 @@
         if (pending) return pending;
         pending = request().then(result => { failures = 0; lastError = ''; receive(result); }).catch(error => {
             failures++;
-            if (lastError !== error.message) {
+            const temporary = error.retryable || error.name === 'TimeoutError' || error instanceof TypeError;
+            if (lastError !== error.message && !temporary) {
                 lastError = error.message;
                 window.SigmaAnnouncements?.showToast({
                     title: 'Live Grade Updates',
@@ -73,6 +74,7 @@
                     type: 'error'
                 });
             }
+            lastError = error.message;
             window.dispatchEvent(new CustomEvent('sigma:grade-sync-status', { detail: { connected: false, message: error.message } }));
         }).finally(() => { pending = null; });
         return pending;

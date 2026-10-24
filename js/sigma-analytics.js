@@ -217,7 +217,28 @@
         return result;
     }
 
-    function renderMetricHeaderHtml(title, statusLabel, iconName = '', labelId = '', indicatorId = '') {
+    function renderMetricRefreshHtml(metricId, title) {
+        const id = metricId === 'metric-ai' ? ' id="ai-usage-retry"' : '';
+        return `<button type="button"${id} class="sigma-metric-refresh" data-refresh-metric="${escapeHtml(metricId)}" aria-label="Refresh ${escapeHtml(title)}" title="Refresh ${escapeHtml(title)}" onclick="event.stopPropagation(); window.refreshMetricPanel('${metricId}', this)"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>`;
+    }
+    window.refreshMetricPanel = async function (id, button) {
+        if (button?.disabled) return;
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.querySelector('i')?.classList.add('fa-spin'); }
+        try {
+            if (id === 'metric-health' || id === 'metric-database') await window.refreshLiveSystemMetrics?.();
+            else if (id === 'metric-ai') await window.SigmaAiDatabase?.reloadLogs();
+            else if (id === 'metric-storage') await window.loadGoogleDriveFolderUsage?.();
+            else if (id === 'metric-security') { await window.SigmaAuthenticationLogs?.refresh(); window.syncSecurityMetric?.(); }
+            else if (id === 'metric-grading') window.syncGradingMetric?.();
+        } catch (error) {
+            window.showToastNotification?.('Unable to refresh this metric. Please try again.', 'error');
+        } finally {
+            if (button) { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.querySelector('i')?.classList.remove('fa-spin'); }
+        }
+    };
+
+    function renderMetricHeaderHtml(title, statusLabel, iconName = '', labelId = '', indicatorId = '', metricId = '') {
+        metricId ||= ({'system-status-label':'metric-health','ai-status-label':'metric-ai','storage-status-label':'metric-storage','security-status-label':'metric-security','database-status-label':'metric-database','grading-status-label':'metric-grading'})[labelId] || '';
         const titleFormatted = toTitleCase(title);
         const statusFormatted = toTitleCase(statusLabel);
         const usageAction = labelId === 'ai-status-label'
@@ -236,7 +257,10 @@
 
         return `
             <div class="sigma-metric-header pocket-metric-header flex items-center justify-between w-full">
-                <h4 class="sigma-metric-title pocket-metric-title text-black">${usageAction ? `<button type="button" class="sigma-usage-title-link" onclick="event.stopPropagation(); ${usageAction}">${titleFormatted}</button>` : titleFormatted}</h4>
+                <div class="sigma-metric-title-group">
+                    <h4 class="sigma-metric-title pocket-metric-title text-black">${usageAction ? `<button type="button" class="sigma-usage-title-link" onclick="event.stopPropagation(); ${usageAction}">${titleFormatted}</button>` : titleFormatted}</h4>
+                    ${renderMetricRefreshHtml(metricId, titleFormatted)}
+                </div>
                 <div class="sigma-metric-status pocket-metric-status ml-auto">
                     <span ${labelId ? `id="${labelId}"` : ''} class="sigma-metric-status-label pocket-metric-status-label text-[#15803d]">${statusFormatted}</span>
                     ${indicatorHtml}
@@ -251,7 +275,7 @@
     function liveMetricHtml(id) {
         const health = id === 'metric-health';
         const title = health ? 'System Health' : 'Database Load';
-        const header = `<div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-sm font-bold text-black">${title}</h4>${liveMetrics ? `<span class="text-xs font-semibold" style="color:#15803d">${health ? 'Responding' : 'Connected'} <i class="fa-solid ${health ? 'fa-circle' : 'fa-database'}" style="font-size:9px" aria-hidden="true"></i></span>` : ''}</div>`;
+        const header = renderMetricHeaderHtml(title, liveMetrics ? (health ? 'Responding' : 'Connected') : liveMetricsPending ? 'Checking' : 'Unavailable', health ? 'fa-circle' : 'fa-database', '', '', id);
         if (!liveMetrics) {
             const loading = liveMetricsPending;
             if (loading) return header + window.SigmaContentLoading.html({compact:true, label:'Loading system measurements'});
@@ -263,7 +287,6 @@
                 <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center"><i class="fa-solid ${loading ? 'fa-spinner fa-spin' : health ? 'fa-heart-pulse' : 'fa-database'} text-lg text-black-fade" aria-hidden="true"></i></div>
                 <p class="text-sm font-semibold text-black">${heading}</p>
                 <p class="text-xs text-black-fade leading-relaxed">${message}</p>
-                ${loading ? '' : '<button type="button" class="sigma-retry-link" onclick="window.refreshLiveSystemMetrics()">Refresh</button>'}
             </div>`;
         }
         const data = liveMetrics;
@@ -278,7 +301,7 @@
             <p class="text-xs text-black-fade">${mainLabel}</p>
         </div><div class="space-y-2 border-t border-slate-100 pt-3">`
             + rows.map(([label,value]) => `<div class="flex justify-between gap-3 text-xs"><span class="text-black">${label}</span><strong class="text-black">${escapeHtml(String(value))}</strong></div>`).join('')
-            + `</div><div class="flex items-center justify-between gap-2 mt-3 text-black-fade" style="font-size:10px"><span title="${escapeHtml(note)}">Live check · ${escapeHtml(new Date(data.checkedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</span><button type="button" class="cursor-pointer" aria-label="Refresh system measurements" title="Refresh measurements" onclick="window.refreshLiveSystemMetrics()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>`;
+            + `</div><div class="flex items-center justify-between gap-2 mt-3 text-black-fade" style="font-size:10px"><span title="${escapeHtml(note)}">Live check · ${escapeHtml(new Date(data.checkedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</span></div>`;
 
     }
     function paintLiveMetrics() {
@@ -304,9 +327,6 @@
         }
     };
     window.addEventListener('sigma:database-session-ready', () => window.refreshLiveSystemMetrics());
-    setInterval(() => {
-        if (!document.hidden) window.refreshLiveSystemMetrics();
-    }, 60000);
 
     function renderMetricCardHtml(item) {
         if (!item) return '';
@@ -349,23 +369,26 @@
                     ${renderMetricHeaderHtml(item.title, item.status.label, item.status.icon || 'fa-brain', 'ai-status-label', 'ai-status-icon')}
 
                     <!-- Segmented Control Row: Model & Period Side by Side -->
-                    <div class="grid grid-cols-2 gap-1.5 my-1.5 flex-shrink-0">
+                    <div class="sigma-ai-usage-controls">
                         <!-- Model Switcher -->
-                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                        <div class="sigma-ai-provider-switch">
                             <button id="btn-ai-gemini" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all bg-white text-black shadow-sm cursor-pointer" onclick="window.setAiModel && window.setAiModel('gemini')">Gemini</button>
                             <button id="btn-ai-groq" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade cursor-pointer" onclick="window.setAiModel && window.setAiModel('groq')">Groq</button>
                         </div>
-                        <!-- Period Switcher -->
-                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                            <button id="btn-period-daily" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all bg-white text-black shadow-sm cursor-pointer" onclick="window.setAiPeriod && window.setAiPeriod('daily')">Daily</button>
-                            <button id="btn-period-monthly" type="button" class="flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all text-black-fade cursor-pointer" onclick="window.setAiPeriod && window.setAiPeriod('monthly')">Monthly</button>
+                        <div class="sigma-ai-period-control">
+                        <select id="ai-usage-period" aria-label="AI usage period" class="min-w-0 w-full bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 text-[10.5px] font-bold text-black cursor-pointer" onchange="window.setAiPeriod && window.setAiPeriod(this.value)">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                        <svg class="sigma-ai-period-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
                     </div>
 
                     <div class="metric-body-centered flex-1 flex items-center justify-center text-center py-2">
                         <div class="flex items-baseline justify-center gap-1.5">
                             <span id="ai-requests-value" class="text-2xl font-black text-black leading-none tracking-tight">${item.requestsValue}</span>
-                            <span class="text-[11px] font-semibold text-black">Requests</span>
+                            <span id="ai-requests-label" class="text-[11px] font-semibold text-black">Requests today</span>
                         </div>
                     </div>
 
@@ -375,7 +398,7 @@
                             <span id="ai-usage-percent" class="text-[11px] font-bold text-black">${item.quotaPercent}</span>
                         </div>
                         <div id="ai-capacity-track" class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="ai-usage-bar" class="w-[0%] h-full bg-[#15803d] rounded-full transition-all duration-500"></div></div>
-                        <button type="button" id="ai-usage-retry" class="sigma-retry-link" onclick="window.retryAiUsage?.()" hidden>Refresh</button>
+                        <p id="ai-usage-scope" class="text-[10px] text-black-fade"></p>
                     </div>
                 </div>
             `;
@@ -522,14 +545,8 @@
             groqBtn.onclick = () => window.setAiModel('groq');
         }
 
-        const periodDailyBtn = document.getElementById('btn-period-daily');
-        const periodMonthlyBtn = document.getElementById('btn-period-monthly');
-        if (periodDailyBtn && typeof window.setAiPeriod === 'function') {
-            periodDailyBtn.onclick = () => window.setAiPeriod('daily');
-        }
-        if (periodMonthlyBtn && typeof window.setAiPeriod === 'function') {
-            periodMonthlyBtn.onclick = () => window.setAiPeriod('monthly');
-        }
+        const periodSelect = document.getElementById('ai-usage-period');
+        if (periodSelect) periodSelect.onchange = () => window.setAiPeriod?.(periodSelect.value);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -4155,7 +4172,7 @@
             students = getDemoGradebookStudents(subSec.sectionName);
         }
 
-        const rosterNumbers = new Map(students.map((student, index) => [student, index + 1]));
+        const rosterNumbers = new Map(students.map(student => [student, window.getRecordCreationNumber(student, students, 'users')]));
         const sortOrder = window.sigmaGradesState.studentSortOrder || 'name-asc';
         students = [...students].sort((a, b) => {
             const nameA = String(a.name || a.fullName || '').trim();

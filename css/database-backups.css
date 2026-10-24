@@ -1,0 +1,128 @@
+.recovery-hub {display:flex;min-height:calc(100vh - var(--sidebar-top-offset,82px));background:#f7f9fb;color:#111;font-family:Inter,Arial,sans-serif}
+.recovery-hub [hidden] {display:none!important}
+.recovery-hub-sidebar {width:320px;min-width:280px;flex-shrink:0;background:#fff;border-right:1px solid #e5e7eb;padding:32px 24px}
+.recovery-hub-sidebar nav {display:grid;gap:12px}
+.recovery-hub-sidebar button {display:flex;align-items:center;gap:22px;width:100%;border:0;background:transparent;text-align:left;padding:22px 24px;border-radius:20px;font-size:17px;font-weight:600;color:#111;cursor:pointer;min-height:72px}
+.recovery-hub-sidebar button i {width:22px;text-align:center}
+.recovery-hub-sidebar button:hover {background:#f1f5f9}
+.recovery-hub-sidebar button.active {background:#ffd000;color:#fff}
+.recovery-hub-sidebar button:focus-visible,.backup-button:focus-visible,.backup-row-actions button:focus-visible {outline:3px solid #ffd000;outline-offset:3px}
+.recovery-hub-main {min-width:0;flex:1;padding:40px;overflow:auto}
+.recovery-hub-main>[data-recovery-backups],.recovery-hub-records {max-width:1120px;margin:0 auto}
+.recovery-hub--detail .recovery-hub-sidebar {display:none}
+.recovery-hub-title {font-size:24px;font-weight:700;margin:0;padding:30px 30px 22px;border-bottom:1px solid #edf1f5}
+.recovery-hub-records {background:#fff;border:1px solid #edf1f5;border-radius:28px;box-shadow:0 2px 4px #16233405;overflow:hidden}
+.recovery-hub .record-recovery-layout {min-height:0;padding:26px;background:#fff}
+.backup-card {background:#fff;border:1px solid #edf1f5;border-radius:28px;padding:32px;margin-bottom:32px;box-shadow:0 2px 4px #16233405}
+.backup-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding-bottom:24px;border-bottom:1px solid #edf1f5;margin-bottom:26px}
+.backup-heading h2 {margin:0 0 10px;font-size:24px;line-height:1.3;font-weight:700}
+.backup-heading p,.backup-setting-row p {margin:0;color:#8b96a5;font-size:14px;line-height:1.6}
+.backup-access-badge {white-space:nowrap;background:#f0fdf4;color:#12813b;border:1px solid #bbf7d0;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:600}
+.backup-summary {display:grid;grid-template-columns:1fr 1fr;background:#f7f8fa;border-radius:16px;padding:24px;gap:25px;margin-bottom:24px}
+.backup-summary span {display:block;font-size:12px;color:#8b96a5;margin-bottom:10px}
+.backup-summary strong {font-size:14px;font-weight:600}
+.backup-setting-row {display:flex;align-items:center;justify-content:space-between;gap:28px;border:1px solid #e9eef4;border-radius:20px;padding:24px;margin-bottom:22px}
+.backup-setting-row h3 {font-size:15px;font-weight:600;color:#12813b;margin:0 0 7px}
+.recovery-hub button.backup-switch {position:relative;display:inline-flex;align-items:center;flex-shrink:0;width:52px;height:30px;min-width:52px;min-height:30px;padding:0;border:0;border-radius:20px;background:transparent;box-shadow:none;cursor:pointer}
+.backup-switch input {position:absolute;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:1}
+.backup-switch>span {display:block;width:100%;height:100%;border-radius:20px;background:#cbd5e1;transition:background .15s}
+.backup-switch span:after {content:'';display:block;background:white;width:24px;height:24px;border-radius:50%;margin:3px;box-shadow:0 1px 3px #0002;transition:transform .15s}
+.backup-switch[aria-checked="true"]>span {background:#12813b}.backup-switch[aria-checked="true"]>span:after {transform:translateX(22px)}
+.backup-switch:focus-visible>span {outline:3px solid #ffd000;outline-offset:3px}
+.backup-scope {display:flex;gap:12px;color:#111;font-size:13px;line-height:1.6}.backup-scope i {padding-top:5px}.backup-scope p {margin:0}
+.backup-schedule-warning {color:#b91c1c;font-size:13px;line-height:1.6;margin:-8px 0 24px}
+.backup-card-actions {display:flex;justify-content:flex-end;gap:12px;margin-top:26px}
+.backup-button {background:#12813b;color:white;border:1px solid #12813b;border-radius:16px;padding:16px 24px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.backup-button:hover {background:#106e33}.backup-button-secondary {background:#fff;color:#111;border-color:#dce4ee}.backup-button-secondary:hover {background:#f8fafc}
+.recovery-hub button:disabled,.recovery-hub input:disabled {opacity:.55;cursor:wait}
+.backup-feedback {font-size:14px;line-height:1.5;color:#12813b;background:#f0fdf4;border-radius:12px;padding:14px;margin:18px 0 0}.backup-feedback-error {color:#b91c1c;background:#fef2f2}
+.backup-history-count {color:#8b96a5;font-size:12px;white-space:nowrap;padding-top:7px}
+.backup-table-wrap {overflow-x:auto}.backup-history-table {width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.backup-history-table th {padding:17px 14px;text-align:left;background:#12813b;color:#fff;font-weight:600;white-space:nowrap}
+.backup-history-table th:first-child {border-radius:8px 0 0 0}.backup-history-table th:last-child {border-radius:0 8px 0 0}
+.backup-history-table td {padding:20px 14px;border-bottom:1px solid #e5e7eb;vertical-align:middle}.backup-history-table tbody tr:nth-child(even) {background:#f8fafc}
+.backup-history-table td small {display:block;color:#8b96a5;font-size:11px;margin-top:6px}.backup-verified {color:#12813b;white-space:nowrap}
+.backup-row-actions {display:flex;gap:8px}.backup-row-actions button {cursor:pointer;border:1px solid #dce4ee;background:white;border-radius:10px;padding:9px 11px;color:#111;font-size:12px}
+.backup-row-actions button:hover {background:#f1f5f9}.backup-empty {text-align:center;padding:46px 16px!important}.backup-empty>i {display:block;font-size:28px;color:#cbd5e1;margin-bottom:14px}.backup-empty strong,.backup-empty span {display:block}.backup-empty span {color:#8b96a5;margin-top:8px}
+.backup-restore-dialog p {font-size:14px;line-height:1.7;color:#64748b}.backup-restore-dialog input {text-transform:uppercase}
+.backup-panel-loading {display:flex;align-items:center;justify-content:center;min-height:200px;width:100%}
+.backup-panel-loading .sigma-dot-spinner {--sigma-loader-size:40px}
+.recovery-hub .removed-records-content>p[role="status"]:has(.sigma-dot-spinner) {display:flex;align-items:center;justify-content:center;width:100%;min-height:200px;margin:0}
+.recovery-hub .removed-records-content>p[role="status"] .sigma-content-loading-state {min-height:200px}
+.recovery-hub .removed-records-content>p[role="status"] .sigma-dot-spinner {--sigma-loader-size:40px}
+.recovery-hub .removed-records-content:has(>p[role="status"] .sigma-dot-spinner) .sigma-table-container {display:none}
+@media(max-width:1300px){.recovery-hub-sidebar{width:260px;min-width:240px;padding:24px 18px}.recovery-hub-sidebar button{padding:20px 18px;font-size:15px;gap:16px}.recovery-hub-main{padding:28px}.backup-card{padding:25px}}
+@media(max-width:850px){.recovery-hub{display:block}.recovery-hub-sidebar{width:100%;border-right:0;border-bottom:1px solid #e5e7eb}.recovery-hub-sidebar nav{grid-template-columns:1fr 1fr}.recovery-hub-main{padding:20px}.backup-summary{grid-template-columns:1fr}.backup-heading{flex-wrap:wrap}.backup-card{border-radius:20px}.backup-history-table{min-width:650px}}
+
+.backup-create-footer {border-top:1px solid #edf1f5;margin-top:26px;padding-top:24px}
+.recovery-hub--detail {background:#fff}
+.recovery-hub--detail .recovery-hub-main {background:#fff}
+.recovery-hub--detail .recovery-hub-main>[data-recovery-backups] {max-width:none;margin:0}
+.recovery-hub--detail [data-backup-detail]>.backup-card {border:0;border-radius:0;box-shadow:none;padding:0;margin:0;background:transparent}
+
+.backup-toolbar {display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+.backup-search-form {display:flex;align-items:center;gap:12px;margin-left:auto}
+.backup-search-form input,.backup-search-form select,.backup-schedule-form input {border:1px solid #cbd5e1;background:#f8fafc;color:#111;border-radius:12px;padding:15px 18px;min-height:48px;font:inherit;font-size:14px}
+.backup-search-form input {width:280px}
+/* The shared select enhancer wraps routed controls on first interaction. Keep
+   the select and its wrapper the same size so opening cannot shift the toolbar. */
+.backup-search-form select,.backup-search-form .sigma-select-wrapper {box-sizing:border-box;width:200px;min-width:200px;max-width:200px;flex:0 0 200px}
+.backup-search-form input:focus-visible,.backup-search-form select:focus-visible,.backup-schedule-form input:focus-visible {outline:2px solid #ffd000;outline-offset:2px}
+.recovery-hub--detail .backup-history-table th {border-radius:0;text-align:center}
+.recovery-hub--detail .backup-history-table td {text-align:center;border-right:1px solid #e5e7eb}
+.recovery-hub--detail .backup-history-table td:last-child {border-right:0}
+.recovery-hub--detail .backup-row-actions {justify-content:center}
+.backup-pagination {display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:22px;font-size:13px;color:#64748b}
+.backup-pagination>div {display:flex;gap:8px}.backup-pagination .backup-button {padding:10px 16px;border-radius:10px}
+.backup-schedule-form {display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.backup-schedule-form label {display:block;font-size:13px;font-weight:600;margin-bottom:8px}.backup-schedule-form input {min-width:170px}
+.backup-schedule-feedback {flex-basis:100%;margin:0;color:#12813b;font-size:13px;line-height:1.6}
+.backup-text-error {color:#b91c1c}.backup-progress {color:#92400e}
+@media(max-width:1000px){.backup-search-form{flex-wrap:wrap;margin-left:0}.backup-search-form input{width:220px}}
+@media(max-width:600px){.backup-search-form{width:100%}.backup-search-form input{width:100%}.backup-pagination{align-items:flex-start;flex-direction:column}}
+
+.backup-primary-actions {display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+.backup-schedule-modal {position:fixed;inset:0;margin:auto;width:560px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 48px);overflow:auto;box-sizing:border-box;padding:28px;border:1px solid #dce4ee;border-radius:18px;background:#fff;color:#111;box-shadow:0 20px 60px #0002;font-family:Inter,Arial,sans-serif}
+.backup-schedule-modal::backdrop {background:rgba(0,0,0,.45)}
+.backup-schedule-modal-heading {display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:12px}
+.backup-schedule-modal-heading h2 {font-size:22px;font-weight:600;margin:0}
+.backup-schedule-modal-heading>button {display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:8px;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:#64748b}
+.backup-schedule-modal-heading>button:hover {background:#f1f5f9;color:#111}
+.backup-schedule-modal>p:not(.backup-schedule-warning) {font-size:14px;color:#111;line-height:1.6;margin:0 0 24px}
+.backup-schedule-modal .backup-schedule-form {display:block;margin:0}
+.backup-schedule-fields {display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.backup-schedule-fields input {width:100%;min-width:0;box-sizing:border-box}
+.backup-schedule-modal-actions {display:flex;justify-content:flex-end;gap:12px;margin-top:26px}
+.backup-schedule-modal .backup-schedule-feedback {margin-top:18px}
+.backup-schedule-modal .backup-schedule-warning {margin:20px 0 0}
+@media(max-width:480px){.backup-schedule-modal{padding:22px}.backup-schedule-fields{grid-template-columns:1fr}.backup-schedule-modal-actions .backup-button{padding:13px 18px}}
+
+.backup-setting-row p {color:#111}
+.backup-setting-row [data-backup-schedule-note] {margin-top:12px}
+
+.recovery-hub [data-backup-settings-loading]:not([hidden]) {display:inline-flex;align-items:center;gap:10px;color:#111;white-space:nowrap}
+.recovery-hub [data-backup-settings-loading] .sigma-dot-spinner {--sigma-loader-size:24px}
+
+.backup-next-run {margin:0 0 24px;color:#111;font-size:14px;line-height:1.6}
+.backup-row-actions {flex-wrap:wrap}
+.backup-row-actions button {display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+
+.backup-last-restored {display:block;width:fit-content;margin:9px auto 0;padding:4px 9px;border-radius:6px;background:#eaf6ee;color:#106e33;font-size:12px;font-weight:600}
+.backup-history-table [data-last-restored] td small {color:#111}
+
+.backup-contents {color:#111;line-height:1.6}
+.backup-contents span {display:block;white-space:nowrap}
+
+/* Keep the six backup columns readable and aligned with their headings. */
+.recovery-hub--detail .backup-history-table {min-width:1060px;font-size:14px;line-height:1.5;color:#111}
+.recovery-hub--detail .backup-history-table th {padding:16px 20px;font-size:13px;font-weight:600;line-height:1.5;vertical-align:middle}
+.recovery-hub--detail .backup-history-table td {padding:20px;font-size:14px;font-weight:400;line-height:1.5;vertical-align:middle}
+.recovery-hub--detail .backup-history-table :is(th,td):is(:nth-child(1),:nth-child(3),:nth-child(5)) {text-align:left}
+.recovery-hub--detail .backup-history-table :is(th,td):is(:nth-child(2),:nth-child(4)) {white-space:nowrap}
+.recovery-hub--detail .backup-history-table td:first-child {white-space:nowrap}
+.recovery-hub--detail .backup-contents span+span {margin-top:4px}
+.recovery-hub--detail .backup-history-table td small {margin-top:6px;font-size:12px;font-weight:400;line-height:1.5;color:#111}
+.recovery-hub--detail .backup-last-restored {margin:10px 0 0;line-height:1.5}
+.recovery-hub--detail .backup-row-actions {gap:8px;align-items:center}
+.recovery-hub--detail .backup-row-actions button {min-height:38px;padding:8px 11px;font:inherit;font-size:12px;font-weight:500;line-height:1.5}

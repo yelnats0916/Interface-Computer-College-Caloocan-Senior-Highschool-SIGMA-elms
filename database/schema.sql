@@ -108,6 +108,9 @@ CREATE TABLE IF NOT EXISTS `subjects` (
     `code` VARCHAR(50) NOT NULL UNIQUE,
     `name` VARCHAR(150) NOT NULL,
     `units` VARCHAR(10) NULL,
+    `grade_level` VARCHAR(10) NULL,
+    `learning_hours` INT NULL,
+    `curriculum_metadata` LONGTEXT NULL,
     `type` VARCHAR(50) NULL,
     `strand` VARCHAR(50) NULL,
     `weights` LONGTEXT NULL,
@@ -191,3 +194,45 @@ CREATE TABLE IF NOT EXISTS `quizzes` (
     INDEX `idx_quiz_status` (`status`),
     INDEX `idx_quiz_author` (`author_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Immutable row numbers for management records; reservations survive deletion.
+CREATE TABLE IF NOT EXISTS record_creation_counters (
+    collection VARCHAR(64) NOT NULL PRIMARY KEY,
+    next_number BIGINT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS record_creation_numbers (
+    collection VARCHAR(64) NOT NULL,
+    record_id VARCHAR(191) NOT NULL,
+    creation_number BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY(collection,record_id),
+    UNIQUE KEY unique_creation_number(collection,creation_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS school_announcements (
+ id VARCHAR(100) NOT NULL PRIMARY KEY,
+ author_id VARCHAR(50) NOT NULL,
+ payload LONGTEXT NOT NULL,
+ is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX idx_announcement_author(author_id), INDEX idx_announcement_visible(is_deleted,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Persistent folder identity; advisory locks serialize each parent/name resolution.
+CREATE TABLE IF NOT EXISTS gdrive_folder_registry (
+ path_key CHAR(64) PRIMARY KEY,
+ parent_id VARCHAR(128) NOT NULL,
+ folder_name VARCHAR(180) NOT NULL,
+ folder_id VARCHAR(128) NOT NULL,
+ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS upload_submission_batches (
+ user_id VARCHAR(64) NOT NULL,
+ batch_id VARCHAR(64) NOT NULL,
+ total_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(user_id,batch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

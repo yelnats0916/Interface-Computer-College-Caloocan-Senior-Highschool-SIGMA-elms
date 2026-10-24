@@ -265,8 +265,47 @@
         return gradePart ? `${gradePart} - ${cleanName}` : cleanName;
     }
 
+    function getCommentActor() {
+        let actor = {};
+        try { actor = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); } catch (_) {}
+        const id = String(actor.uid || actor.id || '');
+        if (!id) return {};
+        const stored = getStoredJson('sigma-admin-users', []).find(user => String(user.uid || user.id || '') === id);
+        return stored ? { ...actor, ...stored } : actor;
+    }
+
+    function canManageAnnouncementPost(post) {
+        if(post?.institutionalNotice)return false;
+        if (!post) return false;
+        const actor = getCommentActor();
+        const role = String(actor.role || actor.type || '').toLowerCase().replace(/[\s_-]/g, '');
+        return role === 'masteradmin' || (['admin','teacher'].includes(role) && String(post.authorId || '') === String(actor.uid || actor.id || ''));
+    }
+
+    function canManageAnnouncementComments(post = null) {
+        const actor = getCommentActor();
+        const role = String(actor.role || actor.type || '').toLowerCase().replace(/[\s_-]/g, '');
+        if (role === 'masteradmin') return true;
+        const key = role === 'admin' ? 'manageAnnouncementComments' : role === 'teacher' ? 'teacherManageAnnouncementComments' : '';
+        if (!key || (role === 'admin' ? actor.permissions?.[key] === false : actor.permissions?.[key] !== true)) return false;
+        return !post || String(post.authorId || '') === String(actor.uid || actor.id || '');
+    }
+
+    function canDeleteAnnouncementComment(post, comment) {
+        const actor = getCommentActor();
+        const id = String(actor.uid || actor.id || '');
+        if (!id) return false;
+        if (String(comment.authorId || '') === id) return true;
+        const role = String(actor.role || actor.type || '').toLowerCase().replace(/[\s_-]/g, '');
+        if (role === 'masteradmin') return true;
+        if (!['admin', 'teacher'].includes(role)) return false;
+        if (role === 'teacher' && ['admin','administrator','masteradmin'].includes(String(comment.authorRole || '').toLowerCase().replace(/[\s_-]/g, ''))) return false;
+        return actor.permissions?.[role === 'admin' ? 'actionDeleteComments' : 'teacherDeleteComments'] !== false;
+    }
+
     function isPostCommentsEnabled(post) {
         if (!post) return false;
+        if (typeof post.commentsEnabled === 'boolean') return post.commentsEnabled;
         // Only teacher posts have comments
         if (post.authorRole !== 'teacher' && post.authorRole !== 'faculty') {
             return false;
@@ -367,6 +406,7 @@
     }
 
     function renderPostAudienceBadge(post) {
+        if(post.institutionalNotice)return '';
         const faculty = ['teachers_only', 'faculty'].includes(post.audience) || post.audienceLabel === 'Faculty';
         const students = post.audience === 'all_students' || post.audienceLabel === 'All Students';
         const label = faculty ? 'Faculty' : students ? 'All Students' : 'Everyone';
@@ -393,6 +433,7 @@
             body: (bodyInput?.innerHTML || '').trim(),
             audience: activeAudience || 'everyone',
             priority: activePriority || 'normal',
+            commentsEnabled: document.getElementById('sigma-composer-allow-comments')?.checked === true,
             images: (attachedImages || []).map(img => img.dataUrl || img.name),
             file: attachedFile ? (attachedFile.dataUrl || attachedFile.name) : null,
             academicEvent: [...document.querySelectorAll('.academic-event-fields input')].map(input => input.type === 'checkbox' ? input.checked : input.value),
@@ -563,8 +604,13 @@
         }
     }
 
+    function visibleAnnouncementComments(post) {
+        return (Array.isArray(post?.comments) ? post.comments : []).filter(comment => !comment.isDeleted);
+    }
+
     // Storage Helpers
     function getStoredAnnouncements() {
+        if (usesServerAnnouncements() && !serverFeedReady) return [];
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             let parsed = [];
@@ -592,7 +638,7 @@
 
             // Migrate any old broken avatar paths or outdated labels
             parsed = parsed.map(post => {
-                if (post.authorAvatar === 'image/icc-logo.png' || post.authorAvatar === 'image/ICC logo.jpg' || post.authorAvatar === 'image/Welcome.jpg') {
+                if (!post.institutionalNotice && (post.authorAvatar === 'image/icc-logo.png' || post.authorAvatar === 'image/ICC logo.jpg' || post.authorAvatar === 'image/Welcome.jpg')) {
                     post.authorAvatar = '';
                     migrated = true;
                 }
@@ -910,10 +956,109 @@
         });
     }
 
-    function saveStoredAnnouncements(posts) {
+    let serverPosts = [];
+    let serverActorId = '';
+    let serverFeedReady = false;
+    let serverFeedLoading = null;
+    const usesServerAnnouncements = () => Boolean(window.SigmaDatabase?.fetch);
+    async function announcementRequest(data) {
+        const response = await window.SigmaDatabase.fetch('php/api/announcements.php', data === undefined ? {} : {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await window.SigmaDatabase.readJson(response);
+        if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save announcements.');
+        return result.records || [];
+    }
+    async function announcementSharedMedia(post) {
+        const shared = { ...post };
+        async function upload(url, index) {
+            if (!url || /^\/?uploads\//.test(url)) return url;
+            if (url.startsWith('idb:')) url = await getMediaBlob(url.slice(4));
+            if (!url) throw new Error('An announcement attachment is missing from this browser.');
+            if (!url.startsWith('data:') && !url.startsWith('blob:')) throw new Error('This announcement attachment cannot be shared.');
+            const blob = await (await fetch(url)).blob();
+            const ext = ({'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','video/mp4':'mp4','video/webm':'webm','video/quicktime':'mov'})[blob.type];
+            if (!ext) throw new Error('Use a supported image or video attachment.');
+            const form = new FormData();form.append('file',blob,`${post.id}-${index}.${ext}`);form.append('category','announcements');
+            const response = await window.SigmaDatabase.fetch('php/api/upload.php',{method:'POST',body:form});
+            const result = await window.SigmaDatabase.readJson(response);
+            if (!response.ok || !result.success || !result.url) throw new Error(result.error || 'Unable to upload announcement attachment.');
+            return result.url;
+        }
+        const urls = Array.isArray(post.mediaUrls) && post.mediaUrls.length ? post.mediaUrls : post.mediaUrl ? [post.mediaUrl] : [];
+        shared.mediaUrls = [];
+        for (let i=0;i<urls.length;i++) shared.mediaUrls.push(await upload(urls[i],i));
+        shared.mediaUrl = shared.mediaUrls[0] || null;
+        return shared;
+    }
+    function installServerAnnouncements(records) {
+        serverPosts = JSON.parse(JSON.stringify(records));
+        window._sigmaAnnouncementsMemoryStore = records;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        serverFeedReady = true;
+    }
+    async function reloadServerAnnouncements() {
+        if (!usesServerAnnouncements()) return;
+        const actor = getCommentActor();const id = String(actor.uid || actor.id || '');
+        if (!id) return;
+        if (serverFeedLoading) return serverFeedLoading;
+        serverFeedLoading = (async () => {
+            let legacy=[];
+            if (serverActorId !== id) {
+                try { legacy=JSON.parse(localStorage.getItem('sigma-announcements-own-backup-'+id)||localStorage.getItem(STORAGE_KEY)||'[]').filter(post=>String(post.authorId||'')===id); if(legacy.length)localStorage.setItem('sigma-announcements-own-backup-'+id,JSON.stringify(legacy)); } catch (_) {}
+                serverActorId=id;serverFeedReady=false;serverPosts=[];
+                window._sigmaAnnouncementsMemoryStore=[];localStorage.setItem(STORAGE_KEY,'[]');
+            }
+            let records=await announcementRequest();
+            // Only the signed-in author's own browser posts may be transferred.
+            if(!legacy.length){try{legacy=JSON.parse(localStorage.getItem('sigma-announcements-own-backup-'+id)||'[]');}catch(_){}}
+            const own=legacy.filter(post=>String(post.authorId||'')===id && !records.some(record=>record.id===post.id));
+            for(const post of own) {
+                try {
+                    const shared=await announcementSharedMedia(post);
+                    records=await announcementRequest({action:'save',id:post.id,post:shared,import:true});
+                } catch(error) { console.warn('[Announcements] Saved post transfer:',error.message); }
+            }
+            const changed = !serverFeedReady || JSON.stringify(serverPosts)!==JSON.stringify(records);
+            installServerAnnouncements(records);
+            if(changed) {
+                refreshAllFeeds();
+                if(activeDialogPostId)renderPostDialogContent(activeDialogPostId);
+            }
+        })().finally(()=>{serverFeedLoading=null;});
+        return serverFeedLoading;
+    }
+    async function saveServerAnnouncements(posts) {
+        if (!serverFeedReady) await reloadServerAnnouncements();
+        const operations=[];
+        const postFields=post=>JSON.stringify([post.title,post.body,post.audience,post.subject,post.targetStudentIds,post.priority,post.commentsEnabled,post.mediaUrl,post.mediaUrls,post.academicEvent]);
+        for(const post of posts) {
+            const previous=serverPosts.find(item=>item.id===post.id);
+            if(!previous || postFields(previous)!==postFields(post))operations.push({action:'save',id:post.id,post:await announcementSharedMedia(post),revision:previous?.revision||0});
+            if(!previous)continue;
+            if(Boolean(previous.likedByMe)!==Boolean(post.likedByMe))operations.push({action:'like',id:post.id,liked:Boolean(post.likedByMe)});
+            for(const comment of post.comments||[]) {
+                const old=(previous.comments||[]).find(item=>item.id===comment.id);
+                if(!old)operations.push({action:'comment',id:post.id,comment});
+                else if(!old.isDeleted && comment.isDeleted)operations.push({action:'delete_comment',id:post.id,commentId:comment.id});
+                else if(Boolean(old.likedByMe)!==Boolean(comment.likedByMe))operations.push({action:'like_comment',id:post.id,commentId:comment.id,liked:Boolean(comment.likedByMe)});
+            }
+            for(const old of previous.comments||[])if(!(post.comments||[]).some(comment=>comment.id===old.id))operations.push({action:'delete_comment',id:post.id,commentId:old.id});
+        }
+        for(const old of serverPosts)if(!posts.some(post=>post.id===old.id))operations.push({action:'delete',id:old.id});
+        if(!operations.length)return posts;
+        if(operations.length>50)throw new Error('Too many announcement changes. Refresh and try again.');
+        try {
+            const records=await announcementRequest({operations});installServerAnnouncements(records);return records;
+        } catch(error) {
+            await reloadServerAnnouncements().catch(()=>{});throw error;
+        }
+    }
+    async function saveStoredAnnouncements(posts) {
         if (!Array.isArray(posts)) return;
         let previous = [];
         try { previous = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (_) {}
+        if (usesServerAnnouncements()) posts = await saveServerAnnouncements(posts);
         window._sigmaAnnouncementsMemoryStore = [...posts];
 
         // Process any large media (e.g. videos or raw image data URLs)
@@ -961,6 +1106,7 @@
                         window.recordCommunicationActivity(actTitle, {
                             module: 'Announcements',
                             announcementId: post.id,
+                            announcement: { id: post.id, title: post.title || '', body: post.body || '' },
                             title: post.title || 'General Announcement',
                             details: detailSummary,
                             section: post.section || '',
@@ -972,6 +1118,7 @@
                 previous.filter(old => !sanitized.some(post => post.id === old.id)).forEach(old => window.recordCommunicationActivity('Announcement deleted', {
                     module: 'Announcements',
                     announcementId: old.id,
+                    announcement: { id: old.id, title: old.title || '', body: old.body || '' },
                     title: old.title || '',
                     details: `Deleted announcement "${old.title || 'Untitled'}"`,
                     section: old.section || '',
@@ -1135,6 +1282,9 @@
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
                     <h3 class="sigma-composer-title">Create Post</h3>
+                    <button type="button" class="sigma-composer-close-btn" id="sigma-composer-btn-close" aria-label="Close post editor" title="Close">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                 </div>
 
                 <!-- Body -->
@@ -1222,9 +1372,16 @@
                         </div>
                     </div>
 
+                    <label id="sigma-composer-comments-row" class="sigma-composer-comments-row" hidden>
+                        <span>Allow comments</span>
+                        <input id="sigma-composer-allow-comments" type="checkbox" role="switch" onchange="window.SigmaAnnouncements.validateComposer()">
+                    </label>
+                    <div class="sigma-composer-save-actions">
+                    <button type="button" class="sigma-btn sigma-btn-white sigma-btn-md sigma-composer-delete-btn" id="sigma-composer-delete-post" hidden onclick="window.SigmaAnnouncements.deleteEditingPost()">Delete Post</button>
                     <button type="button" class="sigma-composer-submit-btn" id="sigma-composer-btn-submit" disabled>
                         <span>Post Announcement</span>
                     </button>
+                    </div>
                 </div>
             </div>
 
@@ -2167,6 +2324,7 @@
                         const existingIndex = posts.findIndex(p => String(p.id) === String(editingPostId));
                         if (existingIndex !== -1) {
                             posts[existingIndex].academicEvent = academicEvent;
+                            if (canManageAnnouncementComments(posts[existingIndex])) posts[existingIndex].commentsEnabled = document.getElementById('sigma-composer-allow-comments')?.checked === true;
                             posts[existingIndex].title = title;
                             posts[existingIndex].body = body;
                             posts[existingIndex].audience = activeAudience;
@@ -2197,6 +2355,7 @@
                         const newPost = {
                             id: activePostId,
                             academicEvent,
+                            commentsEnabled: canManageAnnouncementComments() ? document.getElementById('sigma-composer-allow-comments')?.checked === true : currentRole === 'teacher' ? undefined : false,
                             title,
                             body: body,
                             authorId: currentUser.id || currentUser.uid || '',
@@ -2228,7 +2387,7 @@
                         posts.unshift(newPost);
                     }
 
-                    saveStoredAnnouncements(posts);
+                    await saveStoredAnnouncements(posts);
                     closeComposerModal();
                     currentActiveTab = 'all';
                     refreshAllFeeds();
@@ -2241,7 +2400,7 @@
                     console.error('[Announcements] Failed to submit post:', err);
                     showToastNotice({
                         title: 'Posting Error',
-                        message: 'An error occurred while saving the announcement. Please try again.',
+                        message: err.message || 'An error occurred while saving the announcement. Please try again.',
                         type: 'error'
                     });
                     submitBtn.disabled = false;
@@ -2479,8 +2638,17 @@
     }
 
     function openComposerModal(postIdToEdit = null, preselectedAudience = null, preselectedSubject = null) {
+        if (usesServerAnnouncements() && !serverFeedReady) {
+            reloadServerAnnouncements().then(()=>openComposerModal(postIdToEdit,preselectedAudience,preselectedSubject))
+                .catch(error=>showToastNotice({title:'Announcements unavailable',message:error.message,type:'error'}));
+            return;
+        }
         detectContext();
         if (currentRole === 'student') return;
+        if (postIdToEdit) {
+            const post = getStoredAnnouncements().find(post=>String(post.id)===String(postIdToEdit));
+            if (!canManageAnnouncementPost(post)) return;
+        }
         ensureComposerModalDOM();
 
         const titleInput = document.getElementById('sigma-composer-input-title');
@@ -2633,17 +2801,35 @@
             activePriorityIcon = 'fa-bullhorn';
         }
 
+        const originalPost = postIdToEdit ? getStoredAnnouncements().find(post=>String(post.id)===String(postIdToEdit)) : null;
+        const displayedAuthor = originalPost ? { id:originalPost.authorId, uid:originalPost.authorId, name:originalPost.authorName, avatar:originalPost.authorAvatar } : currentUser;
         const avatarWrap = document.getElementById('sigma-composer-author-avatar-wrap');
         if (avatarWrap && typeof window.renderUserAvatarHtml === 'function') {
-            avatarWrap.innerHTML = window.renderUserAvatarHtml(currentUser, 'md');
+            avatarWrap.innerHTML = window.renderUserAvatarHtml(displayedAuthor, 'md');
+        } else if (avatarWrap) {
+            avatarWrap.innerHTML = displayedAuthor.avatar
+                ? `<div class="sigma-user-avatar sigma-user-avatar--md"><img src="${escapeHtml(displayedAuthor.avatar)}" alt="${escapeHtml(displayedAuthor.name)}"></div>`
+                : '<div class="sigma-user-avatar sigma-user-avatar--md"><i class="fa-solid fa-user"></i></div>';
         }
         const authorNameEl = document.getElementById('sigma-composer-author-name-text');
-        if (authorNameEl) authorNameEl.textContent = currentUser.name;
+        if (authorNameEl) authorNameEl.textContent = displayedAuthor.name;
+        const deletePostButton = document.getElementById('sigma-composer-delete-post');
+        if (deletePostButton) deletePostButton.hidden = !originalPost || !canManageAnnouncementPost(originalPost);
+        deletePostButton?.closest('.sigma-composer-save-actions')?.classList.toggle('is-editing', Boolean(originalPost));
         const composerBody = document.getElementById('sigma-composer-input-body');
         if (composerBody) composerBody.setAttribute('data-placeholder', 'Share updates, announcements, or materials with your class...');
 
         renderAttachmentPreview();
 
+        const commentPost = postIdToEdit ? getStoredAnnouncements().find(post => String(post.id) === String(postIdToEdit)) : null;
+        const commentsRow = document.getElementById('sigma-composer-comments-row');
+        const commentsInput = document.getElementById('sigma-composer-allow-comments');
+        const canManageComments = canManageAnnouncementComments(commentPost);
+        if (commentsRow) commentsRow.hidden = !canManageComments;
+        if (commentsInput) {
+            commentsInput.checked = commentPost ? isPostCommentsEnabled(commentPost) : false;
+            commentsInput.disabled = !canManageComments;
+        }
         if (postIdToEdit) {
             originalEditingPostState = getComposerStateSnapshot();
         } else {
@@ -2814,7 +3000,7 @@
         if (confirmBtn) {
             confirmBtn.onclick = function (e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
-                confirmDeletePost();
+                window.SigmaAnnouncements.confirmDeletePost();
             };
         }
 
@@ -2826,6 +3012,8 @@
     }
 
     function openDeleteDialog(postId) {
+        const post = getStoredAnnouncements().find(post=>String(post.id)===String(postId));
+        if (!canManageAnnouncementPost(post)) return;
         postToDeleteId = postId;
         ensureDeleteDialogDOM();
         const backdrop = document.getElementById('sigma-delete-dialog-backdrop');
@@ -2872,7 +3060,7 @@
         });
     }
 
-    function confirmDeletePost(e) {
+    async function confirmDeletePost(e) {
         if (e && e.preventDefault) e.preventDefault();
         if (e && e.stopPropagation) e.stopPropagation();
         if (!postToDeleteId) {
@@ -2882,16 +3070,17 @@
         const posts = getStoredAnnouncements();
 
         const removedPost = posts.find(post => post.id === postToDeleteId);
+        if (!canManageAnnouncementPost(removedPost)) return;
         if (removedPost && currentRole === 'admin') {
             notifyModeratedRemoval(removedPost, 'Announcement Removed', `Your announcement${removedPost.title ? ` "${removedPost.title}"` : ''} was removed by an administrator.`);
         }
-        if (removedPost && window.SigmaAiDatabase?.change) {
+        if (removedPost && !usesServerAnnouncements() && window.SigmaAiDatabase?.change) {
             window.SigmaAiDatabase.change('announcements', postToDeleteId, 'remove', JSON.stringify(removedPost)).catch(err => {
                 console.warn('Announcements lifecycle sync failed:', err);
             });
         }
         const updated = posts.filter(p => p.id !== postToDeleteId);
-        saveStoredAnnouncements(updated);
+        await saveStoredAnnouncements(updated);
 
         // Also clean up from classroom room specific storage if present
         try {
@@ -2913,6 +3102,7 @@
             console.error('[Announcements] Error cleaning room posts storage:', err);
         }
 
+        if (String(editingPostId) === String(postToDeleteId)) closeComposerModal();
         closeDeleteDialog();
         refreshAllFeeds();
         if (typeof window.renderRoomAnnouncementsFeed === 'function') {
@@ -3107,19 +3297,16 @@
         return posts.filter(post => {
             // 1. Filter by Active Tab
             if (activeTab === 'important') {
-                const isImportant = post.priority === 'important'
-                    || post.priorityLabel === 'Important'
-                    || post.type === 'urgent'
-                    || Boolean(post.isImportant);
+                const isImportant = ['important','urgent'].includes(String(post.priority || '').toLowerCase())
+                    || String(post.priorityLabel || '').toLowerCase() === 'important'
+                    || ['important','urgent'].includes(String(post.type || '').toLowerCase())
+                    || post.isImportant === true;
                 if (!isImportant) return false;
             } else if (activeTab === 'posts') {
-                // Connect directly to Posts: Teacher/Instructor updates, Classroom posts, Section posts, and Author posts
-                const isPost = (post.authorRole === 'teacher' || post.authorRole === 'faculty' || post.authorRole === 'student')
-                    || (post.authorRole !== 'admin' && !post.isAdmin)
-                    || Boolean(post.isClassroomPost)
-                    || Boolean(post.classroomKey)
-                    || (post.audience && post.audience !== 'everyone' && post.audience !== 'all')
-                    || (post.authorName && currentUser.name && post.authorName.toLowerCase() === currentUser.name.toLowerCase());
+                // Posts contains this account's publications, regardless of display-name formatting.
+                const authorId = String(post.authorId || '').replace(/^#/, '').trim();
+                const viewerId = String(currentUser.uid || currentUser.id || '').replace(/^#/, '').trim();
+                const isPost = Boolean(authorId && viewerId && authorId === viewerId);
                 if (!isPost) return false;
             }
 
@@ -3519,16 +3706,16 @@
 
     function renderSinglePostCardHtml(post, targetContainerId) {
         const timeAgo = formatTimeAgo(post.createdAt);
-        const authorRoleText = (post.authorRole === 'admin' || post.authorRole === 'Administrator')
+        const authorRoleText = post.institutionalNotice ? 'Official School Notice' : (post.authorRole === 'admin' || post.authorRole === 'Administrator')
             ? 'Administrator'
             : ((post.authorRole === 'student' || post.authorRole === 'Student') ? 'Student' : 'Teacher');
 
-        const authorAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
+        const authorAvatarHtml = post.institutionalNotice ? '<img src="image/ICC logo.jpg" alt="Interface Computer College" class="sigma-card-author-avatar-img" style="width:40px;height:40px;object-fit:contain">' : (typeof window.renderUserAvatarHtml === 'function')
             ? window.renderUserAvatarHtml(post.authorId ? { uid: post.authorId, name: post.authorName, avatar: (post.authorAvatar && post.authorAvatar !== 'image/Welcome.jpg' ? post.authorAvatar : '') } : (post.authorName || 'User'), 'md', 'sigma-card-author-avatar-img')
             : `<div class="sigma-user-avatar sigma-user-avatar--md sigma-card-author-avatar-img"><i class="fa-solid fa-user"></i></div>`;
 
         // Permissions for Edit & Delete options
-        const canManagePost = currentRole === 'admin' || (currentRole !== 'student' && post.authorName === currentUser.name);
+        const canManagePost = canManageAnnouncementPost(post);
 
         // Targeted Students metadata
         let targetedStudentNames = (post.targetStudents && Array.isArray(post.targetStudents) && post.targetStudents.length > 0)
@@ -3601,12 +3788,12 @@
             <!-- Header Row -->
             <div class="sigma-card-header-row">
                 <div class="sigma-card-author-meta">
-                    <div onclick="if(typeof window.openUserProfile==='function') window.openUserProfile('${escapeHtml(post.authorId || post.authorName)}')" class="cursor-pointer">
+                    <div onclick="if(!${Boolean(post.institutionalNotice)} && typeof window.openUserProfile==='function') window.openUserProfile('${escapeHtml(post.authorId || post.authorName)}')" class="cursor-pointer">
                         ${authorAvatarHtml}
                     </div>
                     <div class="sigma-card-author-text-col">
                         <div class="sigma-card-author-fullname flex items-center gap-1.5 flex-wrap">
-                            <span class="cursor-pointer hover:underline" onclick="if(typeof window.openUserProfile==='function') window.openUserProfile('${escapeHtml(post.authorId || post.authorName)}')">${escapeHtml(post.authorName)}</span>
+                            <span class="cursor-pointer hover:underline" onclick="if(!${Boolean(post.institutionalNotice)} && typeof window.openUserProfile==='function') window.openUserProfile('${escapeHtml(post.authorId || post.authorName)}')">${escapeHtml(post.authorName)}</span>
                             ${importantBadgeHtml}
                         </div>
                         <div class="sigma-card-author-subrow flex items-center gap-1.5 flex-nowrap">
@@ -3619,7 +3806,7 @@
 
                 <div class="sigma-card-header-right">
                     <span class="sigma-card-timestamp-text" data-timestamp="${post.createdAt || ''}">${timeAgo}</span>
-                    ${currentRole !== 'student' ? `<div class="sigma-card-options-wrapper">
+                    ${canManagePost ? `<div class="sigma-card-options-wrapper">
                         <button type="button" class="sigma-card-options-btn" data-post-id="${post.id}" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.toggleOptions('${post.id}', event) : (window.toggleAnnouncementOptions && window.toggleAnnouncementOptions('${post.id}', event))" title="Post options">
                             <i class="fa-solid fa-ellipsis pointer-events-none"></i>
                         </button>
@@ -3632,15 +3819,7 @@
                             <button type="button" class="sigma-card-options-item delete-item" onclick="window.SigmaAnnouncements ? window.SigmaAnnouncements.deletePost('${post.id}') : (window.deleteAnnouncementPost && window.deleteAnnouncementPost('${post.id}'))">
                                 <i class="fa-solid fa-trash-can text-slate-700"></i>
                                 <span>Delete Post</span>
-                            </button>` : `
-                            <button type="button" class="sigma-card-options-item" onclick="if(navigator.clipboard){navigator.clipboard.writeText(window.location.href); if(typeof window.showToast==='function') window.showToast('Post link copied to clipboard'); else window.SigmaFeedback.notice('Post link copied');}">
-                                <i class="fa-solid fa-link text-slate-700"></i>
-                                <span>Copy Link</span>
-                            </button>
-                            <button type="button" class="sigma-card-options-item" onclick="if(typeof window.showToast==='function') window.showToast('Post reported to administrator'); else window.SigmaFeedback.notice('Post reported to administrator');">
-                                <i class="fa-regular fa-flag text-slate-700"></i>
-                                <span>Report Post</span>
-                            </button>`}
+                            </button>` : ''}
                         </div>
                     </div>` : ''}
                 </div>
@@ -3750,7 +3929,7 @@
                 ${isPostCommentsEnabled(post) ? `
                 <button type="button" class="sigma-card-comment-btn" onclick="window.SigmaAnnouncements.openPostDialog('${post.id}', event)" title="Comment on post">
                     <i class="fa-regular fa-comment"></i>
-                    <span>${(post.comments && post.comments.length) ? `${post.comments.length} ${(post.comments.length === 1 ? 'Comment' : 'Comments')}` : 'Comment'}</span>
+                    <span>${visibleAnnouncementComments(post).length ? `${visibleAnnouncementComments(post).length} ${(visibleAnnouncementComments(post).length === 1 ? 'Comment' : 'Comments')}` : 'Comment'}</span>
                 </button>
                 ` : ''}
             </div>
@@ -3997,7 +4176,7 @@
         });
     }
 
-    function toggleLike(postId, e) {
+    async function toggleLike(postId, e) {
         if (e) {
             if (typeof e.preventDefault === 'function') e.preventDefault();
             if (typeof e.stopPropagation === 'function') e.stopPropagation();
@@ -4008,7 +4187,7 @@
         post.likedByMe = !post.likedByMe;
         post.likes = (post.likes || 0) + (post.likedByMe ? 1 : -1);
         if (post.likes < 0) post.likes = 0;
-        saveStoredAnnouncements(posts);
+        await saveStoredAnnouncements(posts);
 
         // Update UI in-place across all feeds without full re-render (preserves scroll position completely)
         updatePostLikeUI(postId, post);
@@ -4528,6 +4707,8 @@
             if (typeof e.preventDefault === 'function') e.preventDefault();
             if (typeof e.stopPropagation === 'function') e.stopPropagation();
         }
+        const post = getStoredAnnouncements().find(post => String(post.id) === String(postId));
+        if (!post || !isPostCommentsEnabled(post) || !filterPostsForCurrentViewer([post]).length) return;
         activeDialogPostId = postId;
         activeReplyTarget = null;
         const backdrop = ensurePostDialogDOM();
@@ -4672,7 +4853,7 @@
         if (!bodyEl || !footerEl) return;
 
         const timeAgo = formatTimeAgo(post.createdAt);
-        const authorAvatarHtml = (typeof window.renderUserAvatarHtml === 'function')
+        const authorAvatarHtml = post.institutionalNotice ? '<img src="image/ICC logo.jpg" alt="Interface Computer College" class="sigma-card-author-avatar-img" style="width:40px;height:40px;object-fit:contain">' : (typeof window.renderUserAvatarHtml === 'function')
             ? window.renderUserAvatarHtml(post.authorId ? { uid: post.authorId, name: post.authorName, avatar: (post.authorAvatar && post.authorAvatar !== 'image/Welcome.jpg' ? post.authorAvatar : '') } : (post.authorName || 'User'), 'md', 'w-10 h-10 rounded-full object-cover')
             : `<div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><i class="fa-solid fa-user text-[#94a3b8] text-sm"></i></div>`;
 
@@ -4747,7 +4928,7 @@
         }
 
         // Comments list with nested replies
-        const comments = Array.isArray(post.comments) ? post.comments : [];
+        const comments = visibleAnnouncementComments(post);
         let commentsListHtml = '';
         if (comments.length === 0) {
             commentsListHtml = `
@@ -4818,35 +4999,6 @@
                                          currentRole === 'teacher' ||
                                          currentRole === 'admin';
 
-                // Check if this comment was deleted by a moderator/teacher
-                if (c.isDeleted) {
-                    // Only the owner of the comment (or teachers/admins) should see the "removed" notice. Other students won't see it at all.
-                    if (!isOwnComment && !isTeacherOrAdmin) {
-                        return '';
-                    }
-
-                    const deletedNotice = isOwnComment
-                        ? (c.deletedByRole === 'admin' 
-                            ? 'Your comment was removed by an Administrator'
-                            : 'Your comment was removed by a Teacher')
-                        : (c.deletedByRole === 'admin'
-                            ? `Comment by ${escapeHtml(c.authorName)} was removed by an Administrator`
-                            : `Comment by ${escapeHtml(c.authorName)} was removed by a Teacher`);
-
-                    return `
-                    <div class="flex items-center gap-2.5 ${indentClass} py-1.5 opacity-70 italic text-slate-500 text-xs" id="dialog-comment-${c.id}">
-                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-xs border border-slate-200 shrink-0">
-                            <i class="fa-solid fa-ban text-[11px]"></i>
-                        </div>
-                        <div class="flex-1 bg-slate-50 border border-slate-200/70 rounded-xl px-3 py-1.5 flex items-center justify-between">
-                            <span class="text-[12px] font-medium text-slate-600">
-                                <i class="fa-solid fa-circle-info mr-1 text-[10px] text-slate-400"></i>${deletedNotice}
-                            </span>
-                            <span class="text-[10px] text-slate-400 not-italic">${formatTimeAgo(c.deletedAt || c.createdAt)}</span>
-                        </div>
-                    </div>`;
-                }
-
                 const roleStr = String(currentUser.role || currentRole || '').toLowerCase();
                 const isMasterAdmin = roleStr.includes('master') || roleStr.includes('super') || roleStr.includes('head') || String(currentUser.uid || currentUser.id || '') === '0000000';
 
@@ -4891,7 +5043,7 @@
                 
                 // Active user is comment author, or teacher/admin, or post author
                 const protectedAdminReply = currentRole === 'teacher' && ['admin', 'administrator'].includes(commentRole);
-                const canDelete = !protectedAdminReply && (isOwnComment || (currentRole !== 'student' && isTeacherOrAdmin));
+                const canDelete = canDeleteAnnouncementComment(post, c);
 
                 return `
                 <div class="flex items-start gap-2.5 ${indentClass} group" id="dialog-comment-${c.id}">
@@ -5097,6 +5249,9 @@
 
     function submitComment(postId) {
         detectContext();
+        if (!(getCommentActor().id || getCommentActor().uid)) return;
+        const target = getStoredAnnouncements().find(post => String(post.id) === String(postId));
+        if (!target || !isPostCommentsEnabled(target) || !filterPostsForCurrentViewer([target]).length) return;
         const input = document.getElementById('sigma-dialog-comment-input');
         if (!input) return;
         const text = input.value.trim();
@@ -5109,10 +5264,14 @@
         }
         input.disabled = true;
 
-        setTimeout(() => {
+        setTimeout(async () => {
             const posts = getStoredAnnouncements();
             const post = posts.find(p => p.id === postId);
-            if (!post) return;
+            if (!post || !isPostCommentsEnabled(post) || !filterPostsForCurrentViewer([post]).length) {
+                input.disabled = false;
+                if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>'; }
+                return;
+            }
 
             if (!Array.isArray(post.comments)) {
                 post.comments = [];
@@ -5154,7 +5313,8 @@
             };
 
             post.comments.push(newComment);
-            saveStoredAnnouncements(posts);
+            try { await saveStoredAnnouncements(posts); }
+            catch(error) { input.disabled=false; if(sendBtn){sendBtn.disabled=false;sendBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i>';} showToastNotice({title:'Comment not saved',message:error.message,type:'error'});return; }
 
             const recipients = [{ id: post.authorId, name: post.authorName, role: post.authorRole },
                 ...(replyParent ? [{ id: replyParent.authorId, name: replyParent.authorName, role: replyParent.authorRole }] : [])];
@@ -5177,7 +5337,7 @@
 
             activeReplyTarget = null;
             renderPostDialogContent(postId);
-            updatePostCommentCountUI(postId, post.comments ? post.comments.length : 0);
+            updatePostCommentCountUI(postId, visibleAnnouncementComments(post).length);
 
             // Auto scroll to newly added comment
             const bodyEl = document.getElementById('sigma-post-dialog-body');
@@ -5188,13 +5348,14 @@
     }
 
     function deleteComment(postId, commentId) {
-        const executeDelete = () => {
+        const executeDelete = async () => {
             const posts = getStoredAnnouncements();
             const post = posts.find(p => p.id === postId);
             if (!post || !Array.isArray(post.comments)) return;
 
             const targetComment = post.comments.find(c => c.id === commentId);
             if (!targetComment) return;
+            if (!canDeleteAnnouncementComment(post, targetComment) || !filterPostsForCurrentViewer([post]).length) return;
 
             const isOwnComment = (currentUser.name && targetComment.authorName && currentUser.name.trim().toLowerCase() === targetComment.authorName.trim().toLowerCase()) ||
                                  (currentUser.id && targetComment.authorId && String(currentUser.id) === String(targetComment.authorId));
@@ -5207,7 +5368,7 @@
             if (!isOwnComment && (currentRole === 'student' || !isTeacherOrAdmin)) return;
             if (currentRole === 'teacher' && ['admin', 'administrator'].includes(String(targetComment.authorRole || '').trim().toLowerCase())) return;
 
-            // If deleted by a teacher or admin (moderation of someone else's comment), mark as deleted with an indicator
+            // Retain deletion metadata for recovery, without displaying a placeholder.
             if (isTeacherOrAdmin && !isOwnComment) {
                 if (targetComment.isDeleted) return;
                 targetComment.isDeleted = true;
@@ -5216,17 +5377,19 @@
                 targetComment.deletedAt = new Date().toISOString();
                 targetComment.originalText = targetComment.text;
                 targetComment.text = '[This comment was removed by a moderator]';
+            } else if (usesServerAnnouncements()) {
+                targetComment.originalText = targetComment.text;
+                targetComment.isDeleted = true;
+                targetComment.text = '[This comment was removed]';
             } else {
                 // If author deletes their own comment, remove it and its child replies
                 post.comments = post.comments.filter(c => c.id !== commentId && c.replyToCommentId !== commentId);
             }
 
-            saveStoredAnnouncements(posts);
-            if (isTeacherOrAdmin && !isOwnComment) {
-                notifyModeratedRemoval(targetComment, 'Comment Removed', `Your comment${post.title ? ` on "${post.title}"` : ''} was removed by ${currentRole === 'admin' ? 'an administrator' : 'a teacher'}.`);
-            }
+            try { await saveStoredAnnouncements(posts); }
+            catch(error) { showToastNotice({title:'Comment not removed',message:error.message,type:'error'});return; }
             renderPostDialogContent(postId);
-            updatePostCommentCountUI(postId, post.comments ? post.comments.length : 0);
+            updatePostCommentCountUI(postId, visibleAnnouncementComments(post).length);
         };
 
         if (typeof window.openAskingPanel === 'function') {
@@ -5258,7 +5421,7 @@
         }
     }
 
-    function toggleCommentLike(postId, commentId) {
+    async function toggleCommentLike(postId, commentId) {
         const posts = getStoredAnnouncements();
         const post = posts.find(p => p.id === postId);
         if (!post || !Array.isArray(post.comments)) return;
@@ -5270,7 +5433,7 @@
         comment.likes = (comment.likes || 0) + (comment.likedByMe ? 1 : -1);
         if (comment.likes < 0) comment.likes = 0;
 
-        saveStoredAnnouncements(posts);
+        await saveStoredAnnouncements(posts);
         renderPostDialogContent(postId);
     }
 
@@ -5369,6 +5532,7 @@
         syncTabButtonsUI('all');
         if (forceRefresh) {
             refreshAllFeeds();
+            if (usesServerAnnouncements()) reloadServerAnnouncements().catch(error=>console.warn('[Announcements]',error.message));
         }
     }
 
@@ -5512,6 +5676,17 @@
 
     // Expose Public API
     window.SigmaAnnouncements = {
+        resolveActivityPost: async record => {
+            if (record.announcement) return record.announcement;
+            if (usesServerAnnouncements() && !serverFeedReady) await reloadServerAnnouncements();
+            const posts = getStoredAnnouncements();
+            if (record.announcementId) return posts.find(post=>String(post.id)===String(record.announcementId)) || null;
+            const title = record.title || /["“]([^"”]+)["”]/.exec(record.details || '')?.[1];
+            const matches = posts.filter(post=>post.title===title && String(post.authorId)===String(record.userId));
+            return matches.length===1 ? matches[0] : null;
+        },
+        deleteEditingPost: () => { if(editingPostId)openDeleteDialog(editingPostId); },
+        validateComposer: validateInputs,
         openComposer: openComposerModal,
         closeComposer: function () {
             if (typeof currentAttemptCloseComposer === 'function') {
@@ -5577,6 +5752,7 @@
             showToastNotice('Demo data is disabled. Create an actual announcement instead.', 'info');
         },
         clearAll: function () {
+            if (usesServerAnnouncements()) return;
             saveStoredAnnouncements([]);
             refreshAllFeeds();
             showToastNotice('Cleared all announcements to empty state.', 'info');
@@ -5614,5 +5790,20 @@
     window.editAnnouncementPost = (postId) => window.SigmaAnnouncements.editPost(postId);
     window.deleteAnnouncementPost = (postId) => window.SigmaAnnouncements.deletePost(postId);
 
+    if (usesServerAnnouncements()) {
+        const reload=()=>reloadServerAnnouncements().catch(error=>console.warn('[Announcements]',error.message));
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reload,{once:true});
+        else reload();
+        window.addEventListener('focus',reload);
+        window.addEventListener('sigma:session-loading-complete',reload);
+        window.addEventListener('sigma:database-session-ready',reload);
+        window.addEventListener('pageshow',reload);
+        document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload();});
+        setInterval(()=>{if(!document.hidden)reload();},15000);
+        const protect=operation=>(...args)=>Promise.resolve(operation(...args)).catch(error=>showToastNotice({title:'Announcement not saved',message:error.message,type:'error'}));
+        window.SigmaAnnouncements.toggleLike=protect(toggleLike);
+        window.SigmaAnnouncements.toggleCommentLike=protect(toggleCommentLike);
+        window.SigmaAnnouncements.confirmDeletePost=protect(confirmDeletePost);
+    }
 })(window, document);
 

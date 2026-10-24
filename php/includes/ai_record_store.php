@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/record_lifecycle.php';
+require_once __DIR__ . '/record_creation_numbers.php';
+require_once __DIR__ . '/activity_audit.php';
 
 function aiInsightControls(PDO $db): void {
     static $ready=false;if($ready)return;
@@ -30,16 +32,34 @@ function aiWasPurged(PDO $db, string $table, string $id): bool {
 function saveAiLog(PDO $db, array $log): void {
     if (!is_string($log['id'] ?? null) || strlen($log['id']) > 128 || !is_string($log['userId'] ?? null) || strlen($log['userId']) > 50
         || !in_array($log['feature'] ?? '', ['sigmabot','analytics','quiz','submission_evaluation','submission_feedback','grade_insights'], true)
-        || !in_array($log['status'] ?? '', ['Success','Failed','Fallback Used'], true)) throw new InvalidArgumentException('Invalid AI log.');
+        || !in_array($log['status'] ?? '', ['Success','Failed','Fallback Used','Recovered'], true)) throw new InvalidArgumentException('Invalid AI log.');
     // Accept public request metadata only, never service credentials.
     if (isset($log['generationId']) && (!is_string($log['generationId']) || !preg_match('/^[A-Z]{3,8}-\\d{4}-\\d{4,}$/', $log['generationId']))) throw new InvalidArgumentException('Invalid AI generation ID.');
-    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','generationId','provider','keyId','keyLabel','evidenceSources','source','messages','gradeEvidenceKey','gradeViewKey'];
+    $allowed = ['id','userId','feature','timestamp','prompt','response','actionDescription','model','status','generationId','provider','keyId','keyLabel','evidenceSources','source','messages','gradeEvidenceKey','gradeViewKey','historyRecovery','conversationId','conversationTitle'];
     $log = array_intersect_key($log, array_flip($allowed));
     $payload = json_encode($log, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     if (strlen($payload) > 128000) throw new InvalidArgumentException('AI log is too large.');
     if (aiWasPurged($db, 'ai_logs', $log['id'])) return;
     // Retries and legacy imports must not edit, restore, or resurrect an existing log.
-    $db->prepare('INSERT IGNORE INTO ai_logs(id,user_id,feature,payload) VALUES(?,?,?,?)')->execute([$log['id'], $log['userId'], $log['feature'], $payload]);
+    $own = !$db->inTransaction();
+    if ($own) $db->beginTransaction();
+    try {
+        $insert = $db->prepare('INSERT IGNORE INTO ai_logs(id,user_id,feature,payload) VALUES(?,?,?,?)');
+        $insert->execute([$log['id'], $log['userId'], $log['feature'], $payload]);
+        if ($insert->rowCount() === 1) {
+            $features = ['sigmabot'=>'SIGMA Chat','analytics'=>'Learning Insights','quiz'=>'Assessment Generation',
+                'submission_evaluation'=>'Submission Evaluation','submission_feedback'=>'Submission Feedback','grade_insights'=>'Grade Insights'];
+            $details = 'AI feature: '.$features[$log['feature']]."\nRequest ID: ".($log['generationId'] ?? $log['id'])
+                ."\nModel: ".($log['model'] ?? 'Not recorded')."\nStatus: ".$log['status'];
+            $recovered=($log['status']==='Recovered');
+            if($recovered)$details.="\nOriginal request time: ".$log['timestamp']."\nSource: Saved browser conversation; provider and tokens were not recorded.";
+            sigmaRecordActivity($db, $log['userId'], ($recovered?'Recovered ':'Used ').$features[$log['feature']], 'AI Assistant', $details);
+        }
+        if ($own) $db->commit();
+    } catch (Throwable $error) {
+        if ($own && $db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
 }
 function aiAnalyticsState(PDO $db, string $user, string $kind): array {
     aiInsightControls($db);
@@ -93,8 +113,9 @@ function saveAiAnalyticsState(PDO $db, string $user, string $kind, array $state,
 }
 function aiRecordLogs(PDO $db): array {
     $logs=[];
-    foreach($db->query('SELECT payload,is_deleted,deleted_at,deleted_by FROM ai_logs ORDER BY created_at DESC LIMIT 2000')->fetchAll() as $row){
+    foreach($db->query('SELECT id,payload,is_deleted,deleted_at,deleted_by FROM ai_logs ORDER BY created_at DESC LIMIT 2000')->fetchAll() as $row){
         $log=json_decode($row['payload'],true); if(!is_array($log))continue;
+        $log['creationNumber']=sigmaTableCreationNumber($db,'ai_logs',(string)$row['id']);
         $log['isDeleted']=(bool)$row['is_deleted']; $log['deletedAt']=$row['deleted_at']; $log['deletedBy']=$row['deleted_by'];
         if(!empty($log['source']['signature'])){
             $card=json_decode($log['source']['signature'],true);
@@ -112,4 +133,17 @@ function aiRecordLogs(PDO $db): array {
         $logs[]=$log;
     }
     return $logs;
+}
+
+/** Dashboard data contains no prompts, replies, account identities, or conversation titles. */
+function aiRecordUsage(PDO $db): array {
+    $rows=[];
+    foreach($db->query('SELECT id,payload FROM ai_logs WHERE is_deleted=0 ORDER BY created_at DESC LIMIT 2000')->fetchAll(PDO::FETCH_ASSOC) as $row){
+        $log=json_decode($row['payload'],true);if(!is_array($log))continue;
+        $summary=array_intersect_key($log,array_flip(['id','generationId','feature','provider','model','status','timestamp','usageExcluded']));
+        $summary['id']=$row['id'];
+        $summary['tokens']=isset($log['historyRecovery'])?null:(is_numeric($log['tokens']??null)?(float)$log['tokens']:ceil((mb_strlen($log['prompt']??'')+mb_strlen($log['response']??''))/4));
+        $rows[]=$summary;
+    }
+    return $rows;
 }

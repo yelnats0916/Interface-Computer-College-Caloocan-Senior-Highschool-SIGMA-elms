@@ -968,40 +968,6 @@
     function getCalendarEventsForDate(role, dateObj, year, month, day) {
         let events = [];
 
-        // Check if system maintenance mode is currently enabled
-        let hasActiveMaintenance = false;
-        try {
-            if (window.maintenanceModeState?.enabled) {
-                hasActiveMaintenance = true;
-            } else if (typeof window.getMaintenanceConfig === 'function') {
-                const cfg = window.getMaintenanceConfig();
-                if (cfg && cfg.enabled) hasActiveMaintenance = true;
-            } else if (localStorage.getItem('sigma_maintenance_mode')) {
-                const parsed = JSON.parse(localStorage.getItem('sigma_maintenance_mode'));
-                if (parsed?.enabled) hasActiveMaintenance = true;
-            }
-        } catch (_) {}
-
-        if (hasActiveMaintenance) {
-            events.unshift({
-                startHour: '00:00',
-                period: 'AM',
-                duration: 'Active',
-                timeRange: 'Ongoing Maintenance Window',
-                nodeClass: 'node-amber',
-                tag: 'SYSTEM • LOCKDOWN',
-                tagColor: '#b45309',
-                status: 'Active Maintenance',
-                statusClass: 'bg-amber-100 text-amber-900 border-amber-300',
-                isAssessment: false,
-                role: null,
-                title: 'System Access & Enrollment Lockdown',
-                subtitle: 'Maintenance mode is active. Student and Teacher access is restricted.',
-                location: 'Portal-Wide',
-                cardClass: 'card-maintenance'
-            });
-        }
-
         if (year != null && month != null && day != null) {
             const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             let customEvents = [];

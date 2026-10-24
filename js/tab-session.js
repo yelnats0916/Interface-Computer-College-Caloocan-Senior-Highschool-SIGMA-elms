@@ -84,6 +84,12 @@
     let verifiedToken = null;
     let signingOut = false;
     let loginRecoveryAttempted = false;
+    let reconnectTimer = null, reconnectFailures = 0;
+    function retrySessionCheck() {
+        clearTimeout(reconnectTimer);
+        if (signingOut) return;
+        reconnectTimer = setTimeout(() => verifyDatabaseSession({ background: true }), Math.min(15000, 1000 * 2 ** Math.min(reconnectFailures++, 4)));
+    }
     let gateMessage = 'Checking your session...';
     const gateStyle = document.createElement('style');
     gateStyle.textContent = 'html[data-sigma-session-check]:not([data-sigma-session-shimmer]) body > :not(#sigma-session-status){visibility:hidden!important} html[data-sigma-session-shimmer] #sigma-session-status{display:none!important} html[data-sigma-session-shimmer] body{pointer-events:none!important} #sigma-session-status{position:fixed;inset:0;z-index:2147483647;background:white;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:16px Arial,sans-serif}';
@@ -129,20 +135,7 @@
         const message = document.createElement('p');
         message.textContent = gateMessage;
         status.appendChild(message);
-        if (gateMessage !== 'Checking your session...' && !signingOut) {
-            const retry = document.createElement('button');
-            retry.type = 'button'; retry.textContent = 'Refresh'; retry.className = 'sigma-retry-link';
-            retry.addEventListener('click', () => verifyDatabaseSession());
-            status.appendChild(retry);
-            const login = document.createElement('button');
-            login.type = 'button'; login.textContent = 'Sign out and return to Login';
-            login.addEventListener('click', () => {
-                window.SigmaDatabase?.revokeSession();
-                clearIdentity();
-                window.location.replace(new URL('index.html', document.baseURI).href);
-            });
-            status.appendChild(login);
-        }
+
     }
     function setGate(message) {
         if (isLoginPage) return;
@@ -297,21 +290,22 @@
                     window.location.replace(new URL('index.html', document.baseURI).href);
                 }
             }).catch(() => {
-                setGate('Your session could not be verified. Check your connection and retry.');
+                setGate('Checking your session...');
+                retrySessionCheck();
             }).finally(() => { verification = null; });
             return verification;
         }
         const token = readJson(sessionStorage, 'sigma-grade-sync-session')?.token;
         // Keep an already verified dashboard visible during routine focus checks.
         // Initial loads, history restoration, and changed identities still use the gate.
-        if (!background || verifiedToken !== token) setGate('Checking your session...');
+        if (verifiedToken !== token) setGate('Checking your session...');
         verification = (async () => {
             try {
                 const result = await window.SigmaDatabase.request('session');
                 // A logout or new sign-in may have occurred while the server was responding.
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
                 const portal = portalForRole(result.user.role);
-                if (!portal) throw Object.assign(new Error('This account has no portal access.'), { status: 403 });
+                if (!portal) throw Object.assign(new Error('This account has no portal access.'), { status: 403, authFailureConfirmed: true });
                 sessionStorage.setItem(SESSION_KEY, JSON.stringify(result.user));
                 sessionStorage.setItem('currentUser', JSON.stringify(result.user));
                 if (isPublicHelpRoute()) return;
@@ -321,18 +315,20 @@
                 }
                 syncTabIdentity();
                 verifiedToken = token;
+                clearTimeout(reconnectTimer); reconnectFailures = 0;
                 setGate(null);
                 window.dispatchEvent(new Event('sigma:database-session-ready'));
             } catch (error) {
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
-                if (error.status === 401 || error.status === 403) {
+                if ((error.status === 401 || error.status === 403) && error.authFailureConfirmed === true) {
                     verifiedToken = null;
                     setGate('Checking your session...');
                     clearIdentity();
                     if (!isLoginPage) window.location.replace(new URL('index.html', document.baseURI).href);
                 } else {
-                    setGate('Your session could not be verified. Check your connection and retry.');
-                    window.dispatchEvent(new CustomEvent('sigma:database-error', { detail: { endpoint: 'session', message: error.message } }));
+                    if (verifiedToken === token) setGate(null);
+                    else setGate('Checking your session...');
+                    retrySessionCheck();
                 }
             } finally {
                 verification = null;
@@ -369,6 +365,10 @@
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
         wasHidden = false;
+    });
+    window.addEventListener('online', () => {
+        clearTimeout(reconnectTimer);
+        verifyDatabaseSession({ background: true });
     });
     window.addEventListener('focus', () => {
         verifyDatabaseSession({ background: true });

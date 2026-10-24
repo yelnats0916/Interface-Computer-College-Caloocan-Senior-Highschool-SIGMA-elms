@@ -5,6 +5,7 @@
     const formatDate = value => value && Number.isFinite(Date.parse(value)) ? dateFormat.format(new Date(value)) : 'Not recorded';
     let selection = null, detailQuery = '', direction = 'all';
     function openDetails(value) {
+        if (window.canViewAuditLog?.('notifications') === false) return;
         selection = value; detailQuery = ''; direction = 'all';
         window.pushModalHistoryState?.('notification-account-details', () => openDetails(value));
         window.SigmaNotifications?.syncRecipientReceipts?.();
@@ -23,6 +24,7 @@
     window.closeNotificationLogDetails = closeDetails;
 
     function deleteNotificationLog(target) {
+        if (window.canViewAuditLog?.('notifications') === false) return;
         if (!target) return;
         try {
             const key = 'sigma-notification-logs-v1';
@@ -84,6 +86,7 @@
     function render() {
         const body = document.getElementById('notification-log-rows');
         if (!body) return;
+        if (window.canViewAuditLog?.('notifications') === false) { body.replaceChildren(); document.getElementById('notification-account-details')?.replaceChildren(); return; }
         const recorded = window.SigmaNotifications?.getLogs() || [];
         const table = body.closest('table');
         let actionHeading = table.querySelector('th[data-notification-actions]');
@@ -197,6 +200,7 @@
                 const td = document.createElement('td');
                 const wrap = document.createElement('div'); wrap.className = 'notification-log-person';
                 const avatar = document.createElement('span'); avatar.className = 'notification-log-avatar notification-log-avatar--' + kind;
+                if (kind === 'person') avatar.classList.add('sigma-user-avatar', 'sigma-user-avatar--sm');
                 avatar.setAttribute('aria-hidden', 'true');
                 const fallback = () => {
                     const icon = document.createElement('i');
@@ -320,6 +324,7 @@
         document.querySelectorAll('.audit-log-sidebar nav').forEach(nav => {
             const button = document.createElement('button');
             button.type = 'button';
+            button.dataset.auditKind = 'notifications';
             button.className = 'audit-log-tab' + (nav === targetNav ? ' active' : '');
             button.innerHTML = '<i class="fa-solid fa-bell" aria-hidden="true"></i><span>Notification Logs</span>';
             button.addEventListener('click', () => window.switchTab('nav-audit-notifications'));
@@ -357,4 +362,5 @@
     window.addEventListener('storage', event => { if (!event.key || event.key === 'sigma-notification-logs-v1') render(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
+    window.addEventListener('sigma:audit-permissions-changed', render);
 })();

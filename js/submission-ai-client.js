@@ -26,7 +26,7 @@
     }
 
     const fields = ['aiSuggestedScore', 'aiCommentary', 'aiEvaluatedCriteria', 'aiEvaluation'];
-    const identity = attempt => JSON.stringify([attempt?.submittedAt || attempt?.completedAt || attempt?.submissionDate || '', attempt?.attemptNumber || '',
+    const identity = attempt => attempt?.attemptIdentity || JSON.stringify([attempt?.submittedAt || attempt?.completedAt || attempt?.submissionDate || '', attempt?.attemptNumber || '',
         (attempt?.files || []).map(file => [file.name || file.fileName || '', file.size || 0, String(file.url || file.fileUrl || '').length])]);
     const historyOf = record => Array.isArray(record?.history) && record.history.length ? record.history : (Array.isArray(record?.attempts) ? record.attempts : []);
     const feedbackRecordKey = context => 'sigma-ai-feedback:' + JSON.stringify([context.studentId, context.subjectId, context.section, context.assessmentId, context.identity]);

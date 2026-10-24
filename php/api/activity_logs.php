@@ -31,8 +31,8 @@ try {
         $activity=preg_replace('/^Created explicitly requested fictional (.*?) account (.*?) \(roster [0-9]+\)$/','Created $1 account $2',$activity);
         $context=sigmaActivityContext($activity,$event['details']??'',$accounts);
         $module=sigmaAuditText($event['module']??'')?:$context['module'];
-        $records[]=['id'=>'server-activity-'.$row['id'],'source'=>'server','timestamp'=>str_replace(' ','T',$row['created_at']).'Z',
-            'activity'=>$activity,'module'=>$module,'details'=>$context['details'],
+        $records[]=['id'=>'server-activity-'.$row['id'],'source'=>'server','announcementId'=>$event['announcementId']??null,'announcement'=>$event['announcement']??null,'timestamp'=>str_replace(' ','T',$row['created_at']).'Z',
+            'activity'=>$context['activity'],'module'=>$module,'details'=>$context['details'],
             'userId'=>$row['user_id']??'','userName'=>sigmaAuditText($row['full_name']??'')?:'Account name not recorded','userRole'=>sigmaAuditText($row['role']??'')?:'Role not recorded','userAvatar'=>$row['avatar']??''];
     }
     require_once __DIR__.'/../includes/record_lifecycle.php';

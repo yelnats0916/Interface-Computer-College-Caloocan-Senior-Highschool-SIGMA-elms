@@ -5,6 +5,8 @@ module.exports = {
     './php/**/*.php',
     './js/**/*.js',
   ],
+  // Dynamic accordion states must retain their corner utilities in production.
+  safelist: ['rounded-t-2xl', 'rounded-b-2xl', 'rounded-r-none'],
   theme: {
     extend: {
       fontFamily: {

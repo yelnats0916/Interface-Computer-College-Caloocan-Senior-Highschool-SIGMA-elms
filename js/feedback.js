@@ -13,7 +13,7 @@
         type = ({ danger:'error', failed:'error', loading:'progress', canceled:'info', cancelled:'info', released:'success', submitted:'success', unreleased:'warning' })[type] || type;
         if (!icons[type]) type = 'info';
         const placement = ['top-right','bottom-left','top-center'].includes(options.placement) ? options.placement : ['error','warning'].includes(type) ? 'top-right' : 'bottom-left';
-        const id = String(options.id || type + ':' + message);
+        const id = String(options.id || 'message:' + message);
         dismiss(id);
         // Native dialogs occupy the browser top layer. Their notices must live there too.
         const dialogs = Array.from(document.querySelectorAll('dialog[open]'));

@@ -2660,13 +2660,13 @@ function initTeacherPortal() {
 
                 html += `
                     <tr>
-                        <td class="attendance-roster-number">${rosterIndex + 1}</td>
+                        <td class="attendance-roster-number">${window.getRecordCreationNumber(student, students, 'users')}</td>
                         <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${rosterIndex + 1}. </span>${escapeHtml(displayName)}</span>
+                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${window.getRecordCreationNumber(student, students, 'users')}. </span>${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -3528,7 +3528,7 @@ function initTeacherPortal() {
                 let totalL = 0;
                 let totalE = 0;
 
-                const studentRow = [index + 1, displayName, String(student.id || '')];
+                const studentRow = [window.getRecordCreationNumber(student, students, 'users'), displayName, String(student.id || '')];
 
                 datesToExport.forEach(d => {
                     const currentStatuses = getCurrentAttendanceStatuses(d.dateStr);
@@ -27265,7 +27265,7 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
 
             return `
                 <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
-                    <td style="padding: 7px 8px; text-align: center; color: #64748b;">${idx + 1}</td>
+                    <td style="padding: 7px 8px; text-align: center; color: #64748b;">${window.getRecordCreationNumber(s, students, 'users')}</td>
                     <td style="padding: 7px 8px; font-weight: 700; color: #0f172a;">${s.name}</td>
                     <td style="padding: 7px 8px; color: #64748b; font-family: monospace;">${s.id}</td>
                     <td style="padding: 7px 8px; text-align: center;">${wwStr}</td>

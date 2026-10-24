@@ -24,12 +24,101 @@
 
 /* Audit context uses real rows and spacing rather than punctuation separators. */
 html body .sigma-table.sigma-audit-table tbody td.sigma-audit-details-cell { text-align:left !important; }
-html body .sigma-audit-details { display:flex; flex-direction:column; align-items:stretch !important; width:100%; gap:6px; margin:0; text-align:left !important; line-height:1.5; overflow-wrap:anywhere; }
-html body .sigma-audit-detail-field { display:grid; width:100%; grid-template-columns:minmax(180px,190px) minmax(0,1fr); align-items:start; column-gap:12px; row-gap:2px; }
+html body .sigma-audit-details { display:grid; grid-template-columns:fit-content(120px) minmax(0,1fr); align-items:start !important; width:100%; gap:6px 10px; margin:0; text-align:left !important; line-height:1.5; overflow-wrap:anywhere; }
+html body .sigma-audit-detail-field { display:grid; grid-column:1 / -1; grid-template-columns:subgrid; align-items:start; column-gap:inherit; row-gap:2px; min-width:0; }
+html body .sigma-audit-details > :not(.sigma-audit-detail-field) { grid-column:1 / -1; }
 html body .sigma-audit-detail-label, html body .sigma-audit-detail-value { margin:0; text-align:left !important; font-weight:400; }
 /* Log content stays readable in main tables and isolated record views. */
-html body :is(#audit-ai-view,#audit-activity-view,#audit-auth-view,#audit-notifications-view) :is(tbody td,tbody td *, .ai-log-detail-identity *, .notification-detail-context *, .ai-log-conversation-details *, .sigma-log-page-count) { color:#000 !important; }
+html body :is(#audit-ai-view,#audit-activity-view,#audit-auth-view,#audit-notifications-view) :is(tbody td,tbody td *, .ai-log-detail-identity *, .notification-detail-context *, .ai-log-conversation-details *):not(.sigma-user-avatar, .sigma-user-avatar *, .ai-log-avatar, .ai-log-avatar *) { color:#000 !important; }
 html body :is(#audit-ai-view,#audit-activity-view,#audit-auth-view,#audit-notifications-view) .sigma-audit-details { color:#000 !important; }
 @media(max-width:600px) {
-    html body .sigma-audit-detail-field { grid-template-columns:minmax(0,1fr); }
+    html body .sigma-audit-details { grid-template-columns:minmax(0,1fr); }
+}
+
+/* Account avatars inherit their shared profile.css component style. */
+
+/* One layout for activity overview, account history and individual records. */
+#audit-activity-view table[data-activity-view] { table-layout:fixed; width:100%; font-size:13px; }
+#audit-activity-view table[data-activity-view="overview"] { min-width:850px; }
+#audit-activity-view table[data-activity-view="detail"] { min-width:1000px; }
+#audit-activity-view table[data-activity-view] td { padding:16px 12px !important; line-height:1.5; vertical-align:top; }
+#audit-activity-view table[data-activity-view] :is(td,button,p,span,div) { text-transform:none; }
+#audit-activity-view table[data-activity-view="overview"] th:nth-child(1) { width:22%; }
+#audit-activity-view table[data-activity-view="overview"] th:nth-child(2) { width:42%; }
+#audit-activity-view table[data-activity-view="overview"] th:nth-child(3) { width:14%; }
+#audit-activity-view table[data-activity-view="overview"] th:nth-child(4) { width:22%; }
+#audit-activity-view table[data-activity-view="overview"] td:nth-child(3),
+#audit-activity-view table[data-activity-view="detail"] td:nth-child(2) { white-space:nowrap; text-align:left !important; }
+#audit-activity-view table[data-activity-view] time { display:inline-block; white-space:nowrap; font-size:12px; }
+#audit-activity-view table[data-activity-view="overview"] td:nth-child(4),
+#audit-activity-view table[data-activity-view="detail"] :is(td:nth-child(4),td:nth-child(5)) { text-align:center !important; }
+#audit-activity-view table[data-activity-view] .ai-log-request-preview { margin-top:8px; font-size:13px; line-height:1.5; }
+#audit-activity-view table[data-activity-view] .ai-log-interaction-button { font-weight:400; }
+#audit-activity-view .sigma-table-container { overflow-x:auto; }
+#activity-content-details { padding: 0 0 32px; }
+#activity-content-details > button { margin-bottom: 24px; }
+#activity-content-title { margin: 0 0 20px; }
+.activity-announcement-body { color: #000; font: 400 15px/1.75 Inter, sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }
+.activity-announcement-body p { margin: 0 0 16px; }
+.activity-announcement-body ul, .activity-announcement-body ol { padding-left: 24px; margin: 12px 0; }
+.activity-announcement-body ul { list-style-type: disc; }
+.activity-announcement-body ol { list-style-type: decimal; }
+
+/* Only table pagination summaries use faded black; buttons and row text keep their own colors. */
+html body :is(.sigma-log-page-count,.sigma-table-list-count,[data-backup-page-summary]) {color:var(--sigma-black-fade,rgba(0,0,0,.45)) !important}
+
+/* Admin list controls precede the first row and align with the table's left edge. */
+html.sigma-admin-table-layout .sigma-admin-table-pagination,
+html.sigma-admin-table-layout .sigma-log-pagination,
+html.sigma-admin-table-layout .sigma-table-list-pagination,
+html.sigma-admin-table-layout .backup-pagination {
+    display:flex; justify-content:flex-start !important; align-items:center;
+    flex-wrap:wrap; gap:12px; padding:12px 0 16px; text-align:left;
+}
+html.sigma-admin-table-layout .sigma-pagination-container {
+    justify-content:flex-start !important; margin-left:0 !important; margin-right:0 !important;
+}
+html.sigma-admin-table-layout .sigma-log-page-controls,
+html.sigma-admin-table-layout .sigma-table-list-controls { order:-1; }
+html.sigma-admin-table-layout .sigma-log-pagination[hidden],
+html.sigma-admin-table-layout .sigma-table-list-pagination[hidden] { display:none !important; }
+
+html.sigma-admin-table-layout .sigma-admin-table-pagination,
+html.sigma-admin-table-layout .sigma-log-pagination,
+html.sigma-admin-table-layout .sigma-table-list-pagination {
+    padding-top:10px; padding-bottom:12px; gap:10px;
+}
+html.sigma-admin-table-layout :is(.sigma-log-page-controls,.sigma-table-list-controls) { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+html.sigma-admin-table-layout :is(#userTableBody,#schoolYearTableBody,#sectionTableBody,#subjectTableBody,#attendanceReportTableBody,#performanceReportTableBody)>tr>td:not([colspan]) {
+    padding-top:10px !important; padding-bottom:10px !important;
+}
+html.sigma-admin-table-layout #school-year-view>div>div:first-of-type { padding-top:24px !important; padding-bottom:24px !important; }
+@media(max-width:600px) {
+    }
+
+/* Keep the record range alongside page numbers, including narrow admin layouts. */
+html.sigma-admin-table-layout .sigma-pagination-settings { display:flex; align-items:center; justify-content:flex-end; flex:0 0 auto; gap:16px; margin-left:auto; }
+html.sigma-admin-table-layout .sigma-page-size { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; color:var(--sigma-black-fade,rgba(0,0,0,.45)); font:400 12px/20px Inter,sans-serif; }
+html.sigma-admin-table-layout .sigma-page-size .sigma-select-wrapper { position:relative; display:inline-flex; width:auto; }
+html.sigma-admin-table-layout .sigma-page-size .sigma-select-icon { position:absolute; right:8px; top:50%; margin-top:-5px; font-size:10px; line-height:10px; pointer-events:none; }
+html.sigma-admin-table-layout .sigma-page-size select { appearance:none !important; width:58px; min-width:58px; height:34px; padding:4px 20px 4px 8px !important; border:1px solid #d5dce2; border-radius:8px; background:#fff; color:#111; font:inherit; cursor:pointer; }
+html.sigma-admin-table-layout .sigma-page-size select:focus-visible { outline:2px solid #15803d; outline-offset:2px; }
+@media(max-width:600px) {
+    html.sigma-admin-table-layout .sigma-pagination-settings { gap:6px; }
+    html.sigma-admin-table-layout .sigma-page-size { gap:4px; font-size:11px; }
+    html.sigma-admin-table-layout .sigma-page-size select { width:46px; min-width:46px; }
+}
+html.sigma-admin-table-layout :is(.sigma-admin-table-pagination,.sigma-log-pagination,.sigma-table-list-pagination,.backup-pagination) {
+    flex-direction:row; flex-wrap:nowrap; gap:16px;
+}
+html.sigma-admin-table-layout :is(.sigma-admin-table-pagination,.sigma-log-page-controls,.sigma-table-list-controls)>.sigma-pagination-container {
+    min-width:0; flex:0 1 auto;
+}
+html.sigma-admin-table-layout :is(.sigma-log-page-controls,.sigma-table-list-controls) { min-width:0; flex:0 1 auto; flex-wrap:nowrap; }
+html.sigma-admin-table-layout :is(.sigma-log-page-count,.sigma-table-list-count,[data-backup-page-summary]) {
+    flex:0 0 auto; width:auto !important; white-space:nowrap; font-size:12px; line-height:20px;
+}
+@media(max-width:600px) {
+    html.sigma-admin-table-layout :is(.sigma-admin-table-pagination,.sigma-log-pagination,.sigma-table-list-pagination,.backup-pagination) { gap:8px; }
+    html.sigma-admin-table-layout :is(.sigma-log-page-count,.sigma-table-list-count,[data-backup-page-summary]) { font-size:11px; }
 }

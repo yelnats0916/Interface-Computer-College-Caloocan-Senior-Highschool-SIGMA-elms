@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
+require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
  * SIGMA ELMS — Quiz Library REST API
  * 
@@ -81,6 +82,7 @@ function decodeQuestions($raw) {
 }
 
 function quizRowToRecord(array $row): array {
+    global $pdo;
     $questions = decodeQuestions($row['questions'] ?? null);
     $totalQuestions = (int) ($row['total_questions'] ?? count($questions));
     $totalPoints = (int) ($row['total_points'] ?? 0);
@@ -91,6 +93,7 @@ function quizRowToRecord(array $row): array {
     }
 
     return [
+        'creationNumber' => sigmaTableCreationNumber($pdo, 'quizzes', (string)$row['id']),
         'id'             => (string) $row['id'],
         'code'           => (string) ($row['code'] ?? ''),
         'title'          => (string) $row['title'],

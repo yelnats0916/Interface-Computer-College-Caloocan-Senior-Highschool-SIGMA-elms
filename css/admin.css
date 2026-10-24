@@ -270,14 +270,18 @@ table:has(#sectionTableBody) thead th:nth-child(6) {
     border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Subjects table: line between Subject and Type */
+/* Subjects table: dividers after Subject and Learning Hours. */
 #school-subjects-view thead th:nth-child(3),
-table:has(#subjectTableBody) thead th:nth-child(3) {
+#school-subjects-view thead th:nth-child(6),
+table:has(#subjectTableBody) thead th:nth-child(3),
+table:has(#subjectTableBody) thead th:nth-child(6) {
     border-right: 1px solid #137638 !important;
 }
 
 #school-subjects-view tbody td:nth-child(3),
-#subjectTableBody td:nth-child(3) {
+#school-subjects-view tbody td:nth-child(6),
+#subjectTableBody td:nth-child(3),
+#subjectTableBody td:nth-child(6) {
     border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -937,6 +941,23 @@ body.section-edit-mode {
 }
 
 /* School Year Form Inputs (Matching Assign Schedule Visuals) */
+#sy-year-start-container > div:first-child,
+#sy-year-end-container-box {
+    overflow: hidden;
+}
+
+#sy-year-start-container #edit-sy-year-start,
+#sy-year-end-container-box #edit-sy-year-end {
+    min-width: 0;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+#edit-sy-year-start-calendar-btn {
+    flex-shrink: 0;
+}
+
 #sy-edit-overlay input[type="date"] {
     position: relative;
     background-color: #ffffff;

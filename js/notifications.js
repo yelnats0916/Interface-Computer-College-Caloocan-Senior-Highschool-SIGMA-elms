@@ -910,7 +910,7 @@
         add(notif, role) {
             return window.SigmaNotifications.sendToRole(role || currentRole, notif);
         },
-        getLogs: getNotificationLogs,
+        getLogs: () => window.canViewAuditLog?.('notifications') === false ? [] : getNotificationLogs(),
         deleteLog: (logOrId) => window.deleteNotificationLog?.(logOrId),
         assessmentReleaseNotice, notifyAssessmentContentUpdate,
         syncRecipientReceipts() { recordFeedRecipients(getNotifications()); },

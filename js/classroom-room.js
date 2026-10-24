@@ -2255,7 +2255,7 @@
             const key = Object.keys(statuses).find(key => (student.id && String(key) === String(student.id)) || studentNamesMatch(key,name));
             const status = statuses[student.id] || statuses[name] || statuses[key] || '';
             const label = {P:'Present',A:'Absent',L:'Late',E:'Excused'}[status] || 'Unmarked';
-            return `<tr><td>${index+1}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
+            return `<tr><td>${window.getRecordCreationNumber(student, students, 'users')}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
         }).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div>`;
         dialog.querySelector('[data-close]').onclick = () => dialog.close();
         dialog.addEventListener('click', event => { if (event.target === dialog) { const rect=dialog.getBoundingClientRect(); if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close(); } });
@@ -2916,13 +2916,13 @@
 
                 html += `
                     <tr>
-                        <td class="attendance-roster-number">${rosterIndex + 1}</td>
+                        <td class="attendance-roster-number">${window.getRecordCreationNumber(student, students, 'users')}</td>
                         <td class="student-name-col ${isAttendanceStudentColExpanded ? 'is-students-expanded' : ''}">
                             <div class="flex items-center gap-1.5 sm:gap-2.5 h-full w-full min-w-0 overflow-hidden whitespace-nowrap pointer-events-none select-none cursor-default" style="white-space: nowrap !important; overflow: hidden !important;">
                                 ${studentAvatarHtml}
                                 <span class="attendance-student-name font-medium text-black truncate max-w-full block whitespace-nowrap overflow-hidden" 
                                       style="font-size: clamp(10px, 2.6vw, 13px); white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; width: 100% !important; max-width: 100% !important; line-height: 1.2 !important;" 
-                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${rosterIndex + 1}. </span>${escapeHtml(displayName)}</span>
+                                      title="${escapeHtml(displayName)}"><span class="attendance-roster-inline">${window.getRecordCreationNumber(student, students, 'users')}. </span>${escapeHtml(displayName)}</span>
                             </div>
                         </td>
                         ${isAttendanceStudentColExpanded ? `
@@ -3679,7 +3679,7 @@
             let displayName = formatStudentLastFirstMiddle(student) || student.name || student.fullName || '';
 
             let totalP = 0, totalA = 0, totalL = 0, totalE = 0;
-            const studentRow = [index + 1, displayName, String(student.id || student.uid || '')];
+            const studentRow = [window.getRecordCreationNumber(student, students, 'users'), displayName, String(student.id || student.uid || '')];
 
             datesToExport.forEach(d => {
                 const currentStatuses = statusesForDate(d.dateStr);
@@ -3714,7 +3714,7 @@
         const totalsExcusedRow = ["", "All Total Excuse", ""];
 
         datesToExport.forEach(d => {
-            const currentStatuses = getCurrentAttendanceStatuses(d.dateStr);
+            const currentStatuses = statusesForDate(d.dateStr);
             let dayP = 0, dayA = 0, dayL = 0, dayE = 0;
             students.forEach(student => {
                 let displayName = formatStudentLastFirstMiddle(student) || student.name || student.fullName || '';
@@ -3815,6 +3815,31 @@
 
         return { ws: null, sheetData };
     }
+
+    window.exportFilteredAttendancePdf = async function (section, subject, config) {
+        if (window._attendancePdfExporting) return;
+        window._attendancePdfExporting = true;
+        try {
+            const { data } = findAttendanceClassroomRecord(section, subject);
+            const students = (getAttendanceStudents(section, subject) || []).slice().sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
+            if (!students.length) { window.showToastNotification?.('No students available for this section and subject.', 'warning'); return; }
+            const dates = Object.keys(data).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && config.isMatch(date));
+            if (data.date && config.isMatch(data.date) && !dates.includes(data.date)) dates.push(data.date);
+            dates.sort();
+            if (!dates.length) { window.showToastNotification?.('No recorded attendance for the applied period.', 'warning'); return; }
+            const statuses = date => data[date]?.statuses || (data.date === date ? data.statuses : null) || {};
+            const months = [...new Set(dates.map(date => date.slice(0, 7)))].map(month => {
+                const columns = dates.filter(date => date.startsWith(month)).map(date => ({ dateStr: date, label: date.slice(5).replace('-', '/') }));
+                const period = config.label + ' - ' + (config.academic?.start || columns[0].dateStr) + ' to ' + (config.academic?.end || columns[columns.length - 1].dateStr);
+                return { month, period, academic: config.academic || window.getAttendanceAcademicContext?.(columns),
+                    rows: buildAttendanceWorksheet(columns, period, students, subject, section, statuses, config.academic).sheetData };
+            });
+            await window.saveAttendancePdf({ section, subject, label: config.label, months });
+        } catch (error) {
+            console.error('Attendance PDF export failed', error);
+            window.showToastNotification?.('Unable to export the attendance PDF. Please try again.', 'warning');
+        } finally { window._attendancePdfExporting = false; }
+    };
 
     window.exportFilteredAttendanceWorkbook = function (section, subject, config) {
         if (typeof XLSX === 'undefined') { window.showToastNotification?.('Excel export is unavailable. Please reload and try again.', 'warning'); return; }

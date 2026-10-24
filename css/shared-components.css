@@ -3292,9 +3292,9 @@ header .fa-bolt{color:inherit!important;-webkit-text-fill-color:currentColor!imp
 }
 
 /* Boxed text fields: flat yellow border when selected. Underline fields stay black. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):focus,
+input:not(.bg-transparent):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(.sigma-subject-input):not(.sigma-form-input):not(.sigma-underline-input):not(.sigma-underline-field):not(.border-b):not(.border-b-2):not(.input-error):focus,
 select:not(.sigma-subject-select):not(.sigma-form-select):not(.sigma-underline-select):not(.border-b):not(.border-b-2):not(.input-error):focus,
-textarea:not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(.border-b):not(.border-b-2):not(.input-error):focus {
+textarea:not(.bg-transparent):not(.sigma-one-border-textarea):not(.sigma-underline-field):not(.sigma-underline-item-textarea):not(.sigma-comment-textarea):not(#sigma-dialog-comment-input):not(.border-b):not(.border-b-2):not(.input-error):focus {
     border-color: #FFD000 !important;
     background-color: #ffffff !important;
     box-shadow: none !important;
@@ -8211,3 +8211,22 @@ table[data-sigma-paginate] tbody tr[hidden] { display:none !important; }
 }
 
 .record-mobile-grade-card[hidden] { display:none !important; }
+
+/* Quiz provenance and selection share the SIGMA green palette. */
+.sigma-quiz-generated-badge {
+    display:inline-flex; align-items:center; gap:4px; flex-shrink:0;
+    padding:2px 6px; border:1px solid #bbf7d0; border-radius:4px;
+    background:#dcfce7; color:#15803d; font-size:9px; font-weight:700;
+    line-height:1.35; white-space:nowrap;
+}
+html body .sigma-quiz-generated-badge > i.fa-bolt,
+html body .quiz-storage-filter-chip > i.fa-bolt {
+    color:inherit !important; -webkit-text-fill-color:currentColor !important;
+}
+html body .sigma-quiz-card-selected {
+    border-color:#15803d !important; outline:none !important;
+    box-shadow:inset 0 0 0 1px #15803d !important;
+}
+@media(max-width:600px) {
+    .sigma-quiz-generated-badge { font-size:8px; }
+}

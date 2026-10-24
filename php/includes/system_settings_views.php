@@ -98,57 +98,37 @@
 
                 <!-- Card 3: System Lockdown & Maintenance -->
                 <div id="sec-maintenance-panel" class="sigma-settings-panel-card">
-                    <div class="sigma-panel-header">
-                        <h2 class="sigma-panel-title">System Access &amp; Maintenance</h2>
-                        <p class="sigma-panel-subtitle">Use one control for the important state only: keep the system operational or place it in maintenance mode while Admin access stays available.</p>
+                    <div class="sigma-panel-header"><h2 class="sigma-panel-title">System Access &amp; Maintenance</h2></div>
+                    <div id="sec-maintenance-toggle-row" class="flex items-center justify-between gap-4 py-4">
+                        <div><label for="settings-maintenance-toggle" class="text-sm font-semibold text-black">Maintenance Mode</label><p id="maintenance-mode-description" class="maintenance-mode-description">Temporarily restrict portal access while authorized administrators perform maintenance.</p><p id="maintenance-mode-status" class="maintenance-mode-status" role="status">Loading maintenance status...</p></div>
+                        <label class="sigma-toggle-switch"><input type="checkbox" id="settings-maintenance-toggle" disabled aria-label="Toggle maintenance mode" aria-describedby="maintenance-mode-description maintenance-mode-status" onchange="window.handleAdminMaintenanceToggleChange(this.checked)"><span class="sigma-toggle-slider"></span></label>
                     </div>
-
-                    <div class="space-y-6">
-                        <!-- Maintenance Toggle -->
-                        <div id="sec-maintenance-toggle-row" class="grid grid-cols-1 md:grid-cols-3 items-center py-4 border-b border-slate-50 gap-4">
-                            <div>
-                                <p class="text-sm font-bold text-black font-['Inter']">Maintenance / Lockdown Mode</p>
-                                <span class="text-xs text-black-fade font-medium">Combined access restriction and forced logout</span>
-                            </div>
-                            <div class="text-left md:text-center">
-                                <p class="text-xs text-black-fade font-medium">Immediately logs out active Student and Teacher sessions, then blocks new sign-ins while Master Admins retain full access</p>
-                            </div>
-                            <div class="flex items-center justify-start md:justify-end">
-                                <label class="sigma-toggle-switch cursor-pointer">
-                                    <input type="checkbox" id="settings-maintenance-toggle" aria-label="Toggle restricted access maintenance mode"
-                                        onchange="window.handleAdminMaintenanceToggleChange(this.checked)">
-                                    <span class="sigma-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Notice Message -->
-                        <div id="sec-notice-message-section" class="space-y-3 py-2">
-                            <div id="settings-maintenance-master-note" class="hidden rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-700">
-                                <i class="fa-solid fa-lock mr-1.5"></i>
-                                Only Master Admin can activate maintenance mode or update the restricted access notice.
-                            </div>
-                            <label for="settings-maintenance-message" class="block text-sm font-bold text-black font-['Inter']">
-                                Restricted Access Notice Message
-                            </label>
-                            <p class="text-xs text-black-fade font-medium">
-                                This message is shown to Students and Teachers on the login screen if they attempt to sign in during lockdown.
-                            </p>
-                            <textarea id="settings-maintenance-message" rows="3" maxlength="300"
-                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm font-medium text-black outline-none focus:bg-white focus:border-[#15803d] transition-all font-['Inter']"
-                                placeholder="Enter custom notice message for students and teachers..."></textarea>
-                            <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
-                                <span class="text-[11px] text-black-fade font-medium">Default notice will be used if left empty</span>
-                                <button type="button" id="settings-maintenance-message-save" onclick="window.saveMaintenanceMessageOnly()"
-                                    class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
-                                    <i class="fa-solid fa-floppy-disk text-xs"></i>
-                                    <span>Save Notice Message</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <p id="maintenance-schedule-summary" role="status">Loading maintenance settings...</p>
+                    <div class="maintenance-actions"><button type="button" id="maintenance-schedule-open" class="maintenance-button" disabled>Manage Maintenance</button><button type="button" id="maintenance-retry" class="maintenance-button maintenance-button-secondary" hidden>Retry</button></div>
                 </div>
             </div>
+        </section>
+    </div>
+
+    <div id="maintenance-page" class="maintenance-page" hidden>
+        <section class="maintenance-editor" aria-labelledby="maintenance-page-title">
+            <div class="maintenance-page-heading"><h2 id="maintenance-page-title">Maintenance Schedule</h2></div>
+            <p class="maintenance-page-help">Choose a one-time start and end in Manila time. Password verification appears before publishing or changing maintenance.</p>
+            <form id="maintenance-schedule-form">
+                <input id="maintenance-title" aria-label="Notice title" placeholder="Notice title" required maxlength="120" autocomplete="off">
+                <div class="maintenance-time-fields"><div><label for="maintenance-start">Start date and time</label><input id="maintenance-start" type="datetime-local" aria-label="Start date and time" required></div><div><label for="maintenance-end">End date and time</label><input id="maintenance-end" type="datetime-local" aria-label="End date and time" required></div></div>
+                <textarea id="maintenance-message" aria-label="Notice message" placeholder="Notice message" rows="4" required maxlength="1000"></textarea>
+                <p class="maintenance-field-help">Plain text only. Title: up to 120 characters. Message: up to 1,000 characters.</p>
+                <p class="maintenance-field-help">Automatically shown in the calendar for all roles, Important announcements, and the banner below the navbar.</p>
+                <p class="maintenance-field-help">The school name and logo appear publicly. Your administrator account remains the recorded publisher.</p>
+                <p id="maintenance-page-error" role="alert" hidden></p>
+                <div class="maintenance-editor-actions"><button type="button" id="maintenance-new" class="maintenance-button maintenance-button-secondary">Clear Form</button><button type="button" id="maintenance-schedule-cancel" class="maintenance-button maintenance-button-secondary" hidden>Cancel Schedule</button><button type="submit" id="maintenance-page-save" class="maintenance-button" disabled>Save Schedule and Notices</button></div>
+            </form>
+        </section>
+        <section class="maintenance-history" aria-labelledby="maintenance-history-title">
+            <h2 id="maintenance-history-title">Notice History</h2>
+            <div class="maintenance-history-wrap"><table><thead><tr><th>Posted</th><th>Notice</th><th>Maintenance Window</th><th>Published By</th><th>Locations</th><th>Status</th></tr></thead><tbody id="maintenance-history-body"><tr><td colspan="6">Loading notice history...</td></tr></tbody></table></div>
+            <p id="maintenance-history-error" role="status" hidden></p>
         </section>
     </div>
 </section>

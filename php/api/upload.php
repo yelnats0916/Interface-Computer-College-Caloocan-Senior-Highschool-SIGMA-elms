@@ -14,6 +14,8 @@ require_once dirname(__DIR__) . '/includes/service_vault_auth.php';
 require_once dirname(__DIR__) . '/includes/service_key_validation.php';
 require_once dirname(__DIR__) . '/includes/gdrive_service.php';
 require_once dirname(__DIR__) . '/includes/application_auth.php';
+require_once dirname(__DIR__) . '/includes/material_storage.php';
+require_once dirname(__DIR__) . '/includes/material_limits.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
@@ -45,45 +47,12 @@ function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $file
     $auth = getGoogleAccessToken($keyFile);
     if (!$auth || empty($auth['token'])) return null;
 
-    $fileMime = @mime_content_type($filePath) ?: 'application/octet-stream';
-    $fileData = file_get_contents($filePath);
-    $boundary = '-------' . md5(microtime(true));
-
-    $metadata = [
-        'name' => $fileName,
-        'parents' => [$folderId]
-    ];
-
-    $body = "--" . $boundary . "\r\n";
-    $body .= "Content-Type: application/json; charset=UTF-8\r\n\r\n";
-    $body .= json_encode($metadata) . "\r\n";
-    $body .= "--" . $boundary . "\r\n";
-    $body .= "Content-Type: " . $fileMime . "\r\n\r\n";
-    $body .= $fileData . "\r\n";
-    $body .= "--" . $boundary . "--";
-
-    $ch = curl_init("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer " . $auth['token'],
-        "Content-Type: multipart/related; boundary=" . $boundary,
-        "Content-Length: " . strlen($body)
-    ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    $raw = curl_exec($ch);
-    curl_close($ch);
-
-    return json_decode($raw, true) ?: null;
+    return sigmaUploadDriveFile($auth['token'], $filePath, $fileName, $folderId);
 }
 
-// Folder usage is read-only and restricted to integration administrators.
+// Shared usage totals are read-only for active administrators. Credential changes remain protected.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'folder_usage') {
     $usageActor = sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
-    if (!serviceVaultAdmin($usageActor)) {
-        jsonOut(['success' => false, 'error' => 'This administrator cannot view integration storage usage.'], 403);
-    }
     require_once dirname(__DIR__) . '/includes/gdrive_usage.php';
     try {
         $auth = getGoogleAccessToken('');
@@ -124,68 +93,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'folder_
     } catch (Throwable $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 502); }
 }
 
-// GET status endpoint
+// Saved configuration is read without waiting for Google. Test Connection performs
+// the remote checks separately so a slow token request cannot hide saved settings.
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $keyPath = $rootDir . '/config/google_service_account.json';
+    sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin','masteradmin','administrator']);
+    $oauthConnected = !empty($driveConfig['oauth']['refresh_token']);
     $hasKey = !empty($driveConfig['service_account']['private_key']);
-    $email = '';
-    $quota = null;
-    $configuredLimitGb = isset($driveConfig['storage_limit_gb']) && is_numeric($driveConfig['storage_limit_gb']) && (float)$driveConfig['storage_limit_gb'] > 0
-        ? (float)$driveConfig['storage_limit_gb']
-        : 15.0;
-
-    if ($hasKey) {
-        $k = $driveConfig['service_account'];
-        $email = $k['client_email'] ?? '';
-        $auth = getGoogleAccessToken($keyPath);
-        if ($auth && !empty($auth['token'])) {
-            $ch = curl_init("https://www.googleapis.com/drive/v3/about?fields=storageQuota,user");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $auth['token']]);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-            $about = json_decode(curl_exec($ch), true);
-            curl_close($ch);
-            if (!empty($about['storageQuota'])) {
-                $sq = $about['storageQuota'];
-                $limit = (isset($sq['limit']) && (float)$sq['limit'] > 0) ? (float)$sq['limit'] : ($configuredLimitGb * 1024 * 1024 * 1024);
-                $usage = isset($sq['usage']) ? (float)$sq['usage'] : 0;
-                $usedGB = round($usage / (1024 * 1024 * 1024), 2);
-                $limitGB = round($limit / (1024 * 1024 * 1024), 1);
-                $pct = ($limit && $limit > 0) ? round(($usage / $limit) * 100) : 0;
-                $quota = [
-                    'used_bytes'  => $usage,
-                    'used_gb'     => $usedGB,
-                    'limit_bytes' => $limit,
-                    'limit_gb'    => $limitGB,
-                    'percent'     => $pct
-                ];
-            }
-        }
-    }
-
-    if (!$quota && $hasKey) {
-        $defaultLimit = $configuredLimitGb * 1024 * 1024 * 1024;
-        $quota = [
-            'used_bytes'  => 0,
-            'used_gb'     => 0,
-            'limit_bytes' => $defaultLimit,
-            'limit_gb'    => $configuredLimitGb,
-            'percent'     => 0
-        ];
-    }
-
-    jsonOut([
-        'success'      => true,
-        'status'       => 'ready',
-        'google_drive' => [
-            'configured'            => $hasKey,
-            'service_account_email' => $email ?: ($driveConfig['service_account_email'] ?? ''),
-            'folder_id'             => $driveConfig['folder_id'] ?? '',
-            'folder_url'            => $driveConfig['folder_url'] ?? '',
-            'storage_limit_gb'      => $configuredLimitGb,
-            'quota'                 => $quota
-        ]
-    ]);
+    $folderId = (string)($driveConfig['folder_id'] ?? '');
+    jsonOut(['success'=>true,'status'=>'ready','google_drive'=>[
+        'configured'=>$hasKey || $oauthConnected,
+        'connection_mode'=>$oauthConnected ? 'google_account' : 'service_account',
+        'oauth_configured'=>!empty($driveConfig['oauth']['client_id']),
+        'oauth_connected'=>$oauthConnected,
+        'service_account_email'=>$driveConfig['service_account']['client_email'] ?? $driveConfig['service_account_email'] ?? '',
+        'folder_id'=>$folderId,
+        'folder_url'=>$folderId ? 'https://drive.google.com/drive/folders/'.$folderId : '',
+        'storage_limit_gb'=>(float)($driveConfig['storage_limit_gb'] ?? 15),
+        'quota'=>null
+    ]]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -198,7 +123,7 @@ $uploadRole = preg_replace('/[\s_-]+/', '', strtolower($uploadActor['role']));
 if ($uploadRole === 'teacher' && !sigmaActorPermission($uploadActor,'teacherMaterials')) jsonOut(['success'=>false,'error'=>'Material uploads are disabled for this account.'],403);
 
 // Check for JSON or POST payload actions
-$rawInput = file_get_contents('php://input');
+$rawInput = stripos($_SERVER['CONTENT_TYPE']??'', 'application/json')!==false ? file_get_contents('php://input') : '';
 $jsonPayload = json_decode($rawInput, true) ?: [];
 $action = $_POST['action'] ?? $jsonPayload['action'] ?? 'upload';
 if (in_array($action, ['test_connection', 'save_config', 'upload_key'], true)) {
@@ -209,7 +134,7 @@ if (in_array($action, ['test_connection', 'save_config', 'upload_key'], true)) {
 // ── Action: TEST CONNECTION ──────────────────────────────────────────────────
 if ($action === 'test_connection') {
     $keyPath = $rootDir . '/config/google_service_account.json';
-    if (empty($driveConfig['service_account']['private_key'])) {
+    if (empty($driveConfig['service_account']['private_key']) && empty($driveConfig['oauth']['refresh_token'])) {
         jsonOut(['success' => false, 'error' => 'Service account key file not found on server.'], 404);
     }
     $auth = getGoogleAccessToken($keyPath);
@@ -222,21 +147,23 @@ if ($action === 'test_connection') {
     $folderValid = false;
     $folderName = 'SIGMA ELMS Storage';
     if ($folderId !== '') {
-        $ch = curl_init("https://www.googleapis.com/drive/v3/files/" . urlencode($folderId) . "?fields=id,name,mimeType,trashed");
+        $ch = curl_init("https://www.googleapis.com/drive/v3/files/" . urlencode($folderId) . "?supportsAllDrives=true&fields=id,name,mimeType,trashed,driveId,capabilities(canAddChildren)");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $auth['token']]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 8);
         $fRes = json_decode(curl_exec($ch), true);
         curl_close($ch);
-        if (!empty($fRes['id']) && empty($fRes['trashed'])) {
+        if (!empty($fRes['id']) && empty($fRes['trashed']) && ($fRes['mimeType'] ?? '') === 'application/vnd.google-apps.folder' && !empty($fRes['capabilities']['canAddChildren'])) {
             $folderValid = true;
             $folderName = $fRes['name'] ?? $folderName;
         }
     }
 
     jsonOut([
-        'success'      => true,
-        'message'      => 'Google Drive API handshake successful!',
+        'success'      => $folderValid,
+        'upload_ready' => $folderValid && (!empty($driveConfig['oauth']['refresh_token']) || !empty($fRes['driveId'])),
+        'error'        => $folderValid ? null : 'The configured folder cannot accept files. Check its sharing permissions.',
+        'message'      => !empty($driveConfig['oauth']['refresh_token']) || !empty($fRes['driveId']) ? 'Google Drive folder access verified.' : 'The API can read this folder. Connect your Google account below to upload files to My Drive.',
         'email'        => $auth['email'],
         'project_id'   => $auth['project_id'],
         'folder_id'    => $folderId,
@@ -295,6 +222,25 @@ if ($action === 'upload_key') {
 // ── Action: FILE UPLOADS (Materials, Videos, Images, Documents) ───────────────
 $uploadedFile = $_FILES['file'] ?? $_FILES['media'] ?? $_FILES['document'] ?? null;
 $category = trim($_POST['category'] ?? 'materials');
+$materialPath = null;
+$materialSubject = null;
+if ($category === 'subject-material') {
+    if (!in_array($uploadRole, ['admin','masteradmin','administrator'], true)) jsonOut(['success'=>false,'error'=>'Master curriculum uploads require an administrator account.'],403);
+    $db = serviceSettingsPdo();
+    $find = $db->prepare('SELECT id,code,name,topics FROM subjects WHERE id=? AND is_deleted=0');
+    $find->execute([trim((string)($_POST['subject_id'] ?? ''))]);
+    $materialSubject = $find->fetch(PDO::FETCH_ASSOC);
+    $topic = null;
+    foreach (json_decode($materialSubject['topics'] ?? '[]',true) ?: [] as $candidate) {
+        if ((string)$candidate['id'] === (string)($_POST['topic_id'] ?? '')) { $topic=$candidate; break; }
+    }
+    $materialTitle = trim((string)($_POST['material_title'] ?? ''));
+    if (!$materialSubject || !$topic || $materialTitle === '') jsonOut(['success'=>false,'error'=>'Select an existing subject and topic and enter the material title.'],422);
+    $assetKind = ($_POST['asset_kind'] ?? '') === 'rubric' ? 'rubric' : 'instructions';
+    $materialType=trim((string)($_POST['material_type']??'Task'));
+    if(!in_array($materialType,['Lesson','Video','Quiz','Task','Assignment','Activity','Performance Task'],true))jsonOut(['success'=>false,'error'=>'Invalid material type.'],422);
+    $materialPath = sigmaMaterialFolderPath($uploadActor,$materialSubject,$topic,$materialTitle,$assetKind,$materialType);
+}
 
 if (!$uploadedFile || $uploadedFile['error'] !== UPLOAD_ERR_OK) {
     $errCode = $uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE;
@@ -307,7 +253,17 @@ if (!$uploadedFile || $uploadedFile['error'] !== UPLOAD_ERR_OK) {
         UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
         UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the file upload',
     ];
-    jsonOut(['success' => false, 'error' => $errMap[$errCode] ?? "Upload failed with error code {$errCode}"], 400);
+    jsonOut(['success' => false, 'error' => $errMap[$errCode] ?? "Upload failed with error code {$errCode}"], in_array($errCode,[UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE],true)?413:400);
+}
+
+$limits=sigmaMaterialLimits(loadServiceSettings()['material_limits']??[]);
+try {sigmaValidateUploadSize($limits,(string)$uploadedFile['name'],(int)filesize($uploadedFile['tmp_name']));}
+catch(InvalidArgumentException $error){jsonOut(['success'=>false,'error'=>$error->getMessage()],413);}
+$reservedBatch=null;$uploadStored=false;
+if($category==='submissions'){
+    try {$reservedBatch=sigmaReserveSubmissionBytes(serviceSettingsPdo(),(string)$uploadActor['id'],(string)($_POST['submission_batch_id']??''),(int)filesize($uploadedFile['tmp_name']),$limits);}
+    catch(InvalidArgumentException $error){jsonOut(['success'=>false,'error'=>$error->getMessage()],413);}
+    register_shutdown_function(function() use (&$uploadStored,$reservedBatch){if(!$uploadStored&&$reservedBatch){try{serviceSettingsPdo()->prepare('UPDATE upload_submission_batches SET total_bytes=GREATEST(0,total_bytes-?) WHERE user_id=? AND batch_id=?')->execute($reservedBatch);}catch(Throwable $ignored){}}});
 }
 
 // Determine target directory
@@ -317,6 +273,7 @@ $ext = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
 $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 $videoExts = ['mp4', 'webm', 'mov', 'mkv', 'avi'];
 $docExts   = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'txt'];
+if(!in_array($ext,array_merge($imageExts,$videoExts,$docExts,['zip','json','csv']),true)) jsonOut(['success'=>false,'error'=>'This file format is not supported.'],422);
 
 if (in_array($ext, $imageExts)) {
     $subDir = 'images';
@@ -341,18 +298,19 @@ if (!move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
     jsonOut(['success' => false, 'error' => 'Could not save file to server storage.'], 500);
 }
 
+$uploadStored=true;
 $relativeUrl = 'uploads/' . $subDir . '/' . $uniqueName;
+$fileSize = (int)filesize($targetPath);
 // Target Google Drive Folder Mapping (Just-in-Time Dynamic Resolution)
-$foldersMap = $driveConfig['folders'] ?? [];
 $rootFolderId = $driveConfig['folder_id'] ?? '';
-$targetGdriveFolderId = $rootFolderId;
+$targetGdriveFolderId = '';
 
 $keyPath = $rootDir . '/config/google_service_account.json';
-$auth = !empty($driveConfig['service_account']['private_key']) ? getGoogleAccessToken($keyPath) : null;
+$auth = getGoogleAccessToken($keyPath);
 $token = $auth['token'] ?? null;
 
 // Check if a specific contextual path is requested for this upload
-$customPath = $_POST['folder_path'] ?? null;
+$customPath = $materialPath ?? ($_POST['folder_path'] ?? sigmaGeneralUploadFolderPath($uploadActor,$category));
 if ($customPath && is_string($customPath)) {
     $decoded = json_decode($customPath, true);
     if (is_array($decoded)) {
@@ -362,30 +320,29 @@ if ($customPath && is_string($customPath)) {
     }
 }
 
-if (!empty($customPath) && is_array($customPath) && $token && $rootFolderId) {
+if (empty($customPath) || !is_array($customPath)) $customPath=sigmaGeneralUploadFolderPath($uploadActor,$category);
+if ($token && $rootFolderId) {
     $resolvedFolder = resolveGdriveFolderPath($token, $rootFolderId, $customPath);
-    if ($resolvedFolder && !empty($resolvedFolder['id'])) {
-        $targetGdriveFolderId = $resolvedFolder['id'];
-    }
-} elseif ($category === 'submissions' || $subDir === 'submissions') {
-    $targetGdriveFolderId = $foldersMap['submissions'] ?? $targetGdriveFolderId;
-} elseif ($category === 'quizzes' || $category === 'questions') {
-    $targetGdriveFolderId = $foldersMap['quizzes'] ?? $targetGdriveFolderId;
-} elseif ($category === 'backups') {
-    $targetGdriveFolderId = $foldersMap['backups'] ?? $targetGdriveFolderId;
-} elseif ($category === 'faculty' || $category === 'teacher') {
-    $targetGdriveFolderId = $foldersMap['faculty'] ?? $targetGdriveFolderId;
-} else {
-    $targetGdriveFolderId = $foldersMap['materials'] ?? $targetGdriveFolderId;
+    $targetGdriveFolderId = $resolvedFolder['id'] ?? '';
 }
 
 $gdriveFile = null;
 if (!empty($token) && !empty($targetGdriveFolderId)) {
-    $gdriveFile = @uploadFileToGoogleDrive($keyPath, $targetPath, $uploadedFile['name'], $targetGdriveFolderId);
+    $gdriveFile = sigmaUploadDriveFile($token, $targetPath, $uploadedFile['name'], $targetGdriveFolderId);
+}
+$syncError = $gdriveFile['error']['message'] ?? (empty($gdriveFile['id']) ? 'Google Drive upload is pending. Check the storage connection.' : null);
+$uploadId = null;
+if ($materialSubject) {
+    $uploadId = bin2hex(random_bytes(16));
+    sigmaEnsureMaterialUploads($db);
+    $db->prepare('INSERT INTO material_uploads(id,actor_id,subject_id,topic_id,material_title,asset_kind,local_url,file_name,folder_path,drive_file_id,drive_folder_id,sync_error,synced_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$uploadId,$uploadActor['id'],$materialSubject['id'],$topic['id'],$materialTitle,$assetKind,$relativeUrl,$uploadedFile['name'],json_encode($materialPath),$gdriveFile['id']??null,$targetGdriveFolderId,$syncError,empty($gdriveFile['id'])?null:gmdate('Y-m-d H:i:s')]);
 }
 
 jsonOut([
     'success'      => true,
+    'uploadId'     => $uploadId,
+    'warning'      => $syncError,
     'url'          => $relativeUrl,
     'fileName'     => $uploadedFile['name'],
     'storedName'   => $uniqueName,

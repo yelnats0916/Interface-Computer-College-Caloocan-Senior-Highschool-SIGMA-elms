@@ -13,6 +13,8 @@
         const accountId = String(account.uid || account.id || '');
         const prefix = accountId ? 'sigma-conversations:' + encodeURIComponent(accountId) : null;
         const batch = 8;
+        const messageBatch = 12, messageWindow = 36;
+        let transcript = [], messageStart = 0, messageEnd = 0, viewVersion = 0;
         const pendingTitles = new Set();
         let active = null, index = [], visible = batch, inHistory = false, memory = new Map(), greeting = null;
         const node = (tag, text, cls) => {
@@ -55,6 +57,7 @@
                 const updated = index.map(item => item.id === id ? { ...item, title, titleSource: 'ai' } : item);
                 if (prefix) localStorage.setItem(prefix + ':index', JSON.stringify(updated));
                 index = updated;
+                window.dispatchEvent(new Event('sigma:conversation-metadata-updated'));
                 if (inHistory) paintHistory();
             } catch { /* Retain the temporary title when the AI service is unavailable. */ }
             finally { pendingTitles.delete(id); }
@@ -67,12 +70,20 @@
         function capture() {
             const greetingNode = messages.querySelector('[data-sigma-greeting="true"]');
             if (greetingNode) greeting = greetingNode.cloneNode(true);
-            const list = Array.from(messages.querySelectorAll('.sigma-ai-message')).filter(el => el.dataset.sigmaGreeting !== 'true').map(el => ({
+            const displayed = Array.from(messages.querySelectorAll('.sigma-ai-message')).filter(el => el.dataset.sigmaGreeting !== 'true').map(el => ({
                 role: el.classList.contains('sigma-ai-message--user') ? 'user' : 'assistant',
                 text: window.SigmaMessageFormat.raw(el.querySelector('.sigma-ai-message__bubble')),
-                stamp: el.querySelector('.sigma-ai-message__meta')?.textContent || ''
+                stamp: el.querySelector('.sigma-ai-message__meta')?.textContent || '',
+                ...(el.dataset.timestamp ? { timestamp:el.dataset.timestamp } : {}),
+                ...(el.dataset.sigmaModel ? { model:el.dataset.sigmaModel } : {}),
+                ...(el.dataset.generationId ? { generationId:el.dataset.generationId } : {}),
+                ...(el.dataset.provider ? { provider:el.dataset.provider } : {})
+                ,...(el.dataset.sigmaSourceChoice ? { sourceChoice: JSON.parse(el.dataset.sigmaSourceChoice) } : {})
             }));
+            const list = [...transcript.slice(0, messageStart), ...displayed, ...transcript.slice(messageEnd)];
             if (!list.some(item => item.role === 'user')) return;
+            if (JSON.stringify(list) === JSON.stringify(transcript)) return;
+            transcript = list; messageEnd = messageStart + displayed.length;
             if (!active) active = Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, '0')).join('');
             const previous = index.find(item => item.id === active);
             const title = previous?.title || list.find(item => item.role === 'user').text.replace(/\s+/g, ' ').trim().slice(0, 80) || 'Conversation';
@@ -87,27 +98,85 @@
                 } catch { warn(); }
             }
             generateTitle(active, list);
+            if (list.at(-1)?.role === 'assistant') window.dispatchEvent(new Event('sigma:conversation-metadata-updated'));
+            if (displayed.length > messageWindow) showLatestMessages();
         }
+        window.getSigmaConversationContext = () => {
+            capture();
+            const entry = index.find(item => item.id === active);
+            return entry ? {conversationId:entry.id, conversationTitle:entry.title} : {};
+        };
         const observer = new MutationObserver(capture);
         function observe() { observer.observe(messages, { childList: true, subtree: true, characterData: true }); }
-        function replaceMessages(list) {
+        function renderMessageWindow(start, end, bottom = false) {
+            const anchor = Array.from(messages.querySelectorAll('[data-conversation-index]')).find(el => el.getBoundingClientRect().bottom > messages.getBoundingClientRect().top);
+            const anchorIndex = anchor?.dataset.conversationIndex;
+            const anchorTop = anchor?.getBoundingClientRect().top;
             observer.disconnect();
+            messageStart = start; messageEnd = end;
             messages.replaceChildren();
-            if (!list.length && greeting) messages.append(greeting.cloneNode(true));
-            list.forEach(item => {
-                messages.append(window.renderSigmaChatMessage(item));
+            if (!transcript.length && greeting) messages.append(greeting.cloneNode(true));
+            transcript.slice(start, end).forEach((item, offset) => {
+                const element = window.renderSigmaChatMessage(item);
+                element.dataset.conversationIndex = String(start + offset);
+                if (item.timestamp) element.dataset.timestamp = item.timestamp;
+                if (item.model) element.dataset.sigmaModel = item.model;
+                if (item.provider) element.dataset.provider = item.provider;
+                if (item.generationId) element.dataset.generationId = item.generationId;
+                if (item.sourceChoice) element.dataset.sigmaSourceChoice = JSON.stringify(item.sourceChoice);
+                messages.append(element);
             });
+            if (bottom) messages.scrollTop = messages.scrollHeight;
+            else if (anchorIndex !== undefined) {
+                const next = messages.querySelector('[data-conversation-index="' + anchorIndex + '"]');
+                if (next) messages.scrollTop += next.getBoundingClientRect().top - anchorTop;
+            }
             observe();
-            messages.scrollTop = messages.scrollHeight;
+            if (end === transcript.length) window.dispatchEvent(new CustomEvent('sigma:conversation-restored', {
+                detail: { choice: transcript.at(-1)?.role === 'assistant' ? transcript.at(-1)?.sourceChoice : null }
+            }));
         }
+        function showLatestMessages() {
+            renderMessageWindow(Math.max(0, transcript.length - messageWindow), transcript.length, true);
+            const version = ++viewVersion;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (version === viewVersion && !inHistory) messages.scrollTop = messages.scrollHeight;
+            }));
+        }
+        function replaceMessages(list) {
+            transcript = list;
+            showLatestMessages();
+        }
+        window.prepareSigmaConversationSend = () => {
+            capture();
+            showLatestMessages();
+        };
+        let scrollScheduled = false;
+        messages.style.overflowAnchor = 'none';
+        messages.addEventListener('scroll', () => {
+            if (scrollScheduled || inHistory || send?.disabled || messages.hidden) return;
+            scrollScheduled = true;
+            requestAnimationFrame(() => {
+                scrollScheduled = false;
+                if (messages.scrollTop < 80 && messageStart > 0) {
+                    const start = Math.max(0, messageStart - messageBatch);
+                    renderMessageWindow(start, Math.min(transcript.length, start + messageWindow));
+                } else if (messages.scrollHeight - messages.clientHeight - messages.scrollTop < 80 && messageEnd < transcript.length) {
+                    const end = Math.min(transcript.length, messageEnd + messageBatch);
+                    renderMessageWindow(Math.max(0, end - messageWindow), end);
+                }
+            });
+        }, {passive:true});
+        messages.addEventListener('wheel', () => { viewVersion++; }, {passive:true});
+        messages.addEventListener('touchstart', () => { viewVersion++; }, {passive:true});
         function open(id) {
             if (send?.disabled) return;
             if (!index.some(item => item.id === id && !item.deletedAt)) return;
             const list = memory.get(id) || (prefix ? read(prefix + ':chat:' + id, []) : []);
             if (!Array.isArray(list) || !list.length) { notice.textContent = 'This conversation is unavailable.'; notice.hidden = false; return; }
             active = id;
-            replaceMessages(list.filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.text === 'string'));
             setView(false);
+            replaceMessages(list.filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.text === 'string'));
             document.getElementById('sigmaAiInput')?.focus({ preventScroll: true });
         }
         const day = timestamp => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(timestamp);
@@ -216,8 +285,9 @@
             if (active && memory.has(active)) generateTitle(active, memory.get(active));
         });
         historyButton.addEventListener('click', () => {
+            window.recoverSigmaChatHistory?.();
             if (send?.disabled) return;
-            if (inHistory) setView(false);
+            if (inHistory) { setView(false); showLatestMessages(); }
             else { visible = batch; paintHistory(); setView(true); historyView.scrollTop = 0; }
         });
         newButton.addEventListener('click', () => {

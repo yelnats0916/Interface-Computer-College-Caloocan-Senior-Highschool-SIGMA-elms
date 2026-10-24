@@ -32,9 +32,9 @@ window.subjectSearchState = window.subjectSearchState || {
     hasSearched: false
 };
 
-window.userPaginationState = { currentPage: 1, itemsPerPage: 20 };
-window.sectionPaginationState = { currentPage: 1, itemsPerPage: 20 };
-window.subjectPaginationState = { currentPage: 1, itemsPerPage: 20 };
+window.userPaginationState = { currentPage: 1, itemsPerPage: 5 };
+window.sectionPaginationState = { currentPage: 1, itemsPerPage: 5 };
+window.subjectPaginationState = { currentPage: 1, itemsPerPage: 5 };
 
 // Users Overview Pagination state
 var currentOverviewPage = window.currentOverviewPage || 1;
@@ -585,7 +585,7 @@ function renderUserAccountsTable() {
     tableBody.innerHTML = paginatedUsers.map((user, rowIdx) => {
         const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : '';
         const isThisUserMaster = String(user.uid || user.id || '').replace(/^#/, '').trim() === '0000000' || String(user.role || user.type || '').toLowerCase().includes('master');
-        const rowNumber = totalItems - startIndex - rowIdx;
+        const rowNumber = window.getRecordCreationNumber(user, getStoredJson(USER_STORAGE_KEY, []), 'users');
         const fullName = user.fullName || `${user.firstName || ''} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName || ''}`.trim() || 'N/A';
         const initials = getUserInitials(fullName);
         const photo = resolveUserAvatar(user, rowIdx);
@@ -612,13 +612,13 @@ function renderUserAccountsTable() {
                 canLockThisUser = false;
             } else if (isRowAdmin) {
                 canEditThisUser = !isSelf && (viewerPerms.manageAdmins === true);
-                canLockThisUser = canEditThisUser && (viewerPerms.lock !== false);
+                canLockThisUser = canEditThisUser && (viewerPerms.actionLock !== false);
             } else if (isRowTeacher) {
                 canEditThisUser = !isSelf && (viewerPerms.manageTeachers !== false);
-                canLockThisUser = canEditThisUser && (viewerPerms.lock !== false);
+                canLockThisUser = canEditThisUser && (viewerPerms.actionLock !== false);
             } else if (isRowStudent) {
                 canEditThisUser = !isSelf && (viewerPerms.manageStudents !== false);
-                canLockThisUser = canEditThisUser && (viewerPerms.lock !== false);
+                canLockThisUser = canEditThisUser && (viewerPerms.actionLock !== false);
             }
         } else {
             if (isSelf) {
@@ -695,10 +695,10 @@ function renderUserAccountsTable() {
                                     <i class="fa-solid fa-circle-user"></i>
                                     <span>View Profile</span>
                                 </button>
-                                <button onclick="window.resetUser2FA('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item">
+                                ${canEditThisUser && (isViewerMaster || viewerPerms.actionPassword !== false) ? `<button onclick="window.resetUser2FA('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item">
                                     <i class="fa-solid fa-qrcode"></i>
                                     <span>Reset 2FA</span>
-                                </button>
+                                </button>` : ''}
                                 ${canLockThisUser && !isDeactivated ? `
                                 <button onclick="window.toggleUserLock('${id}'); document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));" class="action-dropdown-item text-black">
                                     <i class="fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'} text-black"></i>
@@ -1006,7 +1006,7 @@ window.exportAttendanceSheet = function (sectionName, subjectName) {
     const subject = subjectName ? decodeURIComponent(String(subjectName)) : '';
     if (!section || !subject) return;
     const range = window._appliedAttendanceReportRange || 'today';
-    window.exportFilteredAttendanceWorkbook?.(section, subject, getAttendanceDateFilterConfig(range));
+    window.exportFilteredAttendancePdf?.(section, subject, getAttendanceDateFilterConfig(range));
 };
 window.getTodayAttendanceRecord = function (sectionName, subjectName) {
     const now = new Date();
@@ -1840,7 +1840,7 @@ window.updateAttendanceReportMetrics = function (currentRows, dateRange) {
     if (thL) { thL.textContent = config.thLate; thL.title = config.cardLate || config.thLate; }
 };
 
-window.attendancePaginationState = { currentPage: 1, itemsPerPage: 20 };
+window.attendancePaginationState = { currentPage: 1, itemsPerPage: 5 };
 window.onAttendancePageChange = function (page) {
     window.attendancePaginationState.currentPage = page;
     window.applyAttendanceSearch(false);
@@ -1948,7 +1948,7 @@ window.renderAttendanceReportTable = function (filteredRows, dateRange) {
                                 `}
                                 <button type="button" onclick="window.exportAttendanceSheet && window.exportAttendanceSheet('${encodeURIComponent(row.sectionName || row.section)}', '${encodeURIComponent(row.subject || '')}'); window.closeAllTableActionDropdowns && window.closeAllTableActionDropdowns();" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-file-export"></i>
-                                    <span>Export Sheet</span>
+                                    <span>Export PDF</span>
                                 </button>
                             </div>
                         </div>
@@ -2207,14 +2207,16 @@ window.collectCurrentPermissionsState = function () {
         masterAdmin: document.getElementById('perm-role-master')?.checked ?? false,
         // Role Management Authority (Which roles this admin can edit permissions for)
         manageAdmins: document.getElementById('perm-manage-admins')?.checked ?? false,
-        manageTeachers: document.getElementById('perm-manage-teachers')?.checked ?? false,
-        manageStudents: document.getElementById('perm-manage-students')?.checked ?? false,
+        manageTeachers: document.getElementById('perm-manage-teachers')?.checked ?? true,
+        manageStudents: document.getElementById('perm-manage-students')?.checked ?? true,
         // User Account Actions & Moderation
         actionPassword: document.getElementById('perm-action-password')?.checked ?? true,
         actionLock: document.getElementById('perm-action-lock')?.checked ?? true,
         actionDeactivate: document.getElementById('perm-action-deactivate')?.checked ?? false,
         actionDelete: document.getElementById('perm-action-delete')?.checked ?? false,
         actionDeleteComments: document.getElementById('perm-admin-delete-comments')?.checked ?? true,
+        manageAnnouncementComments: document.getElementById('perm-admin-manage-comments')?.checked ?? true,
+        teacherManageAnnouncementComments: document.getElementById('perm-teacher-manage-comments')?.checked ?? false,
         // Home Page Configuration Metrics (6 Pocket Cards)
         metricsMain: document.getElementById('perm-admin-metrics-main')?.checked ?? true,
         metricHealth: document.getElementById('perm-metric-health')?.checked ?? true,
@@ -2253,15 +2255,18 @@ window.collectCurrentPermissionsState = function () {
         resourcesMaterials: document.getElementById('perm-resources-materials')?.checked ?? true,
         resourcesStorage: document.getElementById('perm-resources-storage')?.checked ?? true,
         // Audit Logs
-        auditMain: document.getElementById('perm-admin-audit-main')?.checked ?? true,
-        auditAi: document.getElementById('perm-audit-ai')?.checked ?? true,
-        auditActivity: document.getElementById('perm-audit-activity')?.checked ?? true,
-        auditAuth: document.getElementById('perm-audit-auth')?.checked ?? true,
+        auditMain: document.getElementById('perm-admin-audit-main')?.checked ?? false,
+        auditAi: document.getElementById('perm-audit-ai')?.checked ?? false,
+        auditActivity: document.getElementById('perm-audit-activity')?.checked ?? false,
+        auditAuth: document.getElementById('perm-audit-auth')?.checked ?? false,
+        auditNotifications: document.getElementById('perm-audit-notifications')?.checked ?? false,
         // Settings
         settingsMain: document.getElementById('perm-admin-settings-main')?.checked ?? true,
         settingsBranding: document.getElementById('perm-settings-branding')?.checked ?? true,
-        settingsApi: document.getElementById('perm-settings-api')?.checked ?? true,
+        settingsApi: document.getElementById('perm-settings-api')?.checked ?? false,
+        settingsRecovery: document.getElementById('perm-settings-recovery')?.checked ?? false,
         settingsSecurity: document.getElementById('perm-settings-security')?.checked ?? true,
+        maintenanceManage: document.getElementById('perm-maintenance-manage')?.checked ?? false,
         // Security & Activity Logs
         securityMain: document.getElementById('perm-admin-security-main')?.checked ?? true,
         securityLogs: document.getElementById('perm-security-logs')?.checked ?? true,
@@ -2353,7 +2358,7 @@ window.canCurrentAdminDelete = function (feature) {
     if (feature === 'topic' || feature === 'schoolTopics') return perms.topicDelete === true || perms.subjectDelete === true;
     if (feature === 'material' || feature === 'schoolMaterials') return perms.materialDelete === true || perms.subjectDelete === true;
     if (feature === 'schoolYear' || feature === 'sy') return perms.syDelete === true;
-    if (feature === 'user' || feature === 'users') return perms.userDelete === true || perms.usersDelete === true;
+    if (feature === 'user' || feature === 'users') return perms.actionDelete === true;
     return false;
 };
 
@@ -2404,6 +2409,10 @@ window.editUserPermissions = function (userId) {
     const isMaster = loggedInRoleStr.includes('master') || loggedInRoleStr.includes('super') || loggedInRoleStr.includes('head');
     const callerPerms = currentLoggedIn.permissions || {};
 
+    if (isTargetAdmin && !isMaster) {
+        window.showUserConfirm('Access Denied', 'Only a Master Admin can change administrator permissions.', null, true);
+        return;
+    }
     const canManageAdmins = isMaster || (callerPerms.manageAdmins === true);
     const canManageTeachers = isMaster || (callerPerms.manageTeachers !== false);
     const canManageStudents = isMaster || (callerPerms.manageStudents !== false);
@@ -2554,16 +2563,20 @@ window.editUserPermissions = function (userId) {
     setCheck('perm-resources-storage', getVal('resourcesStorage', true));
     window.togglePermCategory('resources');
 
-    setCheck('perm-admin-audit-main', getVal('auditMain', true));
-    setCheck('perm-audit-ai', getVal('auditAi', true));
-    setCheck('perm-audit-activity', getVal('auditActivity', true));
-    setCheck('perm-audit-auth', getVal('auditAuth', true));
+    setCheck('perm-admin-audit-main', getVal('auditMain', isTargetMaster));
+    setCheck('perm-audit-ai', getVal('auditAi', isTargetMaster));
+    setCheck('perm-audit-activity', getVal('auditActivity', isTargetMaster));
+    setCheck('perm-audit-auth', getVal('auditAuth', isTargetMaster));
+    setCheck('perm-audit-notifications', getVal('auditNotifications', isTargetMaster));
     window.togglePermCategory('audit');
 
     setCheck('perm-admin-settings-main', getVal('settingsMain', true));
     setCheck('perm-settings-branding', getVal('settingsBranding', true));
-    setCheck('perm-settings-api', getVal('settingsApi', true));
+    setCheck('perm-settings-api', getVal('settingsApi', isTargetMaster));
+    setCheck('perm-settings-recovery', getVal('settingsRecovery', isTargetMaster));
     setCheck('perm-settings-security', getVal('settingsSecurity', true));
+    setCheck('perm-maintenance-manage', getVal('maintenanceManage', isTargetMaster));
+    const maintenanceGrant=document.getElementById('perm-maintenance-manage');if(maintenanceGrant)maintenanceGrant.disabled=!isMaster||isTargetMaster;
     window.togglePermCategory('settings');
 
     // Security & Activity Logs Category
@@ -2577,6 +2590,10 @@ window.editUserPermissions = function (userId) {
     setCheck('perm-action-deactivate', getVal('actionDeactivate', isTargetMaster ? true : false));
     setCheck('perm-action-delete', getVal('actionDelete', isTargetMaster ? true : false));
     setCheck('perm-admin-delete-comments', getVal('actionDeleteComments', isTargetMaster ? true : false));
+    setCheck('perm-admin-manage-comments', getVal('manageAnnouncementComments', true));
+    setCheck('perm-teacher-manage-comments', getVal('teacherManageAnnouncementComments', false));
+    const teacherCommentsPermission = document.getElementById('perm-teacher-manage-comments');
+    if (teacherCommentsPermission) teacherCommentsPermission.disabled = !isMaster;
     if (isTargetTeacher) {
         window.switchPermissionsCategoryTab('teacher-tools');
     } else if (isTargetStudent) {
@@ -2717,6 +2734,7 @@ window.saveUserPermissions = function () {
         const loggedInRoleStr = String(currentLoggedIn.role || currentLoggedIn.type || 'Master Admin').toLowerCase();
         const isEditorMaster = loggedInRoleStr.includes('master') || loggedInRoleStr.includes('super') || loggedInRoleStr.includes('head') || String(currentLoggedIn.uid || currentLoggedIn.id || '') === '0000000';
 
+        if (!isEditorMaster && ['Admin', 'Master Admin'].includes(normalizeUserRole(users[userIndex].role || users[userIndex].type))) throw new Error('Only a Master Admin can change administrator permissions.');
         const perms = window.collectCurrentPermissionsState();
         if (!isEditorMaster) {
             // Non-master admins CANNOT grant or toggle School Profile permissions
@@ -2896,6 +2914,10 @@ window.executeDeleteAccount = function () {
 
 window.toggleUserLock = function (userId) {
     if (!userId) return;
+    const actor = window.getLoggedInAdminUser();
+    const target = getStoredJson(USER_STORAGE_KEY, []).find(user => String(user.uid || user.id) === String(userId));
+    if (!target || !window.canCurrentAdminManageRole(target.role || target.type)
+        || (normalizeUserRole(actor.role || actor.type) !== 'Master Admin' && actor.permissions?.actionLock === false)) return;
 
     // Close any open dropdown menus and settings popovers
     document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));
@@ -3009,6 +3031,9 @@ window.resetUser2FA = function (userId) {
     const cleanId = String(userId).replace(/^#/, '').trim();
     const users = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
     const user = users.find(u => String(u.uid || u.id || '').replace(/^#/, '').trim() === cleanId);
+    const actor = window.getLoggedInAdminUser();
+    if (!user || !window.canCurrentAdminManageRole(user.role || user.type)
+        || (normalizeUserRole(actor.role || actor.type) !== 'Master Admin' && actor.permissions?.actionPassword === false)) return;
     const userName = user ? (user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || cleanId) : cleanId;
 
     const executeReset2FA = async () => {
@@ -4044,7 +4069,7 @@ window.scheduleSecuritySettingsSave = function () {
     if (status) status.textContent = 'Saving...';
     securitySettingsSaveTimer = setTimeout(() => window.saveSecuritySettings(), 500);
 };
-window.saveSecuritySettings = function () {
+window.saveSecuritySettings = async function () {
     const status = document.getElementById('security-save-status');
     const passwordInput = document.getElementById('password-lockout-attempts');
     const attempts = Number(passwordInput?.value);
@@ -4054,11 +4079,9 @@ window.saveSecuritySettings = function () {
     }
     const previous = getStoredJson('sigma-login-security-config', {});
     try {
-        const config = {
-            ...previous,
-            passwordAttempts: attempts
-        };
-        localStorage.setItem('sigma-login-security-config', JSON.stringify(config));
+        const result=await window.SigmaDatabase.request('session',{data:{action:'save_login_policy',passwordAttempts:attempts}});
+        const config={...previous,passwordAttempts:result.passwordAttempts};
+        try {localStorage.setItem('sigma-login-security-config',JSON.stringify(config));} catch (_) {}
         if (status) status.textContent = 'Saved';
     } catch (error) {
         if (passwordInput) passwordInput.value = previous.passwordAttempts || 8;
@@ -4069,16 +4092,16 @@ window.saveSecuritySettings = function () {
 
 window.loadLoginSecuritySettings = function () {
     window.loadRecaptchaPageData?.();
-    const raw = localStorage.getItem('sigma-login-security-config');
-    if (raw) {
-        try {
-            const config = JSON.parse(raw);
-            const loginIdInput = document.getElementById('login-id-attempts');
-            const passwordInput = document.getElementById('password-lockout-attempts');
-            if (loginIdInput) loginIdInput.value = config.loginIdAttempts;
-            if (passwordInput && Number.isInteger(config.passwordAttempts)) passwordInput.value = config.passwordAttempts;
-        } catch (e) {}
-    }
+    const passwordInput=document.getElementById('password-lockout-attempts');
+    if(passwordInput)passwordInput.disabled=true;
+    window.SigmaDatabase.request('session',{query:{action:'login_policy'}}).then(config=>{
+        if(passwordInput){passwordInput.value=config.passwordAttempts;passwordInput.disabled=false;}
+        const previous=getStoredJson('sigma-login-security-config',{});
+        try {localStorage.setItem('sigma-login-security-config',JSON.stringify({...previous,passwordAttempts:config.passwordAttempts}));} catch (_) {}
+    }).catch(()=>{
+        const status=document.getElementById('security-save-status');
+        if(status)status.textContent='Could not load saved lockout settings. Reload to retry.';
+    });
 
     if (typeof window.getMaintenanceConfig === 'function') {
         const mConfig = window.getMaintenanceConfig();
@@ -4099,7 +4122,9 @@ window.loadLoginSecuritySettings = function () {
 };
 
 window.canCurrentAdminManageMaintenance = function () {
-    return typeof window.isCurrentMasterAdmin === 'function' && window.isCurrentMasterAdmin();
+    if(typeof window.isCurrentMasterAdmin==='function'&&window.isCurrentMasterAdmin())return true;
+    const user=window.getLoggedInAdminUser?.()||{};const p=user.permissions||{};
+    return String(user.role||user.type||'').replace(/[\s_-]/g,'').toLowerCase()==='admin'&&p.settingsMain!==false&&p.settingsSecurity!==false&&p.maintenanceManage===true;
 };
 
 window.canCurrentAdminEditNoticeMessage = function () {
@@ -5088,17 +5113,19 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'resources-view':
                 return perms.resourcesMain !== false;
             case 'audit-ai-view':
-                return perms.auditMain !== false && perms.auditAi !== false;
+                return window.canViewAuditLog('ai');
             case 'audit-activity-view':
+                return window.canViewAuditLog('activity');
             case 'audit-notifications-view':
-                return perms.auditMain !== false && perms.auditActivity !== false;
+                return window.canViewAuditLog('notifications');
             case 'audit-auth-view':
-                return perms.auditMain !== false && perms.auditAuth !== false;
+                return window.canViewAuditLog('auth');
             case 'settings-view':
                 return perms.settingsMain !== false;
             case 'settings-security-view':
-            case 'settings-recovery-view':
                 return perms.settingsMain !== false && perms.settingsSecurity !== false;
+            case 'settings-recovery-view':
+                return false;
             case 'settings-branding-view':
                 return perms.settingsMain !== false && perms.settingsBranding !== false;
             case 'settings-integrations-view':
@@ -5106,7 +5133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'settings-recaptcha-view':
             case 'settings-limits-view':
             case 'settings-ai-view':
-                return perms.settingsMain !== false && perms.settingsApi !== false;
+                return perms.settingsMain !== false && perms.settingsApi === true;
             case 'users-view':
                 return perms.manageAdmins !== false || perms.manageTeachers !== false || perms.manageStudents !== false;
             default:
@@ -5124,6 +5151,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.canAccessAdminSection === 'function' && !window.canAccessAdminSection(sectionId)) {
             sectionId = 'dashboard-view';
             navId = 'nav-dashboard';
+            // Keep the URL consistent with the permitted destination on refresh, too.
+            window.history.replaceState(window.history.state, '', '#nav-dashboard');
         }
 
         updateNavState(sectionId === 'school-grades-view' ? 'nav-school-grades' : navId);
@@ -5378,7 +5407,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.renderSettingsView('user-settings-view', 'notifications');
             }
         } else if (sectionId === 'settings-recovery-view') {
-            window.setPortalHeader?.('System Settings', 'Record Recovery');
+            window.setPortalHeader?.('System Settings', 'Backup & Recovery');
         } else if (sectionId === 'settings-view' || (navId && navId.startsWith('nav-settings'))) {
             if (typeof window.setPortalHeader === 'function') {
                 window.setPortalHeader('System Settings', getNavLabelText(navId) || 'Security & Access');
@@ -5505,6 +5534,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.switchTab = function (rawTabId, skipHashUpdate = false) {
+        if (['nav-audit-logs','audit-logs'].includes(rawTabId)) {
+            const first = ['ai','activity','auth','notifications'].find(kind => window.canViewAuditLog(kind));
+            rawTabId = first ? 'nav-audit-' + first : 'nav-dashboard';
+        }
         const tabId = String(rawTabId || '').replace(/^#/, '').replace(/_/g, '-');
         if (/^(?:nav-)?settings-(?:ai|gemini|groq|gdrive|recaptcha)(?:-view)?$/.test(tabId) && !window.SigmaServiceVault?.isVerified()) {
             window.switchTab('nav-settings-integrations');
@@ -5512,6 +5545,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!['nav-settings-integrations', 'settings-integrations-view', 'nav-settings-storage', 'nav-settings-api'].includes(tabId) && window.confirmMaterialLimitsLeave && !window.confirmMaterialLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
         if (!['nav-settings-limits', 'settings-limits-view', 'settings-limits', 'nav-settings-limits-view'].includes(tabId) && window.confirmAdvancedLimitsLeave && !window.confirmAdvancedLimitsLeave(() => window.switchTab(rawTabId, skipHashUpdate))) return;
+        // A primary navigation click starts at its landing page. Keep detail
+        // parameters only when replaying a URL for refresh or Back/Forward.
+        if (!skipHashUpdate) {
+            const route = new URL(window.location.href);
+            const detailKeys = ['maintenanceView', 'recoveryPanel', 'recoveryView'];
+            if (detailKeys.some(key => route.searchParams.has(key))) {
+                detailKeys.forEach(key => route.searchParams.delete(key));
+                route.hash = ['nav-settings', 'settings-security-view'].includes(tabId) ? 'nav-settings-security'
+                    : ['settings-recovery-view', 'settings-recovery', 'nav-audit-removed', 'audit-removed-view'].includes(tabId) ? 'nav-settings-recovery'
+                    : tabId;
+                window.history.pushState({ tab: route.hash.slice(1) }, '', route);
+            }
+        }
         if (tabId && !tabId.includes('profile') && !tabId.includes('edit-user')) {
             window._lastActiveNavTab = tabId;
         }
@@ -7589,51 +7635,32 @@ document.addEventListener('DOMContentLoaded', () => {
 window.updateAiUsage = function () { window.updateAiDisplay?.(); };
 
 let currentAiModel = 'gemini';
+let aiProviderChosen = false;
 let currentAiPeriod = 'daily';
 
 window.setAiModel = function (model) {
+    if (!['gemini', 'groq'].includes(model)) return;
+    aiProviderChosen = true;
     currentAiModel = model;
-    const geminiBtn = document.getElementById('btn-ai-gemini');
-    const groqBtn = document.getElementById('btn-ai-groq');
-
-    if (model === 'gemini') {
-        geminiBtn?.classList.add('bg-white', 'text-black', 'shadow-sm');
-        geminiBtn?.classList.remove('text-black-fade');
-        groqBtn?.classList.remove('bg-white', 'text-black', 'shadow-sm');
-        groqBtn?.classList.add('text-black-fade');
-    } else {
-        groqBtn?.classList.add('bg-white', 'text-black', 'shadow-sm');
-        groqBtn?.classList.remove('text-black-fade');
-        geminiBtn?.classList.remove('bg-white', 'text-black', 'shadow-sm');
-        geminiBtn?.classList.add('text-black-fade');
-    }
     updateAiDisplay();
 };
 
 window.setAiPeriod = function (period) {
+    if (!['daily', 'weekly', 'monthly'].includes(period)) return;
     currentAiPeriod = period;
-    const dailyBtn = document.getElementById('btn-period-daily');
-    const monthlyBtn = document.getElementById('btn-period-monthly');
-
-    if (period === 'daily') {
-        dailyBtn?.classList.add('bg-white', 'text-black', 'shadow-sm');
-        dailyBtn?.classList.remove('text-black-fade');
-        monthlyBtn?.classList.remove('bg-white', 'text-black', 'shadow-sm');
-        monthlyBtn?.classList.add('text-black-fade');
-    } else {
-        monthlyBtn?.classList.add('bg-white', 'text-black', 'shadow-sm');
-        monthlyBtn?.classList.remove('text-black-fade');
-        dailyBtn?.classList.remove('bg-white', 'text-black', 'shadow-sm');
-        dailyBtn?.classList.add('text-black-fade');
-    }
     updateAiDisplay();
 };
 
 function updateAiDisplay() {
+    if (!aiProviderChosen) {
+        const latest = (window.getAiUsageSnapshot?.().logs || []).filter(log => ['gemini','groq'].includes(log.provider))
+            .sort((a,b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))[0];
+        if (latest) currentAiModel = latest.provider;
+    }
     const snapshot = window.getAiUsageSnapshot?.(currentAiModel, currentAiPeriod) || { state: 'loading', logs: [] };
     const rows = snapshot.logs || [];
     const state = snapshot.state;
-    let status = 'Recorded', message = currentAiPeriod === 'daily' ? 'Activity today' : 'Activity this month';
+    let status = 'Recorded', message = currentAiPeriod === 'daily' ? 'Activity today' : currentAiPeriod === 'weekly' ? 'Activity this week' : 'Activity this month';
     let count = String(rows.length), color = '#15803d';
     if (state === 'loading') { status = 'Loading'; message = 'Loading activity…'; count = '-'; }
     else if (state === 'signed-out') { status = 'Sign in'; message = 'Sign in to view activity'; count = '-'; }
@@ -7644,6 +7671,10 @@ function updateAiDisplay() {
     else if (rows.some(row => row.status === 'Fallback Used')) { status = 'Fallback used'; message = 'Fallback used'; color = '#b45309'; }
     const isDaily = currentAiPeriod === 'daily';
     const isGemini = currentAiModel === 'gemini';
+    const isWeekly = currentAiPeriod === 'weekly';
+    const periodSelect = document.getElementById('ai-usage-period');
+    if (periodSelect) periodSelect.value = currentAiPeriod;
+    const recovered = rows.filter(row => row.status === 'Recovered').length;
 
     // Calculate total tokens used across active logs
     const totalTokens = rows.reduce((sum, log) => {
@@ -7654,7 +7685,7 @@ function updateAiDisplay() {
     // Free tier token limits:
     // Gemini: 1,000,000 tokens/day target (30M monthly)
     // Groq: 500,000 tokens/day free ceiling (15M monthly)
-    const tokenLimit = isDaily ? (isGemini ? 1000000 : 500000) : (isGemini ? 30000000 : 15000000);
+    const tokenLimit = (isGemini ? 1000000 : 500000) * (isDaily ? 1 : isWeekly ? 7 : 30);
     const tokenPercent = Math.min(100, Math.max(0, (totalTokens / tokenLimit) * 100));
 
     function formatTokenCount(num) {
@@ -7664,12 +7695,13 @@ function updateAiDisplay() {
         return num.toLocaleString();
     }
 
-    const quotaLabelText = isDaily ? 'Daily Tokens' : 'Monthly Tokens';
-    const quotaPercentText = `${formatTokenCount(totalTokens)} / ${formatTokenCount(tokenLimit)}`;
+    const quotaLabelText = isDaily ? 'Daily Tokens' : isWeekly ? 'Weekly Tokens' : 'Monthly Tokens';
+    const quotaPercentText = recovered ? 'Not recorded' : isWeekly ? `${formatTokenCount(totalTokens)} estimated` : `${formatTokenCount(totalTokens)} / ${formatTokenCount(tokenLimit)}`;
 
     for (const [id, text] of [
         ['ai-status-label', status],
         ['ai-requests-value', count],
+        ['ai-requests-label', isDaily ? 'Requests today' : isWeekly ? 'Requests this week' : 'Requests this month'],
         ['ai-quota-label', quotaLabelText],
         ['ai-usage-percent', (state === 'loading' || state === 'error') ? '-' : quotaPercentText]
     ]) {
@@ -7699,13 +7731,20 @@ function updateAiDisplay() {
     if (bar) bar.style.width = Math.min(100, Math.max(tokenPercent > 0 ? 0.5 : 0, tokenPercent)) + '%';
     const track = document.getElementById('ai-capacity-track');
     if (track) {
+        track.hidden = isWeekly || recovered > 0;
         track.title = `${totalTokens.toLocaleString()} of ${formatTokenCount(tokenLimit)} ${isGemini ? 'Gemini' : 'Groq'} tokens used (${tokenPercent.toFixed(1)}%)`;
         track.setAttribute('role', 'progressbar');
         track.setAttribute('aria-valuenow', String(tokenPercent));
     }
     const label = document.getElementById('ai-status-label'); if (label) label.style.color = color;
-    const retry = document.getElementById('ai-usage-retry'); if (retry) retry.hidden = !['error', 'signed-out'].includes(state);
-    for (const [id, active] of [['btn-ai-gemini', currentAiModel === 'gemini'], ['btn-ai-groq', currentAiModel === 'groq'], ['btn-period-daily', currentAiPeriod === 'daily'], ['btn-period-monthly', currentAiPeriod === 'monthly']]) {
+    const scope = document.getElementById('ai-usage-scope');
+    if (scope) scope.textContent = `${isGemini ? 'Gemini' : 'Groq'} · ${isDaily ? 'Today' : isWeekly ? 'This week' : 'This month'} (Manila)`;
+    if (requestsValEl) requestsValEl.title = 'Provider requests in this period, not conversation count. A conversation can contain multiple requests. Operator connection checks are excluded from these user-usage totals.';
+    const retry = document.getElementById('ai-usage-retry');
+    if (retry) {
+        retry.hidden = false; retry.disabled = state === 'loading' || Boolean(snapshot.refreshing); retry.setAttribute('aria-busy', String(state === 'loading' || Boolean(snapshot.refreshing)));
+    }
+    for (const [id, active] of [['btn-ai-gemini', currentAiModel === 'gemini'], ['btn-ai-groq', currentAiModel === 'groq']]) {
         const button = document.getElementById(id); if (!button) continue;
         for (const cls of ['bg-white', 'text-black', 'shadow-sm']) button.classList.toggle(cls, active);
         button.classList.toggle('text-black-fade', !active); button.setAttribute('aria-pressed', String(active));
@@ -7914,7 +7953,7 @@ const schoolYearSemesterOrder = {
 };
 
 let schoolYearRecords = [];
-let schoolYearPaginationState = { currentPage: 1, itemsPerPage: 20 };
+let schoolYearPaginationState = { currentPage: 1, itemsPerPage: 5 };
 
 window.onSchoolYearPageChange = function (page) {
     schoolYearPaginationState.currentPage = page;
@@ -8084,27 +8123,48 @@ const syncSubjectToDB = window.syncSubjectToDB;
 
 const deleteSubjectFromDB = window.deleteSubjectFromDB;
 
-const fetchSubjectsFromDB = async () => {
-    try {
-        const url = resolveSubjectsApiUrl();
-        const res = await window.SigmaDatabase.fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.success && Array.isArray(data.records)) {
+let subjectFetchInFlight = null;
+const fetchSubjectsFromDB = () => {
+    if (subjectFetchInFlight) return subjectFetchInFlight;
+    subjectFetchInFlight = (async () => {
+        try {
+            const data = await window.SigmaDatabase.request('subjects');
+            if (!Array.isArray(data.records)) throw new Error('The subject service did not return a subject list.');
             const subjKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
-            window.SigmaDatabase?.preserveLegacy(subjKey, localStorage.getItem(subjKey));
+            // A device-backup quota failure must never block current database records.
+            try { window.SigmaDatabase.preserveLegacy(subjKey, localStorage.getItem(subjKey)); }
+            catch (error) { console.warn('[subjects] Device backup unavailable; loading database records.', error); }
             window.saveStoredJson(subjKey, data.records);
             if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
             if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
+            return true;
+        } catch (error) {
+            console.error('[subjects] Database refresh failed.', error);
+            if (window.location.hash.includes('nav-school-subjects')) {
+                window.showToast?.(error.message || 'Unable to refresh subjects. Please try again.', 'error');
+            }
+            return false;
+        } finally {
+            subjectFetchInFlight = null;
         }
-    } catch (err) {
-        // Fallback silently if server is offline
-    }
+    })();
+    return subjectFetchInFlight;
 };
 window.fetchSubjectsFromDB = fetchSubjectsFromDB;
 
 // Initial DB Fetch for subjects
 fetchSubjectsFromDB();
+
+const refreshVisibleSubjectCatalog = () => {
+    if (!window.location.hash.includes('nav-school-subjects') || document.hidden) return;
+    const editor = document.getElementById('subject-edit-overlay');
+    if (editor && !editor.classList.contains('hidden')) return;
+    fetchSubjectsFromDB();
+};
+window.addEventListener('focus', refreshVisibleSubjectCatalog);
+window.addEventListener('hashchange', refreshVisibleSubjectCatalog);
+document.addEventListener('visibilitychange', refreshVisibleSubjectCatalog);
+
 
 window.resetSchoolYearData = function () {
     localStorage.removeItem('sigma_sy_zero_reset_v4');
@@ -8477,7 +8537,7 @@ window.checkSYFormValidity = function () {
 
     if (isEditing) {
         const changed = window.hasSYChanges?.() === true;
-        saveBtn.disabled = !changed;
+        saveBtn.disabled = !changed || !!window.getSYValidationError?.(getSYFormValues()) || !!window._sySavePending;
         saveBtn.style.opacity = changed ? '1' : '0.5';
         saveBtn.style.cursor = changed ? 'pointer' : 'not-allowed';
         return;
@@ -8485,7 +8545,7 @@ window.checkSYFormValidity = function () {
 
     const q1Start = document.getElementById('edit-sy-q1-start')?.value;
     const q1End = document.getElementById('edit-sy-q1-end')?.value;
-    const isValid = !!(q1Start && q1End);
+    const isValid = !!(q1Start && q1End) && !window.getSYValidationError?.(getSYFormValues()) && !window._sySavePending;
 
     saveBtn.disabled = !isValid;
     saveBtn.style.opacity = isValid ? '1' : '0.5';
@@ -9023,7 +9083,9 @@ const renderSchoolYearTable = () => {
             { name: '4th Quarter', quarterKey: 'q4', semester: '2nd Semester', start: record.q4Start, end: record.q4End, yearStart: record.yearStart, yearEnd: record.yearEnd, id: record.id, recordStatus: record.status }
         ];
 
-        quarters.forEach((q) => {
+        quarters.forEach((q, quarterIndex) => {
+            q.createdAt = record.createdAt;
+            if (Number(record.creationNumber) > 0) q.creationNumber = (Number(record.creationNumber) - 1) * 4 + quarterIndex + 1;
             if (q.start) {
                 allQuarters.push(q);
             }
@@ -9078,7 +9140,7 @@ const renderSchoolYearTable = () => {
         return `
             <tr class="transition-all hover:bg-slate-50 ${rowStripe}">
                 <td class="px-4 py-4 text-center">
-                    <div class="text-[14px] font-normal text-black font-['Inter'] tracking-wide">${totalItems - (startIndex + idx)}</div>
+                    <div class="text-[14px] font-normal text-black font-['Inter'] tracking-wide">${window.getRecordCreationNumber({ ...q, id: q.id + ':' + q.quarterKey }, allQuarters.map(item => ({ ...item, id: item.id + ':' + item.quarterKey })), 'school_year_quarters')}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-normal text-black font-['Inter'] tracking-wide">${q.yearStart}</div>
@@ -9322,6 +9384,7 @@ window.isCurrentMasterAdmin = function () {
 };
 
 window.openSYManager = function () {
+    window.fetchSchoolYearsFromDB?.().then(() => window.renderSYManagerList?.());
     const isMaster = window.isCurrentMasterAdmin();
     const canDeleteSY = isMaster || (typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('schoolYear'));
     
@@ -9569,10 +9632,16 @@ window.renderSYManagerList = function () {
                                     <i class="fa-solid fa-power-off text-black text-xs w-4 text-center"></i>
                                     <span>Set as Active</span>
                                 </button>
-                                ${canDeleteSY ? `
+                                ${isMaster ? `
+                                    <button type="button" onclick="window.closeAllSYDropdowns(); window.promptArchiveSchoolYear('${record.id}')"
+                                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-box-archive text-black text-xs w-4 text-center"></i><span>Archive Year</span>
+                                    </button>
+                                ` : ''}
+                                ${canDeleteSY && record.canDelete === true ? `
                                     <button type="button" onclick="window.closeAllSYDropdowns(); window.deleteSYToTrash('${record.id}')"
-                                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                        <i class="fa-regular fa-trash-can text-red-500 text-xs w-4 text-center"></i>
+                                        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                        <i class="fa-regular fa-trash-can text-black text-xs w-4 text-center"></i>
                                         <span>Move to Trash Bin</span>
                                     </button>
                                 ` : ''}
@@ -9617,10 +9686,10 @@ window.renderSYManagerList = function () {
                                 <i class="fa-solid fa-rotate-left text-black text-xs w-4 text-center"></i>
                                 <span>Restore Year</span>
                             </button>
-                            ${canDeleteSY ? `
+                            ${canDeleteSY && record.canDelete === true ? `
                                 <button type="button" onclick="window.closeAllSYDropdowns(); window.deleteSYToTrash('${record.id}')"
-                                    class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer">
-                                    <i class="fa-regular fa-trash-can text-red-500 text-xs w-4 text-center"></i>
+                                    class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-black hover:bg-slate-100 flex items-center gap-2.5 transition-colors cursor-pointer">
+                                    <i class="fa-regular fa-trash-can text-black text-xs w-4 text-center"></i>
                                     <span>Move to Trash Bin</span>
                                 </button>
                             ` : ''}
@@ -9656,11 +9725,11 @@ window.renderSYManagerList = function () {
                                 <i class="fa-solid fa-rotate-left text-black text-xs w-4 text-center"></i>
                                 <span>Restore Year</span>
                             </button>
-                            <button type="button" onclick="window.closeAllSYDropdowns(); window.permanentDeleteSY('${record.id}')"
+                            ${canDeleteSY && record.canDelete === true ? `<button type="button" onclick="window.closeAllSYDropdowns(); window.permanentDeleteSY('${record.id}')"
                                 class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer">
                                 <i class="fa-solid fa-ban text-red-500 text-xs w-4 text-center"></i>
                                 <span>Delete Permanently</span>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
                 </div>
@@ -9710,6 +9779,10 @@ window.deleteSYToTrash = function (recordId) {
 
     const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
     if (!target) return;
+    if (target.canDelete !== true) {
+        window.SigmaFeedback.notice(target.deleteReason || 'Refresh Manage School Years to check whether this year can be removed.');
+        return;
+    }
 
     if (target.status === 'Active') {
         if (typeof window.showUserConfirm === 'function') {
@@ -9723,12 +9796,17 @@ window.deleteSYToTrash = function (recordId) {
     window.showSYConfirm(
         'Move to Trash Bin?',
         `Are you sure you want to move School Year ${target.yearStart} - ${target.yearEnd} to the trash bin? It can be restored anytime from the Trash Bin tab.`,
-        () => {
+        async () => {
+            if (window._syRemovalPending) return;
+            window._syRemovalPending = true;
+            let saved;
+            try { saved = await syncSchoolYearToDB({ action: 'delete', id: recordId }); }
+            finally { window._syRemovalPending = false; }
+            if (!saved) { await window.fetchSchoolYearsFromDB?.(); window.renderSYManagerList(); return; }
             schoolYearRecords = schoolYearRecords.map(r => 
                 String(r.id) === String(recordId) ? { ...r, isDeleted: true, deletedAt: new Date().toISOString().split('T')[0] } : r
             );
             saveSYToStorage();
-            if (typeof syncSchoolYearToDB === 'function') syncSchoolYearToDB({ action: 'delete', id: recordId });
             renderSchoolYearTable();
             renderSchoolYearSummaryBar();
             updateGlobalSYDisplay();
@@ -9774,14 +9852,23 @@ window.permanentDeleteSY = function (recordId) {
 
     const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
     if (!target) return;
+    if (target.canDelete !== true) {
+        window.SigmaFeedback.notice(target.deleteReason || 'Refresh Manage School Years to check whether this year can be removed.');
+        return;
+    }
 
     window.showSYConfirm(
         'Delete Permanently?',
         `Are you sure you want to permanently erase School Year ${target.yearStart}-${target.yearEnd}? This action cannot be undone.`,
-        () => {
+        async () => {
+            if (window._syRemovalPending) return;
+            window._syRemovalPending = true;
+            let saved;
+            try { saved = await syncSchoolYearToDB({ action: 'purge', id: recordId }); }
+            finally { window._syRemovalPending = false; }
+            if (!saved) { await window.fetchSchoolYearsFromDB?.(); window.renderSYManagerList(); return; }
             schoolYearRecords = schoolYearRecords.filter(r => String(r.id) !== String(recordId));
             saveSYToStorage();
-            if (typeof syncSchoolYearToDB === 'function') syncSchoolYearToDB({ action: 'purge', id: recordId });
             renderSchoolYearTable();
             renderSchoolYearSummaryBar();
             updateGlobalSYDisplay();
@@ -9851,10 +9938,12 @@ window.handleSYDelete = function () {
 };
 
 window.performSYSave = function (formValues) {
+    if (window._sySavePending) return;
     const saveBtn = document.getElementById('sy-save-btn');
     const loading = document.getElementById('sy-save-loading');
 
     if (saveBtn && loading) {
+        window._sySavePending = true;
         saveBtn.disabled = true;
         loading.classList.remove('hidden');
 
@@ -9890,12 +9979,14 @@ window.performSYSave = function (formValues) {
             }
 
             const savedRecord = {
-                id: currentSYRecordId || Date.now(),
                 ...formValues,
+                id: currentSYRecordId || `sy-${formValues.yearStart}-${formValues.yearEnd}`,
+                action: isEditing ? 'update' : 'create',
                 status: targetStatus
             };
 
             if (!await syncSchoolYearToDB(savedRecord)) {
+                window._sySavePending = false;
                 saveBtn.disabled = false;
                 loading.classList.add('hidden');
                 return;
@@ -9917,6 +10008,7 @@ window.performSYSave = function (formValues) {
             saveSYToStorage(); // Save to localStorage
             window.checkQuarterEndReminders();
             initialSYValues = {};
+            window._sySavePending = false;
             saveBtn.disabled = false;
             loading.classList.add('hidden');
             window.toggleSYOverlay(false);
@@ -9931,14 +10023,39 @@ window.performSYSave = function (formValues) {
                     secondaryValue: savedRecord.status || 'Inactive',
                     status: 'published'
                 });
+            } else {
+                window.SigmaFeedback?.notice(isEditing ? 'School year updated successfully.' : 'School year created successfully.');
             }
-        }, 1500);
+        }, 0);
     }
+};
+
+window.getSYValidationError = function (values) {
+    const start = Number(values.yearStart), end = Number(values.yearEnd);
+    if (!Number.isInteger(start) || start < 1900 || start > 2200 || end !== start + 1) return 'The school year must contain two consecutive years.';
+    let previousEnd = '', missing = false;
+    for (let q = 1; q <= 4; q++) {
+        const from = values[`q${q}Start`] || '', to = values[`q${q}End`] || '';
+        if (!from && !to && q > 1) { missing = true; continue; }
+        if (!from || !to) return `Enter both start and end dates for Quarter ${q}.`;
+        if (missing) return 'Complete earlier quarters before adding a later quarter.';
+        for (const value of [from,to]) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0,10) !== value) return 'Enter valid calendar dates.';
+            if (value < `${start}-01-01` || value > `${end}-12-31`) return 'Quarter dates must fall within the academic year.';
+        }
+        if (to < from) return `Quarter ${q} must end on or after its start date.`;
+        if (previousEnd && from <= previousEnd) return 'Quarter dates must be in order and must not overlap.';
+        previousEnd = to;
+    }
+    return '';
 };
 
 window.handleSYSave = function () {
     const formValues = getSYFormValues();
     const isEditing = currentSYRecordId !== null;
+    if (window._sySavePending) return;
+    const validationError = window.getSYValidationError(formValues);
+    if (validationError) { window.SigmaFeedback.notice(validationError); return; }
     const actionLabel = isEditing ? 'Save School Year?' : 'Create School Year?';
     const actionDescription = isEditing
         ? 'Are you sure you want to apply these updates to the school year configuration?'
@@ -9985,7 +10102,7 @@ window.handleSYSave = function () {
 
     // Uniqueness restriction: ensure yearStart is not already created when adding a new record
     if (!isEditing) {
-        const isDuplicate = schoolYearRecords.some(r => !r.isDeleted && String(r.yearStart) === String(formValues.yearStart));
+        const isDuplicate = schoolYearRecords.some(r => String(r.yearStart) === String(formValues.yearStart));
         if (isDuplicate) {
             window.showSYConfirm(
                 'School Year Already Exists',
@@ -10078,6 +10195,16 @@ window.promptArchiveSchoolYear = function (recordId) {
 
     const target = schoolYearRecords.find(r => String(r.id) === String(recordId));
     if (!target) return;
+
+    // Archiving an inactive year preserves the current live year and its sessions.
+    if (target.status !== 'Active') {
+        window.showSYConfirm('Archive School Year?', `Archive School Year ${target.yearStart}-${target.yearEnd}? Its sections and records will be preserved.`, async () => {
+            if (!await syncSchoolYearToDB({action:'archive',id:recordId})) return;
+            await window.fetchSchoolYearsFromDB?.();
+            window.renderSYManagerList();
+        }, 'Archive Year', 'Cancel');
+        return;
+    }
 
     const yearTitle = `${target.yearStart} - ${target.yearEnd}`;
     const inactiveYears = schoolYearRecords.filter(r => !r.isDeleted && r.status === 'Inactive' && String(r.id) !== String(recordId));
@@ -11092,6 +11219,28 @@ window.formatFormattedScheduleSummary = function (dailyScheduleArray) {
         parts.push(`${daysStr} • ${timeStr}`);
     }
     return parts.join(', ');
+};
+
+window.renderSectionTableSchedule = function (section) {
+    const groups = new Map();
+    const daily = Array.isArray(section.dailySchedules) ? section.dailySchedules : [];
+    daily.filter(day => day.active && day.startTime && day.endTime).forEach(day => {
+        const time = formatSectionSchedule(day.startTime, day.endTime);
+        if (!groups.has(time)) groups.set(time, []);
+        const days = groups.get(time);
+        if (!days.includes(day.day)) days.push(day.day);
+    });
+    if (!groups.size) {
+        let days = Array.isArray(section.days) ? section.days.join(', ') : String(section.daysFormatted || section.days || '');
+        let time = formatSectionSchedule(section.startTime, section.endTime);
+        if (!days && section.schedule) {
+            const match = String(section.schedule).match(/^(.*?)\s*(?:\u2022\s*)?(\d{1,2}:\d{2}.*)$/);
+            days = match ? match[1].replace(/\u2022/g, '').trim() : String(section.schedule);
+            if (!time && match) time = match[2];
+        }
+        if (days || time) groups.set(time, [days.replace(/\s*,\s*/g, ', ')]);
+    }
+    return Array.from(groups, ([time, days]) => `<div class="section-table-schedule" style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:3px;font-size:11px;font-weight:400;line-height:1.5;color:rgba(0,0,0,.45)"><span style="white-space:nowrap">${escapeHtml(days.join(', '))}</span>${time ? `<span style="white-space:nowrap">${escapeHtml(time)}</span>` : ''}</div>`).join('');
 };
 
 window.renderScheduleSubpage = function () {
@@ -14445,7 +14594,7 @@ window.handleSectionSave = function (status, createAnother = false) {
                 loading.classList.add('hidden');
 
                 if (createAnother) {
-                    window.showToast?.(`Section "${sectionData.name}" deployed successfully!`);
+                    if (!window.showCreationBar) window.showToast?.(`Section "${sectionData.name}" deployed successfully!`, 'success');
                     if (typeof renderSectionsTable === 'function') {
                         renderSectionsTable();
                     }
@@ -16849,7 +16998,7 @@ function renderSectionsTable() {
     tableBody.innerHTML = paginatedSections.map((sec, idx) => {
         const isInactive = (sec.status || 'Active').toLowerCase() === 'inactive';
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
-        const rowNumber = totalItems - startIndex - idx;
+        const rowNumber = window.getRecordCreationNumber(sec, getStoredJson(SECTIONS_STORAGE_KEY, []), 'sections');
         const strandBadge = sec.strand ? `<span class="inline-block text-[11px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-['Inter']">${escapeHtml(sec.strand)}</span>` : '';
 
         // Format Teacher(s) cell
@@ -16916,11 +17065,7 @@ function renderSectionsTable() {
             `;
         }
 
-        const scheduleLinesHtml = String(sec.schedule || '')
-            .split(',')
-            .flatMap(part => part.split('•').map(piece => piece.trim()).filter(Boolean))
-            .map(line => '<span class="block w-full shrink-0 text-[11px] font-normal text-black-fade font-[\'Inter\'] leading-4 text-center" style="color: rgba(0, 0, 0, 0.45) !important;">' + escapeHtml(line) + '</span>')
-            .join('');
+        const scheduleLinesHtml = window.renderSectionTableSchedule(sec);
 
         return `
             <tr class="transition-colors ${rowStripe} hover:bg-emerald-50/20">
@@ -16999,8 +17144,30 @@ function renderSectionsTable() {
 }
 
 
+function getMixedSubjectTableOrder(records) {
+    // The imported catalog is one batch, not a chronological type/strand ranking.
+    const imported = record => /DepEd K to 12 SHS/.test(String(record.curriculum?.framework || ''))
+        && record.curriculum?.materialFilesIncluded === false;
+    const stamp = record => Date.parse(record.createdAt || '') || 0;
+    const batchTime = Math.max(0, ...records.filter(imported).map(stamp));
+    const mixedKey = record => {
+        let hash = 2166136261;
+        for (const char of `sigma-subject-batch:${record.id || record.code}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+        hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
+        hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
+        return (hash ^ (hash >>> 16)) >>> 0;
+    };
+    return [...records].sort((left, right) => {
+        const leftBatch = imported(left), rightBatch = imported(right);
+        const chronological = (rightBatch ? batchTime : stamp(right)) - (leftBatch ? batchTime : stamp(left));
+        if (chronological) return chronological;
+        if (leftBatch && rightBatch) return (mixedKey(left) - mixedKey(right)) || String(left.id || left.code).localeCompare(String(right.id || right.code));
+        return (Number(right.creationNumber) || 0) - (Number(left.creationNumber) || 0);
+    });
+}
+
 function getFilteredSubjectsBySearch(searchState) {
-    const subjects = getStoredJson(SUBJECTS_STORAGE_KEY, []);
+    const subjects = getMixedSubjectTableOrder(getStoredJson(SUBJECTS_STORAGE_KEY, []));
     const query = String(searchState?.query || searchState?.code || searchState?.name || '').trim().toLowerCase();
     const type = String(searchState?.type || '').trim().toLowerCase();
     const status = String(searchState?.status || '').trim().toLowerCase();
@@ -17068,13 +17235,14 @@ window.isSubjectReadyForPublish = function (sub) {
     if (!sub) return false;
     const hasCode = !!String(sub.code || '').trim();
     const hasName = !!String(sub.name || '').trim();
-    const hasUnits = !!String(sub.units || '').trim();
+    const hasUnits = String(sub.units || '').trim() !== '' && Number.isFinite(Number(sub.units)) && Number(sub.units) > 0;
+    const hasLearningHours = Number.isInteger(Number(sub.learningHours)) && Number(sub.learningHours) >= 1 && Number(sub.learningHours) <= 1280;
     const type = String(sub.type || 'Core').trim().toLowerCase();
     const hasStrand = (type === 'specialized') ? !!String(sub.strand || '').trim() : true;
     const hasTopics = Array.isArray(sub.topics) && sub.topics.length > 0;
     const hasMaterials = Array.isArray(sub.materials) && sub.materials.length > 0;
 
-    return hasCode && hasName && hasUnits && hasStrand && hasTopics && hasMaterials;
+    return hasCode && hasName && hasUnits && hasLearningHours && hasStrand && hasTopics && hasMaterials;
 };
 
 window.publishSubjectPrompt = function (code) {
@@ -17087,7 +17255,7 @@ window.publishSubjectPrompt = function (code) {
         if (typeof window.showAlertDialog === 'function') {
             window.showAlertDialog({
                 title: 'Requirements Incomplete',
-                message: 'All requirements (Subject Code, Name, Units, Topics, and Materials) must be completed before this subject can be published. Please edit the subject to complete them.',
+                message: 'All requirements (Subject Code, Name, Units, Learning Hours, Topics, and Materials) must be completed before this subject can be published. Please edit the subject to complete them.',
                 buttonText: 'OK'
             });
         }
@@ -17145,7 +17313,7 @@ function renderSubjectsTable() {
     if (displaySubjects.length === 0) {
         tableBody.innerHTML = `
             <tr id="subject-empty-state" class="bg-white">
-                <td colspan="8" class="py-32 text-center">
+                <td colspan="9" class="py-32 text-center">
                     <div class="flex flex-col items-center justify-center space-y-4">
                         <i class="fa-solid fa-book-open text-6xl text-black-fade"></i>
                         <p class="text-base font-bold text-black font-['Inter']">${window.subjectSearchState.hasSearched ? 'No Matching Subjects Found' : 'No Subjects Found'}</p>
@@ -17170,8 +17338,13 @@ function renderSubjectsTable() {
         else if (sub.type.toLowerCase() === 'specialized') typeDisplay = 'Specialized Subject';
 
         // Format units to always have .0 if integer
-        let unitsDisplay = String(sub.units || '0');
-        if (!unitsDisplay.includes('.')) unitsDisplay += '.0';
+        let unitsDisplay = String(sub.units || '').trim();
+        if (unitsDisplay && !unitsDisplay.includes('.')) unitsDisplay += '.0';
+        unitsDisplay = unitsDisplay ? escapeHtml(unitsDisplay) : '<span class="gradebook-dash text-black-fade font-normal select-none" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
+        const hours = Number(sub.learningHours);
+        const hoursDisplay = Number.isInteger(hours) && hours >= 1 && hours <= 1280
+            ? `${hours} hours`
+            : '<span class="gradebook-dash text-black-fade font-normal select-none" style="color: rgba(0, 0, 0, 0.45) !important;">-</span>';
 
         const createdDateText = (typeof formatUserCreatedDate === 'function') ? formatUserCreatedDate(sub.createdAt) : 'Sep 3, 2026';
         const isReadyForPublish = window.isSubjectReadyForPublish ? window.isSubjectReadyForPublish(sub) : false;
@@ -17179,7 +17352,7 @@ function renderSubjectsTable() {
         return `
             <tr class="transition-colors ${rowStripe} hover:bg-emerald-50/20">
                 <td class="px-4 py-4 text-center">
-                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${totalItems - startIndex - idx}</div>
+                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${window.getRecordCreationNumber(sub, getStoredJson(SUBJECTS_STORAGE_KEY, []), 'subjects')}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${escapeHtml(sub.code)}</div>
@@ -17192,6 +17365,9 @@ function renderSubjectsTable() {
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${unitsDisplay}</div>
+                </td>
+                <td class="px-4 py-4 text-center">
+                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${hoursDisplay}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="flex items-center justify-center">
@@ -17230,7 +17406,7 @@ function renderSubjectsTable() {
                                     <i class="fa-solid fa-file-pen"></i>
                                     <span>Revert to Draft</span>
                                 </button>` : '')}
-                                ${(typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('subject')) ? `
+                                ${(sub.canDelete === true && typeof window.canCurrentAdminDelete === 'function' && window.canCurrentAdminDelete('subject')) ? `
                                 <button onclick="window.deleteSubjectPrompt('${escapeHtml(sub.code)}')" class="action-dropdown-item cursor-pointer">
                                     <i class="fa-solid fa-trash-can"></i>
                                     <span>Delete Subject</span>
@@ -18751,7 +18927,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tab = (hash === 'settings' || hash === 'system-settings') ? 'security' : hash.replace(/^settings-/, '');
             window.switchTab('nav-settings-' + (tab || 'security'), true);
         } else if (hash === 'nav-audit-logs' || hash === 'audit-logs' || hash === 'nav-audit-ai' || hash === 'audit-ai' || hash === 'audit-ai-view') {
-            window.switchTab('nav-audit-ai', true);
+            window.switchTab(['nav-audit-logs','audit-logs'].includes(hash) ? 'nav-audit-logs' : 'nav-audit-ai', true);
         } else if (hash === 'nav-audit-activity' || hash === 'audit-activity' || hash === 'audit-activity-view') {
             window.switchTab('nav-audit-activity', true);
         } else if (hash === 'nav-audit-notifications' || hash === 'audit-notifications' || hash === 'audit-notifications-view') {
@@ -18948,8 +19124,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.saveMaterialLimits();
     };
 
-    window.saveMaterialLimits = function () {
+    window.saveMaterialLimits = async function () {
         if (!window.materialLimitsAreDirty()) return;
+        const savingSnapshot = getMaterialLimitsFormSnapshot();
         for (const input of document.querySelectorAll('#integ-limits-panel input, #integ-limits-panel select')) {
             if (!input.reportValidity()) return;
         }
@@ -18983,16 +19160,16 @@ document.addEventListener('DOMContentLoaded', () => {
         try { parsedOld = savedOld ? JSON.parse(savedOld) : {}; } catch (_) {}
 
         const mp4Val = clampStd(document.getElementById('limit-video-mp4')?.value, 200);
-        const videoExt = clampExt(document.getElementById('limit-video-ext')?.value || parsedOld.video?.ext, 50);
+        const videoExt = clampExt(document.getElementById('limit-video-ext')?.value || parsedOld.video?.ext, 25);
 
         const docxStd = clampDocStd(document.getElementById('limit-docx-std')?.value || document.getElementById('limit-docx-reg')?.value, 20);
-        const docxExt = clampDocExt(document.getElementById('limit-docx-ext')?.value || parsedOld.docx?.ext, 25);
+        const docxExt = clampDocExt(document.getElementById('limit-docx-ext')?.value || parsedOld.docx?.ext, 5);
 
         const pdfStd = clampDocStd(document.getElementById('limit-pdf-std')?.value || document.getElementById('limit-pdf-reg')?.value, 25);
-        const pdfExt = clampDocExt(document.getElementById('limit-pdf-ext')?.value || parsedOld.pdf?.ext, 25);
+        const pdfExt = clampDocExt(document.getElementById('limit-pdf-ext')?.value || parsedOld.pdf?.ext, 5);
 
         const pptxStd = clampDocStd(document.getElementById('limit-pptx-std')?.value || document.getElementById('limit-pptx-reg')?.value, 50);
-        const pptxExt = clampDocExt(document.getElementById('limit-pptx-ext')?.value || parsedOld.pptx?.ext, 25);
+        const pptxExt = clampDocExt(document.getElementById('limit-pptx-ext')?.value || parsedOld.pptx?.ext, 5);
 
         const batchQuotaVal = Math.min(500, Math.max(50, Number(parsedOld.batchQuota || parsedOld.submissionBatchQuota) || 150));
 
@@ -19028,14 +19205,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
-            try { localStorage.setItem('sigma_settings_video_max_mb', String(mp4Val + videoExt)); }
-            catch (error) {
-                if (savedOld === null) localStorage.removeItem('sigma-material-limits');
-                else localStorage.setItem('sigma-material-limits', savedOld);
-                throw error;
-            }
-            _savedMaterialLimitsSnapshot = getMaterialLimitsFormSnapshot();
+            await window.SigmaMaterialLimits.save('standard', limits);
+            _savedMaterialLimitsSnapshot = savingSnapshot;
             window.updateMaterialLimitsButtonState();
             const status = document.getElementById('limits-save-status');
             if (status) status.textContent = '';
@@ -19046,7 +19217,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function initMaterialLimits() {
+    async function initMaterialLimits() {
+        try {await window.SigmaMaterialLimits.refresh(true);}
+        catch(_){const status=document.getElementById('limits-save-status');if(status)status.textContent='Could not load saved limits. Reload to retry.';return;}
         const saved = localStorage.getItem('sigma-material-limits');
         const limits = saved ? JSON.parse(saved) : {};
         
@@ -19292,7 +19465,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.initAdvancedLimitsPage = function () {
+    window.initAdvancedLimitsPage = async function () {
+        try {await window.SigmaMaterialLimits.refresh(true);}
+        catch(_){const status=document.getElementById('adv-limits-save-status');if(status)status.textContent='Could not load saved rules. Reload to retry.';return;}
         const saved = localStorage.getItem('sigma-material-limits');
         const limits = saved ? JSON.parse(saved) : {};
         const vExt = Number(limits.video?.ext) || 25;
@@ -19334,7 +19509,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.saveAdvancedLimits = function () {
+    window.saveAdvancedLimits = async function () {
         window.SigmaSettingsCounters?.normalizeAll();
         if (!window.advancedLimitsAreDirty()) return;
         const btn = document.getElementById('adv-limits-save-btn');
@@ -19381,7 +19556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         limits.submissionBatchQuota = bQuota;
 
         try {
-            localStorage.setItem('sigma-material-limits', JSON.stringify(limits));
+            await window.SigmaMaterialLimits.save('advanced', limits);
             _savedAdvancedLimitsSnapshot = getAdvancedLimitsSnapshot();
             window.updateAdvancedLimitsButtonState();
             const span = btn?.querySelector('span');
@@ -19554,7 +19729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setDriveConnectionStatus('Checking configuration...');
         try {
             const apiUrl = resolveUploadApiUrl();
-            const res = await window.SigmaDatabase.fetch(apiUrl);
+            const res = await window.SigmaDatabase.fetch(apiUrl, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
             if (res.ok) {
                 const data = await res.json();
                 if (data.google_drive) {
@@ -19584,11 +19759,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (folderNameEl) folderNameEl.textContent = drive.folder_name || (drive.folder_id ? 'Folder configured' : 'Not configured');
                     if (statusEl) statusEl.textContent = drive.configured ? 'Credentials configured' : 'No credentials configured';
-                    const tierSelect = document.getElementById('gdrive-page-capacity-tier');
-                    if (tierSelect && drive.storage_limit_gb) {
-                        tierSelect.value = String(drive.storage_limit_gb);
-                    }
-                    setDriveConnectionStatus(drive.configured ? 'Not tested' : 'Not Connected');
+                    setDriveConnectionStatus(drive.oauth_connected ? 'Google account authorized' : (drive.configured ? 'Settings saved — test connection' : 'Not Connected'));
+                    window.loadDriveOAuthStatus?.();
                     window.updateGoogleDriveSaveState();
                     return;
                 }
@@ -19599,7 +19771,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 setDriveConnectionStatus('Verification required');
                 return;
             }
-            setDriveConnectionStatus('Status unavailable', 'failed');
+            setDriveConnectionStatus('Unable to load saved settings — retry after the server recovers', 'failed');
+            for (const id of ['gdrive-page-display-email','gdrive-page-display-folder-name','gdrive-page-folder-link-text','gdrive-page-key-status']) {
+                const node = document.getElementById(id);
+                if (node && !node.dataset.loaded) node.textContent = 'Saved settings temporarily unavailable';
+            }
             console.warn('[SIGMA] Google Drive status query error:', e);
         } finally { window.SigmaServiceVault?.finishLoading(); }
     };
@@ -19662,15 +19838,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json().catch(() => null);
 
             if (res.ok && data && data.success) {
-                setDriveConnectionStatus('Connected', 'connected');
+                setDriveConnectionStatus(data.upload_ready ? 'Connected' : 'Google account authorization required', data.upload_ready ? 'connected' : 'failed');
                 if (feedback) {
                     feedback.classList.remove('bg-slate-100', 'text-slate-700', 'bg-red-100', 'text-red-800');
                     feedback.classList.add('bg-emerald-100', 'text-emerald-800');
-                    feedback.textContent = `Connection successful${data.folder_name ? ': ' + data.folder_name : '.'}`;
+                    feedback.textContent = data.upload_ready ? `Connection successful${data.folder_name ? ': ' + data.folder_name : '.'}` : data.message;
                 }
                 const folderNameEl = document.getElementById('gdrive-page-display-folder-name') || document.getElementById('gdrive-modal-display-folder-name');
                 if (folderNameEl && data.folder_name) folderNameEl.textContent = data.folder_name;
-                if (window.showToast) window.showToast('Google Drive API Connection Verified');
+                if (window.showToast) window.showToast(data.upload_ready ? 'Google Drive connection verified.' : data.message, data.upload_ready ? 'success' : 'warning');
             } else {
                 setDriveConnectionStatus('Connection Failed', 'failed');
                 if (feedback) {
@@ -19697,9 +19873,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.getElementById('btn-save-gdrive-page-config') || document.getElementById('btn-save-gdrive-config');
         const folderVal = folderInput ? folderInput.value.trim() : '';
 
-        const tierSelect = document.getElementById('gdrive-page-capacity-tier');
-        const tierVal = tierSelect ? parseFloat(tierSelect.value) : 15;
-
         if (saveBtn) {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
@@ -19712,8 +19885,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'save_config',
-                    folder_id: folderVal,
-                    storage_limit_gb: tierVal
+                    folder_id: folderVal
                 })
             });
             const data = await res.json().catch(() => null);
@@ -19742,34 +19914,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveBtn.textContent = 'Save';
                 window.updateGoogleDriveSaveState();
             }
-        }
-    };
-
-    window.handleGoogleDriveCapacityChange = async function (event) {
-        const val = parseFloat(event.target.value) || 15;
-        const status = document.getElementById('gdrive-page-capacity-save-status');
-        try {
-            const apiUrl = resolveUploadApiUrl();
-            const res = await window.SigmaDatabase.fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'save_config',
-                    storage_limit_gb: val
-                })
-            });
-            const data = await res.json().catch(() => null);
-            if (data && data.success) {
-                if (status) {
-                    status.classList.remove('hidden');
-                    setTimeout(() => status.classList.add('hidden'), 2500);
-                }
-                if (typeof window.loadGoogleDriveFolderUsage === 'function') {
-                    window.loadGoogleDriveFolderUsage();
-                }
-            }
-        } catch (e) {
-            console.warn('[SIGMA] Error saving Google Drive capacity tier:', e);
         }
     };
 
@@ -20331,7 +20475,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recaptchaPageState.saved = { ...data, version, threshold: Number(data.threshold) || 3, enabled: data.enabled !== false,
             profiles: data.profiles || { [version]: { site_key: data.site_key || '', has_secret: !!data.has_secret } } };
         const set = (id, text) => { const el = recaptchaNode(id); if (el) el.textContent = text; };
-        set('recaptcha-page-connection-status', data.credential_error || (data.site_key && data.has_secret ? 'Configured & Ready' : 'Not Configured'));
+        set('recaptcha-page-connection-status', data.credential_error || (data.site_key && data.has_secret ? 'Keys saved — verification required' : 'Not Configured'));
         set('recaptcha-page-display-version', version === 'v3' ? 'v3 (Score-based)' : 'v2 (Checkbox)');
         set('recaptcha-page-display-site-key', data.site_key ? 'Configured' : 'Not configured');
         set('recaptcha-page-display-secret-status', data.has_secret ? 'Configured (server)' : 'Not configured');
@@ -20514,6 +20658,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const host = recaptchaNode('recaptcha-test-widget');
         if (!host) return;
         const complete = (data, error) => {
+            const status = recaptchaNode('recaptcha-page-connection-status');
+            if (status) status.textContent = error || !data?.success ? 'Verification failed' : 'Verified with Google';
             window.renderRecaptchaTestResult(recaptchaNode('recaptcha-test-result'), data, error);
             window.SigmaAuthenticationLogs?.record({
                 event: error || !data?.success ? 'reCAPTCHA verification failed' : 'reCAPTCHA verified',
@@ -21172,17 +21318,17 @@ window.showCreationBar = function ({ type = 'user', label, primaryLabel, primary
     };
     const icon = iconMap[type] || 'fa-check-circle';
 
-    // Choose color palette: draft = Yellow (#FFD000) with green/black accents, published = Green (#15803d) with yellow/white accents
+    // Use the shared green palette for every creation indicator; status remains in its label.
     const isDraft = String(status).toLowerCase() === 'draft';
-    const bgColor = isDraft ? '#FFD000' : '#15803d';
-    const textColor = isDraft ? '#000000' : '#ffffff';
-    const tagColor = isDraft ? '#15803d' : 'rgba(255, 255, 255, 0.75)';
-    const subLabelColor = isDraft ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.50)';
-    const secLabelColor = isDraft ? '#15803d' : '#FFD000';
-    const dividerBg = isDraft ? 'rgba(21, 128, 61, 0.25)' : 'rgba(255, 255, 255, 0.20)';
-    const iconBg = isDraft ? '#15803d' : 'rgba(255, 255, 255, 0.20)';
+    const bgColor = 'var(--icc-green, #15803d)';
+    const textColor = '#ffffff';
+    const tagColor = 'rgba(255, 255, 255, 0.85)';
+    const subLabelColor = 'rgba(255, 255, 255, 0.75)';
+    const secLabelColor = 'rgba(255, 255, 255, 0.85)';
+    const dividerBg = 'rgba(255, 255, 255, 0.20)';
+    const iconBg = 'rgba(255, 255, 255, 0.20)';
     const iconColor = '#ffffff';
-    const closeBtnColor = isDraft ? 'text-black/70 hover:text-black hover:bg-black/10' : 'text-white/70 hover:text-white hover:bg-white/10';
+    const closeBtnColor = 'text-white/70 hover:text-white hover:bg-white/10';
 
     const toTitleCase = (str) => {
         if (!str) return '';
@@ -21337,7 +21483,7 @@ window.applyCurrentAdminPermissions = function () {
     toggleElement('open-create-sy-btn', canSyCreateEdit);
     toggleElement('btn-create-sy-active', canSyCreateEdit);
     toggleElement('open-subject-overlay-btn', canSubjectCreateEdit);
-    toggleElement('subject-delete-btn', canSubjectDelete && !!window.isEditingSubject);
+    toggleElement('subject-delete-btn', canSubjectDelete && !!window.isEditingSubject && !!window.canCurrentSubjectEditorDeleteSubject?.());
     toggleElement('section-delete-btn', canSectionDelete && !!window.isEditingSection);
 
     // 2. Reports Category
@@ -21363,32 +21509,37 @@ window.applyCurrentAdminPermissions = function () {
     toggleElement(resourcesGroup, canResourcesMain);
 
     // 4. Audit Logs Category
-    const canAuditMain = isMaster || perms.auditMain !== false;
-    const canAuditAi = isMaster || (canAuditMain && perms.auditAi !== false);
-    const canAuditActivity = isMaster || (canAuditMain && perms.auditActivity !== false);
-    const canAuditAuth = isMaster || (canAuditMain && perms.auditAuth !== false);
+    const canAuditMain = isMaster || perms.auditMain === true;
+    const canAuditAi = isMaster || (canAuditMain && perms.auditAi === true);
+    const canAuditActivity = isMaster || (canAuditMain && perms.auditActivity === true);
+    const canAuditAuth = isMaster || (canAuditMain && perms.auditAuth === true);
 
-    const hasAnyAuditSublink = canAuditAi || canAuditActivity || canAuditAuth;
+    const canAuditNotifications = isMaster || (canAuditMain && perms.auditNotifications === true);
+    window.refreshAuditLogPermissions?.();
+    window.dispatchEvent(new Event('sigma:audit-permissions-changed'));
+    const hasAnyAuditSublink = canAuditAi || canAuditActivity || canAuditAuth || canAuditNotifications;
     const canAuditGroup = isMaster || (canAuditMain && hasAnyAuditSublink);
     const auditBtn = document.getElementById('nav-audit-logs');
     const auditGroup = auditBtn ? (auditBtn.closest('.nav-group') || auditBtn) : null;
     toggleElement(auditGroup, canAuditGroup);
+    toggleElement(auditBtn, canAuditGroup);
 
     // 5. Settings Category
     const canSettingsMain = isMaster || perms.settingsMain !== false;
     const canSettingsSecurity = isMaster || (canSettingsMain && perms.settingsSecurity !== false);
     const canSettingsBranding = isMaster || (canSettingsMain && perms.settingsBranding !== false);
-    const canSettingsIntegrations = isMaster || (canSettingsMain && perms.settingsApi !== false);
+    const canSettingsIntegrations = isMaster || (canSettingsMain && perms.settingsApi === true);
+    const canSettingsRecovery = isMaster;
 
     toggleElement('nav-settings-security', canSettingsSecurity);
-    toggleElement('nav-settings-recovery', canSettingsSecurity);
+    toggleElement('nav-settings-recovery', canSettingsRecovery);
     toggleElement('nav-settings-branding', canSettingsBranding);
     toggleElement('nav-settings-integrations', canSettingsIntegrations);
     toggleElement('nav-settings-preference', canSettingsBranding);
     toggleElement('nav-settings-storage', canSettingsIntegrations);
     toggleElement('nav-settings-api', canSettingsIntegrations);
 
-    const hasAnySettingsSublink = canSettingsSecurity || canSettingsBranding || canSettingsIntegrations;
+    const hasAnySettingsSublink = canSettingsSecurity || canSettingsBranding || canSettingsIntegrations || canSettingsRecovery;
     const canSettingsGroup = isMaster || (canSettingsMain && hasAnySettingsSublink);
     const settingsBtn = document.getElementById('nav-settings');
     const settingsGroup = settingsBtn ? (settingsBtn.closest('.nav-group') || settingsBtn) : null;
@@ -21402,7 +21553,7 @@ window.applyCurrentAdminPermissions = function () {
     // 7. System Access & Maintenance panel
     // Regular admins cannot see the Maintenance/Lockdown toggle at all.
     // They can only see the Notice Message section IF the Master Admin has granted noticeMessage permission.
-    const canSeeMaintenance = isMaster || (perms.noticeMessage === true);
+    const canSeeMaintenance = isMaster || (canSettingsMain && canSettingsSecurity && perms.maintenanceManage === true);
     toggleElement('sec-maintenance-panel', canSeeMaintenance);
     toggleElement('nav-settings-maintenance', canSeeMaintenance);
     if (canSeeMaintenance && typeof window.updateMaintenanceAccessControls === 'function') {

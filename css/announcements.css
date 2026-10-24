@@ -360,6 +360,8 @@ html body :is(.sigma-composer-backdrop, .sigma-student-picker-backdrop, .sigma-d
     background: #f1f5f9;
     color: #000000;
 }
+#sigma-composer-btn-close { display: flex !important; }
+#sigma-composer-btn-close:focus-visible { outline: 2px solid #15803d; outline-offset: 2px; }
 
 /* Modal Body */
 .sigma-composer-body {
@@ -1076,6 +1078,57 @@ html body :is(.sigma-composer-backdrop, .sigma-student-picker-backdrop, .sigma-d
     box-sizing: border-box !important;
 }
 
+.sigma-composer-comments-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    align-self: flex-start;
+    width: fit-content;
+    min-height: 28px;
+    gap: 10px;
+    padding: 2px;
+    font: 500 13px/1.5 Inter, sans-serif;
+    color: #0f172a;
+    cursor: pointer;
+}
+.sigma-composer-save-actions { display: flex; align-items: stretch; gap: 12px; }
+.sigma-composer-save-actions .sigma-composer-submit-btn { flex: 1; min-width: 0; }
+.sigma-composer-save-actions.is-editing { justify-content: space-between; }
+.sigma-composer-save-actions.is-editing .sigma-composer-submit-btn {
+    flex: 0 1 160px;
+    width: 160px;
+    height: 46px;
+    min-height: 46px;
+}
+.sigma-composer-delete-btn { flex: 0 0 auto; }
+.sigma-composer-delete-btn[hidden] { display: none !important; }
+#sigma-delete-dialog-backdrop { z-index: 100010 !important; }
+.sigma-composer-comments-row[hidden] { display: none !important; }
+.sigma-composer-comments-row input {
+    appearance: none;
+    position: relative;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    border: 0;
+    border-radius: 20px;
+    background: #cbd5e1;
+    cursor: pointer;
+}
+.sigma-composer-comments-row input::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 2px;
+    left: 2px;
+    border-radius: 50%;
+    background: #fff;
+}
+.sigma-composer-comments-row input:checked { background: #15803d; }
+.sigma-composer-comments-row input:checked::before { left: 18px; }
+.sigma-composer-comments-row input:focus-visible { outline: 2px solid #15803d; outline-offset: 3px; }
 .sigma-composer-submit-btn {
     width: 100%;
     height: 44px;

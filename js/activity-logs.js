@@ -6,6 +6,7 @@
 
     const KEY = 'sigma-activity-logs-v1';
     let selectedUser = null, selectedRecord = null;
+    let selectedContent = null;
     let selectedCategory = 'All Activities';
     let detailQuery = '';
 
@@ -88,6 +89,9 @@
                     activity: item.activity || item.action || 'Activity Recorded',
                     module: item.module || 'System',
                     details: details || '',
+                    announcementId: item.announcementId || null,
+                    announcement: item.announcement || null,
+                    title: item.title || '',
                     timestamp: item.timestamp || ''
                 };
             });
@@ -105,10 +109,11 @@
     };
 
     let serverRecords = [], serverError = '', pending = null;
-    const read = () => [...serverRecords, ...readLocal().filter(item => !serverRecords.some(remote =>
+    const read = () => window.canViewAuditLog?.('activity') === false ? [] : [...serverRecords, ...readLocal().filter(item => !serverRecords.some(remote =>
         remote.userId === item.userId && remote.activity === item.activity
         && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000))].map(window.SigmaAuditDisplay.activity);
     async function refresh() {
+        if (window.canViewAuditLog?.('activity') === false) { serverRecords=[]; render(); return; }
         if (!document.getElementById('audit-activity-view') || !window.SigmaDatabase?.currentUser()?.id) return;
         if (pending) return pending;
         pending = (async () => {
@@ -121,6 +126,7 @@
         return pending;
     }
     async function deleteActivityLog(id) {
+        if (window.canViewAuditLog?.('activity') === false) return;
         if (!id) return;
         try {
             if (String(id).startsWith('server-')) {
@@ -142,6 +148,7 @@
     }
 
     function openUser(userRecord, isolated = false) {
+        selectedContent = null;
         selectedRecord = isolated ? userRecord.id : null;
         selectedUser = userRecord;
         selectedCategory = 'All Activities';
@@ -155,6 +162,7 @@
     }
 
     function closeDetails() {
+        selectedContent = null;
         selectedUser = null; selectedRecord = null;
         selectedCategory = 'All Activities';
         detailQuery = '';
@@ -162,10 +170,54 @@
     }
     window.closeActivityLogDetails = closeDetails;
 
+    async function openContentDetails(record) {
+        if (window.canViewAuditLog?.('activity') === false) return;
+        let post = record.announcement || null;
+        if (!post && /announcement/i.test(record.module || '')) {
+            try { post = await window.SigmaAnnouncements?.resolveActivityPost(record); }
+            catch (_) { /* Keep the recorded details available if a post cannot be loaded. */ }
+        }
+        selectedContent = { title: post?.title || record.title || record.activity, body: post?.body || record.details || '', html: Boolean(post?.body) };
+        window.pushModalHistoryState?.('activity-content-details', () => { selectedContent = null; render(); });
+        render();
+        document.getElementById('activity-content-title')?.focus({preventScroll:true});
+        document.getElementById('activity-content-details')?.scrollIntoView({block:'start'});
+    }
+
+    function appendAnnouncementBody(container, html) {
+        const parsed = new DOMParser().parseFromString(String(html), 'text/html');
+        const allowed = new Set(['P','BR','DIV','B','STRONG','I','EM','U','UL','OL','LI']);
+        const copy = (source, target) => {
+            for (const node of source.childNodes) {
+                if (node.nodeType === 3) target.append(document.createTextNode(node.textContent));
+                else if (node.nodeType === 1 && !['SCRIPT','STYLE','IFRAME','OBJECT','SVG'].includes(node.tagName)) {
+                    if (allowed.has(node.tagName)) { const element=document.createElement(node.tagName);copy(node,element);target.append(element); }
+                    else copy(node,target);
+                }
+            }
+        };
+        copy(parsed.body, container);
+    }
+
     function render() {
         const table = document.querySelector('#audit-activity-view table[aria-label="Activity logs"]');
         const body = document.getElementById('activity-log-rows') || table?.tBodies?.[0];
+        if (window.canViewAuditLog?.('activity') === false) { body?.replaceChildren(); document.getElementById('activity-account-details')?.replaceChildren(); document.getElementById('activity-content-details')?.remove(); return; }
         if (!table || !body) return;
+        let contentPanel = document.getElementById('activity-content-details');
+        if (selectedContent) {
+            if (!contentPanel) { contentPanel=document.createElement('section');contentPanel.id='activity-content-details';table.parentElement.before(contentPanel); }
+            contentPanel.hidden=false;contentPanel.replaceChildren();
+            table.parentElement.hidden=true;
+            const previousHeader=document.getElementById('activity-account-details');if(previousHeader)previousHeader.hidden=true;
+            const back=document.createElement('button');back.type='button';back.className='sigma-btn sigma-btn-white sigma-btn-md';back.textContent='Back';back.onclick=()=>{selectedContent=null;render();};
+            const title=document.createElement('h2');title.id='activity-content-title';title.tabIndex=-1;title.textContent=selectedContent.title;title.className='ai-log-detail-title';
+            const text=document.createElement('div');text.className='activity-announcement-body';
+            if(selectedContent.html)appendAnnouncementBody(text,selectedContent.body);else text.textContent=selectedContent.body;
+            contentPanel.append(back,title,text);return;
+        }
+        if(contentPanel)contentPanel.hidden=true;
+        table.parentElement.hidden=false;
         let notice = document.getElementById('activity-server-status');
         if (!notice) { notice = document.createElement('div'); notice.id = 'activity-server-status'; notice.setAttribute('role','status'); table.after(notice); }
         notice.hidden = !serverError;
@@ -214,7 +266,7 @@
             identityRow.className = 'ai-log-detail-name-row';
 
             const avatarSpan = document.createElement('span');
-            avatarSpan.className = 'ai-log-avatar';
+            avatarSpan.className = 'ai-log-avatar sigma-user-avatar sigma-user-avatar--sm';
             avatarSpan.setAttribute('aria-hidden', 'true');
             const detailCleanId = String(selectedUser.userId || '').replace(/^ID:\s*/i, '').trim();
             const resolvedDetailAvatar = (typeof window.resolveUserAvatar === 'function'
@@ -303,6 +355,8 @@
             header.append(title, identity, toolbar);
         }
 
+        table.dataset.activityView = selectedUser ? 'detail' : 'overview';
+
         // Adjust Table Header depending on main table vs drilldown
         const thead = table.tHead || table.querySelector('thead');
         if (thead && thead.rows[0]) {
@@ -312,9 +366,9 @@
                 // In drilldown: Activity | Module | Details | Timestamp | Action
                 [
                     { label: 'Activity', width: '22%' },
-                    { label: 'Module', width: '14%' },
+                    { label: 'Module', width: '12%' },
                     { label: 'Details', width: '40%' },
-                    { label: 'Timestamp', width: '16%' },
+                    { label: 'Timestamp', width: '18%' },
                     { label: 'Action', width: '8%', className: 'text-center' }
                 ].forEach(({ label, width, className }) => {
                     const th = document.createElement('th');
@@ -405,7 +459,11 @@
                 // 3. Details column
                 const detTd = document.createElement('td');
                 detTd.className = 'text-black sigma-audit-details-cell';
-                detTd.append(window.SigmaAuditDisplay.details(window.SigmaAuditDisplay.activity(record).details));
+                const detailsButton=document.createElement('button');detailsButton.type='button';detailsButton.className='ai-log-interaction-button';
+                detailsButton.setAttribute('aria-label','View activity details');
+                detailsButton.append(window.SigmaAuditDisplay.details(window.SigmaAuditDisplay.activity(record).details));
+                detailsButton.onclick=()=>openContentDetails(record);
+                detTd.append(detailsButton);
 
                 // 4. Timestamp column
                 const timeTd = document.createElement('td');
@@ -467,6 +525,9 @@
                     }
                 });
 
+                const viewBtn=document.createElement('button');viewBtn.type='button';viewBtn.innerHTML='<i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>View Details</span>';
+                viewBtn.onclick=()=>{menu.hidden=true;toggle.setAttribute('aria-expanded','false');openContentDetails(record);};
+                menu.append(viewBtn);
                 if (String(record.id).startsWith('server-lifecycle-')) toggle.hidden = true;
                 else menu.append(deleteBtn);
                 actionsWrap.append(toggle, menu);
@@ -487,7 +548,7 @@
                 userBtn.onclick = () => openUser(record, !record.userId || record.userId === 'ID not recorded');
 
                 const avatar = document.createElement('span');
-                avatar.className = 'ai-log-avatar';
+                avatar.className = 'ai-log-avatar sigma-user-avatar sigma-user-avatar--sm';
                 avatar.setAttribute('aria-hidden', 'true');
                 const resolvedRowAvatar = (typeof window.resolveUserAvatar === 'function'
                     ? window.resolveUserAvatar({ id: cleanId, name: record.userName, avatar: record.userAvatar })
@@ -595,11 +656,12 @@
         };
 
         const records = readLocal();
-        records.unshift(item);
+        const normalized = window.SigmaAuditDisplay.activity(item);
+        records.unshift(normalized);
         write(records);
-        window.dispatchEvent(new CustomEvent('sigma-activity-logs-updated', { detail: item }));
+        window.dispatchEvent(new CustomEvent('sigma-activity-logs-updated', { detail: normalized }));
         render();
-        return item;
+        return normalized;
     }
 
     // Global outside click and escape handlers
@@ -657,4 +719,5 @@
     } else {
         render(); refresh();
     }
+    window.addEventListener('sigma:audit-permissions-changed', refresh);
 })();

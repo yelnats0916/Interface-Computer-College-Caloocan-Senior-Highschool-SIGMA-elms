@@ -4,12 +4,49 @@
  * Unified navbar header, search, and dropdown controllers across Admin, Teacher, and Student portals.
  */
 
+// Reject browser autofill without filtering or clearing deliberate search queries.
+function protectSearchFromAutofill(input) {
+    if (!input || input.dataset.autofillGuardBound) return;
+    input.dataset.autofillGuardBound = 'true';
+    let deliberateQuery = '';
+    const rejectAutofill = () => {
+        let autofilled = false;
+        try { autofilled = input.matches(':autofill'); } catch (_) {}
+        try { autofilled = autofilled || input.matches(':-webkit-autofill'); } catch (_) {}
+        if (!autofilled) return false;
+        input.value = deliberateQuery;
+        return true;
+    };
+    input.addEventListener('input', () => {
+        if (!rejectAutofill()) deliberateQuery = input.value;
+    }, true);
+    input.addEventListener('animationstart', event => {
+        if (event.animationName === 'sigma-search-autofill') rejectAutofill();
+    });
+    input.rememberSearchQuery = () => { deliberateQuery = input.value; };
+    if (!document.getElementById('sigma-search-autofill-style')) {
+        const style = document.createElement('style');
+        style.id = 'sigma-search-autofill-style';
+        style.textContent = `@keyframes sigma-search-autofill { from {} to {} }
+            #searchBar:-webkit-autofill, #mobileSearchInput:-webkit-autofill {
+                animation-name: sigma-search-autofill; animation-duration: 0.01s;
+            }
+            #searchBar::-webkit-search-cancel-button, #mobileSearchInput::-webkit-search-cancel-button {
+                -webkit-appearance: none;
+            }`;
+        document.head.appendChild(style);
+    }
+    rejectAutofill();
+}
+
 // ─── 0. Top-Nav Full Line Progress Bar Controller (Slim Line Style) ──────────
 (function initTopNavLoadingController() {
     let activeLoadingCount = 0;
     let currentProgress = 0;
     let progressTimer = null;
     let finishTimer = null;
+    const initialPageOpening = () => document.readyState === 'loading'
+        || document.documentElement.matches('.sigma-initial-loading,.sigma-hash-navigating,[data-sigma-session-check],[data-sigma-session-shimmer]');
 
     function getOrCreateLoadingBar() {
         let bar = document.getElementById('top-nav-loading-bar');
@@ -61,6 +98,7 @@
     }
 
     window.setTopNavProgress = function (percent) {
+        if (initialPageOpening()) return;
         if (percent >= 100 && progressTimer) {
             clearInterval(progressTimer);
             progressTimer = null;
@@ -74,6 +112,7 @@
     };
 
     window.showTopNavLoading = function () {
+        if (initialPageOpening()) return;
         activeLoadingCount++;
         if (finishTimer) {
             clearTimeout(finishTimer);
@@ -88,6 +127,8 @@
     };
 
     window.hideTopNavLoading = function () {
+        // An untracked startup request must not flash the completion bar.
+        if (activeLoadingCount === 0) return;
         activeLoadingCount = Math.max(0, activeLoadingCount - 1);
         if (activeLoadingCount === 0) {
             if (progressTimer) {
@@ -121,18 +162,15 @@
             clearInterval(progressTimer);
             progressTimer = null;
         }
-        setProgress(100);
+        currentProgress = 0;
         const bar = getOrCreateLoadingBar();
-        if (bar) bar.classList.add('finishing');
+        if (bar) {
+            bar.classList.remove('active', 'finishing');
+            const fill = bar.querySelector('.top-nav-loading-bar__fill');
+            if (fill) fill.style.width = '0%';
+        }
         if (finishTimer) clearTimeout(finishTimer);
-        finishTimer = setTimeout(() => {
-            if (bar) {
-                bar.classList.remove('active', 'finishing');
-            }
-            setTimeout(() => {
-                setProgress(0);
-            }, 250);
-        }, 300);
+        finishTimer = null;
     };
 
     // Track Real Network Requests (Fetch & XHR) - strictly when loading, no fake timers
@@ -666,6 +704,8 @@ function initSharedTopbarInteractions() {
 
     // Global Search Key Handler & Universal Search Dropdown
     const searchBar = document.getElementById('searchBar');
+    protectSearchFromAutofill(searchBar);
+    protectSearchFromAutofill(document.getElementById('mobileSearchInput'));
     const globalSearchBtn = document.getElementById('globalSearchBtn');
 
     // One-time cleanup of legacy shared search history key so it does not bleed into accounts
@@ -1126,7 +1166,7 @@ function initSharedTopbarInteractions() {
 
     function selectSuggestion(queryText) {
         if (!queryText) return;
-        if (searchBar) searchBar.value = queryText;
+        if (searchBar) { searchBar.value = queryText; searchBar.rememberSearchQuery?.(); }
         const mobileInput = document.getElementById('mobileSearchInput');
         if (mobileInput) mobileInput.value = queryText;
         hideSearchDropdown();
@@ -1312,7 +1352,7 @@ function initSharedTopbarInteractions() {
                     items[nextIndex].classList.add('active');
                     items[nextIndex].scrollIntoView({ block: 'nearest' });
                     const val = items[nextIndex].dataset.query;
-                    if (val) searchBar.value = val;
+                    if (val) { searchBar.value = val; searchBar.rememberSearchQuery?.(); }
                 }
             } else if (e.key === 'ArrowUp') {
                 if (isVisible && items.length > 0) {
@@ -1322,7 +1362,7 @@ function initSharedTopbarInteractions() {
                     items[prevIndex].classList.add('active');
                     items[prevIndex].scrollIntoView({ block: 'nearest' });
                     const val = items[prevIndex].dataset.query;
-                    if (val) searchBar.value = val;
+                    if (val) { searchBar.value = val; searchBar.rememberSearchQuery?.(); }
                 }
             } else if (e.key === 'Enter') {
                 e.preventDefault();

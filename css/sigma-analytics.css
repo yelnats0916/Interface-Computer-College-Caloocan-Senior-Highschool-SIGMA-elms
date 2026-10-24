@@ -3120,9 +3120,57 @@ html body #dashboard-metrics-container button,
 html body #dashboard-metrics-container p {
     overflow-wrap: anywhere;
 }
-html body #dashboard-metrics-container #ai-usage-retry {
-    position: static !important;
-    margin-top: 8px;
-    align-self: flex-start;
-    flex-shrink: 0;
+/* All system metric cards share the same header refresh action. */
+html body #dashboard-metrics-container .sigma-metric-refresh {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; min-width:30px; padding:0; margin:0;
+    flex:0 0 30px; border:0; border-radius:50%;
+    background:transparent; cursor:pointer; transition:background-color .15s ease;
 }
+html body #dashboard-metrics-container .sigma-metric-refresh i { color:#94a3b8 !important; font-size:12px; line-height:1; }
+html body #dashboard-metrics-container .sigma-metric-refresh:hover:not(:disabled),
+html body #dashboard-metrics-container .sigma-metric-refresh:focus-visible { background:#e2e8f0; }
+html body #dashboard-metrics-container .sigma-metric-refresh:focus-visible { outline:2px solid #94a3b8; outline-offset:2px; }
+html body #dashboard-metrics-container .sigma-metric-refresh:disabled { cursor:wait; opacity:.55; }
+
+/* Keep refresh with the title, separate from the right-aligned status. */
+html body #dashboard-metrics-container .sigma-metric-header {
+    display:grid !important; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px;
+}
+html body #dashboard-metrics-container .sigma-metric-title-group { display:flex; align-items:center; gap:2px; min-width:0; }
+html body #dashboard-metrics-container .sigma-metric-title-group .sigma-metric-title { min-width:0; flex-shrink:1 !important; line-height:1.25 !important; }
+
+/* AI usage controls stay at the same scale and inside the metric card. */
+html body #dashboard-metrics-container [data-id="metric-ai"] { gap:14px; }
+html body #dashboard-metrics-container .sigma-ai-usage-controls {
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; flex:0 0 auto; width:100%;
+}
+html body #dashboard-metrics-container .sigma-ai-provider-switch {
+    display:flex; align-items:center; gap:4px; height:36px; padding:4px; min-width:0;
+    border:1px solid #e2e8f0; border-radius:12px; background:#f1f5f9; box-sizing:border-box;
+}
+html body #dashboard-metrics-container .sigma-ai-provider-switch button {
+    flex:1 1 0; min-width:0; height:26px; padding:0 4px !important; margin:0;
+    font-family:inherit; font-size:12px !important; font-weight:500 !important; line-height:26px !important;
+    border:0; border-radius:8px; white-space:nowrap; overflow-wrap:normal;
+}
+html body #dashboard-metrics-container .sigma-ai-provider-switch button[aria-pressed="true"] { font-weight:600 !important; }
+html body #dashboard-metrics-container .sigma-ai-period-control { position:relative; min-width:0; height:36px; }
+html body #dashboard-metrics-container #ai-usage-period {
+    display:block; appearance:none !important; -webkit-appearance:none; background:#f1f5f9 !important; background-image:none !important;
+    width:100% !important; min-width:0 !important; height:36px !important; min-height:36px !important; max-height:36px !important;
+    padding:0 32px 0 12px !important; margin:0 !important; border:1px solid #e2e8f0 !important; border-radius:12px !important;
+    font-family:inherit !important; font-size:12px !important; font-weight:500 !important; line-height:normal !important;
+    color:#111 !important; box-sizing:border-box; cursor:pointer;
+}
+html body #dashboard-metrics-container .sigma-ai-period-chevron {
+    position:absolute; right:11px; top:10px; width:16px; height:16px; color:#64748b; pointer-events:none;
+}
+html body #dashboard-metrics-container #ai-usage-period:focus-visible { outline:2px solid #15803d; outline-offset:2px; }
+html body #dashboard-metrics-container [data-id="metric-ai"] .metric-body-centered { min-height:86px; padding:8px 0; }
+html body #dashboard-metrics-container #ai-requests-value { font-size:30px !important; font-weight:700 !important; line-height:1.1 !important; }
+html body #dashboard-metrics-container #ai-requests-label { font-size:12px !important; font-weight:400 !important; line-height:1.4 !important; }
+html body #dashboard-metrics-container :is(#ai-quota-label,#ai-usage-percent) { font-size:12px !important; line-height:1.4 !important; }
+html body #dashboard-metrics-container #ai-quota-label { font-weight:500 !important; }
+html body #dashboard-metrics-container #ai-usage-percent { font-weight:600 !important; }
+html body #dashboard-metrics-container #ai-usage-scope { font-size:10px !important; font-weight:400 !important; line-height:1.5 !important; margin:0; }

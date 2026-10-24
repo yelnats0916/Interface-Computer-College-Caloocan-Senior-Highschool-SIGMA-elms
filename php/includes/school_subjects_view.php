@@ -179,15 +179,16 @@
         <div class="flex-1 flex flex-col bg-white px-10">
             <table class="w-full border-collapse table-fixed">
                 <colgroup>
-                    <col style="width: 6%;">  <!-- No. -->
-                    <col style="width: 14%;"> <!-- Code -->
-                    <col style="width: 25%;"> <!-- Subject -->
-                    <col style="width: 16%;"> <!-- Type -->
-                    <col style="width: 10%;"> <!-- Units -->
-                    <col style="width: 10%;"> <!-- Status -->
+                    <col style="width: 5%;"> <!-- No. -->
+                    <col style="width: 12%;"> <!-- Code -->
+                    <col style="width: 24%;"> <!-- Subject -->
+                    <col style="width: 15%;"> <!-- Type -->
+                    <col style="width: 7%;"> <!-- Units -->
+                    <col style="width: 10%;"> <!-- Learning Hours -->
+                    <col style="width: 8%;"> <!-- Status -->
                     <col style="width: 13%;"> <!-- Date Created -->
-                    <col style="width: 6%;">  <!-- Action -->
-                </colgroup>
+                    <col style="width: 6%;"> <!-- Action -->
+</colgroup>
                 <thead class="sticky top-0 bg-[#15803d] z-10 border-b border-[#137638]">
                     <tr>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">No.</th>
@@ -195,6 +196,7 @@
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Subject</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Type</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Units</th>
+<th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Learning Hours</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Status</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter'] border-r border-[#137638]">Date Created</th>
                         <th class="px-4 py-4 text-xs md:text-sm font-semibold text-white tracking-normal text-center font-['Inter']">Action</th>
@@ -347,7 +349,7 @@
 
                     <div class="space-y-3">
                         <label for="edit-subject-name" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Subject Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="edit-subject-name" maxlength="50"
+                        <input type="text" id="edit-subject-name" maxlength="150"
                             oninput="this.value = this.value.replace(/[^a-zA-Z0-9\s]/g, ''); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                             placeholder="Full Subject Name"
                             class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
@@ -356,7 +358,7 @@
                     <div class="grid grid-cols-2 gap-8">
                         <div class="space-y-3">
                             <label for="edit-subject-units" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Units <span class="text-red-500">*</span></label>
-                            <input type="text" id="edit-subject-units" maxlength="2" placeholder="e.g. 3"
+                            <input type="text" id="edit-subject-units" required inputmode="numeric" maxlength="2" placeholder="e.g. 3"
                                 oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (typeof window.checkSubjectFormValidity === 'function') window.checkSubjectFormValidity();"
                                 class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
                         </div>
@@ -373,6 +375,19 @@
                             </div>
                         </div>
                     </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <label for="edit-subject-grade" class="sigma-subject-label text-base font-bold text-black">Grade Level</label>
+                                    <select id="edit-subject-grade" class="sigma-subject-select w-full bg-slate-50 border-b-2 border-slate-300 px-4 py-4 text-base text-black" onchange="window.checkSubjectDraftStatus?.(); window.checkSubjectFormValidity?.()">
+                                        <option value="">Select Grade</option><option value="11">Grade 11</option><option value="12">Grade 12</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-3">
+                                    <label for="edit-subject-hours" class="sigma-subject-label text-base font-bold text-black">Learning Hours <span class="text-red-500">*</span></label>
+                                    <input id="edit-subject-hours" type="text" required inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" autocomplete="off" placeholder="e.g. 80" title="Enter a whole number from 1 to 1280." class="sigma-subject-input w-full bg-slate-50 border-b-2 border-slate-300 rounded-none px-4 py-4 text-base font-medium text-black outline-none hover:bg-slate-100 hover:border-slate-400 focus:bg-slate-100 focus:border-[#FFD000] transition-all placeholder:text-black/40 font-['Inter'] shadow-none" oninput="window.handleSubjectLearningHoursInput?.(this)">
+                                </div>
+                            </div>
 
                     <div id="edit-subject-strand-container" class="space-y-3 hidden">
                         <label for="edit-subject-strand" class="sigma-subject-label text-base font-bold text-black capitalize tracking-normal ml-1">Strand Requirement <span class="text-red-500">*</span></label>

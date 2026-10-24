@@ -89,6 +89,13 @@
 }
 
 /* The actual progress bar filling the line - One Solid Color (ICC Yellow) */
+html:is(.sigma-initial-loading,.sigma-hash-navigating,[data-sigma-session-check],[data-sigma-session-shimmer]) .top-nav-loading-bar {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: none !important;
+}
+
 .top-nav-loading-bar__fill {
     position: absolute !important;
     top: 0 !important;

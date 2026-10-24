@@ -38,6 +38,7 @@
     <script src="../js/subject-editor.js?v=<?= time() ?>"></script>
 
     <script src="../js/ai-database-store.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/ai-database-store.js') ?>"></script>
+    <script src="../js/chat-history-recovery.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/chat-history-recovery.js') ?>"></script>
     <?php if (($topbarHeaderId ?? '') === 'admin-header'): ?>
     <script src="../js/record-lifecycle.js?v=<?= filemtime(dirname(__DIR__, 2) . '/js/record-lifecycle.js') ?>"></script>
     <?php endif; ?>

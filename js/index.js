@@ -438,6 +438,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (inputEl) inputEl.classList.add('input-error');
     }
 
+    function showLoginIdFeedback(formType, message) {
+        const field = formType === 'modal' ? ui.errors.modalId : ui.errors.id;
+        const input = formType === 'modal' ? ui.inputs.modalId : ui.inputs.id;
+        showError(field, message, false, input);
+    }
+
     function clearErrors() {
         Object.values(ui.errors).forEach(el => { el?.classList.add('hidden'); if (el) el.textContent = ''; });
         Object.values(ui.inputs).forEach(input => {
@@ -503,6 +509,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetRecaptcha(formType) {
+        const host = formType === 'modal' ? ui.captcha.modalContainer : ui.captcha.landingContainer;
+        if (host) window.SigmaRecaptcha?.cancel(host);
         if (pendingCaptchaSubmission?.formType === formType) {
             pendingCaptchaFlow = null;
             pendingCaptchaSubmission = null;
@@ -722,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function handleLogin(rawId, rawPass, formType, options = {}) {
         await recaptchaConfigReady;
-        const id = String(rawId || '').slice(0, 64000);
+        const id = String(rawId || '').trim().slice(0, 64000);
         const pass = String(rawPass || '').slice(0, 64000);
         const { validatedCaptchaFlow = null } = options;
         if (submitGuardLocked) return;
@@ -744,15 +752,23 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        const attemptKey = id.toLowerCase();
+        const policy = getLoginSecurityConfig();
+        const requiredFlow = { type: 'wrong-password', id: attemptKey };
+        if (window.SigmaRecaptcha?.isChallengeRequired(policy, 0, getPasswordAttempts(attemptKey))
+            && !isSameCaptchaFlow(finalValidatedFlow, requiredFlow)) {
+            setLoading(formType, false);
+            prepareCaptchaFlow(requiredFlow, { id, pass, formType });
+            return;
+        }
+
         // Show button loading state immediately to provide feedback
         setLoading(formType, true);
 
-        // Step 2: Validate ID Presence
+        // Empty ID is local validation; the server checks ID before password.
         if (!id) {
-            const err = formType === 'modal' ? ui.errors.modalId : ui.errors.id;
-            const inp = formType === 'modal' ? ui.inputs.modalId : ui.inputs.id;
-            showError(err, "ID or Email is required.", false, inp);
-            if (!validatedCaptchaFlow) setLoading(formType, false);
+            showLoginIdFeedback(formType, 'ID or Email is required.');
+            setLoading(formType, false);
             return;
         }
 
@@ -774,7 +790,31 @@ document.addEventListener('DOMContentLoaded', function () {
             gradeSyncOtp = '';
         } catch (error) {
             setLoading(formType, false);
-            showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, error.code === 'admin_device_restricted' ? null : formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            const attemptKey = id.toLowerCase();
+            let flow = null;
+            if (error.code === 'invalid_login_id') {
+                resetPasswordAttempts(attemptKey);
+                resetRecaptcha(formType);
+                showLoginIdFeedback(formType, 'Enter valid ID or email.');
+            } else if (error.code === 'wrong_password') {
+                incrementPasswordAttempts(attemptKey);
+                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, 'Wrong password.', false,
+                    formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+                flow = { type: 'wrong-password', id: attemptKey };
+            } else if (['password_required','account_locked','account_inactive'].includes(error.code)) {
+                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message, false,
+                    formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+            } else {
+                // Connection failures must not be counted as bad credentials.
+                showError(formType === 'modal' ? ui.errors.modalGeneral : ui.errors.general,
+                    error.message || 'Sign-in failed. Please try again.');
+            }
+            if (flow) {
+                resetRecaptcha(formType);
+                const policy = getLoginSecurityConfig();
+                if (window.SigmaRecaptcha?.isChallengeRequired(policy, 0, getPasswordAttempts(attemptKey)))
+                    prepareCaptchaFlow(flow, { id, pass, formType });
+            }
             return;
         }
         const accountKey = String(matchedUser?.uid || matchedUser?.id || id).trim();
@@ -783,16 +823,6 @@ document.addEventListener('DOMContentLoaded', function () {
             role: String(matchedUser.type || matchedUser.role || '').trim().toLowerCase(),
             status: String(matchedUser.status || 'active').trim().toLowerCase()
         } : null;
-        const securityPolicy = getLoginSecurityConfig();
-        const challengeFlow = getPasswordAttempts(accountKey) >= securityPolicy.loginIdAttempts
-            ? { type: 'wrong-password', id: accountKey } : { type: 'invalid-login-id' };
-        if (window.SigmaRecaptcha.isChallengeRequired(securityPolicy, invalidLoginIdAttempts, getPasswordAttempts(accountKey))
-            && !isSameCaptchaFlow(finalValidatedFlow, challengeFlow)) {
-            setLoading(formType, false);
-            prepareCaptchaFlow(challengeFlow, { id, pass, formType });
-            return;
-        }
-
         // Step 3: Match Account ID BEFORE checking password presence
         if (!account) {
             invalidLoginIdAttempts++;
@@ -837,6 +867,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         invalidLoginIdAttempts = 0;
         resetPasswordAttempts(accountKey);
+        resetPasswordAttempts(id.toLowerCase());
+        resetRecaptcha(formType);
 
         const loginTimestamp = new Date().toISOString();
         try {
@@ -1883,6 +1915,12 @@ document.addEventListener('DOMContentLoaded', function () {
     ui.modalForm?.addEventListener('submit', (e) => {
         e.preventDefault();
         handleLogin(ui.inputs.modalId.value, ui.inputs.modalPass.value, 'modal');
+    });
+
+    // A challenge belongs to the registered account whose password failed.
+    // Editing the identity must never leave a previous account's widget visible.
+    [[ui.inputs.id, 'landing'], [ui.inputs.modalId, 'modal']].forEach(([input, formType]) => {
+        input?.addEventListener('input', () => resetRecaptcha(formType));
     });
 
     // Restore explicit Enter key listeners for faster, identical response

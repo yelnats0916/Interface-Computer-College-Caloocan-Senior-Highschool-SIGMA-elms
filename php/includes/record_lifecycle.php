@@ -1,11 +1,78 @@
 <?php
+require_once __DIR__.'/section_subject_policy.php';
+require_once __DIR__.'/school_year_policy.php';
 require_once __DIR__ . '/service_vault_auth.php';
 require_once __DIR__ . '/application_auth.php';
 require_once __DIR__ . '/data_provenance.php';
+require_once __DIR__ . '/announcement_store.php';
 
 function lifecycleTables(PDO $db): array {
+    static $cache = [];
+    $connection = spl_object_id($db);
+    if (isset($cache[$connection])) return $cache[$connection];
     $allowed = ['users', 'school_years', 'sections', 'subjects', 'quizzes', 'announcements', 'audit_logs', 'ai_logs', 'ai_insight_cards'];
-    return array_values(array_intersect($allowed, $db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN)));
+    $existing=$db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+    $tables=array_values(array_intersect($allowed,$existing));
+    if(in_array('school_announcements',$existing,true))$tables[]='announcement_comments';
+    return $cache[$connection] = $tables;
+}
+
+function lifecycleRemover(PDO $db, ?string $id): ?array {
+    static $users = [];
+    if (!$id) return null;
+    $key = spl_object_id($db).':'.$id;
+    if (!array_key_exists($key,$users)) {
+        $query=$db->prepare('SELECT id,full_name,first_name,middle_name,last_name,role,avatar FROM users WHERE id=?');
+        $query->execute([$id]); $users[$key]=$query->fetch() ?: null;
+    }
+    return $users[$key];
+}
+
+function lifecycleCommentRecords(PDO $db): array {
+    $records=[];
+    foreach($db->query('SELECT id,payload FROM school_announcements WHERE is_deleted=0')->fetchAll(PDO::FETCH_ASSOC) as $row){
+        $post=json_decode($row['payload'],true);
+        foreach($post['comments']??[] as $comment){
+            if(empty($comment['isDeleted']))continue;
+            $records[]=['id'=>hash('sha256',$row['id'].'~'.$comment['id']),'postId'=>$row['id'],'commentId'=>$comment['id'],
+                'label'=>'Comment by '.($comment['authorName']??'User').' on '.($post['title']??'Announcement'),
+                'deletedAt'=>$comment['deletedAt']??null,'deletedBy'=>$comment['deletedById']??null,
+                'deletedByName'=>$comment['deletedByName']??'Not recorded',
+                'deletedByUser'=>['id'=>$comment['deletedById']??'', 'name'=>$comment['deletedByName']??'Not recorded','role'=>$comment['deletedByRole']??'Role not recorded']];
+        }
+    }
+    return $records;
+}
+
+function lifecycleCommentChange(PDO $db,string $id,string $action,string $actor,string $confirmation): void {
+    if(!in_array($action,['restore','purge'],true))throw new InvalidArgumentException('Invalid comment action.');
+    if($action==='purge' && !in_array($confirmation,['DELETE '.$id,'DELETE','PURGE','confirm','true'],true))throw new InvalidArgumentException('Permanent deletion requires confirmation.');
+    $record=null;foreach(lifecycleCommentRecords($db) as $candidate)if($candidate['id']===$id){$record=$candidate;break;}
+    if(!$record)throw new RuntimeException('Removed comment not found.');
+    $ownsTransaction=!$db->inTransaction();if($ownsTransaction)$db->beginTransaction();
+    try {
+        $q=$db->prepare('SELECT payload,is_deleted FROM school_announcements WHERE id=? FOR UPDATE');$q->execute([$record['postId']]);$row=$q->fetch(PDO::FETCH_ASSOC);
+        if(!$row || $row['is_deleted'])throw new RuntimeException('Announcement unavailable.');
+        $post=json_decode($row['payload'],true);$found=false;
+        foreach($post['comments']??[] as $index=>$comment){
+            if($comment['id']!==$record['commentId'])continue;
+            if(empty($comment['isDeleted']))throw new RuntimeException('This comment is no longer deleted.');
+            $found=true;
+            if($action==='restore'){
+                if(!isset($comment['originalText']))throw new RuntimeException('The original text was not retained by the earlier version and cannot be restored.');
+                $comment['text']=$comment['originalText'];
+                foreach(['originalText','isDeleted','deletedById','deletedByRole','deletedByName','deletedAt'] as $key)unset($comment[$key]);
+                $post['comments'][$index]=$comment;
+            } else unset($post['comments'][$index]);
+            break;
+        }
+        if(!$found)throw new RuntimeException('Removed comment not found.');
+        $post['comments']=array_values($post['comments']);$post['revision']=(int)($post['revision']??0)+1;
+        $db->prepare('UPDATE school_announcements SET payload=?,updated_at=UTC_TIMESTAMP() WHERE id=?')->execute([json_encode($post,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),$record['postId']]);
+        $db->prepare('INSERT INTO record_lifecycle_events(table_name,record_id,action,actor_id) VALUES(?,?,?,?)')->execute(['announcement_comments',$id,$action,$actor]);
+        sigmaRecordActivity($db,$actor,$action==='restore'?'Comment restored':'Comment permanently deleted','Announcements',$record['label'],['announcementId'=>$record['postId'],'commentId'=>$record['commentId']]);
+        if($ownsTransaction)$db->commit();
+    } catch(Throwable $error){if($ownsTransaction && $db->inTransaction())$db->rollBack();throw $error;}
 }
 
 function lifecycleActor(): string {
@@ -14,7 +81,7 @@ function lifecycleActor(): string {
 }
 
 function lifecycleAuthorize(string $actor): void {
-    requireServiceVaultAccess();
+    requireServiceVaultAccess('recovery');
     $query = serviceSettingsPdo()->prepare('SELECT role, status, is_deleted FROM users WHERE id=?');
     $query->execute([$actor]);
     $user = $query->fetch();
@@ -25,7 +92,10 @@ function lifecycleAuthorize(string $actor): void {
 }
 
 function lifecycleChange(PDO $db, string $table, string $id, string $action, string $actor, string $confirmation = ''): void {
+    if($table==='announcement_comments'){lifecycleCommentChange($db,$id,$action,$actor,$confirmation);return;}
     if (!in_array($table, lifecycleTables($db), true) || !in_array($action, ['remove', 'restore', 'purge'], true) || $id === '' || strlen($id) > 128) throw new InvalidArgumentException('Invalid record action.');
+    $yearLock = in_array($table,['school_years','subjects'],true) || ($table === 'sections' && $action === 'restore');
+    if ($yearLock) sigmaLockSchoolYearWrites($db);
     $ownsTransaction = !$db->inTransaction();
     if ($ownsTransaction) $db->beginTransaction();
     try {
@@ -55,6 +125,9 @@ function lifecycleChange(PDO $db, string $table, string $id, string $action, str
             }
             throw new RuntimeException('Record not found.');
         }
+        if ($table === 'subjects' && in_array($action,['remove','purge'],true)) sigmaAssertSubjectRemovable($db,$record);
+        if ($table === 'school_years' && in_array($action,['remove','purge'],true)) sigmaAssertSchoolYearRemovable($db,$record);
+        if ($table === 'sections' && $action === 'restore') sigmaRequireSectionSchoolYear($db,(string)$record['school_year']);
         if ($table === 'users' && ($id === '0000000' || $id === $actor || preg_replace('/[\s_-]+/', '', strtolower($record['role'])) === 'masteradmin')) throw new RuntimeException('The master administrator or your own account cannot be removed.');
         if ($action === 'purge') {
             if (!$record['is_deleted']) throw new RuntimeException('Soft-delete the record before permanently deleting it.');
@@ -98,15 +171,16 @@ function lifecycleChange(PDO $db, string $table, string $id, string $action, str
         $db->prepare('INSERT INTO record_lifecycle_events(table_name, record_id, action, actor_id) VALUES(?,?,?,?)')->execute([$table, $id, $action, $actor]);
         if ($ownsTransaction) $db->commit();
     } catch (Throwable $error) { if ($ownsTransaction && $db->inTransaction()) $db->rollBack(); throw $error; }
+    finally { if ($yearLock) $db->query("SELECT RELEASE_LOCK('sigma_school_year_write')"); }
 }
 
 function lifecycleList(PDO $db, string $table): array {
     if (!in_array($table, lifecycleTables($db), true)) throw new InvalidArgumentException('Invalid record type.');
+    if($table==='announcement_comments')return lifecycleCommentRecords($db);
     $rows = $db->query("SELECT * FROM `$table` WHERE is_deleted=1 ORDER BY deleted_at DESC")->fetchAll();
     return array_map(function ($row) use ($db, $table) {
         $payload = json_decode($row['payload'] ?? '{}', true) ?: [];
-        $actor = $db->prepare('SELECT id,full_name,first_name,middle_name,last_name,role,avatar FROM users WHERE id=?'); $actor->execute([$row['deleted_by']]);
-        $user = $actor->fetch();
+        $user = lifecycleRemover($db, $row['deleted_by']);
         $identity = $user ? ['id' => $user['id'], 'name' => $user['full_name'] ?: trim(implode(' ', array_filter([$user['first_name'], $user['middle_name'], $user['last_name']]))),
             'role' => $user['role'], 'avatar' => $user['avatar']] : null;
 

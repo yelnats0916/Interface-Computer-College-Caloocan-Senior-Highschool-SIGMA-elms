@@ -58,7 +58,7 @@
         return suppliedRecords.filter(log => log.userId === idOf(user));
     }
     function avatar(user) {
-        const wrap = node('span', undefined, 'ai-log-avatar');
+        const wrap = node('span', undefined, 'ai-log-avatar sigma-user-avatar sigma-user-avatar--sm');
         const src = window.resolveUserAvatar?.(user);
         const fallback = () => {
             const icon = node('i', undefined, 'fa-solid fa-user');
@@ -133,6 +133,7 @@
         window.SigmaLogPagination?.refresh(table);
     }
     function openInteraction(record, button) {
+        if (window.canViewAuditLog?.('ai') === false) return;
         const user = users.find(item => idOf(item) === record.userId);
         if (!user) return;
         conversationObserver?.disconnect();
@@ -610,10 +611,11 @@
         } catch { users = []; }
     }
     function paintOverview() {
+        if (window.canViewAuditLog?.('ai') === false) { table.tBodies[0].replaceChildren(); detail.replaceChildren(); interaction.replaceChildren(); return; }
         const body = table.tBodies[0];
         body.replaceChildren();
         overviewLogs = users.flatMap(user => records(user).map(record => ({ user, record })))
-            .filter(({ user, record }) => [nameOf(user), idOf(user), roleOf(user), record.label, record.prompt, record.actionDescription, record.response, record.model, record.status].join(' ').toLowerCase().includes(window.getAuditLogSearchQuery?.() || ''))
+            .filter(({ user, record }) => [nameOf(user), idOf(user), roleOf(user), record.label, record.conversationTitle, record.prompt, record.actionDescription, record.response, record.model, record.status].join(' ').toLowerCase().includes(window.getAuditLogSearchQuery?.() || ''))
             .sort((a, b) => b.record.timestamp - a.record.timestamp);
         if (!overviewLogs.length) {
             const tr = node('tr');
@@ -639,7 +641,8 @@
             link.type = 'button';
             link.setAttribute('aria-label', 'View ' + record.label + ' log for ' + nameOf(user));
             link.addEventListener('click', () => openInteraction(record, link));
-            featureCell.append(link, node('p', record.actionDescription || record.prompt || 'Request context not recorded', 'ai-log-request-preview'));
+            const preview = record.feature === 'sigmabot' ? record.conversationTitle || 'Conversation title unavailable' : record.actionDescription || record.prompt;
+            featureCell.append(link, node('p', preview || 'Request text not recorded', 'ai-log-request-preview'));
             tr.append(userCell, featureCell, node('td', record.model), statusCell(record), dateCell(record));
             return tr;
         };
@@ -777,15 +780,16 @@
     window.filterAiAuditLogs = () => { paintOverview(); window.SigmaLogPagination?.reset(table); };
     window.closeAiInteractionDetails = closeInteraction;
     function loadRecordedLogs() {
-            const value = window.SigmaAiLogs.getDisplayRecords();
+            const value = window.canViewAuditLog?.('ai') === false ? [] : window.SigmaAiLogs.getDisplayRecords();
             suppliedRecords = value.map(log => {
                 const feature = features.find(([id]) => id === log.feature);
                 const timestamp = new Date(log.timestamp);
                 if (!feature || !log.userId || Number.isNaN(timestamp.getTime())) throw new TypeError('Invalid AI log record');
                 return { id: log.id, userId: String(log.userId), feature: feature[0], label: feature[1],
                     source: log.source, evidenceSources: log.evidenceSources, cardRecordId: log.cardRecordId, cardRemoved: log.cardRemoved, cardRemovedAt: log.cardRemovedAt, cardRemovedBy: log.cardRemovedBy,
-                    prompt: window.SigmaAuditDisplay.text(log.prompt, 'Request content not recorded'), actionDescription: window.SigmaAuditDisplay.text(log.actionDescription, ''), response: window.SigmaAuditDisplay.text(log.response, 'Response content not recorded'), model: window.SigmaAuditDisplay.text(log.model, 'Model not recorded'),
-                    status: ['Success', 'Failed', 'Fallback Used'].includes(log.status) ? log.status : 'Not recorded', timestamp,
+                    conversationTitle: window.SigmaAuditDisplay.text(log.conversationTitle, ''),
+                    prompt: window.SigmaAuditDisplay.text(log.prompt, 'Request content not recorded'), actionDescription: window.SigmaAuditDisplay.text(log.actionDescription, ''), response: window.SigmaAuditDisplay.text(log.response, 'Response content not recorded'), model: ['Not recorded', 'Model not recorded', ''].includes(log.model || '') ? 'Model unavailable' : window.SigmaAuditDisplay.text(log.model, 'Model unavailable'),
+                    status: log.status === 'Recovered' && log.response?.trim() ? 'Completed' : ['Success', 'Failed', 'Fallback Used'].includes(log.status) ? log.status : 'Not recorded', timestamp,
                     messages: Array.isArray(log.messages) ? log.messages.filter(message => message && ['user', 'assistant'].includes(message.role)).map(message => ({
                         role: message.role, text: window.SigmaAuditDisplay.text(message.text, 'Message content not recorded'), timestamp: String(message.timestamp || ''), model: String(message.model || '')
                     })) : [] };
@@ -847,4 +851,5 @@
     }
     new MutationObserver(restoreView).observe(host, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
     setTimeout(restoreView, 80);
+    window.addEventListener('sigma:audit-permissions-changed', loadRecordedLogs);
 })();

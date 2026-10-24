@@ -1,10 +1,11 @@
 <?php
 require_once __DIR__.'/audit_context.php';
-function sigmaRecordActivity(PDO $db, string $actor, string $activity, string $module, string $details = ''): void {
+function sigmaRecordActivity(PDO $db, string $actor, string $activity, string $module, string $details = '', array $extra = []): void {
     $context=sigmaActivityContext($activity,$details);
+    $activity=$context['activity'];
     $details=$context['details'];
     $payload=['activity'=>$activity,'module'=>$module,'details'=>$details];
-    $fullPayload=$payload;
+    $fullPayload=$payload + $extra;
     do {
         $action='ACT:'.json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
         if(strlen($action)<=255)break;

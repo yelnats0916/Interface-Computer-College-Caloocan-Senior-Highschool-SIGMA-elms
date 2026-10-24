@@ -203,7 +203,13 @@
             .map(post => ({ ...post.academicEvent, id: 'academic-' + post.id, postId: post.id }))
             .filter(event => validDate(event.startDate) && validDate(event.endDate) && event.endDate >= event.startDate && event.title)
             .sort((a, b) => (a.startDate + (a.startTime || '')).localeCompare(b.startDate + (b.startTime || '')));
-        return events;
+        const maintenance=window.maintenanceModeState;
+        if(maintenance?.schedule && maintenance.channels?.calendar && maintenance.scheduleStatus!=='none'){
+            const schedule=maintenance.schedule,id='academic-maintenance-'+schedule.id;
+            if(!events.some(event=>event.id===id))events.push({id,postId:'maintenance-'+schedule.id,title:maintenance.title,
+                startDate:schedule.startAt.slice(0,10),endDate:schedule.endAt.slice(0,10),startTime:schedule.startAt.slice(11,16),endTime:schedule.endAt.slice(11,16),location:'Online portal',audience:'everyone'});
+        }
+        return events.sort((a,b)=>(a.startDate+(a.startTime||'')).localeCompare(b.startDate+(b.startTime||'')));
     };
     window.getAcademicCalendarEventsForDate = date => window.getAcademicCalendarEvents().filter(event => event.startDate <= date && event.endDate >= date).map(event => {
         const time = event.startTime || '00:00';

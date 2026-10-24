@@ -3,7 +3,7 @@
     const states = new Map(), pending = new Map();
     const failures = new Set();
     const offline = new Set();
-    let logs = [], logReady = false, importing = null;
+    let logs = [], logReady = false, importing = null, logLoad = null, logRefreshing = false;
     let logStatus = 'loading', logError = '';
     let retryNotBefore = 0;
     const importedLogs = new Set();
@@ -16,11 +16,11 @@
     async function request(name, input, get = false) {
         const response = await window.SigmaDatabase.fetch(api(name) + (get ? '?' + new URLSearchParams(input) : ''), {
             method: get ? 'GET' : 'POST', credentials: 'include',
-            ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(15000) } : {}),
+            timeoutMs: 15000,
             headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': actor() },
             ...(get ? {} : { body: JSON.stringify(input) })
         });
-        const result = await response.json();
+        const result = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
         if (!response.ok || !result.success) {
             const error = new Error(result.error || 'Database request failed.');
             error.code = result.code;
@@ -107,19 +107,35 @@
         remember(kind, id, result);
         return result.state;
     }
-    async function reloadLogs() {
-        logStatus = 'loading'; logError = '';
-        window.dispatchEvent(new Event('sigma:ai-logs-updated'));
-        try {
-            const result = await request('ai_records', { action: 'logs' }, true);
-            if (!Array.isArray(result.logs)) throw new Error('Invalid AI activity response.');
-            logs = result.logs; logReady = true; logStatus = 'ready';
-        } catch (error) {
-            logStatus = 'error'; logError = error.message;
-            throw error;
-        } finally { window.dispatchEvent(new Event('sigma:ai-logs-updated')); }
+    function reloadLogs() {
+        if (logLoad) return logLoad;
+        logLoad = (async () => {
+            logRefreshing = true; logStatus = logReady ? 'ready' : 'loading'; logError = '';
+            window.dispatchEvent(new Event('sigma:ai-logs-updated'));
+            try {
+                const canRead = window.canViewAuditLog?.('ai') !== false;
+                const result = await request('ai_records', { action: 'logs', ...(canRead ? {} : {view:'usage'}) }, true);
+                if (!canRead && result.usageOnly !== true) throw new Error('Usage summary is temporarily unavailable.');
+                if (!Array.isArray(result.logs)) throw new Error('Invalid AI activity response.');
+                logs = result.logs; logReady = true; logStatus = 'ready';
+            } catch (error) {
+                logStatus = 'error'; logError = error.name === 'TimeoutError' || error.name === 'AbortError'
+                    ? 'AI activity could not be loaded because the server is busy. Please retry shortly.' : error.message;
+                throw error;
+            } finally { logRefreshing = false; window.dispatchEvent(new Event('sigma:ai-logs-updated')); }
+        })().finally(() => { logLoad = null; });
+        return logLoad;
+    }
+    function adminLogViewActive() {
+        if (!location.pathname.toLowerCase().includes('admin')) return true;
+        if (!location.hash || location.hash === '#nav-dashboard') return true;
+        return ['dashboard-view', 'audit-ai-view', 'settings-integrations-view', 'settings-ai-view'].some(id => {
+            const section = document.getElementById(id);
+            return section && !section.classList.contains('hidden');
+        });
     }
     async function initialize() {
+        if (!adminLogViewActive()) return;
         if (!actor() || importing || Date.now() < retryNotBefore) return importing;
         importing = (async () => {
             const isAdmin = location.pathname.toLowerCase().includes('admin');
@@ -127,13 +143,15 @@
                 const kind = location.pathname.toLowerCase().includes('teacher') ? 'teacher' : 'student';
                 await ensureState(kind, actor(), true);
             }
-            window.SigmaDatabase?.preserveLegacy('sigma-ai-recorded-logs', localStorage.getItem('sigma-ai-recorded-logs'));
+            try { window.SigmaDatabase?.preserveLegacy('sigma-ai-recorded-logs', localStorage.getItem('sigma-ai-recorded-logs')); }
+            catch (error) { console.warn('AI cache backup unavailable; loading server activity.', error); }
             if (isAdmin) await reloadLogs();
             window.dispatchEvent(new Event('sigma:refresh-analytics-cards'));
         })().catch(error => {
             retryNotBefore = Date.now() + 300000;
             if (!logReady) {
-                logStatus = 'error'; logError = error.message;
+                logStatus = 'error'; logError = error.name === 'TimeoutError' || error.name === 'AbortError'
+                    ? 'AI activity could not be loaded because the server is busy. Please retry shortly.' : error.message;
                 window.dispatchEvent(new Event('sigma:ai-logs-updated'));
             }
             if (error.code === 'account_not_synced') {
@@ -141,8 +159,9 @@
                 if (feedback) feedback.textContent = error.message;
                 return;
             }
-            window.dispatchEvent(new CustomEvent('sigma:ai-database-error', { detail: error.message }));
-            console.warn('AI record database:', error.message);
+            // Initialization is a background read. Keep its error in the AI
+            // activity panel rather than interrupting unrelated pages with a toast.
+            console.warn('AI record database:', logError || error.message);
         }).finally(() => { importing = null; });
         return importing;
     }
@@ -162,15 +181,18 @@
             return memory || { cards: [] };
         },
         logsReady: () => logReady,
-        getLogStatus: () => ({ state: actor() ? logStatus : 'signed-out', error: logError }),
-        getLogs: () => logReady ? logs.filter(log => !log.isDeleted) : [],
+        getLogStatus: () => ({ state: actor() ? logStatus : 'signed-out', error: logError, refreshing: logRefreshing }),
+        getLogs: () => logReady && window.canViewAuditLog?.('ai') !== false ? logs.filter(log => !log.isDeleted) : [],
+        getUsageLogs: () => logReady ? logs.filter(log => !log.isDeleted) : [],
         async record(log) {
             await request('ai_records', { action: 'save_log', log });
             if (location.pathname.toLowerCase().includes('admin')) await reloadLogs();
         },
         async change(table, id, action, confirmation = '') {
             await request('record_lifecycle', { table, id, action, confirmation });
-            await reloadLogs();
+            // The mutation is confirmed. An unrelated log read must not delay it
+            // or turn a committed restore/delete into a false failure.
+            reloadLogs().catch(error => console.warn('Post-recovery AI log refresh:', error.message));
             if (table === 'ai_insight_cards') {
                 for (const storageKey of states.keys()) {
                     const match = storageKey.match(/^sigma-(student|teacher)-analytics-v1:(.+)$/);
@@ -192,6 +214,8 @@
         initialize().catch(console.error);
     }
     window.addEventListener('online', () => { retryNotBefore = 0; initialize(); });
+    window.addEventListener('hashchange', () => initialize());
+    window.addEventListener('sigma:database-session-ready', () => { retryNotBefore = 0; initialize(); });
     window.addEventListener('storage', event => {
         if (event.key === 'sigma-insight-management-update') {
             states.clear(); retryNotBefore = 0; initialize();
@@ -204,6 +228,7 @@
         if (feedback) { feedback.textContent = event.detail; feedback.style.color = '#b91c1c'; }
     });
     setInterval(() => {
-        if (document.visibilityState === 'visible' && actor()) initialize();
+        if (document.visibilityState === 'visible' && actor() && !location.pathname.toLowerCase().includes('admin')) initialize();
     }, 30000);
+    window.addEventListener('sigma:audit-permissions-changed', () => { if (actor()) reloadLogs().catch(() => {}); });
 })();

@@ -1,5 +1,7 @@
 <?php
+require_once __DIR__.'/../includes/school_year_policy.php';
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
+require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
 /**
  * SIGMA ELMS — Sections Management REST API
  * 
@@ -27,6 +29,7 @@ $rootDir = dirname(__DIR__, 2);
 require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
+require_once __DIR__ . '/../includes/section_subject_policy.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -70,6 +73,8 @@ try {
         INDEX `idx_section_status` (`status`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
     // Ignore if table exists or permission issue
 }
 
@@ -81,6 +86,7 @@ function decodeJsonField($raw, $fallback = []) {
 }
 
 function sectionRowToRecord(array $row): array {
+    global $pdo;
     $dailySchedules = decodeJsonField($row['daily_schedules'] ?? null, []);
     $teachers = decodeJsonField($row['teachers'] ?? null, []);
     $subjects = decodeJsonField($row['subjects'] ?? null, []);
@@ -98,6 +104,7 @@ function sectionRowToRecord(array $row): array {
     }
 
     return [
+        'creationNumber' => sigmaTableCreationNumber($pdo, 'sections', (string)$row['id']),
         'id'               => (string) $row['id'],
         'name'             => (string) $row['name'],
         'grade'            => (string) $row['grade_level'],
@@ -219,6 +226,11 @@ try {
             $findStmt->execute([':id' => $targetId, ':target_name' => $targetId]);
             $foundId = $findStmt->fetchColumn() ?: $targetId;
 
+            sigmaLockSchoolYearWrites($pdo);
+            $pdo->beginTransaction();
+            $sectionYear=$pdo->prepare('SELECT school_year FROM sections WHERE id=? FOR UPDATE');
+            $sectionYear->execute([$foundId]);
+            sigmaRequireSectionSchoolYear($pdo,(string)$sectionYear->fetchColumn());
             $stmt = $pdo->prepare("UPDATE `sections` SET `is_deleted` = 0, `deleted_at` = NULL, `deleted_by` = NULL WHERE `id` = :id OR `name` = :target_name");
             $stmt->execute([':id' => $targetId, ':target_name' => $targetId]);
 
@@ -227,6 +239,8 @@ try {
                 $logStmt->execute([$foundId, $actor]);
             } catch (Throwable $e) {}
 
+            $pdo->commit();
+            $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
             jsonResponse(['success' => true, 'message' => "Section {$targetId} restored successfully"]);
         }
 
@@ -261,6 +275,11 @@ try {
         $studentsCount = isset($section['studentsCount']) ? (int) $section['studentsCount'] : (is_array($section['students'] ?? null) ? count($section['students']) : 0);
         $status = trim((string) ($section['status'] ?? 'Deployed'));
 
+        sigmaLockSchoolYearWrites($pdo);
+        $pdo->beginTransaction();
+        sigmaRequireSectionSchoolYear($pdo,$sy);
+        $previousQuery=$pdo->prepare('SELECT subject,subjects FROM sections WHERE id=?');$previousQuery->execute([$secId]);
+        sigmaValidateSectionSubjectAssignments($pdo,$section,$previousQuery->fetch(PDO::FETCH_ASSOC)?:null);
         $upsertSql = "INSERT INTO `sections` (
             `id`, `name`, `grade_level`, `room`, `school_year`,
             `start_time`, `end_time`, `days`, `schedule`, `daily_schedules`,
@@ -317,6 +336,9 @@ try {
             ':status'          => $status
         ]);
 
+        $pdo->commit();
+        $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+
         // Fetch back saved row
         $stmt = $pdo->prepare("SELECT * FROM `sections` WHERE `id` = :id LIMIT 1");
         $stmt->execute([':id' => $secId]);
@@ -331,8 +353,20 @@ try {
     }
 
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
+} catch (DomainException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+    jsonResponse(['success'=>false,'error'=>$e->getMessage()],409);
+} catch (InvalidArgumentException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
+    jsonResponse(['success'=>false,'error'=>$e->getMessage()],422);
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
     jsonResponse(['success' => false, 'error' => 'Database error: ' . $e->getMessage()], 500);
 } catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
     jsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
 }

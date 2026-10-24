@@ -4,6 +4,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/service_vault_auth.php';
 require_once __DIR__ . '/../includes/application_auth.php';
 require_once __DIR__ . '/../includes/authentication_audit.php';
+require_once __DIR__ . '/../includes/login_security.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -15,6 +16,7 @@ try {
     $local = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
     if (!$local && !serviceRequestIsSecure()) sessionReply(['success' => false, 'error' => 'HTTPS is required.'], 403);
     $method = $_SERVER['REQUEST_METHOD'] ?? '';
+    if ($method === 'GET' && ($_GET['action']??'')==='login_policy') sessionReply(['success'=>true,'passwordAttempts'=>sigmaPasswordLockoutLimit(loadServiceSettings())]);
     if ($method === 'GET') {
         $user = sigmaApplicationUser($pdo);
         if (!$user) sessionReply(['success' => false, 'error' => 'Sign in again.', 'code' => 'authentication_required'], 401);
@@ -32,22 +34,28 @@ try {
         if ($actor && $delete->rowCount() > 0) sigmaRecordAuthentication($pdo, $actor['id'], 'Logout successful');
         sessionReply(['success' => true]);
     }
+    if (($input['action']??'')==='save_login_policy') {
+        $actor=sigmaRequireApplicationActor($pdo,['admin','masteradmin','administrator']);
+        require_once __DIR__.'/../includes/role_permissions.php';
+        if(!sigmaActorPermission($actor,'settingsSecurity'))sessionReply(['success'=>false,'error'=>'Permission required.'],403);
+        $limit=filter_var($input['passwordAttempts']??null,FILTER_VALIDATE_INT);
+        if($limit===false||$limit<1||$limit>50)sessionReply(['success'=>false,'error'=>'Enter a limit from 1 to 50.'],422);
+        $pdo->beginTransaction();
+        try {
+            $pdo->query('SELECT id FROM system_service_settings WHERE id=1 FOR UPDATE');
+            $settings=loadServiceSettings();$settings['login_security']['password_attempts']=$limit;saveServiceSettings($settings);
+            $pdo->commit();
+        } catch(Throwable $error){if($pdo->inTransaction())$pdo->rollBack();throw $error;}
+        sessionReply(['success'=>true,'passwordAttempts'=>$limit]);
+    }
     if (($input['action'] ?? '') !== 'credentials') sessionReply(['success' => false, 'error' => 'Unknown action.'], 400);
     $login = trim((string)($input['login'] ?? ''));
     $password = (string)($input['password'] ?? '');
-    if ($login === '' || strlen($login) > 150 || $password === '' || strlen($password) > 256) sessionReply(['success' => false, 'error' => 'Enter your account ID or Gmail and password.'], 400);
-    $client = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ':session:' . strtolower($login));
-    $stmt = $pdo->prepare('SELECT * FROM grade_sync_attempts WHERE client_hash=?'); $stmt->execute([$client]); $attempt = $stmt->fetch();
-    if ($attempt && !empty($attempt['blocked_until']) && strtotime($attempt['blocked_until'].' UTC') > time()) sessionReply(['success'=>false,'error'=>'Too many attempts. Try again in five minutes.'],429);
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE (id=? OR LOWER(email)=LOWER(?)) AND is_deleted=0 LIMIT 1'); $stmt->execute([$login,$login]); $user=$stmt->fetch();
-    $valid = $user && strtolower($user['status']) === 'active' && (password_verify($password,$user['password']) || (password_get_info($user['password'])['algo'] === null && hash_equals($user['password'],$password)));
-    if (!$valid) {
-        sigmaRecordAuthentication($pdo, $user['id'] ?? null, 'Failed login attempt', 'failed');
-        $count = $attempt && empty($attempt['blocked_until']) ? (int)$attempt['attempts']+1 : 1;
-        $pdo->prepare('INSERT INTO grade_sync_attempts VALUES(?,?,?) ON DUPLICATE KEY UPDATE attempts=VALUES(attempts),blocked_until=VALUES(blocked_until)')->execute([$client,$count,$count>=5?gmdate('Y-m-d H:i:s',time()+300):null]);
-        sessionReply(['success'=>false,'error'=>'Incorrect account ID, Gmail, or password, or your account is inactive.'],401);
-    }
-    $pdo->prepare('DELETE FROM grade_sync_attempts WHERE client_hash=?')->execute([$client]);
+    if ($login === '' || strlen($login) > 150) sessionReply(['success'=>false,'code'=>'invalid_login_id','error'=>'Enter valid ID or email.'],400);
+    $result=sigmaCheckLoginCredentials($pdo,$login,$password,sigmaPasswordLockoutLimit(loadServiceSettings()));
+    if(!$result['success'])sessionReply($result,$result['code']==='password_required'?400:401);
+    $user=$result['user'];
+    if(sigmaMaintenanceRestricted($user))sessionReply(['success'=>false,'code'=>'system_maintenance','error'=>sigmaMaintenanceState(sigmaMaintenanceConfig())['message']],423);
     $role = preg_replace('/[\s_-]+/', '', strtolower($user['role'] ?? ''));
     $mobileAgent = preg_match('/Android|iPhone|iPad|iPod|Mobile|Tablet|IEMobile|Opera Mini/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
     if (in_array($role, ['admin','administrator','masteradmin'], true) && (($input['adminDeviceRestricted'] ?? false) === true || $mobileAgent)) {

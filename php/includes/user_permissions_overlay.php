@@ -327,19 +327,19 @@
                                         <span class="text-sm font-bold text-slate-900 font-['Inter']">System Maintenance Control</span>
                                     </div>
                                     <p class="text-xs text-slate-500 font-normal">
-                                        Maintenance / Lockdown Mode stays reserved for Master Admin accounts and cannot be delegated to regular Admin users.
+                                        Master Admins can grant maintenance management to selected regular Admins.
                                     </p>
                                     <p class="text-xs text-amber-700 font-medium bg-amber-50 border border-amber-200/60 rounded-xl px-3 py-2">
                                         <i class="fa-solid fa-circle-info mr-1.5"></i>
-                                        Only Master Admin can place the system in maintenance mode or edit the restricted access notice shown during lockdown.
+                                        Only Master Admins can grant this permission. Authorized maintenance administrators retain access during maintenance.
                                     </p>
                                     <!-- Notice Message permission — unchecked by default, only Master Admin can grant -->
                                     <div class="flex items-center justify-between p-3 bg-white border border-slate-200/70 rounded-xl">
                                         <div>
-                                            <label for="perm-notice-message" class="text-xs font-semibold text-slate-900 block cursor-pointer">Notice Message Access</label>
-                                            <span class="text-xs text-slate-500 font-normal">Can edit the restricted access notice shown during lockdown</span>
+                                            <label for="perm-maintenance-manage" class="text-xs font-semibold text-slate-900 block cursor-pointer">Manage System Maintenance</label>
+                                            <span class="text-xs text-slate-500 font-normal">Can schedule maintenance, publish notices, view history, and use the maintenance switch</span>
                                         </div>
-                                        <input type="checkbox" id="perm-notice-message" aria-label="Can edit the restricted access notice shown during lockdown" onchange="window.trackPermissionChanges()" class="w-5 h-5 text-blue-600 accent-blue-600 rounded border-slate-300 cursor-pointer shrink-0">
+                                        <input type="checkbox" id="perm-maintenance-manage" aria-label="Can schedule maintenance, publish notices, view history, and use the maintenance switch" onchange="window.trackPermissionChanges()" class="w-5 h-5 text-blue-600 accent-blue-600 rounded border-slate-300 cursor-pointer shrink-0">
                                     </div>
                                 </div>
                             </div>

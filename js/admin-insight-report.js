@@ -1000,6 +1000,9 @@
     }
 
     async function loadData(background = false) {
+        const active = [schoolSection, generatesSection].some(section => section &&
+            !section.classList.contains('hidden') && window.canAccessAdminSection?.(section.id) !== false);
+        if (!active || document.visibilityState === 'hidden') return;
         if (isLoading) return;
         isLoading = true;
         if (!background) {

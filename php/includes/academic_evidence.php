@@ -11,6 +11,8 @@ function academicDay(): string { return (new DateTimeImmutable('now',new DateTim
 function academicText($value, int $limit = 1500): string { return mb_substr(trim(strip_tags(is_scalar($value) ? (string)$value : '')), 0, $limit); }
 function academicAliases(array $subject): array {
     $values = [$subject['id'], $subject['code'] ?? '', $subject['name'] ?? ''];
+    $metadata=gradeList($subject['curriculum_metadata']??'');
+    foreach($metadata['legacyAliases']??[] as $alias)if(is_string($alias))$values[]=$alias;
     foreach ($values as $value) $values[] = preg_replace('/^(card|subj|gen)[-_]/i', '', (string)$value);
     return array_values(array_unique(array_filter(array_map('gradeNorm', $values))));
 }
@@ -59,7 +61,8 @@ function academicItems(array $subject): array {
             $id=(string)($node['id']??$node['materialId']??$node['assessmentId']??'');
             $type=$bucket==='topics'?'topic':(in_array($bucket,['learning','materials','learningMaterials','handouts'],true)?'learning':'assessment');
             if($bucket==='materials' && preg_match('/quiz|assignment|activity|performance|assessment/i',(string)($node['type']??$node['category']??'')))$type='assessment';
-            if ($id!=='') $items[$type.':'.$id]=['id'=>$id,'kind'=>$type,'topicIdx'=>$topicIndex,'itemIdx'=>$index,'topic'=>$topicTitle,'data'=>$node];
+            // A top-level mirror must not discard the original topic association.
+            if ($id!=='' && (!isset($items[$type.':'.$id]) || $topicIndex>=0)) $items[$type.':'.$id]=['id'=>$id,'kind'=>$type,'topicIdx'=>$topicIndex,'itemIdx'=>$index,'topic'=>$topicTitle,'data'=>$node];
             if ($bucket==='topics') {
                 foreach (['assignments','quiz','quizzes','activity','activities','performance','performanceTasks','assessments','learning','materials','learningMaterials','handouts','tasks'] as $child) {
                     if (isset($node[$child])) $walk($node[$child],$child,(int)$index,academicText($node['title']??$node['name']??'',200));

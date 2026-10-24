@@ -54,7 +54,7 @@ window.createSigmaBoltIcon = function () {
     return icon;
 };
 
-window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
+window.renderSigmaChatMessage = function ({ role, text, stamp = '', timestamp = '', model = '', generationId = '', provider = '' }) {
     const user = role === 'user';
     const make = (tag, className, content) => {
         const element = document.createElement(tag);
@@ -63,6 +63,10 @@ window.renderSigmaChatMessage = function ({ role, text, stamp = '' }) {
         return element;
     };
     const message = make('div', 'sigma-ai-message sigma-ai-message--' + (user ? 'user' : 'assistant'));
+    if (timestamp) message.dataset.timestamp = timestamp;
+    if (model) message.dataset.sigmaModel = model;
+    if (generationId) message.dataset.generationId = generationId;
+    if (provider) message.dataset.provider = provider;
     message.append(make('div', 'sigma-ai-message__meta', stamp));
     const row = make('div', 'sigma-ai-message__row');
     if (!user) {
@@ -436,7 +440,66 @@ window.escapeHtml = window.escapeHtml || function (value) {
         .replace(/'/g, '&#039;');
 };
 
+// Record numbers are independent of sorting, filtering, page position, and deletion.
+(function () {
+    const storageKey = 'sigma-record-creation-numbers-v1';
+    const ledgers = new Map();
+    try {
+        for (const [scope, data] of JSON.parse(localStorage.getItem(storageKey) || '[]')) {
+            ledgers.set(scope, { next: Math.max(1, Number(data.next) || 1), items: new Map(data.items || []) });
+        }
+    } catch (_) {}
+    const identity = record => String(record?.id ?? record?.uid ?? record?.studentId ?? record?.key ?? record?.recordId ?? '').trim();
+    const valid = value => Number.isSafeInteger(Number(value)) && Number(value) > 0;
+    const person = record => record?.student || record;
+    window.getRecordCreationNumber = function (record, allRecords = [], scope = 'records') {
+        record = person(record);
+        if (valid(record?.creationNumber)) return Number(record.creationNumber);
+        const id = identity(record);
+        if (!id) return '-';
+        let records = Array.isArray(allRecords) ? allRecords.map(person) : [];
+        const stores = { users: ['sigma-admin-users','sigma-admin-students','sigma-users-list'], subjects: ['sigma-admin-subjects'], sections: ['sigma-admin-sections'], school_years: ['sigma_school_year_records'] };
+        for (const key of stores[scope] || []) {
+            const stored = window.getStoredJson?.(key, []);
+            if (Array.isArray(stored)) records = records.concat(stored);
+        }
+        const canonical = records.find(item => identity(item) === id && valid(item?.creationNumber));
+        if (canonical) return Number(canonical.creationNumber);
+        if (!ledgers.has(scope)) ledgers.set(scope, { next: 1, items: new Map() });
+        const ledger = ledgers.get(scope);
+        for (const item of records) {
+            if (identity(item) && valid(item?.creationNumber)) {
+                ledger.items.set(identity(item), Number(item.creationNumber));
+                ledger.next = Math.max(ledger.next, Number(item.creationNumber) + 1);
+            }
+        }
+        if (ledger.items.has(id)) return ledger.items.get(id);
+        const candidates = new Map();
+        for (const item of records.concat([record])) if (identity(item)) candidates.set(identity(item), item);
+        const ordered = [...candidates.values()].sort((a, b) => {
+            const date = item => { const value = item.createdAt || item.timestamp || item.created_at || item.date || ''; return (typeof value === 'number' ? value : Date.parse(value)) || 0; };
+            return date(a) - date(b) || (identity(a) < identity(b) ? -1 : identity(a) > identity(b) ? 1 : 0);
+        });
+        for (const item of ordered) {
+            const key = identity(item);
+            if (!ledger.items.has(key)) ledger.items.set(key, ledger.next++);
+        }
+        try { localStorage.setItem(storageKey, JSON.stringify([...ledgers].map(([key, value]) => [key, { next: value.next, items: [...value.items] }]))); }
+        catch (_) { /* A full device cache cannot prevent records from rendering. */ }
+        return ledger.items.get(id);
+    };
+})();
+
 window.getStoredJson = function (key, fallback) {
+    if (key === 'sigma-admin-subjects' && window._sigmaSubjectStorageFallback) {
+        const cached = window._sigmaSubjectStorageFallback;
+        try {
+            if (localStorage.getItem(key) === cached.raw) return cached.data;
+            window._sigmaSubjectStorageFallback = null;
+        } catch (e) {
+            return cached.data;
+        }
+    }
     try {
         if (!key || typeof localStorage === 'undefined') return fallback;
         const raw = localStorage.getItem(key);
@@ -608,6 +671,7 @@ window.saveStoredJson = function (key, data) {
         if (!key || typeof localStorage === 'undefined') return false;
         if (data === undefined) {
             localStorage.removeItem(key);
+            if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
             return true;
         }
@@ -615,17 +679,25 @@ window.saveStoredJson = function (key, data) {
         const json = JSON.stringify(payload);
         try {
             localStorage.setItem(key, json);
+            if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
             return true;
         } catch (e) {
             console.warn(`[saveStoredJson] Initial save failed for key "${key}", attempting emergency storage cleanup...`, e);
             window.recoverSigmaStorageQuota(key);
             localStorage.setItem(key, json);
+            if (key === 'sigma-admin-subjects') window._sigmaSubjectStorageFallback = null;
             window.invalidateSigmaViewCaches?.();
             console.info(`[saveStoredJson] Successfully saved key "${key}" after freeing storage.`);
             return true;
         }
     } catch (retryErr) {
+        if (key === 'sigma-admin-subjects' && Array.isArray(data)) {
+            let raw = null;
+            try { raw = localStorage.getItem(key); } catch (e) {}
+            window._sigmaSubjectStorageFallback = { raw, data: window.compactStorageValue(data) };
+            window.invalidateSigmaViewCaches?.();
+        }
         console.error(`[saveStoredJson] Failed to save JSON for key "${key}" even after cleanup:`, retryErr);
         return false;
     }
@@ -1076,6 +1148,20 @@ window.normalizeUserRole = window.normalizeUserRole || function (role) {
                     const closeBtn = userModal.querySelector('#closeUserModalBtn, [onclick*="toggleUserModal(false)"], [onclick*="closeUserModal"], [onclick*="handleUserExit"]');
                     if (closeBtn) closeBtn.click();
                     else userModal.classList.add('hidden');
+                }
+            };
+        }
+
+        // 10b. Batch User Account Modal
+        const batchUserModal = document.getElementById('batch-user-overlay');
+        if (isElementVisible(batchUserModal)) {
+            return () => {
+                if (typeof window.handleBatchUserExit === 'function') {
+                    window.handleBatchUserExit();
+                } else if (typeof window.toggleBatchUserOverlay === 'function') {
+                    window.toggleBatchUserOverlay(false);
+                } else {
+                    batchUserModal.classList.add('hidden');
                 }
             };
         }
@@ -3177,17 +3263,17 @@ window.showCreationBar = function ({ type = 'user', label, primaryLabel, primary
     };
     const icon = iconMap[type] || 'fa-book';
 
-    // Choose color palette: draft = Yellow (#FFD000) with green/black accents, published = Green (#15803d) with yellow/white accents
+    // Use the shared green palette for every creation indicator; status remains in its label.
     const isDraft = String(status).toLowerCase() === 'draft';
-    const bgColor = isDraft ? '#FFD000' : '#15803d';
-    const textColor = isDraft ? '#000000' : '#ffffff';
-    const tagColor = isDraft ? '#15803d' : 'rgba(255, 255, 255, 0.75)';
-    const subLabelColor = isDraft ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.50)';
-    const secLabelColor = isDraft ? '#15803d' : '#FFD000';
-    const dividerBg = isDraft ? 'rgba(21, 128, 61, 0.25)' : 'rgba(255, 255, 255, 0.20)';
-    const iconBg = isDraft ? '#15803d' : 'rgba(255, 255, 255, 0.20)';
+    const bgColor = 'var(--icc-green, #15803d)';
+    const textColor = '#ffffff';
+    const tagColor = 'rgba(255, 255, 255, 0.85)';
+    const subLabelColor = 'rgba(255, 255, 255, 0.75)';
+    const secLabelColor = 'rgba(255, 255, 255, 0.85)';
+    const dividerBg = 'rgba(255, 255, 255, 0.20)';
+    const iconBg = 'rgba(255, 255, 255, 0.20)';
     const iconColor = '#ffffff';
-    const closeBtnColor = isDraft ? 'text-black/70 hover:text-black hover:bg-black/10' : 'text-white/70 hover:text-white hover:bg-white/10';
+    const closeBtnColor = 'text-white/70 hover:text-white hover:bg-white/10';
 
     const toTitleCase = (str) => {
         if (!str) return '';
@@ -6823,6 +6909,8 @@ window._sigmaReleaseConfigCache = window._sigmaReleaseConfigCache || new Map();
 
 window.getUnifiedReleaseConfig = function (prefix, subjectId, section) {
     if (!prefix || !subjectId) return null;
+    const live = window.SigmaAcademicRecords?.getRelease(prefix, subjectId, section || window.currentTopicState?.selectedSection);
+    if (live) return live.config;
     let secStr = String(section || '').trim();
     if (!secStr && typeof window.currentTopicState !== 'undefined') {
         secStr = (window.currentTopicState?.selectedSection || '').trim();
@@ -10016,7 +10104,7 @@ window.formatVideoEmbedUrl = function (url) {
     // Match any YouTube URL (including m.youtube.com, www.youtube.com, youtube.com, youtu.be, shorts, live, embed, etc.)
     const ytMatch = trimmed.match(/(?:youtu\.be\/|(?:www\.|m\.|music\.)?youtube(?:-nocookie)?\.com\/(?:.*v(?:i)?[\/=]|.*[\?&]v=|embed\/|v\/|shorts\/|live\/|e\/))([\w-]{11})/i);
     if (ytMatch && ytMatch[1]) {
-        return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1`;
+        return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1&end=${window.getSigmaMaterialLimits().video.embed * 60}`;
     }
     // Match Vimeo
     const vimeoMatch = trimmed.match(/(?:vimeo\.com\/)(\d+)/i);
@@ -10058,8 +10146,16 @@ window.findMatchingSubject = function (subjects, target) {
     const normTargetCode = _norm(targetCode);
     const normTargetName = _norm(targetName);
 
-    // 1. Direct code, id, or name exact match
+    // Stable identities take precedence when different strands share a title.
     let match = subjects.find(s => {
+        const sCode = String(s.code || '').trim().toLowerCase();
+        const sId = String(s.id || '').trim().toLowerCase();
+        return (targetCode && sCode === targetCode) || (targetId && (sCode === targetId || sId === targetId));
+    });
+    if (match) return match;
+
+    // 1. Direct code, id, or name exact match
+    match = subjects.find(s => {
         const sCode = (s.code || '').trim().toLowerCase();
         const sName = (s.name || '').trim().toLowerCase();
         const sId = (s.id || '').trim().toLowerCase();
@@ -13706,7 +13802,10 @@ window.openQuizFormModal = function (options = {}) {
     // Export evaluateQuestion helper onto window
     window.evaluateQuestion = evaluateQuestion;
 
-    function handleQuizSubmission(isTimedOut = false) {
+    let quizSubmissionPending = false;
+    let quizSubmissionIdentity = null;
+    async function handleQuizSubmission(isTimedOut = false) {
+        if (quizSubmissionPending) return;
         if (timerInterval) {
             clearInterval(timerInterval);
             timerInterval = null;
@@ -13779,9 +13878,9 @@ window.openQuizFormModal = function (options = {}) {
             userScore += earned;
         });
 
-        const isPendingReview = Boolean(hasAnyPendingManual);
-        const scorePercent = totalPoints > 0 ? Math.round((userScore / totalPoints) * 100) : 0;
-        const isPassing = scorePercent >= 75;
+        let isPendingReview = Boolean(hasAnyPendingManual);
+        let scorePercent = totalPoints > 0 ? Math.round((userScore / totalPoints) * 100) : 0;
+        let isPassing = scorePercent >= 75;
 
         const studentUser = (typeof window.getLoggedInStudentUser === 'function') ? window.getLoggedInStudentUser() : null;
         const studentId = studentUser ? (studentUser.lrn || studentUser.id || 'student') : 'student';
@@ -13958,6 +14057,20 @@ window.openQuizFormModal = function (options = {}) {
                 quizId: fileQuizId || ident.quizId || assIdStr || '',
                 isTimedOut: Boolean(isTimedOut)
             };
+            if (!window.SigmaAcademicRecords?.submitQuiz) throw new Error('Live assessment connection is unavailable. Keep this quiz open and try again.');
+            quizSubmissionPending = true;
+            try {
+                quizSubmissionIdentity ||= crypto.randomUUID();
+                const saved = await window.SigmaAcademicRecords.submitQuiz({ subjectId, section: studentSection,
+                    itemId: materialId || item?.materialId || item?.id || assIdStr, title, topicIdx, itemIdx: activeIdx,
+                    answers: userAnswers, attemptIdentity: quizSubmissionIdentity });
+                Object.assign(subData, saved);
+                subData.attempts = [{ ...saved, attemptNumber: 1 }];
+                userScore = Number(saved.score || 0);
+                isPendingReview = !!saved.isPending;
+                scorePercent = Number(saved.maxScore) > 0 ? Math.round(userScore / Number(saved.maxScore) * 100) : 0;
+                isPassing = scorePercent >= 75;
+            } finally { quizSubmissionPending = false; }
             const quizCopyId = fileQuizId || ident.quizId || assIdStr || materialId || title;
             subData.quizId = quizCopyId;
             subData.section = studentSection;
@@ -14119,6 +14232,8 @@ window.openQuizFormModal = function (options = {}) {
             }));
         } catch (e) {
             console.error('Failed to persist quiz submission:', e);
+            if (!e.sigmaAcademicReported) window.showToast?.(e.message || 'Quiz could not be saved. Your answers are still open. Please try again.', 'error');
+            return;
         }
 
         // Close modal and return to assessment form / topic view
@@ -15797,7 +15912,7 @@ window.triggerStudentAssessmentSubmit = function (subjectId, tab, activeIdx, top
     }
 };
 
-window.handleStudentAssessmentFileUpload = function (event, subjectId, tab, activeIdx, topicIdx) {
+window.handleStudentAssessmentFileUpload = async function (event, subjectId, tab, activeIdx, topicIdx) {
     if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const file = event.target && event.target.files && event.target.files[0];
     if (!file) return;
@@ -15810,7 +15925,10 @@ window.handleStudentAssessmentFileUpload = function (event, subjectId, tab, acti
         return;
     }
 
-    window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, file.name, undefined, undefined, topicIdx);
+    try {
+        const uploaded = await window.SigmaMaterialLimits.uploadSubmission([file]);
+        await window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, uploaded, undefined, undefined, topicIdx);
+    } catch (error) { window.showToast?.(error.message, 'error'); }
 };
 
 window.isAssessmentLateSubmissionAllowed = function (subjectId, tab, activeIdx, topicIdx, item) {
@@ -18578,10 +18696,11 @@ window.syncSharedScoreAndStatus = function (params) {
         });
     }
 
-    if (window.SigmaAcademicRecords && window.SigmaAcademicRecords.role() !== 'student' && source !== 'attendance') {
+    if (window.SigmaAcademicRecords && !window.SigmaAcademicRecords.isApplying?.() && window.SigmaAcademicRecords.role() !== 'student' && source !== 'attendance') {
         window.SigmaAcademicRecords.save({ type: 'score', subjectId, section, studentId: sId,
             itemId, title: taskTitle, topicIdx, itemIdx: topicItemIdx ?? itemIdx, score: finalScore,
-            ...(params.teacherFeedback || params.feedback ? {feedback: params.teacherFeedback || params.feedback} : {}) }).catch(() => {});
+            ...(params.teacherFeedback || params.feedback ? {feedback: params.teacherFeedback || params.feedback} : {}),
+            ...(params.review ? { review: params.review, attemptIdentity: params.attemptIdentity || '' } : {}) }).catch(() => {});
     }
     return { score: finalScore, status: tone };
 };
@@ -22774,7 +22893,7 @@ window.previewStudentSubmittedFile = function (fileName, fileUrl) {
     }
 };
 
-window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fileName, maxAttempts, comment, topicIdx, item) {
+window.performStudentAssessmentSubmit = async function (subjectId, tab, activeIdx, fileName, maxAttempts, comment, topicIdx, item) {
     try {
         const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
         if (!item || typeof item === 'string') {
@@ -23073,6 +23192,10 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         if (prev?.questions && !subData.questions) subData.questions = prev.questions;
         if (prev?.score !== undefined && prev?.score !== null && prev?.score !== '' && subData.score === null) subData.score = prev.score;
 
+        if (!window.SigmaAcademicRecords?.submit) throw new Error('Live assessment connection is unavailable. Please try again.');
+        await window.SigmaAcademicRecords.submit({ subjectId, section: currentSection, itemId: currentAssessmentId,
+            title: currentAssessmentTitle, topicIdx: topIdx, itemIdx: activeIdx }, subData);
+
         const cleanSubj = String(subjectId || 'default').replace(/^(card[-_]|subj[-_]|gen[-_])/i, '').trim().toLowerCase();
         const rawSubj = String(subjectId || 'default').trim().toLowerCase();
         const subjVariants = Array.from(new Set([
@@ -23294,13 +23417,12 @@ window.performStudentAssessmentSubmit = function (subjectId, tab, activeIdx, fil
         } catch (error) {
             console.warn('Submission saved, but teacher notification could not be sent:', error);
         }
-        window.SigmaAcademicRecords?.submit({ subjectId, section: currentSection, itemId: currentAssessmentId,
-            title: currentAssessmentTitle, topicIdx: topIdx, itemIdx: activeIdx }, currentAttemptRecord).catch(() => {});
+        window.SigmaAcademicRecords.refresh().catch(() => {});
         window.SigmaSubmissionAi?.queueAfterSubmission(subjectId, topIdx, tab, activeIdx);
         return subData;
     } catch (e) {
         console.error('Error submitting student assessment:', e);
-        window.showTeacherReleaseToast?.('Submission could not be saved. Please try again.', 'unreleased');
+        if (!e.sigmaAcademicReported) window.showTeacherReleaseToast?.(e.message || 'Submission could not be saved. Please try again.', 'unreleased');
         return null;
     }
 };
@@ -25128,7 +25250,8 @@ window.previewStudentAnswerPendingFile = function (fIdx) {
     }
 };
 
-window.handleStudentAnswerFileSelected = function (event, subjectId, tab, activeIdx, topicIdx) {
+window.handleStudentAnswerFileSelected = async function (event, subjectId, tab, activeIdx, topicIdx) {
+    try { await window.SigmaMaterialLimits.refresh(true); } catch (_) {window.SigmaFeedback.notice('Could not load file upload limits. Please try again.');return;}
     const rawFiles = event.target && event.target.files ? Array.from(event.target.files) : [];
     if (!rawFiles || rawFiles.length === 0) return;
 
@@ -25258,7 +25381,7 @@ window.clearStudentAnswerSelectedFile = function (e, subjectId, tab, activeIdx, 
     window.renderStudentAnswerFilesList(subjectId, tab, activeIdx, topicIdx);
 };
 
-window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxAttempts, materialId) {
+window.submitStudentAnswer = async function (subjectId, topicIdx, tab, activeIdx, maxAttempts, materialId) {
     if (window.isStudentAssessmentClosed(subjectId, topicIdx, tab, activeIdx)) return;
     const topIdx = (topicIdx !== undefined && topicIdx !== null && topicIdx !== '') ? topicIdx : (typeof _tcTopicIdx !== 'undefined' ? _tcTopicIdx : 0);
     const files = (Array.isArray(window._studentPendingAnswerFiles) && window._studentPendingAnswerFiles.length > 0)
@@ -25299,15 +25422,14 @@ window.submitStudentAnswer = function (subjectId, topicIdx, tab, activeIdx, maxA
         return;
     }
 
-    const filePayloads = files.map(f => ({
-        name: f.name || 'Submitted_Work.pdf',
-        fileName: f.name || 'Submitted_Work.pdf',
-        size: f.size || 0,
-        type: ((f.name || 'pdf').split('.').pop() || 'pdf').toLowerCase(),
-        url: f.dataUrl || f.url || (f instanceof File || f instanceof Blob ? URL.createObjectURL(f) : '')
-    }));
+    let filePayloads;
+    if (window._sigmaSubmissionUploading) return;
+    window._sigmaSubmissionUploading = true;
+    try { filePayloads = await window.SigmaMaterialLimits.uploadSubmission(files); }
+    catch (error) {window.SigmaFeedback.notice(error.message);return;}
+    finally {window._sigmaSubmissionUploading = false;}
 
-    const submitted = window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, '', topIdx, materialId || null);
+    const submitted = await window.performStudentAssessmentSubmit(subjectId, tab, activeIdx, filePayloads, max, '', topIdx, materialId || null);
     if (!submitted) return;
     window._studentSubmissionMode = false;
     window._studentPendingAnswerFiles = [];
@@ -29043,95 +29165,7 @@ window.renderSharedPillButtonHtml = function (options = {}) {
  * Reads limits configured by Admin in System Settings from localStorage.
  */
 window.getSigmaMaterialLimits = function () {
-    try {
-        const saved = localStorage.getItem('sigma-material-limits');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            const clampVideoStd = (v, def = 200) => {
-                const n = Number(v);
-                if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(500, Math.max(100, n));
-            };
-            const clampVideoExt = (v, def = 25) => {
-                const n = Number(v);
-                if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(100, Math.max(10, n));
-            };
-            const clampDocStd = (v, def = 20) => {
-                const n = Number(v);
-                if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(100, Math.max(10, n));
-            };
-            const clampDocExt = (v, def = 5) => {
-                const n = Number(v);
-                if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(50, Math.max(5, n));
-            };
-            const clampBatchQuota = (v, def = 150) => {
-                const n = Number(v);
-                if (Number.isNaN(n) || n <= 0) return def;
-                return Math.min(500, Math.max(50, n));
-            };
-
-            let rawEmbed = Number(parsed.video?.embed);
-            if (rawEmbed === 1) rawEmbed = 60;
-            else if (rawEmbed === 2) rawEmbed = 90;
-            const videoEmbed = Math.min(90, Math.max(15, rawEmbed || 30));
-            const videoMp4 = clampVideoStd(parsed.video?.mp4 || parsed.video?.std, 200);
-            const videoExt = clampVideoExt(parsed.video?.ext, 25);
-
-            const docxStd = clampDocStd(parsed.docx?.std || parsed.docx?.reg, 20);
-            const docxExt = clampDocExt(parsed.docx?.ext, 5);
-
-            const pdfStd = clampDocStd(parsed.pdf?.std || parsed.pdf?.reg, 25);
-            const pdfExt = clampDocExt(parsed.pdf?.ext, 5);
-
-            const pptxStd = clampDocStd(parsed.pptx?.std || parsed.pptx?.reg, 50);
-            const pptxExt = clampDocExt(parsed.pptx?.ext, 5);
-
-            const batchQuota = clampBatchQuota(parsed.batchQuota || parsed.submissionBatchQuota, 150);
-
-            return {
-                video: {
-                    embed: videoEmbed,
-                    mp4: videoMp4,
-                    std: videoMp4,
-                    ext: videoExt,
-                    max: videoMp4 + videoExt
-                },
-                docx: {
-                    std: docxStd,
-                    reg: docxStd,
-                    ext: docxExt,
-                    max: docxStd + docxExt
-                },
-                pdf: {
-                    std: pdfStd,
-                    reg: pdfStd,
-                    ext: pdfExt,
-                    max: pdfStd + pdfExt
-                },
-                pptx: {
-                    std: pptxStd,
-                    reg: pptxStd,
-                    ext: pptxExt,
-                    max: pptxStd + pptxExt
-                },
-                batchQuota: batchQuota,
-                submissionBatchQuota: batchQuota
-            };
-        }
-    } catch (e) {
-        console.warn('Error reading sigma-material-limits', e);
-    }
-    return {
-        video: { embed: 30, mp4: 200, std: 200, ext: 25, max: 225 },
-        docx: { std: 20, reg: 20, ext: 5, max: 25 },
-        pdf: { std: 25, reg: 25, ext: 5, max: 30 },
-        pptx: { std: 50, reg: 50, ext: 5, max: 55 },
-        batchQuota: 150,
-        submissionBatchQuota: 150
-    };
+    return window.SigmaMaterialLimits?.get() || {video:{embed:30,mp4:200,std:200,ext:25,max:225},docx:{std:20,reg:20,ext:5,max:25},pdf:{std:25,reg:25,ext:5,max:30},pptx:{std:50,reg:50,ext:5,max:55},batchQuota:150,submissionBatchQuota:150};
 };
 
 /**
@@ -29595,7 +29629,7 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
 
     // All cards are selectable (including drafts)
     const activeBorderClass = isSelected
-        ? 'bg-emerald-50/70 !border-2 !border-[#15803d] [outline:2px_solid_#15803d] [outline-offset:2px] shadow-xs'
+        ? 'sigma-quiz-card-selected bg-emerald-50/70'
         : (isCurrentActive
             ? 'bg-emerald-50/60 !border-2 !border-emerald-400 shadow-2xs'
             : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100/80 shadow-2xs');
@@ -29650,7 +29684,7 @@ window.renderQuizStorageCardHtml = function (quiz, options = {}) {
                             <h5 class="text-xs sm:text-sm md:text-base font-bold text-black transition-colors break-words line-clamp-1 flex-1 min-w-0" title="${escape(quiz.title || 'Untitled Quiz')}">${escape(quiz.title || 'Untitled Quiz')}</h5>
                             <div class="flex items-center gap-1 shrink-0 flex-wrap">
                                 ${isDraft ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[8px] sm:text-[9px] font-black uppercase tracking-wider">DRAFT</span>` : ''}
-                                ${isAiQuiz ? `<span class="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 text-[8px] sm:text-[9px] font-black uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-bolt text-[7px] sm:text-[8px] text-[#FFD000]"></i> AI GENERATED</span>` : ''}
+                                ${isAiQuiz ? `<span class="sigma-quiz-generated-badge"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Generated</span>` : ''}
                                 ${isRecent ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-[#15803d] text-[8px] sm:text-[9px] font-black uppercase tracking-wider">NEW</span>` : ''}
                                 ${isCurrentActive ? `<span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[8px] sm:text-[9px] font-bold">CURRENT</span>` : ''}
                             </div>
@@ -32775,6 +32809,8 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         if (typeof window.syncSharedScoreAndStatus === 'function') {
                             window.syncSharedScoreAndStatus({
                                 source: 'quiz_review',
+                                review: { essayScores: subData.essayScores || {}, enumItemScores: subData.enumItemScores || {}, matchingItemScores: subData.matchingItemScores || {}, essayGraded: subData.essayGraded || {} },
+                                attemptIdentity: subData.attemptIdentity || '',
                                 studentId: studentId,
                                 studentName: subData.studentName || '',
                                 subjectId: subjectId,
@@ -32971,7 +33007,10 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
                         colIdx: resolvedColIdx,
                         topicIdx: reviewTopIdx,
                         topicItemIdx: ctx.activeIdx || 0,
-                        itemId: ctx.quizId || subData?.quizId || subData?.id || '',
+                        itemId: subData?.materialId || subData?.assessmentId || subData?.id || ctx.quizId || '',
+                        item: subData,
+                        review: { essayScores: subData?.essayScores || {}, enumItemScores: subData?.enumItemScores || {}, matchingItemScores: subData?.matchingItemScores || {}, essayGraded: subData?.essayGraded || {} },
+                        attemptIdentity: subData?.attemptIdentity || '',
                         taskTitle: title || ctx.quizTitle || subData?.title || subData?.quizTitle || '',
                         score: totalScore,
                         status: 'none',
@@ -33239,16 +33278,7 @@ window.getQuizAiOrManualDetails = function (quizOrState) {
     };
 
     window.getMaintenanceConfig = function () {
-        try {
-            const raw = localStorage.getItem(MAINTENANCE_STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                return { ...DEFAULT_MAINTENANCE_CONFIG, ...parsed };
-            }
-        } catch (e) {
-            console.warn('Failed to read maintenance config:', e);
-        }
-        return { ...DEFAULT_MAINTENANCE_CONFIG };
+        return window.maintenanceModeState ? {...DEFAULT_MAINTENANCE_CONFIG,...window.maintenanceModeState} : {...DEFAULT_MAINTENANCE_CONFIG};
     };
 
     window.setMaintenanceConfig = function (config) {
@@ -33432,7 +33462,7 @@ window.SIGMA_DEPED_SHS_WEIGHT_PRESETS = [
         id: 'tvl-specialized',
         label: 'TVL Strands (ICT & HE) — Applied & Specialized',
         desc: 'Computer Programming, CSS, Food & Beverage, Bread & Pastry',
-        ww: 30, pt: 50, qa: 20
+        ww: 20, pt: 60, qa: 20
     },
     {
         id: 'tvl-immersion',
@@ -33486,7 +33516,7 @@ window.getDefaultWeightsForSubject = function (subjectName) {
         return { ww: 20, pt: 60, qa: 20 };
     }
 
-    // 3. TVL Strands (ICT & HE) — Applied & Specialized (30/50/20) - Interface Computer College Caloocan
+    // 3. TVL Strands (ICT & HE) — Applied & Specialized (20/60/20) - DepEd Order 8, s. 2015
     if (
         str.includes('programming') ||
         str.includes('prog1') ||
@@ -33513,7 +33543,7 @@ window.getDefaultWeightsForSubject = function (subjectName) {
         str.includes('ict') ||
         str.includes('tvl')
     ) {
-        return { ww: 30, pt: 50, qa: 20 };
+        return { ww: 20, pt: 60, qa: 20 };
     }
 
     // 4. Academic Strands (ABM, GAS, HUMSS) — Applied & Specialized (25/45/30) - Interface Computer College Caloocan
@@ -33623,7 +33653,7 @@ window.getGradebookSubjectWeightKeys = function (subjectName) {
     return Array.from(keys).filter(k => k && k.toLowerCase() !== 'default' && k.toLowerCase() !== 'all');
 };
 
-window.getSubjectGradebookWeights = function (subjectName) {
+window.getSubjectGradebookWeights = function (subjectName, strand = '') {
     if (!subjectName) return { ww: 25, pt: 50, qa: 25 };
     const sStr = String(subjectName).trim();
     if (!sStr) return { ww: 25, pt: 50, qa: 25 };
@@ -33634,14 +33664,19 @@ window.getSubjectGradebookWeights = function (subjectName) {
 
     // The admin subject record is authoritative over legacy gradebook overrides.
     try {
-        const subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+        const subjects = typeof window.getStoredJson === 'function' ? window.getStoredJson('sigma-admin-subjects', []) : JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
         const normalize = value => String(value || '').trim().toLowerCase().replace(/^(card-|subj-|gen-)/, '');
         const query = normalize(sStr);
         const subject = Array.isArray(subjects) ? subjects.find(row => row &&
-            [row.id, row.code, row.name].some(value => value && normalize(value) === query)) : null;
+            [row.id, row.code, row.name, ...(row.curriculum?.legacyAliases || [])].some(value => value && normalize(value) === query)) : null;
         if (subject?.weights) {
-            const weights = Object.fromEntries(['ww', 'pt', 'qa'].map(key => [key, Number(subject.weights[key])]));
-            if (['ww', 'pt', 'qa'].every(key => subject.weights[key] !== null && subject.weights[key] !== '' &&
+            const placements = subject.curriculum?.placements || [];
+            const activeStrand = String(strand || window.currentAdminClassroomSection?.strand || window.sigmaGradesState?.selectedSubjectSection?.strand || window.SigmaDatabase?.currentUser?.()?.strand || '').trim().toUpperCase();
+            const placement = placements.find(item => normalize(item.legacyCode) === query || normalize(item.legacyId) === query)
+                || placements.find(item => activeStrand && String(item.strand).toUpperCase() === activeStrand);
+            const sourceWeights = placement?.weights || subject.weights;
+            const weights = Object.fromEntries(['ww', 'pt', 'qa'].map(key => [key, Number(sourceWeights[key])]));
+            if (['ww', 'pt', 'qa'].every(key => sourceWeights[key] !== null && sourceWeights[key] !== '' &&
                 Number.isFinite(weights[key]) && weights[key] >= 0 && weights[key] <= 100)) return weights;
         }
     } catch (e) {}
@@ -33717,7 +33752,7 @@ window.getSubjectGradebookWeights = function (subjectName) {
                     }
                     if (typeof window.resolveDepEdWeightPreset === 'function') {
                         const preset = window.resolveDepEdWeightPreset(found.name, found.type, found.strand);
-                        if (preset === 'tvl-specialized') return { ww: 30, pt: 50, qa: 20 };
+                        if (preset === 'tvl-specialized') return { ww: 20, pt: 60, qa: 20 };
                         if (preset === 'tvl-immersion') return { ww: 20, pt: 60, qa: 20 };
                         if (preset === 'acad-immersion') return { ww: 35, pt: 40, qa: 25 };
                         if (preset === 'acad-specialized') return { ww: 25, pt: 45, qa: 30 };
@@ -33752,6 +33787,19 @@ window.saveSubjectGradebookWeights = function (subjectName, weights) {
         qa: Number.isFinite(qa) ? Math.max(0, Math.min(100, qa)) : 25
     };
 
+    let targetSubjectIds = null;
+    try {
+        const subjects = typeof window.getStoredJson === 'function' ? window.getStoredJson('sigma-admin-subjects', []) : JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+        if (Array.isArray(subjects)) {
+            const key = sStr.toLowerCase();
+            const identities = subjects.filter(subject => [subject.id, subject.code].some(value => String(value || '').trim().toLowerCase() === key));
+            const matches = identities.length ? identities : subjects.filter(subject => [subject.name, subject.title].some(value => String(value || '').trim().toLowerCase() === key));
+            // A shared title cannot identify which strand's assessment weights to change.
+            if (!identities.length && matches.length > 1) return safeWeights;
+            if (matches.length) targetSubjectIds = new Set(matches.map(subject => String(subject.id || subject.code)));
+        }
+    } catch (e) {}
+
     // 1. Update primary store: 'sigma-gradebook-subject-weights'
     try {
         const rawMap = localStorage.getItem('sigma-gradebook-subject-weights');
@@ -33781,18 +33829,21 @@ window.saveSubjectGradebookWeights = function (subjectName, weights) {
     // Keep the admin subject editor's stored weights in sync with the gradebook.
     if (String(window.location?.pathname || '').toLowerCase().includes('admin')) {
         try {
-            const subjects = JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
+            const subjects = typeof window.getStoredJson === 'function' ? window.getStoredJson('sigma-admin-subjects', []) : JSON.parse(localStorage.getItem('sigma-admin-subjects') || '[]');
             const keys = new Set(window.getGradebookSubjectWeightKeys(sStr).map(key => String(key).toLowerCase()));
             const preset = window.getDepEdWeightPresets().find(item =>
                 ['ww', 'pt', 'qa'].every(key => Number(item[key]) === safeWeights[key]));
             let changed = false;
             if (Array.isArray(subjects)) {
                 subjects.forEach(subject => {
-                    if (![subject.id, subject.code, subject.name, subject.title].some(value => value && keys.has(String(value).toLowerCase()))) return;
+                    if (targetSubjectIds ? !targetSubjectIds.has(String(subject.id || subject.code)) : ![subject.id, subject.code, subject.name, subject.title].some(value => value && keys.has(String(value).toLowerCase()))) return;
                     subject.weights = { ...safeWeights, ...(preset ? { preset: preset.id } : {}) };
                     changed = true;
                 });
-                if (changed) localStorage.setItem('sigma-admin-subjects', JSON.stringify(subjects));
+                if (changed) {
+                    if (typeof window.saveStoredJson === 'function') window.saveStoredJson('sigma-admin-subjects', subjects);
+                    else localStorage.setItem('sigma-admin-subjects', JSON.stringify(subjects));
+                }
             }
         } catch (e) {}
     }
@@ -35585,7 +35636,6 @@ window.getAssessmentsForSubject = function (subjectId, category, specifiedQ = nu
     const isFake = (item) => !item || Boolean(window.SigmaDatabase?.isSyntheticRecord(item));
 
     const realAssessments = [];
-    const seenTitles = new Set();
     const seenIds = new Set();
 
     const isItemReleased = (item, tIdx, aIdx) => {
@@ -35690,8 +35740,7 @@ window.getAssessmentsForSubject = function (subjectId, category, specifiedQ = nu
 
                     const tLower = (ass.title || ass.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
                     const idStr = String(ass.id || `ass-${tIdx}-${aIdx}`);
-                    if ((tLower && !seenTitles.has(tLower)) && (!idStr || !seenIds.has(idStr))) {
-                        if (tLower) seenTitles.add(tLower);
+                    if (!seenIds.has(idStr)) {
                         if (idStr) seenIds.add(idStr);
                         const colIdx = realAssessments.length;
                         const resolvedHps = (typeof window.resolveAssessmentHPS === 'function')
@@ -35751,8 +35800,7 @@ window.getAssessmentsForSubject = function (subjectId, category, specifiedQ = nu
 
                     const tLower = (m.title || m.name || '').trim().toLowerCase().replace(/\.(pdf|docx|pptx|ppt)$/i, '').replace(/^quiz\s*\d*[:\s-]+/i, '').trim();
                     const idStr = String(m.id || `mat-${idx}`);
-                    if ((tLower && !seenTitles.has(tLower)) && (!idStr || !seenIds.has(idStr))) {
-                        if (tLower) seenTitles.add(tLower);
+                    if (!seenIds.has(idStr)) {
                         if (idStr) seenIds.add(idStr);
 
                         const resolvedMatHps = (typeof window.resolveAssessmentHPS === 'function')
@@ -37045,6 +37093,8 @@ window.flushTeacherReleaseToastQueue = function () {
             // Never wrap hidden, aria-hidden, or attendance backward-compatibility selects
             if (select.matches('.hidden, [hidden], [aria-hidden="true"], #attendance-month-select, #attendance-year-select, #ai-gen-type')
                 || select.closest('.hidden, [hidden], [aria-hidden="true"]')) continue;
+            // The AI period control already owns its arrow; wrapping on first click duplicates it.
+            if (select.closest('.sigma-ai-period-control')) continue;
             // Quarter controls provide their own disclosure and animated chevron.
             if (select.matches('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select')
                 || select.closest('.sigma-quarter-dropdown')) continue;
@@ -37094,6 +37144,12 @@ window.flushTeacherReleaseToastQueue = function () {
     document.addEventListener('pointerdown', event => {
         document.querySelectorAll('.sigma-select-open').forEach(wrapper=>{if(!wrapper.contains(event.target))wrapper.classList.remove('sigma-select-open');});
     });
+    // Routed pages start hidden, so initialize their selects when first used.
+    for (const type of ['pointerdown','keydown','focusin']) {
+        document.addEventListener(type,event=>{
+            if(event.target instanceof HTMLSelectElement)enhance(event.target);
+        },true);
+    }
     function start(){enhance(document);new MutationObserver(changes=>{for(const change of changes)for(const node of change.addedNodes)if(node.nodeType===1)enhance(node);}).observe(document.body,{childList:true,subtree:true});}
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();

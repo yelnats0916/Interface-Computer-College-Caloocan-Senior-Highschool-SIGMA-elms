@@ -51,6 +51,7 @@ try {
         }
         $pdo->prepare('DELETE FROM application_login_challenges WHERE user_id=?')->execute([$user['id']]);
         $pdo->prepare('DELETE FROM grade_sync_attempts WHERE client_hash=?')->execute([$client]);
+        if(sigmaMaintenanceRestricted($user))gradeReply(['success'=>false,'code'=>'system_maintenance','error'=>sigmaMaintenanceState(sigmaMaintenanceConfig())['message']],423);
         $token=bin2hex(random_bytes(32));
         $pdo->prepare('DELETE FROM grade_sync_tokens WHERE expires_at<UTC_TIMESTAMP()')->execute();
         $pdo->prepare('INSERT INTO grade_sync_tokens VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 12 HOUR))')->execute([hash('sha256',$token),$user['id']]);
@@ -60,6 +61,7 @@ try {
     $token=sigmaApplicationToken();
     $stmt=$pdo->prepare('SELECT u.* FROM grade_sync_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.expires_at>UTC_TIMESTAMP() AND u.is_deleted=0 AND LOWER(u.status)=\'active\' AND u.totp_enabled=1 AND u.terms_accepted=1');$stmt->execute([hash('sha256',$token)]);$actor=$stmt->fetch();
     if (!$token || !$actor) gradeReply(['success'=>false,'error'=>'Sign in again to connect live grade updates.'],401);
+    if(sigmaMaintenanceRestricted($actor))gradeReply(['success'=>false,'code'=>'system_maintenance','error'=>sigmaMaintenanceState(sigmaMaintenanceConfig())['message']],423);
     $role=strtolower(preg_replace('/[\s_-]+/','',$actor['role']));$admin=in_array($role,['admin','masteradmin','administrator'],true);
     require_once __DIR__ . '/../includes/role_permissions.php';
     if (($role==='student' && !sigmaActorPermission($actor,'studentGrades')) || ($role==='teacher' && !sigmaActorPermission($actor,'teacherGrades'))) gradeReply(['success'=>false,'error'=>'Grade access is disabled for this account.'],403);
@@ -112,7 +114,7 @@ try {
         $student=null;foreach($students as $candidate)if((string)$candidate['id']===(string)($row['id']??'')){$student=$candidate;break;}
         if(!$student||!gradeStudent($section,$student))throw new RuntimeException('A student is no longer assigned to this section. Refresh the roster before continuing.');
         if(isset($seen[$student['id']])||!is_numeric($row['grade']??null)||$row['grade']<0||$row['grade']>100)throw new InvalidArgumentException('Each student must have one valid grade from 0 to 100.');
-        $seen[$student['id']]=true;$clean[]=['id'=>$student['id'],'studentIds'=>[$student['id']],'name'=>$student['full_name']?:trim($student['first_name'].' '.$student['last_name']),'grade'=>(float)$row['grade']];
+        $seen[$student['id']]=true;$clean[]=['creationNumber'=>sigmaTableCreationNumber($pdo,'users',(string)$student['id']),'id'=>$student['id'],'studentIds'=>[$student['id']],'name'=>$student['full_name']?:trim($student['first_name'].' '.$student['last_name']),'grade'=>(float)$row['grade']];
     }
     $date=gmdate('Y-m-d\TH:i:s\Z');$kind=$action==='share'?'shared':'published';
     $payload=$action==='share'?['rows'=>$clean,'submittedAt'=>$date,'submittedBy'=>$actor['id'],'teacherName'=>$actor['full_name']]:['rows'=>$clean,'publishedAt'=>$date,'publishedBy'=>$actor['id'],'publisherName'=>$actor['full_name'],'publisherRole'=>$admin?'admin':'teacher'];

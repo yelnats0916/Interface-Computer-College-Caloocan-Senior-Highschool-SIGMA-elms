@@ -228,7 +228,8 @@
         if (clean.startsWith('setting')) {
             return { sectionId: 'user-settings-view', layout: 'generic' };
         }
-        return { sectionId: 'section-topic-content', layout: 'generic' };
+        // Unknown routes belong to the portal router, never to a guessed lesson page.
+        return null;
     }
 
     function resolveLayoutFromSectionId(id) {
@@ -783,6 +784,8 @@
 
     function mountEarlyHashSkeleton() {
         try {
+            // Admin routing also checks permissions. Do not activate sections before it runs.
+            if (document.documentElement.classList.contains('sigma-hash-navigating')) return;
             if (typeof window === 'undefined' || !window.location || typeof document === 'undefined' || typeof document.getElementById !== 'function') {
                 return;
             }
