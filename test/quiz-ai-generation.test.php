@@ -43,3 +43,16 @@ foreach([
 ] as $invalid){try{quizAiBlueprint($invalid,$invalid['count'],'Mixed');throw new LogicException('Invalid blueprint accepted');}catch(InvalidArgumentException $expected){}}
 $create=quizAiBlueprint(['bloomLevel'=>'Create'],1,'Essay');verify($create['bloomLevel']==='Create','Create supported with essay grading guide');
 echo "PASS: central routing, stored keys/model, Groq/Gemini requests, fallback policy, exact model metadata, default points, malformed output rejection.\n";
+
+$large=array_replace($input,['count'=>100,'type'=>'Mixed','typeCounts'=>[['type'=>'Multiple Choice','count'=>60],['type'=>'True or False','count'=>40]],'bloomLevel'=>'Understand']);
+$batchCalls=0;$serial=0;$largest=0;
+$result=generateQuizAi($services,$large,function($url,$headers,$body)use(&$batchCalls,&$serial,&$largest){
+    $batchCalls++;$prompt=$body['messages'][0]['content'];preg_match('/exactly ([0-9]+) questions/',$prompt,$match);$n=(int)$match[1];$largest=max($largest,$n);
+    preg_match('/distribution: (\{.*?\})\./',$prompt,$match);$distribution=json_decode($match[1],true);$rows=[];
+    foreach($distribution as $type=>$count)for($i=0;$i<$count;$i++){$serial++;$rows[]=['type'=>$type,'question'=>'Question '.$serial,'choices'=>['A','B','C','D'],'answer'=>$type==='True or False'?'True':'A','bloomLevel'=>'Understand','bloomRationale'=>'Interprets the lesson.'];}
+    return ['choices'=>[['message'=>['content'=>json_encode(['questions'=>$rows])]]]];
+});
+verify(count($result['questions'])===100,'Full 100-question request completed');verify($batchCalls===5&&$largest===20,'Provider requests are bounded batches');
+$histogram=array_count_values(array_column($result['questions'],'type'));verify($histogram['Multiple Choice']===60&&$histogram['True or False']===40,'Exact 100-question type distribution');
+try{generateQuizAi($services,array_replace($input,['count'=>101]),fn()=>[]);throw new LogicException('Over-limit generation accepted');}catch(InvalidArgumentException $expected){}
+echo "PASS 100 questions in five validated provider batches, exact mixed counts, and rejection above 100.\n";

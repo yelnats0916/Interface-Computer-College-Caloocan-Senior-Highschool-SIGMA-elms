@@ -257,9 +257,10 @@ try {
 
         $questionsArr = $quiz['questions'] ?? [];
         if (!is_array($questionsArr)) $questionsArr = [];
+        if(count($questionsArr)>100)jsonResponse(['success'=>false,'error'=>'A quiz can contain at most 100 questions. Remove extra questions before saving.'],400);
         $questionsJson = json_encode($questionsArr);
 
-        $totalQuestions = isset($quiz['totalQuestions']) ? (int) $quiz['totalQuestions'] : count($questionsArr);
+        $totalQuestions = count($questionsArr);
         $totalPoints = isset($quiz['totalPoints']) ? (int) $quiz['totalPoints'] : 0;
         if ($totalPoints === 0 && !empty($questionsArr)) {
             foreach ($questionsArr as $q) {

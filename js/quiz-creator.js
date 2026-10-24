@@ -411,7 +411,6 @@ window.handleImageUpload = function (event) {
     const MAX_GENERAL_IMAGES = 5;
     const remainingSlots = MAX_GENERAL_IMAGES - window.quizGeneralImages.length;
     if (remainingSlots <= 0) {
-        stopPreparing();
         if (typeof window.openAskingPanel === 'function') {
             window.openAskingPanel({
                 title: 'Maximum Images Reached',
@@ -584,19 +583,19 @@ window.selectActiveQuestion = function (idx) {
     }
 };
 
+window.getQuizRemainingSlots = function () { return Math.max(0, MAX_QUIZ_QUESTIONS - questions.length); };
+window.checkQuizQuestionCapacity = function (incoming = 1, baseCount = questions.length) {
+    const remaining = Math.max(0, MAX_QUIZ_QUESTIONS - baseCount);
+    if (Number.isInteger(incoming) && incoming > 0 && incoming <= remaining) return true;
+    const message = remaining === 0
+        ? `This quiz has reached its ${MAX_QUIZ_QUESTIONS}-question limit. Remove a question before adding, generating, or importing more.`
+        : `This quiz has ${baseCount} of ${MAX_QUIZ_QUESTIONS} questions. Only ${remaining} more can be added; you selected ${incoming}. Reduce the count or remove existing questions.`;
+    window.SigmaFeedback?.notice(message, 'warning', {id:'quiz-question-limit',duration:9000});
+    return false;
+};
+
 window.addQuestion = function (type = 'Multiple Choice') {
-    if (questions && questions.length >= MAX_QUIZ_QUESTIONS) {
-        if (typeof window.openAskingPanel === 'function') {
-            window.openAskingPanel({
-                title: 'Question Limit Reached',
-                message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. Cannot add more questions.`,
-                type: 'warning'
-            });
-        } else {
-            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-        }
-        return;
-    }
+    if (!window.checkQuizQuestionCapacity(1)) return;
 
     let newQ = {
         type: type,
@@ -638,18 +637,7 @@ window.toggleEssayEvalMode = function (idx, mode) {
 };
 
 window.duplicateQuestion = function (idx) {
-    if (questions && questions.length >= MAX_QUIZ_QUESTIONS) {
-        if (typeof window.openAskingPanel === 'function') {
-            window.openAskingPanel({
-                title: 'Question Limit Reached',
-                message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. Cannot duplicate question.`,
-                type: 'warning'
-            });
-        } else {
-            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-        }
-        return;
-    }
+    if (!window.checkQuizQuestionCapacity(1)) return;
 
     if (questions[idx]) {
         const clone = JSON.parse(JSON.stringify(questions[idx]));
@@ -4105,18 +4093,7 @@ window.switchAIGenSourceOption = function (option) {
 };
 
 window.openAIGeneratorModal = function () {
-    if (questions && questions.length >= MAX_QUIZ_QUESTIONS) {
-        if (typeof window.openAskingPanel === 'function') {
-            window.openAskingPanel({
-                title: 'Question Limit Reached',
-                message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. You cannot generate more questions.`,
-                type: 'warning'
-            });
-        } else {
-            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-        }
-        return;
-    }
+    if (!window.checkQuizQuestionCapacity(1)) return;
 
     const modal = document.getElementById('ai-generator-modal');
     if (modal) {
@@ -4135,7 +4112,7 @@ window.openAIGeneratorModal = function () {
 
         const remainingSlots = Math.max(1, MAX_QUIZ_QUESTIONS - (questions ? questions.length : 0));
         if (countInput) {
-            countInput.max = Math.min(50,remainingSlots);
+            countInput.max = remainingSlots;
             const currentVal = parseInt(countInput.value, 10);
             if (isNaN(currentVal) || currentVal < 1) {
                 countInput.value = Math.min(5, remainingSlots);
@@ -4554,7 +4531,7 @@ window.openAIConfirmGenerateModal = function () {
     const selectedType = typeSelect?.value || 'Mixed';
     let count = parseInt(countInput?.value, 10);
     if (isNaN(count) || count < 1) count = 1;
-    if (count > 50) count = 50;
+    if (count > 100) {window.checkQuizQuestionCapacity(count);return;}
 
     const engineLabel = engine === 'groq' ? 'Groq' : (engine === 'both' ? 'Hybrid AI (Gemini + Groq)' : 'Google Gemini');
 
@@ -4583,6 +4560,8 @@ window.closeAIConfirmGenerateModal = function () {
 
 window.generateAIQuestions = function () {
     if(!window.quizGenerationHasSource()){window.syncAIGenerateButtonState();return;}
+    const count=window.SigmaQuizGeneration.options().count;
+    if(!window.checkQuizQuestionCapacity(count))return;
     const error=window.SigmaQuizGeneration.error();
     if(error){window.showWarningToast?.(error);return;}
     window.openAIConfirmGenerateModal();
@@ -4625,24 +4604,14 @@ window.executeAIQuestionGeneration = async function () {
     // Main page limit of MAX_QUIZ_QUESTIONS questions check
     const currentQCount = questions ? questions.length : 0;
     const remainingSlots = Math.max(0, MAX_QUIZ_QUESTIONS - currentQCount);
-    if (remainingSlots <= 0) {
-        if (typeof window.openAskingPanel === 'function') {
-            window.openAskingPanel({
-                title: 'Question Limit Reached',
-                message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. Cannot generate more questions.`,
-                type: 'warning'
-            });
-        } else {
-            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-        }
-        return;
-    }
+    if(remainingSlots<=0){window.checkQuizQuestionCapacity(1);stopPreparing();return;}
 
     // Validate count limit (1 - 100, capped by remaining quiz slots)
     const blueprint=window.SigmaQuizGeneration.options();
     const count=blueprint.count;
     const blueprintError=window.SigmaQuizGeneration.error();
-    if(blueprintError||count>remainingSlots){window.showWarningToast?.(blueprintError||`Only ${remainingSlots} question slots remain.`);stopPreparing();return;}
+    if(!window.checkQuizQuestionCapacity(count)){stopPreparing();return;}
+    if(blueprintError){window.showWarningToast?.(blueprintError);stopPreparing();return;}
 
     const difficulty = difficultyRadio?.value || 'Medium';
 
@@ -4666,7 +4635,7 @@ window.executeAIQuestionGeneration = async function () {
         });
         let result = await response.json();
         if(response.ok&&result.success&&result.jobId){
-            const deadline=Date.now()+180000;
+            const deadline=Date.now()+600000;
             const owner=String(window.SigmaDatabase.currentUser()?.id||'');
             while(Date.now()<deadline){
                 if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)throw new Error('The signed-in account changed.');
@@ -4683,6 +4652,7 @@ window.executeAIQuestionGeneration = async function () {
         if (!response.ok || !result.success || !Array.isArray(result.questions) || result.questions.length !== count) throw new Error(result.error || 'AI generation returned invalid questions.');
         if (!/^ASMTG?-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI generation completed without an assessment ID. Try again.');
         const generated = result.questions;
+        if(!window.checkQuizQuestionCapacity(generated.length))throw new Error('The quiz changed while generating. The generated questions would exceed the 100-question limit.');
         const startIndex = questions.length;
         questions.push(...generated);
         activeQuestionIndex = startIndex;
@@ -4760,18 +4730,7 @@ window.updateConvertQuestionsBtnState = function () {
 };
 
 window.openImportQuestionsModal = function () {
-    if (questions && questions.length >= MAX_QUIZ_QUESTIONS && !(questions.length === 1 && !questions[0].question.trim())) {
-        if (typeof window.openAskingPanel === 'function') {
-            window.openAskingPanel({
-                title: 'Question Limit Reached',
-                message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. Cannot import more questions.`,
-                type: 'warning'
-            });
-        } else {
-            window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-        }
-        return;
-    }
+    if (!(questions.length === 1 && !questions[0].question.trim()) && !window.checkQuizQuestionCapacity(1)) return;
 
     const modal = document.getElementById('import-questions-modal');
     if (modal) {
@@ -5484,26 +5443,8 @@ window.executeImportQuestions = async function () {
         }
 
         let baseCount = (questions.length === 1 && !questions[0].question.trim()) ? 0 : questions.length;
-        const availableSlots = Math.max(0, MAX_QUIZ_QUESTIONS - baseCount);
-        if (availableSlots <= 0) {
-            if (typeof window.openAskingPanel === 'function') {
-                window.openAskingPanel({
-                    title: 'Question Limit Reached',
-                    message: `You have reached the maximum limit of ${MAX_QUIZ_QUESTIONS} questions. Cannot import more questions.`,
-                    type: 'warning'
-                });
-            } else {
-                window.SigmaFeedback.notice(`Maximum limit of ${MAX_QUIZ_QUESTIONS} questions reached.`);
-            }
-            return;
-        }
-
-        let toAdd = imported;
-        let wasTruncated = false;
-        if (toAdd.length > availableSlots) {
-            toAdd = toAdd.slice(0, availableSlots);
-            wasTruncated = true;
-        }
+        if(!window.checkQuizQuestionCapacity(imported.length,baseCount))return;
+        const toAdd = imported;
 
         if (questions.length === 1 && !questions[0].question.trim()) {
             questions = toAdd;
@@ -5519,9 +5460,7 @@ window.executeImportQuestions = async function () {
         if (typeof window.openAskingPanel === 'function') {
             window.openAskingPanel({
                 title: 'Conversion Successful',
-                message: wasTruncated
-                    ? `Successfully converted and generated ${toAdd.length} ${toAdd.length === 1 ? 'question' : 'questions'} with answer keys! (Capped at the ${MAX_QUIZ_QUESTIONS}-question limit).`
-                    : `Successfully converted and generated ${toAdd.length} ${toAdd.length === 1 ? 'question' : 'questions'} with answer keys!`,
+                message: `Successfully imported ${toAdd.length} ${toAdd.length === 1 ? 'question' : 'questions'} with answer keys!`,
                 icon: 'fa-solid fa-circle-check text-emerald-600'
             });
         }

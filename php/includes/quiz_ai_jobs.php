@@ -20,13 +20,13 @@ function quizAiReadJob(string $id,string $owner): array {
     $path=quizAiJobPath($id);if(!is_file($path))throw new InvalidArgumentException('Generation was not found.');
     $job=json_decode(file_get_contents($path),true,64,JSON_THROW_ON_ERROR);
     if(!hash_equals((string)($job['ownerId']??''),$owner))throw new InvalidArgumentException('Generation was not found.');
-    if(time()-(int)($job['createdAt']??0)>180&&in_array($job['status'],['pending','running'],true))return ['status'=>'failed','error'=>'Generation took too long. Try again.'];
+    if(time()-(int)($job['createdAt']??0)>600&&in_array($job['status'],['pending','running'],true))return ['status'=>'failed','error'=>'Generation took too long. Try again.'];
     return array_intersect_key($job,array_flip(['status','result','error']));
 }
 function quizAiStartJob(array $input,array $actor): string {
     // Validate before reserving a worker. No credentials or browser token is stored in a job.
     $count=filter_var($input['count']??null,FILTER_VALIDATE_INT);$type=$input['type']??'Mixed';
-    if(!$count||$count<1||$count>50||!is_string($input['source']??null)||!trim($input['source'])||strlen($input['source'])>60000)throw new InvalidArgumentException('Choose readable material and 1–50 questions.');
+    if(!$count||$count<1||$count>100||!is_string($input['source']??null)||!trim($input['source'])||strlen($input['source'])>60000)throw new InvalidArgumentException('Choose readable material and 1–100 questions.');
     if(!in_array($type,['Mixed','Multiple Choice','True or False','Short Answer','Essay','Matching Type','Enumeration'],true))throw new InvalidArgumentException('Unsupported question type.');
     quizAiBlueprint($input,$count,$type);
     $directory=quizAiJobDirectory();
@@ -36,7 +36,7 @@ function quizAiStartJob(array $input,array $actor): string {
         foreach(glob($directory.'/*.json')?:[] as $path){
             $job=json_decode(file_get_contents($path),true);$age=time()-(int)($job['createdAt']??0);
             if($age>86400){unlink($path);continue;}
-            if(($job['ownerId']??'')===(string)$actor['id']&&$age<180&&in_array($job['status']??'',['pending','running'],true)){
+            if(($job['ownerId']??'')===(string)$actor['id']&&$age<600&&in_array($job['status']??'',['pending','running'],true)){
                 if(($job['input']??null)===$input)return basename($path,'.json');
                 throw new RuntimeException('Your previous generation is still running. Wait for it to finish before changing the request.');
             }

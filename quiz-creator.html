@@ -2291,13 +2291,13 @@
                             <label for="ai-gen-count" class="block text-xs sm:text-sm font-semibold text-black mb-1.5 sm:mb-2">Count</label>
                             <div class="flex items-center gap-2.5">
                                 <div id="ai-gen-count-control" class="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl h-10 sm:h-12 focus-within:border-[#FFD000] focus-within:bg-white transition-all">
-                                <input type="number" id="ai-gen-count" min="1" max="50" value="5" inputmode="numeric"
+                                <input type="number" id="ai-gen-count" min="1" max="100" value="5" inputmode="numeric"
                                     onkeydown="if(['e','E','+','-','.',' '].includes(event.key)) event.preventDefault();"
-                                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (parseInt(this.value) > 50) { this.value = 50; } else if (parseInt(this.value) < 1 && this.value !== '') { this.value = 1; }"
-                                    onblur="if (!this.value || parseInt(this.value) < 1) { this.value = 1; } else if (parseInt(this.value) > 50) { this.value = 50; }"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (parseInt(this.value) < 1 && this.value !== '') { this.value = 1; }"
+                                    onblur="if (!this.value || parseInt(this.value) < 1) { this.value = 1; } "
                                     class="w-9 sm:w-10 bg-transparent text-center font-normal text-black outline-none text-xs sm:text-sm">
                                 </div>
-                                <span id="ai-gen-count-max-label" class="text-black text-[10px] sm:text-xs font-normal shrink-0">/ 50</span>
+                                <span id="ai-gen-count-max-label" class="text-black text-[10px] sm:text-xs font-normal shrink-0">/ 100</span>
                             </div>
                         </div>
                     </div>
@@ -2994,12 +2994,12 @@
 <link rel="stylesheet" href="css/sigma-message-format.css?v=20261022_reply_format_v1">
 <script src="js/sigma-message-format.js?v=20261022_reply_format_v1"></script>
 <script src="js/table-pagination.js?v=20261022_page_groups_v22"></script>
-<script src="js/shared-components.js?v=20261025_quiz_blueprint_v203"></script>
+<script src="js/shared-components.js?v=20261025_quiz_limit_v204"></script>
 <script src="js/online-presence.js?v=20261021_database_foundation_v5"></script>
     <script src="js/quiz-components.js?v=20261004alignfix1"></script>
     <script src="js/ai-log-store.js?v=20261010featureStatus291"></script>
-    <script src="js/quiz-generation-controls.js?v=20261025_quiz_blueprint_v203"></script>
-    <script src="js/quiz-creator.js?v=20261025_quiz_blueprint_v203"></script>
+    <script src="js/quiz-generation-controls.js?v=20261025_quiz_limit_v204"></script>
+    <script src="js/quiz-creator.js?v=20261024_device_sync_v199"></script>
     <script src="js/notifications.js?v=20261022_audit_context_v23"></script>
     <script src="js/topbar.js?v=20261024_initial_no_bar_v132"></script>
     <script src="js/search-results.js?v=20261022_structured_search_v17"></script>
