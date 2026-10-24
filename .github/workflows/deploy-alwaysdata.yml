@@ -21,6 +21,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install document generation dependencies
+        run: pip install python-docx reportlab
+      - name: Generate coursework documents and database bundle
+        run: python scripts/build-all-draft-coursework.py
       - name: Build credential-free release
         run: |
           python scripts/build-hosting-release.py --output release.zip --runtime-path /home/sigma-elms/sigma-private/runtime.php
@@ -62,6 +66,16 @@ jobs:
           release="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
           ssh "${opts[@]}" "$target" "python3 -u /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release'"
+      - name: Deploy coursework documents and publish subjects
+        shell: bash
+        run: |
+          target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
+          opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          scp "${opts[@]}" output/all-draft-coursework/coursework-documents.zip "$target:/home/sigma-elms/coursework-documents.zip"
+          scp "${opts[@]}" output/all-draft-coursework/all-draft-coursework-bundle.json "$target:/home/sigma-elms/sigma-private/all-draft-coursework-bundle.json"
+          scp "${opts[@]}" scripts/install-all-draft-coursework.php "$target:/home/sigma-elms/sigma-private/install-all-draft-coursework.php"
+          ssh "${opts[@]}" "$target" 'python3 -c '\''import zipfile, pathlib; z = pathlib.Path("/home/sigma-elms/coursework-documents.zip"); d = pathlib.Path("/home/sigma-elms/sigma-private/announcement-uploads/documents"); d.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(z).extractall(d); z.unlink(); print("Extracted coursework files to", d)'\'''
+          ssh "${opts[@]}" "$target" "php /home/sigma-elms/sigma-private/install-all-draft-coursework.php /home/sigma-elms/www /home/sigma-elms/sigma-private/all-draft-coursework-bundle.json 0000000"
       - name: Check public login
         run: curl --fail --silent --show-error --location --max-time 30 https://sigma-elms.alwaysdata.net/index.html --output /dev/null
       - name: Remove runner deployment key

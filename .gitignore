@@ -29,6 +29,8 @@ private-credentials/
 # ─── Scratch & Verification Scripts ───────────────────────
 scratch/
 tmp/
+uploads/
+output/
 
 # ─── Database Backups / Dumps ─────────────────────────────
 database/backups/*.sql
