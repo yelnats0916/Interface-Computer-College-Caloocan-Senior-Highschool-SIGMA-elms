@@ -40,7 +40,7 @@ jobs:
         run: |
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          ssh "${opts[@]}" "$target" "df -h /home/sigma-elms; ls -la /home/sigma-elms; rm -f /home/sigma-elms/sigma-gh-*.zip"
+          ssh "${opts[@]}" "$target" "echo 'SSH_OK' > /home/sigma-elms/www/test.txt; cat /home/sigma-elms/admin/config/apache/sites.conf > /home/sigma-elms/www/sites.txt 2>&1; df -h /home/sigma-elms > /home/sigma-elms/www/df.txt; ls -la /home/sigma-elms > /home/sigma-elms/www/ls.txt; rm -f /home/sigma-elms/sigma-gh-*.zip"
       - name: Upload release archive
         shell: bash
         run: |
