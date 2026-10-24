@@ -1914,6 +1914,16 @@
             border-color: #FFD000 !important;
             background: #fff !important;
         }
+        html body #ai-generator-modal :is(#ai-bloom-description, #ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
+        html body :is(#ai-switch-source-desc, #ai-confirm-generate-desc, #import-paste-helper) {
+            color:#000 !important;font-size:14px !important;line-height:1.55 !important;font-weight:400 !important;overflow-wrap:anywhere;
+        }
+        @media(max-width:639.98px) {
+            html body #ai-generator-modal :is(#ai-bloom-description, #ai-grounding-guidance, #ai-borrow-btn-sublabel, #ai-gen-file-meta, .sigma-question-upload-meta),
+            html body :is(#ai-switch-source-desc, #ai-confirm-generate-desc, #import-paste-helper) {
+                font-size:12px !important;line-height:1.5 !important;
+            }
+        }
         #ai-bloom-levels {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
         .ai-bloom-option {display:flex;align-items:center;gap:8px;min-width:0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:14px;cursor:pointer;}
         .ai-bloom-option:has(:checked) {border-color:#15803d;background:#f0fdf4;}
@@ -2295,7 +2305,7 @@
 
                         <div class="flex items-start sm:items-center gap-1.5 text-[9.5px] sm:text-[11px] text-black-fade leading-tight pt-1">
                             <i class="fa-solid fa-shield-halved text-[#15803d] shrink-0 mt-0.5 sm:mt-0"></i>
-                            <span style="color: #000000 !important;">Questions and answer keys are based on the selected material. Review them before publishing.</span>
+                            <span id="ai-grounding-guidance" style="color: #000000 !important;">Questions and answer keys are based on the selected material. Review them before publishing.</span>
                         </div>
                     </div>
 
