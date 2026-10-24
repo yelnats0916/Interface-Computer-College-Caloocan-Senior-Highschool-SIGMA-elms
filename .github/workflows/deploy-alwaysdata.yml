@@ -40,21 +40,7 @@ jobs:
         run: |
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          ssh "${opts[@]}" "$target" 'rm -f /home/sigma-elms/*.zip /home/sigma-elms/sigma-releases/*.zip'
-          ssh "${opts[@]}" "$target" python3 << 'EOF'
-import shutil
-from pathlib import Path
-home = Path("/home/sigma-elms")
-web = home / "www"
-active = web.resolve().parent if web.exists() else None
-releases_dir = home / "sigma-releases"
-if releases_dir.exists():
-    for r in releases_dir.iterdir():
-        if r.is_dir() and (active is None or r.resolve() != active.resolve()):
-            print("Pruned old release:", r.name)
-            shutil.rmtree(r, ignore_errors=True)
-EOF
-          ssh "${opts[@]}" "$target" "df -h /home/sigma-elms"
+          ssh "${opts[@]}" "$target" 'python3 -c '\''import shutil, pathlib; h = pathlib.Path("/home/sigma-elms"); w = h / "www"; a = w.resolve().parent if w.exists() else None; [z.unlink() for z in list(h.glob("*.zip")) + list((h / "sigma-releases").glob("*.zip")) if z.is_file()]; [shutil.rmtree(r, ignore_errors=True) for r in (h / "sigma-releases").iterdir() if r.is_dir() and (a is None or r.resolve() != a.resolve())]'\'' && df -h /home/sigma-elms'
       - name: Upload release archive
         shell: bash
         run: |
