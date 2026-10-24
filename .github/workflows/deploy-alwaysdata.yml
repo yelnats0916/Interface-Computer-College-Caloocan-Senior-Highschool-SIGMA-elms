@@ -42,6 +42,7 @@ jobs:
           archive="/home/sigma-elms/sigma-gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.zip"
           release="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          ssh "${opts[@]}" "$target" "rm -f /home/sigma-elms/sigma-gh-*.zip; df -h /home/sigma-elms" || true
           scp "${opts[@]}" release.zip "$target:$archive"
           scp "${opts[@]}" scripts/activate-hosting-release.py "$target:/home/sigma-elms/sigma-private/activate-hosting-release.py"
           ssh "${opts[@]}" "$target" "python3 /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release'"
