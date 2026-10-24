@@ -61,7 +61,11 @@ jobs:
           archive="/home/sigma-elms/sigma-gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.zip"
           release="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          ssh "${opts[@]}" "$target" "python3 -u /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release' 2>&1 | tee /home/sigma-elms/www/deploy-log.txt"
+          ssh "${opts[@]}" "$target" "python3 -u /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release' > /home/sigma-elms/activate_raw.log 2>&1" || {
+            status=$?
+            ssh "${opts[@]}" "$target" "echo '<pre>' > /home/sigma-elms/www/deploy_error.html; cat /home/sigma-elms/activate_raw.log >> /home/sigma-elms/www/deploy_error.html; echo '</pre>' >> /home/sigma-elms/www/deploy_error.html"
+            exit $status
+          }
       - name: Check public login
         run: curl --fail --silent --show-error --location --max-time 30 https://sigma-elms.alwaysdata.net/index.html --output /dev/null
       - name: Remove runner deployment key
