@@ -35,16 +35,32 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$ALWAYSDATA_SSH_KEY" > ~/.ssh/alwaysdata
           printf '%s\n' "$ALWAYSDATA_KNOWN_HOSTS" > ~/.ssh/known_hosts
-      - name: Upload and activate verified release
+      - name: Inspect remote hosting
+        shell: bash
+        run: |
+          target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
+          opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          ssh "${opts[@]}" "$target" "df -h /home/sigma-elms; ls -la /home/sigma-elms; rm -f /home/sigma-elms/sigma-gh-*.zip"
+      - name: Upload release archive
+        shell: bash
+        run: |
+          target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
+          archive="/home/sigma-elms/sigma-gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.zip"
+          opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          scp "${opts[@]}" release.zip "$target:$archive"
+      - name: Upload activation script
+        shell: bash
+        run: |
+          target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
+          opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          scp "${opts[@]}" scripts/activate-hosting-release.py "$target:/home/sigma-elms/sigma-private/activate-hosting-release.py"
+      - name: Activate release
         shell: bash
         run: |
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           archive="/home/sigma-elms/sigma-gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.zip"
           release="gh-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:12}"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
-          ssh "${opts[@]}" "$target" "rm -f /home/sigma-elms/sigma-gh-*.zip; df -h /home/sigma-elms" || true
-          scp "${opts[@]}" release.zip "$target:$archive"
-          scp "${opts[@]}" scripts/activate-hosting-release.py "$target:/home/sigma-elms/sigma-private/activate-hosting-release.py"
           ssh "${opts[@]}" "$target" "python3 /home/sigma-elms/sigma-private/activate-hosting-release.py --archive '$archive' --release '$release'"
       - name: Check public login
         run: curl --fail --silent --show-error --location --max-time 30 https://sigma-elms.alwaysdata.net/index.html --output /dev/null
