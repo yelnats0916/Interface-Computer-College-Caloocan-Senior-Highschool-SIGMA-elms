@@ -12,6 +12,50 @@
     // This hosting account has one PHP worker. Queue API requests instead of
     // letting startup modules compete for a worker and trigger HTTP 503s.
     let apiQueue = Promise.resolve();
+    const authPriorityKey = 'sigma-login-request-priority';
+    const yieldToLogin = Symbol('yield-to-login');
+    function loginPending() {
+        try {
+            const value = JSON.parse(localStorage.getItem(authPriorityKey) || '0');
+            return Number(value?.until || value) > Date.now();
+        } catch (_) { return false; }
+    }
+    async function waitForLogin(signal) {
+        while (loginPending()) {
+            signal?.throwIfAborted?.();
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    async function withWorker(input, options, authentication = false) {
+        const locks = window.navigator?.locks;
+        for (;;) {
+            if (!authentication) await waitForLogin(options.signal);
+            const send = () => {
+                options.signal?.throwIfAborted?.();
+                if (!authentication && loginPending()) return yieldToLogin;
+                return performFetchWithIdentity(input, options);
+            };
+            const result = locks && !options.keepalive
+                ? await locks.request('sigma-php-api-worker', options.signal ? { signal: options.signal } : {}, send)
+                : await send();
+            if (result !== yieldToLogin) return result;
+        }
+    }
+    async function fetchAuthentication(input, options) {
+        let lease = '';
+        const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+        const renew = () => {
+            lease = JSON.stringify({ requestId, until: Date.now() + 20000 });
+            try { localStorage.setItem(authPriorityKey, lease); } catch (_) {}
+        };
+        renew();
+        const timer = typeof setInterval === 'function' ? setInterval(renew, 5000) : null;
+        try { return await withWorker(input, options, true); }
+        finally {
+            if (timer !== null) clearInterval(timer);
+            try { if (localStorage.getItem(authPriorityKey) === lease) localStorage.removeItem(authPriorityKey); } catch (_) {}
+        }
+    }
     let disconnected = false;
     function connectionState(offline) {
         if (disconnected === offline) return;
@@ -61,24 +105,15 @@
     }
     function queueFetchWithIdentity(input, options = {}) {
         const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
-        if (options.foreground === true) {
-            const send = () => { options.signal?.throwIfAborted?.(); return performFetchWithIdentity(input, options); };
-            const locks = window.navigator?.locks;
-            return locks && !options.keepalive
-                ? locks.request('sigma-php-api-worker', options.signal ? { signal: options.signal } : {}, send)
-                : apiQueue.then(send);
+        // Existing background waiters release the worker to an interactive login.
+        // Do not bypass the server's single process with simultaneous PHP requests.
+        if (options.authentication === true && /\/(session|auth|grade_sync)\.php$/.test(target.pathname)) {
+            return fetchAuthentication(input, options);
         }
-        const next = apiQueue.then(() => {
-            const send = () => {
-                options.signal?.throwIfAborted?.();
-                return performFetchWithIdentity(input, options);
-            };
-            // Share the worker queue with other tabs of this site when supported.
-            const locks = window.navigator?.locks;
-            return locks && !options.keepalive
-                ? locks.request('sigma-php-api-worker', options.signal ? { signal: options.signal } : {}, send)
-                : send();
-        });
+        if (options.foreground === true) {
+            return withWorker(input, options);
+        }
+        const next = apiQueue.then(() => withWorker(input, options));
         apiQueue = next.catch(() => {});
         return next;
     }
@@ -89,7 +124,7 @@
         if (target.origin !== apiRoot.origin || !target.pathname.startsWith(apiRoot.pathname)) return nativeFetch(resource, options);
         // The network deadline begins after queue/lock acquisition, not while
         // waiting behind another request. Explicit caller cancellation is preserved.
-        const { timeoutMs = 15000, autoReconnect, foreground, ...fetchOptions } = options;
+        const { timeoutMs = 15000, autoReconnect, foreground, authentication, ...fetchOptions } = options;
         options = fetchOptions;
         if (!options.signal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
             options.signal = AbortSignal.timeout(timeoutMs);
@@ -142,14 +177,14 @@
         return result;
     }
     async function request(name, options = {}) {
-        const { data, query, signal, timeoutMs = 15000, autoReconnect = true } = options;
+        const { data, query, signal, timeoutMs = 15000, autoReconnect = true, foreground = false, authentication = false } = options;
         const target = new URL(url(name));
         if (query) Object.entries(query).forEach(([key, value]) => target.searchParams.set(key, value));
         const response = await fetchWithIdentity(target, {
             method: data === undefined ? 'GET' : 'POST',
             credentials: 'omit',
             cache: 'no-store',
-            signal, timeoutMs, autoReconnect,
+            signal, timeoutMs, autoReconnect, foreground, authentication,
             headers: { 'Content-Type': 'application/json' },
             ...(data === undefined ? {} : { body: JSON.stringify(data) })
         });

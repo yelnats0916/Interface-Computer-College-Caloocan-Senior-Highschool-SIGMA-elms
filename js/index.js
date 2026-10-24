@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Sync security & reCAPTCHA config from server
     const recaptchaApiUrl = resolveAuthApiUrl('action=recaptcha_config');
     const recaptchaConfigReady = recaptchaApiUrl
-        ? window.SigmaDatabase.fetch(recaptchaApiUrl)
+        ? window.SigmaDatabase.fetch(recaptchaApiUrl, { autoReconnect: false, timeoutMs: 5000, signal: AbortSignal.timeout(5000) })
             .then(res => res.json())
             .then(data => {
                 if (data && data.success && data.threshold) {
@@ -729,12 +729,12 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ===== ACTIONS & EVENTS ===== */
 
     async function handleLogin(rawId, rawPass, formType, options = {}) {
-        await recaptchaConfigReady;
+        if (submitGuardLocked) return;
+        submitGuardLocked = true;
+        setLoading(formType, true);
         const id = String(rawId || '').trim().slice(0, 64000);
         const pass = String(rawPass || '').slice(0, 64000);
         const { validatedCaptchaFlow = null } = options;
-        if (submitGuardLocked) return;
-        submitGuardLocked = true;
         clearErrors();
 
         // Step 1: Check if reCAPTCHA is required but not yet solved
@@ -778,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.removeItem('sigma-grade-sync-session');
             sessionStorage.removeItem('sigma-login-challenge');
             loginCandidate = null;
-            const result = await window.SigmaDatabase.request('session', { data: { action: 'credentials', login: id, password: pass, adminDeviceRestricted: window.SigmaAdminDeviceAccess?.restricted() === true } });
+            const result = await window.SigmaDatabase.request('session', { authentication: true, foreground: true, autoReconnect: false, timeoutMs: 15000, data: { action: 'credentials', login: id, password: pass, adminDeviceRestricted: window.SigmaAdminDeviceAccess?.restricted() === true } });
             matchedUser = result.user;
             if (/^(admin|administrator|masteradmin)$/.test(String(matchedUser?.role || '').replace(/[\s_-]/g, '').toLowerCase()) && window.SigmaAdminDeviceAccess?.restricted()) {
                 setLoading(formType, false);
@@ -806,8 +806,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
             } else {
                 // Connection failures must not be counted as bad credentials.
-                showError(formType === 'modal' ? ui.errors.modalGeneral : ui.errors.general,
-                    error.message || 'Sign-in failed. Please try again.');
+                if (!['TimeoutError', 'AbortError', 'TypeError'].includes(error.name) && !(error.status >= 500)) {
+                    showError(formType === 'modal' ? ui.errors.modalGeneral : ui.errors.general,
+                        error.message || 'Sign-in failed. Please try again.');
+                }
             }
             if (flow) {
                 resetRecaptcha(formType);
@@ -931,14 +933,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         async function finalizeLogin() {
             try {
-                const result = await window.SigmaDatabase.request('grade_sync', { data: { action: 'login', login: id, password: pass, otp: gradeSyncOtp } });
+                const result = await window.SigmaDatabase.request('grade_sync', { authentication: true, foreground: true, autoReconnect: false, timeoutMs: 15000, data: { action: 'login', login: id, password: pass, otp: gradeSyncOtp } });
                 sessionStorage.setItem('sigma-grade-sync-session', JSON.stringify({ token: result.token, userId: result.userId }));
                 sessionStorage.removeItem('sigma-grade-sync-error');
                 sessionStorage.removeItem('sigma-login-challenge');
             } catch (error) {
                 setLoading(formType, false);
-                showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
-                return { success: false, error: error.message || 'Sign-in failed. Please try again.' };
+                if (!['TimeoutError', 'AbortError', 'TypeError'].includes(error.name) && !(error.status >= 500)) {
+                    showError(formType === 'modal' ? ui.errors.modalPass : ui.errors.pass, error.message || 'Sign-in failed. Please try again.', false, formType === 'modal' ? ui.inputs.modalPass : ui.inputs.pass);
+                }
+                return { success: false, error: error.message || 'Sign-in failed. Please try again.', cause: error };
             }
             setLoading(formType, false);
             sessionStorage.setItem('sigma_session_start_ts', Date.now().toString());
@@ -999,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const authApiUrl = resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`);
         try {
             if (!authApiUrl) throw new Error('static-host');
-            const checkRes = await window.SigmaDatabase.fetch(authApiUrl);
+            const checkRes = await window.SigmaDatabase.fetch(authApiUrl, { authentication: true, foreground: true, autoReconnect: false, timeoutMs: 15000 });
             const checkData = await checkRes.json();
             if (checkData && checkData.success) {
                 backendHandled = true;
@@ -1366,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (input) input.classList.remove('input-error');
 
         try {
-            await window.SigmaDatabase.request('auth', { data: {
+            await window.SigmaDatabase.request('auth', { authentication: true, autoReconnect: false, data: {
                 action: 'verify_login_2fa', id: current2faUserId, code
             } });
             gradeSyncOtp = code;
@@ -1374,15 +1378,13 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof current2faSuccessCallback === 'function') {
                 if (label) label.textContent = 'Signing in...';
                 const outcome = await current2faSuccessCallback();
-                if (outcome?.success === false) throw new Error(outcome.error);
+                if (outcome?.success === false) throw outcome.cause || new Error(outcome.error);
                 redirecting = outcome?.redirecting === true;
             }
         } catch (error) {
-            const connectionFailure = ['AbortError', 'TimeoutError', 'TypeError'].includes(error.name);
-            if (err) {
-                err.textContent = connectionFailure
-                    ? 'The login server did not respond. Check your connection, then retry with a fresh authenticator code.'
-                    : (error.code === 'authentication_required'
+            const connectionFailure = ['AbortError', 'TimeoutError', 'TypeError'].includes(error.name) || error.status >= 500;
+            if (err && !connectionFailure) {
+                err.textContent = (error.code === 'authentication_required'
                         ? 'This sign-in attempt expired. Go back to Login and sign in again.'
                         : error.message || 'Verification could not be completed. Please retry.');
                 err.classList.remove('hidden');
