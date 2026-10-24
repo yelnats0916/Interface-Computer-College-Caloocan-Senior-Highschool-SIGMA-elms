@@ -490,6 +490,13 @@ window.escapeHtml = window.escapeHtml || function (value) {
     };
 })();
 
+window.hasTableSearchFilters = function (state) {
+    return ['query', 'name', 'id', 'code', 'subject', 'room', 'grade', 'role', 'status', 'type', 'category'].some(key => {
+        const value = String(state?.[key] || '').trim().toLowerCase();
+        return value && !/^all(?:\s|$)/.test(value);
+    });
+};
+
 window.getStoredJson = function (key, fallback) {
     if (key === 'sigma-admin-subjects' && window._sigmaSubjectStorageFallback) {
         const cached = window._sigmaSubjectStorageFallback;

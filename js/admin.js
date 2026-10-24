@@ -585,7 +585,7 @@ function renderUserAccountsTable() {
     tableBody.innerHTML = paginatedUsers.map((user, rowIdx) => {
         const rowStripe = rowIdx % 2 === 1 ? 'bg-slate-50/60' : '';
         const isThisUserMaster = String(user.uid || user.id || '').replace(/^#/, '').trim() === '0000000' || String(user.role || user.type || '').toLowerCase().includes('master');
-        const rowNumber = window.getRecordCreationNumber(user, getStoredJson(USER_STORAGE_KEY, []), 'users');
+        const rowNumber = window.hasTableSearchFilters(window.userAccountSearchState) ? startIndex + rowIdx + 1 : window.getRecordCreationNumber(user, getStoredJson(USER_STORAGE_KEY, []), 'users');
         const fullName = user.fullName || `${user.firstName || ''} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName || ''}`.trim() || 'N/A';
         const initials = getUserInitials(fullName);
         const photo = resolveUserAvatar(user, rowIdx);
@@ -16998,7 +16998,7 @@ function renderSectionsTable() {
     tableBody.innerHTML = paginatedSections.map((sec, idx) => {
         const isInactive = (sec.status || 'Active').toLowerCase() === 'inactive';
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
-        const rowNumber = window.getRecordCreationNumber(sec, getStoredJson(SECTIONS_STORAGE_KEY, []), 'sections');
+        const rowNumber = window.hasTableSearchFilters(window.sectionSearchState) ? startIndex + idx + 1 : window.getRecordCreationNumber(sec, getStoredJson(SECTIONS_STORAGE_KEY, []), 'sections');
         const strandBadge = sec.strand ? `<span class="inline-block text-[11px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-['Inter']">${escapeHtml(sec.strand)}</span>` : '';
 
         // Format Teacher(s) cell
@@ -17352,7 +17352,7 @@ function renderSubjectsTable() {
         return `
             <tr class="transition-colors ${rowStripe} hover:bg-emerald-50/20">
                 <td class="px-4 py-4 text-center">
-                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${window.getRecordCreationNumber(sub, getStoredJson(SUBJECTS_STORAGE_KEY, []), 'subjects')}</div>
+                    <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${window.hasTableSearchFilters(window.subjectSearchState) ? startIndex + idx + 1 : window.getRecordCreationNumber(sub, getStoredJson(SUBJECTS_STORAGE_KEY, []), 'subjects')}</div>
                 </td>
                 <td class="px-4 py-4 text-center">
                     <div class="text-[14px] font-normal text-black text-center tracking-wide font-['Inter']">${escapeHtml(sub.code)}</div>
