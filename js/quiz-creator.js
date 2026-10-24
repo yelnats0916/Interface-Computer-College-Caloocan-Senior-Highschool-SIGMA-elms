@@ -2931,26 +2931,27 @@ window.getRealCourseMaterials = function () {
         return String(str || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    function extractFilePanelName(mat, category, title) {
-        let fn = mat.fileName || mat.file || mat.fileNameDisplay || mat.fileUrl || mat.attachment || mat.handoutFileName || mat.attachmentName || '';
-        if (typeof fn === 'string' && fn.trim()) {
-            const clean = fn.split('?')[0].split('#')[0].split('/').pop().split('\\').pop().trim();
-            if (clean && clean.includes('.')) return clean;
-            if (clean) fn = clean;
-        }
-        const safeTitle = (title || 'Material').replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '-');
-        if (category === 'video') {
-            return `${safeTitle}.mp4`;
-        } else {
-            const fmt = String(mat.format || mat.fileType || mat.type || '').toLowerCase();
-            if (fmt.includes('ppt')) return `${safeTitle}.pptx`;
-            if (fmt.includes('doc')) return `${safeTitle}.docx`;
-            return `${safeTitle}-Handout.pdf`;
-        }
+    function uploadedSource(mat) {
+        if (!mat || typeof mat !== 'object' || mat.deletedAt || mat.isDeleted) return null;
+        const attachments = [...(Array.isArray(mat.files) ? mat.files : []), ...(Array.isArray(mat.attachments) ? mat.attachments : [])];
+        const candidates = [mat.fileUrl, mat.url, mat.handoutUrl, mat.attachmentUrl, mat.videoUrl, ...attachments.flatMap(file => typeof file === 'string' ? [file] : [file?.url, file?.fileUrl])];
+        const url = candidates.find(value => {
+            if (typeof value !== 'string' || !value.trim() || /^(?:blob:|data:|javascript:|#)/i.test(value.trim())) return false;
+            try {
+                const parsed = new URL(value.trim(), location.href);
+                return /^https?:$/.test(parsed.protocol) && /\.(?:pdf|docx?|pptx?|txt|md|csv|mp4|webm|mov)$/i.test(parsed.pathname);
+            } catch (_) { return false; }
+        });
+        return url ? {...mat, fileUrl:url.trim()} : null;
+    }
+
+    function extractFilePanelName(mat) {
+        const path = new URL(mat.fileUrl, location.href).pathname;
+        return mat.fileName || mat.fileNameDisplay || decodeURIComponent(path.split('/').pop());
     }
 
     function addEntry(entry) {
-        if (!entry || !entry.id || !entry.title) return;
+        if (!entry || !entry.id || !entry.title || !uploadedSource(entry.sourceMaterial)) return;
 
         // Deduplication key based on normalized subject and material panel name
         const dedupKey = `${normalizeKey(entry.cleanSubjectName)}:::${normalizeKey(entry.title)}`;
@@ -2984,7 +2985,7 @@ window.getRealCourseMaterials = function () {
         }
 
         // 2. Fetch from local storage keys
-        primaryKeys.forEach(storageKey => {
+        if (!Array.isArray(window._dbCourseSubjects)) primaryKeys.forEach(storageKey => {
             const raw = localStorage.getItem(storageKey);
             if (!raw) return;
             try {
@@ -2999,15 +3000,6 @@ window.getRealCourseMaterials = function () {
                 }
             } catch (e) {}
         });
-
-        if (window.DATA && Array.isArray(window.DATA.subjects)) {
-            window.DATA.subjects.forEach(s => {
-                if (s) {
-                    s._sourceStorageKey = 'window_data';
-                    allSubjects.push(s);
-                }
-            });
-        }
 
         allSubjects.forEach(subj => {
             if (!subj) return;
@@ -3031,7 +3023,7 @@ window.getRealCourseMaterials = function () {
 
             try {
                 const customMats = JSON.parse(localStorage.getItem(`sigma_custom_materials_${subj.id}`) || localStorage.getItem(`sigma_custom_materials_${subjCode}`) || '[]');
-                if (Array.isArray(customMats)) {
+                if (!Array.isArray(window._dbCourseSubjects) && Array.isArray(customMats)) {
                     customMats.forEach(cm => { if (cm) rawMaterialList.push(cm); });
                 }
             } catch (e) {}
@@ -3055,7 +3047,8 @@ window.getRealCourseMaterials = function () {
                 });
             }
 
-            rawMaterialList.forEach((mat, mIdx) => {
+            rawMaterialList.forEach((originalMaterial, mIdx) => {
+                const mat = uploadedSource(originalMaterial);
                 if (!mat || (typeof window.isFakeSampleMaterial === 'function' && window.isFakeSampleMaterial(mat))) return;
                 const matTitle = String(mat.title || mat.fileName || mat.name || '').replace(/\.(pdf|docx|pptx|ppt|xlsx|txt|mp4)$/i, '').trim();
                 if (!matTitle) return;
@@ -3142,10 +3135,11 @@ window.getRealCourseMaterials = function () {
         // Additional standalone released videos
         try {
             const rawVideos = localStorage.getItem('sigma_released_videos');
-            if (rawVideos) {
+            if (rawVideos && !Array.isArray(window._dbCourseSubjects)) {
                 const videos = JSON.parse(rawVideos);
                 if (Array.isArray(videos)) {
                     videos.forEach((v, vIdx) => {
+                        v = uploadedSource(v);
                         if (!v) return;
                         const vTitle = String(v.title || 'Course Lecture Video').replace(/\.(mp4|mov|avi)$/i, '').trim();
                         const vSubj = String(v.subject || 'Senior High Lectures').replace(/\s*\([^\)]*\)/g, '').trim();
@@ -3156,6 +3150,7 @@ window.getRealCourseMaterials = function () {
 
                         addEntry({
                             id: vId,
+                            sourceMaterial: v,
                             subject: `${vSubj} (${v.gradeLevel || 'Grade 11'} - ${v.strand || 'TVL - ICT'})`,
                             cleanSubjectName: vSubj,
                             gradeLevel: v.gradeLevel || 'Grade 11',
