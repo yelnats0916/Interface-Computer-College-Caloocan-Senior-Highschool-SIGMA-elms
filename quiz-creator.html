@@ -1794,6 +1794,19 @@
                 border-radius: 8px !important;
             }
         }
+        /* Use the shared desktop action size in the material picker. */
+        @media (min-width: 1024px) {
+            #ai-generator-borrow-view #ai-material-search-btn,
+            #ai-generator-borrow-view #ai-borrow-done-btn {
+                height: 46px !important;
+                min-height: 46px !important;
+                padding: 0 24px !important;
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                border-radius: 12px !important;
+                flex-shrink: 0 !important;
+            }
+        }
         @media (min-width: 1024px) {
             body:not(:has(.sigma-modal-overlay:not(.hidden))) {
                 overflow: visible !important;
@@ -2384,7 +2397,7 @@
                     <div id="ai-borrow-selected-count-label" class="text-xs sm:text-sm font-semibold text-black-fade">
                         0 materials selected
                     </div>
-                    <button type="button" onclick="event.stopPropagation(); window.backToAIGeneratorMain(event);"
+                    <button type="button" id="ai-borrow-done-btn" onclick="event.stopPropagation(); window.backToAIGeneratorMain(event);"
                         class="sigma-btn sigma-btn-primary h-9 sm:h-10 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-bold !shadow-none hover:bg-[#166534] active:scale-95 transition-all cursor-pointer" style="box-shadow: none !important;">
                         <span>Done</span>
                     </button>
