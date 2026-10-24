@@ -2,7 +2,8 @@
 require_once __DIR__.'/quiz_ai_generation.php';
 require_once __DIR__.'/ai_generation_id.php';
 function quizAiJobDirectory(): string {
-    $directory=rtrim(sys_get_temp_dir(),'/\\').'/sigma-quiz-jobs-'.substr(hash('sha256',get_current_user().':sigma-elms'),0,16);
+    $identity=function_exists('posix_geteuid')?(string)posix_geteuid():(getenv('USERNAME')?:'sigma');
+    $directory=rtrim(sys_get_temp_dir(),'/\\').'/sigma-quiz-jobs-'.substr(hash('sha256',$identity.':sigma-elms'),0,16);
     if(!is_dir($directory)&&!mkdir($directory,0700,true)&&!is_dir($directory))throw new RuntimeException('Generation storage is unavailable.');
     return $directory;
 }
