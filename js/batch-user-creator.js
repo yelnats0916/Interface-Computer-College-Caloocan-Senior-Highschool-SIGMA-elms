@@ -18,7 +18,8 @@
     let batchUploadedFileObj = null;
     let batchUploadedFileExt = '';
     let batchRoleFilter = 'All';
-    let batchCurrentPage = 1;
+    let batchCurrentPage = 1;
+    let batchItemsPerPage = 5;
     let batchSavePending = false;
     let nextRowUid = 1;
 
@@ -1341,1157 +1342,1172 @@
         }
     }
 
-    function getRoleSectionMeta(role) {
-        if (role === 'Admin') {
-            return {
-                title: '1. Admin Accounts',
-                badgeClass: 'bg-emerald-100 text-[#15803d] border-emerald-200',
-                icon: 'fa-solid fa-user-shield text-[#15803d]'
-            };
-        }
-        if (role === 'Teacher') {
-            return {
-                title: '2. Teacher Accounts',
-                badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
-                icon: 'fa-solid fa-chalkboard-user text-blue-700'
-            };
-        }
-        if (role === 'Student') {
-            return {
-                title: '3. Student Accounts',
-                badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-                icon: 'fa-solid fa-graduation-cap text-amber-700'
-            };
-        }
-        return {
-            title: 'Unassigned Role (Select Role Required)',
-            badgeClass: 'bg-rose-100 text-rose-700 border-rose-200',
-            icon: 'fa-solid fa-circle-exclamation text-rose-600'
-        };
-    }
-
-    function isEntryComplete(entry) {
-        return Boolean(
-            VALID_ROLES.includes(entry.role) &&
-            entry.firstName.trim() &&
-            entry.middleName.trim() &&
-            entry.lastName.trim() &&
-            VALID_GENDERS.includes(entry.gender) &&
-            entry.emailPrefix.trim()
-        );
-    }
-
-    function getFilteredPaginationState(items) {
-        const counts = {
-            All: items.length,
-            Admin: items.filter(e => e.role === 'Admin').length,
-            Teacher: items.filter(e => e.role === 'Teacher').length,
-            Student: items.filter(e => e.role === 'Student').length,
-            Unassigned: items.filter(e => !VALID_ROLES.includes(e.role)).length
-        };
-
-        if (batchRoleFilter !== 'All') {
-            const countForFilter = batchRoleFilter === '' ? counts.Unassigned : (counts[batchRoleFilter] || 0);
-            if (countForFilter === 0) {
-                batchRoleFilter = 'All';
-            }
-        }
-
-        const filtered = batchRoleFilter === 'All'
-            ? items.slice()
-            : items.filter(e => (VALID_ROLES.includes(e.role) ? e.role : '') === batchRoleFilter);
-
-        const totalPages = Math.max(1, filtered.length);
-        if (batchCurrentPage > totalPages) batchCurrentPage = totalPages;
-        if (batchCurrentPage < 1) batchCurrentPage = 1;
-
-        const currentItem = filtered[batchCurrentPage - 1] || null;
-        return { counts, filtered, totalPages, currentPage: batchCurrentPage, currentItem };
-    }
-
-    function buildRolePillsAndPaginationHtml(items, stepNum) {
-        const state = getFilteredPaginationState(items);
-        const { counts, filtered, totalPages, currentPage } = state;
-        const incompleteCount = stepNum === 1 ? batchEntries.filter(e => !isEntryComplete(e)).length : 0;
-
-        const pills = [
-            { key: 'All', label: 'All Roles', count: counts.All, icon: 'fa-solid fa-layer-group' },
-            { key: 'Admin', label: 'Admin', count: counts.Admin, icon: 'fa-solid fa-user-shield' },
-            { key: 'Teacher', label: 'Teacher', count: counts.Teacher, icon: 'fa-solid fa-chalkboard-user' },
-            { key: 'Student', label: 'Student', count: counts.Student, icon: 'fa-solid fa-graduation-cap' }
-        ];
-        if (stepNum === 1 && counts.Unassigned > 0) {
-            pills.push({ key: '', label: 'Unassigned', count: counts.Unassigned, icon: 'fa-solid fa-circle-exclamation' });
-        }
-
-        const pillsHtml = pills.map(p => {
-            const isActive = batchRoleFilter === p.key;
-            const disabled = p.key !== 'All' && p.count === 0;
-            const btnCls = isActive
-                ? 'bg-[#15803d] text-white border-[#15803d] shadow-2xs'
-                : (disabled
-                    ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
-                    : 'bg-white hover:bg-slate-100 text-black border-slate-200 cursor-pointer');
-            const badgeCls = isActive
-                ? 'bg-white/20 text-white'
-                : 'bg-slate-100 text-slate-700';
-
-            return `
-                <button type="button" ${disabled ? 'disabled' : `onclick="window.setBatchRoleFilter('${p.key}')"`}
-                    class="h-8.5 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all font-['Inter'] ${btnCls}">
-                    <i class="${p.icon} text-[11px]"></i>
-                    <span>${escapeHtml(p.label)}</span>
-                    <span class="px-1.5 py-0.5 rounded-md text-[11px] font-extrabold leading-none ${badgeCls}">${p.count}</span>
-                </button>
-            `;
-        }).join('');
-
-        // Numbered pagination buttons
-        let pageButtonsHtml = '';
-        for (let p = 1; p <= totalPages; p++) {
-            const itemAtPage = filtered[p - 1];
-            const isCurrent = p === currentPage;
-            const hasErr = stepNum === 1 && itemAtPage && Object.keys(itemAtPage._errors || {}).length > 0;
-            const isIncomplete = stepNum === 1 && itemAtPage && !isEntryComplete(itemAtPage);
-
-            let dotHtml = '';
-            if (stepNum === 1 && itemAtPage) {
-                if (hasErr) {
-                    dotHtml = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" title="Attention Required"></span>`;
-                } else if (isIncomplete) {
-                    dotHtml = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Blank Fields"></span>`;
-                }
-            }
-
-            const pCls = isCurrent
-                ? 'bg-[#15803d] text-white border-[#15803d] shadow-2xs'
-                : 'bg-white hover:bg-slate-100 text-black border-slate-200 cursor-pointer';
-
-            pageButtonsHtml += `
-                <button type="button" onclick="window.setBatchPage(${p})"
-                    class="min-w-[32px] h-8 px-2 rounded-lg border text-xs font-bold inline-flex items-center justify-center gap-1 transition-all font-['Inter'] ${pCls}">
-                    <span>${p}</span>
-                    ${dotHtml}
-                </button>
-            `;
-        }
-
-        const prevDisabled = currentPage <= 1;
-        const nextDisabled = currentPage >= totalPages;
-
-        return `
-            <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 font-['Inter']">
-                <!-- Left: Role Pills + Completion Status -->
-                <div class="flex flex-wrap items-center gap-2">
-                    ${pillsHtml}
-                    ${stepNum === 1 ? (incompleteCount > 0 ? `
-                        <span id="batch-summary-completion-pill" class="px-2.5 py-1 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-1.5">
-                            <i class="fa-solid fa-circle-exclamation"></i>
-                            <span>${incompleteCount} Incomplete (Fill Blank Fields)</span>
-                        </span>
-                    ` : `
-                        <span id="batch-summary-completion-pill" class="px-2.5 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-[#15803d] text-xs font-bold flex items-center gap-1.5">
-                            <i class="fa-solid fa-circle-check"></i>
-                            <span>All Fields Complete</span>
-                        </span>
-                    `) : ''}
-                </div>
-
-                <!-- Right: Numbered Pagination + Add Row -->
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" ${prevDisabled ? 'disabled' : `onclick="window.setBatchPage(${currentPage - 1})"`}
-                        class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-black text-xs font-bold flex items-center justify-center transition-all ${prevDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}"
-                        title="Previous Account">
-                        <i class="fa-solid fa-chevron-left text-[10px]"></i>
-                    </button>
-                    <div class="flex flex-wrap items-center gap-1">
-                        ${pageButtonsHtml}
-                    </div>
-                    <button type="button" ${nextDisabled ? 'disabled' : `onclick="window.setBatchPage(${currentPage + 1})"`}
-                        class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-black text-xs font-bold flex items-center justify-center transition-all ${nextDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}"
-                        title="Next Account">
-                        <i class="fa-solid fa-chevron-right text-[10px]"></i>
-                    </button>
-                    ${stepNum === 1 ? `
-                        <button type="button" onclick="window.addBatchUserEmptyRow()"
-                            class="sigma-btn sigma-btn-white h-8 px-3 rounded-lg gap-1.5 text-xs font-semibold cursor-pointer ml-1">
-                            <i class="fa-solid fa-plus text-[#15803d]"></i>
-                            <span>Add Row</span>
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    window.setBatchRoleFilter = function (role) {
-        batchRoleFilter = role;
-        batchCurrentPage = 1;
-        if (batchStep === 1) renderBatchStep1Review();
-        else if (batchStep === 2) renderBatchStep2Credentials();
-        else if (batchStep === 3) renderBatchStep3SendCredentials();
-    };
-
-    window.setBatchPage = function (pageNum) {
-        batchCurrentPage = Number(pageNum) || 1;
-        if (batchStep === 1) renderBatchStep1Review();
-        else if (batchStep === 2) renderBatchStep2Credentials();
-        else if (batchStep === 3) renderBatchStep3SendCredentials();
-    };
-
-    function renderBatchStep1Review() {
-        const container = document.getElementById('batch-user-review-container');
-        const summaryBar = document.getElementById('batch-user-summary-bar');
-        const dropZone = document.getElementById('batch-user-dropzone');
-        const fileBadge = document.getElementById('batch-uploaded-file-badge');
-        const fileBadgeName = document.getElementById('batch-uploaded-file-name');
-        const viewUploadedBtn = document.getElementById('batch-view-uploaded-doc-btn');
-        if (!container) return;
-
-        // Collapse big dropzone once accounts are imported so there is zero scrolling
-        if (dropZone) {
-            dropZone.classList.toggle('hidden', batchEntries.length > 0 && Boolean(batchUploadedFileName));
-        }
-
-        if (fileBadge && fileBadgeName) {
-            if (batchUploadedFileName) {
-                fileBadgeName.textContent = batchUploadedFileName;
-                fileBadge.classList.remove('hidden');
-                if (viewUploadedBtn) {
-                    const canViewInBuiltInViewer = Boolean(
-                        batchUploadedFileObj && ['docx', 'doc', 'pdf'].includes(batchUploadedFileExt)
-                    );
-                    viewUploadedBtn.classList.toggle('hidden', !canViewInBuiltInViewer);
-                }
-            } else {
-                fileBadge.classList.add('hidden');
-                if (viewUploadedBtn) viewUploadedBtn.classList.add('hidden');
-            }
-        }
-
-        if (!batchEntries.length) {
-            if (dropZone) dropZone.classList.remove('hidden');
-            if (summaryBar) summaryBar.classList.add('hidden');
-            container.innerHTML = '';
-            updateBatchStepHeaderUI();
-            return;
-        }
-
-        const state = getFilteredPaginationState(batchEntries);
-        const { filtered, totalPages, currentPage, currentItem } = state;
-
-        if (summaryBar) {
-            summaryBar.classList.remove('hidden');
-            summaryBar.innerHTML = buildRolePillsAndPaginationHtml(batchEntries, 1);
-        }
-
-        if (!currentItem) {
-            container.innerHTML = '';
-            updateBatchStepHeaderUI();
-            return;
-        }
-
-        const activeBranch = getActiveBranchName();
-        const roleKey = VALID_ROLES.includes(currentItem.role) ? currentItem.role : '';
-        const meta = getRoleSectionMeta(roleKey);
-        const complete = isEntryComplete(currentItem);
-        const err = currentItem._errors || {};
-        const borderClass = Object.keys(err).length > 0
-            ? 'border-rose-400 bg-rose-50/10'
-            : (complete ? 'border-slate-200 bg-white' : 'border-amber-300 bg-white');
-
-        container.innerHTML = `
-            <div class="space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <div class="flex items-center gap-2.5">
-                        <i class="${meta.icon} text-sm"></i>
-                        <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
-                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
-                            Account ${currentPage} of ${totalPages}
-                        </span>
-                    </div>
-                </div>
-
-                <div id="batch-entry-card-${currentItem._uid}" class="rounded-2xl border-2 ${borderClass} p-5 sm:p-6 space-y-4 shadow-2xs transition-all">
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
-                                ${currentPage}
-                            </span>
-                            <span id="batch-card-title-${currentItem._uid}" class="text-sm font-bold text-black font-['Inter']">
-                                ${escapeHtml([currentItem.firstName, currentItem.middleName, currentItem.lastName].filter(Boolean).join(' ') || 'New User Account')}
-                            </span>
-                            <span data-status-badge="${currentItem._uid}" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${complete ? 'bg-emerald-100 text-[#15803d]' : 'bg-amber-100 text-amber-800'}">
-                                ${complete ? 'Ready for Creation' : 'Blank Fields Required'}
-                            </span>
-                        </div>
-                        <button type="button" onclick="window.removeBatchUserRow(${currentItem._uid})"
-                            class="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-trash-can"></i>
-                            <span>Remove</span>
-                        </button>
-                    </div>
-
-                    <!-- Row 1: School Branch & Institutional Role -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">School Branch</label>
-                            <div class="relative">
-                                <select disabled class="sigma-subject-select w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3 text-sm font-medium text-slate-500 outline-none appearance-none cursor-not-allowed font-['Inter'] shadow-none">
-                                    <option value="${escapeHtml(activeBranch)}">${escapeHtml(activeBranch)}</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Institutional Role <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <select id="batch-role-${currentItem._uid}"
-                                    onchange="window.updateBatchEntryField(${currentItem._uid}, 'role', this.value, true)"
-                                    class="sigma-subject-select w-full bg-slate-50 border-b-2 ${err.role || !currentItem.role ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
-                                    <option value="" ${!currentItem.role ? 'selected' : ''}>Select Role</option>
-                                    <option value="Admin" ${currentItem.role === 'Admin' ? 'selected' : ''}>Admin</option>
-                                    <option value="Teacher" ${currentItem.role === 'Teacher' ? 'selected' : ''}>Teacher</option>
-                                    <option value="Student" ${currentItem.role === 'Student' ? 'selected' : ''}>Student</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Firstname, Middlename, Lastname -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Firstname <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" id="batch-fname-${currentItem._uid}" maxlength="40"
-                                placeholder="Enter first name"
-                                value="${escapeHtml(currentItem.firstName)}"
-                                oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${currentItem._uid}, 'firstName', this.value, false)"
-                                class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.firstName || !currentItem.firstName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Middlename <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" id="batch-mname-${currentItem._uid}" maxlength="40"
-                                placeholder="Enter middle name"
-                                value="${escapeHtml(currentItem.middleName)}"
-                                oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${currentItem._uid}, 'middleName', this.value, false)"
-                                class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.middleName || !currentItem.middleName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Lastname <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" id="batch-lname-${currentItem._uid}" maxlength="40"
-                                placeholder="Enter last name"
-                                value="${escapeHtml(currentItem.lastName)}"
-                                oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\\s]/g, '').replace(/(?:^|\\s)\\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${currentItem._uid}, 'lastName', this.value, false)"
-                                class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.lastName || !currentItem.lastName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
-                        </div>
-                    </div>
-
-                    <!-- Row 3: Gender & Gmail -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Gender <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <select id="batch-gender-${currentItem._uid}"
-                                    onchange="window.updateBatchEntryField(${currentItem._uid}, 'gender', this.value, false)"
-                                    class="sigma-subject-select w-full bg-slate-50 border-b-2 ${err.gender || !currentItem.gender ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
-                                    <option value="" ${!currentItem.gender ? 'selected' : ''}>Select Gender</option>
-                                    <option value="Male" ${currentItem.gender === 'Male' ? 'selected' : ''}>Male</option>
-                                    <option value="Female" ${currentItem.gender === 'Female' ? 'selected' : ''}>Female</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
-                                Gmail <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative flex items-center">
-                                <input type="text" id="batch-email-${currentItem._uid}" maxlength="64"
-                                    placeholder="gmail username"
-                                    value="${escapeHtml(currentItem.emailPrefix)}"
-                                    oninput="this.value = this.value.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase(); window.updateBatchEntryField(${currentItem._uid}, 'emailPrefix', this.value, false)"
-                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.emailPrefix || !currentItem.emailPrefix ? 'border-rose-500' : 'border-slate-300'} rounded-none pl-4 pr-28 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
-                                <span class="absolute right-4 text-xs font-bold text-black pointer-events-none select-none">@gmail.com</span>
-                            </div>
-                        </div>
-                    </div>
-                    ${err.message ? `
-                        <div class="text-xs font-semibold text-rose-600 flex items-center gap-1.5 pt-1">
-                            <i class="fa-solid fa-circle-exclamation"></i>
-                            <span>${escapeHtml(err.message)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-        updateBatchStepHeaderUI();
-    }
-
-    function renderBatchStep2Credentials() {
-        const container = document.getElementById('batch-user-step2-container');
-        if (!container) return;
-
-        const state = getFilteredPaginationState(batchEntries);
-        const { totalPages, currentPage, currentItem } = state;
-        const barHtml = buildRolePillsAndPaginationHtml(batchEntries, 2);
-
-        if (!currentItem) {
-            container.innerHTML = barHtml;
-            updateBatchStepHeaderUI();
-            return;
-        }
-
-        const meta = getRoleSectionMeta(currentItem.role);
-        const fullName = [currentItem.firstName, currentItem.middleName, currentItem.lastName].filter(Boolean).join(' ');
-        const fullEmail = `${currentItem.emailPrefix}@gmail.com`;
-
-        container.innerHTML = `
-            ${barHtml}
-            <div class="space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <div class="flex items-center gap-2.5">
-                        <i class="${meta.icon} text-sm"></i>
-                        <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
-                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
-                            Account ${currentPage} of ${totalPages}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl border border-slate-200 bg-white p-6 space-y-5 shadow-2xs">
-                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
-                                ${currentPage}
-                            </span>
-                            <div>
-                                <h4 class="text-sm font-bold text-black font-['Inter']">${escapeHtml(fullName)}</h4>
-                                <p class="text-xs text-slate-500">${escapeHtml(currentItem.role)} • ${escapeHtml(currentItem.gender)} • ${escapeHtml(currentItem.branch)}</p>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-[#15803d] border border-emerald-200">
-                            ID: ${escapeHtml(currentItem.previewId || 'Pending')}
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">ID Number</label>
-                            <input type="text" value="${escapeHtml(currentItem.previewId)}" readonly disabled
-                                class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3.5 text-sm font-bold text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">Gmail <span class="text-red-500">*</span></label>
-                            <input type="text" value="${escapeHtml(fullEmail)}" readonly disabled
-                                class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3.5 text-sm font-medium text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
-                        </div>
-                    </div>
-
-                    <!-- Green Account Preview (Matching Create User Account Step 2) -->
-                    <div class="pt-1">
-                        <span class="sigma-label mb-2 block">Account Preview</span>
-                        <div class="max-w-xl rounded-[20px] bg-[#15803d] border border-green-700/40 p-5 space-y-3.5 shadow-md">
-                            <div class="flex items-center justify-between gap-6">
-                                <span class="text-xs font-bold uppercase tracking-wider text-green-100">Login ID</span>
-                                <span class="text-base font-bold text-white tracking-tight">${escapeHtml(currentItem.previewId)}</span>
-                            </div>
-                            <div class="h-px bg-white/30"></div>
-                            <div class="flex items-center justify-between gap-6">
-                                <span class="text-xs font-bold uppercase tracking-wider text-green-100">Password</span>
-                                <span class="text-base font-bold text-white tracking-tight font-mono">${escapeHtml(currentItem.previewPassword)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        updateBatchStepHeaderUI();
-    }
-
-    function renderBatchStep3SendCredentials() {
-        const container = document.getElementById('batch-user-step3-container');
-        if (!container) return;
-
-        const state = getFilteredPaginationState(batchCreatedAccounts);
-        const { totalPages, currentPage, currentItem } = state;
-        const barHtml = buildRolePillsAndPaginationHtml(batchCreatedAccounts, 3);
-
-        if (!currentItem) {
-            container.innerHTML = barHtml;
-            updateBatchStepHeaderUI();
-            return;
-        }
-
-        const meta = getRoleSectionMeta(currentItem.role);
-        const globalIdx = batchCreatedAccounts.indexOf(currentItem);
-
-        container.innerHTML = `
-            <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-xl bg-[#15803d] text-white flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-bold text-black">${batchCreatedAccounts.length} User ${batchCreatedAccounts.length === 1 ? 'Account' : 'Accounts'} Created Successfully</p>
-                        <p class="text-xs text-slate-600">Organized by Role (Admin → Teacher → Student). Use the role pills or page numbers below to view and send credentials.</p>
-                    </div>
-                </div>
-            </div>
-
-            ${barHtml}
-
-            <div class="space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <div class="flex items-center gap-2.5">
-                        <i class="${meta.icon} text-sm"></i>
-                        <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
-                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
-                            Account ${currentPage} of ${totalPages}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="max-w-xl mx-auto space-y-3 pt-1">
-                    <div class="relative overflow-hidden rounded-[24px] bg-[#15803d] p-6 border-2 border-white/20 shadow-none">
-                        <div class="absolute top-0 right-0 p-4 opacity-10">
-                            <i class="fa-solid fa-shield-halved text-7xl"></i>
-                        </div>
-                        <div class="relative z-10 space-y-4">
-                            <div class="flex items-center gap-3 border-b border-white/20 pb-4">
-                                <img src="image/ICC logo.jpg" alt="ICC Logo"
-                                    class="w-10 h-10 rounded-full border-2 border-white/30 bg-white object-contain">
-                                <div class="min-w-0">
-                                    <p class="text-[10px] font-medium uppercase tracking-widest text-white/70">
-                                        Institutional Credentials • ${escapeHtml(currentItem.role)}
-                                    </p>
-                                    <h4 class="text-base font-bold text-white truncate">${escapeHtml(currentItem.fullName)}</h4>
-                                    <p class="text-xs text-white/80 truncate">${escapeHtml(currentItem.email)}</p>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="space-y-1">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-white/60 block">Login ID</span>
-                                    <div class="text-xl font-bold text-white tracking-tight">${escapeHtml(currentItem.id)}</div>
-                                </div>
-                                <div class="space-y-1">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-white/60 block">Password</span>
-                                    <div class="text-base font-bold text-white/95 font-mono tracking-wider break-all">${escapeHtml(currentItem.password)}</div>
-                                </div>
-                            </div>
-
-                            <div class="pt-3 border-t border-white/10 flex items-center justify-between">
-                                <p class="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Confidential Information</p>
-                                <i class="fa-solid fa-qrcode text-white/30 text-lg"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="button" onclick="window.sendBatchUserCredentialViaGmail(${globalIdx})"
-                        class="sigma-btn sigma-btn-secondary sigma-btn-md w-full !rounded-2xl gap-2.5 text-black font-semibold cursor-pointer">
-                        <i class="fa-solid fa-envelope text-red-500"></i>
-                        <span class="text-black font-semibold">Send via Gmail (${escapeHtml(currentItem.email)})</span>
-                    </button>
-                </div>
-            </div>
-        `;
-        updateBatchStepHeaderUI();
-    }
-
-    // ─── INTERACTION HANDLERS ───
-
-    window.updateBatchEntryField = function (uid, field, rawValue, shouldReRender = false) {
-        const entry = batchEntries.find(e => e._uid === uid);
-        if (!entry) return;
-
-        if (field === 'role') entry.role = normalizeRoleValue(rawValue);
-        else if (field === 'gender') entry.gender = normalizeGenderValue(rawValue);
-        else if (field === 'emailPrefix') entry.emailPrefix = normalizeEmailPrefix(rawValue);
-        else if (field === 'firstName') entry.firstName = formatPersonName(rawValue);
-        else if (field === 'middleName') entry.middleName = formatPersonName(rawValue);
-        else if (field === 'lastName') entry.lastName = formatPersonName(rawValue);
-
-        if (entry._errors) {
-            delete entry._errors[field];
-            delete entry._errors.message;
-        }
-
-        if (shouldReRender) {
-            batchEntries = sortBatchEntriesByRole(batchEntries);
-            if (batchRoleFilter !== 'All' && batchRoleFilter !== entry.role) {
-                batchRoleFilter = 'All';
-            }
-            const state = getFilteredPaginationState(batchEntries);
-            const newIdx = state.filtered.findIndex(e => e._uid === uid);
-            if (newIdx >= 0) batchCurrentPage = newIdx + 1;
-            renderBatchStep1Review();
-            return;
-        }
-
-        // Update card border, title, badge & summary bar in place without losing input focus
-        const inputIds = {
-            role: `batch-role-${uid}`,
-            firstName: `batch-fname-${uid}`,
-            middleName: `batch-mname-${uid}`,
-            lastName: `batch-lname-${uid}`,
-            gender: `batch-gender-${uid}`,
-            emailPrefix: `batch-email-${uid}`
-        };
-        const inputEl = document.getElementById(inputIds[field]);
-        if (inputEl) {
-            const hasVal = Boolean(entry[field] && String(entry[field]).trim());
-            inputEl.classList.toggle('border-rose-500', !hasVal);
-            inputEl.classList.toggle('border-slate-300', hasVal);
-        }
-
-        const titleEl = document.getElementById(`batch-card-title-${uid}`);
-        if (titleEl) {
-            titleEl.textContent = [entry.firstName, entry.middleName, entry.lastName].filter(Boolean).join(' ') || 'New User Account';
-        }
-
-        const badge = document.querySelector(`[data-status-badge="${uid}"]`);
-        const complete = isEntryComplete(entry);
-        if (badge) {
-            badge.className = `text-[11px] font-bold px-2.5 py-0.5 rounded-full ${complete ? 'bg-emerald-100 text-[#15803d]' : 'bg-amber-100 text-amber-800'}`;
-            badge.textContent = complete ? 'Ready for Creation' : 'Blank Fields Required';
-        }
-        const card = document.getElementById(`batch-entry-card-${uid}`);
-        if (card) {
-            card.classList.toggle('border-slate-200', complete);
-            card.classList.toggle('border-amber-300', !complete);
-            card.classList.remove('border-rose-400', 'bg-rose-50/10');
-        }
-        const summaryBar = document.getElementById('batch-user-summary-bar');
-        if (summaryBar && batchEntries.length > 0) {
-            summaryBar.innerHTML = buildRolePillsAndPaginationHtml(batchEntries, 1);
-        }
-    };
-
-    window.organizeBatchEntriesByRole = function () {
-        batchEntries = sortBatchEntriesByRole(batchEntries);
-        batchCurrentPage = 1;
-        renderBatchStep1Review();
-    };
-
-    window.addBatchUserEmptyRow = function () {
-        const defaultRole = VALID_ROLES.includes(batchRoleFilter) ? batchRoleFilter : '';
-        const newEntry = createBlankEntry({ branch: getActiveBranchName(), role: defaultRole });
-        batchEntries.push(newEntry);
-        if (batchRoleFilter !== 'All' && batchRoleFilter !== defaultRole) {
-            batchRoleFilter = 'All';
-        }
-        const state = getFilteredPaginationState(batchEntries);
-        const idx = state.filtered.findIndex(e => e._uid === newEntry._uid);
-        batchCurrentPage = idx >= 0 ? idx + 1 : state.totalPages;
-        renderBatchStep1Review();
-    };
-
-    window.removeBatchUserRow = function (uid) {
-        batchEntries = batchEntries.filter(e => e._uid !== uid);
-        renderBatchStep1Review();
-    };
-
-    window.handleBatchFileInputChange = async function (input) {
-        const file = input?.files?.[0];
-        if (!file) return;
-        await processBatchUploadedFile(file);
-        input.value = '';
-    };
-
-    async function processBatchUploadedFile(file) {
-        const fileName = String(file.name || '').trim();
-        const ext = (fileName.split('.').pop() || '').toLowerCase();
-        const allowed = new Set(['xlsx', 'xls', 'csv', 'docx', 'doc', 'pdf']);
-
-        if (!allowed.has(ext)) {
-            showNoticeDialog('Unsupported File Format', 'Please upload a PDF (.pdf), Word Document (.docx, .doc), or Excel / CSV (.xlsx, .xls, .csv) file.', true);
-            return;
-        }
-
-        const uploadLabel = document.getElementById('batch-upload-status-label');
-        if (uploadLabel) {
-            uploadLabel.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[#15803d] mr-1.5"></i> Reading ${escapeHtml(fileName)}...`;
-        }
-
-        try {
-            let parsedEntries = [];
-            if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-                parsedEntries = await parseExcelOrCsvFile(file, ext);
-            } else if (ext === 'docx' || ext === 'doc') {
-                parsedEntries = await parseWordFile(file, ext);
-            } else if (ext === 'pdf') {
-                parsedEntries = await parsePdfFile(file);
-            }
-
-            if (!parsedEntries.length) {
-                showNoticeDialog(
-                    'No User Records Found',
-                    `Could not find readable user rows in "${fileName}". Make sure the file contains user names or columns (Institutional Role, Firstname, Middlename, Lastname, Gender, Gmail).`,
-                    true
-                );
-                return;
-            }
-
-            const branch = getActiveBranchName();
-            parsedEntries.forEach((entry, idx) => {
-                entry.branch = branch;
-                entry._seq = idx + 1;
-            });
-
-            batchUploadedFileName = fileName;
-            batchUploadedFileObj = file;
-            batchUploadedFileExt = ext;
-            if (window._sigmaUploadedFiles instanceof Map) {
-                window._sigmaUploadedFiles.set(fileName, file);
-                window._sigmaUploadedFiles.set(fileName.toLowerCase(), file);
-            }
-            if (typeof window.sigmaStoreDocument === 'function') {
-                window.sigmaStoreDocument(fileName, file, { name: fileName, type: ext }).catch(() => {});
-            }
-            batchEntries = sortBatchEntriesByRole(parsedEntries);
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-            renderBatchStep1Review();
-        } catch (err) {
-            console.error('Batch file parse error:', err);
-            showNoticeDialog('Import Error', err?.message || `Could not read "${fileName}". Please check the file and try again.`, true);
-        } finally {
-            if (uploadLabel) {
-                uploadLabel.textContent = 'Attach User Accounts File';
-            }
-        }
-    }
-
-    function validateAllBatchEntries() {
-        if (!batchEntries.length) {
-            showNoticeDialog('No Accounts to Create', 'Please upload a file or add at least one user account first.', true);
-            return false;
-        }
-
-        const existingUsers = getExistingUsers();
-        const normalizeStr = s => String(s || '').trim().toLowerCase();
-        const seenNamesInBatch = new Set();
-        const seenEmailsInBatch = new Set();
-
-        let firstErrorUid = null;
-        let firstErrorIndex = 0;
-        let firstErrorMessage = '';
-
-        for (let i = 0; i < batchEntries.length; i++) {
-            const entry = batchEntries[i];
-            entry._errors = {};
-
-            if (!VALID_ROLES.includes(entry.role)) entry._errors.role = true;
-            if (!entry.firstName.trim()) entry._errors.firstName = true;
-            if (!entry.middleName.trim()) entry._errors.middleName = true;
-            if (!entry.lastName.trim()) entry._errors.lastName = true;
-            if (!VALID_GENDERS.includes(entry.gender)) entry._errors.gender = true;
-            if (!entry.emailPrefix.trim()) entry._errors.emailPrefix = true;
-
-            if (Object.keys(entry._errors).length > 0) {
-                entry._errors.message = 'All fields (Role, Firstname, Middlename, Lastname, Gender, and Gmail) are required.';
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = `Account #${i + 1}: Please fill in all blank required fields (Institutional Role, Firstname, Middlename, Lastname, Gender, and Gmail).`;
-                }
-                continue;
-            }
-
-            // Duplicate check against existing system users (Same Name + Gender + Role)
-            const fullDisplayName = `${entry.firstName} ${entry.middleName} ${entry.lastName}`.trim();
-            const dupSystemUser = existingUsers.find(u => {
-                const uFname = normalizeStr(u.firstName || u.fname);
-                const uMname = normalizeStr(u.middleName || u.mname || u.middlename);
-                const uLname = normalizeStr(u.lastName || u.lname);
-                const uGender = normalizeStr(u.gender);
-                const uRole = normalizeRoleValue(u.role || u.type);
-                return uFname === normalizeStr(entry.firstName) &&
-                    uMname === normalizeStr(entry.middleName) &&
-                    uLname === normalizeStr(entry.lastName) &&
-                    uGender === normalizeStr(entry.gender) &&
-                    uRole === entry.role;
-            });
-
-            if (dupSystemUser) {
-                const dupId = dupSystemUser.id || dupSystemUser.uid || 'N/A';
-                entry._errors.firstName = true;
-                entry._errors.lastName = true;
-                entry._errors.message = `An active ${entry.role} account for "${fullDisplayName}" (${entry.gender}) already exists with Login ID: ${dupId}.`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-
-            // Duplicate check within the batch itself (Same Name + Gender + Role)
-            const batchNameKey = [
-                normalizeStr(entry.firstName),
-                normalizeStr(entry.middleName),
-                normalizeStr(entry.lastName),
-                normalizeStr(entry.gender),
-                entry.role
-            ].join('|');
-
-            if (seenNamesInBatch.has(batchNameKey)) {
-                entry._errors.firstName = true;
-                entry._errors.lastName = true;
-                entry._errors.message = `Duplicate entry in batch for "${fullDisplayName}" (${entry.role}).`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-            seenNamesInBatch.add(batchNameKey);
-
-            // Email duplicate check against existing system users and within batch
-            const fullEmail = `${entry.emailPrefix.toLowerCase()}@gmail.com`;
-            const dupEmailUser = existingUsers.find(u => {
-                const uEmail = normalizeStr(u.email);
-                const uPrefix = uEmail.split('@')[0];
-                return uEmail === fullEmail || uPrefix === normalizeStr(entry.emailPrefix);
-            });
-            const isMasterAdminDup = entry.emailPrefix.toLowerCase() === 'stanley' || fullEmail === 'stanley@gmail.com';
-
-            if (dupEmailUser || isMasterAdminDup) {
-                const ownerName = dupEmailUser
-                    ? (dupEmailUser.fullName || `${dupEmailUser.firstName || ''} ${dupEmailUser.lastName || ''}`.trim())
-                    : 'Master Admin';
-                entry._errors.emailPrefix = true;
-                entry._errors.message = `Gmail "${fullEmail}" is already in use by ${ownerName}.`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-
-            if (seenEmailsInBatch.has(fullEmail)) {
-                entry._errors.emailPrefix = true;
-                entry._errors.message = `Gmail "${fullEmail}" is used more than once in this batch.`;
-                if (!firstErrorUid) {
-                    firstErrorUid = entry._uid;
-                    firstErrorIndex = i;
-                    firstErrorMessage = entry._errors.message;
-                }
-                continue;
-            }
-            seenEmailsInBatch.add(fullEmail);
-        }
-
-        if (firstErrorUid !== null) {
-            batchRoleFilter = 'All';
-            batchCurrentPage = firstErrorIndex + 1;
-            renderBatchStep1Review();
-            showNoticeDialog('Review Required', firstErrorMessage, true);
-            return false;
-        }
-
-        return true;
-    }
-
-    async function allocatePreviewIdsByRole() {
-        const branch = getActiveBranchName();
-        const branchCode = getBranchCodeForName(branch);
-        batchEntries = sortBatchEntriesByRole(batchEntries);
-
-        for (const role of ['Admin', 'Teacher', 'Student']) {
-            const roleItems = batchEntries.filter(e => e.role === role);
-            if (!roleItems.length) continue;
-
-            let startId = '';
-            try {
-                const res = await window.SigmaDatabase.request('users', {
-                    query: { action: 'next_id', role, branchCode }
-                });
-                startId = String(res?.id || '');
-            } catch (_) {
-                startId = '';
-            }
-
-            const prefix = startId.length >= 6 ? startId.slice(0, 6) : '';
-            const startSeq = startId.length > 6 ? parseInt(startId.slice(6), 10) : 1;
-
-            roleItems.forEach((entry, idx) => {
-                const seqNum = (Number.isFinite(startSeq) ? startSeq : 1) + idx;
-                const generatedId = prefix ? `${prefix}${seqNum}` : `Pending-${idx + 1}`;
-                entry.previewId = generatedId;
-                entry.previewPassword = buildPasswordPreview(entry.lastName, generatedId);
-            });
-        }
-    }
-
-    window.handleBatchUserStepNext = async function () {
-        if (batchStep !== 1) return;
-        if (!validateAllBatchEntries()) return;
-
-        const nextBtn = document.getElementById('batch-user-next-btn');
-        if (nextBtn) {
-            nextBtn.disabled = true;
-            nextBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i><span>Generating IDs...</span>`;
-        }
-
-        try {
-            await allocatePreviewIdsByRole();
-            batchStep = 2;
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-            renderBatchStep2Credentials();
-            const bodyEl = document.getElementById('batch-user-form-body');
-            if (bodyEl) bodyEl.scrollTop = 0;
-        } catch (err) {
-            showNoticeDialog('ID Generation Error', err?.message || 'Could not generate preview IDs. Please try again.', true);
-        } finally {
-            if (nextBtn) {
-                nextBtn.disabled = false;
-                nextBtn.innerHTML = `<span>Next</span>`;
-            }
-        }
-    };
-
-    window.handleBatchUserStepBack = function () {
-        if (batchStep === 2) {
-            batchStep = 1;
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-            renderBatchStep1Review();
-            const bodyEl = document.getElementById('batch-user-form-body');
-            if (bodyEl) bodyEl.scrollTop = 0;
-        }
-    };
-
-    window.handleBatchUserSave = async function () {
-        if (batchSavePending || batchStep !== 2) return;
-        if (!validateAllBatchEntries()) {
-            batchStep = 1;
-            renderBatchStep1Review();
-            return;
-        }
-
-        const saveBtn = document.getElementById('batch-user-save-btn');
-        const saveLabel = document.getElementById('batch-user-save-label');
-        const saveSpinner = document.getElementById('batch-user-save-loading');
-
-        batchSavePending = true;
-        if (saveBtn) saveBtn.disabled = true;
-        if (saveSpinner) saveSpinner.classList.remove('hidden');
-
-        try {
-            // Organize strictly by role: 1. Admin, 2. Teacher, 3. Student
-            batchEntries = sortBatchEntriesByRole(batchEntries);
-
-            const defaultsRes = await window.SigmaDatabase.request('users', {
-                query: { action: 'permission_defaults' }
-            });
-            const roleDefaultPerms = defaultsRes?.roles || {};
-
-            const branch = getActiveBranchName();
-            const branchCode = getBranchCodeForName(branch);
-            const createdList = [];
-
-            for (let i = 0; i < batchEntries.length; i++) {
-                const entry = batchEntries[i];
-                if (saveLabel) {
-                    saveLabel.textContent = `Creating ${i + 1} of ${batchEntries.length}...`;
-                }
-
-                const fullName = [entry.firstName, entry.middleName, entry.lastName].filter(Boolean).join(' ');
-                const fullEmail = `${entry.emailPrefix.toLowerCase()}@gmail.com`;
-                const defaultPerms = roleDefaultPerms[entry.role] || {};
-
-                const accountPayload = {
-                    firstName: entry.firstName,
-                    middleName: entry.middleName,
-                    lastName: entry.lastName,
-                    fullName: fullName,
-                    gender: entry.gender,
-                    branch: branch,
-                    email: fullEmail,
-                    role: entry.role,
-                    type: entry.role.toUpperCase(),
-                    status: 'Active',
-                    permissions: defaultPerms,
-                    createdAt: new Date().toISOString(),
-                    createdVia: 'admin-panel'
-                };
-
-                const saved = await window.SigmaDatabase.request('users', {
-                    data: {
-                        action: 'create',
-                        branchCode,
-                        passwordAutoGenerated: true,
-                        user: accountPayload
-                    }
-                });
-
-                const canonical = saved?.record;
-                if (!canonical?.id) {
-                    throw new Error(`The server did not confirm the saved account for ${fullName}.`);
-                }
-
-                const generatedPassword = buildPasswordPreview(entry.lastName, canonical.id);
-                const latestUsers = getExistingUsers();
-                const savedIndex = latestUsers.findIndex(u => String(u.id || u.uid) === String(canonical.id));
-                if (savedIndex < 0) latestUsers.unshift(canonical);
-                else latestUsers[savedIndex] = canonical;
-
-                localStorage.setItem('sigma-managed-users', JSON.stringify(latestUsers));
-                localStorage.setItem('sigma-users-list', JSON.stringify(latestUsers));
-                window.commitUserSeq?.(entry.role);
-
-                createdList.push({
-                    id: canonical.id,
-                    uid: canonical.id,
-                    firstName: canonical.firstName || entry.firstName,
-                    middleName: canonical.middleName || entry.middleName,
-                    lastName: canonical.lastName || entry.lastName,
-                    fullName: canonical.fullName || fullName,
-                    gender: canonical.gender || entry.gender,
-                    role: canonical.role || entry.role,
-                    email: canonical.email || fullEmail,
-                    branch: canonical.branch || branch,
-                    password: generatedPassword
-                });
-            }
-
-            batchCreatedAccounts = createdList;
-            if (typeof window.renderUserAccountsTable === 'function') {
-                window.renderUserAccountsTable();
-            }
-
-            batchStep = 3;
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-            renderBatchStep3SendCredentials();
-            const bodyEl = document.getElementById('batch-user-form-body');
-            if (bodyEl) bodyEl.scrollTop = 0;
-        } catch (err) {
-            console.error('Batch user creation error:', err);
-            showNoticeDialog('Batch Creation Error', err?.message || 'An error occurred while creating accounts.', true);
-        } finally {
-            batchSavePending = false;
-            if (saveBtn) saveBtn.disabled = false;
-            if (saveSpinner) saveSpinner.classList.add('hidden');
-            if (saveLabel) saveLabel.textContent = 'Create Accounts';
-        }
-    };
-
-    window.sendBatchUserCredentialViaGmail = function (idx) {
-        const acc = batchCreatedAccounts[idx];
-        if (!acc) return;
-        const subject = encodeURIComponent('Your SIGMA ELMS Login Credentials');
-        const body = encodeURIComponent(
-            `Hello ${acc.firstName},\n\nYour ${acc.role} account has been created successfully.\n\nLogin ID: ${acc.id}\nPassword: ${acc.password}\n\nYou can log in at the portal using either your ID or Gmail address.\n\nBest regards,\nInterface Computer College`
-        );
-        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(acc.email)}&su=${subject}&body=${body}`;
-        window.open(gmailUrl, '_blank');
-    };
-
-    window.resetBatchUserModal = function () {
-        batchStep = 1;
-        batchEntries = [];
-        batchCreatedAccounts = [];
-        batchUploadedFileName = '';
-        batchUploadedFileObj = null;
-        batchUploadedFileExt = '';
-        batchRoleFilter = 'All';
-        batchCurrentPage = 1;
-        renderBatchStep1Review();
-        const bodyEl = document.getElementById('batch-user-form-body');
-        if (bodyEl) bodyEl.scrollTop = 0;
-    };
-
-    window.finishBatchUserCreation = function () {
-        const count = batchCreatedAccounts.length;
-        const firstCreated = batchCreatedAccounts[0];
-        window.toggleBatchUserOverlay(false);
-        if (typeof window.renderUserAccountsTable === 'function') {
-            window.renderUserAccountsTable();
-        }
-        if (count > 0 && typeof window.showCreationBar === 'function') {
-            window.showCreationBar({
-                type: 'user',
-                label: count === 1 ? 'Created Account' : `Batch Created ${count} Accounts`,
-                primaryLabel: count === 1 ? 'Full Name' : 'Accounts Created',
-                primaryValue: count === 1 ? firstCreated.fullName : `${count} Users (Organized by Role)`,
-                secondaryLabel: count === 1 ? 'Login ID' : 'First Login ID',
-                secondaryValue: firstCreated?.id || '-',
-                status: 'published'
-            });
-        }
-    };
-
-    window.toggleBatchUserOverlay = function (show) {
-        const overlay = document.getElementById('batch-user-overlay');
-        if (!overlay) return;
-
-        if (show) {
-            overlay.classList.remove('hidden');
-            overlay.style.removeProperty('display');
-            if (typeof window.pushModalHistoryState === 'function') {
-                window.pushModalHistoryState('batch-user-overlay');
-            }
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.overflow = 'hidden';
-
-            batchStep = 1;
-            batchEntries = [];
-            batchCreatedAccounts = [];
-            batchUploadedFileName = '';
-            batchUploadedFileObj = null;
-            batchUploadedFileExt = '';
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-
-            if (typeof window.populateUserSchoolBranchSelect === 'function') {
-                window.populateUserSchoolBranchSelect('');
-            }
-            const branchDisplay = document.getElementById('batch-user-school-branch');
-            if (branchDisplay) {
-                const branchName = getActiveBranchName();
-                branchDisplay.innerHTML = `<option value="${escapeHtml(branchName)}">${escapeHtml(branchName)}</option>`;
-            }
-
-            renderBatchStep1Review();
-            overlay.scrollTop = 0;
-            const bodyEl = document.getElementById('batch-user-form-body');
-            if (bodyEl) bodyEl.scrollTop = 0;
-        } else {
-            overlay.classList.add('hidden');
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
-            batchStep = 1;
-            batchEntries = [];
-            batchCreatedAccounts = [];
-            batchUploadedFileName = '';
-            batchUploadedFileObj = null;
-            batchUploadedFileExt = '';
-            batchRoleFilter = 'All';
-            batchCurrentPage = 1;
-        }
-    };
-
+    function getRoleSectionMeta(role) {
+        if (role === 'Admin') {
+            return {
+                title: '1. Admin Accounts',
+                badgeClass: 'bg-emerald-100 text-[#15803d] border-emerald-200',
+                icon: 'fa-solid fa-user-shield text-[#15803d]'
+            };
+        }
+        if (role === 'Teacher') {
+            return {
+                title: '2. Teacher Accounts',
+                badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
+                icon: 'fa-solid fa-chalkboard-user text-blue-700'
+            };
+        }
+        if (role === 'Student') {
+            return {
+                title: '3. Student Accounts',
+                badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+                icon: 'fa-solid fa-graduation-cap text-amber-700'
+            };
+        }
+        return {
+            title: 'Unassigned Role (Select Role Required)',
+            badgeClass: 'bg-rose-100 text-rose-700 border-rose-200',
+            icon: 'fa-solid fa-circle-exclamation text-rose-600'
+        };
+    }
+
+    function isEntryComplete(entry) {
+        return Boolean(
+            VALID_ROLES.includes(entry.role) &&
+            entry.firstName.trim() &&
+            entry.middleName.trim() &&
+            entry.lastName.trim() &&
+            VALID_GENDERS.includes(entry.gender) &&
+            entry.emailPrefix.trim()
+        );
+    }
+
+    function getFilteredPaginationState(items) {
+        const counts = {
+            All: items.length,
+            Admin: items.filter(e => e.role === 'Admin').length,
+            Teacher: items.filter(e => e.role === 'Teacher').length,
+            Student: items.filter(e => e.role === 'Student').length,
+            Unassigned: items.filter(e => !VALID_ROLES.includes(e.role)).length
+        };
+
+        if (batchRoleFilter !== 'All') {
+            const countForFilter = batchRoleFilter === '' ? counts.Unassigned : (counts[batchRoleFilter] || 0);
+            if (countForFilter === 0) {
+                batchRoleFilter = 'All';
+            }
+        }
+
+        const filtered = batchRoleFilter === 'All'
+            ? items.slice()
+            : items.filter(e => (VALID_ROLES.includes(e.role) ? e.role : '') === batchRoleFilter);
+
+        const size = Math.max(1, Number(batchItemsPerPage) || 5);
+        const totalItems = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / size));
+        if (batchCurrentPage > totalPages) batchCurrentPage = totalPages;
+        if (batchCurrentPage < 1) batchCurrentPage = 1;
+
+        const startIdx = (batchCurrentPage - 1) * size;
+        const endIdx = Math.min(startIdx + size, totalItems);
+        const pageItems = filtered.slice(startIdx, endIdx);
+
+        return {
+            counts,
+            filtered,
+            totalItems,
+            totalPages,
+            currentPage: batchCurrentPage,
+            itemsPerPage: size,
+            startIdx,
+            endIdx,
+            pageItems
+        };
+    }
+
+    function buildRolePillsAndPaginationHtml(items, stepNum) {
+        const state = getFilteredPaginationState(items);
+        const { counts, totalItems, totalPages, currentPage, itemsPerPage, startIdx, endIdx } = state;
+
+        const GROUP_SIZE = 10;
+        const groupStart = Math.floor((currentPage - 1) / GROUP_SIZE) * GROUP_SIZE + 1;
+        const groupEnd = Math.min(totalPages, groupStart + GROUP_SIZE - 1);
+        const hasPrevGroup = groupStart > 1;
+        const hasNextGroup = groupEnd < totalPages;
+        const prevGroupPage = Math.max(1, groupStart - GROUP_SIZE);
+        const nextGroupPage = Math.min(totalPages, groupStart + GROUP_SIZE);
+
+        const navBtn = (label, targetPage, icon, disabled) => `
+            <button type="button" ${disabled ? 'disabled' : `onclick="window.setBatchPage(${targetPage})"`}
+                class="sigma-pagination-btn sigma-pagination-btn--nav ${disabled ? 'is-disabled' : ''}"
+                aria-label="${label}" title="${label}">
+                <i class="fa-solid ${icon}" aria-hidden="true"></i>
+            </button>
+        `;
+
+        let numberBtnsHtml = '';
+        for (let p = groupStart; p <= groupEnd; p++) {
+            const isActive = p === currentPage;
+            numberBtnsHtml += `
+                <button type="button" onclick="window.setBatchPage(${p})"
+                    class="sigma-pagination-btn sigma-pagination-btn--number ${isActive ? 'is-active' : ''}"
+                    aria-label="Page ${p}" title="Page ${p}" ${isActive ? 'aria-current="page"' : ''}>${p}</button>
+            `;
+        }
+
+        const rangeText = totalItems > 0 ? `${startIdx + 1}-${endIdx} of ${totalItems}` : '0-0 of 0';
+
+        return `
+            <div class="sigma-admin-table-pagination flex flex-wrap items-center justify-between gap-4 py-2 font-['Inter']">
+                <!-- Left: Standard Table Pagination Controls -->
+                <div class="sigma-pagination-container sigma-group-pagination" role="group" aria-label="Pages ${groupStart} to ${groupEnd} of ${totalPages}">
+                    ${navBtn('First page', 1, 'fa-angles-left', currentPage === 1)}
+                    ${navBtn('Previous 10 pages', prevGroupPage, 'fa-chevron-left', !hasPrevGroup && currentPage === 1 ? true : currentPage === 1)}
+                    <div class="sigma-pagination-numbers">
+                        ${numberBtnsHtml}
+                    </div>
+                    ${navBtn('Next 10 pages', nextGroupPage, 'fa-chevron-right', !hasNextGroup && currentPage === totalPages ? true : currentPage === totalPages)}
+                    ${navBtn('Last page', totalPages, 'fa-angles-right', currentPage === totalPages)}
+                </div>
+
+                <!-- Right: Role Dropdown + Add Row + Rows per page + Range -->
+                <div class="sigma-pagination-settings flex flex-wrap items-center justify-end gap-3 ml-auto">
+                    <div class="w-[175px] relative">
+                        <div class="sigma-select-wrapper">
+                            <select aria-label="Filter batch accounts by role"
+                                onchange="window.setBatchRoleFilter(this.value)"
+                                class="sigma-select !h-[34px] !py-1 !pl-3 !pr-8 !text-xs font-semibold">
+                                <option value="All" ${batchRoleFilter === 'All' ? 'selected' : ''}>All Roles (${counts.All})</option>
+                                <option value="Admin" ${batchRoleFilter === 'Admin' ? 'selected' : ''}>Admin (${counts.Admin})</option>
+                                <option value="Teacher" ${batchRoleFilter === 'Teacher' ? 'selected' : ''}>Teacher (${counts.Teacher})</option>
+                                <option value="Student" ${batchRoleFilter === 'Student' ? 'selected' : ''}>Student (${counts.Student})</option>
+                                ${stepNum === 1 && counts.Unassigned > 0 ? `<option value="" ${batchRoleFilter === '' ? 'selected' : ''}>Unassigned (${counts.Unassigned})</option>` : ''}
+                            </select>
+                            <i class="fa-solid fa-chevron-down sigma-select-icon"></i>
+                        </div>
+                    </div>
+
+                    ${stepNum === 1 ? `
+                        <button type="button" onclick="window.addBatchUserEmptyRow()"
+                            class="sigma-btn sigma-btn-white !h-[34px] px-3 rounded-lg gap-1.5 text-xs font-semibold cursor-pointer">
+                            <i class="fa-solid fa-plus text-[#15803d]"></i>
+                            <span>Add Row</span>
+                        </button>
+                    ` : ''}
+
+                    <label class="sigma-page-size">
+                        <span>Rows per page:</span>
+                        <div class="sigma-select-wrapper">
+                            <select aria-label="Rows per page" onchange="window.setBatchPageSize(this.value)">
+                                ${[5, 10, 20].map(v => `<option value="${v}" ${itemsPerPage === v ? 'selected' : ''}>${v}</option>`).join('')}
+                            </select>
+                            <i class="fa-solid fa-chevron-down sigma-select-icon" aria-hidden="true"></i>
+                        </div>
+                    </label>
+
+                    <span class="sigma-table-list-count">${rangeText}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    window.setBatchRoleFilter = function (role) {
+        batchRoleFilter = role;
+        batchCurrentPage = 1;
+        if (batchStep === 1) renderBatchStep1Review();
+        else if (batchStep === 2) renderBatchStep2Credentials();
+        else if (batchStep === 3) renderBatchStep3SendCredentials();
+    };
+
+    window.setBatchPage = function (pageNum) {
+        batchCurrentPage = Number(pageNum) || 1;
+        if (batchStep === 1) renderBatchStep1Review();
+        else if (batchStep === 2) renderBatchStep2Credentials();
+        else if (batchStep === 3) renderBatchStep3SendCredentials();
+    };
+
+    window.setBatchPageSize = function (size) {
+        const parsed = Number(size);
+        if ([5, 10, 20].includes(parsed)) {
+            batchItemsPerPage = parsed;
+            batchCurrentPage = 1;
+            if (batchStep === 1) renderBatchStep1Review();
+            else if (batchStep === 2) renderBatchStep2Credentials();
+            else if (batchStep === 3) renderBatchStep3SendCredentials();
+        }
+    };
+
+    function renderBatchStep1Review() {
+        const container = document.getElementById('batch-user-review-container');
+        const summaryBar = document.getElementById('batch-user-summary-bar');
+        const dropZone = document.getElementById('batch-user-dropzone');
+        const templateGroup = document.getElementById('batch-template-buttons-group');
+        const fileBadge = document.getElementById('batch-uploaded-file-badge');
+        const fileBadgeName = document.getElementById('batch-uploaded-file-name');
+        const viewUploadedBtn = document.getElementById('batch-view-uploaded-doc-btn');
+        if (!container) return;
+
+        const hasUploaded = batchEntries.length > 0 && Boolean(batchUploadedFileName);
+
+        // Collapse big dropzone and hide template buttons once a file is uploaded
+        if (dropZone) {
+            dropZone.classList.toggle('hidden', hasUploaded);
+        }
+        if (templateGroup) {
+            templateGroup.classList.toggle('hidden', hasUploaded);
+        }
+
+        if (fileBadge && fileBadgeName) {
+            if (batchUploadedFileName) {
+                fileBadgeName.textContent = batchUploadedFileName;
+                fileBadge.classList.remove('hidden');
+                if (viewUploadedBtn) {
+                    const canViewInBuiltInViewer = Boolean(
+                        batchUploadedFileObj && ['docx', 'doc', 'pdf'].includes(batchUploadedFileExt)
+                    );
+                    viewUploadedBtn.classList.toggle('hidden', !canViewInBuiltInViewer);
+                }
+            } else {
+                fileBadge.classList.add('hidden');
+                if (viewUploadedBtn) viewUploadedBtn.classList.add('hidden');
+            }
+        }
+
+        if (!batchEntries.length) {
+            if (dropZone) dropZone.classList.remove('hidden');
+            if (templateGroup) templateGroup.classList.remove('hidden');
+            if (summaryBar) summaryBar.classList.add('hidden');
+            container.innerHTML = '';
+            updateBatchStepHeaderUI();
+            return;
+        }
+
+        const state = getFilteredPaginationState(batchEntries);
+        const { totalItems, startIdx, pageItems } = state;
+
+        if (summaryBar) {
+            summaryBar.classList.remove('hidden');
+            summaryBar.innerHTML = buildRolePillsAndPaginationHtml(batchEntries, 1);
+        }
+
+        if (!pageItems.length) {
+            container.innerHTML = '';
+            updateBatchStepHeaderUI();
+            return;
+        }
+
+        const activeBranch = getActiveBranchName();
+        let html = '';
+
+        pageItems.forEach((item, idxOnPage) => {
+            const accountNumber = startIdx + idxOnPage + 1;
+            const roleKey = VALID_ROLES.includes(item.role) ? item.role : '';
+            const meta = getRoleSectionMeta(roleKey);
+            const complete = isEntryComplete(item);
+            const err = item._errors || {};
+            const borderClass = Object.keys(err).length > 0
+                ? 'border-rose-400 bg-rose-50/10'
+                : (complete ? 'border-slate-200 bg-white' : 'border-amber-300 bg-white');
+
+            html += `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div class="flex items-center gap-2.5">
+                            <i class="${meta.icon} text-sm"></i>
+                            <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
+                                Account ${accountNumber} of ${totalItems}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="batch-entry-card-${item._uid}" class="rounded-2xl border-2 ${borderClass} p-5 sm:p-6 space-y-4 shadow-2xs transition-all">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
+                                    ${accountNumber}
+                                </span>
+                                <span id="batch-card-title-${item._uid}" class="text-sm font-bold text-black font-['Inter']">
+                                    ${escapeHtml([item.firstName, item.middleName, item.lastName].filter(Boolean).join(' ') || 'New User Account')}
+                                </span>
+                            </div>
+                            <button type="button" onclick="window.removeBatchUserRow(${item._uid})"
+                                class="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-trash-can"></i>
+                                <span>Remove</span>
+                            </button>
+                        </div>
+
+                        <!-- Row 1: School Branch & Institutional Role -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">School Branch</label>
+                                <div class="relative">
+                                    <select disabled class="sigma-subject-select w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3 text-sm font-medium text-slate-500 outline-none appearance-none cursor-not-allowed font-['Inter'] shadow-none">
+                                        <option value="${escapeHtml(activeBranch)}">${escapeHtml(activeBranch)}</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Institutional Role <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <select id="batch-role-${item._uid}"
+                                        onchange="window.updateBatchEntryField(${item._uid}, 'role', this.value, true)"
+                                        class="sigma-subject-select w-full bg-slate-50 border-b-2 ${err.role || !item.role ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
+                                        <option value="" ${!item.role ? 'selected' : ''}>Select Role</option>
+                                        <option value="Admin" ${item.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                                        <option value="Teacher" ${item.role === 'Teacher' ? 'selected' : ''}>Teacher</option>
+                                        <option value="Student" ${item.role === 'Student' ? 'selected' : ''}>Student</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Firstname, Middlename, Lastname -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Firstname <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" id="batch-fname-${item._uid}" maxlength="40"
+                                    placeholder="Enter first name"
+                                    value="${escapeHtml(item.firstName)}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\s]/g, '').replace(/(?:^|\s)\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${item._uid}, 'firstName', this.value, false)"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.firstName || !item.firstName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Middlename <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" id="batch-mname-${item._uid}" maxlength="40"
+                                    placeholder="Enter middle name"
+                                    value="${escapeHtml(item.middleName)}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\s]/g, '').replace(/(?:^|\s)\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${item._uid}, 'middleName', this.value, false)"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.middleName || !item.middleName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Lastname <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" id="batch-lname-${item._uid}" maxlength="40"
+                                    placeholder="Enter last name"
+                                    value="${escapeHtml(item.lastName)}"
+                                    oninput="this.value = this.value.replace(/[^a-zA-ZñÑ\s]/g, '').replace(/(?:^|\s)\S/g, c => c.toUpperCase()); window.updateBatchEntryField(${item._uid}, 'lastName', this.value, false)"
+                                    class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.lastName || !item.lastName ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Gender & Gmail -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Gender <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <select id="batch-gender-${item._uid}"
+                                        onchange="window.updateBatchEntryField(${item._uid}, 'gender', this.value, false)"
+                                        class="sigma-subject-select w-full bg-slate-50 border-b-2 ${err.gender || !item.gender ? 'border-rose-500' : 'border-slate-300'} rounded-none px-4 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all appearance-none cursor-pointer font-['Inter'] shadow-none">
+                                        <option value="" ${!item.gender ? 'selected' : ''}>Select Gender</option>
+                                        <option value="Male" ${item.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                        <option value="Female" ${item.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-black pointer-events-none"></i>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">
+                                    Gmail <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative flex items-center">
+                                    <input type="text" id="batch-email-${item._uid}" maxlength="64"
+                                        placeholder="gmail username"
+                                        value="${escapeHtml(item.emailPrefix)}"
+                                        oninput="this.value = this.value.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase(); window.updateBatchEntryField(${item._uid}, 'emailPrefix', this.value, false)"
+                                        class="sigma-subject-input w-full bg-slate-50 border-b-2 ${err.emailPrefix || !item.emailPrefix ? 'border-rose-500' : 'border-slate-300'} rounded-none pl-4 pr-28 py-3 text-sm font-medium text-black outline-none hover:bg-slate-100 focus:bg-slate-100 focus:border-black transition-all placeholder:text-black/40 font-['Inter'] shadow-none">
+                                    <span class="absolute right-4 text-xs font-bold text-black pointer-events-none select-none">@gmail.com</span>
+                                </div>
+                            </div>
+                        </div>
+                        ${err.message ? `
+                            <div class="text-xs font-semibold text-rose-600 flex items-center gap-1.5 pt-1">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>${escapeHtml(err.message)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        updateBatchStepHeaderUI();
+    }
+
+    function renderBatchStep2Credentials() {
+        const container = document.getElementById('batch-user-step2-container');
+        if (!container) return;
+
+        const state = getFilteredPaginationState(batchEntries);
+        const { totalItems, startIdx, pageItems } = state;
+        const barHtml = buildRolePillsAndPaginationHtml(batchEntries, 2);
+
+        if (!pageItems.length) {
+            container.innerHTML = barHtml;
+            updateBatchStepHeaderUI();
+            return;
+        }
+
+        let cardsHtml = '';
+        pageItems.forEach((item, idxOnPage) => {
+            const accountNumber = startIdx + idxOnPage + 1;
+            const meta = getRoleSectionMeta(item.role);
+            const fullName = [item.firstName, item.middleName, item.lastName].filter(Boolean).join(' ');
+            const fullEmail = `${item.emailPrefix}@gmail.com`;
+
+            cardsHtml += `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div class="flex items-center gap-2.5">
+                            <i class="${meta.icon} text-sm"></i>
+                            <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
+                                Account ${accountNumber} of ${totalItems}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-white p-6 space-y-5 shadow-2xs">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-7 h-7 rounded-full bg-[#15803d] text-white text-xs font-bold flex items-center justify-center">
+                                    ${accountNumber}
+                                </span>
+                                <div>
+                                    <h4 class="text-sm font-bold text-black font-['Inter']">${escapeHtml(fullName)}</h4>
+                                    <p class="text-xs text-slate-500">${escapeHtml(item.role)} • ${escapeHtml(item.gender)} • ${escapeHtml(item.branch)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">ID Number</label>
+                                <input type="text" value="${escapeHtml(item.previewId)}" readonly disabled
+                                    class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3.5 text-sm font-bold text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="sigma-subject-label text-sm font-bold text-black capitalize tracking-normal ml-1">Gmail <span class="text-red-500">*</span></label>
+                                <input type="text" value="${escapeHtml(fullEmail)}" readonly disabled
+                                    class="sigma-subject-input w-full bg-slate-100/70 border-b-2 border-slate-200 rounded-none px-4 py-3.5 text-sm font-medium text-slate-700 outline-none cursor-not-allowed font-['Inter'] shadow-none">
+                            </div>
+                        </div>
+
+                        <!-- Green Account Preview (Matching Create User Account Step 2) -->
+                        <div class="pt-1">
+                            <span class="sigma-label mb-2 block">Account Preview</span>
+                            <div class="max-w-xl rounded-[20px] bg-[#15803d] border border-green-700/40 p-5 space-y-3.5 shadow-md">
+                                <div class="flex items-center justify-between gap-6">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-green-100">Login ID</span>
+                                    <span class="text-base font-bold text-white tracking-tight">${escapeHtml(item.previewId)}</span>
+                                </div>
+                                <div class="h-px bg-white/30"></div>
+                                <div class="flex items-center justify-between gap-6">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-green-100">Password</span>
+                                    <span class="text-base font-bold text-white tracking-tight font-mono">${escapeHtml(item.previewPassword)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = `${barHtml}${cardsHtml}`;
+        updateBatchStepHeaderUI();
+    }
+
+    function renderBatchStep3SendCredentials() {
+        const container = document.getElementById('batch-user-step3-container');
+        if (!container) return;
+
+        const state = getFilteredPaginationState(batchCreatedAccounts);
+        const { totalItems, startIdx, pageItems } = state;
+        const barHtml = buildRolePillsAndPaginationHtml(batchCreatedAccounts, 3);
+
+        if (!pageItems.length) {
+            container.innerHTML = barHtml;
+            updateBatchStepHeaderUI();
+            return;
+        }
+
+        let cardsHtml = '';
+        pageItems.forEach((item, idxOnPage) => {
+            const accountNumber = startIdx + idxOnPage + 1;
+            const meta = getRoleSectionMeta(item.role);
+            const globalIdx = batchCreatedAccounts.indexOf(item);
+
+            cardsHtml += `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div class="flex items-center gap-2.5">
+                            <i class="${meta.icon} text-sm"></i>
+                            <h3 class="text-sm sm:text-base font-bold text-black font-['Inter']">${escapeHtml(meta.title)}</h3>
+                            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full border ${meta.badgeClass}">
+                                Account ${accountNumber} of ${totalItems}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="max-w-xl mx-auto space-y-3 pt-1">
+                        <div class="relative overflow-hidden rounded-[24px] bg-[#15803d] p-6 border-2 border-white/20 shadow-none">
+                            <div class="absolute top-0 right-0 p-4 opacity-10">
+                                <i class="fa-solid fa-shield-halved text-7xl"></i>
+                            </div>
+                            <div class="relative z-10 space-y-4">
+                                <div class="flex items-center gap-3 border-b border-white/20 pb-4">
+                                    <img src="image/ICC logo.jpg" alt="ICC Logo"
+                                        class="w-10 h-10 rounded-full border-2 border-white/30 bg-white object-contain">
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-medium uppercase tracking-widest text-white/70">
+                                            Institutional Credentials • ${escapeHtml(item.role)}
+                                        </p>
+                                        <h4 class="text-base font-bold text-white truncate">${escapeHtml(item.fullName)}</h4>
+                                        <p class="text-xs text-white/80 truncate">${escapeHtml(item.email)}</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60 block">Login ID</span>
+                                        <div class="text-xl font-bold text-white tracking-tight">${escapeHtml(item.id)}</div>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60 block">Password</span>
+                                        <div class="text-base font-bold text-white/95 font-mono tracking-wider break-all">${escapeHtml(item.password)}</div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 border-t border-white/10 flex items-center justify-between">
+                                    <p class="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Confidential Information</p>
+                                    <i class="fa-solid fa-qrcode text-white/30 text-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="window.sendBatchUserCredentialViaGmail(${globalIdx})"
+                            class="sigma-btn sigma-btn-secondary sigma-btn-md w-full !rounded-2xl gap-2.5 text-black font-semibold cursor-pointer">
+                            <i class="fa-solid fa-envelope text-red-500"></i>
+                            <span class="text-black font-semibold">Send via Gmail (${escapeHtml(item.email)})</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-[#15803d] text-white flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-black">${batchCreatedAccounts.length} User ${batchCreatedAccounts.length === 1 ? 'Account' : 'Accounts'} Created Successfully</p>
+                        <p class="text-xs text-slate-600">Organized by Role (Admin → Teacher → Student).</p>
+                    </div>
+                </div>
+            </div>
+            ${barHtml}
+            ${cardsHtml}
+        `;
+        updateBatchStepHeaderUI();
+    }
+
+    // ─── INTERACTION HANDLERS ───
+
+    window.updateBatchEntryField = function (uid, field, rawValue, shouldReRender = false) {
+        const entry = batchEntries.find(e => e._uid === uid);
+        if (!entry) return;
+
+        if (field === 'role') entry.role = normalizeRoleValue(rawValue);
+        else if (field === 'gender') entry.gender = normalizeGenderValue(rawValue);
+        else if (field === 'emailPrefix') entry.emailPrefix = normalizeEmailPrefix(rawValue);
+        else if (field === 'firstName') entry.firstName = formatPersonName(rawValue);
+        else if (field === 'middleName') entry.middleName = formatPersonName(rawValue);
+        else if (field === 'lastName') entry.lastName = formatPersonName(rawValue);
+
+        if (entry._errors) {
+            delete entry._errors[field];
+            delete entry._errors.message;
+        }
+
+        if (shouldReRender) {
+            batchEntries = sortBatchEntriesByRole(batchEntries);
+            if (batchRoleFilter !== 'All' && batchRoleFilter !== entry.role) {
+                batchRoleFilter = 'All';
+            }
+            const state = getFilteredPaginationState(batchEntries);
+            const newIdx = state.filtered.findIndex(e => e._uid === uid);
+            if (newIdx >= 0) batchCurrentPage = Math.floor(newIdx / state.itemsPerPage) + 1;
+            renderBatchStep1Review();
+            return;
+        }
+
+        // Update card border & title in place without losing input focus
+        const inputIds = {
+            role: `batch-role-${uid}`,
+            firstName: `batch-fname-${uid}`,
+            middleName: `batch-mname-${uid}`,
+            lastName: `batch-lname-${uid}`,
+            gender: `batch-gender-${uid}`,
+            emailPrefix: `batch-email-${uid}`
+        };
+        const inputEl = document.getElementById(inputIds[field]);
+        if (inputEl) {
+            const hasVal = Boolean(entry[field] && String(entry[field]).trim());
+            inputEl.classList.toggle('border-rose-500', !hasVal);
+            inputEl.classList.toggle('border-slate-300', hasVal);
+        }
+
+        const titleEl = document.getElementById(`batch-card-title-${uid}`);
+        if (titleEl) {
+            titleEl.textContent = [entry.firstName, entry.middleName, entry.lastName].filter(Boolean).join(' ') || 'New User Account';
+        }
+
+        const complete = isEntryComplete(entry);
+        const card = document.getElementById(`batch-entry-card-${uid}`);
+        if (card) {
+            card.classList.toggle('border-slate-200', complete);
+            card.classList.toggle('border-amber-300', !complete);
+            card.classList.remove('border-rose-400', 'bg-rose-50/10');
+        }
+    };
+
+    window.organizeBatchEntriesByRole = function () {
+        batchEntries = sortBatchEntriesByRole(batchEntries);
+        batchCurrentPage = 1;
+        renderBatchStep1Review();
+    };
+
+    window.addBatchUserEmptyRow = function () {
+        const defaultRole = VALID_ROLES.includes(batchRoleFilter) ? batchRoleFilter : '';
+        const newEntry = createBlankEntry({ branch: getActiveBranchName(), role: defaultRole });
+        batchEntries.push(newEntry);
+        if (batchRoleFilter !== 'All' && batchRoleFilter !== defaultRole) {
+            batchRoleFilter = 'All';
+        }
+        const state = getFilteredPaginationState(batchEntries);
+        const idx = state.filtered.findIndex(e => e._uid === newEntry._uid);
+        batchCurrentPage = idx >= 0 ? Math.floor(idx / state.itemsPerPage) + 1 : state.totalPages;
+        renderBatchStep1Review();
+    };
+
+    window.removeBatchUserRow = function (uid) {
+        batchEntries = batchEntries.filter(e => e._uid !== uid);
+        renderBatchStep1Review();
+    };
+
+    window.handleBatchFileInputChange = async function (input) {
+        const file = input?.files?.[0];
+        if (!file) return;
+        await processBatchUploadedFile(file);
+        input.value = '';
+    };
+
+    async function processBatchUploadedFile(file) {
+        const fileName = String(file.name || '').trim();
+        const ext = (fileName.split('.').pop() || '').toLowerCase();
+        const allowed = new Set(['xlsx', 'xls', 'csv', 'docx', 'doc', 'pdf']);
+
+        if (!allowed.has(ext)) {
+            showNoticeDialog('Unsupported File Format', 'Please upload a PDF (.pdf), Word Document (.docx, .doc), or Excel / CSV (.xlsx, .xls, .csv) file.', true);
+            return;
+        }
+
+        const uploadLabel = document.getElementById('batch-upload-status-label');
+        if (uploadLabel) {
+            uploadLabel.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[#15803d] mr-1.5"></i> Reading ${escapeHtml(fileName)}...`;
+        }
+
+        try {
+            let parsedEntries = [];
+            if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+                parsedEntries = await parseExcelOrCsvFile(file, ext);
+            } else if (ext === 'docx' || ext === 'doc') {
+                parsedEntries = await parseWordFile(file, ext);
+            } else if (ext === 'pdf') {
+                parsedEntries = await parsePdfFile(file);
+            }
+
+            if (!parsedEntries.length) {
+                showNoticeDialog(
+                    'No User Records Found',
+                    `Could not find readable user rows in "${fileName}". Make sure the file contains user names or columns (Institutional Role, Firstname, Middlename, Lastname, Gender, Gmail).`,
+                    true
+                );
+                return;
+            }
+
+            const branch = getActiveBranchName();
+            parsedEntries.forEach((entry, idx) => {
+                entry.branch = branch;
+                entry._seq = idx + 1;
+            });
+
+            batchUploadedFileName = fileName;
+            batchUploadedFileObj = file;
+            batchUploadedFileExt = ext;
+            if (window._sigmaUploadedFiles instanceof Map) {
+                window._sigmaUploadedFiles.set(fileName, file);
+                window._sigmaUploadedFiles.set(fileName.toLowerCase(), file);
+            }
+            if (typeof window.sigmaStoreDocument === 'function') {
+                window.sigmaStoreDocument(fileName, file, { name: fileName, type: ext }).catch(() => {});
+            }
+            batchEntries = sortBatchEntriesByRole(parsedEntries);
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            renderBatchStep1Review();
+        } catch (err) {
+            console.error('Batch file parse error:', err);
+            showNoticeDialog('Import Error', err?.message || `Could not read "${fileName}". Please check the file and try again.`, true);
+        } finally {
+            if (uploadLabel) {
+                uploadLabel.textContent = 'Attach User Accounts File';
+            }
+        }
+    }
+
+    function validateAllBatchEntries() {
+        if (!batchEntries.length) {
+            showNoticeDialog('No Accounts to Create', 'Please upload a file or add at least one user account first.', true);
+            return false;
+        }
+
+        const existingUsers = getExistingUsers();
+        const normalizeStr = s => String(s || '').trim().toLowerCase();
+        const seenNamesInBatch = new Set();
+        const seenEmailsInBatch = new Set();
+
+        let firstErrorUid = null;
+        let firstErrorIndex = 0;
+        let firstErrorMessage = '';
+
+        for (let i = 0; i < batchEntries.length; i++) {
+            const entry = batchEntries[i];
+            entry._errors = {};
+
+            if (!VALID_ROLES.includes(entry.role)) entry._errors.role = true;
+            if (!entry.firstName.trim()) entry._errors.firstName = true;
+            if (!entry.middleName.trim()) entry._errors.middleName = true;
+            if (!entry.lastName.trim()) entry._errors.lastName = true;
+            if (!VALID_GENDERS.includes(entry.gender)) entry._errors.gender = true;
+            if (!entry.emailPrefix.trim()) entry._errors.emailPrefix = true;
+
+            if (Object.keys(entry._errors).length > 0) {
+                entry._errors.message = 'All fields (Role, Firstname, Middlename, Lastname, Gender, and Gmail) are required.';
+                if (!firstErrorUid) {
+                    firstErrorUid = entry._uid;
+                    firstErrorIndex = i;
+                    firstErrorMessage = `Account #${i + 1}: Please fill in all blank required fields (Institutional Role, Firstname, Middlename, Lastname, Gender, and Gmail).`;
+                }
+                continue;
+            }
+
+            // Duplicate check against existing system users (Same Name + Gender + Role)
+            const fullDisplayName = `${entry.firstName} ${entry.middleName} ${entry.lastName}`.trim();
+            const dupSystemUser = existingUsers.find(u => {
+                const uFname = normalizeStr(u.firstName || u.fname);
+                const uMname = normalizeStr(u.middleName || u.mname || u.middlename);
+                const uLname = normalizeStr(u.lastName || u.lname);
+                const uGender = normalizeStr(u.gender);
+                const uRole = normalizeRoleValue(u.role || u.type);
+                return uFname === normalizeStr(entry.firstName) &&
+                    uMname === normalizeStr(entry.middleName) &&
+                    uLname === normalizeStr(entry.lastName) &&
+                    uGender === normalizeStr(entry.gender) &&
+                    uRole === entry.role;
+            });
+
+            if (dupSystemUser) {
+                const dupId = dupSystemUser.id || dupSystemUser.uid || 'N/A';
+                entry._errors.firstName = true;
+                entry._errors.lastName = true;
+                entry._errors.message = `An active ${entry.role} account for "${fullDisplayName}" (${entry.gender}) already exists with Login ID: ${dupId}.`;
+                if (!firstErrorUid) {
+                    firstErrorUid = entry._uid;
+                    firstErrorIndex = i;
+                    firstErrorMessage = entry._errors.message;
+                }
+                continue;
+            }
+
+            // Duplicate check within the batch itself (Same Name + Gender + Role)
+            const batchNameKey = [
+                normalizeStr(entry.firstName),
+                normalizeStr(entry.middleName),
+                normalizeStr(entry.lastName),
+                normalizeStr(entry.gender),
+                entry.role
+            ].join('|');
+
+            if (seenNamesInBatch.has(batchNameKey)) {
+                entry._errors.firstName = true;
+                entry._errors.lastName = true;
+                entry._errors.message = `Duplicate entry in batch for "${fullDisplayName}" (${entry.role}).`;
+                if (!firstErrorUid) {
+                    firstErrorUid = entry._uid;
+                    firstErrorIndex = i;
+                    firstErrorMessage = entry._errors.message;
+                }
+                continue;
+            }
+            seenNamesInBatch.add(batchNameKey);
+
+            // Email duplicate check against existing system users and within batch
+            const fullEmail = `${entry.emailPrefix.toLowerCase()}@gmail.com`;
+            const dupEmailUser = existingUsers.find(u => {
+                const uEmail = normalizeStr(u.email);
+                const uPrefix = uEmail.split('@')[0];
+                return uEmail === fullEmail || uPrefix === normalizeStr(entry.emailPrefix);
+            });
+            const isMasterAdminDup = entry.emailPrefix.toLowerCase() === 'stanley' || fullEmail === 'stanley@gmail.com';
+
+            if (dupEmailUser || isMasterAdminDup) {
+                const ownerName = dupEmailUser
+                    ? (dupEmailUser.fullName || `${dupEmailUser.firstName || ''} ${dupEmailUser.lastName || ''}`.trim())
+                    : 'Master Admin';
+                entry._errors.emailPrefix = true;
+                entry._errors.message = `Gmail "${fullEmail}" is already in use by ${ownerName}.`;
+                if (!firstErrorUid) {
+                    firstErrorUid = entry._uid;
+                    firstErrorIndex = i;
+                    firstErrorMessage = entry._errors.message;
+                }
+                continue;
+            }
+
+            if (seenEmailsInBatch.has(fullEmail)) {
+                entry._errors.emailPrefix = true;
+                entry._errors.message = `Gmail "${fullEmail}" is used more than once in this batch.`;
+                if (!firstErrorUid) {
+                    firstErrorUid = entry._uid;
+                    firstErrorIndex = i;
+                    firstErrorMessage = entry._errors.message;
+                }
+                continue;
+            }
+            seenEmailsInBatch.add(fullEmail);
+        }
+
+        if (firstErrorUid !== null) {
+            batchRoleFilter = 'All';
+            const size = Math.max(1, Number(batchItemsPerPage) || 5);
+            batchCurrentPage = Math.floor(firstErrorIndex / size) + 1;
+            renderBatchStep1Review();
+            const cardEl = document.getElementById(`batch-entry-card-${firstErrorUid}`);
+            if (cardEl && typeof cardEl.scrollIntoView === 'function') {
+                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showNoticeDialog('Review Required', firstErrorMessage, true);
+            return false;
+        }
+
+        return true;
+    }
+
+    async function allocatePreviewIdsByRole() {
+        const branch = getActiveBranchName();
+        const branchCode = getBranchCodeForName(branch);
+        batchEntries = sortBatchEntriesByRole(batchEntries);
+
+        for (const role of ['Admin', 'Teacher', 'Student']) {
+            const roleItems = batchEntries.filter(e => e.role === role);
+            if (!roleItems.length) continue;
+
+            let startId = '';
+            try {
+                const res = await window.SigmaDatabase.request('users', {
+                    query: { action: 'next_id', role, branchCode }
+                });
+                startId = String(res?.id || '');
+            } catch (_) {
+                startId = '';
+            }
+
+            const prefix = startId.length >= 6 ? startId.slice(0, 6) : '';
+            const startSeq = startId.length > 6 ? parseInt(startId.slice(6), 10) : 1;
+
+            roleItems.forEach((entry, idx) => {
+                const seqNum = (Number.isFinite(startSeq) ? startSeq : 1) + idx;
+                const generatedId = prefix ? `${prefix}${seqNum}` : `Pending-${idx + 1}`;
+                entry.previewId = generatedId;
+                entry.previewPassword = buildPasswordPreview(entry.lastName, generatedId);
+            });
+        }
+    }
+
+    window.handleBatchUserStepNext = async function () {
+        if (batchStep !== 1) return;
+        if (!validateAllBatchEntries()) return;
+
+        const nextBtn = document.getElementById('batch-user-next-btn');
+        if (nextBtn) {
+            nextBtn.disabled = true;
+            nextBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i><span>Generating IDs...</span>`;
+        }
+
+        try {
+            await allocatePreviewIdsByRole();
+            batchStep = 2;
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            renderBatchStep2Credentials();
+            const bodyEl = document.getElementById('batch-user-form-body');
+            if (bodyEl) bodyEl.scrollTop = 0;
+        } catch (err) {
+            showNoticeDialog('ID Generation Error', err?.message || 'Could not generate preview IDs. Please try again.', true);
+        } finally {
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = `<span>Next</span>`;
+            }
+        }
+    };
+
+    window.handleBatchUserStepBack = function () {
+        if (batchStep === 2) {
+            batchStep = 1;
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            renderBatchStep1Review();
+            const bodyEl = document.getElementById('batch-user-form-body');
+            if (bodyEl) bodyEl.scrollTop = 0;
+        }
+    };
+
+    window.handleBatchUserSave = async function () {
+        if (batchSavePending || batchStep !== 2) return;
+        if (!validateAllBatchEntries()) {
+            batchStep = 1;
+            renderBatchStep1Review();
+            return;
+        }
+
+        const saveBtn = document.getElementById('batch-user-save-btn');
+        const saveLabel = document.getElementById('batch-user-save-label');
+        const saveSpinner = document.getElementById('batch-user-save-loading');
+
+        batchSavePending = true;
+        if (saveBtn) saveBtn.disabled = true;
+        if (saveSpinner) saveSpinner.classList.remove('hidden');
+
+        try {
+            // Organize strictly by role: 1. Admin, 2. Teacher, 3. Student
+            batchEntries = sortBatchEntriesByRole(batchEntries);
+
+            const defaultsRes = await window.SigmaDatabase.request('users', {
+                query: { action: 'permission_defaults' }
+            });
+            const roleDefaultPerms = defaultsRes?.roles || {};
+
+            const branch = getActiveBranchName();
+            const branchCode = getBranchCodeForName(branch);
+            const createdList = [];
+
+            for (let i = 0; i < batchEntries.length; i++) {
+                const entry = batchEntries[i];
+                if (saveLabel) {
+                    saveLabel.textContent = `Creating ${i + 1} of ${batchEntries.length}...`;
+                }
+
+                const fullName = [entry.firstName, entry.middleName, entry.lastName].filter(Boolean).join(' ');
+                const fullEmail = `${entry.emailPrefix.toLowerCase()}@gmail.com`;
+                const defaultPerms = roleDefaultPerms[entry.role] || {};
+
+                const accountPayload = {
+                    firstName: entry.firstName,
+                    middleName: entry.middleName,
+                    lastName: entry.lastName,
+                    fullName: fullName,
+                    gender: entry.gender,
+                    branch: branch,
+                    email: fullEmail,
+                    role: entry.role,
+                    type: entry.role.toUpperCase(),
+                    status: 'Active',
+                    permissions: defaultPerms,
+                    createdAt: new Date().toISOString(),
+                    createdVia: 'admin-panel'
+                };
+
+                const saved = await window.SigmaDatabase.request('users', {
+                    data: {
+                        action: 'create',
+                        branchCode,
+                        passwordAutoGenerated: true,
+                        user: accountPayload
+                    }
+                });
+
+                const canonical = saved?.record;
+                if (!canonical?.id) {
+                    throw new Error(`The server did not confirm the saved account for ${fullName}.`);
+                }
+
+                const generatedPassword = buildPasswordPreview(entry.lastName, canonical.id);
+                const latestUsers = getExistingUsers();
+                const savedIndex = latestUsers.findIndex(u => String(u.id || u.uid) === String(canonical.id));
+                if (savedIndex < 0) latestUsers.unshift(canonical);
+                else latestUsers[savedIndex] = canonical;
+
+                localStorage.setItem('sigma-managed-users', JSON.stringify(latestUsers));
+                localStorage.setItem('sigma-users-list', JSON.stringify(latestUsers));
+                window.commitUserSeq?.(entry.role);
+
+                createdList.push({
+                    id: canonical.id,
+                    uid: canonical.id,
+                    firstName: canonical.firstName || entry.firstName,
+                    middleName: canonical.middleName || entry.middleName,
+                    lastName: canonical.lastName || entry.lastName,
+                    fullName: canonical.fullName || fullName,
+                    gender: canonical.gender || entry.gender,
+                    role: canonical.role || entry.role,
+                    email: canonical.email || fullEmail,
+                    branch: canonical.branch || branch,
+                    password: generatedPassword
+                });
+            }
+
+            batchCreatedAccounts = createdList;
+            if (typeof window.renderUserAccountsTable === 'function') {
+                window.renderUserAccountsTable();
+            }
+
+            batchStep = 3;
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            renderBatchStep3SendCredentials();
+            const bodyEl = document.getElementById('batch-user-form-body');
+            if (bodyEl) bodyEl.scrollTop = 0;
+        } catch (err) {
+            console.error('Batch user creation error:', err);
+            showNoticeDialog('Batch Creation Error', err?.message || 'An error occurred while creating accounts.', true);
+        } finally {
+            batchSavePending = false;
+            if (saveBtn) saveBtn.disabled = false;
+            if (saveSpinner) saveSpinner.classList.add('hidden');
+            if (saveLabel) saveLabel.textContent = 'Create Accounts';
+        }
+    };
+
+    window.sendBatchUserCredentialViaGmail = function (idx) {
+        const acc = batchCreatedAccounts[idx];
+        if (!acc) return;
+        const subject = encodeURIComponent('Your SIGMA ELMS Login Credentials');
+        const body = encodeURIComponent(
+            `Hello ${acc.firstName},\n\nYour ${acc.role} account has been created successfully.\n\nLogin ID: ${acc.id}\nPassword: ${acc.password}\n\nYou can log in at the portal using either your ID or Gmail address.\n\nBest regards,\nInterface Computer College`
+        );
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(acc.email)}&su=${subject}&body=${body}`;
+        window.open(gmailUrl, '_blank');
+    };
+
+    window.resetBatchUserModal = function () {
+        batchStep = 1;
+        batchEntries = [];
+        batchCreatedAccounts = [];
+        batchUploadedFileName = '';
+        batchUploadedFileObj = null;
+        batchUploadedFileExt = '';
+        batchRoleFilter = 'All';
+        batchCurrentPage = 1;
+        batchItemsPerPage = 5;
+        renderBatchStep1Review();
+        const bodyEl = document.getElementById('batch-user-form-body');
+        if (bodyEl) bodyEl.scrollTop = 0;
+    };
+
+    window.finishBatchUserCreation = function () {
+        const count = batchCreatedAccounts.length;
+        const firstCreated = batchCreatedAccounts[0];
+        window.toggleBatchUserOverlay(false);
+        if (typeof window.renderUserAccountsTable === 'function') {
+            window.renderUserAccountsTable();
+        }
+        if (count > 0 && typeof window.showCreationBar === 'function') {
+            window.showCreationBar({
+                type: 'user',
+                label: count === 1 ? 'Created Account' : `Batch Created ${count} Accounts`,
+                primaryLabel: count === 1 ? 'Full Name' : 'Accounts Created',
+                primaryValue: count === 1 ? firstCreated.fullName : `${count} Users (Organized by Role)`,
+                secondaryLabel: count === 1 ? 'Login ID' : 'First Login ID',
+                secondaryValue: firstCreated?.id || '-',
+                status: 'published'
+            });
+        }
+    };
+
+    window.toggleBatchUserOverlay = function (show) {
+        const overlay = document.getElementById('batch-user-overlay');
+        if (!overlay) return;
+
+        if (show) {
+            overlay.classList.remove('hidden');
+            overlay.style.removeProperty('display');
+            if (typeof window.pushModalHistoryState === 'function') {
+                window.pushModalHistoryState('batch-user-overlay');
+            }
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+
+            batchStep = 1;
+            batchEntries = [];
+            batchCreatedAccounts = [];
+            batchUploadedFileName = '';
+            batchUploadedFileObj = null;
+            batchUploadedFileExt = '';
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            batchItemsPerPage = 5;
+
+            if (typeof window.populateUserSchoolBranchSelect === 'function') {
+                window.populateUserSchoolBranchSelect('');
+            }
+            const branchDisplay = document.getElementById('batch-user-school-branch');
+            if (branchDisplay) {
+                const branchName = getActiveBranchName();
+                branchDisplay.innerHTML = `<option value="${escapeHtml(branchName)}">${escapeHtml(branchName)}</option>`;
+            }
+
+            renderBatchStep1Review();
+            overlay.scrollTop = 0;
+            const bodyEl = document.getElementById('batch-user-form-body');
+            if (bodyEl) bodyEl.scrollTop = 0;
+        } else {
+            overlay.classList.add('hidden');
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            batchStep = 1;
+            batchEntries = [];
+            batchCreatedAccounts = [];
+            batchUploadedFileName = '';
+            batchUploadedFileObj = null;
+            batchUploadedFileExt = '';
+            batchRoleFilter = 'All';
+            batchCurrentPage = 1;
+            batchItemsPerPage = 5;
+        }
+    };
+
     window.handleBatchUserExit = function () {
         if (batchStep >= 3) {
             window.finishBatchUserCreation();

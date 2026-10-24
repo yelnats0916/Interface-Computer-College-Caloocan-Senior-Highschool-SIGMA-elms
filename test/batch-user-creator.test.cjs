@@ -176,22 +176,21 @@ const vm = require('node:vm');
         }]
     });
 
-    const reviewPage1Html = elements.get('batch-user-review-container').innerHTML;
+    const reviewHtml = elements.get('batch-user-review-container').innerHTML;
     const summaryBarHtml = elements.get('batch-user-summary-bar').innerHTML;
-    assert.ok(summaryBarHtml.includes('All Roles') && summaryBarHtml.includes('1 Incomplete'), 'Summary bar should show Role Filter Pills and flag the 1 incomplete row with blank middle name');
-    assert.ok(reviewPage1Html.includes('1. Admin Accounts') && reviewPage1Html.includes('Maria'), 'Page 1 of Review form must show Admin account first');
-    windowObj.setBatchPage(2);
-    const reviewPage2Html = elements.get('batch-user-review-container').innerHTML;
-    assert.ok(reviewPage2Html.includes('2. Teacher Accounts') && reviewPage2Html.includes('Jose'), 'Page 2 of Review form must show Teacher account second');
-    windowObj.setBatchPage(3);
-    const reviewPage3Html = elements.get('batch-user-review-container').innerHTML;
-    assert.ok(reviewPage3Html.includes('3. Student Accounts') && reviewPage3Html.includes('Juan'), 'Page 3 of Review form must show Student account third');
+    assert.ok(summaryBarHtml.includes('sigma-admin-table-pagination') && summaryBarHtml.includes('Rows per page:') && summaryBarHtml.includes('All Roles (3)'), 'Summary bar should use standard table pagination style and Role dropdown');
+    assert.equal(elements.get('batch-template-buttons-group').classList.contains('hidden'), true, 'Template buttons must be hidden once a file is uploaded');
+    const adminGroupPos = reviewHtml.indexOf('1. Admin Accounts');
+    const teacherGroupPos = reviewHtml.indexOf('2. Teacher Accounts');
+    const studentGroupPos = reviewHtml.indexOf('3. Student Accounts');
+    assert.ok(adminGroupPos >= 0 && teacherGroupPos > adminGroupPos && studentGroupPos > teacherGroupPos, 'Review form (5 per page) must organize accounts as Admin -> Teacher -> Student');
+    assert.ok(reviewHtml.includes('Account 1 of 3') && reviewHtml.includes('Account 2 of 3') && reviewHtml.includes('Account 3 of 3'), 'Must keep Account n of n badge');
+    assert.ok(!reviewHtml.includes('Ready for Creation') && !reviewHtml.includes('Blank Fields Required') && !summaryBarHtml.includes('All Fields Complete'), 'Must remove extra status badges except Account n of n');
 
-    // Attempt Next with Maria's blank middle name -> must block and jump back to Maria's page
+    // Attempt Next with Maria's blank middle name -> must block
     lastAlert = null;
     await windowObj.handleBatchUserStepNext();
     assert.ok(lastAlert && lastAlert.title === 'Review Required', 'Blank field must prevent advancing to Step 2');
-    assert.ok(elements.get('batch-user-review-container').innerHTML.includes('Maria'), 'Blocking validation must jump pagination directly to the incomplete account');
 
     // Fill Maria's middle name (she had _uid = 2 from the 2nd CSV row)
     windowObj.updateBatchEntryField(2, 'middleName', 'Clara', false);
@@ -202,26 +201,22 @@ const vm = require('node:vm');
     assert.equal(lastAlert, null, 'Should advance without error once blank field is filled');
     assert.equal(elements.get('batch-user-step-2').classList.contains('hidden'), false, 'Step 2 must be visible');
 
-    const step2Page1Html = elements.get('batch-user-step2-container').innerHTML;
-    assert.ok(step2Page1Html.includes('1. Admin Accounts') && step2Page1Html.includes('2601015') && step2Page1Html.includes('reyes2601015'), 'Step 2 Page 1 must preview Admin ID and password');
-    windowObj.setBatchPage(2);
-    const step2Page2Html = elements.get('batch-user-step2-container').innerHTML;
-    assert.ok(step2Page2Html.includes('2. Teacher Accounts') && step2Page2Html.includes('26010214') && step2Page2Html.includes('rizal26010214'), 'Step 2 Page 2 must preview Teacher ID and password');
-    windowObj.setBatchPage(3);
-    const step2Page3Html = elements.get('batch-user-step2-container').innerHTML;
-    assert.ok(step2Page3Html.includes('3. Student Accounts') && step2Page3Html.includes('260103121') && step2Page3Html.includes('delacruz260103121'), 'Step 2 Page 3 must preview Student ID and password');
+    const step2Html = elements.get('batch-user-step2-container').innerHTML;
+    assert.ok(step2Html.indexOf('1. Admin Accounts') < step2Html.indexOf('2. Teacher Accounts'), 'Step 2 must order Admin before Teacher');
+    assert.ok(step2Html.indexOf('2. Teacher Accounts') < step2Html.indexOf('3. Student Accounts'), 'Step 2 must order Teacher before Student');
+    assert.ok(step2Html.includes('2601015') && step2Html.includes('reyes2601015'), 'Step 2 must preview Admin ID and password');
+    assert.ok(step2Html.includes('26010214') && step2Html.includes('rizal26010214'), 'Step 2 must preview Teacher ID and password');
+    assert.ok(step2Html.includes('260103121') && step2Html.includes('delacruz260103121'), 'Step 2 must preview Student ID and password');
 
     // Click Create Accounts (Step 2 -> Step 3)
     await windowObj.handleBatchUserSave();
     assert.equal(elements.get('batch-user-step-3').classList.contains('hidden'), false, 'Step 3 (Send Credentials) must be visible');
     assert.deepEqual(createdPayloads.map(p => p.role), ['Admin', 'Teacher', 'Student'], 'Accounts must be saved in Admin, Teacher, Student order');
 
-    const step3Page1Html = elements.get('batch-user-step3-container').innerHTML;
-    assert.ok(step3Page1Html.includes('1. Admin Accounts') && step3Page1Html.includes('Send via Gmail'), 'Step 3 Page 1 must show Admin account with Send via Gmail button');
-    windowObj.setBatchPage(2);
-    assert.ok(elements.get('batch-user-step3-container').innerHTML.includes('2. Teacher Accounts'), 'Step 3 Page 2 must show Teacher account');
-    windowObj.setBatchPage(3);
-    assert.ok(elements.get('batch-user-step3-container').innerHTML.includes('3. Student Accounts'), 'Step 3 Page 3 must show Student account');
+    const step3Html = elements.get('batch-user-step3-container').innerHTML;
+    assert.ok(step3Html.indexOf('1. Admin Accounts') < step3Html.indexOf('2. Teacher Accounts'), 'Step 3 must order Admin before Teacher');
+    assert.ok(step3Html.indexOf('2. Teacher Accounts') < step3Html.indexOf('3. Student Accounts'), 'Step 3 must order Teacher before Student');
+    assert.ok(step3Html.includes('Send via Gmail'), 'Step 3 must include Send via Gmail buttons');
 
     // Test Send via Gmail
     windowObj.sendBatchUserCredentialViaGmail(0);
