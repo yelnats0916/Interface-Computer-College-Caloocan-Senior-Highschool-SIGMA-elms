@@ -3784,6 +3784,7 @@ window.processAIGenFile = async function (file) {
         if(currentAIGenFile!==file)return;
         currentAIGenFileText = extractedText;
     } catch (error) {
+        if(currentAIGenFile!==file)return;
         currentAIGenFileText = '';
         window.showWarningToast?.(error.message);
         const warning=document.getElementById('ai-gen-validation-warning');
@@ -4134,7 +4135,7 @@ window.openAIGeneratorModal = function () {
 
         const remainingSlots = Math.max(1, MAX_QUIZ_QUESTIONS - (questions ? questions.length : 0));
         if (countInput) {
-            countInput.max = remainingSlots;
+            countInput.max = Math.min(50,remainingSlots);
             const currentVal = parseInt(countInput.value, 10);
             if (isNaN(currentVal) || currentVal < 1) {
                 countInput.value = Math.min(5, remainingSlots);
@@ -4561,7 +4562,7 @@ window.openAIConfirmGenerateModal = function () {
     const descEl = document.getElementById('ai-confirm-generate-desc');
 
     if (titleEl) titleEl.textContent = `Generate ${count} ${count === 1 ? 'Question' : 'Questions'}?`;
-    if (descEl) descEl.textContent = `Create ${count} ${selectedType} questions using the AI provider configured for Assessment Generation.`;
+    if (descEl) { const plan=window.SigmaQuizGeneration.options(); const distribution=plan.typeCounts?.map(row=>`${row.count} ${row.type}`).join(', ')||`${count} ${selectedType}`; descEl.textContent=`${distribution} · ${plan.bloomLevel} · Includes answer keys or grading guidance.`; }
 
     const modal = document.getElementById('ai-confirm-generate-modal');
     if (modal) {
@@ -4663,7 +4664,22 @@ window.executeAIQuestionGeneration = async function () {
             timeoutMs: 120000, autoReconnect: false, foreground: true,
             body: JSON.stringify({ source: fileContent, type: selectedType, difficulty, ...blueprint })
         });
-        const result = await response.json();
+        let result = await response.json();
+        if(response.ok&&result.success&&result.jobId){
+            const deadline=Date.now()+180000;
+            const owner=String(window.SigmaDatabase.currentUser()?.id||'');
+            while(Date.now()<deadline){
+                if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)throw new Error('The signed-in account changed.');
+                await new Promise(resolve=>setTimeout(resolve,2000));
+                let statusResponse,status;
+                try{statusResponse=await window.SigmaDatabase.fetch(apiUrl.href+'?jobId='+encodeURIComponent(result.jobId),{foreground:true,timeoutMs:15000,autoReconnect:false});status=await statusResponse.json();}
+                catch(error){if(['TypeError','TimeoutError','AbortError','SyntaxError'].includes(error.name))continue;throw error;}
+                if(statusResponse.status>=500)continue;
+                if(!statusResponse.ok||!status.success)throw new Error(status.error||'Generation status could not be loaded.');
+                if(status.status==='failed')throw new Error(status.error||'Question generation failed.');
+                if(status.status==='succeeded'){result={success:true,...status.result};break;}
+            }
+        }
         if (!response.ok || !result.success || !Array.isArray(result.questions) || result.questions.length !== count) throw new Error(result.error || 'AI generation returned invalid questions.');
         if (!/^ASMTG?-\d{4}-\d{4,}$/.test(String(result.generationId || ''))) throw new Error('AI generation completed without an assessment ID. Try again.');
         const generated = result.questions;
