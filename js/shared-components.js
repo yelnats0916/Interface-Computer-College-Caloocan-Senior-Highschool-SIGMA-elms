@@ -37105,8 +37105,8 @@ window.flushTeacherReleaseToastQueue = function () {
                 || select.closest('.hidden, [hidden], [aria-hidden="true"]')) continue;
             // The AI period control already owns its arrow; wrapping on first click duplicates it.
             if (select.closest('.sigma-ai-period-control')) continue;
-            // Quarter controls provide their own disclosure and animated chevron.
-            if (select.matches('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select')
+            // Quarter controls and underline form selects provide their own disclosure and chevron.
+            if (select.matches('.sigma-grade-quarter-select,.student-assessment-quarter-select,.student-performance-slider .subject-performance-card select,.sigma-subject-select,.sigma-form-select,.sigma-underline-select')
                 || select.closest('.sigma-quarter-dropdown')) continue;
             enhanced.add(select);
             select.classList.add('sigma-select');

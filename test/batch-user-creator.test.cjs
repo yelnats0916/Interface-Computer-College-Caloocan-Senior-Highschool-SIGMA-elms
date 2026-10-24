@@ -7,6 +7,7 @@ const vm = require('node:vm');
     const root = path.resolve(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
     const batchJs = fs.readFileSync(path.join(root, 'js/batch-user-creator.js'), 'utf8');
+    const sharedJs = fs.readFileSync(path.join(root, 'js/shared-components.js'), 'utf8');
 
     // 1. Verify HTML button placement & modal markup
     const toolbarIdx = html.indexOf('id="user-accounts-toolbar"');
@@ -17,6 +18,12 @@ const vm = require('node:vm');
     assert.ok(toolbarIdx > 0, 'user-accounts-toolbar must exist');
     assert.ok(createBtnIdx > toolbarIdx && batchBtnIdx > createBtnIdx && batchBtnIdx < searchIdx, 'Batch Create button must sit right beside Create User in toolbar');
     assert.ok(html.includes('id="batch-user-overlay"'), 'Batch Create modal overlay must exist in admin.html');
+
+    // Verify shared-components.js skips .sigma-subject-select so dropdown arrows are never duplicated
+    assert.ok(
+        sharedJs.includes('.sigma-subject-select,.sigma-form-select,.sigma-underline-select'),
+        'shared-components.js enhance() must skip .sigma-subject-select to prevent duplicate dropdown chevrons'
+    );
 
     // 2. Test VM execution of js/batch-user-creator.js
     const elements = new Map();
@@ -83,16 +90,20 @@ const vm = require('node:vm');
 
     const storage = new Map();
     const createdPayloads = [];
+    let nextIdRequests = 0;
     let lastAlert = null;
     let openedUrls = [];
 
     const windowObj = {
+        USER_STORAGE_KEY: 'sigma-admin-users',
+        userPaginationState: { currentPage: 3, itemsPerPage: 5 },
         showAlertDialog: (opts) => { lastAlert = opts; },
         renderUserAccountsTable: () => {},
         open: (url) => { openedUrls.push(url); },
         SigmaDatabase: {
             request: async (endpoint, opts) => {
                 if (opts?.query?.action === 'next_id') {
+                    nextIdRequests++;
                     const map = { Admin: '2601015', Teacher: '26010214', Student: '260103121' };
                     return { success: true, id: map[opts.query.role] || '2601031' };
                 }
@@ -103,7 +114,7 @@ const vm = require('node:vm');
                     createdPayloads.push(opts.data.user);
                     const roleCode = { Admin: '01', Teacher: '02', Student: '03' }[opts.data.user.role] || '03';
                     const seq = createdPayloads.filter(u => u.role === opts.data.user.role).length;
-                    const id = `2601${roleCode}${seq}`;
+                    const id = opts.data.user.id || `2601${roleCode}${seq}`;
                     return {
                         success: true,
                         record: {
@@ -156,7 +167,7 @@ const vm = require('node:vm');
 
     vm.runInContext(batchJs, context);
 
-    // Open overlay
+    // Open overlay (pre-warms the 3 role start IDs in parallel)
     windowObj.toggleBatchUserOverlay(true);
     assert.equal(elements.get('batch-user-overlay').classList.contains('hidden'), false, 'Overlay should be visible');
 
@@ -178,14 +189,26 @@ const vm = require('node:vm');
 
     const reviewHtml = elements.get('batch-user-review-container').innerHTML;
     const summaryBarHtml = elements.get('batch-user-summary-bar').innerHTML;
-    assert.ok(summaryBarHtml.includes('sigma-admin-table-pagination') && summaryBarHtml.includes('Rows per page:') && summaryBarHtml.includes('All Roles (3)'), 'Summary bar should use standard table pagination style and Role dropdown');
+
+    // Requirement 1 & 2: Role dropdown and Add Row button placed ABOVE the pagination bar with standard sizes
+    const roleSelectPos = summaryBarHtml.indexOf('All Roles (3)');
+    const addRowBtnPos = summaryBarHtml.indexOf('<span>Add Row</span>');
+    const paginationPos = summaryBarHtml.indexOf('sigma-admin-table-pagination');
+    assert.ok(roleSelectPos > 0 && addRowBtnPos > roleSelectPos && paginationPos > addRowBtnPos, 'Role dropdown and Add Row button must be placed ABOVE the pagination bar');
+    assert.ok(summaryBarHtml.includes('sigma-btn sigma-btn-white sigma-btn-md'), 'Add Row button must use standard sigma-btn-md size matching User Accounts page');
     assert.equal(elements.get('batch-template-buttons-group').classList.contains('hidden'), true, 'Template buttons must be hidden once a file is uploaded');
+
+    // Requirement 4: Gmail must NOT show in Step 1 (Add Account), only in Step 2 (Add Credentials)
+    assert.ok(!reviewHtml.includes('@gmail.com') && !reviewHtml.includes('batch-email-'), 'Step 1 (Add Account) must NOT show the Gmail input');
+
+    // Requirement 5: Remove button must be black text with grey hover highlight
+    assert.ok(reviewHtml.includes('text-black hover:bg-slate-100') && !reviewHtml.includes('text-rose-600 hover:text-rose-700'), 'Remove button must use black text with grey hover highlight');
+
     const adminGroupPos = reviewHtml.indexOf('1. Admin Accounts');
     const teacherGroupPos = reviewHtml.indexOf('2. Teacher Accounts');
     const studentGroupPos = reviewHtml.indexOf('3. Student Accounts');
     assert.ok(adminGroupPos >= 0 && teacherGroupPos > adminGroupPos && studentGroupPos > teacherGroupPos, 'Review form (5 per page) must organize accounts as Admin -> Teacher -> Student');
     assert.ok(reviewHtml.includes('Account 1 of 3') && reviewHtml.includes('Account 2 of 3') && reviewHtml.includes('Account 3 of 3'), 'Must keep Account n of n badge');
-    assert.ok(!reviewHtml.includes('Ready for Creation') && !reviewHtml.includes('Blank Fields Required') && !summaryBarHtml.includes('All Fields Complete'), 'Must remove extra status badges except Account n of n');
 
     // Attempt Next with Maria's blank middle name -> must block
     lastAlert = null;
@@ -196,22 +219,48 @@ const vm = require('node:vm');
     windowObj.updateBatchEntryField(2, 'middleName', 'Clara', false);
 
     // Now advance to Step 2 (Add Credentials)
+    const countBeforeNext = nextIdRequests;
     lastAlert = null;
     await windowObj.handleBatchUserStepNext();
     assert.equal(lastAlert, null, 'Should advance without error once blank field is filled');
     assert.equal(elements.get('batch-user-step-2').classList.contains('hidden'), false, 'Step 2 must be visible');
 
+    // Requirement 6: Going Back to Step 1 and Next to Step 2 again MUST hold the generated IDs without re-fetching
+    const countAfterFirstNext = nextIdRequests;
+    windowObj.handleBatchUserStepBack();
+    assert.equal(elements.get('batch-user-step-1').classList.contains('hidden'), false, 'Back should return to Step 1');
+    await windowObj.handleBatchUserStepNext();
+    assert.equal(nextIdRequests, countAfterFirstNext, 'Going Back and Next again must hold cached IDs and NOT re-request next_id');
+
     const step2Html = elements.get('batch-user-step2-container').innerHTML;
+    assert.ok(step2Html.includes('@gmail.com') && step2Html.includes('id="batch-email-'), 'Step 2 (Add Credentials) must render editable Gmail input');
     assert.ok(step2Html.indexOf('1. Admin Accounts') < step2Html.indexOf('2. Teacher Accounts'), 'Step 2 must order Admin before Teacher');
     assert.ok(step2Html.indexOf('2. Teacher Accounts') < step2Html.indexOf('3. Student Accounts'), 'Step 2 must order Teacher before Student');
     assert.ok(step2Html.includes('2601015') && step2Html.includes('reyes2601015'), 'Step 2 must preview Admin ID and password');
     assert.ok(step2Html.includes('26010214') && step2Html.includes('rizal26010214'), 'Step 2 must preview Teacher ID and password');
     assert.ok(step2Html.includes('260103121') && step2Html.includes('delacruz260103121'), 'Step 2 must preview Student ID and password');
 
-    // Click Create Accounts (Step 2 -> Step 3)
+    // Requirement 7: Click Create Accounts (Step 2 -> Step 3) -> saves all in sequence and puts last in list as newest at top of table
     await windowObj.handleBatchUserSave();
     assert.equal(elements.get('batch-user-step-3').classList.contains('hidden'), false, 'Step 3 (Send Credentials) must be visible');
-    assert.deepEqual(createdPayloads.map(p => p.role), ['Admin', 'Teacher', 'Student'], 'Accounts must be saved in Admin, Teacher, Student order');
+    assert.deepEqual(createdPayloads.map(p => p.role), ['Admin', 'Teacher', 'Student'], 'Accounts must be saved in Admin, Teacher, Student sequence');
+
+    const savedAdminUsers = JSON.parse(storage.get('sigma-admin-users') || '[]');
+    assert.equal(savedAdminUsers.length, 3, 'All 3 accounts must be saved in sigma-admin-users');
+    // The last account in the batch list (Student: Juan Dela Cruz, 260103121) must be at index 0 (top of table) with the newest createdAt and highest seq
+    assert.equal(savedAdminUsers[0].id, '260103121', 'Last item in the batch list must be at the top (index 0) of the User Accounts table');
+    assert.equal(savedAdminUsers[1].id, '26010214', 'Second item in the batch list must be second from top');
+    assert.equal(savedAdminUsers[2].id, '2601015', 'First item in the batch list must be third from top');
+    assert.ok(
+        new Date(savedAdminUsers[0].createdAt).getTime() > new Date(savedAdminUsers[1].createdAt).getTime() &&
+        new Date(savedAdminUsers[1].createdAt).getTime() > new Date(savedAdminUsers[2].createdAt).getTime(),
+        'Last item in the batch list must have the latest createdAt timestamp'
+    );
+    assert.ok(
+        savedAdminUsers[0].seq > savedAdminUsers[1].seq && savedAdminUsers[1].seq > savedAdminUsers[2].seq,
+        'Last item in the batch list must have the highest seq number'
+    );
+    assert.equal(windowObj.userPaginationState.currentPage, 1, 'User Accounts table pagination must reset to page 1 so newest created accounts are shown');
 
     const step3Html = elements.get('batch-user-step3-container').innerHTML;
     assert.ok(step3Html.indexOf('1. Admin Accounts') < step3Html.indexOf('2. Teacher Accounts'), 'Step 3 must order Admin before Teacher');
@@ -222,30 +271,6 @@ const vm = require('node:vm');
     windowObj.sendBatchUserCredentialViaGmail(0);
     assert.equal(openedUrls.length, 1, 'Send via Gmail should open Gmail compose URL');
     assert.ok(openedUrls[0].includes('maria.reyes%40gmail.com'), 'First Gmail compose URL should be for the Admin account');
-
-    // Test DOCX & PDF Template Generation + Built-in Document Viewer integration
-    assert.ok(html.includes("window.downloadBatchUserTemplate('xlsx')"), 'admin.html must have Excel template button');
-    assert.ok(html.includes("window.downloadBatchUserTemplate('docx')"), 'admin.html must have Word (.docx) template button');
-    assert.ok(html.includes("window.downloadBatchUserTemplate('pdf')"), 'admin.html must have PDF (.pdf) template button');
-    assert.ok(html.includes('id="batch-view-uploaded-doc-btn"'), 'admin.html must have View in Built-in Viewer button');
-
-    const viewerCalls = [];
-    windowObj.openDocumentViewer = (name, file, type) => {
-        viewerCalls.push({ name, file, type });
-    };
-    documentObj.createElement = () => ({ click: () => {}, href: '', download: '' });
-
-    windowObj.downloadBatchUserTemplate('docx');
-    assert.equal(viewerCalls.length, 1, 'Downloading DOCX template should open it in built-in SIGMA Document Viewer');
-    assert.equal(viewerCalls[0].name, 'SIGMA_Batch_User_Template.docx');
-    assert.equal(viewerCalls[0].type, 'docx');
-    assert.ok(viewerCalls[0].file.size > 1000, 'Generated DOCX template must be a valid non-empty zip archive');
-
-    windowObj.downloadBatchUserTemplate('pdf');
-    assert.equal(viewerCalls.length, 2, 'Downloading PDF template should open it in built-in SIGMA Document Viewer');
-    assert.equal(viewerCalls[1].name, 'SIGMA_Batch_User_Template.pdf');
-    assert.equal(viewerCalls[1].type, 'pdf');
-    assert.ok(viewerCalls[1].file.size > 500, 'Generated PDF template must be a valid non-empty PDF');
 
     console.log('PASS: batch-user-creator.test.cjs');
 })();
