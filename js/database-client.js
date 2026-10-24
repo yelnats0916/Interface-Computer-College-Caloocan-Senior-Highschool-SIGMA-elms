@@ -286,9 +286,45 @@
         }
         return Object.values(value).some(child => child && typeof child === 'object' && isSyntheticRecord(child, depth + 1));
     }
-    function revokeSession() {
-        return fetchWithIdentity(url('session'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }), keepalive: true }).catch(() => {});
+    // Capture authorization before identity cleanup. A queued request would otherwise
+    // run after logout with no token, leaving the server session alive.
+    const pendingLogoutKey = 'sigma-pending-session-revocations';
+    let logoutFlush = null, logoutRetry = null;
+    function pendingLogouts() {
+        try { return JSON.parse(sessionStorage.getItem(pendingLogoutKey) || '[]').filter(token => /^[a-f0-9]{64}$/.test(token)); }
+        catch (_) { return []; }
     }
+    function flushLogouts() {
+        if (logoutFlush) return logoutFlush;
+        const tokens = pendingLogouts();
+        logoutFlush = Promise.all(tokens.map(async token => {
+            try {
+                const response = await nativeFetch(url('session'), {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ action: 'logout' }), keepalive: true,
+                    cache: 'no-store', credentials: 'omit'
+                });
+                if (!response.ok || (await response.json()).success !== true) return;
+                const remaining = pendingLogouts().filter(value => value !== token);
+                if (remaining.length) sessionStorage.setItem(pendingLogoutKey, JSON.stringify(remaining));
+                else sessionStorage.removeItem(pendingLogoutKey);
+            } catch (_) { /* The landing page retries when the connection returns. */ }
+        })).finally(() => {
+            logoutFlush = null;
+            clearTimeout(logoutRetry);
+            if (pendingLogouts().length) logoutRetry = setTimeout(flushLogouts, 5000);
+        });
+        return logoutFlush;
+    }
+    function revokeSession() {
+        let token;
+        try { token = JSON.parse(sessionStorage.getItem('sigma-grade-sync-session') || 'null')?.token; } catch (_) {}
+        if (/^[a-f0-9]{64}$/.test(token || '')) sessionStorage.setItem(pendingLogoutKey, JSON.stringify([...new Set([...pendingLogouts(), token])]));
+        return flushLogouts();
+    }
+    if (pendingLogouts().length) flushLogouts();
+    window.addEventListener('online', flushLogouts);
+    window.addEventListener('pageshow', flushLogouts);
     window.SigmaDatabase = Object.freeze({ url, request, readJson, fetch: fetchWithIdentity, preserveLegacy, currentUser, save, revokeSession, isSyntheticRecord });
     // Both admin and teacher subject editors use these exact adapters.
     window.syncSubjectToDB = (subject, action = 'save') => save('subjects', action === 'save' ? { action, subject } : { ...subject, action });

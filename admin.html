@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="css/classroom-room.css?v=20261018_attendance_avatar_v39">
     <link rel="stylesheet" href="css/settings-view.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/service-vault-security.css?v=20261023_verify_dots_v130">
-    <script src="js/database-client.js?v=20261024_login_yield_v198"></script>
+    <script src="js/database-client.js?v=20261025_session_exit_v221"></script>
     <script src="js/material-limits.js?v=20261023_upload_limits_v115"></script>
 <script src="js/audit-permissions.js?v=20261023_audit_permissions_v75"></script>
 <script src="js/service-vault-security.js?v=20261024_verify_cancel_v172"></script>
@@ -256,7 +256,9 @@
                     document.documentElement.classList.add('sigma-hash-navigating');
                     style.id = 'sigma-early-hash-style';
                     style.textContent = 'html.sigma-hash-navigating #content-sections .dynamic-section, html.sigma-hash-navigating .dynamic-section { display: none !important; }' +
-                        'html.sigma-hash-navigating .dynamic-section { visibility: hidden !important; }' +
+                        'html.sigma-hash-navigating .dynamic-section { visibility: hidden !important; }' +
+                        'html.sigma-hash-navigating #admin-main::before { content: \"\"; display:block; margin:32px; height:300px; border:1px solid #e2e8f0; border-radius:20px; background:linear-gradient(#e8edf2 0 0) 24px 28px / 40% 22px no-repeat,linear-gradient(#eef2f6 0 0) 24px 78px / calc(100% - 48px) 48px no-repeat,linear-gradient(#eef2f6 0 0) 24px 142px / calc(100% - 48px) 48px no-repeat,linear-gradient(#eef2f6 0 0) 24px 206px / calc(100% - 48px) 48px no-repeat,#fff; }' +
+                        '@media(max-width:639px){html.sigma-hash-navigating #admin-main::before{margin:16px;height:280px;border-radius:14px}}' +
                         '.sigma-hash-navigating #nav-context-text, .sigma-hash-navigating #header-brand-title { visibility: hidden !important; }' +
                         '.sigma-hash-navigating #sidebar #nav-dashboard.active { background: transparent !important; color: inherit !important; box-shadow: none !important; }' +
                         '.sigma-hash-navigating #sidebar #nav-dashboard.active .sidebar-rail-icon, .sigma-hash-navigating #sidebar #nav-dashboard.active i, .sigma-hash-navigating #sidebar #nav-dashboard.active span { color: inherit !important; background: transparent !important; }';
@@ -269,7 +271,7 @@
     <link rel="stylesheet" href="css/page-skeleton.css?v=20261022_navbar_shimmer_v41">
     <link rel="stylesheet" href="css/content-loading.css?v=20261022_dots_only_v21">
     <script src="js/content-loading.js?v=20261022_dots_only_v21"></script>
-    <script src="js/tab-session.js?v=20261024_connection_recovery_v178"></script>
+    <script src="js/tab-session.js?v=20261025_session_exit_v221"></script>
     <script src="js/live-reload-lifecycle.js?v=20261017_table_dropdowns_v10"></script>
     <link rel="stylesheet" href="css/avatar-sizes.css?v=20261017_table_dropdowns_v10">
     <link rel="stylesheet" href="css/release-panel.css?v=20261021_selection_container_alignment_v31">

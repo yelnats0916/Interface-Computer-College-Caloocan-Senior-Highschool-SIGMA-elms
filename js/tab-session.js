@@ -152,24 +152,25 @@
         renderGate();
     }
     document.addEventListener('DOMContentLoaded', renderGate);
+    function signOutToLogin() {
+        if (signingOut) return;
+        signingOut = true;
+        verifiedToken = null;
+        clearTimeout(reconnectTimer);
+        sessionStorage.setItem('sigma-skip-login-recovery', 'true');
+        // keepalive starts with the captured token; navigation never waits for it.
+        try { window.SigmaDatabase?.revokeSession()?.catch?.(() => {}); } catch (_) {}
+        clearIdentity();
+        sessionStorage.removeItem('sigma-login-explicit');
+        localStorage.removeItem('sigma-login-explicit');
+        window.location.replace(new URL('index.html', document.baseURI).href);
+    }
     document.addEventListener('click', event => {
         const link = event.target.closest?.('a.profile-logout-btn');
         if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
-        if (signingOut) return;
-        signingOut = true;
-        sessionStorage.setItem('sigma-skip-login-recovery', 'true');
-        setGate('Signing out…');
-        // Existing logout handlers still clear/revoke the session during this click.
-        // Paint the spinner before starting the document navigation.
-        let navigating = false;
-        const navigate = () => {
-            if (navigating) return;
-            navigating = true;
-            window.location.replace(new URL('index.html', document.baseURI).href);
-        };
-        requestAnimationFrame(() => requestAnimationFrame(navigate));
-        setTimeout(navigate, 300);
+        event.stopImmediatePropagation();
+        signOutToLogin();
     }, true);
     function clearIdentity() {
         [SESSION_KEY, 'currentUser', 'sigma-grade-sync-session', 'sigma-login-challenge', 'sigma-login-handoff'].forEach(key => sessionStorage.removeItem(key));
@@ -190,20 +191,7 @@
         portalForRole,
         isVerified: isSessionVerified,
         recheck: () => verifyDatabaseSession({ background: true }),
-        async signOutToLogin() {
-            if (signingOut) return;
-            signingOut = true;
-            sessionStorage.setItem('sigma-skip-login-recovery', 'true');
-            try {
-                await Promise.race([window.SigmaDatabase?.revokeSession(), new Promise(resolve => setTimeout(resolve, 2500))]);
-            } finally {
-                verifiedToken = null;
-                clearIdentity();
-                sessionStorage.removeItem('sigma-login-explicit');
-                localStorage.removeItem('sigma-login-explicit');
-                window.location.replace(new URL('index.html', document.baseURI).href);
-            }
-        },
+        signOutToLogin,
         async ensureVerified() {
             if (!isSessionVerified()) await verifyDatabaseSession({ background: true });
             return isSessionVerified();
@@ -301,7 +289,7 @@
         if (verifiedToken !== token) setGate('Checking your session...');
         verification = (async () => {
             try {
-                const result = await window.SigmaDatabase.request('session');
+                const result = await window.SigmaDatabase.request('session', { authentication: true });
                 // A logout or new sign-in may have occurred while the server was responding.
                 if (readJson(sessionStorage, 'sigma-grade-sync-session')?.token !== token) return;
                 const portal = portalForRole(result.user.role);
@@ -354,6 +342,8 @@
     const initialVerification = verifyDatabaseSession({ background: !!immediateLogin });
     if (isLoginPage) window.sigmaLoginSessionReady = initialVerification;
 
+    // Revocations from another device are checked even while this tab stays open.
+    setInterval(() => { if (!document.hidden && !isLoginPage && !signingOut) verifyDatabaseSession({ background: true }); }, 30000);
     let wasHidden = false;
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') {
@@ -376,6 +366,6 @@
             window.dispatchEvent(new CustomEvent('sigma:tab-identity-restored'));
         }
     });
-    window.addEventListener('pagehide', () => { setGate(signingOut ? 'Signing out…' : 'Checking your session...'); });
+    window.addEventListener('pagehide', () => { if (!signingOut) setGate('Checking your session...'); });
     window.addEventListener('pageshow', event => { verifyDatabaseSession({ background: !event.persisted }); });
 })();
