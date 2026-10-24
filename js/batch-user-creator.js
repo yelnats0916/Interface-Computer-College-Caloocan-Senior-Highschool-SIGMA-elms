@@ -15,6 +15,8 @@
     let batchEntries = [];
     let batchCreatedAccounts = [];
     let batchUploadedFileName = '';
+    let batchUploadedFileObj = null;
+    let batchUploadedFileExt = '';
     let batchSavePending = false;
     let nextRowUid = 1;
 
@@ -789,17 +791,418 @@
 
     // ─── TEMPLATE & CREDENTIALS DOWNLOADERS ───
 
-    window.downloadBatchUserTemplate = function () {
+    const SAMPLE_TEMPLATE_POOL = [
+        // Admins
+        { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', gmail: 'clarissa.bautista.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Eduardo', middleName: 'Ramos', lastName: 'Castillo', gender: 'Male', gmail: 'eduardo.castillo.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Veronica', middleName: 'Pascual', lastName: 'Mercado', gender: 'Female', gmail: 'veronica.mercado.icc@gmail.com' },
+        { role: 'Admin', firstName: 'Gregorio', middleName: 'Salazar', lastName: 'Ocampo', gender: 'Male', gmail: 'gregorio.ocampo.icc@gmail.com' },
+        // Teachers
+        { role: 'Teacher', firstName: 'Rafael', middleName: 'Santos', lastName: 'Dela Cruz', gender: 'Male', gmail: 'rafael.delacruz.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Patricia', middleName: 'Aquino', lastName: 'Navarro', gender: 'Female', gmail: 'patricia.navarro.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Lorenzo', middleName: 'Tolentino', lastName: 'Velasco', gender: 'Male', gmail: 'lorenzo.velasco.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Marissa', middleName: 'Dizon', lastName: 'Magbanua', gender: 'Female', gmail: 'marissa.magbanua.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Benjamin', middleName: 'Flores', lastName: 'de Guzman', gender: 'Male', gmail: 'benjamin.deguzman.icc@gmail.com' },
+        { role: 'Teacher', firstName: 'Camille', middleName: 'Legaspi', lastName: 'Sarmiento', gender: 'Female', gmail: 'camille.sarmiento.icc@gmail.com' },
+        // Students
+        { role: 'Student', firstName: 'Marco', middleName: 'Reyes', lastName: 'Villanueva', gender: 'Male', gmail: 'marco.villanueva2026@gmail.com' },
+        { role: 'Student', firstName: 'Hannah', middleName: 'Garcia', lastName: 'Soriano', gender: 'Female', gmail: 'hannah.soriano2026@gmail.com' },
+        { role: 'Student', firstName: 'Gabriel', middleName: 'Bautista', lastName: 'Mendoza', gender: 'Male', gmail: 'gabriel.mendoza2026@gmail.com' },
+        { role: 'Student', firstName: 'Beatriz', middleName: 'Lopez', lastName: 'Pangilinan', gender: 'Female', gmail: 'beatriz.pangilinan2026@gmail.com' },
+        { role: 'Student', firstName: 'Adrian', middleName: 'Fernandez', lastName: 'Quizon', gender: 'Male', gmail: 'adrian.quizon2026@gmail.com' },
+        { role: 'Student', firstName: 'Sophia', middleName: 'galang', lastName: 'Enriquez', gender: 'Female', gmail: 'sophia.enriquez2026@gmail.com' }
+    ];
+
+    function getFiveSampleTemplateRows() {
+        const existingUsers = getExistingUsers();
+        const norm = s => String(s || '').trim().toLowerCase();
+
+        const isUnused = candidate => {
+            const cPrefix = normalizeEmailPrefix(candidate.gmail);
+            const cEmail = `${cPrefix}@gmail.com`;
+            return !existingUsers.some(u => {
+                const uFname = norm(u.firstName || u.fname);
+                const uMname = norm(u.middleName || u.mname || u.middlename);
+                const uLname = norm(u.lastName || u.lname);
+                const uEmail = norm(u.email);
+                const uPrefix = uEmail.split('@')[0];
+                const sameName = uFname === norm(candidate.firstName) &&
+                    uMname === norm(candidate.middleName) &&
+                    uLname === norm(candidate.lastName);
+                const sameEmail = uEmail === cEmail || uPrefix === cPrefix;
+                return sameName || sameEmail;
+            });
+        };
+
+        const availableAdmins = SAMPLE_TEMPLATE_POOL.filter(p => p.role === 'Admin' && isUnused(p));
+        const availableTeachers = SAMPLE_TEMPLATE_POOL.filter(p => p.role === 'Teacher' && isUnused(p));
+        const availableStudents = SAMPLE_TEMPLATE_POOL.filter(p => p.role === 'Student' && isUnused(p));
+
+        const pickOrFallback = (list, role, index) => {
+            if (list[index]) return list[index];
+            const suffix = String(Date.now()).slice(-3) + index;
+            if (role === 'Admin') {
+                return { role: 'Admin', firstName: 'Clarissa', middleName: 'Mendoza', lastName: 'Bautista', gender: 'Female', gmail: `clarissa.bautista.${suffix}@gmail.com` };
+            }
+            if (role === 'Teacher') {
+                return { role: 'Teacher', firstName: index === 0 ? 'Rafael' : 'Patricia', middleName: index === 0 ? 'Santos' : 'Aquino', lastName: index === 0 ? 'Dela Cruz' : 'Navarro', gender: index === 0 ? 'Male' : 'Female', gmail: `teacher.sample.${suffix}@gmail.com` };
+            }
+            return { role: 'Student', firstName: index === 0 ? 'Marco' : 'Hannah', middleName: index === 0 ? 'Reyes' : 'Garcia', lastName: index === 0 ? 'Villanueva' : 'Soriano', gender: index === 0 ? 'Male' : 'Female', gmail: `student.sample.${suffix}@gmail.com` };
+        };
+
+        // 5 accounts across different roles in mixed order so automatic role sorting (1. Admin -> 2. Teacher -> 3. Student) is clearly demonstrated
+        const selected = [
+            pickOrFallback(availableStudents, 'Student', 0),
+            pickOrFallback(availableAdmins, 'Admin', 0),
+            pickOrFallback(availableTeachers, 'Teacher', 0),
+            pickOrFallback(availableStudents, 'Student', 1),
+            pickOrFallback(availableTeachers, 'Teacher', 1)
+        ];
+
+        return selected.map(item => [
+            item.role,
+            formatPersonName(item.firstName),
+            formatPersonName(item.middleName),
+            formatPersonName(item.lastName),
+            item.gender,
+            item.gmail
+        ]);
+    }
+
+    function computeCrc32(bytes) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i++) {
+            crc ^= bytes[i];
+            for (let j = 0; j < 8; j++) {
+                crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+            }
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function buildStoredZipBytes(filesList) {
+        const encoder = new TextEncoder();
+        const entries = filesList.map(f => {
+            const nameBytes = encoder.encode(f.name);
+            const dataBytes = typeof f.content === 'string' ? encoder.encode(f.content) : f.content;
+            const crc = computeCrc32(dataBytes);
+            return { nameBytes, dataBytes, crc, offset: 0 };
+        });
+
+        let localSize = 0;
+        let centralSize = 0;
+        for (const e of entries) {
+            e.offset = localSize;
+            localSize += 30 + e.nameBytes.length + e.dataBytes.length;
+            centralSize += 46 + e.nameBytes.length;
+        }
+
+        const totalSize = localSize + centralSize + 22;
+        const out = new Uint8Array(totalSize);
+        const view = new DataView(out.buffer);
+        let pos = 0;
+
+        for (const e of entries) {
+            view.setUint32(pos, 0x04034b50, true);
+            view.setUint16(pos + 4, 20, true);
+            view.setUint16(pos + 6, 0, true);
+            view.setUint16(pos + 8, 0, true);
+            view.setUint16(pos + 10, 0, true);
+            view.setUint16(pos + 12, 0, true);
+            view.setUint32(pos + 14, e.crc, true);
+            view.setUint32(pos + 18, e.dataBytes.length, true);
+            view.setUint32(pos + 22, e.dataBytes.length, true);
+            view.setUint16(pos + 26, e.nameBytes.length, true);
+            view.setUint16(pos + 28, 0, true);
+            out.set(e.nameBytes, pos + 30);
+            out.set(e.dataBytes, pos + 30 + e.nameBytes.length);
+            pos += 30 + e.nameBytes.length + e.dataBytes.length;
+        }
+
+        const centralOffset = pos;
+        for (const e of entries) {
+            view.setUint32(pos, 0x02014b50, true);
+            view.setUint16(pos + 4, 20, true);
+            view.setUint16(pos + 6, 20, true);
+            view.setUint16(pos + 8, 0, true);
+            view.setUint16(pos + 10, 0, true);
+            view.setUint16(pos + 12, 0, true);
+            view.setUint16(pos + 14, 0, true);
+            view.setUint32(pos + 16, e.crc, true);
+            view.setUint32(pos + 20, e.dataBytes.length, true);
+            view.setUint32(pos + 24, e.dataBytes.length, true);
+            view.setUint16(pos + 28, e.nameBytes.length, true);
+            view.setUint16(pos + 30, 0, true);
+            view.setUint16(pos + 32, 0, true);
+            view.setUint16(pos + 34, 0, true);
+            view.setUint16(pos + 36, 0, true);
+            view.setUint32(pos + 38, 0, true);
+            view.setUint32(pos + 42, e.offset, true);
+            out.set(e.nameBytes, pos + 46);
+            pos += 46 + e.nameBytes.length;
+        }
+
+        view.setUint32(pos, 0x06054b50, true);
+        view.setUint16(pos + 4, 0, true);
+        view.setUint16(pos + 6, 0, true);
+        view.setUint16(pos + 8, entries.length, true);
+        view.setUint16(pos + 10, entries.length, true);
+        view.setUint32(pos + 12, centralSize, true);
+        view.setUint32(pos + 16, centralOffset, true);
+        view.setUint16(pos + 20, 0, true);
+
+        return out;
+    }
+
+    function buildDocxTemplateBlob(headers, rows) {
+        const xmlEsc = s => String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+        const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+        const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+        const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>
+        <w:sz w:val="20"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+        const allTableRows = [headers, ...rows];
+        let trXml = '';
+        allTableRows.forEach((rowCells, rIdx) => {
+            const isHeader = rIdx === 0;
+            let tcXml = '';
+            rowCells.forEach(cellVal => {
+                const shading = isHeader ? `<w:shd w:val="clear" w:color="auto" w:fill="15803D"/>` : '';
+                const rPr = isHeader
+                    ? `<w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="20"/></w:rPr>`
+                    : `<w:rPr><w:color w:val="1E293B"/><w:sz w:val="20"/></w:rPr>`;
+                tcXml += `<w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2200" w:type="dxa"/>
+            ${shading}
+            <w:tcMar>
+              <w:top w:w="120" w:type="dxa"/>
+              <w:bottom w:w="120" w:type="dxa"/>
+              <w:left w:w="140" w:type="dxa"/>
+              <w:right w:w="140" w:type="dxa"/>
+            </w:tcMar>
+          </w:tcPr>
+          <w:p>
+            <w:r>${rPr}<w:t xml:space="preserve">${xmlEsc(cellVal)}</w:t></w:r>
+          </w:p>
+        </w:tc>`;
+            });
+            trXml += `<w:tr>${tcXml}</w:tr>`;
+        });
+
+        const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:color w:val="15803D"/><w:sz w:val="28"/></w:rPr><w:t>SIGMA ELMS - Batch User Account Creation Template (5 Sample Users)</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:spacing w:after="200"/></w:pPr>
+      <w:r><w:rPr><w:color w:val="475569"/><w:sz w:val="18"/></w:rPr><w:t>Includes Admin, Teacher, and Student sample accounts. Upload this file directly into Batch Create User Accounts.</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="13200" w:type="dxa"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:insideH w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:insideV w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+        </w:tblBorders>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="1900"/>
+        <w:gridCol w:w="2100"/>
+        <w:gridCol w:w="2100"/>
+        <w:gridCol w:w="2100"/>
+        <w:gridCol w:w="1500"/>
+        <w:gridCol w:w="3500"/>
+      </w:tblGrid>
+      ${trXml}
+    </w:tbl>
+    <w:sectPr>
+      <w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>
+      <w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+        const zipBytes = buildStoredZipBytes([
+            { name: '[Content_Types].xml', content: contentTypesXml },
+            { name: '_rels/.rels', content: relsXml },
+            { name: 'word/_rels/document.xml.rels', content: docRelsXml },
+            { name: 'word/styles.xml', content: stylesXml },
+            { name: 'word/document.xml', content: documentXml }
+        ]);
+
+        return new Blob([zipBytes], {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+    }
+
+    function buildPdfTemplateBlob(headers, rows) {
+        const pdfEsc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+        const xPositions = [40, 145, 235, 325, 415, 475];
+        const commands = [];
+
+        // Header banner & title
+        commands.push('0.082 0.502 0.239 rg');
+        commands.push(`BT /F2 14 Tf 40 545 Td (${pdfEsc('SIGMA ELMS - Batch User Account Template (5 Sample Users)')}) Tj ET`);
+        commands.push('0.35 0.40 0.48 rg');
+        commands.push(`BT /F1 9 Tf 40 528 Td (${pdfEsc('Includes Admin, Teacher, and Student sample accounts. Upload this PDF directly into Batch Create User Accounts.')}) Tj ET`);
+
+        // Table Header Row Background
+        commands.push('0.082 0.502 0.239 rg');
+        commands.push('34 492 724 22 re f');
+
+        // Table Header Text
+        commands.push('1 1 1 rg');
+        headers.forEach((h, cIdx) => {
+            commands.push(`BT /F2 10 Tf ${xPositions[cIdx]} 500 Td (${pdfEsc(h)}) Tj ET`);
+        });
+
+        // Data Rows
+        let y = 472;
+        rows.forEach((rowCells, rIdx) => {
+            if (rIdx % 2 === 1) {
+                commands.push('0.96 0.98 0.96 rg');
+                commands.push(`34 ${y - 6} 724 20 re f`);
+            }
+            commands.push('0.12 0.16 0.23 rg');
+            rowCells.forEach((val, cIdx) => {
+                if (val) {
+                    commands.push(`BT /F1 10 Tf ${xPositions[cIdx]} ${y} Td (${pdfEsc(val)}) Tj ET`);
+                }
+            });
+            y -= 24;
+        });
+
+        const streamContent = commands.join('\n');
+        const objects = [
+            '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+            '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+            '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n',
+            `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`,
+            '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+            '6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n'
+        ];
+
+        let pdfText = '%PDF-1.4\n';
+        const offsets = [0];
+        for (const obj of objects) {
+            offsets.push(pdfText.length);
+            pdfText += obj;
+        }
+        const xrefStart = pdfText.length;
+        pdfText += `xref\n0 ${objects.length + 1}\n`;
+        pdfText += '0000000000 65535 f \n';
+        for (let i = 1; i <= objects.length; i++) {
+            pdfText += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+        }
+        pdfText += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+
+        return new Blob([pdfText], { type: 'application/pdf' });
+    }
+
+    function triggerBlobDownload(blob, fileName) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    window.downloadBatchUserTemplate = function (format = 'xlsx') {
+        const fmt = String(format || 'xlsx').trim().toLowerCase();
         const headers = ['Institutional Role', 'Firstname', 'Middlename', 'Lastname', 'Gender', 'Gmail'];
+        const sampleRows = getFiveSampleTemplateRows();
+
+        if (fmt === 'docx' || fmt === 'doc') {
+            const fileName = 'SIGMA_Batch_User_Template.docx';
+            const docxBlob = buildDocxTemplateBlob(headers, sampleRows);
+            const docxFile = new File([docxBlob], fileName, {
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+            if (window._sigmaUploadedFiles instanceof Map) {
+                window._sigmaUploadedFiles.set(fileName, docxFile);
+                window._sigmaUploadedFiles.set(fileName.toLowerCase(), docxFile);
+            }
+            if (typeof window.sigmaStoreDocument === 'function') {
+                window.sigmaStoreDocument(fileName, docxFile, { name: fileName, type: 'docx' }).catch(() => {});
+            }
+            // Open in built-in SIGMA Document Viewer (viewer.html) AND download the .docx file
+            if (typeof window.openDocumentViewer === 'function') {
+                window.openDocumentViewer(fileName, docxFile, 'docx');
+            }
+            triggerBlobDownload(docxBlob, fileName);
+            return;
+        }
+
+        if (fmt === 'pdf') {
+            const fileName = 'SIGMA_Batch_User_Template.pdf';
+            const pdfBlob = buildPdfTemplateBlob(headers, sampleRows);
+            const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+            if (window._sigmaUploadedFiles instanceof Map) {
+                window._sigmaUploadedFiles.set(fileName, pdfFile);
+                window._sigmaUploadedFiles.set(fileName.toLowerCase(), pdfFile);
+            }
+            if (typeof window.sigmaStoreDocument === 'function') {
+                window.sigmaStoreDocument(fileName, pdfFile, { name: fileName, type: 'pdf' }).catch(() => {});
+            }
+            if (typeof window.openDocumentViewer === 'function') {
+                window.openDocumentViewer(fileName, pdfFile, 'pdf');
+            }
+            triggerBlobDownload(pdfBlob, fileName);
+            return;
+        }
+
+        // Default: Excel (.xlsx) with 5 sample users of different roles
+        const allRows = [headers, ...sampleRows];
         if (typeof window.XLSX !== 'undefined') {
-            const ws = window.XLSX.utils.aoa_to_sheet([headers]);
+            const ws = window.XLSX.utils.aoa_to_sheet(allRows);
             ws['!cols'] = [
                 { wch: 22 },
                 { wch: 22 },
                 { wch: 22 },
                 { wch: 22 },
                 { wch: 16 },
-                { wch: 30 }
+                { wch: 32 }
             ];
             headers.forEach((_, colIdx) => {
                 const ref = window.XLSX.utils.encode_cell({ r: 0, c: colIdx });
@@ -815,16 +1218,17 @@
             window.XLSX.utils.book_append_sheet(wb, ws, 'Batch Users');
             window.XLSX.writeFile(wb, 'SIGMA_Batch_User_Template.xlsx');
         } else {
-            const csv = headers.join(',') + '\n';
+            const csv = allRows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n') + '\n';
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'SIGMA_Batch_User_Template.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            triggerBlobDownload(blob, 'SIGMA_Batch_User_Template.csv');
+        }
+    };
+
+    window.openUploadedBatchFileInViewer = function () {
+        if (!batchUploadedFileObj) return;
+        const ext = (batchUploadedFileExt || batchUploadedFileName.split('.').pop() || 'docx').toLowerCase();
+        if (typeof window.openDocumentViewer === 'function') {
+            window.openDocumentViewer(batchUploadedFileName || batchUploadedFileObj.name, batchUploadedFileObj, ext);
         }
     };
 
@@ -978,14 +1382,22 @@
         const summaryBar = document.getElementById('batch-user-summary-bar');
         const fileBadge = document.getElementById('batch-uploaded-file-badge');
         const fileBadgeName = document.getElementById('batch-uploaded-file-name');
+        const viewUploadedBtn = document.getElementById('batch-view-uploaded-doc-btn');
         if (!container) return;
 
         if (fileBadge && fileBadgeName) {
             if (batchUploadedFileName) {
                 fileBadgeName.textContent = batchUploadedFileName;
                 fileBadge.classList.remove('hidden');
+                if (viewUploadedBtn) {
+                    const canViewInBuiltInViewer = Boolean(
+                        batchUploadedFileObj && ['docx', 'doc', 'pdf'].includes(batchUploadedFileExt)
+                    );
+                    viewUploadedBtn.classList.toggle('hidden', !canViewInBuiltInViewer);
+                }
             } else {
                 fileBadge.classList.add('hidden');
+                if (viewUploadedBtn) viewUploadedBtn.classList.add('hidden');
             }
         }
 
@@ -1533,6 +1945,15 @@
             });
 
             batchUploadedFileName = fileName;
+            batchUploadedFileObj = file;
+            batchUploadedFileExt = ext;
+            if (window._sigmaUploadedFiles instanceof Map) {
+                window._sigmaUploadedFiles.set(fileName, file);
+                window._sigmaUploadedFiles.set(fileName.toLowerCase(), file);
+            }
+            if (typeof window.sigmaStoreDocument === 'function') {
+                window.sigmaStoreDocument(fileName, file, { name: fileName, type: ext }).catch(() => {});
+            }
             batchEntries = sortBatchEntriesByRole(parsedEntries);
             renderBatchStep1Review();
         } catch (err) {
@@ -1868,6 +2289,8 @@
         batchEntries = [];
         batchCreatedAccounts = [];
         batchUploadedFileName = '';
+        batchUploadedFileObj = null;
+        batchUploadedFileExt = '';
         renderBatchStep1Review();
         const bodyEl = document.getElementById('batch-user-form-body');
         if (bodyEl) bodyEl.scrollTop = 0;
@@ -1910,6 +2333,8 @@
             batchEntries = [];
             batchCreatedAccounts = [];
             batchUploadedFileName = '';
+            batchUploadedFileObj = null;
+            batchUploadedFileExt = '';
 
             if (typeof window.populateUserSchoolBranchSelect === 'function') {
                 window.populateUserSchoolBranchSelect('');
@@ -1932,6 +2357,8 @@
             batchEntries = [];
             batchCreatedAccounts = [];
             batchUploadedFileName = '';
+            batchUploadedFileObj = null;
+            batchUploadedFileExt = '';
         }
     };
 
