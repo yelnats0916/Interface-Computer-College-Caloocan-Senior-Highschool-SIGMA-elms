@@ -1,0 +1,16 @@
+const{chromium}=require('playwright'),fs=require('fs'),http=require('http'),path=require('path'),assert=require('node:assert/strict');
+(async()=>{const user={id:'student1',uid:'student1',role:'Student',fullName:'Student One',firstName:'Student',lastName:'One',gradeSection:'Einstein',permissions:{studentGrades:true}};
+const reply={success:true,ownerId:'student1',sections:[{id:'sec1',name:'Einstein',subject:'Reading and Writing Skills',status:'Deployed',room:'302',students:[{id:'student1'}],teachers:[{id:'teacher1',name:'Teacher One'}],schoolYear:'2026-2027'}],subjects:[{id:'rw1',name:'Reading and Writing Skills',status:'Published',topics:[]}],schoolYears:[{id:'sy1',yearStart:2026,yearEnd:2027,status:'Active',q1Start:'2026-06-16',q1End:'2026-08-22',q2Start:'2026-08-26',q2End:'2026-10-24'}]};
+const server=http.createServer((req,res)=>{const file=path.join(process.cwd(),decodeURIComponent(req.url.split('?')[0]));try{res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(file));}catch{res.statusCode=404;res.end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));const b=await chromium.launch({channel:'chrome',headless:true});try{
+const c=await b.newContext({viewport:{width:1500,height:900}});await c.addInitScript(u=>{sessionStorage.setItem('sigma-authenticated-user',JSON.stringify(u));sessionStorage.setItem('sigma-grade-sync-session',JSON.stringify({userId:u.id,token:'test-token'}));},user);
+let release;const gate=new Promise(r=>release=r);let classroomStarted=false;
+await c.route('**/php/api/**',async r=>{const u=new URL(r.request().url());let body={success:true,records:[],scopes:[],userId:user.id};if(u.pathname.endsWith('/session.php'))body={success:true,user};if(u.pathname.endsWith('/student_classrooms.php')){classroomStarted=true;await gate;body=reply;}return r.fulfill({contentType:'application/json',body:JSON.stringify(body)});});
+const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto('http://127.0.0.1:'+server.address().port+'/student.html',{waitUntil:'domcontentloaded'});
+await p.waitForFunction(()=>!!window.SigmaAssignedClassrooms);await p.evaluate(()=>{document.body.classList.add('sidebar-collapsed');document.getElementById('nav-classrooms').dispatchEvent(new MouseEvent('mouseenter'));});
+await p.waitForFunction(()=>document.querySelector('#sub-sidebar-content [role="status"]'));
+release();await p.waitForFunction(()=>document.getElementById('sub-sidebar-content').textContent.includes('Reading and Writing Skills'));
+assert.equal(await p.locator('#sub-sidebar-content').getByText('Reading and Writing Skills',{exact:true}).count(),1);
+assert.match(await p.locator('#global-sy-display').textContent(),/2026-2027/);assert.equal(await p.locator('#sub-sidebar-content').getByText('No Classes Available',{exact:true}).count(),0);
+assert.equal(classroomStarted,true);assert.deepEqual(errors,[]);
+console.log('PASS actual student.html/student.js: delayed database response updates an already-open My Classes panel and active school-year banner without reload; no page errors.');
+await c.close();}finally{await b.close();server.close();}})().catch(e=>{console.error(e);process.exit(1)});

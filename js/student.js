@@ -6622,7 +6622,9 @@ if (overlay) overlay.classList.add('hidden');
         }
 
         const cards = getStudentClassroomCards();
-        if (cards.length === 0) {
+        if (cards.length === 0 && window.SigmaAssignedClassrooms && !window.SigmaAssignedClassrooms.isReady()) {
+            content.innerHTML = '<div class="py-16 px-4 text-center" role="status"><i class="fa-solid fa-spinner fa-spin text-black-fade" aria-label="Loading classes"></i></div>';
+        } else if (cards.length === 0) {
             content.innerHTML = `
                 <div class="py-16 px-4 text-center select-none font-['Inter']">
                     <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
@@ -7863,7 +7865,17 @@ if (overlay) overlay.classList.add('hidden');
             }
         }
     });
+    window.addEventListener('sigma:assigned-classrooms-updated', () => {
+        syncStudentEnrolledClassrooms(true);
+        renderStudentSectionsNavChildren(activeStudentClassroomId);
+        renderStudentHomeDashboardPanels();
+        const panel = document.getElementById('sub-sidebar');
+        if (panel?.classList.contains('sub-sidebar-visible') && document.getElementById('sub-sidebar-title')?.textContent?.trim() === 'My Classes') {
+            renderStudentClassroomSectionsSidebar(activeStudentClassroomId, true);
+        }
+    });
     window.addEventListener('sigma:section-deployed', () => {
+        window.dispatchEvent(new CustomEvent('sigma:assigned-classrooms-updated'));
         _cachedLoggedInStudentUser = null;
         syncStudentEnrolledClassrooms(true);
         renderStudentSectionsNavChildren(activeStudentClassroomId);

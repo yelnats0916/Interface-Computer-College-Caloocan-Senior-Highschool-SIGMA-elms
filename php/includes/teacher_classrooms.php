@@ -40,7 +40,14 @@ function sigmaAssignedClassrooms(PDO $db, array $actor): array {
         $record['topics']=sigmaStudentClassContent($record['topics'],$allowed);
         $record['materials']=sigmaStudentClassContent($record['materials'],$allowed);
     }
-    return ['success'=>true,'ownerId'=>(string)$actor['id'],'sections'=>$sections,'subjects'=>$records];
+    unset($record);
+    $schoolYears=[];
+    foreach($db->query('SELECT * FROM school_years WHERE is_deleted=0 ORDER BY year_start DESC')->fetchAll(PDO::FETCH_ASSOC) as $year){
+        $record=['id'=>(string)$year['id'],'yearStart'=>(int)$year['year_start'],'yearEnd'=>(int)$year['year_end'],'status'=>$year['status'],'isDeleted'=>false];
+        for($quarter=1;$quarter<=4;$quarter++)foreach(['Start'=>'start','End'=>'end'] as $key=>$column)$record['q'.$quarter.$key]=$year['q'.$quarter.'_'.$column]??'';
+        $schoolYears[]=$record;
+    }
+    return ['success'=>true,'ownerId'=>(string)$actor['id'],'sections'=>$sections,'subjects'=>$records,'schoolYears'=>$schoolYears];
 }
 
 function sigmaTeacherClassrooms(PDO $db,array $actor): array {
