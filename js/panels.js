@@ -1412,10 +1412,16 @@
         if (actionsEl) {
             if (isNotification) {
                 actionsEl.className = 'sigma-dialog-actions one-button';
-                if (cancelBtn) cancelBtn.style.display = 'none';
+                if (cancelBtn) {
+                    cancelBtn.style.setProperty('display', 'none', 'important');
+                    cancelBtn.classList.add('hidden');
+                }
             } else {
                 actionsEl.className = 'sigma-dialog-actions two-buttons';
-                if (cancelBtn) cancelBtn.style.display = 'block';
+                if (cancelBtn) {
+                    cancelBtn.style.removeProperty('display');
+                    cancelBtn.classList.remove('hidden');
+                }
             }
         }
 

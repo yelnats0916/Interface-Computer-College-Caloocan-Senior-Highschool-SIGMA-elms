@@ -17463,6 +17463,7 @@ window.showUserConfirm = function (title, desc, onProceed, isNotification = fals
 
     if (isNotification) {
         cancelBtn.classList.add('hidden');
+        cancelBtn.style.setProperty('display', 'none', 'important');
         proceedBtn.textContent = 'OK';
         proceedBtn.parentElement.classList.remove('grid-cols-2');
         proceedBtn.parentElement.classList.add('grid-cols-1');

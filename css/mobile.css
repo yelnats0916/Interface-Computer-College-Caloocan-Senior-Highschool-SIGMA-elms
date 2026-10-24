@@ -9697,6 +9697,12 @@
 }
 
 #sigma-ask-actions,
+.sigma-dialog-actions.one-button .sigma-dialog-btn-cancel,
+.sigma-dialog-actions.one-button #sigma-dialog-cancel,
+.sigma-dialog-actions.one-button #sigma-ask-cancel-btn {
+    display: none !important;
+}
+
 .sigma-dialog-actions,
 #sy-confirm-overlay .grid,
 #profile-confirm-overlay .grid,

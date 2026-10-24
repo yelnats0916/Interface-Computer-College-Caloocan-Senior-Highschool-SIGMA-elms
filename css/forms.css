@@ -2241,6 +2241,12 @@ table tbody tr:last-child td,
     grid-template-columns: 1fr;
 }
 
+.sigma-dialog-actions.one-button .sigma-dialog-btn-cancel,
+.sigma-dialog-actions.one-button #sigma-dialog-cancel,
+.sigma-dialog-actions.one-button #sigma-ask-cancel-btn {
+    display: none !important;
+}
+
 @media (min-width: 640px) {
     .sigma-dialog-actions,
     #sigma-ask-actions {
