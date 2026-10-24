@@ -41,7 +41,7 @@ jobs:
           target="sigma-elms@ssh-sigma-elms.alwaysdata.net"
           opts=(-i ~/.ssh/alwaysdata -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
           ssh "${opts[@]}" "$target" 'rm -f /home/sigma-elms/*.zip /home/sigma-elms/sigma-releases/*.zip'
-          ssh "${opts[@]}" "$target" 'python3 - << "EOF"
+          ssh "${opts[@]}" "$target" python3 << 'EOF'
 import shutil
 from pathlib import Path
 home = Path("/home/sigma-elms")
@@ -53,7 +53,7 @@ if releases_dir.exists():
         if r.is_dir() and (active is None or r.resolve() != active.resolve()):
             print("Pruned old release:", r.name)
             shutil.rmtree(r, ignore_errors=True)
-EOF'
+EOF
           ssh "${opts[@]}" "$target" "df -h /home/sigma-elms"
       - name: Upload release archive
         shell: bash
