@@ -8,7 +8,7 @@ const body = { innerHTML: '' };
 // Deliberately unordered persistent IDs: display numbers must never use these.
 const subjects = [6, 5, 18, 44, 59, 21, 90].map(id => ({id, code:'SUB-'+id, name:'Subject '+id, type:'Core', units:3, learningHours:80, status:'Draft'}));
 const context = {
-    window: {subjectSearchState:{}, subjectPaginationState:{currentPage:1,itemsPerPage:5}, hasTableSearchFilters:state=>!!state.query},
+    window: {subjectCatalogState:{ready:true},subjectSearchState:{}, subjectPaginationState:{currentPage:1,itemsPerPage:5}, hasTableSearchFilters:state=>!!state.query},
     document:{getElementById:id=>id==='subjectTableBody'?body:null},
     getFilteredSubjectsBySearch:()=>subjects,
     escapeHtml:String,

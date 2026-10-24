@@ -14,6 +14,7 @@ var getStoredJson = window.getStoredJson || function (key, fallback) {
 
 var USER_STORAGE_KEY = window.USER_STORAGE_KEY || 'sigma-admin-users';
 var SUBJECTS_STORAGE_KEY = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
+window.subjectCatalogState = { ready: false, error: '', records: [] };
 var SECTIONS_STORAGE_KEY = window.SECTIONS_STORAGE_KEY || 'sigma-admin-sections';
 var MANAGED_USERS_RESET_KEY = window.MANAGED_USERS_RESET_KEY || 'sigma-managed-users-reset-v1';
 var LOGIN_SECURITY_KEY = window.LOGIN_SECURITY_KEY || 'sigma-login-security-config';
@@ -8204,12 +8205,15 @@ const fetchSubjectsFromDB = () => {
             // A device-backup quota failure must never block current database records.
             try { window.SigmaDatabase.preserveLegacy(subjKey, localStorage.getItem(subjKey)); }
             catch (error) { console.warn('[subjects] Device backup unavailable; loading database records.', error); }
+            window.subjectCatalogState = { ready: true, error: '', records: data.records };
             window.saveStoredJson(subjKey, data.records);
             if (typeof window.renderSubjectsTable === 'function') window.renderSubjectsTable();
             if (typeof window.updateSubjectMetricCards === 'function') window.updateSubjectMetricCards();
             return true;
         } catch (error) {
             console.error('[subjects] Database refresh failed.', error);
+            window.subjectCatalogState.error = 'Unable to load subjects.';
+            window.renderSubjectsTable?.();
             if (window.location.hash.includes('nav-school-subjects')) {
                 window.showToast?.(error.message || 'Unable to refresh subjects. Please try again.', 'error');
             }
@@ -8231,6 +8235,8 @@ const refreshVisibleSubjectCatalog = () => {
     if (editor && !editor.classList.contains('hidden')) return;
     fetchSubjectsFromDB();
 };
+window.addEventListener('sigma:database-session-ready', refreshVisibleSubjectCatalog);
+window.addEventListener('online', refreshVisibleSubjectCatalog);
 window.addEventListener('focus', refreshVisibleSubjectCatalog);
 window.addEventListener('hashchange', refreshVisibleSubjectCatalog);
 document.addEventListener('visibilitychange', refreshVisibleSubjectCatalog);
@@ -10665,7 +10671,7 @@ window.isEditingSection = false;
 
 window.getSectionPrerequisitesStatus = function () {
     const allUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
-    const allSubjects = (typeof getStoredJson === 'function') ? getStoredJson(SUBJECTS_STORAGE_KEY, []) : [];
+    const allSubjects = window.subjectCatalogState?.records || [];
 
     const teachers = allUsers.filter(u => {
         const role = String(u.type || u.role || '').toLowerCase();
@@ -17237,7 +17243,7 @@ function getMixedSubjectTableOrder(records) {
 }
 
 function getFilteredSubjectsBySearch(searchState) {
-    const subjects = getMixedSubjectTableOrder(getStoredJson(SUBJECTS_STORAGE_KEY, []));
+    const subjects = getMixedSubjectTableOrder(window.subjectCatalogState?.records || []);
     const query = String(searchState?.query || searchState?.code || searchState?.name || '').trim().toLowerCase();
     const type = String(searchState?.type || '').trim().toLowerCase();
     const status = String(searchState?.status || '').trim().toLowerCase();
@@ -17260,7 +17266,7 @@ function getFilteredSubjectsBySearch(searchState) {
 }
 
 function updateSubjectMetricCards() {
-    const allSubjects = (typeof getStoredJson === 'function') ? getStoredJson(SUBJECTS_STORAGE_KEY, []) : [];
+    const allSubjects = window.subjectCatalogState?.records || [];
     let core = 0;
     let applied = 0;
     let specialized = 0;
@@ -17368,6 +17374,14 @@ function renderSubjectsTable() {
     window.renderSubjectsTable = renderSubjectsTable;
     const tableBody = document.getElementById('subjectTableBody');
     if (!tableBody) return;
+    if (!window.subjectCatalogState?.ready) {
+        const failed = Boolean(window.subjectCatalogState?.error);
+        tableBody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-black" role="status">${failed ? 'Unable to load subjects. <button type="button" class="sigma-btn sigma-btn-white" onclick="window.fetchSubjectsFromDB()">Retry</button>' : '<i class="fa-solid fa-spinner fa-spin" aria-label="Loading subjects"></i>'}</td></tr>`;
+        const pagination = document.getElementById('subject-pagination-container');
+        if (pagination) pagination.innerHTML = '';
+        return;
+    }
+
 
     if (typeof updateSubjectMetricCards === 'function') {
         updateSubjectMetricCards();
@@ -17563,6 +17577,7 @@ window.showUserConfirm = function (title, desc, onProceed, isNotification = fals
 };
 
 window.addEventListener('sigma:subjectUpdated', function () {
+    void window.fetchSubjectsFromDB?.();
     if (typeof renderSubjectsTable === 'function') {
         renderSubjectsTable();
     }

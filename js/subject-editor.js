@@ -11183,11 +11183,13 @@ window.addSubjectTopic = function () {
         return true;
     };
 
-    window.editSubject = function (code) {
+    window.editSubject = async function (code) {
+        if (window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
         window.openSubjectEditor(code, 1, { focus: 'info' });
     };
 
-    window.editSubjectContent = function (code) {
+    window.editSubjectContent = async function (code) {
+        if (window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
         if (typeof window.openSharedTopicsAndMaterials === 'function') {
             window.openSharedTopicsAndMaterials({ subjectId: code, contentOrigin: 'subject-catalog' });
         } else {
