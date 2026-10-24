@@ -37102,7 +37102,7 @@ window.flushTeacherReleaseToastQueue = function () {
     function enhance(root) {
         const selects = root.matches?.('select') ? [root] : root.querySelectorAll?.('select') || [];
         for (const select of selects) {
-            if (enhanced.has(select) || select.multiple || select.size > 1) continue;
+            if (enhanced.has(select) || select.multiple || select.size > 1 || select.hasAttribute('data-quiz-owned-select')) continue;
             // Never wrap hidden, aria-hidden, or attendance backward-compatibility selects
             if (select.matches('.hidden, [hidden], [aria-hidden="true"], #attendance-month-select, #attendance-year-select, #ai-gen-type')
                 || select.closest('.hidden, [hidden], [aria-hidden="true"]')) continue;

@@ -2,7 +2,7 @@
 
 ## Scope and references
 
-The generator uses uploaded or borrowed document text, independent teacher instructions, supported question formats, exact requested counts, a cognitive level from Revised Bloom’s Taxonomy, and a separate difficulty setting.
+The generator uses uploaded or borrowed document text, independent teacher instructions, supported question formats, exact requested counts, one or more cognitive levels from Revised Bloom’s Taxonomy, and a separate difficulty setting.
 
 Revised Bloom’s Taxonomy guides the requested cognitive process. See Cornell’s assessment guidance: https://teaching.cornell.edu/teaching-resources/assessment-evaluation/asking-good-test-questions . The six supported levels are Remember, Understand, Apply, Analyze, Evaluate, and Create. Create requires Essay / Paragraph and a grading guide. Format is not treated as a cognitive level; difficulty is not treated as a taxonomy level.
 
@@ -13,7 +13,7 @@ ISO 9241-11:2018 provides a usability evaluation framework: https://www.iso.org/
 ## Implemented behavior
 
 1. Choose an uploaded document or borrowed course document. Actual readable text is required; titles alone, file names and optional instructions are not substituted for source content.
-2. Once source content is available, expose Additional Instructions, question type/count, thinking skill and difficulty. Mixed Types exposes Configure Types; counts per type determine the read-only total.
+2. Once source content is available, expose Additional Instructions, question type/count, thinking skill and difficulty. Mixed Types immediately shows its active rows and Add Question Type. Editing the total divides questions as evenly as possible among active types; per-type edits update the total and stay within remaining capacity. Duplicate types are excluded. Thinking skills use checkboxes with Select All. Every selected level receives at least one question; Create is allocated only to Essay / Paragraph items. The server checks the joint type/level distribution.
 3. The server validates source size, 1–100 questions per request, supported types, exact distribution, a supported thinking skill and Create-format compatibility.
 Provider calls are split into batches of at most 20 questions. The full result must pass validation before it enters the editor. All add/duplicate/generate/import paths enforce a combined 100-question limit; oversized imports are rejected with a warning and their input is preserved.
 

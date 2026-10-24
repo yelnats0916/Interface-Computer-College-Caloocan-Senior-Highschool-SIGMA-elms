@@ -56,3 +56,15 @@ verify(count($result['questions'])===100,'Full 100-question request completed');
 $histogram=array_count_values(array_column($result['questions'],'type'));verify($histogram['Multiple Choice']===60&&$histogram['True or False']===40,'Exact 100-question type distribution');
 try{generateQuizAi($services,array_replace($input,['count'=>101]),fn()=>[]);throw new LogicException('Over-limit generation accepted');}catch(InvalidArgumentException $expected){}
 echo "PASS 100 questions in five validated provider batches, exact mixed counts, and rejection above 100.\n";
+
+$multi=['source'=>'Source lesson','type'=>'Mixed','count'=>12,'typeCounts'=>[['type'=>'Multiple Choice','count'=>10],['type'=>'Essay','count'=>2]],'bloomLevels'=>['Remember','Understand','Apply','Analyze','Evaluate','Create']];
+$plan=quizAiBlueprint($multi,12,'Mixed');verify(count($plan['bloomLevels'])===6,'All six skills selected');verify(array_sum($plan['bloomCounts'])===12,'Skill allocation total');
+foreach($plan['allocations'] as $allocation)if($allocation['level']==='Create')verify($allocation['type']==='Essay','Create uses essay only');
+$serial=0;$multiResult=generateQuizAi($services,$multi,function($url,$headers,$body)use(&$serial){
+    $prompt=$body['messages'][0]['content'];preg_match('/allocation: (\[.*?\])\./',$prompt,$match);$allocations=json_decode($match[1],true);$rows=[];
+    foreach($allocations as $allocation)for($i=0;$i<$allocation['count'];$i++)$rows[]=['type'=>$allocation['type'],'question'=>'Multi question '.(++$serial),'choices'=>['A','B','C','D'],'answer'=>'A','bloomLevel'=>$allocation['level'],'bloomRationale'=>'Tests the selected thinking skill.'];
+    return ['choices'=>[['message'=>['content'=>json_encode(['questions'=>$rows])]]]];
+});
+verify(count(array_unique(array_column($multiResult['questions'],'bloomLevel')))===6,'Actual generated questions cover all selected skills');
+foreach([array_replace($multi,['count'=>5]),array_replace($multi,['bloomLevels'=>[]]),array_replace($multi,['bloomLevels'=>['Understand','Understand']])] as $bad){try{quizAiBlueprint($bad,$bad['count'],'Mixed');throw new LogicException('Invalid level selections accepted');}catch(InvalidArgumentException $expected){}}
+echo "PASS multi-select Bloom allocation, coverage of all selected skills, Create/Essay compatibility and invalid combinations.\n";

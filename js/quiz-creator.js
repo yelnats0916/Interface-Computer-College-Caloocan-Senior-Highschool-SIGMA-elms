@@ -4539,7 +4539,7 @@ window.openAIConfirmGenerateModal = function () {
     const descEl = document.getElementById('ai-confirm-generate-desc');
 
     if (titleEl) titleEl.textContent = `Generate ${count} ${count === 1 ? 'Question' : 'Questions'}?`;
-    if (descEl) { const plan=window.SigmaQuizGeneration.options(); const distribution=plan.typeCounts?.map(row=>`${row.count} ${row.type}`).join(', ')||`${count} ${selectedType}`; descEl.textContent=`${distribution} · ${plan.bloomLevel} · Includes answer keys or grading guidance.`; }
+    if (descEl) { const plan=window.SigmaQuizGeneration.options(); const distribution=plan.typeCounts?.map(row=>`${row.count} ${row.type}`).join(', ')||`${count} ${selectedType}`; descEl.textContent=`${distribution} · ${plan.bloomLevels.join(', ')} · Includes answer keys or grading guidance.`; }
 
     const modal = document.getElementById('ai-confirm-generate-modal');
     if (modal) {
