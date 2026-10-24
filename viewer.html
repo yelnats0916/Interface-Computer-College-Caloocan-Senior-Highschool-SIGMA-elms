@@ -426,6 +426,31 @@
             transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
+        .docx-wrapper > section.docx table,
+        .paper-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            box-sizing: border-box !important;
+        }
+
+        .docx-wrapper > section.docx table col,
+        .paper-sheet table col {
+            width: auto !important;
+        }
+
+        .docx-wrapper > section.docx th,
+        .docx-wrapper > section.docx td,
+        .paper-sheet th,
+        .paper-sheet td {
+            width: auto !important;
+            max-width: 100% !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            box-sizing: border-box !important;
+        }
+
         /* --- COMPREHENSIVE DARK THEME OVERRIDES FOR DOCX & TABLES --- */
         body.dark-theme .paper-sheet,
         body.dark-theme .docx-wrapper > section.docx {
@@ -1920,6 +1945,7 @@
                         ignoreHeight: false
                     });
                     rendered = true;
+                    wrapper.querySelectorAll('table').forEach(tbl => { tbl.style.setProperty('width', '100%', 'important'); tbl.style.setProperty('max-width', '100%', 'important'); tbl.style.setProperty('table-layout', 'auto', 'important'); }); wrapper.querySelectorAll('table col, table td, table th').forEach(cell => { cell.style.removeProperty('width'); });
                 } catch (e) {
                     console.warn('docx-preview notice, falling back to Mammoth:', e);
                 }

@@ -991,25 +991,27 @@
   </w:docDefaults>
 </w:styles>`;
 
+        const colWidthsDxa = [1450, 1300, 1300, 1300, 1050, 2960];
         const allTableRows = [headers, ...rows];
         let trXml = '';
         allTableRows.forEach((rowCells, rIdx) => {
             const isHeader = rIdx === 0;
             let tcXml = '';
-            rowCells.forEach(cellVal => {
+            rowCells.forEach((cellVal, cIdx) => {
+                const colW = colWidthsDxa[cIdx] || 1500;
                 const shading = isHeader ? `<w:shd w:val="clear" w:color="auto" w:fill="15803D"/>` : '';
                 const rPr = isHeader
-                    ? `<w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="20"/></w:rPr>`
-                    : `<w:rPr><w:color w:val="1E293B"/><w:sz w:val="20"/></w:rPr>`;
+                    ? `<w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="18"/></w:rPr>`
+                    : `<w:rPr><w:color w:val="1E293B"/><w:sz w:val="18"/></w:rPr>`;
                 tcXml += `<w:tc>
           <w:tcPr>
-            <w:tcW w:w="2200" w:type="dxa"/>
+            <w:tcW w:w="${colW}" w:type="dxa"/>
             ${shading}
             <w:tcMar>
-              <w:top w:w="120" w:type="dxa"/>
-              <w:bottom w:w="120" w:type="dxa"/>
-              <w:left w:w="140" w:type="dxa"/>
-              <w:right w:w="140" w:type="dxa"/>
+              <w:top w:w="100" w:type="dxa"/>
+              <w:bottom w:w="100" w:type="dxa"/>
+              <w:left w:w="100" w:type="dxa"/>
+              <w:right w:w="100" w:type="dxa"/>
             </w:tcMar>
           </w:tcPr>
           <w:p>
@@ -1025,7 +1027,7 @@
   <w:body>
     <w:p>
       <w:pPr><w:spacing w:after="120"/></w:pPr>
-      <w:r><w:rPr><w:b/><w:color w:val="15803D"/><w:sz w:val="28"/></w:rPr><w:t>SIGMA ELMS - Batch User Account Creation Template (5 Sample Users)</w:t></w:r>
+      <w:r><w:rPr><w:b/><w:color w:val="15803D"/><w:sz w:val="26"/></w:rPr><w:t>SIGMA ELMS - Batch User Account Creation Template (5 Sample Users)</w:t></w:r>
     </w:p>
     <w:p>
       <w:pPr><w:spacing w:after="200"/></w:pPr>
@@ -1033,7 +1035,7 @@
     </w:p>
     <w:tbl>
       <w:tblPr>
-        <w:tblW w:w="13200" w:type="dxa"/>
+        <w:tblW w:w="5000" w:type="pct"/>
         <w:tblBorders>
           <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
           <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
@@ -1044,17 +1046,17 @@
         </w:tblBorders>
       </w:tblPr>
       <w:tblGrid>
-        <w:gridCol w:w="1900"/>
-        <w:gridCol w:w="2100"/>
-        <w:gridCol w:w="2100"/>
-        <w:gridCol w:w="2100"/>
-        <w:gridCol w:w="1500"/>
-        <w:gridCol w:w="3500"/>
+        <w:gridCol w:w="1450"/>
+        <w:gridCol w:w="1300"/>
+        <w:gridCol w:w="1300"/>
+        <w:gridCol w:w="1300"/>
+        <w:gridCol w:w="1050"/>
+        <w:gridCol w:w="2960"/>
       </w:tblGrid>
       ${trXml}
     </w:tbl>
     <w:sectPr>
-      <w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>
+      <w:pgSz w:w="12240" w:h="15840"/>
       <w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/>
     </w:sectPr>
   </w:body>
