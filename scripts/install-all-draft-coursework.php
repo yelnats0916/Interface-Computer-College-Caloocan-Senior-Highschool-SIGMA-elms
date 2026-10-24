@@ -28,7 +28,7 @@ echo "Loaded bundle with " . count($subjects) . " subjects and " . count($quizze
 $findActor = $pdo->prepare("SELECT * FROM users WHERE id=? AND is_deleted=0 LIMIT 1");
 $findActor->execute([$actorId]);
 $actor = $findActor->fetch(PDO::FETCH_ASSOC);
-$actorName = $actor ? ($actor['full_name'] ?: trim(($actor['first_name'] ?? '') . ' ' . ($actor['last_name'] ?? ''))) : 'Stanley Vargas Garcia';
+$actorName = $actor ? sigmaCreatorDisplayName($actor, (string)($actor['full_name'] ?? '')) : 'Admin';
 
 // Ensure tables exist
 sigmaCreationNumberSchema($pdo);

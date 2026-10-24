@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/creator_names.php';
 function sigmaCollectSubjectMaterials(array $subject): array {
     $items=[];
     foreach ($subject['materials'] ?? [] as $m) if (is_array($m) && !empty($m['id'])) $items[(string)$m['id']]=$m;
@@ -14,7 +15,7 @@ function sigmaStampSubjectMaterials(array &$subject, array $previous, array $act
     $old = sigmaCollectSubjectMaterials($previous); $new = sigmaCollectSubjectMaterials($subject); $created=[];
     foreach ($new as $id=>&$m) {
         if (!isset($old[$id])) {
-            $m['authorId']=(string)$actor['id']; $m['authorName']=(string)($actor['full_name'] ?? $actor['fullName'] ?? '');
+            $m['authorId']=(string)$actor['id']; $m['authorName']=sigmaCreatorDisplayName($actor, (string)($actor['full_name'] ?? $actor['fullName'] ?? ''));
             $m['authorRole']=(string)$actor['role']; $m['createdAt']=gmdate('c'); $m['timestamp']=$m['createdAt'];
             $m['isTeacher']=strtolower($actor['role'])==='teacher'; $m['isAdmin']=!$m['isTeacher'];
             $created[$id]=$m;

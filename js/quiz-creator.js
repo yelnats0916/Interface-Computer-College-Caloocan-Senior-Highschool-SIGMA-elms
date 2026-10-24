@@ -168,7 +168,7 @@ function _saveBeforeExit() {
         const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
         if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); window.SigmaFeedback.dismiss('quiz-save'); return; }
         const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
-        const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
+        const authorName = `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.fullName || activeUser?.name || 'Author not recorded';
         const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
         const totalPoints = (questions || []).reduce((acc, q) => acc + (parseInt(q.points) || 0), 0);
 
@@ -1995,7 +1995,7 @@ window.executeSaveQuizToLibrary = function (stayInStorage = false, isDraft = fal
             const activeUser = window.getQuizActiveUser ? window.getQuizActiveUser() : null;
             if (!activeUser?.id) { window.showToast?.('Sign in before saving a quiz.', 'error'); window.SigmaFeedback.dismiss('quiz-save'); return; }
             const authorId = activeUser ? String(activeUser.id || activeUser.uid || '') : '';
-            const authorName = activeUser?.fullName || `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.name || 'Author not recorded';
+            const authorName = `${activeUser?.firstName || ''} ${activeUser?.lastName || ''}`.trim() || activeUser?.fullName || activeUser?.name || 'Author not recorded';
             const authorRole = activeUser ? (window.normalizeQuizRole ? window.normalizeQuizRole(activeUser.role) : (String(activeUser.role || '').toLowerCase().includes('teach') ? 'Teacher' : 'Admin')) : 'Admin';
 
             let savedQuizId = currentQuizId;

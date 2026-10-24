@@ -75,7 +75,7 @@ def build_docx(dest_path, title, subject_name, topic_title, quarter_str, prompt,
     doc.styles['Title'].font.size = Pt(18)
     doc.styles['Heading 1'].font.size = Pt(12)
     
-    doc.core_properties.author = 'Stanley Vargas Garcia'
+    doc.core_properties.author = 'Stanley Garcia'
     doc.core_properties.title = title
     
     doc.add_paragraph('Interface Computer College Caloocan', style='Heading 2')
@@ -395,7 +395,7 @@ def run():
                         'description': quiz_desc,
                         'status': 'published',
                         'author_id': '0000000',
-                        'author_name': 'Stanley Vargas Garcia',
+                        'author_name': 'Stanley Garcia',
                         'author_role': 'Admin',
                         'questions': questions,
                         'total_questions': 10,
@@ -445,7 +445,7 @@ def run():
                         'selectedQuizIsAi': True,
                         'hasRubric': False,
                         'authorId': '0000000',
-                        'authorName': 'Stanley Vargas Garcia',
+                        'authorName': 'Stanley Garcia',
                         'authorRole': 'Admin',
                         'isAdmin': True,
                         'isTeacher': False,
@@ -527,7 +527,7 @@ def run():
                         'totalPoints': 100,
                         'attachments': [],
                         'authorId': '0000000',
-                        'authorName': 'Stanley Vargas Garcia',
+                        'authorName': 'Stanley Garcia',
                         'authorRole': 'Admin',
                         'isAdmin': True,
                         'isTeacher': False,

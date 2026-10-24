@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/creator_names.php';
 require_once __DIR__ . '/../includes/quiz_icons.php';
 require_once dirname(__DIR__) . '/includes/data_provenance.php';
 require_once dirname(__DIR__) . '/includes/record_creation_numbers.php';
@@ -254,6 +255,7 @@ try {
         }
         $authorId = $existingQuiz ? (string)$existingQuiz['author_id'] : (string)$databaseActor['id'];
         $authorName = $existingQuiz ? (string)$existingQuiz['author_name'] : (string)($databaseActor['full_name'] ?: trim($databaseActor['first_name'].' '.$databaseActor['last_name']));
+        $authorName = sigmaCreatorNameForId($pdo, $authorId, $authorName);
         $authorRole = $existingQuiz ? (string)$existingQuiz['author_role'] : ($actorRole === 'teacher' ? 'Teacher' : 'Admin');
 
         $questionsArr = $quiz['questions'] ?? [];
