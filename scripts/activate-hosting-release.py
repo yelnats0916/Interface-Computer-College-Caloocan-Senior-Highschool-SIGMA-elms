@@ -126,7 +126,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     try:
         activate(args.archive, args.release, args.initialize)
+        try:
+            (HOME / 'www/deploy_error.html').unlink(missing_ok=True)
+        except Exception:
+            pass
     except Exception as exc:
-        sys.stderr.write(f"\nCRITICAL: Exception during activation: {exc}\n")
-        traceback.print_exc()
+        err_text = f"CRITICAL: Exception during activation:\n{exc}\n\n{traceback.format_exc()}"
+        sys.stderr.write(err_text + "\n")
+        try:
+            (HOME / 'www/deploy_error.html').write_text(f"<pre>{err_text}</pre>", encoding='utf-8')
+        except Exception as e2:
+            sys.stderr.write(f"Failed to write deploy_error.html: {e2}\n")
         sys.exit(1)
