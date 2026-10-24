@@ -2295,13 +2295,13 @@
 
                         <div class="flex items-start sm:items-center gap-1.5 text-[9.5px] sm:text-[11px] text-black-fade leading-tight pt-1">
                             <i class="fa-solid fa-shield-halved text-[#15803d] shrink-0 mt-0.5 sm:mt-0"></i>
-                            <span>Questions and answer keys are based on the selected material. Review them before publishing.</span>
+                            <span style="color: #000000 !important;">Questions and answer keys are based on the selected material. Review them before publishing.</span>
                         </div>
                     </div>
 
                     <div id="ai-generation-settings" class="hidden space-y-4 sm:space-y-5">
                         <div class="space-y-1.5">
-                            <label for="ai-gen-topic" class="block text-xs sm:text-sm font-semibold text-black">Additional Instructions (Optional)</label>
+                            <label for="ai-gen-topic" class="block text-xs sm:text-sm font-semibold text-black-fade" style="color: var(--sigma-black-fade, rgba(0, 0, 0, 0.45)) !important;">Additional Instructions (Optional)</label>
                             <textarea id="ai-gen-topic" rows="3" maxlength="2000" placeholder="Specify the topic, pages, or learning objectives to focus on." oninput="window.syncAIGenerateButtonState()" class="sigma-one-border-textarea w-full bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-black resize-y leading-relaxed"></textarea>
                         </div>
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 w-full relative z-30" id="ai-gen-engine-type-row">
