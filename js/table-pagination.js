@@ -70,6 +70,29 @@
             container.append(settings);
         }
     }
+    let activePageSizeMenu = null;
+    function positionPageSizeMenu() {
+        const active = activePageSizeMenu;
+        if (!active) return;
+        if (!active.dropdown.isConnected || !active.dropdown.open) { closePageSizeMenu(); return; }
+        const {trigger,menu} = active, rect = trigger.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const leftEdge = viewport?.offsetLeft || 0, topEdge = viewport?.offsetTop || 0;
+        const rightEdge = leftEdge + (viewport?.width || innerWidth), bottomEdge = topEdge + (viewport?.height || innerHeight);
+        const width = Math.max(80,rect.width), height = Math.min(180,bottomEdge-topEdge-16);
+        menu.style.setProperty('width',`${width}px`,'important');
+        menu.style.setProperty('max-height',`${height}px`,'important');
+        const measured = menu.getBoundingClientRect().height;
+        const top = bottomEdge-rect.bottom >= measured+12 ? rect.bottom+4 : Math.max(topEdge+8,rect.top-measured-4);
+        menu.style.setProperty('left',`${Math.max(leftEdge+8,Math.min(rect.right-width,rightEdge-width-8))}px`,'important');
+        menu.style.setProperty('top',`${top}px`,'important');
+    }
+    function closePageSizeMenu() {
+        const active=activePageSizeMenu;if(!active)return;activePageSizeMenu=null;
+        if(typeof active.menu.hidePopover==='function'&&active.menu.matches(':popover-open'))active.menu.hidePopover();
+        if(active.menu.parentElement!==active.dropdown)active.dropdown.append(active.menu);
+        active.dropdown.open=false;
+    }
     function pageSizeControl(size, onChange) {
         const label = document.createElement('div');
         label.className = 'sigma-page-size';
@@ -81,18 +104,32 @@
         const valueText = document.createElement('span'); valueText.textContent = String(size);
         const icon = document.createElement('i'); icon.className = 'fa-solid fa-chevron-down'; icon.setAttribute('aria-hidden','true');
         trigger.append(valueText, icon);
-        const menu = document.createElement('div'); menu.className = 'sigma-quarter-dropdown-menu';
+        const menu = document.createElement('div'); menu.className = 'sigma-quarter-dropdown-menu sigma-page-size-menu';
+        if(typeof menu.showPopover==='function')menu.setAttribute('popover','manual');
         [5,10,20].forEach(value => {
             const option = document.createElement('button'); option.type = 'button'; option.textContent = String(value);
             option.setAttribute('aria-pressed', String(value === size));
-            option.onclick = () => { dropdown.open = false; onChange(value); };
+            option.onclick = () => { closePageSizeMenu(); onChange(value); };
             menu.append(option);
         });
         dropdown.append(trigger,menu); label.append(text,dropdown);
-        dropdown.addEventListener('keydown',event=>{if(event.key==='Escape'){dropdown.open=false;trigger.focus();}});
+        dropdown.addEventListener('toggle',()=>{
+            if(!dropdown.open){if(activePageSizeMenu?.dropdown===dropdown)closePageSizeMenu();return;}
+            if(activePageSizeMenu?.dropdown===dropdown){positionPageSizeMenu();return;}
+            closePageSizeMenu();activePageSizeMenu={dropdown,trigger,menu};
+            if(typeof menu.showPopover==='function')menu.showPopover();else document.body.append(menu);
+            positionPageSizeMenu();
+        });
+        dropdown.addEventListener('keydown',event=>{if(event.key==='Escape'){closePageSizeMenu();trigger.focus();}});
         return label;
     }
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&activePageSizeMenu){const trigger=activePageSizeMenu.trigger;closePageSizeMenu();trigger.focus();}});
+    window.addEventListener('resize',positionPageSizeMenu);
+    document.addEventListener('scroll',positionPageSizeMenu,true);
+    window.visualViewport?.addEventListener('resize',positionPageSizeMenu);
+    window.visualViewport?.addEventListener('scroll',positionPageSizeMenu);
     document.addEventListener('pointerdown',event=>{
+        if(activePageSizeMenu&&!activePageSizeMenu.dropdown.contains(event.target)&&!activePageSizeMenu.menu.contains(event.target))closePageSizeMenu();
         document.querySelectorAll('.sigma-page-size-dropdown[open]').forEach(dropdown=>{if(!dropdown.contains(event.target))dropdown.open=false;});
     });
     // Read-only lists opt in explicitly. Keep all rows in the DOM for exports and full-list calculations.

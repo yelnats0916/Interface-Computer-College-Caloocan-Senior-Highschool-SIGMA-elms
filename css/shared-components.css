@@ -8318,3 +8318,10 @@ html body .sigma-page-size .sigma-page-size-dropdown.sigma-quarter-dropdown{heig
 html body .sigma-page-size .sigma-page-size-dropdown.sigma-quarter-dropdown>summary{height:36px!important;min-height:36px!important;border:1px solid #cbd5e1!important;border-radius:10px!important;box-shadow:none!important}
 html body .sigma-page-size .sigma-page-size-dropdown.sigma-quarter-dropdown>summary:focus-visible{outline:2px solid #15803d;outline-offset:2px}
 @media(max-width:600px){html body .sigma-page-size .sigma-page-size-dropdown.sigma-quarter-dropdown>summary{height:32px!important;min-height:32px!important}}
+
+/* Page-size options use the top layer so rounded, scrolling tables cannot clip them. */
+html body .sigma-page-size-menu.sigma-quarter-dropdown-menu{position:fixed!important;inset:auto!important;right:auto!important;bottom:auto!important;margin:0!important;min-width:80px!important;max-width:calc(100vw - 16px)!important;height:auto!important;box-sizing:border-box!important;overflow-y:auto!important;overscroll-behavior:contain;padding:4px!important;background:#fff!important;border:1px solid #e2e8f0!important;border-radius:10px!important;box-shadow:0 8px 20px #0002!important;z-index:2147483000!important}
+html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button{display:block!important;width:100%!important;min-height:36px!important;padding:7px 10px!important;border:0!important;border-radius:6px!important;background:#fff;color:#000!important;text-align:left!important;font:400 13px/20px Inter,sans-serif!important;cursor:pointer}
+html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button:is(:hover,[aria-pressed=true]){background:#f0fdf4!important;color:#15803d!important}
+html body .sigma-page-size-menu::backdrop{background:transparent;pointer-events:none}
+@media(max-width:600px){html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button{min-height:34px!important;font-size:12px!important}}
