@@ -17111,7 +17111,7 @@ function renderSectionsTable() {
     tableBody.innerHTML = paginatedSections.map((sec, idx) => {
         const isInactive = (sec.status || 'Active').toLowerCase() === 'inactive';
         const rowStripe = (idx % 2 === 1) ? 'bg-slate-50/60' : '';
-        const rowNumber = window.hasTableSearchFilters(window.sectionSearchState) ? startIndex + idx + 1 : window.getRecordCreationNumber(sec, getStoredJson(SECTIONS_STORAGE_KEY, []), 'sections');
+        const rowNumber = window.hasTableSearchFilters(window.sectionSearchState) ? startIndex + idx + 1 : totalItems - startIndex - idx;
         const strandBadge = sec.strand ? `<span class="inline-block text-[11px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-['Inter']">${escapeHtml(sec.strand)}</span>` : '';
 
         // Format Teacher(s) cell
@@ -17119,10 +17119,6 @@ function renderSectionsTable() {
         const rawTeachers = (Array.isArray(sec.teachers) && sec.teachers.length > 0)
             ? sec.teachers
             : (sec.teacher ? [{ name: sec.teacher, role: sec.role || (sec.adviser === sec.teacher ? 'Adviser' : 'Teacher'), isPrimary: true }] : []);
-
-        if (sec.adviser && !rawTeachers.some(t => (typeof t === 'object' ? t.name : t) === sec.adviser)) {
-            rawTeachers.push({ name: sec.adviser, role: 'Adviser', isPrimary: false });
-        }
 
         if (rawTeachers.length > 0) {
             const allAdminUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
