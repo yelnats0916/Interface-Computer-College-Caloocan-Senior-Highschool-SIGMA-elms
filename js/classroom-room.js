@@ -2085,7 +2085,15 @@
     let attendanceEditingDays = {};
     window.attendanceEditingDays = attendanceEditingDays;
 
+    function isStudentAttendancePortal() {
+        // Portal identity must win over the shared attendance DOM ids.
+        const path = String(window.location?.pathname || '').toLowerCase();
+        const role = String(window.SigmaDatabase?.currentUser?.()?.role || '').toLowerCase();
+        return path.includes('student.html') || role === 'student';
+    }
+
     function saveCurrentAttendanceStatuses(statuses, dateString = getTodayLocalDateString(), excuses = null, metaOptions = null) {
+        if (isStudentAttendancePortal()) return;
         const secName = getActiveRoomSectionName();
         const subjName = getActiveRoomSubjectName();
         const fullKey = getActiveRoomClassroomKey();
@@ -2195,6 +2203,7 @@
     window.saveCurrentAttendanceStatuses = saveCurrentAttendanceStatuses;
 
     window.submitDailyAttendance = async function (dateString) {
+        if (isStudentAttendancePortal()) return;
         if (!dateString) return;
         const statuses = getCurrentAttendanceStatuses(dateString);
         const excuses = getCurrentAttendanceExcuses(dateString);
@@ -2321,6 +2330,7 @@
     window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
 
     window.enableDailyAttendanceEdit = function (dateString) {
+        if (isStudentAttendancePortal()) return;
         if (!dateString) return;
         window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
         const currentStatuses = getCurrentAttendanceStatuses(dateString);
@@ -2654,6 +2664,7 @@
     }
 
     function renderClassroomAttendanceTab(shouldSlide = false) {
+        if (isStudentAttendancePortal()) return;
         const container = document.getElementById('detail-section-attendance');
         if (!container) return;
 
@@ -3194,6 +3205,7 @@
     };
 
     window.setAttendanceStatus = function (studentName, dateString, status, event, studentId = null) {
+        if (isStudentAttendancePortal()) return;
         if (event) {
             event.preventDefault();
             event.stopPropagation();
