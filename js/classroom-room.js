@@ -3945,7 +3945,7 @@
 
     window.exportFilteredAttendanceWorkbook = function (section, subject, config) {
         if (typeof XLSX === 'undefined') { window.showToastNotification?.('Excel export is unavailable. Please reload and try again.', 'warning'); return; }
-        const { data } = findAttendanceClassroomRecord(section, subject);
+        const data = Object.fromEntries(window.getSubmittedAttendanceDays(section, subject).map(day => [day.date, day]));
         const students = (getAttendanceStudents(section, subject) || []).slice().sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
         if (!students.length) { window.showToastNotification?.('No students available for this section and subject.', 'warning'); return; }
         const getStatuses = date => data[date]?.statuses || (data.date === date ? data.statuses : null) || {};
@@ -3966,147 +3966,173 @@
         return true;
     };
 
-    window.executeAttendanceExport = function () {
-        const scope = document.querySelector('input[name="attendance-export-scope"]:checked')?.value || 'day';
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const currentMonthName = monthNames[attendanceViewingMonth];
-        const secName = getActiveRoomSectionName();
-        const subjName = getActiveRoomSubjectName();
-        const academicPeriod = window.getAttendanceAcademicPeriods?.().find(period => period.key === scope);
-        if (academicPeriod) {
-            if (!window.isAttendanceAcademicPeriodReady?.(academicPeriod, secName, subjName)) {
-                window.showToastNotification?.('This period is locked. Configure its dates and record attendance before exporting.', 'warning');
+    window.executeAttendanceExport = async function () {
+        if (window._attendanceExcelExporting) return;
+        window._attendanceExcelExporting = true;
+        const button = document.querySelector('.attendance-export-download-btn');
+        const buttonContent = button?.innerHTML;
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>'; }
+        try {
+            await window.SigmaAttendance.refresh();
+            const scope = document.querySelector('input[name="attendance-export-scope"]:checked')?.value || 'day';
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const currentMonthName = monthNames[attendanceViewingMonth];
+            const secName = getActiveRoomSectionName();
+            const subjName = getActiveRoomSubjectName();
+            const academicPeriod = window.getAttendanceAcademicPeriods?.().find(period => period.key === scope);
+            if (academicPeriod) {
+                if (!window.isAttendanceAcademicPeriodReady?.(academicPeriod, secName, subjName)) {
+                    window.showToastNotification?.('This period is locked. Configure its dates and record attendance before exporting.', 'warning');
+                    return;
+                }
+                const exported = window.exportFilteredAttendanceWorkbook(secName, subjName, {
+                    label: academicPeriod.label,
+                    academic: academicPeriod,
+                    isMatch: date => date >= academicPeriod.start && date <= academicPeriod.end
+                });
+                if (exported) window.closeAttendanceExportModal();
                 return;
             }
-            const exported = window.exportFilteredAttendanceWorkbook(secName, subjName, {
-                label: academicPeriod.label,
-                academic: academicPeriod,
-                isMatch: date => date >= academicPeriod.start && date <= academicPeriod.end
-            });
-            if (exported) window.closeAttendanceExportModal();
-            return;
-        }
 
-        const rawStudents = getAttendanceStudents(secName, subjName);
-        const students = (Array.isArray(rawStudents) ? rawStudents.slice() : [])
-            .sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
+            const rawStudents = getAttendanceStudents(secName, subjName);
+            const students = (Array.isArray(rawStudents) ? rawStudents.slice() : [])
+                .sort((a, b) => String(a.name || a.fullName || '').localeCompare(String(b.name || b.fullName || '')));
 
-        refreshAttendanceRecords();
-        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
+            const classroomData = Object.fromEntries(window.getSubmittedAttendanceDays(secName, subjName).map(day => [day.date, day]));
+            const submittedStatusesForDate = date => classroomData[date]?.statuses || {};
 
-        function dateHasAnyStudentAttendance(dateStr) {
-            const currentStatuses = getCurrentAttendanceStatuses(dateStr);
-            if (!currentStatuses || typeof currentStatuses !== 'object') return false;
-            const keys = Object.keys(currentStatuses);
-            if (keys.length === 0) return false;
+            function dateHasAnyStudentAttendance(dateStr) {
+                const currentStatuses = submittedStatusesForDate(dateStr);
+                if (!currentStatuses || typeof currentStatuses !== 'object') return false;
+                const keys = Object.keys(currentStatuses);
+                if (keys.length === 0) return false;
 
-            for (let s = 0; s < students.length; s++) {
-                const student = students[s];
-                let displayName = student.name || student.fullName || '';
-                let status = currentStatuses[student.name] ||
-                    (student.id && currentStatuses[student.id]) ||
-                    (student.uid && currentStatuses[student.uid]) ||
-                    currentStatuses[displayName] || '';
-                if (!status) {
-                    for (const k of keys) {
-                        if ((student.id && String(k) === String(student.id)) || (student.uid && String(k) === String(student.uid)) || studentNamesMatch(k, displayName)) {
-                            status = currentStatuses[k];
-                            break;
+                for (let s = 0; s < students.length; s++) {
+                    const student = students[s];
+                    let displayName = student.name || student.fullName || '';
+                    let status = currentStatuses[student.name] ||
+                        (student.id && currentStatuses[student.id]) ||
+                        (student.uid && currentStatuses[student.uid]) ||
+                        currentStatuses[displayName] || '';
+                    if (!status) {
+                        for (const k of keys) {
+                            if ((student.id && String(k) === String(student.id)) || (student.uid && String(k) === String(student.uid)) || studentNamesMatch(k, displayName)) {
+                                status = currentStatuses[k];
+                                break;
+                            }
                         }
                     }
+                    if (status && String(status).trim() !== '') return true;
                 }
-                if (status && String(status).trim() !== '') return true;
+
+                for (const k of keys) {
+                    const val = currentStatuses[k];
+                    if (val && ['P', 'A', 'L', 'E'].includes(String(val).trim().toUpperCase())) {
+                        return true;
+                    }
+                }
+                return false;
             }
 
-            for (const k of keys) {
-                const val = currentStatuses[k];
-                if (val && ['P', 'A', 'L', 'E'].includes(String(val).trim().toUpperCase())) {
-                    return true;
-                }
-            }
-            return false;
-        }
+            const sheetsToExport = [];
 
-        const sheetsToExport = [];
-
-        if (scope === 'day') {
-            const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-            const part = name => parts.find(item => item.type === name).value;
-            const dateStr = `${part('year')}-${part('month')}-${part('day')}`;
-            sheetsToExport.push({ sheetName: 'Today', periodLabel: dateStr,
-                datesToExport: [{ dateStr, label: `${part('month')}/${part('day')}`, dayNum: Number(part('day')) }] });
-        } else if (scope === 'month') {
-            const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
-            const datesToExport = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                if (document.querySelector('input[name="attendance-export-non-school"]:checked')?.value !== 'include') {
-                    const weekday = new Date(attendanceViewingYear, attendanceViewingMonth, d).getDay();
-                    if (weekday === 0 || weekday === 6) continue;
-                }
-                datesToExport.push({
-                    dateStr: dateStr,
-                    label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
-                    dayNum: d
-                });
-            }
-            sheetsToExport.push({
-                sheetName: currentMonthName,
-                periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
-                datesToExport: datesToExport
-            });
-        } else if (scope === 'month-active') {
-            const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
-            const datesToExport = [];
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                if (dateHasAnyStudentAttendance(dateStr)) {
+            if (scope === 'day') {
+                const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+                const part = name => parts.find(item => item.type === name).value;
+                const dateStr = `${part('year')}-${part('month')}-${part('day')}`;
+                sheetsToExport.push({ sheetName: 'Today', periodLabel: dateStr,
+                    datesToExport: [{ dateStr, label: `${part('month')}/${part('day')}`, dayNum: Number(part('day')) }] });
+            } else if (scope === 'month') {
+                const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
+                const datesToExport = [];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    if (document.querySelector('input[name="attendance-export-non-school"]:checked')?.value !== 'include') {
+                        const weekday = new Date(attendanceViewingYear, attendanceViewingMonth, d).getDay();
+                        if ((weekday === 0 || weekday === 6) && !dateHasAnyStudentAttendance(dateStr)) continue;
+                    }
                     datesToExport.push({
                         dateStr: dateStr,
                         label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
                         dayNum: d
                     });
                 }
-            }
-
-            if (datesToExport.length === 0) {
-                if (typeof window.showToastNotification === 'function') {
-                    window.showToastNotification(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`, 'warning');
-                } else {
-                    window.SigmaFeedback.notice(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
+                sheetsToExport.push({
+                    sheetName: currentMonthName,
+                    periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
+                    datesToExport: datesToExport
+                });
+            } else if (scope === 'month-active') {
+                const daysInMonth = new Date(attendanceViewingYear, attendanceViewingMonth + 1, 0).getDate();
+                const datesToExport = [];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${attendanceViewingYear}-${String(attendanceViewingMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    if (dateHasAnyStudentAttendance(dateStr)) {
+                        datesToExport.push({
+                            dateStr: dateStr,
+                            label: `${String(attendanceViewingMonth + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
+                            dayNum: d
+                        });
+                    }
                 }
-                window.closeAttendanceExportModal();
-                return;
-            }
 
-            sheetsToExport.push({
-                sheetName: currentMonthName,
-                periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
-                datesToExport: datesToExport
-            });
-        } else {
-            const allDateKeys = Object.keys(classroomData)
-                .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && dateHasAnyStudentAttendance(k))
-                .sort();
-
-            if (allDateKeys.length === 0) {
-                if (typeof window.showToastNotification === 'function') {
-                    window.showToastNotification('No recorded attendance entries found to export.', 'warning');
-                } else {
-                    window.SigmaFeedback.notice('No recorded attendance entries found to export.');
+                if (datesToExport.length === 0) {
+                    if (typeof window.showToastNotification === 'function') {
+                        window.showToastNotification(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`, 'warning');
+                    } else {
+                        window.SigmaFeedback.notice(`No recorded attendance entries found for ${currentMonthName} ${attendanceViewingYear}.`);
+                    }
+                    window.closeAttendanceExportModal();
+                    return;
                 }
-                window.closeAttendanceExportModal();
-                return;
-            }
 
-            const uniqueMonths = [...new Set(allDateKeys.map(d => d.slice(0, 7)))].sort();
-            uniqueMonths.forEach(ym => {
-                const [yStr, mStr] = ym.split('-');
-                const y = parseInt(yStr, 10);
-                const m = parseInt(mStr, 10) - 1;
-                const monthActiveDates = allDateKeys
-                    .filter(d => d.startsWith(ym))
-                    .map(dateStr => {
+                sheetsToExport.push({
+                    sheetName: currentMonthName,
+                    periodLabel: `${currentMonthName} ${attendanceViewingYear}`,
+                    datesToExport: datesToExport
+                });
+            } else {
+                const allDateKeys = Object.keys(classroomData)
+                    .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && dateHasAnyStudentAttendance(k))
+                    .sort();
+
+                if (allDateKeys.length === 0) {
+                    if (typeof window.showToastNotification === 'function') {
+                        window.showToastNotification('No recorded attendance entries found to export.', 'warning');
+                    } else {
+                        window.SigmaFeedback.notice('No recorded attendance entries found to export.');
+                    }
+                    window.closeAttendanceExportModal();
+                    return;
+                }
+
+                const uniqueMonths = [...new Set(allDateKeys.map(d => d.slice(0, 7)))].sort();
+                uniqueMonths.forEach(ym => {
+                    const [yStr, mStr] = ym.split('-');
+                    const y = parseInt(yStr, 10);
+                    const m = parseInt(mStr, 10) - 1;
+                    const monthActiveDates = allDateKeys
+                        .filter(d => d.startsWith(ym))
+                        .map(dateStr => {
+                            const parts = dateStr.split('-');
+                            return {
+                                dateStr: dateStr,
+                                label: `${parts[1]}/${parts[2]}`,
+                                dayNum: parseInt(parts[2], 10)
+                            };
+                        });
+
+                    if (monthActiveDates.length > 0) {
+                        sheetsToExport.push({
+                            sheetName: monthNames[m],
+                            periodLabel: `${monthNames[m]} ${y}`,
+                            datesToExport: monthActiveDates
+                        });
+                    }
+                });
+
+                if (uniqueMonths.length > 1) {
+                    const allActiveDatesList = allDateKeys.map(dateStr => {
                         const parts = dateStr.split('-');
                         return {
                             dateStr: dateStr,
@@ -4114,84 +4140,72 @@
                             dayNum: parseInt(parts[2], 10)
                         };
                     });
-
-                if (monthActiveDates.length > 0) {
-                    sheetsToExport.push({
-                        sheetName: monthNames[m],
-                        periodLabel: `${monthNames[m]} ${y}`,
-                        datesToExport: monthActiveDates
+                    sheetsToExport.unshift({
+                        sheetName: 'All Records',
+                        periodLabel: `All Recorded Dates (${allDateKeys[0]} to ${allDateKeys[allDateKeys.length - 1]})`,
+                        datesToExport: allActiveDatesList
                     });
                 }
-            });
-
-            if (uniqueMonths.length > 1) {
-                const allActiveDatesList = allDateKeys.map(dateStr => {
-                    const parts = dateStr.split('-');
-                    return {
-                        dateStr: dateStr,
-                        label: `${parts[1]}/${parts[2]}`,
-                        dayNum: parseInt(parts[2], 10)
-                    };
-                });
-                sheetsToExport.unshift({
-                    sheetName: 'All Records',
-                    periodLabel: `All Recorded Dates (${allDateKeys[0]} to ${allDateKeys[allDateKeys.length - 1]})`,
-                    datesToExport: allActiveDatesList
-                });
             }
-        }
 
-        const safeSubj = subjName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeSec = secName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        let fileScopeTag = `${currentMonthName}_${attendanceViewingYear}`;
-        if (scope === 'day') {
-            fileScopeTag = sheetsToExport[0].periodLabel;
-        } else if (scope === 'month-active') {
-            fileScopeTag = `${currentMonthName}_${attendanceViewingYear}_Active_Dates`;
-        } else if (scope === 'all' || scope === 'all-active') {
-            fileScopeTag = 'All_Recorded_Dates';
-        }
-        if (scope === 'month') fileScopeTag += document.querySelector('input[name="attendance-export-non-school"]:checked')?.value === 'include' ? '_All_Days' : '_School_Days';
-        const fileName = `Attendance_${safeSubj}_${safeSec}_${fileScopeTag}.xlsx`;
+            const safeSubj = subjName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeSec = secName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            let fileScopeTag = `${currentMonthName}_${attendanceViewingYear}`;
+            if (scope === 'day') {
+                fileScopeTag = sheetsToExport[0].periodLabel;
+            } else if (scope === 'month-active') {
+                fileScopeTag = `${currentMonthName}_${attendanceViewingYear}_Active_Dates`;
+            } else if (scope === 'all' || scope === 'all-active') {
+                fileScopeTag = 'All_Recorded_Dates';
+            }
+            if (scope === 'month') fileScopeTag += document.querySelector('input[name="attendance-export-non-school"]:checked')?.value === 'include' ? '_All_Days' : '_School_Days';
+            const fileName = `Attendance_${safeSubj}_${safeSec}_${fileScopeTag}.xlsx`;
 
-        if (typeof XLSX !== 'undefined') {
-            const wb = XLSX.utils.book_new();
-            const usedSheetNames = new Set();
+            if (typeof XLSX !== 'undefined') {
+                const wb = XLSX.utils.book_new();
+                const usedSheetNames = new Set();
 
-            sheetsToExport.forEach(item => {
-                let sheetName = item.sheetName;
-                if (usedSheetNames.has(sheetName)) {
-                    sheetName = `${item.sheetName}_${item.periodLabel.slice(-4)}`;
-                }
-                if (usedSheetNames.has(sheetName)) {
-                    sheetName = `${sheetName}_1`;
-                }
-                sheetName = sheetName.replace(/[:\\/?*\[\]]/g, '').substring(0, 31);
-                usedSheetNames.add(sheetName);
+                sheetsToExport.forEach(item => {
+                    let sheetName = item.sheetName;
+                    if (usedSheetNames.has(sheetName)) {
+                        sheetName = `${item.sheetName}_${item.periodLabel.slice(-4)}`;
+                    }
+                    if (usedSheetNames.has(sheetName)) {
+                        sheetName = `${sheetName}_1`;
+                    }
+                    sheetName = sheetName.replace(/[:\\/?*\[\]]/g, '').substring(0, 31);
+                    usedSheetNames.add(sheetName);
 
-                const { ws } = buildAttendanceWorksheet(item.datesToExport, item.periodLabel, students, subjName, secName);
-                if (ws) {
-                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-                }
-            });
+                    const { ws } = buildAttendanceWorksheet(item.datesToExport, item.periodLabel, students, subjName, secName, submittedStatusesForDate);
+                    if (ws) {
+                        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    }
+                });
 
-            XLSX.writeFile(wb, fileName);
-        } else {
-            const firstSheet = sheetsToExport[0];
-            const { sheetData } = buildAttendanceWorksheet(firstSheet.datesToExport, firstSheet.periodLabel, students, subjName, secName);
-            const csvContent = sheetData.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', fileName.replace(/\.xlsx$/, '.csv'));
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+                XLSX.writeFile(wb, fileName);
+            } else {
+                const firstSheet = sheetsToExport[0];
+                const { sheetData } = buildAttendanceWorksheet(firstSheet.datesToExport, firstSheet.periodLabel, students, subjName, secName, submittedStatusesForDate);
+                const csvContent = sheetData.map(row => row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute('download', fileName.replace(/\.xlsx$/, '.csv'));
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
 
-        window.closeAttendanceExportModal();
-        if (typeof window.showToastNotification === 'function') {
-            window.showToastNotification('Attendance exported to Excel successfully!', 'success');
+            window.closeAttendanceExportModal();
+            if (typeof window.showToastNotification === 'function') {
+                window.showToastNotification('Attendance exported to Excel successfully!', 'success');
+            }
+        } catch (error) {
+            window.showToastNotification?.('Unable to export submitted attendance. Please try again.', 'warning');
+            console.error('Attendance export:', error);
+        } finally {
+            window._attendanceExcelExporting = false;
+            if (button) { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = buttonContent; }
         }
     };
 

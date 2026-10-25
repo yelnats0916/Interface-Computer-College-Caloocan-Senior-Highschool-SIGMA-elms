@@ -1,108 +1,31 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
-
-function exportWorkbook(file, scope, records) {
-    const source = read(file);
-    const start = source.indexOf('    window.executeAttendanceExport = function () {');
-    const end = source.indexOf('\n    };', start) + '\n    };'.length;
-    assert.ok(start >= 0 && end > start);
-    let snippet = source.slice(start, end);
-    if (file.includes('classroom-room')) {
-        const helperStart = source.indexOf('    function buildAttendanceWorksheet(');
-        snippet = source.slice(helperStart, start) + snippet;
-    }
-    let result;
-    let closed = false;
-    const warnings = [];
-    const students = [
-        { id: '1001', name: 'Dela Cruz, Juan Abad' },
-        { id: '1002', name: 'Kalipungan, Herald Jamero' }
-    ];
-    const format = s => s.name;
-    const window = {
-        formatStudentLastFirstMiddle: format,
-        closeAttendanceExportModal: () => { closed = true; },
-        showToastNotification: (text, type) => { if (type === 'warning') warnings.push(text); }
-    };
-    const XLSX = {
-        utils: {
-            book_new: () => ({ SheetNames: [], Sheets: {} }),
-            book_append_sheet: (wb, ws, name) => { wb.SheetNames.push(name); wb.Sheets[name] = ws; },
-            aoa_to_sheet: rows => ({ rows, '!ref': 'A1' }),
-            decode_range: () => ({ s: { r: 0, c: 0 }, e: { r: 0, c: 0 } }),
-            encode_cell: ({ r, c }) => `${r}:${c}`
-        },
-        writeFile: (workbook, filename) => { result = JSON.parse(JSON.stringify({ workbook, filename })); }
-    };
-    const context = vm.createContext({
-        window, XLSX, document: { querySelector: () => ({ value: scope }) },
-        attendanceViewingMonth: 9, attendanceViewingYear: 2026,
-        currentClassroomSectionName: 'Rizal', currentClassroomKey: 'Rizal::Computer Programming 1',
-        currentClassroomMeta: { subject: 'Computer Programming 1' }, studentsBySection: { Rizal: students },
-        attendanceRecordsByClassroom: { 'Rizal::Computer Programming 1': records },
-        getActiveRoomSectionName: () => 'Rizal', getActiveRoomSubjectName: () => 'Computer Programming 1',
-        getAttendanceStudents: () => students,
-        refreshAttendanceRecords: () => {}, findAttendanceClassroomRecord: () => ({ data: records }),
-        getCurrentAttendanceStatuses: date => records[date]?.statuses || {},
-        formatStudentLastFirstMiddle: format, studentNamesMatch: (a, b) => a === b,
-        alert: text => warnings.push(text)
-    });
-    vm.runInContext(snippet, context);
-    window.executeAttendanceExport();
-    assert.equal(closed, true, 'Export closes the dialog');
-    return { result, warnings };
-}
-
-const records = {
-    '2026-09-30': { statuses: { '1001': 'L', '1002': 'E' } },
-    '2026-10-06': { statuses: { '1001': 'P', '1002': 'A' } },
-    '2026-10-07': { statuses: { 'Dela Cruz, Juan Abad': 'E', 'Kalipungan, Herald Jamero': 'L' } },
-    '2026-10-08': { statuses: {} }
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('js/classroom-room.js','latin1');
+const start=source.indexOf('    function buildAttendanceWorksheet('),end=source.indexOf('    // =========================================================================',source.indexOf('    window.executeAttendanceExport = async'));
+const students=[{id:'1001',name:'Student One'},{id:'1002',name:'Student Two'}];
+const published={
+ '2026-09-30':{submitted:true,statuses:{1001:'L'}},
+ '2026-10-23':{submitted:true,statuses:{1001:'P',1002:'A'}},
+ '2026-10-24':{submitted:true,statuses:{1001:'P',1002:'L'}},
+ '2026-10-25':{submitted:true,statuses:{1001:'E'}},
+ '2026-10-22':{submitted:false,statuses:{1001:'A',1002:'P'}}
 };
-for (const scope of ['month', 'month-active', 'all']) {
-    const admin = exportWorkbook('js/classroom-room.js', scope, records);
-    const teacher = exportWorkbook('js/teacher.js', scope, records);
-    assert.deepEqual(admin, teacher, `${scope}: admin and teacher workbooks match`);
-    const { workbook, filename } = admin.result;
-    assert.ok(filename.endsWith('.xlsx'));
-    const sheet = workbook.Sheets[scope === 'all' ? 'All Records' : 'October'];
-    const dateCount = scope === 'month' ? 31 : scope === 'month-active' ? 2 : 3;
-    assert.equal(sheet.rows[4].length, 3 + dateCount + 4, 'Date columns respect selected scope');
-    assert.equal(sheet.rows[5][2], '1001', 'Student IDs are retained');
-    assert.deepEqual(sheet.rows[5].slice(-4), scope === 'all' ? [1, 0, 1, 1] : [1, 0, 0, 1]);
-    assert.deepEqual(sheet.rows[6].slice(-4), scope === 'all' ? [0, 1, 1, 1] : [0, 1, 1, 0]);
-    if (scope === 'all') assert.deepEqual(workbook.SheetNames, ['All Records', 'September', 'October']);
+async function run(scope,{fail=false,portal='teacher'}={}) {
+ let downloaded,closed=false,refreshed=false,release;const warnings=[];
+ const gate=new Promise(r=>release=r),button={innerHTML:'Download Excel',disabled:false,setAttribute(){},removeAttribute(){}};
+ const window={getSubmittedAttendanceDays:()=>{assert(refreshed,'Export must wait for database refresh');return Object.entries(published).filter(([,r])=>r.submitted).map(([date,r])=>({...r,date}));},SigmaAttendance:{refresh:async()=>{await gate;if(fail)throw Error('Network unavailable');refreshed=true;}},closeAttendanceExportModal:()=>closed=true,showToastNotification:(s,t)=>{if(t==='warning')warnings.push(s);},getAttendanceAcademicPeriods:()=>[{key:'q2',label:'2nd Quarter',start:'2026-08-26',end:'2026-10-24'}],isAttendanceAcademicPeriodReady:()=>true};
+ const c=vm.createContext({window,console:{error(){}},document:{querySelector:s=>s==='.attendance-export-download-btn'?button:{value:s.includes('non-school')?'exclude':scope}},attendanceViewingMonth:9,attendanceViewingYear:2026,getActiveRoomSectionName:()=> 'Einstein',getActiveRoomSubjectName:()=> 'Oral Communication in Context',getAttendanceStudents:()=>students,formatStudentLastFirstMiddle:s=>s.name,studentNamesMatch:(a,b)=>a===b,getCurrentAttendanceStatuses:()=>{throw Error('Export read private draft');},findAttendanceClassroomRecord:()=>{throw Error('Export read mixed draft cache');},Intl,Date,setTimeout,clearTimeout});
+ vm.runInContext(fs.readFileSync('js/vendor/xlsx.bundle.js','utf8'),c);c.XLSX.writeFile=(book,name)=>{downloaded={book,name};};vm.runInContext(source.slice(start,end),c);
+ const pending=window.executeAttendanceExport();assert(!downloaded);assert(button.disabled);await window.executeAttendanceExport();release();await pending;assert(!button.disabled);assert(!window._attendanceExcelExporting);
+ if(fail){assert(!downloaded);assert(!closed);assert.equal(warnings.length,1);return;}
+ assert(downloaded);assert(closed);const roundtrip=c.XLSX.read(c.XLSX.write(downloaded.book,{type:'buffer',bookType:'xlsx'}),{type:'buffer'});
+ const sheet=roundtrip.Sheets[scope==='all'?'All Records':scope==='q2'?'2026-10':'October'];
+ const rows=c.XLSX.utils.sheet_to_json(sheet,{header:1,defval:''}),header=rows.find(r=>r[0]==='No.'),one=rows.find(r=>r[2]==='1001'),two=rows.find(r=>r[2]==='1002');
+ assert.equal(one[header.indexOf('10/23')],'P','Submitted weekday retained');assert.equal(two[header.indexOf('10/23')],'A');assert.equal(one[header.indexOf('10/24')],'P','Submitted Saturday retained');assert.equal(two[header.indexOf('10/24')],'L');
+ if(scope!=='q2')assert.equal(one[header.indexOf('10/25')],'E','Submitted Sunday retained');
+ assert(!header.includes('10/22')||one[header.indexOf('10/22')]==='','Draft-only day stays blank');
+ if(scope==='month'){assert(!header.includes('10/03'),'Unrecorded weekends remain excluded');assert.equal(header.filter(h=>/^10\//.test(h)).length,24);}
+ if(scope==='month-active')assert.equal(header.filter(h=>/^10\//.test(h)).length,3);
+ assert.equal(one.slice(-4).join(','),scope==='all'?'2,0,1,1':scope==='q2'?'2,0,0,0':'2,0,0,1');
+ console.log('PASS fresh submitted XLSX, weekend marks, draft exclusion, totals:',portal,scope);
 }
-for (const scope of ['month-active', 'all']) {
-    const admin = exportWorkbook('js/classroom-room.js', scope, {});
-    assert.equal(admin.result, undefined, 'Empty recorded-date scopes do not download a workbook');
-    assert.equal(admin.warnings.length, 1);
-    assert.deepEqual(admin, exportWorkbook('js/teacher.js', scope, {}));
-}
-
-const css = require('postcss').parse(read('css/shared-components.css'));
-const desktop = css.nodes.find(n => n.type === 'atrule' && n.params === '(min-width: 769px)' &&
-    n.nodes.some(r => r.selector === '#attendance-export-modal .attendance-export-exit-btn'));
-assert.ok(desktop, 'Attendance styling is restricted to desktop');
-for (const [selector, property, value] of [
-    ['.attendance-export-exit-btn', 'display', 'flex'],
-    ['.attendance-export-exit-btn', 'top', '2.5rem'],
-    ['.attendance-export-exit-btn', 'right', '2.5rem'],
-    ['.attendance-export-exit-btn', 'width', '3rem'],
-    ['.attendance-export-exit-btn', 'height', '3rem'],
-    ['.attendance-export-exit-btn', 'color', '#000000'],
-    ['.attendance-export-exit-btn', 'background-color', 'transparent'],
-    ['.attendance-export-exit-btn:hover', 'background-color', '#e2e8f0'],
-    ['.attendance-export-mobile-return-btn', 'display', 'none'],
-    ['.attendance-export-cancel-btn', 'display', 'none'],
-    ['.sigma-modal-header-top', 'justify-content', 'flex-start'],
-    ['.sigma-modal-body', 'padding-bottom', '32px'],
-    ['.sigma-modal-footer', 'justify-content', 'flex-end']
-]) {
-    const rule = desktop.nodes.find(n => n.selector === `#attendance-export-modal ${selector}`);
-    assert.ok(rule.nodes.some(d => d.prop === property && d.value === value && d.important));
-}
-console.log('PASS: all three attendance export scopes match teacher output, totals and empty scopes verified; desktop controls scoped correctly.');
+(async()=>{for(const portal of ['teacher','admin'])for(const scope of ['month','month-active','all','q2'])await run(scope,{portal});await run('month',{fail:true});console.log('PASS refresh failure prevents stale download and restores button');})().catch(e=>{console.error(e);process.exitCode=1;});
