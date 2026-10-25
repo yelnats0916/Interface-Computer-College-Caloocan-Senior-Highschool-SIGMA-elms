@@ -535,3 +535,31 @@ html body #audit-pdf-export .audit-export-direction .sigma-quarter-dropdown-menu
 #audit-pdf-export .sigma-modal-footer>div{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
 
 #audit-pdf-export input[name="user"]{padding-left:40px!important}
+
+/* One form: current log context, date range, then its records. */
+#audit-pdf-export .audit-date-range{display:grid;gap:16px}
+#audit-pdf-export .audit-date-range-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#audit-pdf-export .audit-date-range-heading>label{font-weight:600;color:#000}
+#audit-pdf-export .audit-date-presets{display:flex;flex-wrap:wrap;gap:8px}
+#audit-pdf-export .audit-date-preset{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 12px;border:1px solid #dce5ef;border-radius:10px;background:#fff;color:#000;font-size:13px;line-height:20px;cursor:pointer;white-space:nowrap}
+#audit-pdf-export .audit-date-preset.active{background:#f0fdf4;border-color:#15803d;color:#15803d}
+#audit-pdf-export .audit-date-preset:disabled{opacity:.4;cursor:default}
+#audit-pdf-export .audit-export-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#audit-pdf-export .audit-export-grid label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:14px;color:#000}
+#audit-pdf-export .audit-preview-table-wrap{width:100%;max-width:100%;min-width:0}
+#audit-pdf-export .audit-preview-table{min-width:780px}
+#audit-pdf-export .audit-preview-table th{background:#15803d;color:#fff}
+#audit-pdf-export .audit-preview-table td{white-space:pre-line;overflow-wrap:anywhere;max-width:260px}
+#audit-pdf-export .audit-preview-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:rgba(0,0,0,.5)}
+#audit-pdf-export .audit-preview-pagination>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#audit-pdf-export [data-error]{color:#b91c1c}
+#audit-pdf-export .sigma-modal-title{overflow-wrap:anywhere;line-height:1.3}
+@media(max-width:1200px){#audit-pdf-export .sigma-modal-header{padding-right:76px!important}}
+@media(max-width:639px){
+ #audit-pdf-export .audit-export-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ #audit-pdf-export .audit-export-grid label{font-size:12px}
+ #audit-pdf-export .audit-date-preset{font-size:12px;min-height:34px;padding:6px 10px}
+ #audit-pdf-export .audit-date-presets{gap:6px}
+ #audit-pdf-export .audit-preview-pagination{font-size:11px}
+ #audit-pdf-export .audit-preview-table{font-size:12px}
+}

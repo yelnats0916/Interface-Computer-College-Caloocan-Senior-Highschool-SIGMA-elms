@@ -6,6 +6,9 @@
 
     const KEY = 'sigma-activity-logs-v1';
     let selectedUser = null, selectedRecord = null;
+    let exportRows = [];
+    window.SigmaAuditExportContexts ||= {};
+    window.SigmaAuditExportContexts.activity = () => selectedUser ? {title:'Activity Logs - '+selectedUser.userName+(!['All Logs','All Activities'].includes(selectedCategory)?' - '+selectedCategory:''),records:exportRows} : {search:window.getAuditLogSearchQuery?.()||''};
     let selectedContent = null;
     let selectedCategory = 'All Activities';
     let detailQuery = '';
@@ -414,6 +417,7 @@
             return true;
         }).sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
 
+        exportRows = records;
         body.replaceChildren();
 
         if (!records.length) {

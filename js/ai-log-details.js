@@ -14,7 +14,12 @@
         ['grade_insights', 'Grade Insights', 'Review grade progress']
     ];
     let users = [], selectedId = null, category = 'all', query = '', searchDraft = '', opener = null, returnScroll = null;
-    let suppliedRecords = [];
+    let suppliedRecords = [], exportRows = [];
+    window.SigmaAuditExportContexts ||= {};
+    window.SigmaAuditExportContexts.ai = () => {
+        const user = users.find(user => idOf(user) === selectedId);
+        return selectedId && user ? {title:'AI Logs - '+nameOf(user)+(category!=='all'?' - '+(features.find(item=>item[0]===category)?.[1]||category):''),records:(activeRecord?[activeRecord]:exportRows).map(log=>({...log,userName:nameOf(user),userRole:roleOf(user)}))} : {search:window.getAuditLogSearchQuery?.()||''};
+    };
     let interactionReturn = null;
     let conversationObserver = null;
     let activeRecord = null, conversationState = null;
@@ -702,6 +707,7 @@
         head.append(header);
         const body = node('tbody');
         const filtered = matches.filter(log => category === 'all' || log.feature === category);
+        exportRows = filtered;
         const renderRow = log => {
             const row = node('tr');
             const { action, notice } = createLogRecordActions(log, 'Log actions');

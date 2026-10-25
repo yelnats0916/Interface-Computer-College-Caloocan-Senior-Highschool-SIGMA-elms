@@ -5,6 +5,9 @@
 
     const KEY = 'sigma-authentication-logs-v1';
     let selectedUser = null, selectedRecord = null;
+    let exportRows = [];
+    window.SigmaAuditExportContexts ||= {};
+    window.SigmaAuditExportContexts.auth = () => selectedUser ? {title:'Authentication Logs - '+selectedUser.userName+(!['All Logs','All Activities'].includes(category)?' - '+category:''),records:exportRows} : {search:window.getAuditLogSearchQuery?.()||''};
     let category = 'All Logs', detailQuery = '';
     const categoryOf = event => /recaptcha/i.test(event) ? 'reCAPTCHA' : /authenticator|2fa/i.test(event) ? 'Google Authenticator' : /password reset/i.test(event) ? 'Password Reset' : /lock|inactive/i.test(event) ? 'Account Access' : 'Login';
     function openUser(record, isolated = false) {
@@ -212,6 +215,7 @@
             (category === 'All Logs' || categoryOf(item.event) === category) &&
             (!detailQuery || [item.event,item.details,item.ip,item.device,date(item.timestamp)].join(' ').toLowerCase().includes(detailQuery.toLowerCase())))))
             .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+        exportRows = records;
         body.replaceChildren();
         if (!records.length) {
             const row = document.createElement('tr');

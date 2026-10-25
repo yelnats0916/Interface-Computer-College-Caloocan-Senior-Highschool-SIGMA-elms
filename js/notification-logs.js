@@ -3,7 +3,9 @@
     const schoolLogo = new URL('../image/ICC logo.jpg', document.currentScript?.src || new URL('js/notification-logs.js', location.href).href).href;
     const dateFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
     const formatDate = value => value && Number.isFinite(Date.parse(value)) ? dateFormat.format(new Date(value)) : 'Not recorded';
-    let selection = null, detailQuery = '', direction = 'all';
+    let selection = null, detailQuery = '', direction = 'all', exportRows = [];
+    window.SigmaAuditExportContexts ||= {};
+    window.SigmaAuditExportContexts.notifications = () => selection ? {title:'Notification Logs - '+(selection.name||'Details')+(direction!=='all'?' - '+direction:''),records:exportRows} : {search:window.getAuditLogSearchQuery?.()||''};
     function openDetails(value) {
         if (window.canViewAuditLog?.('notifications') === false) return;
         selection = value; detailQuery = ''; direction = 'all';
@@ -169,6 +171,7 @@
         const logs = displayRecords.filter(belongs).slice()
             .filter(log => [log.senderName, log.senderId, log.senderRole, log.recipient, log.recipientId, log.role, log.title, log.type, log.related, log.channel, log.status, log.readAt ? 'Read' : 'Unread', formatDate(log.timestamp)].join(' ').toLowerCase().includes(selection ? detailQuery.toLowerCase() : window.getAuditLogSearchQuery?.() || ''))
             .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+        exportRows = logs;
         body.replaceChildren();
         const renderRow = log => {
             const row = document.createElement('tr');
