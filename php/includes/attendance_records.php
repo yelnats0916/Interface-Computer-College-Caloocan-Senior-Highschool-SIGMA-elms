@@ -25,10 +25,10 @@ function attendanceAcademicContext(array $years,array $section,string $date,arra
     return $context;
 }
 
-function attendanceSubmit(PDO $db,array $actor,array $input): array {
+function attendanceSubmit(PDO $db,array $actor,array $input,bool $draft=false): array {
     if(academicRole($actor)!=='teacher'&&!academicAdmin($actor))throw new RuntimeException('Only an assigned teacher can submit attendance.');
     if(!academicAdmin($actor)&&!sigmaActorPermission($actor,'teacherAttendance'))throw new RuntimeException('Attendance access is disabled.');
-    if(($input['submitted']??false)!==true)throw new InvalidArgumentException('Submit attendance to publish its marks.');
+    if(!$draft&&($input['submitted']??false)!==true)throw new InvalidArgumentException('Submit attendance to publish its marks.');
     [$subject,$section]=academicScope($db,$actor,(string)($input['subjectId']??''),(string)($input['section']??''));
     $date=(string)($input['date']??'');
     $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date,new DateTimeZone('Asia/Manila'));
@@ -44,12 +44,14 @@ function attendanceSubmit(PDO $db,array $actor,array $input): array {
         $id=(string)$student['id'];$statuses[$id]=$value;
         if(isset($input['excuses'][$key]))$excuses[$id]=$input['excuses'][$key];
     }
-    if(!$statuses)throw new InvalidArgumentException('Record at least one student before submitting attendance.');
+    if(!$draft&&!$statuses)throw new InvalidArgumentException('Record at least one student before submitting attendance.');
     if(strlen(json_encode($excuses))>50000)throw new InvalidArgumentException('Attendance details exceed the supported size.');
     $record=['date'=>$date,'statuses'=>$statuses,'excuses'=>$excuses,'submitted'=>true,'submittedAt'=>gmdate('c'),'submittedBy'=>(string)$actor['id']];
     $years=$db->query('SELECT * FROM school_years WHERE is_deleted=0 ORDER BY year_start DESC')->fetchAll(PDO::FETCH_ASSOC);
     $record=array_merge($record,attendanceAcademicContext($years,$section,$date));
-    academicWrite($db,$actor,'attendance',$subject,$section,'',$date,$record);
+    if($draft){$record['submitted']=false;$record['submittedAt']=null;$record['updatedAt']=gmdate('c');}
+    academicWrite($db,$actor,$draft?'attendance_draft':'attendance',$subject,$section,$draft?(string)$actor['id']:'',$date,$record);
+    if(!$draft)attendanceClearDraft($db,$actor,$subject,$section,$date);
     return ['section'=>$section['name'],'subject'=>$subject['name'],'record'=>$record];
 }
 
@@ -71,7 +73,9 @@ function attendanceSnapshot(PDO $db,array $actor): array {
             $record=array_merge($record,attendanceAcademicContext($years,$section,(string)$row['item_id'],$record));
             $days[$row['item_id']]=$record;
         }
-        $scopes[]=['section'=>$section['name'],'subject'=>$subject['name'],'days'=>$days];
+        $drafts=[];
+        if(!$student){$q=$db->prepare("SELECT item_id,payload FROM academic_records WHERE subject_id=? AND section_id=? AND record_type='attendance_draft' AND student_id=?");$q->execute([$subject['id'],$section['id'],(string)$actor['id']]);foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row)$drafts[$row['item_id']]=json_decode($row['payload'],true)?:[];}
+        $scopes[]=['section'=>$section['name'],'subject'=>$subject['name'],'days'=>$days,'drafts'=>$drafts];
     }
     return ['success'=>true,'userId'=>(string)$actor['id'],'scopes'=>$scopes];
 }
@@ -126,7 +130,27 @@ function attendanceImport(PDO $db,array $actor,array $input): array {
         $old=$previous[$date];$excuses=$old['excuses']??[];
         foreach($marks as $id=>$mark)if($mark!=='excused')unset($excuses[$id]);
         $record=array_merge($old,attendanceAcademicContext($years,$section,$date),['date'=>$date,'statuses'=>array_replace($old['statuses']??[],$marks),'excuses'=>$excuses,'submitted'=>true,'submittedAt'=>gmdate('c'),'submittedBy'=>(string)$actor['id']]);
-        academicWrite($db,$actor,'attendance',$subject,$section,'',$date,$record);$count+=count($marks);
+        academicWrite($db,$actor,'attendance',$subject,$section,'',$date,$record);
+        $draft=academicRead($db,'attendance_draft',$subject,$section,(string)$actor['id'],$date);
+        attendanceClearDraft($db,$actor,$subject,$section,$date);
+        $remaining=[];
+        foreach($draft['statuses']??[] as $id=>$mark)if(!isset($marks[$id])&&$mark!==($record['statuses'][$id]??''))$remaining[$id]=$mark;
+        if($remaining){$draft['statuses']=array_replace($record['statuses'],$remaining);academicWrite($db,$actor,'attendance_draft',$subject,$section,(string)$actor['id'],$date,$draft);}
+        $count+=count($marks);
     }
-    return ['success'=>true,'importedDates'=>count($clean),'importedMarks'=>$count];
+    return ['success'=>true,'importedDates'=>count($clean),'importedMarks'=>$count,'dates'=>array_keys($clean)];
+}
+
+function attendanceClearDraft(PDO $db,array $actor,array $subject,array $section,string $date): void {
+    $q=$db->prepare('DELETE FROM academic_records WHERE record_key=?');$q->execute([academicKey('attendance_draft',$subject,$section,(string)$actor['id'],$date)]);
+}
+function attendanceSubmitMany(PDO $db,array $actor,array $input): array {
+    $days=$input['days']??[];
+    if(!is_array($days)||!count($days)||count($days)>366)throw new InvalidArgumentException('Choose 1 to 366 attendance dates.');
+    $records=[];ksort($days);
+    foreach($days as $date=>$day){
+        if(!is_array($day))throw new InvalidArgumentException('Invalid attendance day.');
+        $records[$date]=attendanceSubmit($db,$actor,array_merge($input,$day,['date'=>(string)$date,'submitted'=>true]))['record'];
+    }
+    return ['success'=>true,'records'=>$records];
 }

@@ -14,6 +14,9 @@ try {
         $input=json_decode($raw,true,64,JSON_THROW_ON_ERROR);sigmaRequireRealRecords($input);$db->beginTransaction();
         if(($input['action']??'')==='import-context')$result=['success'=>true,'context'=>attendanceImportContext($db,$actor,$input)['context']];
         elseif(($input['action']??'')==='import')$result=attendanceImport($db,$actor,$input);
+        elseif(($input['action']??'')==='draft')$result=['success'=>true]+attendanceSubmit($db,$actor,$input,true);
+        elseif(($input['action']??'')==='submit-many')$result=attendanceSubmitMany($db,$actor,$input);
+        elseif(($input['action']??'')==='discard-draft'){[$subject,$section]=academicScope($db,$actor,(string)($input['subjectId']??''),(string)($input['section']??''));attendanceClearDraft($db,$actor,$subject,$section,(string)($input['date']??''));$result=['success'=>true];}
         else $result=['success'=>true]+attendanceSubmit($db,$actor,$input);
         $db->commit();
     }else throw new InvalidArgumentException('Unsupported request method.');

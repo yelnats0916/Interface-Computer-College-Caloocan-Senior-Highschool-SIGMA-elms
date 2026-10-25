@@ -2192,10 +2192,11 @@
             if (isSubmitted) {
                 published[key] ||= {}; published[key][dateString] = { ...recordEntry };
                 if (drafts[key]) delete drafts[key][dateString];
-            } else { drafts[key] ||= {}; drafts[key][dateString] = { ...recordEntry }; }
+            } else { drafts[key] ||= {}; drafts[key][dateString] = { ...recordEntry, _pending: true }; }
         });
         localStorage.setItem(attendanceDraftKey(), JSON.stringify(drafts));
         if (isSubmitted) localStorage.setItem(SHARED_ATTENDANCE_RECORDS_KEY, JSON.stringify(published));
+        else window.SigmaAttendance?.saveDraft?.({section:secName,subjectId:subjName,date:dateString,statuses,excuses});
         try {
             window.dispatchEvent(new CustomEvent('sigma:attendance-changed', {
                 detail: { classroomKey: fullKey, dateString, statuses, draft: !isSubmitted }
@@ -2204,85 +2205,45 @@
     }
     window.saveCurrentAttendanceStatuses = saveCurrentAttendanceStatuses;
 
-    window.submitDailyAttendance = async function (dateString) {
-        if (isStudentAttendancePortal() || window.isFutureAttendanceDate?.(dateString)) return;
-        if (!dateString) return;
-        const statuses = getCurrentAttendanceStatuses(dateString);
-        const excuses = getCurrentAttendanceExcuses(dateString);
-        const secName = (typeof getActiveRoomSectionName === 'function') ? getActiveRoomSectionName() : (window.currentClassroomSectionName || '');
-        const subjName = (typeof getActiveRoomSubjectName === 'function') ? getActiveRoomSubjectName() : '';
-        const rawStudents = (typeof getAttendanceStudents === 'function') ? getAttendanceStudents(secName, subjName) : [];
-        const enrolled = (Array.isArray(rawStudents) ? rawStudents.length : 0);
-
-        let markedCount = 0;
-        const submittedStatuses = {}, submittedExcuses = {};
-        if (Array.isArray(rawStudents)) {
-            rawStudents.forEach(st => {
-                let s = statuses[st.name] || (st.id && statuses[st.id]) || '';
-                if (!s) {
-                    for (const k of Object.keys(statuses)) {
-                        if ((st.id && String(k) === String(st.id)) || studentNamesMatch(k, st.name)) {
-                            s = statuses[k];
-                            break;
-                        }
-                    }
-                }
-                if (s) {
-                    markedCount++; const id = st.id || st.uid || st.name; submittedStatuses[id] = s;
-                    const excuseKey = Object.keys(excuses || {}).find(key => String(key) === String(id) || studentNamesMatch(key, st.name));
-                    if (excuseKey) submittedExcuses[id] = excuses[excuseKey];
-                }
-            });
-        }
-
-        if (markedCount === 0 || enrolled === 0) {
-            if (typeof window.showToastNotification === 'function') {
-                window.showToastNotification('Please record at least one student before submitting attendance.', 'warning');
+    function pendingAttendanceDays() {
+        const {data} = findAttendanceClassroomRecord(getActiveRoomSectionName(),getActiveRoomSubjectName());
+        return Object.entries(data||{}).filter(([date,day])=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&!window.isFutureAttendanceDate?.(date)&&day?.submitted!==true&&Object.values(day?.statuses||{}).some(Boolean)).map(([date])=>date).sort();
+    }
+    window.submitDailyAttendance = async function(dateString) {
+        if(isStudentAttendancePortal()||window._sigmaAttendanceSubmitting)return;
+        const dates=pendingAttendanceDays();if(!dates.length)return;
+        const section=getActiveRoomSectionName(),subjectId=getActiveRoomSubjectName();
+        const roster=getAttendanceStudents(section,subjectId)||[],days={};
+        for(const date of dates){
+            const statuses=getCurrentAttendanceStatuses(date),excuses=getCurrentAttendanceExcuses(date),clean={},notes={};
+            for(const student of roster){
+                const id=String(student.id||student.uid||student.name);
+                const key=Object.keys(statuses).find(key=>key===id||studentNamesMatch(key,student.name));
+                if(key&&statuses[key]){clean[id]=statuses[key];const note=Object.keys(excuses).find(key=>key===id||studentNamesMatch(key,student.name));if(note)notes[id]=excuses[note];}
             }
-            return;
+            if(Object.keys(clean).length)days[date]={statuses:clean,excuses:notes};
         }
-
-        const controls = document.querySelectorAll('.attendance-action-btn--submit, .attendance-action-btn--update');
-        if (window._sigmaAttendanceSubmitting) return;
-        window._sigmaAttendanceSubmitting = true;
-        const labels = new Map();
-        controls.forEach(button => { labels.set(button, button.innerHTML); button.disabled = true; button.setAttribute('aria-busy', 'true'); button.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span><span>Submitting</span>'; });
-        let confirmed;
-        try {
-            confirmed = await window.SigmaAttendance.submit({ subjectId: subjName, section: secName, date: dateString, statuses: submittedStatuses, excuses: submittedExcuses, submitted: true });
-        } catch (error) {
-            window.showToastNotification?.(error.message || 'Attendance was not submitted. Your draft is retained.', 'error');
-            return;
-        } finally {
-            window._sigmaAttendanceSubmitting = false;
-            controls.forEach(button => { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = labels.get(button); });
-        }
-        attendanceEditingDays[dateString] = false;
-        if (window.attendanceEditingDays) window.attendanceEditingDays[dateString] = false;
-        const nowIso = confirmed.record.submittedAt;
-        saveCurrentAttendanceStatuses(statuses, dateString, excuses, {
-            submitted: true,
-            submittedAt: nowIso,
-            academic: {schoolYearId:confirmed.record.schoolYearId,schoolYear:confirmed.record.schoolYear,quarter:confirmed.record.quarter,semester:confirmed.record.semester},
-            updatedAt: nowIso
-        });
-
-        const dObj = new Date(dateString + 'T00:00:00');
-        const formatted = !isNaN(dObj.getTime()) ? dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : dateString;
-
-        if (typeof window.showToastNotification === 'function') {
-            window.showToastNotification(`Attendance record for ${formatted} has been saved and submitted successfully.`, 'success');
-        }
-
-        if (typeof renderClassroomAttendanceTab === 'function') {
-            renderClassroomAttendanceTab(false);
-        }
-        if (typeof renderAttendanceSection === 'function') {
-            renderAttendanceSection();
-        }
-        if (typeof window.renderAttendanceReport === 'function') {
-            window.renderAttendanceReport();
-        }
+        if(!Object.keys(days).length)return;
+        window._sigmaAttendanceSubmitting=true;
+        const controls=document.querySelectorAll('.attendance-action-btn--submit,.attendance-action-btn--update');
+        const labels=new Map();controls.forEach(button=>{labels.set(button,button.innerHTML);button.disabled=true;button.setAttribute('aria-busy','true');button.innerHTML='<span class="sigma-dot-spinner" aria-hidden="true"></span>';});
+        try{
+            const result=await window.SigmaAttendance.submit({action:'submit-many',section,subjectId,days});
+            for(const [date,record]of Object.entries(result.records||{})){
+                attendanceEditingDays[date]=false;
+                saveCurrentAttendanceStatuses(days[date].statuses,date,days[date].excuses,{submitted:true,submittedAt:record.submittedAt,updatedAt:record.submittedAt,academic:record});
+            }
+            await window.SigmaAttendance.refresh(true);
+            window.selectSubmittedAttendanceDate?.(Object.keys(days).sort().at(-1));
+            window.showToastNotification?.(`Attendance submitted for ${Object.keys(days).length} day(s).`,'success');
+        }catch(error){window.showToastNotification?.(error.message||'Attendance was not submitted. Your draft is retained.','error');}
+        finally{window._sigmaAttendanceSubmitting=false;controls.forEach(button=>{button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=labels.get(button);});renderClassroomAttendanceTab(false);}
+    };
+    window.selectSubmittedAttendanceDate = function(date){
+        if(!date)return;const parts=date.split('-').map(Number);
+        attendanceViewingYear=parts[0];attendanceViewingMonth=parts[1]-1;attendanceSelectedDay=parts[2];expandedAttendanceCol=-1;
+        refreshAttendanceRecords();renderClassroomAttendanceTab(false);
+        window.renderAttendanceReport?.();
     };
 
     window.getAttendanceRecordAcademicContext = function(date, record = {}) {
@@ -2386,7 +2347,8 @@
         }
     };
 
-    window.cancelDailyAttendanceEdit = function (dateString) {
+    window.cancelDailyAttendanceEdit = async function (dateString) {
+        try{await window.SigmaAttendance.discard({section:getActiveRoomSectionName(),subjectId:getActiveRoomSubjectName(),date:dateString});}catch(error){window.showToastNotification?.(error.message,'error');return;}
         if (!dateString) return;
         if (window.attendanceEditSnapshots && window.attendanceEditSnapshots[dateString]) {
             const drafts = getStoredJson(attendanceDraftKey(), {});
@@ -2837,6 +2799,7 @@
         const isSubmitted = Boolean(dayRecord.submitted);
         const submittedAt = dayRecord.submittedAt || dayRecord.updatedAt || null;
         const isEditing = Boolean(attendanceEditingDays[activeLocalDateStr]);
+        const pendingDates = pendingAttendanceDays();
 
         let statusBadgeHtml = '';
         if (totalEnrolled === 0) {
@@ -2905,13 +2868,17 @@
                 `;
             }
             actionButtonHtml = `
-                <button type="button" class="attendance-action-btn attendance-action-btn--submit" ${totalRecorded === 0 || totalEnrolled === 0 ? 'disabled aria-disabled="true" style="opacity:.5;cursor:not-allowed"' : ''} onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
-                    <span>Submit</span>
+                <button type="button" class="attendance-action-btn attendance-action-btn--submit" ${pendingDates.length === 0 || totalEnrolled === 0 ? 'disabled aria-disabled="true" style="opacity:.5;cursor:not-allowed"' : ''} onclick="window.submitDailyAttendance('${activeLocalDateStr}')" title="Submit and save attendance">
+                    <span>${pendingDates.length > 1 ? `Submit (${pendingDates.length} Days)` : 'Submit'}</span>
                 </button>
             `;
         }
 
-        if (window.isFutureAttendanceDate(activeLocalDateStr)) { savedNoticeParagraphHtml = ''; actionButtonHtml = ''; }
+        if(pendingDates.length){
+            if(!isEditing)actionButtonHtml=`<button type="button" class="attendance-action-btn attendance-action-btn--submit" onclick="window.submitDailyAttendance('${activeLocalDateStr}')"><span>${pendingDates.length>1?`Submit (${pendingDates.length} Days)`:'Submit'}</span></button>`;
+            savedNoticeParagraphHtml=`<p class="text-[11px] sm:text-xs text-black-fade">${pendingDates.length} day(s) with draft attendance. Submit to publish the recorded marks.</p>`;
+        }
+        if (window.isFutureAttendanceDate(activeLocalDateStr)&&!pendingDates.length) { savedNoticeParagraphHtml = ''; actionButtonHtml = ''; }
 
         let html = `
             <div class="attendance-monthly-card">
@@ -3267,7 +3234,7 @@
     };
 
     window.setAttendanceStatus = function (studentName, dateString, status, event, studentId = null) {
-        if (isStudentAttendancePortal()) return;
+        if (isStudentAttendancePortal() || window._sigmaAttendanceSubmitting) return;
         if (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -3976,7 +3943,7 @@
         if (loader) { loader.className = 'attendance-download-loading'; loader.setAttribute('role', 'status'); loader.setAttribute('aria-label', 'Downloading attendance'); loader.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span>'; button.hidden = true; button.style.display = 'none'; button.before(loader); }
         if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>'; }
         try {
-            await window.SigmaAttendance.refresh();
+            await window.SigmaAttendance.refresh(true);
             const scope = document.querySelector('input[name="attendance-export-scope"]:checked')?.value || 'day';
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             const currentMonthName = monthNames[attendanceViewingMonth];

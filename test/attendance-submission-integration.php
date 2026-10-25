@@ -56,4 +56,25 @@ try{$pdo->beginTransaction();attendanceImport($pdo,$teacher,$bad);throw new Exce
 $bad=$patch;$bad['days'][academicDay()]['attcheck-two']='X';
 try{$pdo->beginTransaction();attendanceImport($pdo,$teacher,$bad);throw new Exception('Invalid mark accepted');}catch(InvalidArgumentException $e){$pdo->rollBack();}
 check(attendanceSnapshot($pdo,$teacher)['scopes'][0]['days'][academicDay()]['statuses']===$all,'Failed import writes nothing');
+// Private drafts survive another device without replacing published marks.
+$draft=$input;$draft['submitted']=false;$draft['statuses']=['attcheck-one'=>'L'];
+$pdo->beginTransaction();attendanceSubmit($pdo,$teacher,$draft,true);$pdo->commit();
+$snap=attendanceSnapshot($pdo,$teacher)['scopes'][0];
+check($snap['drafts'][academicDay()]['statuses']['attcheck-one']==='late','Own draft restored from database');
+check($snap['days'][academicDay()]['statuses']['attcheck-one']==='absent','Draft cannot replace publication');
+check(empty(attendanceSnapshot($pdo,$s1)['scopes'][0]['drafts']),'Student cannot read drafts');
+check(empty(attendanceSnapshot($pdo,['id'=>'attcheck-admin','role'=>'Admin'])['scopes'][0]['drafts']),'Another editor cannot read private drafts');
+$yesterday=(new DateTimeImmutable(academicDay()))->modify('-1 day')->format('Y-m-d');
+$multi=['subjectId'=>'attcheck-subject','section'=>'attcheck-section','days'=>[$yesterday=>['statuses'=>['attcheck-one'=>'P']],academicDay()=>['statuses'=>['attcheck-one'=>'L']]]];
+$pdo->beginTransaction();$batchResult=attendanceSubmitMany($pdo,$teacher,$multi);$pdo->commit();
+check(count($batchResult['records'])===2,'Multiple days published together');
+check(empty(attendanceSnapshot($pdo,$teacher)['scopes'][0]['drafts']),'Submission clears own database draft');
+$tomorrow=(new DateTimeImmutable(academicDay()))->modify('+1 day')->format('Y-m-d');
+$invalid=$multi;$invalid['days'][academicDay()]['statuses']['attcheck-one']='A';$invalid['days'][$tomorrow]=['statuses'=>['attcheck-one'=>'A']];
+try{$pdo->beginTransaction();attendanceSubmitMany($pdo,$teacher,$invalid);throw new Exception('Future accepted');}catch(InvalidArgumentException $e){$pdo->rollBack();}
+check(attendanceSnapshot($pdo,$teacher)['scopes'][0]['days'][academicDay()]['statuses']['attcheck-one']==='late','Failed multi-day submission rolls back all dates');
+$private=$input;$private['statuses']=['attcheck-one'=>'P','attcheck-two'=>'A'];attendanceSubmit($pdo,$teacher,$private,true);
+attendanceImport($pdo,$teacher,['subjectId'=>'attcheck-subject','section'=>'attcheck-section','days'=>[academicDay()=>['attcheck-one'=>'L']]]);
+$after=attendanceSnapshot($pdo,$teacher)['scopes'][0];check($after['drafts'][academicDay()]['statuses']['attcheck-two']==='absent','Import preserves unrelated private changes');check(empty($after['days'][academicDay()]['statuses']['attcheck-two']),'Unrelated draft remains unpublished');
+echo "PASS database drafts, device restore, private editor scope, batch publication, future rejection and atomic rollback.\n";
 echo "PASS temporary-table integration: draft rejection, acknowledged submit, own-student privacy, unmarked preserved, admin report sync, resubmission, teacher assignment, read-only student. No real rows changed.\n";

@@ -1628,7 +1628,7 @@ window.getAttendanceReportRows = function (dateRange) {
         // Resolve classroom data from shared engine or multi-key lookup
         let classroomData = {};
         if (typeof window.findAttendanceClassroomRecord === 'function') {
-            const found = window.findAttendanceClassroomRecord(cleanSec, cleanSubj);
+            const found = window.findAttendanceClassroomRecord(cleanSec, cleanSubj, true);
             if (found && found.data && Object.keys(found.data).length > 0) {
                 classroomData = found.data;
             }

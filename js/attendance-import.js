@@ -221,7 +221,7 @@
             content.onchange=()=>{dirty=true;const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
             const download=button('Download Template',()=>run(download,'Downloading',async()=>{
                 const form=overlay.querySelector('form');if(!form.reportValidity())return;
-                await window.SigmaAttendance.refresh();
+                await window.SigmaAttendance.refresh(true);
                 const workbook=workbookFor(context,form.elements.from.value,form.elements.to.value,form.elements.contents.value==='blank');
                 XLSX.writeFile(workbook,`Attendance_${context.section.replace(/[^a-z0-9_-]/gi,'_')}_${form.elements.from.value}_${form.elements.to.value}.xlsx`);busy=false;close();
             }));footer.replaceChildren(download);
@@ -248,11 +248,12 @@
         }
         async function submitImport(confirmation={}) {
             if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)throw Error('The signed-in account changed. Reopen attendance import.');
+            await window.SigmaAttendance.flush?.();
             const result=await request({...scope,action:'import',days:review.days,...confirmation});
             if(String(window.SigmaDatabase.currentUser()?.id||'')!==owner)throw Error('The signed-in account changed.');
             if(!result.success)throw Error(result.error||'Attendance was not imported.');
             if(result.needsConfirmation){showConflicts(result);return;}
-            await window.SigmaAttendance.refresh();
+            await window.SigmaAttendance.refresh(true);
             // Update matching private drafts without discarding unrelated, unsubmitted cells.
             const draftKey='sigma-attendance-drafts:'+String(window.SigmaDatabase.currentUser().id);
             let drafts={};try{drafts=JSON.parse(localStorage.getItem(draftKey)||'{}');}catch(_){}
@@ -266,11 +267,12 @@
                         const student=context.students.find(student=>String(student.id)===id||window.studentNamesMatch?.(student.name,id));
                         const sid=String(student?.id||id);if(!uploaded[sid]&&code(value)!==code(published.statuses?.[sid]))remaining[sid]=value;
                     }
-                    if(Object.keys(remaining).length)days[date]={...days[date],statuses:{...published.statuses,...remaining},submitted:false};else delete days[date];
+                    if(Object.keys(remaining).length){days[date]={...days[date],statuses:{...published.statuses,...remaining},submitted:false,_pending:true};window.SigmaAttendance.saveDraft?.({...scope,date,statuses:days[date].statuses,excuses:days[date].excuses||{}});}else delete days[date];
                     if(window.attendanceEditingDays)window.attendanceEditingDays[date]=false;
                 }
             }
             localStorage.setItem(draftKey,JSON.stringify(drafts));window.dispatchEvent(new CustomEvent('sigma:attendance-changed',{detail:{remote:true}}));
+            window.selectSubmittedAttendanceDate?.((result.dates||Object.keys(review.days)).sort().at(-1));
             busy=false;close();window.showToastNotification?.(`${result.importedMarks} attendance marks submitted successfully.`,'success');
         }
         function showConflicts(result) {
