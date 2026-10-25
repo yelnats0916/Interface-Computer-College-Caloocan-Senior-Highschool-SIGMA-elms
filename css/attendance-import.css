@@ -21,10 +21,10 @@
 #attendance-export-modal .attendance-import-dropzone{width:100%;max-width:768px;min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:28px;font:400 14px/22px Inter,sans-serif;box-sizing:border-box;cursor:pointer;color:#000}
 .attendance-import-dropzone .sigma-dropzone-icon-box{width:48px;height:48px;display:grid;place-items:center;border-radius:12px;font-size:24px}
 .attendance-import-dropzone strong{font-size:16px;font-weight:600}
-.attendance-import-table{max-width:100%;overflow:auto;border:1px solid #e5e7eb;border-radius:12px;overscroll-behavior:contain;max-height:52vh}
+.attendance-import-table{max-width:100%;overflow-x:auto;overflow-y:visible;border:0;border-radius:0;overscroll-behavior-x:contain;overscroll-behavior-y:auto;max-height:none}
 .attendance-import-table table{border-collapse:separate;border-spacing:0;min-width:100%;font:400 14px/22px Inter,sans-serif;color:#000}
 .attendance-import-table th,.attendance-import-table td{padding:14px 16px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:center}
-.attendance-import-table th{position:sticky;top:0;background:#15803d;color:#fff;font-weight:600;z-index:1}
+.attendance-import-table th{position:static;background:#15803d;color:#fff;font-weight:600;z-index:1}
 .attendance-import-table td:nth-child(2){text-align:left}.attendance-import-table tr:nth-child(even){background:#f8fafc}
 .attendance-import-table td.mark-P{background:#dcfce7}.attendance-import-table td.mark-A{background:#fee2e2}.attendance-import-table td.mark-L{background:#fef3c7}.attendance-import-table td.mark-E{background:#e0e7ff}
 .attendance-import-tabs{display:flex;gap:8px;overflow:auto;padding:4px 0 16px;margin-top:12px;max-width:100%}
@@ -90,3 +90,13 @@
 .attendance-download-loading{display:inline-flex;align-items:center;justify-content:center;min-width:56px;min-height:48px}.attendance-download-loading .sigma-dot-spinner{width:32px;height:32px}
 .attendance-import-mark-hint{margin:20px 0 0;color:#000;font:400 14px/1.6 Inter,sans-serif;overflow-wrap:anywhere}
 @media(max-width:767px){.attendance-import-mark-hint{font-size:12px;line-height:1.5}.attendance-download-loading{min-height:40px}.attendance-download-loading .sigma-dot-spinner{width:24px;height:24px}}
+
+/* The form owns vertical scrolling; the table only pans across date columns. */
+#attendance-export-modal.attendance-import .sigma-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior-y:contain}
+.attendance-import-table th:nth-child(2){text-align:left}
+.attendance-import-table th:first-child,.attendance-import-table td:first-child{min-width:44px;box-sizing:border-box}
+.attendance-import-table th:last-child,.attendance-import-table td:last-child{border-right:0}
+
+#attendance-export-modal.attendance-import .sigma-modal-shell{height:100dvh!important;min-height:0!important;max-height:100dvh!important}
+#attendance-export-modal.attendance-import .sigma-modal-panel{height:100%!important;min-height:0!important;max-height:100%!important;overflow:hidden!important}
+#attendance-export-modal.attendance-import :is(.sigma-modal-header,.sigma-modal-footer){flex-shrink:0}
