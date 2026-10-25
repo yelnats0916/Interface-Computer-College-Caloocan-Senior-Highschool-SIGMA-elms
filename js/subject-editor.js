@@ -11199,12 +11199,20 @@ window.addSubjectTopic = function () {
     };
 
     window.editSubject = async function (code) {
-        if (window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
+        // Reuse this session's database result; never wait for a duplicate list read.
+        const catalog = window.subjectCatalogState;
+        const loaded = catalog?.ready && catalog.records?.some(subject =>
+            [subject.code, subject.id].some(value => String(value || '').toLowerCase() === String(code).toLowerCase()));
+        if (!loaded && window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
         window.openSubjectEditor(code, 1, { focus: 'info' });
     };
 
     window.editSubjectContent = async function (code) {
-        if (window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
+        // Reuse this session's database result; never wait for a duplicate list read.
+        const catalog = window.subjectCatalogState;
+        const loaded = catalog?.ready && catalog.records?.some(subject =>
+            [subject.code, subject.id].some(value => String(value || '').toLowerCase() === String(code).toLowerCase()));
+        if (!loaded && window.fetchSubjectsFromDB && !await window.fetchSubjectsFromDB()) return;
         if (typeof window.openSharedTopicsAndMaterials === 'function') {
             window.openSharedTopicsAndMaterials({ subjectId: code, contentOrigin: 'subject-catalog' });
         } else {

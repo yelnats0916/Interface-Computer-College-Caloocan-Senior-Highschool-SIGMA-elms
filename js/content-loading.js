@@ -207,10 +207,19 @@
     };
     new MutationObserver(records => {
         for (const [button, state] of active) if (!button.isConnected) restore(button, state);
+        // A changed ancestor (often body) must not rescan every action on the page.
+        // Only new subtrees and the action containing the changed node need inspection.
+        const changed = new Set();
         for (const record of records) {
-            if (record.type === 'childList') { scan(record.target); record.addedNodes.forEach(scan); }
-            else scan(record.target);
+            const node = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+            const button = node?.closest(selector);
+            if (button) changed.add(button);
+            if (record.type === 'childList') record.addedNodes.forEach(scan);
+            else if (node?.matches('#subject-split-btn-group,#section-split-btn-group,#export-quiz-dropdown-wrap')) {
+                node.querySelectorAll(selector).forEach(button => changed.add(button));
+            }
         }
+        changed.forEach(update);
     }).observe(document.documentElement, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','aria-busy','disabled','hidden']});
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => scan(document.body), {once:true});
     else scan(document.body);
