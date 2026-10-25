@@ -926,7 +926,7 @@ function initStudentPortal() {
 
     let studentAttendanceRecords = [];
     let studentAttendancePage = 1;
-    const studentAttendancePerPage = 10;
+    let studentAttendancePerPage = 5;
     let activeAttendanceSubjectFilter = null;
 
     function getStudentAttendanceFromTeacher(studentName, subjectFilter = null) {
@@ -1529,6 +1529,7 @@ function initStudentPortal() {
         if (!isClassroomTab && pagination && typeof window.renderPaginationControls === 'function') {
             window.renderPaginationControls(paginationId, mockRecords.length, {
                 itemsPerPage: studentAttendancePerPage,
+                onPageSizeChange: value => { studentAttendancePerPage = value; },
                 currentPage: studentAttendancePage
             }, (newPage) => {
                 studentAttendancePage = newPage;

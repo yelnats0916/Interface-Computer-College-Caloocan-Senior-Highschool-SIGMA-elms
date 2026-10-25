@@ -77,7 +77,7 @@
             observer.disconnect();
             if (nodes.length !== body.rows.length || nodes.some((row, index) => body.rows[index] !== row)) body.replaceChildren(...nodes);
             observe();
-            footer.replaceChildren(); footer.hidden = !adminTables && pages === 1 && !table.dataset.pageSizeOptions;
+            footer.replaceChildren(); footer.hidden = records.length === 0;
             try { sessionStorage.setItem(storageKey, String(page)); } catch {}
             if (footer.hidden) return;
             const count = document.createElement('span'); count.className = 'sigma-log-page-count text-black-fade';
@@ -87,18 +87,9 @@
             window.SigmaTablePagination.mount(controls, page, pages, target => {
                 page = target; paint(); scrollToPageStart(table);
             });
-            if (adminTables) {
-                const settings = document.createElement('div'); settings.className = 'sigma-pagination-settings';
-                settings.append(window.SigmaTablePagination.pageSizeControl(pageSize, value => { table.dataset.pageSize = String(value); page = 1; paint(); }), count);
-                footer.append(controls, settings);
-            } else if(table.dataset.pageSizeOptions){
-                const group=document.createElement('div');group.style.cssText='display:flex;align-items:center;gap:16px';
-                const label=document.createElement('label');label.textContent='Rows per page ';
-                const size=document.createElement('select');size.setAttribute('aria-label','Rows per page');
-                for(const value of table.dataset.pageSizeOptions.split(',')){const option=document.createElement('option');option.value=value;option.textContent=value;size.append(option);}
-                size.value=String(pageSize);size.onchange=()=>{table.dataset.pageSize=size.value;page=1;paint();};
-                label.append(size);group.append(count,label);footer.append(group,controls);
-            }else footer.append(count, controls);
+            const settings = document.createElement('div'); settings.className = 'sigma-pagination-settings';
+            settings.append(window.SigmaTablePagination.pageSizeControl(pageSize, value => { table.dataset.pageSize = String(value); page = 1; paint(); }), count);
+            footer.append(controls, settings);
         }
         const controller = {
             refresh: paint,

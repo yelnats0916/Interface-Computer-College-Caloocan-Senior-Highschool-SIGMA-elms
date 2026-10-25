@@ -3,7 +3,7 @@
     if (window.SigmaTablePagination) return;
     const GROUP_SIZE = 10;
     const adminTables = /\/admin\.html$/i.test(location.pathname);
-    const DEFAULT_PAGE_SIZE = adminTables ? 5 : 20;
+    const DEFAULT_PAGE_SIZE = 5;
     if (adminTables) document.documentElement.classList.add('sigma-admin-table-layout');
     function model(currentPage, totalPages) {
         const total = Math.max(1, Math.floor(Number(totalPages) || 1));
@@ -16,6 +16,7 @@
     }
     function controlsHtml(currentPage, totalPages, extraClass = '') {
         const state = model(currentPage, totalPages);
+        if (state.total <= 1) return '';
         const extra = String(extraClass).replace(/[^a-zA-Z0-9 _-]/g, '');
         const button = (label, page, icon, disabled = false) => `<button type="button" data-page="${page}" class="sigma-pagination-btn ${icon ? 'sigma-pagination-btn--nav' : 'sigma-pagination-btn--number'} ${extra} ${!icon && state.page === page ? 'is-active' : ''}" aria-label="${label}" title="${label}" ${disabled ? 'disabled' : ''} ${!icon && state.page === page ? 'aria-current="page"' : ''}>${icon ? `<i class="fa-solid ${icon}" aria-hidden="true"></i>` : page}</button>`;
         return `<div class="sigma-pagination-container sigma-group-pagination" role="group" aria-label="Pages ${state.start} to ${state.end} of ${state.total}">
@@ -44,13 +45,14 @@
         if (!container) return;
         const wrapper = container.closest('.border-t') || container;
         const total = Math.ceil(Math.max(0, Number(totalItems) || 0) / Math.max(1, Number(state?.itemsPerPage) || DEFAULT_PAGE_SIZE));
-        if (total <= 1 && (!adminTables || !totalItems)) { container.replaceChildren(); wrapper.style.display = 'none'; return; }
+        if (!totalItems) { container.replaceChildren(); wrapper.style.display = 'none'; return; }
         wrapper.style.display = '';
         mount(container, state?.currentPage || 1, total, page => {
             const handler = typeof onChange === 'function' ? onChange : window[onChange];
             if (typeof handler === 'function') handler(page);
         });
-        if (adminTables) {
+        {
+            container.classList.add('sigma-pagination-row');
             const count = document.createElement('span');
             count.className = 'sigma-table-list-count';
             const size = Math.max(1, Number(state?.itemsPerPage) || DEFAULT_PAGE_SIZE);
@@ -60,6 +62,7 @@
             settings.className = 'sigma-pagination-settings';
             settings.append(pageSizeControl(size, value => {
                 state.itemsPerPage = value;
+                state.onPageSizeChange?.(value);
                 state.currentPage = 1;
                 const handler = typeof onChange === 'function' ? onChange : window[onChange];
                 if (typeof handler === 'function') handler(1);
@@ -68,26 +71,30 @@
         }
     }
     function pageSizeControl(size, onChange) {
-        const label = document.createElement('label');
+        const label = document.createElement('div');
         label.className = 'sigma-page-size';
         const text = document.createElement('span'); text.textContent = 'Rows per page:';
-        const select = document.createElement('select');
-        select.setAttribute('aria-label', 'Rows per page');
-        [5, 10, 20].forEach(value => {
-            const option = document.createElement('option');
-            option.value = String(value); option.textContent = String(value); select.append(option);
+        const dropdown = document.createElement('details');
+        dropdown.className = 'sigma-quarter-dropdown sigma-page-size-dropdown';
+        const trigger = document.createElement('summary');
+        trigger.setAttribute('aria-label', 'Rows per page');
+        const valueText = document.createElement('span'); valueText.textContent = String(size);
+        const icon = document.createElement('i'); icon.className = 'fa-solid fa-chevron-down'; icon.setAttribute('aria-hidden','true');
+        trigger.append(valueText, icon);
+        const menu = document.createElement('div'); menu.className = 'sigma-quarter-dropdown-menu';
+        [5,10,20].forEach(value => {
+            const option = document.createElement('button'); option.type = 'button'; option.textContent = String(value);
+            option.setAttribute('aria-pressed', String(value === size));
+            option.onclick = () => { dropdown.open = false; onChange(value); };
+            menu.append(option);
         });
-        select.value = String(size);
-        select.onchange = () => {
-            const value = Number(select.value);
-            if ([5, 10, 20].includes(value)) onChange(value);
-        };
-        const wrapper = document.createElement('div'); wrapper.className = 'sigma-select-wrapper';
-        const icon = document.createElement('i'); icon.className = 'fa-solid fa-chevron-down sigma-select-icon'; icon.setAttribute('aria-hidden', 'true');
-        wrapper.append(select, icon);
-        label.append(text, wrapper);
+        dropdown.append(trigger,menu); label.append(text,dropdown);
+        dropdown.addEventListener('keydown',event=>{if(event.key==='Escape'){dropdown.open=false;trigger.focus();}});
         return label;
     }
+    document.addEventListener('pointerdown',event=>{
+        document.querySelectorAll('.sigma-page-size-dropdown[open]').forEach(dropdown=>{if(!dropdown.contains(event.target))dropdown.open=false;});
+    });
     // Read-only lists opt in explicitly. Keep all rows in the DOM for exports and full-list calculations.
     const tables = new WeakMap();
     function attach(table) {
@@ -98,8 +105,7 @@
         footer.setAttribute('aria-label', 'Table pagination');
         const wrap = table.closest('.attendance-record-table, .teacher-grades-modal-table, .record-table-scroll');
         const cards = table.closest('.record-main')?.querySelector('.record-mobile-grade-cards');
-        if (adminTables) (wrap || table).before(footer);
-        else (cards || wrap || table).after(footer);
+        (wrap || table).before(footer);
         function paint() {
             const all = Array.from(table.tBodies[0].rows);
             const rows = all.filter(row => row.cells.length > 1 && row.style.display !== 'none' && row.dataset.logSearchMatch !== 'false');
@@ -109,7 +115,7 @@
             all.forEach(row => { row.hidden = false; });
             rows.forEach((row, index) => { row.hidden = index < (page - 1) * size || index >= page * size; });
             cards?.querySelectorAll('.record-mobile-grade-card').forEach((card, index) => { card.hidden = Boolean(all[index]?.hidden); });
-            footer.hidden = adminTables ? rows.length === 0 : total <= 1;
+            footer.hidden = rows.length === 0;
             if (footer.hidden) { footer.replaceChildren(); return; }
             const count = document.createElement('span'); count.className = 'sigma-table-list-count';
             count.textContent = `${(page - 1) * size + 1}-${Math.min(page * size, rows.length)} of ${rows.length}`;
@@ -119,11 +125,11 @@
                 if (adminTables && window.SigmaLogPagination) window.SigmaLogPagination.scrollToPageStart(table);
                 else table.scrollIntoView({ block: 'start', behavior: 'instant' });
             });
-            if (adminTables) {
+            {
                 const settings = document.createElement('div'); settings.className = 'sigma-pagination-settings';
                 settings.append(pageSizeControl(size, value => { table.dataset.pageSize = String(value); page = 1; paint(); }), count);
                 footer.replaceChildren(controls, settings);
-            } else footer.replaceChildren(count, controls);
+            }
         }
         const observer = new MutationObserver(changes => {
             if (changes.some(change => change.type === 'attributes')) page = 1;
@@ -139,10 +145,16 @@
         paint();
     }
     const tableSelector = adminTables ? 'table[data-sigma-paginate], #resources-view table' : 'table[data-sigma-paginate]';
-    function scan() { document.querySelectorAll(tableSelector).forEach(attach); }
+    function scan() {
+        document.querySelectorAll(tableSelector).forEach(attach);
+        document.querySelectorAll('.sigma-page-size select[aria-label="Rows per page"]').forEach(select=>{
+            const label=select.closest('.sigma-page-size');
+            label.replaceWith(pageSizeControl(Number(select.value),value=>{select.value=String(value);select.dispatchEvent(new Event('change',{bubbles:true}));}));
+        });
+    }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan); else scan();
     new MutationObserver(changes => {
-        if (changes.some(change => Array.from(change.addedNodes).some(node => node.nodeType === 1 && (node.matches(tableSelector) || node.querySelector(tableSelector))))) scan();
+        if (changes.some(change => Array.from(change.addedNodes).some(node => node.nodeType === 1 && (node.matches(tableSelector+',.sigma-page-size') || node.querySelector(tableSelector+',.sigma-page-size'))))) scan();
     }).observe(document.documentElement, { childList:true, subtree:true });
     window.SigmaTablePagination = { model, controlsHtml, mount, render, alignActive, attach, pageSizeControl, groupSize: GROUP_SIZE };
     window.renderPaginationControls = render;

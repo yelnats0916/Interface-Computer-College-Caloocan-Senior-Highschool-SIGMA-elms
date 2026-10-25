@@ -197,6 +197,7 @@
             summary.before(settings);
             settings.append(window.SigmaTablePagination.pageSizeControl(tablePageSize, value => { tablePageSize = value; tablePage = 1; paint(); }), summary);
         }
+        find('[data-backup-previous]').parentElement.hidden = pages <= 1;
         find('[data-backup-previous]').disabled = tablePage === 1; find('[data-backup-next]').disabled = tablePage === pages;
         records = records.slice((tablePage-1)*tablePageSize,tablePage*tablePageSize);
         const body = find('.backup-history-table tbody'); body.replaceChildren();
