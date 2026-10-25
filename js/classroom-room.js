@@ -2721,7 +2721,7 @@
             attendanceSelectedDay = -1;
             attendanceLastScrollLeft = -1;
         }
-        if (shouldSlide) attendanceLastScrollLeft = -1;
+        // Date selection preserves the current viewport; only scope/month changes reset it.
 
         const oldSlider = container.querySelector('.attendance-grid-container');
         const isFreshOpen = attendanceLastScrollLeft === -1;
