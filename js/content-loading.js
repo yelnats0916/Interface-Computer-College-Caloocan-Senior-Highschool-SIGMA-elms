@@ -76,6 +76,7 @@
     }
     const tableReads = new Map();
     const retrievedTables = new WeakSet();
+    const retrievedTableIds = new Set();
     function beginDataRead(input) {
         const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
         const endpoint = target.pathname.split('/').pop().replace('.php', '');
@@ -86,7 +87,7 @@
             ai_records: target.searchParams.get('action') === 'logs' ? '#audit-ai-view tbody' : '',
             activity_logs: '#activity-log-rows', authentication_logs: '#audit-auth-view tbody',
             notifications: '#notification-log-rows', notification_logs: '#notification-log-rows',
-            academic_records: '#gradebook-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
+            academic_records: '#gradebook-body, #student-attendance-history-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
             maintenance: '#maintenance-history-body'
         };
         const selector = selectors[endpoint];
@@ -99,7 +100,8 @@
         bodies.forEach(body => {
             if (tracked.has(body)) return;
             let state = tableReads.get(body);
-            if (!state && retrievedTables.has(body) && body.children.length && !body.querySelector('[role="status"]')) return;
+            const key = body.id ? `${endpoint}:${body.id}` : '';
+            if (!state && (retrievedTables.has(body) || (key && retrievedTableIds.has(key)))) return;
             if (!state) {
                 const columns = body.closest('table')?.querySelector('thead tr')?.children.length || 1;
                 const row = document.createElement('tr');
@@ -108,7 +110,13 @@
                 cell.colSpan = columns;
                 cell.innerHTML = html();
                 row.append(cell);
-                state = { count: 0, row, saved: Array.from(body.childNodes) };
+                const emptyId = {
+                    'classroom-attendance-history-body': 'classroom-attendance-empty-state',
+                    'student-attendance-history-body': 'student-attendance-empty-state'
+                }[body.id];
+                const empty = emptyId ? document.getElementById(emptyId) : null;
+                empty?.setAttribute('data-sigma-table-pending', '');
+                state = { count: 0, row, empty, saved: Array.from(body.childNodes), key };
                 body.replaceChildren(row);
                 body.setAttribute('aria-busy', 'true');
                 state.observer = new MutationObserver(() => {
@@ -135,7 +143,9 @@
             state.observer.disconnect();
             if (body.contains(state.row)) body.replaceChildren(...state.saved);
             body.removeAttribute('aria-busy');
+            state.empty?.removeAttribute('data-sigma-table-pending');
             retrievedTables.add(body);
+            if (state.key) retrievedTableIds.add(state.key);
             tableReads.delete(body);
         });
         };

@@ -9,10 +9,23 @@ for(const width of [1280,375]){
  const bounds=await p.locator('.sigma-dot-spinner').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=width);
  await p.evaluate(()=>finish1());assert.equal(await p.locator('.sigma-dot-spinner').count(),1);await p.evaluate(()=>finish2());assert.equal(await p.locator('.sigma-dot-spinner').count(),0,'A slow unrelated request must not keep the table loading');await p.evaluate(()=>unrelated());
  await p.evaluate(()=>{document.querySelector('tbody').innerHTML='<tr><td>1</td><td>Teacher</td></tr>';window.done=SigmaContentLoading.beginDataRead('php/api/users.php');});assert.equal(await p.locator('.sigma-dot-spinner').count(),0);await p.evaluate(()=>done());
- // Exercise the actual transport: dots before retrieval, automatic cleanup on failure.
- await p.evaluate(()=>document.querySelector('tbody').replaceChildren());await p.addScriptTag({path:'js/database-client.js'});
+ // Exercise a fresh page's actual transport and cleanup on failure.
+ await p.reload();await p.addStyleTag({path:'css/content-loading.css'});await p.addScriptTag({path:'js/content-loading.js'});await p.addScriptTag({path:'js/database-client.js'});
  await p.route('**/php/api/users.php',async r=>{await new Promise(resolve=>release=resolve);await r.fulfill({status:500,contentType:'application/json',body:'{"success":false,"error":"Fixture unavailable"}'});});
  await p.evaluate(()=>{window.read=SigmaDatabase.request('users',{autoReconnect:false}).catch(e=>e.message);});await p.waitForSelector('.sigma-dot-spinner');release();assert.equal(await p.evaluate(()=>read),'Fixture unavailable');assert.equal(await p.locator('.sigma-dot-spinner').count(),0);await c.close();
+}
+{
+ const c=await browser.newContext({viewport:{width:375,height:700}}),p=await c.newPage();
+ await p.goto('about:blank');await p.setContent('<table><thead><tr><th>Date</th><th>Status</th></tr></thead><tbody id="classroom-attendance-history-body"></tbody></table><div id="classroom-attendance-empty-state">No attendance</div>');
+ await p.addStyleTag({path:'css/content-loading.css'});await p.addScriptTag({path:'js/content-loading.js'});
+ await p.evaluate(()=>window.done=SigmaContentLoading.beginDataRead('https://fixture.test/php/api/academic_records.php?action=sync'));
+ assert.equal(await p.locator('.sigma-dot-spinner').count(),1);assert.equal(await p.locator('#classroom-attendance-empty-state').isVisible(),false,'Empty state must not appear beneath loading row');
+ await p.evaluate(()=>done());assert.equal(await p.locator('#classroom-attendance-empty-state').isVisible(),true);
+ for(let i=0;i<3;i++){
+  await p.evaluate(()=>{document.querySelector('tbody').outerHTML='<tbody id="classroom-attendance-history-body"></tbody>';window.done=SigmaContentLoading.beginDataRead('https://fixture.test/php/api/academic_records.php?action=sync');});
+  assert.equal(await p.locator('.sigma-dot-spinner').count(),0,'Background polling must not reintroduce a spinner for an empty or rebuilt table');await p.evaluate(()=>done());
+ }
+ await c.close();
 }
 const c=await browser.newContext(),p=await c.newPage();await p.route('https://auth-retry.test/**',r=>r.fulfill({contentType:'text/html',body:'<body></body>'}));await p.goto('https://auth-retry.test/index.html');await p.addScriptTag({path:'js/database-client.js'});
 let calls=0;await p.route('**/php/api/auth.php',r=>{calls++;return r.fulfill(calls===1?{status:503,contentType:'text/html',body:'<h1>Service Unavailable</h1>The server is temporarily unable to service your request due to capacity problems.'}:{contentType:'application/json',body:'{"success":true,"challenge":"fixture","otpauth_url":"otpauth://fixture"}'});});
