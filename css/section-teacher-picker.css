@@ -78,3 +78,10 @@
  #section-edit-overlay #section-subpage-footer{padding:12px 16px}
  #section-edit-overlay #section-subpage-footer .sigma-btn{font-size:12px!important;min-height:40px;padding:8px 12px!important}
 }
+
+/* Separate the staged student roster from search results. */
+#section-subpage-students .section-assignment-roster{border-top:1px solid #dce5ef;padding-top:24px}
+#section-subpage-students .section-assignment-remove,#section-subpage-teacher .section-teacher-picker-remove{transition:background-color .15s ease}
+#section-subpage-students .section-assignment-remove:hover,#section-subpage-teacher .section-teacher-picker-remove:hover{background:#f1f5f9}
+#section-subpage-students .section-assignment-remove:focus-visible,#section-subpage-teacher .section-teacher-picker-remove:focus-visible{background:#f1f5f9;outline:2px solid var(--icc-green,#15803d);outline-offset:2px}
+@media(max-width:639px){#section-subpage-students .section-assignment-roster{margin-top:20px;padding-top:20px}}

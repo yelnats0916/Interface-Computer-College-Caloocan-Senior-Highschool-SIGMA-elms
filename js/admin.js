@@ -16817,7 +16817,7 @@ window.renderSubpageStudentsSelectedPanel = function () {
     const confirmLabel = document.getElementById('section-subpage-confirm-label');
     const count = window.stagedSectionStudents?.length || 0;
 
-    if (selectedCountEl) selectedCountEl.textContent = `${count} assigned`;
+    if (selectedCountEl) selectedCountEl.textContent = `Selected Students (${count})`;
     if (confirmLabel && window.activeSectionSubpage === 'students') {
         confirmLabel.textContent = count > 0 ? `Select Students (${count})` : 'Select Students';
     }
@@ -16845,7 +16845,7 @@ window.renderSubpageStudentsSelectedPanel = function () {
     }).join('');
 
     panel.classList.remove('hidden');
-    panel.innerHTML = `<p class="section-teacher-picker-mode">${count} assigned</p><div>${rows}</div>`;
+    panel.innerHTML = `<p class="section-teacher-picker-mode">Selected Students (${count})</p><div>${rows}</div>`;
 };
 
 window.removeSectionStudent = function (studentId) {
