@@ -31,3 +31,50 @@
 #section-assigned-schedule-display .section-schedule-overview-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:16px}
 #section-assigned-schedule-display .section-schedule-overview-time{margin:0;text-align:center;color:#000!important}
 #section-assigned-schedule-display .section-schedule-overview-room{justify-self:end}
+
+/* Assignment pages use the same full-width roster rows as the section editor. */
+#section-edit-overlay :is(#section-subpage-teacher,#section-subpage-students){min-width:0;width:100%}
+#section-subpage-teacher .section-teacher-picker-sidebar section{min-width:0}
+#section-subpage-teacher .section-teacher-picker-section-title{font-size:18px;line-height:26px;margin:0 0 20px}
+#section-subpage-teacher .section-teacher-picker-action{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border:1px solid #dce5ef;border-radius:12px;background:#fff;color:#000;font:600 14px/20px Inter,sans-serif;max-width:100%;white-space:normal;text-decoration:none}
+#section-subpage-teacher .section-teacher-picker-selected{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:16px 0}
+#section-subpage-teacher .section-teacher-picker-person{display:flex;align-items:center;gap:12px;min-width:0}
+#section-subpage-teacher .section-teacher-picker-person>span:not(.section-teacher-picker-profile){overflow-wrap:anywhere;line-height:22px}
+#section-subpage-teacher .section-teacher-picker-selected>label{display:flex!important;align-items:center;gap:8px;font-size:14px;line-height:20px;flex-shrink:0}
+#section-subpage-teacher .section-teacher-picker-remove,#section-subpage-students .section-assignment-remove{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;border:0;border-radius:50%;background:transparent;color:#000;cursor:pointer}
+#section-subpage-teacher .section-teacher-picker-result{display:flex!important;align-items:center;gap:16px;padding:16px 0;min-width:0}
+#section-subpage-teacher .section-teacher-picker-result>label{display:flex!important;flex-direction:row!important;align-items:center;gap:12px;min-width:0;flex:1;margin:0}
+#section-subpage-teacher .section-teacher-picker-result>label>span:last-child{display:block;flex:1;min-width:0}
+#section-subpage-teacher .section-teacher-picker-result .section-teacher-picker-name{display:block;margin:0 0 4px;font-size:14px;line-height:21px}
+#section-subpage-teacher .section-teacher-picker-result .section-teacher-picker-context{display:block;font-size:12px;line-height:18px;margin:0}
+#section-subpage-teacher .section-teacher-picker-profile{width:40px;height:40px;align-items:center;justify-content:center}
+#section-subpage-teacher .section-teacher-picker-result img{width:40px;height:40px;object-fit:cover;border-radius:50%;flex-shrink:0}
+#section-subpage-teacher .section-teacher-picker-result input{margin:0;width:18px;height:18px;flex:0 0 18px}
+#section-subpage-students .section-assignment-roster{width:100%;max-width:none;min-width:0;margin-top:24px}
+#section-subpage-students .section-assignment-person-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid rgba(0,0,0,.1);min-width:0}
+#section-subpage-students .section-teacher-picker-person{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+#section-subpage-students .section-assignment-person-text{min-width:0;flex:1}
+#section-subpage-students .section-teacher-picker-name{font-size:14px;line-height:21px;margin:0 0 4px}
+#section-subpage-students .section-teacher-picker-context{font-size:12px;line-height:18px;margin:0}
+#section-subpage-students .section-assignment-person-row img{width:40px;height:40px;object-fit:cover;border-radius:50%;flex-shrink:0}
+#section-subpage-teacher .section-teacher-picker-profile .sigma-user-avatar,#section-subpage-teacher .section-teacher-picker-result .sigma-user-avatar,#section-subpage-students .section-teacher-picker-person>.sigma-user-avatar{width:40px;height:40px;flex:0 0 40px}
+#section-edit-overlay #section-subpage-footer{flex-wrap:wrap;gap:12px}
+#section-edit-overlay #section-subpage-footer>div:empty{display:none}
+@media(max-width:639px){
+ #section-subpage-teacher .section-teacher-picker-section-title{font-size:15px;line-height:22px;margin-bottom:16px}
+ #section-subpage-teacher .section-teacher-picker-action{font-size:12px;line-height:18px;min-height:38px;padding:8px 12px}
+ #section-subpage-teacher .section-teacher-picker-selected{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px 0}
+ #section-subpage-teacher .section-teacher-picker-selected>label{padding-left:44px;font-size:12px;line-height:18px}
+ #section-subpage-teacher .section-teacher-picker-profile,#section-subpage-teacher .section-teacher-picker-profile .sigma-user-avatar,#section-subpage-teacher .section-teacher-picker-result .sigma-user-avatar,#section-subpage-students .section-teacher-picker-person>.sigma-user-avatar{width:32px;height:32px;flex:0 0 32px}
+ #section-subpage-teacher .section-teacher-picker-result img,#section-subpage-students .section-assignment-person-row img{width:32px;height:32px}
+ #section-subpage-teacher .section-teacher-picker-result{flex-wrap:wrap;padding:12px 0;gap:6px}
+ #section-subpage-teacher .section-teacher-picker-result .section-teacher-picker-name,#section-subpage-students .section-teacher-picker-name{font-size:12px;line-height:18px}
+ #section-subpage-teacher .section-teacher-picker-conflict{text-align:left;max-width:100%;padding-left:30px}
+ #section-subpage-teacher .section-teacher-picker-mode,#section-subpage-students .section-teacher-picker-mode{font-size:12px;line-height:18px}
+ #section-edit-overlay :is(#section-subpage-teacher,#section-subpage-students) .sigma-field-group>.flex{min-width:0;gap:8px}
+ #section-edit-overlay :is(#section-subpage-teacher,#section-subpage-students) .sigma-field-group>.flex>.relative{min-width:0}
+ #section-edit-overlay :is(#section-subpage-teacher-search-btn,#section-subpage-students-search-btn){min-width:68px!important;padding:8px 12px!important;font-size:12px!important}
+ #section-edit-overlay :is(#section-subpage-teacher-search,#section-subpage-students-search){min-width:0;font-size:12px!important}
+ #section-edit-overlay #section-subpage-footer{padding:12px 16px}
+ #section-edit-overlay #section-subpage-footer .sigma-btn{font-size:12px!important;min-height:40px;padding:8px 12px!important}
+}

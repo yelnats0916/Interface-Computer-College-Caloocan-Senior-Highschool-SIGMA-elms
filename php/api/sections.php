@@ -30,6 +30,7 @@ require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
 require_once __DIR__ . '/../includes/section_subject_policy.php';
+require_once __DIR__ . '/../includes/section_assignment_validation.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -272,12 +273,15 @@ try {
         $subject = trim((string) ($section['subject'] ?? ''));
         $subjects = json_encode($section['subjects'] ?? ($section['assignedSubjects'] ?? ($subject ? [$subject] : [])));
         $students = json_encode($section['students'] ?? []);
-        $studentsCount = isset($section['studentsCount']) ? (int) $section['studentsCount'] : (is_array($section['students'] ?? null) ? count($section['students']) : 0);
+        $studentsCount = is_array($section['students'] ?? null) ? count($section['students']) : 0;
         $status = trim((string) ($section['status'] ?? 'Deployed'));
 
         sigmaLockSchoolYearWrites($pdo);
         $pdo->beginTransaction();
         sigmaRequireSectionSchoolYear($pdo,$sy);
+        sigmaValidateSectionAssignments($section,
+            $pdo->query('SELECT id,first_name,last_name,full_name,role,status,is_deleted FROM users')->fetchAll(PDO::FETCH_ASSOC),
+            $pdo->query('SELECT id,name,grade_level,school_year,room,subject,teachers,students,daily_schedules,days,start_time,end_time,status,is_deleted FROM sections')->fetchAll(PDO::FETCH_ASSOC));
         $previousQuery=$pdo->prepare('SELECT subject,subjects FROM sections WHERE id=?');$previousQuery->execute([$secId]);
         sigmaValidateSectionSubjectAssignments($pdo,$section,$previousQuery->fetch(PDO::FETCH_ASSOC)?:null);
         $upsertSql = "INSERT INTO `sections` (
@@ -336,6 +340,16 @@ try {
             ':status'          => $status
         ]);
 
+        // One canonical adviser across every subject assignment in the section.
+        $groupQuery=$pdo->prepare('SELECT id,teachers,teacher_role FROM sections WHERE name=? AND grade_level=? AND school_year=? AND is_deleted=0 FOR UPDATE');
+        $groupQuery->execute([$name,$grade,$sy]);
+        $groupUpdate=$pdo->prepare('UPDATE sections SET adviser=?,adviser_id=?,teachers=?,teacher_role=? WHERE id=?');
+        foreach($groupQuery->fetchAll(PDO::FETCH_ASSOC) as $groupRow){
+            $groupTeachers=sigmaSectionAdviserTeachers(decodeJsonField($groupRow['teachers'],[]),$adviserId);
+            $lead=null;foreach($groupTeachers as $candidate)if(!empty($candidate['isPrimary'])){$lead=$candidate;break;}
+            $lead=$lead??($groupTeachers[0]??null);
+            $groupUpdate->execute([$adviser,$adviserId,json_encode($groupTeachers),$lead['role']??$groupRow['teacher_role'],$groupRow['id']]);
+        }
         $pdo->commit();
         $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
 

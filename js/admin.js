@@ -14525,9 +14525,7 @@ window.handleSectionSave = function (status, createAnother = false) {
                 }
 
                 saveStoredJson(SECTIONS_STORAGE_KEY, sections);
-                if (savedAdviser && window.sectionAdviserEdits?.has(adviserEditKey)) {
-                    sections.filter(section=>String(section.id)!==String(savedRecord.id) && window.sectionAdviserGroupKey(section)===adviserEditKey).forEach(section=>window.syncSectionToDB?.(section));
-                }
+                // The section API saves the adviser for the whole section in one transaction.
                 window.sectionAdviserEdits?.delete(adviserEditKey);
 
 
@@ -15212,6 +15210,13 @@ window.confirmSectionSubpage = function () {
         const subjectInput = document.getElementById('edit-section-subject');
         if (subjectInput) subjectInput.value = window.selectedSectionSubject;
     } else if (window.activeSectionSubpage === 'students') {
+        for (const student of window.stagedSectionStudents || []) {
+            const conflict = window.getStudentScheduleConflict(student.id || student.uid);
+            if (conflict) {
+                window.showAlertDialog?.('Student Conflict Detected', `${student.name || 'This student'} has a schedule conflict with ${conflict.section.name}.`);
+                return;
+            }
+        }
         window.selectedSectionStudents = JSON.parse(JSON.stringify(window.stagedSectionStudents || []));
     }
 
@@ -16089,7 +16094,12 @@ function renderStudentRosterItemHtml(student, removeHandlerFnName, removeTitle =
 // Helper: Check if a teacher has a schedule conflict with another section in the same School Year
 window.getTeacherScheduleConflict = function (teacherName) {
     if (!teacherName) return null;
-    const cleanName = teacherName.trim().toLowerCase();
+    const candidate = typeof teacherName === 'object' ? teacherName : {name:teacherName};
+    const cleanName = String(candidate.name || candidate.fullName || '').trim().toLowerCase();
+    const users = getStoredJson(USER_STORAGE_KEY, []);
+    const profile = users.find(user => String(user.id || user.uid) === String(candidate.id || candidate.uid || '') || [user.name,user.fullName,`${user.firstName || ''} ${user.lastName || ''}`.trim()].some(name => String(name || '').trim().toLowerCase() === cleanName));
+    const teacherId = String(candidate.id || candidate.uid || profile?.id || profile?.uid || '');
+    const names = new Set([cleanName,profile?.name,profile?.fullName,profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : ''].filter(Boolean).map(name=>String(name).trim().toLowerCase()));
     const schoolYear = document.getElementById('edit-section-school-year')?.value.trim();
     const scheduleList = window.stagedSectionDailySchedule || window.selectedSectionDailySchedule || [];
     const activeDays = scheduleList.filter(d => d.active && d.startTime && d.endTime);
@@ -16111,10 +16121,10 @@ window.getTeacherScheduleConflict = function (teacherName) {
             if (s.status === 'Draft') continue;
             if (schoolYear && (s.schoolYear || '').trim() !== schoolYear) continue;
 
-            const teachesThis = (s.teacher && s.teacher.trim().toLowerCase() === cleanName) ||
+            const teachesThis = (s.teacher && names.has(s.teacher.trim().toLowerCase())) ||
                 (Array.isArray(s.teachers) && s.teachers.some(t => {
                     const name = typeof t === 'object' ? (t.name || '') : String(t);
-                    return name.trim().toLowerCase() === cleanName;
+                    return (teacherId && String(t.id || t.uid || '') === teacherId) || names.has(name.trim().toLowerCase());
                 }));
 
             if (!teachesThis) continue;
@@ -16696,7 +16706,7 @@ window.handleSubpageStudentsSearch = function (query = '') {
         const r = String(u.role || u.type || '').toLowerCase().trim();
         const isStudent = (r.includes('student') || r.startsWith('stud'));
         const uid = String(u.uid || u.id || '');
-        return isStudent && !assignedIdSet.has(uid);
+        return isStudent && (!u.status || String(u.status).toLowerCase() === 'active') && !assignedIdSet.has(uid);
     });
 
     const filtered = q ? students.filter(s => {
@@ -16826,23 +16836,16 @@ window.renderSubpageStudentsSelectedPanel = function () {
         return nameA.localeCompare(nameB);
     });
 
-    const chips = sorted.map((s) => {
-        const id = String(s.id || s.uid || '');
-        const displayName = s.name || `${s.lastName || ''}, ${s.firstName || ''}`.trim();
-        return `
-            <div class="flex items-center gap-2 min-w-0 h-10 pl-1.5 pr-1 rounded-xl bg-slate-50 border border-slate-200 shrink-0 max-w-[16rem]" title="${escapeHtml(displayName)}">
-                ${renderUserAvatarHtml(s, 'w-7 h-7', 'text-[10px]')}
-                <p class="text-sm font-bold text-black tracking-tight truncate font-['Inter']">${escapeHtml(displayName)}</p>
-                <button type="button" onclick="window.removeSubpageStudent('${escapeHtml(id)}')"
-                    class="w-8 h-8 rounded-full bg-transparent hover:bg-black/5 text-black flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Remove from section">
-                    <i class="fa-solid fa-xmark text-sm text-black"></i>
-                </button>
-            </div>
-        `;
+    const users = getStoredJson(USER_STORAGE_KEY, []);
+    const rows = sorted.map(student => {
+        const id = String(student.id || student.uid || '');
+        const user = users.find(user => String(user.id || user.uid) === id) || student;
+        const displayName = student.name || student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim();
+        return `<div class="section-assignment-person-row"><div class="section-teacher-picker-person">${renderUserAvatarHtml(user, 'sm')}<div class="section-assignment-person-text"><span class="section-teacher-picker-name">${escapeHtml(displayName)}</span><span class="section-teacher-picker-context">ID: ${escapeHtml(id)}</span></div></div><button type="button" class="section-assignment-remove" onclick="window.removeSubpageStudent('${escapeHtml(id)}')" aria-label="Remove ${escapeHtml(displayName)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>`;
     }).join('');
 
     panel.classList.remove('hidden');
-    panel.innerHTML = `<div class="flex items-center gap-2 min-w-0 overflow-x-auto">${chips}</div>`;
+    panel.innerHTML = `<p class="section-teacher-picker-mode">${count} assigned</p><div>${rows}</div>`;
 };
 
 window.removeSectionStudent = function (studentId) {

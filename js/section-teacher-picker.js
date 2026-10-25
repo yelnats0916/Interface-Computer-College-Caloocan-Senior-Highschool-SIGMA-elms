@@ -56,6 +56,12 @@
     function resolveAdviser() {
         const key = groupKey();
         if (window.sectionAdviserEdits.has(key)) return copy(window.sectionAdviserEdits.get(key));
+        const currentSection = sections().find(section => String(section.id) === String(window.currentEditingSectionId));
+        if (currentSection?.adviserId || currentSection?.adviser) {
+            const users = window.getStoredJson(window.USER_STORAGE_KEY || 'sigma-admin-users', []);
+            const user = users.find(user => String(user.id || user.uid) === String(currentSection.adviserId));
+            return user ? {...user, name:nameOf(user), role:'Adviser'} : {id:currentSection.adviserId || '', name:currentSection.adviser, role:'Adviser'};
+        }
         const current = (window.selectedSectionTeachers || []).find(t => t.role === 'Adviser');
         if (current) return copy(current);
         for (const section of sections().filter(s => window.sectionAdviserGroupKey(s) === key)) {
@@ -72,7 +78,7 @@
         const teachers = staged();
         const section = identity();
         const subject = document.getElementById('edit-section-subject')?.value || 'Current subject';
-        aside.innerHTML = `<section><h3>Section Adviser</h3><p class="section-teacher-picker-context">${esc(section.name)} · ${esc(section.grade)}<br>${esc(section.schoolYear)}</p><p class="section-teacher-picker-name">${adviser ? esc(shortName(adviser)) : '<span class="section-teacher-picker-muted">No section adviser assigned</span>'}</p><button type="button" class="section-teacher-picker-action" data-adviser>${adviser ? 'Change Adviser' : 'Assign Adviser'}</button></section><section><h3>Subject Teachers <span class="section-teacher-picker-muted">${teachers.length}/2</span></h3><p class="section-teacher-picker-context">${esc(subject)}</p><div>${teachers.map((t,i)=>`<div class="section-teacher-picker-selected"><div class="section-teacher-picker-person"><span title="${esc(nameOf(t))}">${esc(shortName(t))}</span><button type="button" data-remove="${i}" aria-label="Remove ${esc(shortName(t))}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><label><input type="radio" name="section-picker-lead" data-lead="${i}" ${t.isPrimary?'checked':''}> Lead Teacher</label></div>`).join('') || '<p class="section-teacher-picker-muted">No subject teachers selected</p>'}</div></section>`;
+        aside.innerHTML = `<section><h3>Section Adviser</h3><p class="section-teacher-picker-context">${esc(section.name)} · ${esc(section.grade)}<br>${esc(section.schoolYear)}</p><p class="section-teacher-picker-name">${adviser ? esc(shortName(adviser)) : '<span class="section-teacher-picker-muted">No section adviser assigned</span>'}</p><button type="button" class="section-teacher-picker-action" data-adviser>${adviser ? 'Change Adviser' : 'Assign Adviser'}</button></section><section><h3>Subject Teachers <span class="section-teacher-picker-muted">${teachers.length}/2</span></h3><p class="section-teacher-picker-context">${esc(subject)}</p><div>${teachers.map((t,i)=>`<div class="section-teacher-picker-selected"><div class="section-teacher-picker-person"><span title="${esc(nameOf(t))}">${esc(shortName(t))}</span><button type="button" data-remove="${i}" aria-label="Remove ${esc(shortName(t))}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><label class="cursor-pointer"><input type="radio" name="section-picker-lead" data-lead="${i}" ${t.isPrimary?'checked':''}> Lead Teacher</label></div>`).join('') || '<p class="section-teacher-picker-muted">No subject teachers selected</p>'}</div></section>`;
         const adviserSection = aside.querySelector('section');
         adviserSection.querySelector('.section-teacher-picker-context')?.remove();
         const sectionHeading = document.createElement('h2');
@@ -139,15 +145,15 @@
     function search() {
         const users=window.getStoredJson(window.USER_STORAGE_KEY || 'sigma-admin-users', []);
         const q=query.toLowerCase();
-        results=users.filter(u=>/teach|faculty|instructor/i.test(String(u.type||u.role||''))).filter(u=>window.SigmaSearch.record(q,[u.uid,u.id],[nameOf(u),u.firstName,u.middleName,u.lastName,u.email]));
+        results=users.filter(u=>/teach|faculty|instructor/i.test(String(u.type||u.role||'')) && (!u.status || String(u.status).toLowerCase()==='active')).filter(u=>window.SigmaSearch.record(q,[u.uid,u.id],[nameOf(u),u.firstName,u.middleName,u.lastName,u.email]));
         const dropdown=document.getElementById('section-subpage-teacher-dropdown');
         dropdown.classList.remove('hidden');
         dropdown.innerHTML=results.map((u,i)=>{
             const candidate={...u,name:nameOf(u)};
             const selected=staged().some(t=>same(t,candidate));
-            const conflict=mode==='teachers'&&!selected ? window.getTeacherScheduleConflict(candidate.name) : null;
+            const conflict=mode==='teachers'&&!selected ? window.getTeacherScheduleConflict(candidate) : null;
             const disabled=Boolean(conflict || (mode==='teachers'&&!selected&&staged().length>=2));
-            return `<div class="section-teacher-picker-result"><label>${mode==='teachers'?`<input type="checkbox" data-pick="${i}" ${selected?'checked':''} ${disabled?'disabled':''}>`:`<input type="radio" name="section-picker-adviser" data-pick-adviser="${i}" ${draftAdviser&&same(draftAdviser,candidate)?'checked':''}>`}${window.renderUserAvatarHtml(u,'sm')}<span><span class="section-teacher-picker-name">${esc(shortName(u))}</span><span class="section-teacher-picker-context">ID: ${esc(u.uid||u.id||'—')}</span></span></label>${mode==='adviser'?'': conflict?`<span class="section-teacher-picker-conflict">Schedule conflict<br>${esc(conflict.section.name)} · ${esc(conflict.scheduleLabel)}</span>`:''}</div>`;
+            return `<div class="section-teacher-picker-result"><label class="cursor-pointer">${mode==='teachers'?`<input type="checkbox" data-pick="${i}" ${selected?'checked':''} ${disabled?'disabled':''}>`:`<input type="radio" name="section-picker-adviser" data-pick-adviser="${i}" ${draftAdviser&&same(draftAdviser,candidate)?'checked':''}>`}${window.renderUserAvatarHtml(u,'sm')}<span><span class="section-teacher-picker-name">${esc(shortName(u))}</span><span class="section-teacher-picker-context">ID: ${esc(u.uid||u.id||'—')}</span></span></label>${mode==='adviser'?'': conflict?`<span class="section-teacher-picker-conflict">Schedule conflict<br>${esc(conflict.section.name)} · ${esc(conflict.scheduleLabel)}</span>`:''}</div>`;
         }).join('') || '<p class="section-teacher-picker-muted">No matching teachers.</p>';
         dropdown.querySelectorAll('[data-pick]').forEach(input=>input.onchange=()=>{
             const u=results[Number(input.dataset.pick)];
@@ -194,14 +200,12 @@
         }
         if(!staged().length||staged().length>2)return;
         for(const t of staged()) {
-            const conflict=window.getTeacherScheduleConflict(t.name);
+            const conflict=window.getTeacherScheduleConflict(t);
             if(conflict){notify(`${shortName(t)} has a schedule conflict with ${conflict.section.name}.`);return;}
         }
         window.selectedSectionTeachers=copy(staged());
         window.selectedSectionTeachers.forEach(t=>t.role=adviser&&same(t,adviser)?'Adviser':'Teacher');
-        if (JSON.stringify(adviser) !== window.subpageAdviserInitialSnapshot) {
-            window.sectionAdviserEdits.set(groupKey(),adviser?copy(adviser):null);
-        }
+        window.sectionAdviserEdits.set(groupKey(),adviser?copy(adviser):null);
         const lead=window.selectedSectionTeachers.find(t=>t.isPrimary)||window.selectedSectionTeachers[0];
         document.getElementById('edit-section-teacher').value=lead.name;
         document.getElementById('edit-section-role').value=lead.role;
