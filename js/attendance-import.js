@@ -137,7 +137,7 @@
         window.closeAttendanceExportModal?.();
         const overlay = document.createElement('div'); overlay.id = 'attendance-export-modal'; overlay.className = "sigma-modal-overlay attendance-import font-['Inter']";
         overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','attendance-import-title');
-        overlay.innerHTML = `<button type="button" data-close class="attendance-export-exit-btn fixed top-6 sm:top-10 right-6 sm:right-10 w-10 sm:w-12 h-10 sm:h-12 rounded-full hover:bg-slate-200 hidden sm:flex items-center justify-center text-black transition-all z-[12001] cursor-pointer" title="Exit" aria-label="Close attendance import"><i class="fa-solid fa-xmark text-lg sm:text-xl text-black"></i></button><div class="sigma-modal-shell"><form class="sigma-modal-panel"><div class="sigma-modal-header"><div class="sigma-modal-header-top flex items-center gap-2"><button type="button" data-close class="attendance-export-mobile-return-btn w-8 h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 p-0 shadow-none outline-none shrink-0 -ml-1 sm:hidden" aria-label="Return"><i class="fa-solid fa-chevron-left text-sm text-black"></i></button><h1 class="sigma-modal-title" id="attendance-import-title">Import Attendance</h1></div></div><div class="sigma-modal-body"><div data-content><span class="sigma-dot-spinner" aria-label="Loading attendance"></span></div><p data-error role="alert"></p></div><div class="sigma-modal-footer"></div></form></div>`;
+        overlay.innerHTML = `<button type="button" data-close class="attendance-export-exit-btn fixed top-6 sm:top-10 right-6 sm:right-10 w-10 sm:w-12 h-10 sm:h-12 rounded-full hover:bg-slate-200 hidden sm:flex items-center justify-center text-black transition-all z-[12001] cursor-pointer" title="Exit" aria-label="Close attendance import"><i class="fa-solid fa-xmark text-lg sm:text-xl text-black"></i></button><div class="sigma-modal-shell"><form class="sigma-modal-panel"><div class="sigma-modal-header"><div class="sigma-modal-header-top flex items-center gap-2"><button type="button" data-close class="attendance-export-mobile-return-btn w-8 h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 p-0 shadow-none outline-none shrink-0 -ml-1 sm:hidden" aria-label="Return"><i class="fa-solid fa-chevron-left text-sm text-black"></i></button><h1 class="sigma-modal-title" id="attendance-import-title">Import Attendance</h1></div></div><div class="sigma-modal-body"><div class="attendance-import-workspace"><div class="attendance-import-mode-tabs" role="tablist" aria-label="Attendance import"><button type="button" role="tab" data-mode="upload" aria-selected="true"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span>Upload Attendance</span></button><button type="button" role="tab" data-mode="template" aria-selected="false"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Download Template</span></button></div><div class="attendance-import-context" data-context></div><div data-content><span class="sigma-dot-spinner" aria-label="Loading attendance"></span></div><p data-error role="alert"></p></div></div><div class="sigma-modal-footer"></div></form></div>`;
         const previous = {body:document.body.style.overflow,root:document.documentElement.style.overflow};
         const opener = document.activeElement; let busy = false, context, review, activeSheet = 0;
         const content = overlay.querySelector('[data-content]'), footer = overlay.querySelector('.sigma-modal-footer'), error = overlay.querySelector('[data-error]');
@@ -149,25 +149,30 @@
             if(busy)return;busy=true;error.textContent='';const html=control.innerHTML;control.disabled=true;control.setAttribute('aria-busy','true');control.innerHTML=`<span class="sigma-dot-spinner" aria-hidden="true"></span><span>${label}</span>`;
             try{await work();}catch(e){error.textContent=e.message||'Unable to import attendance.';}finally{busy=false;control.disabled=false;control.removeAttribute('aria-busy');control.innerHTML=html;}
         }
-        function home() {
-            error.textContent='';review=null;footer.replaceChildren();
-            content.innerHTML = `<div class="attendance-import-choices"><button type="button" data-template class="export-scope-option"><i class="fa-solid fa-file-excel"></i><span>Download Template</span></button><button type="button" data-upload class="export-scope-option"><i class="fa-solid fa-cloud-arrow-up"></i><span>Upload Attendance</span></button></div>`;
-            content.querySelector('[data-template]').onclick=template;content.querySelector('[data-upload]').onclick=upload;
+        let templateValues=null;
+        const tabs=overlay.querySelector('.attendance-import-mode-tabs');
+        function mode(value){
+            overlay.querySelector('h1').textContent='Import Attendance';
+            tabs.hidden=false;tabs.querySelectorAll('[data-mode]').forEach(tab=>tab.setAttribute('aria-selected',String(tab.dataset.mode===value)));
+            overlay.dataset.stage=value;
         }
+        tabs.querySelector('[data-mode=upload]').onclick=()=>{if(!busy)upload();};
+        tabs.querySelector('[data-mode=template]').onclick=()=>{if(!busy)template();};
         function template() {
-            error.textContent='';const month=`${scope.year}-${String(scope.month+1).padStart(2,'0')}`;
+            mode('template');footer.hidden=false;error.textContent='';const month=`${scope.year}-${String(scope.month+1).padStart(2,'0')}`;
             const from=[month+'-01',context.start].sort().at(-1), to=[day(new Date(Date.UTC(scope.year,scope.month+1,0))),context.end].sort()[0];
-            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${from<=to?from:context.start}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${from<=to?to:context.end}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" checked><span>Submitted Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank"><span>Blank Attendance</span></label></fieldset>`;
+            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Submitted Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset>`;
+            content.onchange=()=>{const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
             const download=button('Download Template',()=>run(download,'Downloading',async()=>{
                 const form=overlay.querySelector('form');if(!form.reportValidity())return;
                 await window.SigmaAttendance.refresh();
                 const workbook=workbookFor(context,form.elements.from.value,form.elements.to.value,form.elements.contents.value==='blank');
                 XLSX.writeFile(workbook,`Attendance_${context.section.replace(/[^a-z0-9_-]/gi,'_')}_${form.elements.from.value}_${form.elements.to.value}.xlsx`);busy=false;close();
-            }));footer.replaceChildren(button('Back',home,true),download);
+            }));footer.replaceChildren(download);
         }
         function upload() {
-            error.textContent='';review=null;
-            content.innerHTML=`<input type="file" accept=".xlsx,.xls" data-file hidden><button type="button" class="sigma-dashed-dropzone attendance-import-dropzone" data-drop><span class="sigma-dropzone-icon-box"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Upload Attendance</strong><span class="text-black-fade">Drag &amp; drop your Excel file here or click to browse</span><span class="text-black-fade">.xlsx or .xls · Up to 10 MB</span></button>`;
+            mode('upload');footer.hidden=true;error.textContent='';review=null;content.onchange=null;
+            content.innerHTML=`<input type="file" accept=".xlsx,.xls" data-file hidden><button type="button" class="sigma-dashed-dropzone attendance-import-dropzone" data-drop><span class="sigma-dropzone-icon-box"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Upload your attendance sheet</strong><span class="text-black-fade">Drag &amp; drop your Excel file here or <u>browse</u></span><span class="text-black-fade">.xlsx or .xls · Up to 10 MB</span></button>`;
             const file=content.querySelector('[data-file]'),drop=content.querySelector('[data-drop]');
             const read=async file=>run(drop,'Reading workbook',async()=>{
                 if(!file||! /\.(xlsx|xls)$/i.test(file.name))throw Error('Upload an Excel workbook (.xlsx or .xls).');
@@ -176,11 +181,11 @@
                 review=parseWorkbook(workbook,context);activeSheet=0;renderReview();
             });
             drop.onclick=()=>file.click();file.onchange=()=>read(file.files[0]);drop.ondragover=e=>{e.preventDefault();drop.classList.add('dragover');};drop.ondragleave=()=>drop.classList.remove('dragover');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('dragover');read(e.dataTransfer.files[0]);};
-            footer.replaceChildren(button('Back',home,true));
+            footer.replaceChildren();
         }
         function table(headers, rows) {return `<div class="attendance-import-table" tabindex="0"><table><thead><tr>${headers.map(h=>`<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;}
         function renderReview() {
-            error.textContent='';const sheet=review.sheets[activeSheet];
+            mode('upload');overlay.dataset.stage='review';footer.hidden=false;error.textContent='';const sheet=review.sheets[activeSheet];
             content.innerHTML=`<h2>Review Attendance</h2><p>${review.count} marks across ${Object.keys(review.days).length} dates. Blank cells leave existing attendance unchanged.</p><div class="attendance-import-tabs" role="tablist">${review.sheets.map((item,index)=>`<button type="button" role="tab" aria-selected="${index===activeSheet}" data-sheet="${index}">${esc(/^\d{4}-\d{2}$/.test(item.name)?monthLabel(item.name):item.name)}</button>`).join('')}</div>`+table(['No.','Student Name','Student ID',...sheet.columns.map(c=>c.date)],sheet.rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.name)}</td><td>${esc(row.id)}</td>${sheet.columns.map(c=>`<td class="mark-${row.values[c.date]||'blank'}">${row.values[c.date]||''}</td>`).join('')}</tr>`));
             content.querySelectorAll('[data-sheet]').forEach(tab=>tab.onclick=()=>{activeSheet=Number(tab.dataset.sheet);renderReview();});
             const submit=button('Submit Attendance',()=>run(submit,'Submitting',()=>submitImport()));footer.replaceChildren(button('Change File',upload,true),submit);
@@ -213,13 +218,13 @@
             busy=false;close();window.showToastNotification?.(`${result.importedMarks} attendance marks submitted successfully.`,'success');
         }
         function showConflicts(result) {
-            error.textContent='';overlay.querySelector('h1').textContent='Confirm Attendance Changes';
+            tabs.hidden=true;overlay.dataset.stage='confirm';footer.hidden=false;error.textContent='';overlay.querySelector('h1').textContent='Confirm Attendance Changes';
             content.innerHTML=`<h2>Replace Existing Marks?</h2><p>${result.conflicts.length} existing marks will change. Blank cells and other attendance marks will remain unchanged.</p>`+table(['Student Name','Student ID','Date','Current','Uploaded'],result.conflicts.map(row=>`<tr><td>${esc(row.name)}</td><td>${esc(row.id)}</td><td>${esc(row.date)}</td><td>${esc(row.before)}</td><td>${esc(row.after)}</td></tr>`));
             const confirm=button('Confirm Changes',()=>run(confirm,'Submitting',()=>submitImport({overwrite:true,revision:result.revision})));
             footer.replaceChildren(button('Back to Review',()=>{overlay.querySelector('h1').textContent='Import Attendance';renderReview();},true),confirm);overlay.querySelector('.sigma-modal-body').scrollTop=0;
         }
         overlay.querySelector('form').onsubmit=event=>event.preventDefault();
-        try {const result=await request({...scope,action:'import-context'});if(!result.success||!result.context)throw Error(result.error||'Unable to load attendance.');if(!overlay.isConnected)return;context=result.context;if(!context.students.length)throw Error('No students are assigned to this section.');home();}
+        try {const result=await request({...scope,action:'import-context'});if(!result.success||!result.context)throw Error(result.error||'Unable to load attendance.');if(!overlay.isConnected)return;context=result.context;if(!context.students.length)throw Error('No students are assigned to this section.');overlay.querySelector('[data-context]').innerHTML=`<strong>${esc(context.section)}</strong><span>${esc(context.subject)}</span><span>S.Y. ${esc(context.schoolYear)}</span>`;upload();}
         catch(e){content.replaceChildren();error.textContent=e.message;}
     };
 })();

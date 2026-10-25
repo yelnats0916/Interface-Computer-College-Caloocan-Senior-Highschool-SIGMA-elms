@@ -34,6 +34,23 @@
 #attendance-export-modal.attendance-import .sigma-modal-footer button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 22px;border-radius:12px;font:600 14px/20px Inter,sans-serif;cursor:pointer}
 #attendance-export-modal.attendance-import .sigma-modal-footer button:disabled{opacity:.6;cursor:wait}
 #attendance-export-modal.attendance-import .sigma-modal-footer .sigma-btn-secondary{background:#fff;color:#000;border:1px solid #e2e8f0}
+#attendance-export-modal.attendance-import .attendance-import-workspace{width:100%;max-width:900px;margin:0 auto;min-width:0}
+.attendance-import-mode-tabs{display:flex;gap:4px;padding:5px;border:1px solid #e2e8f0;border-radius:14px;background:#f1f5f9;margin-bottom:24px}
+.attendance-import-mode-tabs[hidden]{display:none}
+#attendance-export-modal.attendance-import .attendance-import-mode-tabs button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:10px;padding:12px 16px;background:transparent;color:#64748b;font:600 14px/22px Inter,sans-serif;cursor:pointer}
+#attendance-export-modal.attendance-import .attendance-import-mode-tabs button[aria-selected=true]{background:#fff;color:#15803d;box-shadow:0 1px 4px #0001}
+.attendance-import-context{display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid #e5e7eb;font:400 13px/20px Inter,sans-serif;color:#64748b}
+.attendance-import-context strong{font-weight:600;color:#000}.attendance-import-context span:last-child{margin-left:auto}
+#attendance-export-modal.attendance-import .attendance-import-dropzone{max-width:none;min-height:260px;border:2px dashed #cbd5e1;border-radius:18px;background:#f8fafc;color:#000;text-transform:none!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone:hover,#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover{border-color:#15803d;background:#f0fdf4}
+#attendance-export-modal.attendance-import .attendance-import-dropzone :is(strong,span,u){color:inherit;text-transform:none!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone .text-black-fade{color:#64748b}
+#attendance-export-modal.attendance-import .attendance-import-dropzone .sigma-dropzone-icon-box{background:#fff;border:1px solid #e2e8f0;color:#15803d;margin-bottom:8px}
+#attendance-export-modal.attendance-import .attendance-import-dropzone i{color:#15803d!important}
+#attendance-export-modal.attendance-import .attendance-import-fields{max-width:none}
+#attendance-export-modal.attendance-import .attendance-import-options{max-width:none;grid-template-columns:1fr 1fr;gap:16px}
+#attendance-export-modal.attendance-import .attendance-import-options .export-scope-option{padding:20px;font-size:14px}
+#attendance-export-modal.attendance-import .sigma-modal-footer[hidden]{display:none!important}
 @media(max-width:767px){
  #attendance-transfer-menu.attendance-transfer-menu{width:160px;max-width:calc(100vw - 16px);padding:6px;border-radius:12px;box-shadow:0 8px 20px #0002}
  #attendance-transfer-menu.attendance-transfer-menu button{height:38px;min-height:38px;padding:8px 10px;gap:10px;border-radius:8px;font:500 12px/18px Inter,sans-serif;white-space:nowrap}
@@ -50,4 +67,12 @@
  .attendance-import-tabs button{font-size:12px;padding:8px 12px}
  #attendance-export-modal.attendance-import .sigma-modal-footer{gap:10px;flex-wrap:wrap}
  #attendance-export-modal.attendance-import .sigma-modal-footer button{min-height:40px;padding:10px 14px;font-size:12px;line-height:18px}
+ #attendance-export-modal.attendance-import .attendance-import-mode-tabs{margin-bottom:20px;padding:4px;gap:2px}
+ #attendance-export-modal.attendance-import .attendance-import-mode-tabs button{padding:10px 6px;gap:6px;font-size:12px;line-height:18px}
+ #attendance-export-modal.attendance-import .attendance-import-mode-tabs i{font-size:12px}
+ .attendance-import-context{font-size:12px;line-height:18px;gap:6px 12px;margin-bottom:20px;padding-bottom:16px;align-items:flex-start}
+ .attendance-import-context strong{width:100%}.attendance-import-context span:last-child{margin-left:0}
+ #attendance-export-modal.attendance-import .attendance-import-options{grid-template-columns:1fr;gap:12px;margin-top:24px}
+ #attendance-export-modal.attendance-import .attendance-import-options .export-scope-option{padding:16px;font-size:13px}
+ #attendance-export-modal.attendance-import .attendance-import-dropzone{min-height:220px;border-radius:14px;padding:18px}
 }
