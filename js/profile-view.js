@@ -2519,8 +2519,14 @@
         modal.onclick = closeModal;
 
         if (submitBtn) {
-            submitBtn.onclick = () => {
-                if (input.value.trim() !== 'DELETE') return;
+            submitBtn.onclick = async () => {
+                if (input.value.trim() !== 'DELETE' || submitBtn.disabled) return;
+                submitBtn.disabled = true;
+                submitBtn.setAttribute('aria-busy', 'true');
+                let saved;
+                try { saved = await window.syncUserToDB?.({ id: targetId }, 'delete'); }
+                finally { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); }
+                if (!saved) return;
 
                 // Execute Account Deletion Across All Storage Arrays
                 const allStorageKeys = ['sigma-admin-users', 'sigma-teacher-users', 'sigma-student-users', 'sigma-users-list'];
@@ -2535,9 +2541,6 @@
                     }
                 });
 
-                if (typeof window.syncUserToDB === 'function') {
-                    window.syncUserToDB({ id: targetId }, 'delete');
-                }
 
                 // Purge any avatar or user-specific cache keys
                 try {

@@ -241,7 +241,7 @@
     async function save(name, data) {
         try {
             if (name === 'subjects' && data.subject) await persistMaterialFiles(data.subject);
-            const result = await request(name, { data });
+            const result = await request(name, { data, foreground: ['delete', 'remove', 'purge'].includes(data.action) });
             const saved = result.subject || result.section || result.record || result.user || result.quiz;
             if (Number.isSafeInteger(Number(saved?.creationNumber)) && Number(saved.creationNumber) > 0) {
                 const target = data.subject || data.section || data.record || data.user || data.quiz || data;

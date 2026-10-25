@@ -11271,8 +11271,15 @@ window.addSubjectTopic = function () {
         let saved=false;
         try { saved=await window.deleteSubjectFromDB?.(code); }
         finally { window._subjectDeletionPending=false; }
-        if(!saved){await window.fetchSubjectsFromDB?.();return;}
-        _saveStored(SUBJECTS_STORAGE_KEY, subjects.filter(s => (s.code || '').trim().toLowerCase() !== code.trim().toLowerCase()));
+        if(!saved)return;
+        window._subjectCatalogRevision = (window._subjectCatalogRevision || 0) + 1;
+        const current = window.subjectCatalogState?.ready ? window.subjectCatalogState.records : _getStored(SUBJECTS_STORAGE_KEY, []);
+        const remaining = current.filter(s => String(s.code || '').trim().toLowerCase() !== String(code).trim().toLowerCase());
+        if (window.subjectCatalogState?.ready) window.subjectCatalogState.records = remaining;
+        _saveStored(SUBJECTS_STORAGE_KEY, remaining);
+        window.updateSubjectMetricCards?.();
+        window.closeAllTableActionDropdowns?.();
+        window.subjectCatalogPointerDown = false;
 
         window.toggleSubjectOverlay(false);
 

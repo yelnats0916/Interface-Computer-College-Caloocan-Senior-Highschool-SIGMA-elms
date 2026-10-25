@@ -3088,22 +3088,30 @@ window.saveQuizToServer = async function (quizData) {
 /**
  * Delete a quiz from the server via DELETE /php/api/quiz_library.php?id=...
  */
-window.deleteQuizFromServer = async function (quizId) {
-    if (!window.SIGMA_USE_SERVER_STORAGE) return;
-    try {
-        const currentActor = (() => {
-            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
-        })();
-        await window.SigmaDatabase.fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
-            method: 'DELETE',
-            headers: { 'X-Sigma-Actor': currentActor }
-        });
-        if (Array.isArray(window._quizLibraryServerData)) {
-            window._quizLibraryServerData = window._quizLibraryServerData.filter(q => q.id !== quizId);
-        }
-    } catch (e) {
-        console.warn('[SIGMA] Quiz server delete failed:', e);
-    }
+const pendingQuizDeletes = new Map();
+window.deleteQuizFromServer = function (quizId) {
+    if (!window.SIGMA_USE_SERVER_STORAGE) return Promise.resolve(false);
+    const key = String(quizId);
+    if (pendingQuizDeletes.has(key)) return pendingQuizDeletes.get(key);
+    const pending = (async () => {
+        try {
+            const response = await window.SigmaDatabase.fetch(resolveQuizApiUrl(`?id=${encodeURIComponent(quizId)}`), {
+                method: 'DELETE', foreground: true
+            });
+            const result = await window.SigmaDatabase.readJson(response);
+            if (result?.success !== true) throw new Error(result?.error || 'Unable to delete quiz.');
+            if (Array.isArray(window._quizLibraryServerData)) {
+                window._quizLibraryServerData = window._quizLibraryServerData.filter(q => String(q.id) !== key);
+            }
+            window._quizStorageListCache = null;
+            return true;
+        } catch (error) {
+            window.showToast?.(error.message || 'Unable to delete quiz.', 'error');
+            return false;
+        } finally { pendingQuizDeletes.delete(key); }
+    })();
+    pendingQuizDeletes.set(key, pending);
+    return pending;
 };
 
 // Initial fetch from server
@@ -29860,7 +29868,8 @@ window.deleteQuizFromStorage = function (quizId, event) {
             type: 'danger',
             confirmText: 'Delete Quiz',
             cancelText: 'Cancel',
-            onConfirm: () => {
+            onConfirm: async () => {
+                if (window.SIGMA_USE_SERVER_STORAGE && !await window.deleteQuizFromServer?.(quizId)) return;
                 // Remove from stored library
                 if (typeof window.getStoredQuizLibrary === 'function' && typeof window.saveQuizLibrary === 'function') {
                     const library = window.getStoredQuizLibrary();
@@ -29878,10 +29887,6 @@ window.deleteQuizFromStorage = function (quizId, event) {
                     } catch (e) { /* ignore */ }
                 }
 
-                // If using server storage, also notify server
-                if (window.SIGMA_USE_SERVER_STORAGE && typeof window.deleteQuizFromServer === 'function') {
-                    window.deleteQuizFromServer(quizId);
-                }
 
                 // Broadcast update so open tabs update
                 try {

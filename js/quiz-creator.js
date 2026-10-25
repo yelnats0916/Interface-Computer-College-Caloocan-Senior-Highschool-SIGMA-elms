@@ -5543,7 +5543,8 @@ window.promptDeleteCurrentQuiz = function () {
             type: 'danger',
             confirmText: 'Delete Quiz',
             cancelText: 'Cancel',
-            onConfirm: () => {
+            onConfirm: async () => {
+                if (currentQuizId && window.SIGMA_USE_SERVER_STORAGE && !await window.deleteQuizFromServer?.(currentQuizId)) return;
                 window._isDeletingQuiz = true;
                 window.removeEventListener('beforeunload', _saveBeforeExit);
                 window.removeEventListener('pagehide', _saveBeforeExit);
@@ -5569,10 +5570,6 @@ window.promptDeleteCurrentQuiz = function () {
                         } catch (e) { /* ignore */ }
                     }
 
-                    // Server storage mode: soft-delete from MySQL
-                    if (window.SIGMA_USE_SERVER_STORAGE && typeof window.deleteQuizFromServer === 'function') {
-                        window.deleteQuizFromServer(idToDelete);
-                    }
                 }
 
                 // Clear any autosave/session snapshot completely so it won't restore or draft

@@ -2863,7 +2863,7 @@ window.showDeleteAccountModal2 = function () {
     }
 };
 
-window.executeDeleteAccount = function () {
+window.executeDeleteAccount = async function () {
     const input = document.getElementById('delete-account-input');
     const userId = String(window.currentViewingUserId || window.currentEditingUserId || '').replace(/^#/, '').trim();
     if (!input || !userId) return;
@@ -2872,6 +2872,13 @@ window.executeDeleteAccount = function () {
         window.SigmaFeedback.notice('Please type DELETE to confirm');
         return;
     }
+
+    if (window._accountDeletionPending) return;
+    window._accountDeletionPending = true;
+    let saved;
+    try { saved = await window.syncUserToDB?.({ id: userId }, 'delete'); }
+    finally { window._accountDeletionPending = false; }
+    if (!saved) return;
 
     const allKeys = ['sigma-admin-users', 'sigma-teacher-users', 'sigma-student-users', 'sigma-users-list', USER_STORAGE_KEY];
     allKeys.forEach(k => {
@@ -2886,19 +2893,6 @@ window.executeDeleteAccount = function () {
         localStorage.removeItem(`sigma_user_avatar_${userId}`);
         localStorage.removeItem(`sigma_user_photos_${userId}`);
         localStorage.removeItem(`sigma-profile-custom-${userId}`);
-    } catch (e) {}
-
-    // Synchronize soft delete to MySQL database
-    try {
-        const currentActor = (() => {
-            try { const u = JSON.parse(sessionStorage.getItem('sigma-authenticated-user') || '{}'); return String(u.id || u.uid || '0000000'); } catch(e){ return '0000000'; }
-        })();
-        const usersApiUrl = typeof resolveUsersApiUrl === 'function' ? resolveUsersApiUrl() : 'php/api/users.php';
-        window.SigmaDatabase.fetch(usersApiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Sigma-Actor': currentActor },
-            body: JSON.stringify({ action: 'delete', id: userId, actor: currentActor })
-        }).catch(err => console.warn('Account deletion DB sync failed:', err));
     } catch (e) {}
 
     // Hide modals
@@ -8141,12 +8135,14 @@ const syncSectionToDB = window.syncSectionToDB;
 const deleteSectionFromDB = window.deleteSectionFromDB;
 
 const fetchSectionsFromDB = async () => {
+    const revision = window._sectionCatalogRevision || 0;
     try {
         const url = resolveSectionsApiUrl();
         const res = await window.SigmaDatabase.fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.success && Array.isArray(data.records)) {
+            if (revision !== (window._sectionCatalogRevision || 0)) return;
             // When database has records, database is authoritative
             window.SigmaDatabase?.preserveLegacy(SECTIONS_STORAGE_KEY, localStorage.getItem(SECTIONS_STORAGE_KEY));
             window.saveStoredJson(SECTIONS_STORAGE_KEY, data.records);
@@ -8179,9 +8175,11 @@ let subjectFetchInFlight = null;
 const fetchSubjectsFromDB = () => {
     if (subjectFetchInFlight) return subjectFetchInFlight;
     subjectFetchInFlight = (async () => {
+        const revision = window._subjectCatalogRevision || 0;
         try {
             const data = await window.SigmaDatabase.request('subjects');
             if (!Array.isArray(data.records)) throw new Error('The subject service did not return a subject list.');
+            if (revision !== (window._subjectCatalogRevision || 0)) return true;
             const subjKey = window.SUBJECTS_STORAGE_KEY || 'sigma-admin-subjects';
             // A device-backup quota failure must never block current database records.
             try { window.SigmaDatabase.preserveLegacy(subjKey, localStorage.getItem(subjKey)); }
@@ -12191,13 +12189,12 @@ window.handleSectionNext = function () {
                     onConfirm: () => {
                         window.toggleSectionOverlay(true, draft.id || draft.name);
                     },
-                    onCancel: () => {
+                    onCancel: async () => {
+                        if (!await window.deleteSectionFromDB?.(draft.id || draft.name)) return;
+                        window._sectionCatalogRevision = (window._sectionCatalogRevision || 0) + 1;
                         let sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
                         sections = sections.filter(s => String(s.id || s.name) !== String(draft.id || draft.name));
                         saveStoredJson(SECTIONS_STORAGE_KEY, sections);
-                        if (typeof window.deleteSectionFromDB === 'function') {
-                            window.deleteSectionFromDB(draft.id || draft.name);
-                        }
                         window.detectedMatchingDraft = null;
                         if (typeof window.renderSectionsTable === 'function') {
                             window.renderSectionsTable();
@@ -12470,14 +12467,20 @@ window.deleteSection = function (sectionNameToDelete = null) {
 
     window.showSectionConfirm(
         'Delete Section?',
-        `This action cannot be undone. All class records for "${targetName || 'this section'}" will be removed permanently.`,
-        () => {
+        `Move "${targetName || 'this section'}" to record recovery?`,
+        async () => {
+            if (window._sectionRemovalPending) return;
+            window._sectionRemovalPending = true;
+            let saved;
+            try { saved = await window.deleteSectionFromDB?.(targetId || targetName); }
+            finally { window._sectionRemovalPending = false; }
+            if (!saved) return;
+            window._sectionCatalogRevision = (window._sectionCatalogRevision || 0) + 1;
             const sections = getStoredJson(SECTIONS_STORAGE_KEY, []);
             const newSections = sections.filter(s => String(s.id) !== String(targetId) && String(s.name) !== String(targetName));
             saveStoredJson(SECTIONS_STORAGE_KEY, newSections);
-            if (typeof window.deleteSectionFromDB === 'function') {
-                window.deleteSectionFromDB(targetId || targetName);
-            }
+            window.updateSectionMetricCards?.();
+            window.dispatchEvent(new Event('sigma:sections-updated'));
 
             window.toggleSectionOverlay(false);
             if (typeof renderSectionsTable === 'function') {
