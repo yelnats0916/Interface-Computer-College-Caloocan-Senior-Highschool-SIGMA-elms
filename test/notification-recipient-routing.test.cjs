@@ -20,3 +20,6 @@ assert.equal(logs.length,2);assert.equal(logs[1].recipient,'Juan');assert.equal(
 ctx.recordFeedRecipients([{...scoped,read:true}],true);assert.ok(logs[1].readAt);
 ctx.window.getLoggedInStudentUser=()=>users[2];ctx.recordFeedRecipients([scoped]);assert.equal(logs.length,2);
 console.log('PASS: all role groups, student sections, teacher scopes, normalized subject IDs, recipient isolation, saved feed receipts and read state.');
+
+assert.equal(ctx.notificationAudienceMatches('teacher',{serverRecordId:'server',recipients:[{id:'t1'}],assignmentScope:{section:'Other',subjectId:'uncached'}},users[3]),true);
+assert.equal(ctx.notificationAudienceMatches('student',{serverRecordId:'server',recipients:[{id:'s2'}]},users[0]),false);

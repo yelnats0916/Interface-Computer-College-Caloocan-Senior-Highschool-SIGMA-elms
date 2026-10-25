@@ -8879,85 +8879,9 @@ window.updateSYQuarterStatuses = function () {
     window.checkSYFormValidity();
 };
 
-window.checkQuarterEndReminders = function (now = new Date()) {
-    const storageKey = 'sigma-notifications-admin-v3';
-    const sentKey = 'sigma-quarter-reminders-sent-v2';
-    let notifications = getStoredJson(storageKey, []);
-    if (!Array.isArray(notifications)) notifications = [];
-    // Retire every legacy quarter reminder format before adding stable milestones.
-    const clean = notifications.filter(item => {
-        const id = String(item.id || '');
-        if (id.startsWith('quarter-milestone-v2:')) return true;
-        const legacyQuarter = item.type === 'quarter-reminder' || id.startsWith('sy-quarter-reminder-') ||
-            (item.senderName === 'Academic Calendar' && /^[1-4](?:st|nd|rd|th) Quarter (?:Ending Soon|ends today|ends tomorrow)/i.test(String(item.title || '')));
-        return !legacyQuarter;
-    });
-    let modified = clean.length !== notifications.length;
-    const sent = getStoredJson(sentKey, {});
-    const ledger = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-    const part = type => parts.find(item => item.type === type).value;
-    const today = `${part('year')}-${part('month')}-${part('day')}`;
-    const day = value => {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return NaN;
-        const timestamp = Date.parse(value + 'T00:00:00Z');
-        return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value ? timestamp / 86400000 : NaN;
-    };
-    const active = getActiveSchoolYearRecord();
-    const schedules = getStoredJson('sigma-quarter-reminder-schedules-v1', {}) || {};
-    const reminderText = (name, milestone, end, yearLabel) => ({
-        title: `${name} ${milestone === 0 ? 'ends today' : `${milestone} ${milestone === 1 ? 'day' : 'days'} left`}`,
-        dialogTitle: name,
-        body: milestone === 0
-            ? `${name} ends today, ${formatSchoolYearDate(end)}. School Year ${yearLabel}.`
-            : `There ${milestone === 1 ? 'is only 1 day' : `are only ${milestone} days`} left before ${name} ends on ${formatSchoolYearDate(end)}. School Year ${yearLabel}.`
-    });
-    if (active) for (let quarter = 1; quarter <= 4; quarter++) {
-        const start = active[`q${quarter}Start`], end = active[`q${quarter}End`];
-        if (!Number.isFinite(day(start)) || !Number.isFinite(day(end))) continue;
-        const prefix = `quarter-milestone-v2:${active.id}:q${quarter}:`;
-        const scheduleKey = `${active.id}:q${quarter}`;
-        const changed = (schedules[scheduleKey] && schedules[scheduleKey] !== end) ||
-            clean.some(item => String(item.id).startsWith(prefix) && item.quarterEnd !== end);
-        if (changed) {
-            for (let index = clean.length - 1; index >= 0; index--) {
-                if (String(clean[index].id).startsWith(prefix)) clean.splice(index, 1);
-            }
-            for (const key of Object.keys(ledger)) if (key.startsWith(prefix)) delete ledger[key];
-            modified = true;
-        }
-        if (schedules[scheduleKey] !== end) { schedules[scheduleKey] = end; modified = true; }
-        const name = `${['1st', '2nd', '3rd', '4th'][quarter - 1]} Quarter`;
-        const yearLabel = `${active.yearStart}–${active.yearEnd}`;
-        for (const item of clean.filter(item => String(item.id).startsWith(prefix))) {
-            const text = reminderText(name, item.milestoneDays, end, yearLabel);
-            if (item.title !== text.title || item.body !== text.body || item.dialogTitle !== name) {
-                Object.assign(item, text); modified = true;
-            }
-        }
-        if (day(today) < day(start) || day(today) > day(end)) continue;
-        const remaining = day(end) - day(today);
-        for (const milestone of [7, 1, 0]) {
-            const scheduledDay = day(end) - milestone;
-            if (remaining > milestone || scheduledDay < day(start)) continue;
-            const scheduledFor = new Date(scheduledDay * 86400000).toISOString().slice(0, 10);
-            const id = `${prefix}${end}:${milestone}`;
-            if (ledger[id] || clean.some(item => item.id === id)) continue;
-            clean.unshift({ id, senderName: 'Academic Calendar', icon: 'fa-calendar-exclamation', senderColor: '#15803d',
-                ...reminderText(name, milestone, end, yearLabel),
-                timestamp: now.toISOString(), read: false, type: 'quarter-reminder', quarterEnd: end, milestoneDays: milestone,
-                scheduledFor, catchUp: remaining !== milestone });
-            ledger[id] = now.toISOString(); modified = true;
-        }
-    }
-    if (!modified) return;
-    try {
-        localStorage.setItem('sigma-quarter-reminder-schedules-v1', JSON.stringify(schedules));
-        localStorage.setItem(sentKey, JSON.stringify(ledger));
-        localStorage.setItem(storageKey, JSON.stringify(clean));
-    } catch (_) { return; }
-    window.dispatchEvent(new CustomEvent('notifications-updated'));
-    window.SigmaNotifications?.renderFeed?.();
+window.checkQuarterEndReminders = function () {
+    // The database owns reminders and delivery to every eligible administrator.
+    return window.SigmaNotifications?.refreshNotifications?.();
 };
 
 // Recheck open admin pages at midnight and after returning to a sleeping tab.

@@ -20,11 +20,11 @@ for (const role of ['student', 'teacher']) {
     ]);
     const window = { addEventListener: (name, fn) => windowEvents.set(name, fn),
         matchMedia: () => ({ matches: false, addEventListener() {} }) };
-    const document = { readyState: 'loading',
+    const document = { currentScript:{src:'https://sigma.test/js/notifications.js'}, readyState: 'loading',
         getElementById: id => id === `${role}-header` ? {} : id === 'noti-badge' ? desktop : id === 'mobile-noti-badge' ? mobile : null,
         querySelector: () => null,
         addEventListener: (name, fn) => callbacks.set(name, fn) };
-    vm.runInNewContext(source, { window, document, location: { pathname: `/${role}.html` },
+    vm.runInNewContext(source, { URL, window, document, location: { pathname: `/${role}.html` },
         localStorage: { getItem: key => storage.get(key) || null },
         sessionStorage: { getItem: () => '{}' }, console, setTimeout: fn => timers.push(fn) });
     callbacks.get('DOMContentLoaded')();

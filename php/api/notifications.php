@@ -4,6 +4,7 @@ require_once __DIR__.'/../includes/application_auth.php';
 require_once __DIR__.'/../includes/service_vault_auth.php';
 require_once __DIR__.'/../includes/role_permissions.php';
 require_once __DIR__.'/../includes/academic_scope.php';
+require_once __DIR__.'/../includes/school_year_notifications.php';
 restrictServiceOrigin();
 header('Access-Control-Allow-Headers: Content-Type, Authorization');header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 if(($_SERVER['REQUEST_METHOD']??'')==='OPTIONS')exit;
@@ -20,6 +21,7 @@ try{
  $receipts=[];$read=$pdo->prepare('SELECT notification_id,read_at FROM notification_receipts WHERE user_id=?');$read->execute([$actorId]);foreach($read->fetchAll(PDO::FETCH_ASSOC) as $receipt)$receipts[$receipt['notification_id']]=str_replace(' ','T',$receipt['read_at']).'Z';
  $allowed=fn($row)=>$row['target_role']===$role&&in_array($actorId,array_map('strval',array_column($row['notification']['recipients']??[],'id')),true);
  if(($_SERVER['REQUEST_METHOD']??'')==='GET'){
+  if($role==='admin')sigmaPersistSchoolYearNotifications($pdo);
   $rows=$load();
   if(($_GET['view']??'')==='logs'){
    if(!$canAudit)notificationReply(['success'=>false,'error'=>'Notification log access is not enabled.'],403);

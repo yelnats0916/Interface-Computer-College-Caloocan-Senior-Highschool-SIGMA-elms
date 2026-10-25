@@ -50,6 +50,9 @@
         const subjectKey = value => norm(value).replace(/^grade\s*\d+\s*[-–]?\s*/i,'').replace(/^(card-|subj-)/,'').replace(/[^a-z0-9]/g,'');
         const userRole = norm(window.normalizeUserRole?.(user.role || user.type) || user.role || user.type);
         if (role === 'admin' ? !userRole.includes('admin') : userRole !== role) return false;
+        if (notif.serverRecordId && Array.isArray(notif.recipients)) {
+            return notif.recipients.some(member => [user.id,user.uid,user.lrn,user.studentNumber].some(id => id != null && String(id) === String(member.id)));
+        }
         if (notif.recipientId && ![user.id,user.uid,user.lrn,user.studentNumber].some(id => id != null && String(id) === String(notif.recipientId))) return false;
         if (!notif.recipientId && (notif.recipientName || notif.targetTeacher)) {
             const names = [user.fullName,user.name,[user.firstName,user.middleName,user.lastName].filter(Boolean).join(' '),[user.firstName,user.lastName].filter(Boolean).join(' ')].map(norm);
