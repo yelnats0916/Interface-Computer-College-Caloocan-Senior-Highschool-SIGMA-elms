@@ -9,8 +9,34 @@ import shlex
 import shutil
 import subprocess
 import zipfile
+import secrets
+import urllib.request
 
 HOME = Path('/home/sigma-elms')
+
+
+def refresh_php_runtime(public: Path):
+    """Refresh the web PHP cache after switching a symlink; CLI has a separate cache."""
+    token = secrets.token_hex(32)
+    name = 'runtime-refresh-' + secrets.token_hex(16) + '.php'
+    path = public / name
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    source = ("<?php header('Content-Type: application/json');header('Cache-Control: no-store');"
+              "if(($_SERVER['REQUEST_METHOD']??'')!=='POST'||!hash_equals('" + digest + "',"
+              "hash('sha256',file_get_contents('php://input')))){http_response_code(404);exit;}"
+              "clearstatcache(true);$enabled=(bool)ini_get('opcache.enable');"
+              "echo json_encode(['enabled'=>$enabled,'reset'=>function_exists('opcache_reset')?opcache_reset():null]);")
+    try:
+        path.write_text(source, encoding='utf-8')
+        path.chmod(0o644)
+        request = urllib.request.Request('https://sigma-elms.alwaysdata.net/' + name,
+                                         data=token.encode(), headers={'Content-Type': 'text/plain'})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            result = json.loads(response.read())
+        if result.get('enabled') and result.get('reset') is not True:
+            raise RuntimeError('The web PHP runtime cache could not be refreshed.')
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def activate(archive: Path, release_name: str, initialize: bool = False):
@@ -105,9 +131,16 @@ def activate(archive: Path, release_name: str, initialize: bool = False):
         next_web.symlink_to(release / 'public', target_is_directory=True)
         try:
             os.replace(next_web, web)
+            refresh_php_runtime(release / 'public')
         except Exception:
-            if not web.exists() and Path(previous).is_dir():
-                web.symlink_to(previous, target_is_directory=True)
+            if Path(previous).is_dir():
+                rollback = HOME / ('www-rollback-' + release_name)
+                rollback.symlink_to(previous, target_is_directory=True)
+                os.replace(rollback, web)
+                try:
+                    refresh_php_runtime(Path(previous))
+                except Exception:
+                    pass
             raise
         report = {'release': release_name, 'previousWebsite': previous,
                   'verifiedFiles': len(manifest), 'databaseRecordsModified': 0}
