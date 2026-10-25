@@ -109,9 +109,7 @@
     };
 
     let serverRecords = [], serverError = '', pending = null;
-    const read = () => window.canViewAuditLog?.('activity') === false ? [] : [...serverRecords, ...readLocal().filter(item => !serverRecords.some(remote =>
-        remote.userId === item.userId && remote.activity === item.activity
-        && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000))].map(window.SigmaAuditDisplay.activity);
+    const read = () => window.canViewAuditLog?.('activity') === false ? [] : serverRecords.map(window.SigmaAuditDisplay.activity);
     async function refresh() {
         if (window.canViewAuditLog?.('activity') === false) { serverRecords=[]; render(); return; }
         if (!document.getElementById('audit-activity-view') || !window.SigmaDatabase?.currentUser()?.id) return;

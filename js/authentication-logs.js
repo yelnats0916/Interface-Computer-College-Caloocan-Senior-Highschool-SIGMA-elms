@@ -30,10 +30,7 @@
     let serverRecords = [], serverError = '', loadingServer = null, serverOwner = '';
     const read = () => {
         if (window.canViewAuditLog?.('auth') === false) return [];
-        const local = readLocal().filter(item => !serverRecords.some(remote =>
-            remote.userId === item.userId && remote.event === item.event
-            && Math.abs(Date.parse(remote.timestamp) - Date.parse(item.timestamp)) < 10000));
-        return [...serverRecords, ...local].map(window.SigmaAuditDisplay.authentication);
+        return serverRecords.map(window.SigmaAuditDisplay.authentication);
     };
     async function refreshServerHistory() {
         if (window.canViewAuditLog?.('auth') === false) { serverRecords=[]; render(); return; }
@@ -152,7 +149,7 @@
         let status = document.getElementById('authentication-server-status');
         if (!status) { status = document.createElement('p'); status.id = 'authentication-server-status'; status.className = 'sigma-load-status'; status.setAttribute('role','status'); table.parentElement.before(status); }
         status.hidden = !serverError;
-        status.textContent = serverError ? `${serverError} Showing only history available in this browser.` : '';
+        status.textContent = serverError ? `${serverError}` : '';
 
         const theadRow = table?.tHead?.rows?.[0];
         if (theadRow) {

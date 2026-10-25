@@ -23,10 +23,11 @@
     function closeDetails() { selection = null; detailQuery = ''; direction = 'all'; render(); }
     window.closeNotificationLogDetails = closeDetails;
 
-    function deleteNotificationLog(target) {
+    async function deleteNotificationLog(target) {
         if (window.canViewAuditLog?.('notifications') === false) return;
         if (!target) return;
         try {
+            await window.SigmaNotifications?.deleteAuditLog?.(target);
             const key = 'sigma-notification-logs-v1';
             const logs = JSON.parse(localStorage.getItem(key) || '[]');
             if (Array.isArray(logs)) {

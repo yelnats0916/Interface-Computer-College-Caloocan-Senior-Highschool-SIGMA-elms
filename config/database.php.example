@@ -17,6 +17,8 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
     ]);
+    // Store and retrieve SQL timestamps in UTC; presentation uses Asia/Manila.
+    $pdo->exec("SET time_zone = '+00:00'");
 } catch (PDOException $e) {
     // In local development, show a readable message if the DB hasn't been created yet
     error_log("Database Connection Warning: " . $e->getMessage());
