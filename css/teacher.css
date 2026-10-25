@@ -11974,7 +11974,7 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
     }
 
     /* Attendance Export Modal Mobile Styles */
-    #attendance-export-modal .sigma-modal-header {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-header {
         position: sticky !important;
         top: 0 !important;
         background: #ffffff !important;
@@ -11984,7 +11984,7 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         flex-shrink: 0 !important;
     }
 
-    #attendance-export-modal .sigma-modal-header-top {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-header-top {
         padding: 0.75rem 1rem !important;
         display: flex !important;
         align-items: center !important;
@@ -11992,7 +11992,7 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         gap: 0.5rem !important;
     }
 
-    #attendance-export-modal .attendance-export-mobile-return-btn {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-mobile-return-btn {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -12012,17 +12012,17 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         transition: background-color 0.15s ease !important;
     }
 
-    #attendance-export-modal .attendance-export-mobile-return-btn:hover,
-    #attendance-export-modal .attendance-export-mobile-return-btn:active {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-mobile-return-btn:hover,
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-mobile-return-btn:active {
         background-color: #f1f5f9 !important;
     }
 
-    #attendance-export-modal .attendance-export-mobile-return-btn i {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-mobile-return-btn i {
         color: #000000 !important;
         font-size: 14px !important;
     }
 
-    #attendance-export-modal .sigma-modal-title {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-title {
         font-size: 14px !important;
         font-weight: 600 !important;
         color: #000000 !important;
@@ -12031,8 +12031,8 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         margin: 0 !important;
     }
 
-    #attendance-export-modal .sigma-modal-body,
-    #attendance-export-modal .sigma-modal-panel > .flex-1 {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-body,
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-panel > .flex-1 {
         flex: 1 1 auto !important;
         min-height: 0 !important;
         overflow-y: auto !important;
@@ -12041,8 +12041,8 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         box-sizing: border-box !important;
     }
 
-    #attendance-export-modal .sigma-modal-body p,
-    #attendance-export-modal .flex-1 > p {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-body p,
+    :is(#attendance-export-modal, #sigma-date-range-export) .flex-1 > p {
         font-size: 11.5px !important;
         font-weight: 400 !important;
         color: #000000 !important;
@@ -12050,34 +12050,34 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         margin-bottom: 0.35rem !important;
     }
 
-    #attendance-export-modal .export-scope-option {
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option {
         padding: 0.6rem 0.75rem !important;
         gap: 0.6rem !important;
         border-radius: 8px !important;
     }
 
-    #attendance-export-modal .export-scope-option input[type="radio"] {
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option input[type="radio"] {
         width: 15px !important;
         height: 15px !important;
         margin-top: 2px !important;
     }
 
-    #attendance-export-modal .export-scope-option span.export-scope-title,
-    #attendance-export-modal .export-scope-option span:not(.export-scope-badge):not(.bg-amber-100) {
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option span.export-scope-title,
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option span:not(.export-scope-badge):not(.bg-amber-100) {
         font-size: 12px !important;
         font-weight: 600 !important;
         line-height: 1.25 !important;
     }
 
-    #attendance-export-modal .export-scope-option span.export-scope-badge,
-    #attendance-export-modal .export-scope-option span.bg-amber-100 {
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option span.export-scope-badge,
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option span.bg-amber-100 {
         font-size: 8.5px !important;
         font-weight: 600 !important;
         padding: 1px 5px !important;
         border-radius: 4px !important;
     }
 
-    #attendance-export-modal .export-scope-option p {
+    :is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option p {
         font-size: 10.5px !important;
         font-weight: 400 !important;
         color: rgba(0, 0, 0, 0.6) !important;
@@ -12085,12 +12085,12 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         margin-top: 0.15rem !important;
     }
 
-    #attendance-export-modal .attendance-export-cancel-btn {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-cancel-btn {
         display: none !important;
     }
 
-    #attendance-export-modal .sigma-modal-footer,
-    #attendance-export-modal .border-t {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-footer,
+    :is(#attendance-export-modal, #sigma-date-range-export) .border-t {
         padding: 0.65rem 1rem !important;
         border-top: 1px solid #e2e8f0 !important;
         background: #ffffff !important;
@@ -12104,8 +12104,8 @@ body:has(#teacher-header) [id^="subject-topic-panel-"] .fa-chevron-down {
         box-shadow: none !important;
     }
 
-    #attendance-export-modal .sigma-modal-footer button,
-    #attendance-export-modal .border-t button {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-footer button,
+    :is(#attendance-export-modal, #sigma-date-range-export) .border-t button {
         height: 32px !important;
         min-height: 32px !important;
         font-size: 11.5px !important;

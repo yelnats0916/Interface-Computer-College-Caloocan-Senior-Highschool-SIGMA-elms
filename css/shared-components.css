@@ -4016,7 +4016,7 @@ button.sigma-btn.hidden,
 }
 
 @media (min-width: 769px) {
-    #attendance-export-modal .attendance-export-exit-btn {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-exit-btn {
         display: flex !important;
         position: fixed !important;
         top: 2.5rem !important;
@@ -4035,33 +4035,33 @@ button.sigma-btn.hidden,
         z-index: 12001 !important;
     }
 
-    #attendance-export-modal .attendance-export-exit-btn:hover {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-exit-btn:hover {
         background-color: #e2e8f0 !important;
     }
 
-    #attendance-export-modal .attendance-export-exit-btn > i {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-exit-btn > i {
         color: inherit !important;
         font-size: 1.25rem !important;
         line-height: 1.75rem !important;
     }
 
-    #attendance-export-modal .attendance-export-mobile-return-btn {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-mobile-return-btn {
         display: none !important;
     }
 
-    #attendance-export-modal .sigma-modal-header-top {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-header-top {
         justify-content: flex-start !important;
     }
 
-    #attendance-export-modal .sigma-modal-body {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-body {
         padding-bottom: 32px !important;
     }
 
-    #attendance-export-modal .attendance-export-cancel-btn {
+    :is(#attendance-export-modal, #sigma-date-range-export) .attendance-export-cancel-btn {
         display: none !important;
     }
 
-    #attendance-export-modal .sigma-modal-footer {
+    :is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-footer {
         justify-content: flex-end !important;
     }
 }

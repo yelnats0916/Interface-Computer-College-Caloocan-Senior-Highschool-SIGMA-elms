@@ -1395,8 +1395,8 @@ body:has(.sigma-modal-overlay:not(.hidden)) {
     height: 100vh !important;
 }
 
-#attendance-export-modal .export-scope-option,
-#attendance-export-modal .export-scope-option * {
+:is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option,
+:is(#attendance-export-modal, #sigma-date-range-export) .export-scope-option * {
     transition: none !important;
     animation: none !important;
 }
@@ -1500,7 +1500,7 @@ body:has(.sigma-modal-overlay:not(.hidden)) {
 html:has(#universal-quiz-preview-modal:not(.hidden)),
 html:has(#sigma-quiz-form-modal:not(.hidden)),
 html:has(#student-preview-modal:not(.hidden)),
-html:has(#attendance-export-modal:not(.hidden)),
+html:has(:is(#attendance-export-modal, #sigma-date-range-export):not(.hidden)),
 html:has(#subject-edit-overlay:not(.hidden)),
 html:has(#sy-edit-overlay:not(.hidden)),
 html:has(#sy-manager-overlay:not(.hidden)),
@@ -1524,7 +1524,7 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
 #subject-quiz-viewer-modal,
 #user-password-edit-overlay,
 #profile-edit-overlay,
-#attendance-export-modal {
+:is(#attendance-export-modal, #sigma-date-range-export) {
     overflow-x: hidden !important;
     overflow-y: auto !important;
     height: 100vh !important;
@@ -1547,7 +1547,7 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
 #subject-quiz-viewer-modal .sigma-modal-shell,
 #user-password-edit-overlay .sigma-modal-shell,
 #profile-edit-overlay .sigma-modal-shell,
-#attendance-export-modal .sigma-modal-shell {
+:is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-shell {
     min-height: 100vh !important;
     min-height: 100dvh !important;
     overflow: visible !important;
@@ -1569,7 +1569,7 @@ html:has(#section-topic-content:not(.hidden)):has(#student-preview-modal:not(.hi
 #subject-quiz-viewer-modal .sigma-modal-panel,
 #user-password-edit-overlay .sigma-modal-panel,
 #profile-edit-overlay .sigma-modal-panel,
-#attendance-export-modal .sigma-modal-panel {
+:is(#attendance-export-modal, #sigma-date-range-export) .sigma-modal-panel {
     min-height: 100vh !important;
     min-height: 100dvh !important;
     flex: 1 1 auto !important;
