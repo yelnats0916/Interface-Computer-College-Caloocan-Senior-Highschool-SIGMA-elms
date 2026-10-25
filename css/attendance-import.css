@@ -112,3 +112,21 @@ html body .attendance-import-month .sigma-quarter-dropdown-menu{min-width:100%;f
 }
 
 #sigma-universal-ask-overlay[data-attendance-import-discard] #sigma-ask-actions{display:grid!important;grid-template-columns:1fr 1fr}
+
+/* Keep the chevron inside the same custom control at every breakpoint. */
+html body #attendance-export-modal .attendance-import-month{--quarter-control-width:210px;width:210px!important;min-width:0!important;max-width:100%!important;height:46px!important;box-sizing:border-box}
+html body #attendance-export-modal .attendance-import-month>summary{width:100%!important;min-width:0!important;max-width:100%!important;height:44px!important;min-height:44px!important;gap:12px!important;border:0!important;background:transparent!important;border-radius:inherit}
+html body #attendance-export-modal .attendance-import-month>summary span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+html body #attendance-export-modal .attendance-import-month>summary i{flex:none;margin-left:auto}
+html body #attendance-export-modal .attendance-import-month .sigma-quarter-dropdown-menu{width:100%;min-width:100%;max-height:240px;overflow-y:auto}
+.attendance-import-table{cursor:grab}
+.attendance-import-table.is-dragging,.attendance-import-table.is-dragging *{cursor:grabbing!important;user-select:none!important}
+@media(min-width:768px){
+ #attendance-export-modal.attendance-import[data-stage=review]{overflow-x:auto!important;scrollbar-gutter:stable}
+ #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{overflow:visible;width:max-content;min-width:100%;max-width:none}
+}
+@media(max-width:767px){
+ html body #attendance-export-modal .attendance-import-month{--quarter-control-width:170px;width:170px!important;height:38px!important}
+ html body #attendance-export-modal .attendance-import-month>summary{height:36px!important;min-height:36px!important;font-size:12px!important}
+ .attendance-import-table{touch-action:pan-x pan-y}
+}

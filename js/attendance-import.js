@@ -175,6 +175,28 @@
         };
         const escape = event => {if(event.key==='Escape')requestClose();};overlay.querySelectorAll('[data-close]').forEach(button=>button.onclick=requestClose);document.addEventListener('keydown',escape);
         document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';document.documentElement.classList.add('has-modal-open');document.body.append(overlay);
+        // Mouse dragging pans the same scroller used by the form on desktop.
+        let drag=null;
+        overlay.addEventListener('pointerdown',event=>{
+            const table=event.target.closest('.attendance-import-table');
+            if(!table || event.pointerType!=='mouse' || event.button!==0)return;
+            drag={table,id:event.pointerId,x:event.clientX,y:event.clientY,left:(window.innerWidth>=768?overlay:table).scrollLeft,scroller:window.innerWidth>=768?overlay:table,active:false};
+        });
+        overlay.addEventListener('pointermove',event=>{
+            if(!drag || drag.id!==event.pointerId)return;
+            const delta=event.clientX-drag.x;
+            if(!drag.active){
+                if(Math.abs(delta)<5 || Math.abs(delta)<Math.abs(event.clientY-drag.y))return;
+                drag.active=true;drag.table.classList.add('is-dragging');drag.table.setPointerCapture(event.pointerId);
+            }
+            event.preventDefault();drag.scroller.scrollLeft=drag.left-delta;
+        });
+        const finishDrag=()=>{if(!drag)return;drag.table.classList.remove('is-dragging');if(drag.table.hasPointerCapture(drag.id))drag.table.releasePointerCapture(drag.id);drag=null;};
+        overlay.addEventListener('pointerup',finishDrag);overlay.addEventListener('pointercancel',finishDrag);
+        overlay.addEventListener('keydown',event=>{
+            if(!event.target.matches('.attendance-import-table') || !['ArrowLeft','ArrowRight'].includes(event.key))return;
+            event.preventDefault();(window.innerWidth>=768?overlay:event.target).scrollBy({left:event.key==='ArrowRight'?120:-120});
+        });
         const button = (label, action, secondary = false) => {const b=document.createElement('button');b.type='button';b.className=`attendance-export-download-btn sigma-btn sigma-btn-${secondary?'secondary':'primary'} sigma-btn-md`;b.textContent=label;b.onclick=action;return b;};
         async function run(control, label, work) {
             if(busy)return;busy=true;error.textContent='';const html=control.innerHTML;control.disabled=true;control.setAttribute('aria-busy','true');control.innerHTML=`<span class="sigma-dot-spinner" aria-hidden="true"></span><span>${label}</span>`;
