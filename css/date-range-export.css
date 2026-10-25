@@ -6,7 +6,5 @@
 #sigma-date-range-export [data-error]{color:#dc2626;font-size:14px;line-height:1.5}
 #sigma-date-range-export .sigma-modal-footer{justify-content:flex-end!important}
 #sigma-date-range-export .sigma-modal-footer button{display:inline-flex;align-items:center;gap:10px}
-html body #attendance-record-dialog footer .attendance-record-navigation{display:flex;gap:8px;margin-right:auto}
-html body #attendance-record-dialog [data-export]{width:44px;min-width:44px;padding:0;height:44px;justify-content:center}
-@media(max-width:767px){#sigma-date-range-export .sigma-date-export-fields{grid-template-columns:1fr;gap:20px}#sigma-date-range-export label{font-size:14px}#sigma-date-range-export input{font-size:14px;min-height:46px;padding:12px}html body #attendance-record-dialog footer .attendance-record-navigation button{padding:8px 10px;min-height:36px;font-size:12px}}
+@media(max-width:767px){#sigma-date-range-export .sigma-date-export-fields{grid-template-columns:1fr;gap:20px}#sigma-date-range-export label{font-size:14px}#sigma-date-range-export input{font-size:14px;min-height:46px;padding:12px}}
 #sigma-date-range-export form.sigma-modal-panel{margin:0!important}

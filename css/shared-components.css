@@ -8325,3 +8325,18 @@ html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button{display:block
 html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button:is(:hover,[aria-pressed=true]){background:#f0fdf4!important;color:#15803d!important}
 html body .sigma-page-size-menu::backdrop{background:transparent;pointer-events:none}
 @media(max-width:600px){html body .sigma-page-size-menu.sigma-quarter-dropdown-menu>button{min-height:34px!important;font-size:12px!important}}
+/* Submitted attendance uses full-size controls, independent of form button defaults. */
+html body #attendance-record-dialog>footer{gap:16px}
+html body #attendance-record-dialog>footer .attendance-record-navigation{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+html body #attendance-record-dialog>footer .attendance-record-navigation>button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;min-width:104px!important;height:44px!important;min-height:44px!important;padding:0 16px!important;border:1px solid #e2e8f0!important;border-radius:12px!important;background:#fff!important;color:#000!important;font:600 14px/20px Inter,sans-serif!important;cursor:pointer}
+html body #attendance-record-dialog>footer .attendance-record-navigation>button:not(:disabled):hover{background:#f1f5f9!important}
+html body #attendance-record-dialog>footer .attendance-record-navigation>button:disabled{color:rgba(0,0,0,.38)!important;background:#f8fafc!important;cursor:default;opacity:1!important}
+html body #attendance-record-dialog>footer .attendance-record-navigation>button>i{font-size:12px;line-height:1}
+html body #attendance-record-dialog>footer [data-export]{width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;flex:0 0 44px}
+@media(max-width:767px){
+ html body #attendance-record-dialog>footer{gap:10px}
+ html body #attendance-record-dialog>footer .attendance-record-navigation{gap:8px}
+ html body #attendance-record-dialog>footer .attendance-record-navigation>button{min-width:86px!important;height:36px!important;min-height:36px!important;padding:0 10px!important;border-radius:10px!important;font-size:12px!important;line-height:18px!important;gap:6px}
+ html body #attendance-record-dialog>footer .attendance-record-navigation>button>i{font-size:10px}
+ html body #attendance-record-dialog>footer [data-export]{width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;flex-basis:36px;font-size:12px}
+}

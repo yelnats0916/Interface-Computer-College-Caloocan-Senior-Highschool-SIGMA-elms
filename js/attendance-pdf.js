@@ -12,7 +12,7 @@
             doc.text('INTERFACE COMPUTER COLLEGE',14,16);
             doc.setFontSize(11);doc.text('ATTENDANCE RECORD',14,23);
             doc.setFont('SigmaSans','normal');doc.setFontSize(9);
-            const lines=doc.splitTextToSize(text('Subject: '+subject+'\nSection: '+section+'\nDate: '+report.date+(schoolYear?'   S.Y. '+schoolYear:'')+(quarter?'   Quarter '+quarter:'')),182);
+            const lines=doc.splitTextToSize(text('Subject: '+subject+'\nSection: '+section+'\nDate: '+report.date+((report.schoolYear||schoolYear)?'   S.Y. '+(report.schoolYear||schoolYear):'')+((report.quarter||quarter)?'   Quarter '+(report.quarter||quarter):'')),182);
             doc.text(lines,14,30);
             return 34+lines.length*4.2;
         };
