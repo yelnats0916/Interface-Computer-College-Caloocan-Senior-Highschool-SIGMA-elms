@@ -31,6 +31,7 @@ require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/activity_audit.php';
 require_once __DIR__ . '/../includes/section_subject_policy.php';
 require_once __DIR__ . '/../includes/section_assignment_validation.php';
+require_once __DIR__ . '/../includes/section_deployment_events.php';
 $databaseActor = sigmaRequireApplicationActor($pdo, ['admin', 'masteradmin', 'administrator', 'teacher']);
 
 function jsonResponse(array $data, int $code = 200): void {
@@ -276,14 +277,16 @@ try {
         $studentsCount = is_array($section['students'] ?? null) ? count($section['students']) : 0;
         $status = trim((string) ($section['status'] ?? 'Deployed'));
 
+        sigmaEnsureSectionNotificationSchema($pdo);
         sigmaLockSchoolYearWrites($pdo);
         $pdo->beginTransaction();
         sigmaRequireSectionSchoolYear($pdo,$sy);
         sigmaValidateSectionAssignments($section,
             $pdo->query('SELECT id,first_name,last_name,full_name,role,status,is_deleted FROM users')->fetchAll(PDO::FETCH_ASSOC),
             $pdo->query('SELECT id,name,grade_level,school_year,room,subject,teachers,students,daily_schedules,days,start_time,end_time,status,is_deleted FROM sections')->fetchAll(PDO::FETCH_ASSOC));
-        $previousQuery=$pdo->prepare('SELECT subject,subjects FROM sections WHERE id=?');$previousQuery->execute([$secId]);
-        sigmaValidateSectionSubjectAssignments($pdo,$section,$previousQuery->fetch(PDO::FETCH_ASSOC)?:null);
+        $previousQuery=$pdo->prepare('SELECT subject,subjects,status FROM sections WHERE id=?');$previousQuery->execute([$secId]);
+        $previousSection=$previousQuery->fetch(PDO::FETCH_ASSOC)?:null;
+        sigmaValidateSectionSubjectAssignments($pdo,$section,$previousSection);
         $upsertSql = "INSERT INTO `sections` (
             `id`, `name`, `grade_level`, `room`, `school_year`,
             `start_time`, `end_time`, `days`, `schedule`, `daily_schedules`,
@@ -350,6 +353,12 @@ try {
             $lead=$lead??($groupTeachers[0]??null);
             $groupUpdate->execute([$adviser,$adviserId,json_encode($groupTeachers),$lead['role']??$groupRow['teacher_role'],$groupRow['id']]);
         }
+        $wasDeployed=in_array(strtolower($previousSection['status']??''),['deployed','published'],true);
+        $isDeployed=in_array(strtolower($status),['deployed','published'],true);
+        $activity=$isDeployed&&!$wasDeployed?'Deployed Section':($previousSection?'Updated Section':($isDeployed?'Deployed Section':'Created Draft Section'));
+        sigmaRecordActivity($pdo,(string)$databaseActor['id'],$activity,'Classes',$name.' - '.$grade.' | S.Y. '.$sy.' | '.$subject.' | '.$status,
+            ['sectionId'=>$secId,'sectionName'=>$name,'subject'=>$subject,'status'=>$status]);
+        if($isDeployed&&!$wasDeployed)sigmaPersistSectionDeploymentNotifications($pdo,$databaseActor,$section);
         $pdo->commit();
         $pdo->query("SELECT RELEASE_LOCK('sigma_school_year_write')");
 
@@ -357,7 +366,6 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM `sections` WHERE `id` = :id LIMIT 1");
         $stmt->execute([':id' => $secId]);
         $savedRow = $stmt->fetch(PDO::FETCH_ASSOC);
-        sigmaRecordActivity($pdo, (string)$databaseActor['id'], 'Saved Section', 'Classes', 'Section '.$secId);
 
         jsonResponse([
             'success' => true,

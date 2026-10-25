@@ -524,6 +524,10 @@
                 window.hideHeaderOverlays();
             }
 
+            if (currentRole === 'admin' && notif.type === 'section-deployed') {
+                window.location.hash = 'nav-school-sections';
+                return;
+            }
             if (notif.type === 'academic-event' && notif.target?.academicDate) {
                 window.openAcademicCalendarDate?.(notif.target.academicDate);
                 return;
