@@ -77,25 +77,25 @@
     const tableReads = new Map();
     const retrievedTables = new WeakSet();
     function beginDataRead(input) {
-        const endpoint = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href).pathname.split('/').pop().replace('.php', '');
+        const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
+        const endpoint = target.pathname.split('/').pop().replace('.php', '');
         const selectors = {
             users: '#userTableBody', sections: '#sectionTableBody, #student-roster-body',
             subjects: '#subjectTableBody', school_years: '#schoolYearTableBody',
             ai_logs: '#audit-ai-view tbody',
-            ai_records: '#audit-ai-view tbody, #ai-evaluations-table-body, #ai-feedback-table-body, #ai-assessments-table-body',
+            ai_records: target.searchParams.get('action') === 'logs' ? '#audit-ai-view tbody' : '',
             activity_logs: '#activity-log-rows', authentication_logs: '#audit-auth-view tbody',
             notifications: '#notification-log-rows', notification_logs: '#notification-log-rows',
             academic_records: '#gradebook-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
             maintenance: '#maintenance-history-body'
         };
+        const selector = selectors[endpoint];
+        if (!selector) return () => {};
         const tracked = new Set();
         function attachTables() {
-        const bodies = new Set(selectors[endpoint] ? document.querySelectorAll(selectors[endpoint]) : []);
-        // Dynamic tables use the same loader even when their renderer creates
-        // the table after navigation. Populated tables remain usable on refresh.
-        document.querySelectorAll('table tbody').forEach(body => {
-            if (!body.children.length && body.getClientRects().length) bodies.add(body);
-        });
+        // A table belongs only to its own data request. Unrelated dashboard,
+        // notification and background reads must never hold its rows behind a loader.
+        const bodies = document.querySelectorAll(selector);
         bodies.forEach(body => {
             if (tracked.has(body)) return;
             let state = tableReads.get(body);

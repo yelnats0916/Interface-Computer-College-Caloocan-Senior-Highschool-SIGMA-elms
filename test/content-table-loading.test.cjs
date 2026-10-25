@@ -4,10 +4,10 @@ for(const width of [1280,375]){
  const c=await browser.newContext({viewport:{width,height:800}});const p=await c.newPage();let release;
  await p.route('https://loader.test/**',r=>r.fulfill({contentType:'text/html',body:'<table style="width:100%"><thead><tr><th>No.</th><th>Name</th></tr></thead><tbody id="userTableBody"></tbody></table>'}));await p.goto('https://loader.test/admin.html');
  await p.addStyleTag({path:'css/content-loading.css'});await p.addScriptTag({path:'js/content-loading.js'});
- await p.evaluate(()=>{const b=document.querySelector('tbody');window.finish1=SigmaContentLoading.beginDataRead('php/api/users.php');window.finish2=SigmaContentLoading.beginDataRead('php/api/users.php');b.innerHTML='<tr><td colspan="2">No accounts</td></tr>';});
+ await p.evaluate(()=>{const b=document.querySelector('tbody');window.unrelated=SigmaContentLoading.beginDataRead('php/api/maintenance.php');window.finish1=SigmaContentLoading.beginDataRead('php/api/users.php');window.finish2=SigmaContentLoading.beginDataRead('php/api/users.php');b.innerHTML='<tr><td colspan="2">No accounts</td></tr>';});
  await p.waitForSelector('.sigma-table-loading-row');assert.equal(await p.locator('.sigma-dot-spinner').count(),1);assert.equal(await p.locator('.sigma-table-loading-row td').getAttribute('colspan'),'2');
  const bounds=await p.locator('.sigma-dot-spinner').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=width);
- await p.evaluate(()=>finish1());assert.equal(await p.locator('.sigma-dot-spinner').count(),1);await p.evaluate(()=>finish2());assert.equal(await p.locator('.sigma-dot-spinner').count(),0);
+ await p.evaluate(()=>finish1());assert.equal(await p.locator('.sigma-dot-spinner').count(),1);await p.evaluate(()=>finish2());assert.equal(await p.locator('.sigma-dot-spinner').count(),0,'A slow unrelated request must not keep the table loading');await p.evaluate(()=>unrelated());
  await p.evaluate(()=>{document.querySelector('tbody').innerHTML='<tr><td>1</td><td>Teacher</td></tr>';window.done=SigmaContentLoading.beginDataRead('php/api/users.php');});assert.equal(await p.locator('.sigma-dot-spinner').count(),0);await p.evaluate(()=>done());
  // Exercise the actual transport: dots before retrieval, automatic cleanup on failure.
  await p.evaluate(()=>document.querySelector('tbody').replaceChildren());await p.addScriptTag({path:'js/database-client.js'});
