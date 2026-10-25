@@ -1000,12 +1000,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Check 2FA requirement
         let backendHandled = false;
-        const authApiUrl = resolveAuthApiUrl(`id=${encodeURIComponent(targetUserId)}`);
+        // Credentials already returned this database-confirmed security state.
+        // Avoid a second PHP request before displaying authenticator verification.
         try {
-            if (!authApiUrl) throw new Error('static-host');
-            const checkRes = await window.SigmaDatabase.fetch(authApiUrl, { authentication: true, foreground: true, autoReconnect: false, timeoutMs: 15000 });
-            const checkData = await checkRes.json();
-            if (checkData && checkData.success) {
+            const checkData = matchedUser;
+            if (checkData && typeof checkData.totpEnabled === 'boolean' && typeof checkData.termsAccepted === 'boolean') {
                 backendHandled = true;
                 const termsDone = !!checkData.termsAccepted;
 

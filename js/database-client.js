@@ -42,6 +42,10 @@
         }
     }
     async function fetchAuthentication(input, options) {
+        // Bound the whole sign-in attempt, including waiting for another tab's lock.
+        if (!options.signal && typeof AbortSignal?.timeout === 'function') {
+            options = { ...options, signal: AbortSignal.timeout(options.timeoutMs || 15000) };
+        }
         let lease = '';
         const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2);
         const renew = () => {

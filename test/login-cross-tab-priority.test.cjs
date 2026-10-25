@@ -11,5 +11,12 @@ await login.evaluate(()=>{window.signin=SigmaDatabase.request('session',{authent
 await login.waitForFunction(()=>!!localStorage.getItem('sigma-login-request-priority'));release();const result=await login.evaluate(()=>signin);await portal.evaluate(()=>Promise.all([first,second]));
 assert.deepEqual(order,['subjects.php','session.php','school_years.php']);assert.equal(maximum,1);assert.equal(result.ok,correct);if(!correct)assert.equal(result.code,'wrong_password');assert.equal(await login.evaluate(()=>localStorage.getItem('sigma-login-request-priority')),null);await c.close();
 }
+{
+ const c=await browser.newContext();await c.route('https://deadline.test/**',r=>r.fulfill({contentType:'text/html',body:'<html></html>'}));
+ const blocker=await c.newPage(),login=await c.newPage();await blocker.goto('https://deadline.test/teacher.html');await login.goto('https://deadline.test/index.html');await login.addScriptTag({path:'js/database-client.js'});
+ await blocker.evaluate(()=>{navigator.locks.request('sigma-php-api-worker',()=>{window.lockHeld=true;return new Promise(resolve=>window.releaseLock=resolve);});});await blocker.waitForFunction(()=>window.lockHeld);
+ const result=await login.evaluate(async()=>{const start=performance.now();try{await SigmaDatabase.request('session',{authentication:true,autoReconnect:false,timeoutMs:120,data:{action:'credentials'}});return {ok:true};}catch(e){return {name:e.name,ms:performance.now()-start,lease:localStorage.getItem('sigma-login-request-priority')};}});
+ assert.equal(result.name,'TimeoutError');assert(result.ms<1500,'Authentication queue wait must respect its caller deadline');assert.equal(result.lease,null);await blocker.evaluate(()=>releaseLock());await c.close();
+}
 console.log('PASS valid and wrong-password attempts get priority across real browser tabs; no simultaneous PHP requests, no duplicate checks, background reads resume.');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
