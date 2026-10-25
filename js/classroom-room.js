@@ -1976,9 +1976,9 @@
      * Resolves and bridges keys across Teacher and Admin portals:
      * e.g. "Grade 11 - Rizal::Empowerment Technologies", "Rizal::Empowerment Technologies", "Rizal::Empowerment-Technologies"
      */
-    function findAttendanceClassroomRecord(secName, subjName) {
-        refreshAttendanceRecords();
-        if (!attendanceRecordsByClassroom || typeof attendanceRecordsByClassroom !== 'object') {
+    function findAttendanceClassroomRecord(secName, subjName, publishedOnly = false) {
+        const records = publishedOnly ? getStoredJson(SHARED_ATTENDANCE_RECORDS_KEY, {}) : refreshAttendanceRecords();
+        if (!records || typeof records !== 'object') {
             return { key: null, data: {} };
         }
 
@@ -2008,13 +2008,13 @@
             `${baseSec}::${cleanSubj.replace(/[-_]+/g, ' ')}`
         ];
         for (const dk of directKeysToCheck) {
-            if (attendanceRecordsByClassroom[dk] && Object.keys(attendanceRecordsByClassroom[dk]).length > 0) {
-                return { key: dk, data: attendanceRecordsByClassroom[dk] };
+            if (records[dk] && Object.keys(records[dk]).length > 0) {
+                return { key: dk, data: records[dk] };
             }
         }
 
-        // 2. Iterate all keys in attendanceRecordsByClassroom to find matching section & subject
-        const allKeys = Object.keys(attendanceRecordsByClassroom);
+        // 2. Iterate all keys in records to find matching section & subject
+        const allKeys = Object.keys(records);
         for (const k of allKeys) {
             if (!k.includes('::')) continue;
             const [kSec, kSubj] = k.split('::').map(x => x.trim());
@@ -2027,7 +2027,7 @@
             const subjMatches = Boolean(kNormSubj && normSubj && kNormSubj === normSubj);
 
             if (secMatches && subjMatches) {
-                return { key: k, data: attendanceRecordsByClassroom[k] };
+                return { key: k, data: records[k] };
             }
         }
 
@@ -2045,8 +2045,8 @@
                     `Grade ${found.grade || found.gradeLevel || 11} - ${found.name}::${canonicalSubj}`
                 ];
                 for (const ak of aliasKeys) {
-                    if (attendanceRecordsByClassroom[ak] && Object.keys(attendanceRecordsByClassroom[ak]).length > 0) {
-                        return { key: ak, data: attendanceRecordsByClassroom[ak] };
+                    if (records[ak] && Object.keys(records[ak]).length > 0) {
+                        return { key: ak, data: records[ak] };
                     }
                 }
             }
@@ -2283,10 +2283,19 @@
         }
     };
 
+    window.getSubmittedAttendanceDays = function(section, subject) {
+        const data = findAttendanceClassroomRecord(section, subject, true).data;
+        return Object.entries(data).filter(([date,record])=>/^\d{4}-\d{2}-\d{2}$/.test(date) && record?.submitted === true && record.statuses && Object.values(record.statuses).some(Boolean))
+            .sort(([a],[b])=>a.localeCompare(b)).map(([date,record])=>({date,statuses:record.statuses}));
+    };
     window.viewDailyAttendance = function(dateString) {
-        return window.openAttendanceRecordDialog({dateString, section:getActiveRoomSectionName(), subject:getActiveRoomSubjectName(), statuses:getCurrentAttendanceStatuses(dateString)});
+        return window.openAttendanceRecordDialog({dateString, section:getActiveRoomSectionName(), subject:getActiveRoomSubjectName(), statuses:window.getSubmittedAttendanceDays(getActiveRoomSectionName(),getActiveRoomSubjectName()).find(day=>day.date===dateString)?.statuses || {}});
     };
     window.openAttendanceRecordDialog = function({dateString, section, subject, statuses = {}, students = null, dates = []}) {
+        if (isStudentAttendancePortal()) return;
+        const submittedDays = window.getSubmittedAttendanceDays(section, subject);
+        const dayIndex = submittedDays.findIndex(day=>day.date===dateString);
+        if (dayIndex >= 0) statuses = submittedDays[dayIndex].statuses;
         students ||= getAttendanceStudents(section, subject) || [];
         const calendar = window.getActiveSchoolYearRecord?.();
         const quarter = calendar && [1,2,3,4].find(q => calendar[`q${q}Start`] && calendar[`q${q}End`] && dateString >= calendar[`q${q}Start`] && dateString <= calendar[`q${q}End`]);
@@ -2303,15 +2312,28 @@
             const label = {P:'Present',A:'Absent',L:'Late',E:'Excused',present:'Present',absent:'Absent',late:'Late',excused:'Excused'}[status] || 'Unmarked';
             return {number:index+1,name,id:String(student.id || student.uid || ''),label,student};
         });
-        dialog.innerHTML = `<header><button type="button" class="attendance-record-dismiss" data-close aria-label="Close attendance record"><i class="fa-solid fa-xmark attendance-record-desktop-close" aria-hidden="true"></i><i class="fa-solid fa-chevron-left attendance-record-mobile-back" aria-hidden="true"></i></button><div class="attendance-record-heading"><h2 id="attendance-record-title">Attendance Record</h2><p>${escapeHtml(date)}${quarter ? ` · <span class="attendance-record-quarter-full">${['1st','2nd','3rd','4th'][quarter - 1]} Quarter</span><span class="attendance-record-quarter-short">Q${quarter}</span>` : ''}${calendar ? ` · S.Y. ${escapeHtml(`${calendar.yearStart}-${calendar.yearEnd}`)}` : ''}</p></div></header><div class="attendance-record-table" tabindex="0" aria-label="Attendance records"><table><thead><tr><th>No.</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.number}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(row.student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(row.name)}</span></div></td><td>${row.label}</td></tr>`).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div><footer><button type="button" class="sigma-btn sigma-btn-green" data-export><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>Export PDF</span></button></footer>`;
+        dialog.innerHTML = `<header><button type="button" class="attendance-record-dismiss" data-close aria-label="Close attendance record"><i class="fa-solid fa-xmark attendance-record-desktop-close" aria-hidden="true"></i><i class="fa-solid fa-chevron-left attendance-record-mobile-back" aria-hidden="true"></i></button><div class="attendance-record-heading"><h2 id="attendance-record-title">Attendance Record</h2><p>${escapeHtml(date)}${quarter ? ` · <span class="attendance-record-quarter-full">${['1st','2nd','3rd','4th'][quarter - 1]} Quarter</span><span class="attendance-record-quarter-short">Q${quarter}</span>` : ''}${calendar ? ` · S.Y. ${escapeHtml(`${calendar.yearStart}-${calendar.yearEnd}`)}` : ''}</p></div></header><div class="attendance-record-table" tabindex="0" aria-label="Attendance records"><table><thead><tr><th>No.</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.number}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(row.student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(row.name)}</span></div></td><td>${row.label}</td></tr>`).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div><footer><div class="attendance-record-navigation"><button type="button" class="sigma-btn sigma-btn-white" data-previous ${dayIndex <= 0 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>Previous</span></button><button type="button" class="sigma-btn sigma-btn-white" data-next ${dayIndex < 0 || dayIndex >= submittedDays.length-1 ? 'disabled' : ''}><span>Next</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div><button type="button" class="sigma-btn sigma-btn-green" data-export title="Export PDF" aria-label="Export PDF"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></button></footer>`;
         dialog.querySelector('[data-close]').onclick = () => dialog.close();
-        dialog.querySelector('[data-export]').onclick = async event => {
-            const button = event.currentTarget, label = button.innerHTML;
-            if (button.disabled) return;
-            button.disabled = true; button.setAttribute('aria-busy','true'); button.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span><span>Exporting</span>';
-            try { await window.saveAttendanceRecordPdf({section,subject,date,rows,quarter,schoolYear:calendar ? `${calendar.yearStart}-${calendar.yearEnd}` : ''}); }
-            catch(error) { window.showToastNotification?.(error.message || 'PDF export failed. Please try again.','error'); }
-            finally { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = label; }
+        const navigate = offset => {
+            const day = submittedDays[dayIndex+offset];
+            if (day) window.openAttendanceRecordDialog({dateString:day.date,section,subject,statuses:day.statuses,students});
+        };
+        dialog.querySelector('[data-previous]').onclick=()=>navigate(-1);
+        dialog.querySelector('[data-next]').onclick=()=>navigate(1);
+        dialog.querySelector('[data-export]').onclick = () => {
+            dialog.close(); dialog._sigmaCleanup?.();
+            window.openSigmaDateRangeExport({title:'Export Attendance',from:dateString,to:dateString,
+                onDownload:async ({from,to})=>{
+                    const days=window.getSubmittedAttendanceDays(section,subject).filter(day=>(!from||day.date>=from)&&(!to||day.date<=to));
+                    if (!days.length) throw Error('No submitted attendance in this date range.');
+                    const reports=days.map(day=>({date:day.date,rows:students.map((student,index)=>{
+                        const name=student.fullName||student.name||[student.firstName,student.lastName].filter(Boolean).join(' ');
+                        const key=Object.keys(day.statuses).find(key=>(student.id&&String(key)===String(student.id))||studentNamesMatch(key,name));
+                        const status=day.statuses[key]||'';
+                        return {number:index+1,name,id:String(student.id||student.uid||''),label:({P:'Present',A:'Absent',L:'Late',E:'Excused',present:'Present',absent:'Absent',late:'Late',excused:'Excused'})[status]||'Unmarked'};
+                    })}));
+                    await window.saveAttendanceRecordPdf({section,subject,date:from+(to&&to!==from?' to '+to:''),reports,schoolYear:calendar?`${calendar.yearStart}-${calendar.yearEnd}`:''});
+                }});
         };
         const page = document.body, root = document.documentElement;
         const scroll = {x:window.scrollX,y:window.scrollY};

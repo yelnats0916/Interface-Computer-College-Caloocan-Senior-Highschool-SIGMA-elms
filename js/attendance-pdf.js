@@ -1,25 +1,29 @@
 (function () {
     'use strict';
-    window.saveAttendanceRecordPdf = async function ({section, subject, date, rows, quarter, schoolYear}) {
+    window.saveAttendanceRecordPdf = async function ({section, subject, date, rows, quarter, schoolYear, reports}) {
         const doc = await window.SigmaPdfLayout.create({orientation:'portrait'});
         const text = window.SigmaPdfLayout.text;
         doc.setProperties({title:'Attendance Record - '+subject,subject:section+' - '+date,creator:'SIGMA ELMS'});
+        const days = reports || [{date,rows}];
+        for (const [index,report] of days.entries()) {
+        if (index) doc.addPage();
         const heading = () => {
             doc.setTextColor(0);doc.setFont('SigmaSans','bold');doc.setFontSize(12);
             doc.text('INTERFACE COMPUTER COLLEGE',14,16);
             doc.setFontSize(11);doc.text('ATTENDANCE RECORD',14,23);
             doc.setFont('SigmaSans','normal');doc.setFontSize(9);
-            const lines=doc.splitTextToSize(text('Subject: '+subject+'\nSection: '+section+'\nDate: '+date+(schoolYear?'   S.Y. '+schoolYear:'')+(quarter?'   Quarter '+quarter:'')),182);
+            const lines=doc.splitTextToSize(text('Subject: '+subject+'\nSection: '+section+'\nDate: '+report.date+(schoolYear?'   S.Y. '+schoolYear:'')+(quarter?'   Quarter '+quarter:'')),182);
             doc.text(lines,14,30);
             return 34+lines.length*4.2;
         };
         const top=heading();
-        doc.autoTable({head:[['No.','Student Name','Status']],body:rows.map(row=>[String(row.number),text(row.name)+(row.id?'\nID: '+text(row.id):''),text(row.label)]),
+        doc.autoTable({head:[['No.','Student Name','Status']],body:report.rows.map(row=>[String(row.number),text(row.name)+(row.id?'\nID: '+text(row.id):''),text(row.label)]),
             startY:top,margin:{top,left:14,right:14,bottom:18},tableWidth:182,theme:'grid',showHead:'everyPage',rowPageBreak:'avoid',
             styles:{font:'SigmaSans',fontSize:9,cellPadding:3,textColor:0,overflow:'linebreak',valign:'middle',lineWidth:.15,lineColor:[220,226,221]},
             headStyles:{fillColor:[21,128,61],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[247,250,248]},
             columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:130},2:{cellWidth:40,halign:'center'}},
             willDrawPage:data=>{if(data.pageNumber>1)heading();}});
+        }
         window.SigmaPdfLayout.footer(doc);
         const safe=value=>String(value).replace(/[^a-zA-Z0-9_-]/g,'_');
         await doc.save('Attendance_Record_'+safe(section)+'_'+safe(subject)+'_'+safe(date)+'.pdf',{returnPromise:true});
