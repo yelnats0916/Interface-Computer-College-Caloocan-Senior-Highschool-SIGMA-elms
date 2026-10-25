@@ -33,4 +33,27 @@ check((int)$pdo->query('SELECT COUNT(*) FROM academic_records')->fetchColumn()==
 check(attendanceSnapshot($pdo,$s1)['scopes'][0]['days'][academicDay()]['statuses']['attcheck-one']==='late','Resubmitted edit reaches student');
 try{attendanceSubmit($pdo,['id'=>'other-teacher','role'=>'Teacher'],$input);throw new Exception('Unauthorized teacher accepted');}catch(RuntimeException $e){check($e->getMessage()!=='Unauthorized teacher accepted','Assignment protection');}
 try{attendanceSubmit($pdo,$s1,$input);throw new Exception('Student write accepted');}catch(RuntimeException $e){check($e->getMessage()!=='Student write accepted','Student write protection');}
+// Workbook import must be atomic, roster-scoped, and preserve blank cells.
+$batch=['subjectId'=>'attcheck-subject','section'=>'attcheck-section','days'=>[academicDay()=>['attcheck-one'=>'A','attcheck-two'=>'']]];
+$pdo->beginTransaction();$preview=attendanceImport($pdo,$teacher,$batch);$pdo->commit();
+check($preview['needsConfirmation']===true&&count($preview['conflicts'])===1,'Overwrite requires confirmation');
+check(attendanceSnapshot($pdo,$s1)['scopes'][0]['days'][academicDay()]['statuses']['attcheck-one']==='late','Preview cannot write');
+$batch+=['overwrite'=>true,'revision'=>$preview['revision']];
+$input['statuses']=['attcheck-one'=>'P'];attendanceSubmit($pdo,$teacher,$input);
+$pdo->beginTransaction();$stale=attendanceImport($pdo,$teacher,$batch);$pdo->commit();
+check($stale['needsConfirmation']===true&&$stale['revision']!==$batch['revision'],'Concurrent edits require a new confirmation');
+$batch['revision']=$stale['revision'];$pdo->beginTransaction();$done=attendanceImport($pdo,$teacher,$batch);$pdo->commit();
+check($done['importedMarks']===1,'Only nonblank cells imported');
+check(attendanceSnapshot($pdo,$s1)['scopes'][0]['days'][academicDay()]['statuses']['attcheck-one']==='absent','Imported mark published');
+check(empty(attendanceSnapshot($pdo,$s2)['scopes'][0]['days'][academicDay()]['statuses']),'Blank cannot create absence');
+$patch=['subjectId'=>'attcheck-subject','section'=>'attcheck-section','days'=>[academicDay()=>['attcheck-two'=>'L']]];
+$pdo->beginTransaction();attendanceImport($pdo,['id'=>'attcheck-admin','role'=>'Admin'],$patch);$pdo->commit();
+$all=attendanceSnapshot($pdo,$teacher)['scopes'][0]['days'][academicDay()]['statuses'];
+check($all===['attcheck-one'=>'absent','attcheck-two'=>'late'],'Patch preserves existing other student marks and admin sync');
+foreach([$s1,['id'=>'other-teacher','role'=>'Teacher']] as $forbidden){try{attendanceImport($pdo,$forbidden,$patch);throw new Exception('Unauthorized import accepted');}catch(RuntimeException $e){check($e->getMessage()!=='Unauthorized import accepted','Import permissions');}}
+$bad=$patch;$bad['days'][academicDay()]['outside-student']='P';
+try{$pdo->beginTransaction();attendanceImport($pdo,$teacher,$bad);throw new Exception('Outside roster accepted');}catch(InvalidArgumentException $e){$pdo->rollBack();}
+$bad=$patch;$bad['days'][academicDay()]['attcheck-two']='X';
+try{$pdo->beginTransaction();attendanceImport($pdo,$teacher,$bad);throw new Exception('Invalid mark accepted');}catch(InvalidArgumentException $e){$pdo->rollBack();}
+check(attendanceSnapshot($pdo,$teacher)['scopes'][0]['days'][academicDay()]['statuses']===$all,'Failed import writes nothing');
 echo "PASS temporary-table integration: draft rejection, acknowledged submit, own-student privacy, unmarked preserved, admin report sync, resubmission, teacher assignment, read-only student. No real rows changed.\n";

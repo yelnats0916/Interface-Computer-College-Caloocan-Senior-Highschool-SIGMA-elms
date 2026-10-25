@@ -75,3 +75,58 @@ function attendanceSnapshot(PDO $db,array $actor): array {
     }
     return ['success'=>true,'userId'=>(string)$actor['id'],'scopes'=>$scopes];
 }
+
+function attendanceImportContext(PDO $db,array $actor,array $input): array {
+    if(!academicAdmin($actor)&&(academicRole($actor)!=='teacher'||!sigmaActorPermission($actor,'teacherAttendance')))throw new RuntimeException('Only an assigned teacher or administrator can import attendance.');
+    [$subject,$section]=academicScope($db,$actor,(string)($input['subjectId']??''),(string)($input['section']??''));
+    $years=$db->query('SELECT * FROM school_years WHERE is_deleted=0 ORDER BY year_start DESC')->fetchAll(PDO::FETCH_ASSOC);
+    $academic=attendanceAcademicContext($years,$section,academicDay());$year=null;
+    foreach($years as $candidate)if((string)$candidate['id']===(string)($academic['schoolYearId']??'')){$year=$candidate;break;}
+    if(!$year||empty($year['q1_start'])||empty($year['q4_end']))throw new InvalidArgumentException('Configure this section’s school year dates first.');
+    $students=[];
+    foreach($db->query("SELECT * FROM users WHERE is_deleted=0 AND LOWER(status)='active' AND LOWER(role)='student'")->fetchAll(PDO::FETCH_ASSOC) as $student){
+        if(!gradeStudent($section,$student))continue;
+        $name=!empty($student['last_name'])?trim($student['last_name'].', '.($student['first_name']??'').' '.($student['middle_name']??'')):(string)($student['full_name']??$student['id']);
+        $students[]=['id'=>(string)$student['id'],'name'=>$name];
+    }
+    usort($students,fn($a,$b)=>strnatcasecmp($a['name'],$b['name']));
+    $quarters=[];foreach([1,2,3,4] as $q)$quarters[]=['quarter'=>$q,'start'=>$year['q'.$q.'_start'],'end'=>$year['q'.$q.'_end']];
+    return ['section'=>$section,'subject'=>$subject,'context'=>['section'=>$section['name'],'subject'=>$subject['name'],'schoolYear'=>$academic['schoolYear'],'start'=>$year['q1_start'],'end'=>$year['q4_end'],'today'=>academicDay(),'students'=>$students,'quarters'=>$quarters]];
+}
+
+/** Nonblank imported cells are patches. Validate the whole workbook before writing any day. */
+function attendanceImport(PDO $db,array $actor,array $input): array {
+    $scope=attendanceImportContext($db,$actor,$input);$section=$scope['section'];$subject=$scope['subject'];$context=$scope['context'];
+    $days=$input['days']??[];
+    if(!is_array($days)||!count($days)||count($days)>366)throw new InvalidArgumentException('Upload attendance for 1 to 366 dates.');
+    $roster=array_column($context['students'],null,'id');$clean=[];$previous=[];$conflicts=[];
+    ksort($days);
+    foreach($days as $date=>$marks){
+        $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',(string)$date);
+        if(!$parsed||$parsed->format('Y-m-d')!==$date||$date<$context['start']||$date>$context['end']||$date>$context['today'])throw new InvalidArgumentException('Attendance dates must be within this school year and cannot be in the future.');
+        if(!is_array($marks)||count($marks)>count($roster))throw new InvalidArgumentException('Invalid attendance roster.');
+        $old=academicRead($db,'attendance',$subject,$section,'',$date)??[];
+        $previous[$date]=$old;$clean[$date]=[];
+        foreach($marks as $id=>$mark){
+            if(!isset($roster[$id]))throw new InvalidArgumentException('A student is not enrolled in this section.');
+            if(!is_string($mark))throw new InvalidArgumentException('Invalid attendance mark.');
+            $mark=strtolower(trim($mark));if($mark==='')continue;
+            $mark=['p'=>'present','a'=>'absent','l'=>'late','e'=>'excused'][$mark]??$mark;
+            if(!in_array($mark,['present','absent','late','excused'],true))throw new InvalidArgumentException('Use P, A, L, or E for attendance marks.');
+            $clean[$date][$id]=$mark;$before=$old['statuses'][$id]??'';
+            if($before!==''&&$before!==$mark)$conflicts[]=['date'=>$date,'id'=>(string)$id,'name'=>$roster[$id]['name'],'before'=>$before,'after'=>$mark];
+        }
+        if(!$clean[$date])unset($clean[$date]);
+    }
+    if(!$clean)throw new InvalidArgumentException('The workbook has no attendance marks to import.');
+    $revision=hash('sha256',json_encode($previous,JSON_THROW_ON_ERROR));
+    if($conflicts&&(($input['overwrite']??false)!==true||!hash_equals($revision,(string)($input['revision']??''))))return ['success'=>true,'needsConfirmation'=>true,'revision'=>$revision,'conflicts'=>$conflicts];
+    $years=$db->query('SELECT * FROM school_years WHERE is_deleted=0 ORDER BY year_start DESC')->fetchAll(PDO::FETCH_ASSOC);$count=0;
+    foreach($clean as $date=>$marks){
+        $old=$previous[$date];$excuses=$old['excuses']??[];
+        foreach($marks as $id=>$mark)if($mark!=='excused')unset($excuses[$id]);
+        $record=array_merge($old,attendanceAcademicContext($years,$section,$date),['date'=>$date,'statuses'=>array_replace($old['statuses']??[],$marks),'excuses'=>$excuses,'submitted'=>true,'submittedAt'=>gmdate('c'),'submittedBy'=>(string)$actor['id']]);
+        academicWrite($db,$actor,'attendance',$subject,$section,'',$date,$record);$count+=count($marks);
+    }
+    return ['success'=>true,'importedDates'=>count($clean),'importedMarks'=>$count];
+}

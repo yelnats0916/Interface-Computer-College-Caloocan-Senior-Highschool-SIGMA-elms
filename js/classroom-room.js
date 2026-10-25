@@ -2928,9 +2928,9 @@
                         <div id="teacher-attendance-calendar-popup" class="teacher-attendance-calendar-popup hidden"></div>
                     </div>
                     <div class="flex items-center justify-end shrink-0">
-                        <button type="button" class="attendance-export-excel-btn flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 text-[11px] sm:text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer select-none" onclick="window.openAttendanceExportModal()" title="Export Attendance to Excel">
+                        <button type="button" class="attendance-export-excel-btn flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 text-[11px] sm:text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer select-none" onclick="window.openAttendanceTransferMenu(this)" title="Import or export attendance">
                             <i class="fa-solid fa-file-excel text-emerald-600 text-xs sm:text-sm"></i>
-                            <span style="display:inline !important; line-height:16px;">Export</span>
+                            <span style="display:inline !important; line-height:16px;">Import / Export</span>
                         </button>
                     </div>
                 </div>
@@ -3929,6 +3929,9 @@
             window.showToastNotification?.('Unable to export the attendance PDF. Please try again.', 'warning');
         } finally { window._attendancePdfExporting = false; }
     };
+
+    window.getAttendanceTransferScope = () => ({section:getActiveRoomSectionName(), subjectId:getActiveRoomSubjectName(), year:attendanceViewingYear, month:attendanceViewingMonth});
+    window.buildAttendanceTransferWorksheet = buildAttendanceWorksheet;
 
     window.exportFilteredAttendanceWorkbook = function (section, subject, config) {
         if (typeof XLSX === 'undefined') { window.showToastNotification?.('Excel export is unavailable. Please reload and try again.', 'warning'); return; }
