@@ -1082,68 +1082,20 @@
         });
     }
 
-    function buildPdfTemplateBlob(headers, rows) {
-        const pdfEsc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-        const xPositions = [40, 145, 235, 325, 415, 475];
-        const commands = [];
-
-        // Header banner & title
-        commands.push('0.082 0.502 0.239 rg');
-        commands.push(`BT /F2 14 Tf 40 545 Td (${pdfEsc('SIGMA ELMS - Batch User Account Template (5 Sample Users)')}) Tj ET`);
-        commands.push('0.35 0.40 0.48 rg');
-        commands.push(`BT /F1 9 Tf 40 528 Td (${pdfEsc('Includes Admin, Teacher, and Student sample accounts. Upload this PDF directly into Batch Create User Accounts.')}) Tj ET`);
-
-        // Table Header Row Background
-        commands.push('0.082 0.502 0.239 rg');
-        commands.push('34 492 724 22 re f');
-
-        // Table Header Text
-        commands.push('1 1 1 rg');
-        headers.forEach((h, cIdx) => {
-            commands.push(`BT /F2 10 Tf ${xPositions[cIdx]} 500 Td (${pdfEsc(h)}) Tj ET`);
-        });
-
-        // Data Rows
-        let y = 472;
-        rows.forEach((rowCells, rIdx) => {
-            if (rIdx % 2 === 1) {
-                commands.push('0.96 0.98 0.96 rg');
-                commands.push(`34 ${y - 6} 724 20 re f`);
-            }
-            commands.push('0.12 0.16 0.23 rg');
-            rowCells.forEach((val, cIdx) => {
-                if (val) {
-                    commands.push(`BT /F1 10 Tf ${xPositions[cIdx]} ${y} Td (${pdfEsc(val)}) Tj ET`);
-                }
-            });
-            y -= 24;
-        });
-
-        const streamContent = commands.join('\n');
-        const objects = [
-            '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
-            '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
-            '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n',
-            `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`,
-            '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
-            '6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n'
-        ];
-
-        let pdfText = '%PDF-1.4\n';
-        const offsets = [0];
-        for (const obj of objects) {
-            offsets.push(pdfText.length);
-            pdfText += obj;
-        }
-        const xrefStart = pdfText.length;
-        pdfText += `xref\n0 ${objects.length + 1}\n`;
-        pdfText += '0000000000 65535 f \n';
-        for (let i = 1; i <= objects.length; i++) {
-            pdfText += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
-        }
-        pdfText += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
-
-        return new Blob([pdfText], { type: 'application/pdf' });
+    async function buildPdfTemplateBlob(headers, rows) {
+        const doc = await window.SigmaPdfLayout.create({orientation:'landscape'});
+        doc.setFont('SigmaSans','bold');doc.setFontSize(14);
+        const title = doc.splitTextToSize('SIGMA ELMS - Batch User Account Template (5 Sample Users)',269);
+        doc.text(title,14,16);
+        doc.setFont('SigmaSans','normal');doc.setFontSize(9);
+        doc.text('Includes Admin, Teacher, and Student sample accounts.',14,24);
+        doc.autoTable({head:[headers],body:rows.map(row=>row.map(window.SigmaPdfLayout.text)),startY:31,
+            margin:{left:14,right:14,top:15,bottom:16},tableWidth:269,theme:'grid',showHead:'everyPage',rowPageBreak:'avoid',
+            styles:{font:'SigmaSans',fontSize:9,cellPadding:3,overflow:'linebreak'},
+            columnStyles:Object.fromEntries([40,42,42,42,28,75].map((width,index)=>[index,{cellWidth:width}])),
+            headStyles:{fillColor:[21,128,61],textColor:255}});
+        window.SigmaPdfLayout.footer(doc);
+        return doc.output('blob');
     }
 
     function triggerBlobDownload(blob, fileName) {
@@ -1157,7 +1109,7 @@
         setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
 
-    window.downloadBatchUserTemplate = function (format = 'xlsx') {
+    window.downloadBatchUserTemplate = async function (format = 'xlsx') {
         const fmt = String(format || 'xlsx').trim().toLowerCase();
         const headers = ['Institutional Role', 'Firstname', 'Middlename', 'Lastname', 'Gender', 'Gmail'];
         const sampleRows = getFiveSampleTemplateRows();
@@ -1185,7 +1137,7 @@
 
         if (fmt === 'pdf') {
             const fileName = 'SIGMA_Batch_User_Template.pdf';
-            const pdfBlob = buildPdfTemplateBlob(headers, sampleRows);
+            const pdfBlob = await buildPdfTemplateBlob(headers, sampleRows);
             const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
             if (window._sigmaUploadedFiles instanceof Map) {
                 window._sigmaUploadedFiles.set(fileName, pdfFile);

@@ -140,36 +140,8 @@
         return window.SigmaNotifications?.getLogs() || [];
     }
 
-    let libraries;
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = () => {
-                script.remove();
-                reject(Error('Unable to load PDF tools. Please try again.'));
-            };
-            document.head.append(script);
-        });
-    }
-
-    async function pdfLibraries() {
-        if (!libraries) {
-            libraries = (async () => {
-                if (!window.jspdf?.jsPDF) await loadScript('js/vendor/jspdf.umd.min.js?v=3.0.3');
-                if (!window.jspdf.jsPDF.API.autoTable) await loadScript('js/vendor/jspdf.plugin.autotable.min.js?v=5.0.2');
-            })().catch(error => {
-                libraries = null;
-                throw error;
-            });
-        }
-        return libraries;
-    }
-
     async function download(rows, selected, filter) {
-        await pdfLibraries();
-        const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const doc = await window.SigmaPdfLayout.create({ orientation: 'landscape' });
         doc.setProperties({ title: filter.reportTitle || 'Audit Logs Report', creator: 'SIGMA ELMS' });
         selected.forEach((kind, index) => {
             if (index) doc.addPage();
@@ -177,7 +149,7 @@
             doc.setFontSize(18);
             doc.text('Interface Computer College', 14, 15);
             doc.setFontSize(14);
-            const titleLines=doc.splitTextToSize(filter.reportTitle || types[kind]+' Report',269);
+            const titleLines=doc.splitTextToSize(window.SigmaPdfLayout.text(filter.reportTitle || types[kind]+' Report'),269);
             const titleOffset=(titleLines.length-1)*6;
             doc.text(titleLines, 14, 24);
             doc.setFontSize(9);
@@ -189,21 +161,18 @@
             doc.autoTable({
                 startY: 42 + titleOffset + (lines.length - 1) * 4,
                 head: [data.headers],
-                body: data.body.length ? data.body : [['No matching records', ...data.headers.slice(1).map(() => '')]],
+                body: (data.body.length ? data.body : [['No matching records', ...data.headers.slice(1).map(() => '')]]).map(row => row.map(window.SigmaPdfLayout.text)),
+                tableWidth: 269,
+                columnStyles: Object.fromEntries((kind === 'ai' ? [10, 35, 52, 100, 35, 37] : kind === 'auth' ? [10, 40, 93, 30, 54, 42] : kind === 'notifications' ? [10, 40, 48, 99, 30, 42] : [10, 45, 119, 50, 45]).map((width, index) => [index, {cellWidth: width}])),
                 theme: 'grid',
-                styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', textColor: 0 },
+                styles: { font: 'SigmaSans', fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', textColor: 0, valign: 'top' },
                 headStyles: { fillColor: [21, 128, 61], textColor: 255 },
                 margin: { left: 14, right: 14, top: 15, bottom: 15 },
-                rowPageBreak: 'avoid'
+                rowPageBreak: 'avoid', showHead: 'everyPage'
             });
         });
-        for (let page = 1; page <= doc.getNumberOfPages(); page++) {
-            doc.setPage(page);
-            doc.setFontSize(8);
-            doc.setTextColor(80);
-            doc.text(`${page} of ${doc.getNumberOfPages()}`, 283, 204, { align: 'right' });
-        }
-        doc.save('SIGMA-'+(filter.reportTitle||'Audit Logs').replace(/[^A-Za-z0-9]+/g,'-')+'-'+day(new Date().toISOString())+'.pdf');
+        window.SigmaPdfLayout.footer(doc);
+        await doc.save('SIGMA-'+(filter.reportTitle||'Audit Logs').replace(/[^A-Za-z0-9]+/g,'-')+'-'+day(new Date().toISOString())+'.pdf', { returnPromise: true });
     }
 
     window.openAuditPdfExport = function (kind) {
@@ -221,55 +190,50 @@
                 <section class="audit-date-range"><div class="audit-date-range-heading"><label>Date Range</label><div class="audit-date-presets">
                     <button type="button" class="audit-date-preset" data-days="1">Today</button><button type="button" class="audit-date-preset" data-days="7">Last 7 Days</button><button type="button" class="audit-date-preset" data-days="30">Last 30 Days</button><button type="button" class="audit-date-preset" data-days="0">All Dates</button>
                 </div></div><div class="audit-export-grid"><label>From Date<input type="date" name="from"></label><label>To Date<input type="date" name="to"></label></div></section>
-                <p data-count role="status">Loading records…</p><p data-error role="alert" hidden></p>
-                <div class="audit-preview-table-wrap"><table class="audit-preview-table"><thead><tr data-preview-head></tr></thead><tbody data-preview-body></tbody></table></div>
-                <div class="audit-preview-pagination"><span data-pagination-info></span><div><button type="button" class="audit-date-preset" data-page="previous">Previous</button><span data-page-label></span><button type="button" class="audit-date-preset" data-page="next">Next</button></div></div>
+                <p data-error role="alert" hidden></p>
             </div><footer class="sigma-modal-footer"><button type="submit" class="sigma-btn sigma-btn-primary sigma-btn-md" data-download><i class="fa-solid fa-file-pdf"></i><span>Download PDF</span></button></footer>
             </form></div>`;
         modal.querySelector('h1').textContent='Export '+title;
-        const form=modal.querySelector('form'),count=modal.querySelector('[data-count]'),error=modal.querySelector('[data-error]'),downloadButton=modal.querySelector('[data-download]');
-        let rows=[],loading=true,failure='',page=1;const pageSize=10;
+        const form=modal.querySelector('form'),error=modal.querySelector('[data-error]'),downloadButton=modal.querySelector('[data-download]');
+        let saving=false;
         const filter=()=>({from:form.elements.from.value,to:form.elements.to.value,direction:'both',search:context.search||'',reportTitle:title+' Report'});
-        const matching=()=>rows.filter(row=>matches(row,filter()));
         function render(){
-            if(!modal.isConnected)return;
             const f=filter(),invalid=f.from&&f.to&&f.from>f.to;
-            error.textContent=invalid?'From Date must be on or before To Date.':failure;error.hidden=!error.textContent;
-            const list=invalid?[]:matching(),pages=Math.max(1,Math.ceil(list.length/pageSize));page=Math.min(page,pages);
-            count.textContent=loading?'Loading records…':`${list.length} matching record${list.length===1?'':'s'}`;
-            downloadButton.disabled=loading||!!failure||!!invalid||!list.length;
-            const data=table(kind,list),head=modal.querySelector('[data-preview-head]'),body=modal.querySelector('[data-preview-body]');head.replaceChildren();body.replaceChildren();
-            data.headers.forEach(label=>{const th=document.createElement('th');th.textContent=label;head.append(th);});
-            data.body.slice((page-1)*pageSize,page*pageSize).forEach(cells=>{const tr=document.createElement('tr');cells.forEach(value=>{const td=document.createElement('td');td.textContent=String(value).length>240?String(value).slice(0,237)+'…':value;tr.append(td);});body.append(tr);});
-            if(!list.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=data.headers.length;td.textContent=loading?'Loading records…':failure?'Records could not be loaded.':'No matching records';tr.append(td);body.append(tr);}
-            modal.querySelector('[data-pagination-info]').textContent=list.length?`${(page-1)*pageSize+1}-${Math.min(page*pageSize,list.length)} of ${list.length}`:'0 of 0';
-            modal.querySelector('[data-page-label]').textContent=`Page ${page} of ${pages}`;
-            modal.querySelector('[data-page="previous"]').disabled=page<=1;modal.querySelector('[data-page="next"]').disabled=page>=pages;
+            error.textContent=invalid?'From Date must be on or before To Date.':'';error.hidden=!invalid;
+            downloadButton.disabled=saving||!!invalid;
         }
         function preset(days){
             const today=day(new Date().toISOString());
             if(days){const start=new Date(today+'T00:00:00Z');start.setUTCDate(start.getUTCDate()-days+1);form.elements.from.value=start.toISOString().slice(0,10);form.elements.to.value=today;}
             else{form.elements.from.value='';form.elements.to.value='';}
-            modal.querySelectorAll('[data-days]').forEach(button=>button.classList.toggle('active',Number(button.dataset.days)===days));page=1;render();
+            modal.querySelectorAll('[data-days]').forEach(button=>button.classList.toggle('active',Number(button.dataset.days)===days));render();
         }
         modal.querySelectorAll('[data-days]').forEach(button=>button.onclick=()=>preset(Number(button.dataset.days)));
-        form.onchange=()=>{page=1;modal.querySelectorAll('[data-days]').forEach(button=>button.classList.remove('active'));render();};
-        modal.querySelectorAll('[data-page]').forEach(button=>button.onclick=()=>{page+=button.dataset.page==='next'?1:-1;render();});
+        form.onchange=()=>{modal.querySelectorAll('[data-days]').forEach(button=>button.classList.remove('active'));render();};
         const opener=document.activeElement,previousOverflow=document.body.style.overflow;
-        const close=()=>{if(downloadButton.dataset.saving)return;modal.remove();document.body.style.overflow=previousOverflow;document.removeEventListener('keydown',keydown);opener?.focus({preventScroll:true});};
+        const close=()=>{if(saving)return;modal.remove();document.body.style.overflow=previousOverflow;document.removeEventListener('keydown',keydown);opener?.focus({preventScroll:true});};
         const keydown=event=>{if(event.key==='Escape')close();if(event.key==='Tab'){const nodes=[...modal.querySelectorAll('button:not(:disabled),input')].filter(node=>node.getClientRects().length),first=nodes[0],last=nodes.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};
         modal.querySelector('[data-close]').onclick=close;document.addEventListener('keydown',keydown);document.body.style.overflow='hidden';document.body.append(modal);preset(7);modal.querySelector('[data-close]').focus({preventScroll:true});
-        (async()=>{
-            try{
-                const records=Array.isArray(context.records)?context.records:await source(kind);
-                let users=listUsers();try{const result=await window.SigmaDatabase.request('users');if(Array.isArray(result.records))users=result.records;}catch(_){}
-                rows=records.map(record=>normalize(kind,record,users)).sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp));
-            }catch(e){failure=e.message||'Records could not be loaded.';}finally{loading=false;render();}
-        })();
         form.onsubmit=async event=>{
             event.preventDefault();if(downloadButton.disabled||!allowed(kind))return;
-            downloadButton.disabled=true;downloadButton.dataset.saving='true';
-            try{await download(matching(),[kind],filter());}catch(e){error.hidden=false;error.textContent=e.message||'Unable to download PDF.';}finally{delete downloadButton.dataset.saving;render();}
+            saving=true;render();error.hidden=true;
+            downloadButton.setAttribute('aria-busy','true');
+            downloadButton.innerHTML='<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Downloading PDF</span>';
+            modal.querySelectorAll('input,[data-days]').forEach(control=>control.disabled=true);
+            try{
+                await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+                const records=Array.isArray(context.records)?context.records:await source(kind);
+                let users=listUsers();try{const result=await window.SigmaDatabase.request('users');if(Array.isArray(result.records))users=result.records;}catch(_){}
+                const rows=records.map(record=>normalize(kind,record,users)).filter(row=>matches(row,filter())).sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp));
+                if(!rows.length)throw new Error('No records found for this date range.');
+                await download(rows,[kind],filter());
+                saving=false;close();
+            }catch(e){
+                saving=false;render();error.hidden=false;error.textContent=e.message||'Unable to download PDF.';
+                downloadButton.removeAttribute('aria-busy');
+                downloadButton.innerHTML='<i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>Download PDF</span>';
+                modal.querySelectorAll('input,[data-days]').forEach(control=>control.disabled=false);
+            }
         };
     };
 

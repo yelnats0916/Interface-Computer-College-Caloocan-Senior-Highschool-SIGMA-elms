@@ -5870,7 +5870,7 @@ window.generateQuizExportDocument = function (mode = 'student', includeHeader = 
     return output;
 };
 
-window.executeDownloadAssessment = function () {
+window.executeDownloadAssessment = async function () {
     if (!questions || questions.length === 0) {
         window.openAskingPanel({
             title: 'Empty Quiz',
@@ -5893,50 +5893,21 @@ window.executeDownloadAssessment = function () {
     window.closeDownloadOptionsModal();
 
     if (activeExportFormat === 'pdf') {
-        const lines = formattedContent.split('\n');
-        let textStream = `BT\n/F1 10 Tf\n13 TL\n36 780 Td\n`;
-        lines.forEach(l => {
-            const escaped = l.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-            textStream += `(${escaped}) Tj\nT*\n`;
-        });
-        textStream += `ET`;
-
-        const pdfData = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
-endobj
-4 0 obj
-<< /Length ${textStream.length} >>
-stream
-${textStream}
-endstream
-endobj
-5 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000227 00000 n 
-0000000000 00000 n 
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-${300 + textStream.length}
-%%EOF`;
-
-        const blob = new Blob([pdfData], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        try {
+            const doc = await window.SigmaPdfLayout.create();
+            doc.setProperties({title:currentQuizTitle || 'Assessment Quiz',creator:'SIGMA ELMS'});
+            doc.setFontSize(10);
+            const lines = doc.splitTextToSize(window.SigmaPdfLayout.text(formattedContent), 182);
+            let y = 16;
+            for (const line of lines) {
+                if (y > 277) { doc.addPage(); y = 16; }
+                doc.text(line, 14, y); y += 5;
+            }
+            window.SigmaPdfLayout.footer(doc);
+            await doc.save(fileName, {returnPromise:true});
+        } catch (error) {
+            window.showToastNotification?.('Unable to download the PDF. Please try again.', 'warning');
+        }
     } else if (activeExportFormat === 'docx') {
         const blob = new Blob([formattedContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
         const url = URL.createObjectURL(blob);
