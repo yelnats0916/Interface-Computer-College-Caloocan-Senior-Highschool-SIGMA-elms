@@ -14,20 +14,20 @@
     }
     const monthsFor = dates => [...new Set(dates.map(date => date.slice(0, 7)))];
     const monthLabel = month => new Date(month + '-01T00:00:00Z').toLocaleDateString('en-US', {month:'long',year:'numeric',timeZone:'UTC'});
-    function workbookFor(context, from, to, blank) {
+    function workbookFor(context, from, to, blank, includeNonSchool = false) {
         if (from < context.start || to > context.end) throw Error('Select dates within this section’s school year.');
         const dates = datesBetween(from, to), workbook = XLSX.utils.book_new();
         const published = Object.fromEntries((window.getSubmittedAttendanceDays?.(context.section, context.subject) || []).map(record => [record.date, record.statuses]));
         for (const month of monthsFor(dates)) {
-            const columns = dates.filter(date => date.startsWith(month)).map(date => ({dateStr:date,label:date,dayNum:Number(date.slice(8))}));
+            const columns = dates.filter(date => date.startsWith(month) && (includeNonSchool || ![0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))).map(date => ({dateStr:date,label:date.slice(5).replace('-', '/'),dayNum:Number(date.slice(8))}));
+            if (!columns.length) continue;
             const students = context.students.map(student => ({...student,fullName:student.name}));
             const quarters=(context.quarters||[]).filter(q=>q.start<=columns.at(-1).dateStr&&q.end>=columns[0].dateStr);
             const ordinal=['1st','2nd','3rd','4th'];
             const academic={quarter:quarters.map(q=>ordinal[q.quarter-1]+' Quarter').join(' / '),semester:[...new Set(quarters.map(q=>q.quarter<=2?'1st Semester':'2nd Semester'))].join(' / ')};
-            const {ws} = window.buildAttendanceTransferWorksheet(columns, `${columns[0].dateStr} to ${columns.at(-1).dateStr}`, students, context.subject, context.section, date => blank ? {} : published[date] || {},academic);
+            const {ws} = window.buildAttendanceTransferWorksheet(columns, monthLabel(month), students, context.subject, context.section, date => blank ? {} : published[date] || {},academic);
             if (!ws) throw Error('Excel is unavailable.');
             if(ws.C4)ws.C4.v=context.schoolYear;
-            columns.forEach((_,index)=>{ws['!cols'][index+3]={wch:13};});
             // Retain the existing sheet layout, with totals that update as teachers enter marks.
             const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
             const header=data.findIndex(row=>norm(row[0])==='no.'&&norm(row[2])==='student id'),first=header+1,last=first+students.length-1;
@@ -41,6 +41,7 @@
             }));
             XLSX.utils.book_append_sheet(workbook, ws, month);
         }
+        if (!workbook.SheetNames.length) throw Error('The selected date range has no school days.');
         workbook.Custprops = {SIGMA_AttendanceScope:JSON.stringify({section:context.section,subject:context.subject,schoolYear:context.schoolYear})};
         return workbook;
     }

@@ -8,9 +8,9 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
  await p.addScriptTag({path:'js/vendor/xlsx.bundle.js'});
  await p.evaluate(role=>{
   window.calls=[];window.testContext={section:'Einstein',subject:'Oral Communication in Context',schoolYear:'2026-2027',start:'2026-06-16',end:'2027-03-31',today:'2026-10-25',students:Array.from({length:10},(_,i)=>({id:String(2601030+i),name:'Student '+(i+1)}))};
-  window.SigmaDatabase={currentUser:()=>({id:'teacher',role}),request:async(endpoint,{data})=>{window.calls.push(data);if(data.action==='import-context')return{success:true,context:window.testContext};if(!data.overwrite)return{success:true,needsConfirmation:true,revision:'revision1',conflicts:[{date:'2026-10-24',id:'2601030',name:'Student 1',before:'present',after:'absent'}]};return{success:true,importedMarks:2};}};
+  window.SigmaDatabase={currentUser:()=>({id:'teacher',role}),request:async(endpoint,{data})=>{window.calls.push(data);if(data.action==='import-context')return{success:true,context:window.testContext};if(!data.overwrite)return{success:true,needsConfirmation:true,revision:'revision1',conflicts:[{date:'2026-10-23',id:'2601030',name:'Student 1',before:'present',after:'absent'}]};return{success:true,importedMarks:2};}};
   window.SigmaAttendance={refresh:async()=>{}};window.getAttendanceTransferScope=()=>({section:'Einstein',subjectId:'Oral Communication in Context',year:2026,month:9});
-  window.getSubmittedAttendanceDays=()=>[{date:'2026-10-24',statuses:{2601030:'P'}}];window.getActiveSchoolYearRecord=()=>({yearStart:2026,yearEnd:2027});window.getAttendanceAcademicContext=()=>({quarter:'2nd Quarter',semester:'1st Semester'});
+  window.getSubmittedAttendanceDays=()=>[{date:'2026-10-23',statuses:{2601030:'P'}}];window.getActiveSchoolYearRecord=()=>({yearStart:2026,yearEnd:2027});window.getAttendanceAcademicContext=()=>({quarter:'2nd Quarter',semester:'1st Semester'});
   window.formatStudentLastFirstMiddle=s=>s.name;window.studentNamesMatch=(a,b)=>a===b;window.closeAttendanceExportModal=()=>{};
  },portal==='admin'?'Admin':'Teacher');
  await p.addScriptTag({path:'js/excel-export.js'});
@@ -23,11 +23,13 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   if(book.SheetNames.join(',')!=='2026-09,2026-10')throw Error('Monthly tabs missing');
   const roundtrip=XLSX.read(XLSX.write(book,{type:'array',bookType:'xlsx'}),{type:'array'});
   const parsed=api.parseWorkbook(roundtrip,context);
-  if(parsed.count!==1||parsed.days['2026-10-24']['2601030']!=='P')throw Error('Roundtrip failed');
+  if(parsed.count!==1||parsed.days['2026-10-23']['2601030']!=='P')throw Error('Roundtrip failed');
   const ws=book.Sheets['2026-10'],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),header=rows.findIndex(r=>r[0]==='No.');
-  const col=rows[header].indexOf('2026-10-24'),address=XLSX.utils.encode_cell({r:header+1,c:col});
+  if(rows[header].includes('10/24')||rows[header].includes('10/25'))throw Error('Template differs from default school-day export');
+  if(rows.find(r=>r[0]==='Period:')?.[2]!=='October 2026')throw Error('Monthly period label differs from export');
+  const col=rows[header].indexOf('10/23'),address=XLSX.utils.encode_cell({r:header+1,c:col});
   ws[address].v='X';let rejected=false;try{api.parseWorkbook(book,context);}catch(e){rejected=true;}if(!rejected)throw Error('Invalid mark accepted');ws[address].v='A';
-  const col2=rows[header].indexOf('2026-10-23');ws[XLSX.utils.encode_cell({r:header+2,c:col2})]={t:'s',v:'L'};
+  const col2=rows[header].indexOf('10/22');ws[XLSX.utils.encode_cell({r:header+2,c:col2})]={t:'s',v:'L'};
   const result=api.parseWorkbook(book,context);if(result.count!==2)throw Error('Blank cells became marks');
   window.testUpload=XLSX.write(book,{type:'base64',bookType:'xlsx'});
   const blank=api.workbookFor(context,'2026-09-01','2026-10-31',true);let empty=false;try{api.parseWorkbook(blank,context);}catch(e){empty=true;}if(!empty)throw Error('Blank workbook accepted');
