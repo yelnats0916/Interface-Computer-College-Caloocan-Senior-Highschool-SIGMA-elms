@@ -19,7 +19,7 @@
         const dates = datesBetween(from, to), workbook = XLSX.utils.book_new();
         const published = Object.fromEntries((window.getSubmittedAttendanceDays?.(context.section, context.subject) || []).map(record => [record.date, record.statuses]));
         for (const month of monthsFor(dates)) {
-            const columns = dates.filter(date => date.startsWith(month) && (includeNonSchool || ![0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))).map(date => ({dateStr:date,label:date.slice(5).replace('-', '/'),dayNum:Number(date.slice(8))}));
+            const columns = dates.filter(date => date.startsWith(month) && (includeNonSchool || (!blank && Object.values(published[date] || {}).some(value => code(value))) || ![0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))).map(date => ({dateStr:date,label:date.slice(5).replace('-', '/'),dayNum:Number(date.slice(8))}));
             if (!columns.length) continue;
             const students = context.students.map(student => ({...student,fullName:student.name}));
             const quarters=(context.quarters||[]).filter(q=>q.start<=columns.at(-1).dateStr&&q.end>=columns[0].dateStr);
@@ -155,7 +155,10 @@
         const button = (label, action, secondary = false) => {const b=document.createElement('button');b.type='button';b.className=`attendance-export-download-btn sigma-btn sigma-btn-${secondary?'secondary':'primary'} sigma-btn-md`;b.textContent=label;b.onclick=action;return b;};
         async function run(control, label, work) {
             if(busy)return;busy=true;error.textContent='';const html=control.innerHTML;control.disabled=true;control.setAttribute('aria-busy','true');control.innerHTML=`<span class="sigma-dot-spinner" aria-hidden="true"></span><span>${label}</span>`;
-            try{await work();}catch(e){error.textContent=e.message||'Unable to import attendance.';}finally{busy=false;control.disabled=false;control.removeAttribute('aria-busy');control.innerHTML=html;}
+            const downloading=label==='Downloading';
+            const loader=downloading?document.createElement('span'):null;
+            if(loader){loader.className='attendance-download-loading';loader.setAttribute('role','status');loader.setAttribute('aria-label','Downloading attendance');loader.innerHTML='<span class="sigma-dot-spinner" aria-hidden="true"></span>';control.hidden=true;control.style.display='none';control.before(loader);}
+            try{await work();}catch(e){error.textContent=e.message||'Unable to import attendance.';}finally{loader?.remove();control.hidden=false;control.style.removeProperty('display');busy=false;control.disabled=false;control.removeAttribute('aria-busy');control.innerHTML=html;}
         }
         let templateValues=null;
         const tabs=overlay.querySelector('.attendance-import-mode-tabs');
@@ -169,7 +172,7 @@
         function template() {
             mode('template');footer.hidden=false;error.textContent='';const month=`${scope.year}-${String(scope.month+1).padStart(2,'0')}`;
             const from=[month+'-01',context.start].sort().at(-1), to=[day(new Date(Date.UTC(scope.year,scope.month+1,0))),context.end].sort()[0];
-            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Submitted Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset>`;
+            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Recorded Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset><p class="attendance-import-mark-hint">Enter P (Present), A (Absent), or L (Late) in the cell where the student’s row meets the date column. Leave cells blank to keep existing attendance unchanged.</p>`;
             content.onchange=()=>{const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
             const download=button('Download Template',()=>run(download,'Downloading',async()=>{
                 const form=overlay.querySelector('form');if(!form.reportValidity())return;
@@ -180,7 +183,7 @@
         }
         function upload() {
             mode('upload');footer.hidden=true;error.textContent='';review=null;content.onchange=null;
-            content.innerHTML=`<input type="file" accept=".xlsx,.xls" data-file hidden><button type="button" class="sigma-dashed-dropzone attendance-import-dropzone" data-drop><span class="sigma-dropzone-icon-box"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Upload your attendance sheet</strong><span class="text-black-fade">Drag &amp; drop your Excel file here or <u>browse</u></span><span class="text-black-fade">.xlsx or .xls · Up to 10 MB</span></button>`;
+            content.innerHTML=`<input type="file" accept=".xlsx,.xls" data-file hidden><button type="button" class="sigma-dashed-dropzone attendance-import-dropzone" data-drop><span class="sigma-dropzone-icon-box"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Upload your attendance sheet</strong><span class="text-black-fade">Drag &amp; drop your Excel file here or <u>browse</u></span><span class="text-black-fade">.xlsx or .xls · Up to 10 MB</span></button><p class="attendance-import-mark-hint">Enter P (Present), A (Absent), or L (Late) in the cell where the student’s row meets the date column. Leave cells blank to keep existing attendance unchanged.</p>`;
             const file=content.querySelector('[data-file]'),drop=content.querySelector('[data-drop]');
             const read=async file=>run(drop,'Reading workbook',async()=>{
                 if(!file||! /\.(xlsx|xls)$/i.test(file.name))throw Error('Upload an Excel workbook (.xlsx or .xls).');

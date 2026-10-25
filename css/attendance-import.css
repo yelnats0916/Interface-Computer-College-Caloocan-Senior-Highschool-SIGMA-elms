@@ -86,3 +86,7 @@
 #attendance-export-modal.attendance-import .attendance-import-loading{display:flex;align-items:center;justify-content:center;width:100%;min-height:clamp(240px,45vh,480px);box-sizing:border-box}
 #attendance-export-modal.attendance-import .attendance-import-loading .sigma-dot-spinner{--sigma-loader-size:56px}
 @media(max-width:767px){#attendance-export-modal.attendance-import .attendance-import-loading{min-height:clamp(200px,40vh,360px)}#attendance-export-modal.attendance-import .attendance-import-loading .sigma-dot-spinner{--sigma-loader-size:32px}}
+
+.attendance-download-loading{display:inline-flex;align-items:center;justify-content:center;min-width:56px;min-height:48px}.attendance-download-loading .sigma-dot-spinner{width:32px;height:32px}
+.attendance-import-mark-hint{margin:20px 0 0;color:#000;font:400 14px/1.6 Inter,sans-serif;overflow-wrap:anywhere}
+@media(max-width:767px){.attendance-import-mark-hint{font-size:12px;line-height:1.5}.attendance-download-loading{min-height:40px}.attendance-download-loading .sigma-dot-spinner{width:24px;height:24px}}

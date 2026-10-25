@@ -3972,6 +3972,8 @@
         window._attendanceExcelExporting = true;
         const button = document.querySelector('.attendance-export-download-btn');
         const buttonContent = button?.innerHTML;
+        const loader = button ? document.createElement('span') : null;
+        if (loader) { loader.className = 'attendance-download-loading'; loader.setAttribute('role', 'status'); loader.setAttribute('aria-label', 'Downloading attendance'); loader.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span>'; button.hidden = true; button.style.display = 'none'; button.before(loader); }
         if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>'; }
         try {
             await window.SigmaAttendance.refresh();
@@ -4206,6 +4208,8 @@
             console.error('Attendance export:', error);
         } finally {
             window._attendanceExcelExporting = false;
+            loader?.remove();
+            if (button) { button.hidden = false; button.style.removeProperty('display'); }
             if (button) { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = buttonContent; }
         }
     };

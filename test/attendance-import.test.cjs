@@ -10,7 +10,7 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   window.calls=[];window.testContext={section:'Einstein',subject:'Oral Communication in Context',schoolYear:'2026-2027',start:'2026-06-16',end:'2027-03-31',today:'2026-10-25',students:Array.from({length:10},(_,i)=>({id:String(2601030+i),name:'Student '+(i+1)}))};
   window.SigmaDatabase={currentUser:()=>({id:'teacher',role}),request:async(endpoint,{data})=>{window.calls.push(data);if(data.action==='import-context')return{success:true,context:window.testContext};if(!data.overwrite)return{success:true,needsConfirmation:true,revision:'revision1',conflicts:[{date:'2026-10-23',id:'2601030',name:'Student 1',before:'present',after:'absent'}]};return{success:true,importedMarks:2};}};
   window.SigmaAttendance={refresh:async()=>{}};window.getAttendanceTransferScope=()=>({section:'Einstein',subjectId:'Oral Communication in Context',year:2026,month:9});
-  window.getSubmittedAttendanceDays=()=>[{date:'2026-10-23',statuses:{2601030:'P'}}];window.getActiveSchoolYearRecord=()=>({yearStart:2026,yearEnd:2027});window.getAttendanceAcademicContext=()=>({quarter:'2nd Quarter',semester:'1st Semester'});
+  window.getSubmittedAttendanceDays=()=>[{date:'2026-10-23',statuses:{2601030:'P'}},{date:'2026-10-24',statuses:{2601030:'L'}}];window.getActiveSchoolYearRecord=()=>({yearStart:2026,yearEnd:2027});window.getAttendanceAcademicContext=()=>({quarter:'2nd Quarter',semester:'1st Semester'});
   window.formatStudentLastFirstMiddle=s=>s.name;window.studentNamesMatch=(a,b)=>a===b;window.closeAttendanceExportModal=()=>{};
  },portal==='admin'?'Admin':'Teacher');
  await p.addScriptTag({path:'js/excel-export.js'});
@@ -23,9 +23,9 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   if(book.SheetNames.join(',')!=='2026-09,2026-10')throw Error('Monthly tabs missing');
   const roundtrip=XLSX.read(XLSX.write(book,{type:'array',bookType:'xlsx'}),{type:'array'});
   const parsed=api.parseWorkbook(roundtrip,context);
-  if(parsed.count!==1||parsed.days['2026-10-23']['2601030']!=='P')throw Error('Roundtrip failed');
+  if(parsed.count!==2||parsed.days['2026-10-23']['2601030']!=='P')throw Error('Roundtrip failed');
   const ws=book.Sheets['2026-10'],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}),header=rows.findIndex(r=>r[0]==='No.');
-  if(rows[header].includes('10/24')||rows[header].includes('10/25'))throw Error('Template differs from default school-day export');
+  if(!rows[header].includes('10/24')||rows[header].includes('10/25'))throw Error('Recorded weekend date missing or blank weekend included');if(parsed.days['2026-10-24']['2601030']!=='L')throw Error('Recorded weekend mark missing');
   if(rows.find(r=>r[0]==='Period:')?.[2]!=='October 2026')throw Error('Monthly period label differs from export');
   const totals=rows.findIndex(r=>r[1]==='All Total Present'),emptyCol=rows[header].indexOf('10/22'),recordedCol=rows[header].indexOf('10/23');
   const cell=(r,c)=>ws[XLSX.utils.encode_cell({r,c})];
@@ -36,7 +36,7 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   const col=rows[header].indexOf('10/23'),address=XLSX.utils.encode_cell({r:header+1,c:col});
   ws[address].v='X';let rejected=false;try{api.parseWorkbook(book,context);}catch(e){rejected=true;}if(!rejected)throw Error('Invalid mark accepted');ws[address].v='A';
   const col2=rows[header].indexOf('10/22');ws[XLSX.utils.encode_cell({r:header+2,c:col2})]={t:'s',v:'L'};
-  const result=api.parseWorkbook(book,context);if(result.count!==2)throw Error('Blank cells became marks');
+  const result=api.parseWorkbook(book,context);if(result.count!==3)throw Error('Blank cells became marks');
   window.testUpload=XLSX.write(book,{type:'base64',bookType:'xlsx'});
   const blank=api.workbookFor(context,'2026-09-01','2026-10-31',true);const blankRows=XLSX.utils.sheet_to_json(blank.Sheets['2026-10'],{header:1,defval:''});if(blankRows.filter(r=>String(r[1]).startsWith('All Total')).some(r=>r.slice(3,-4).some(v=>v!=='')))throw Error('Blank template has numeric totals');let empty=false;try{api.parseWorkbook(blank,context);}catch(e){empty=true;}if(!empty)throw Error('Blank workbook accepted');
   const wrong={...context,section:'Other'};let outside=false;try{api.parseWorkbook(book,wrong);}catch(e){outside=true;}if(!outside)throw Error('Wrong section accepted');
@@ -45,11 +45,11 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   const idCell=XLSX.utils.encode_cell({r:header+1,c:2}),original=ws[idCell].v;ws[idCell].v='outside';let unknown=false;try{api.parseWorkbook(book,context);}catch(e){unknown=true;}if(!unknown)throw Error('Unknown student accepted');ws[idCell].v=original;
   // The old exported format has M/D headings and no custom properties.
   delete book.Custprops;for(const name of book.SheetNames){const sheet=book.Sheets[name],data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''}),hr=data.findIndex(r=>r[0]==='No.');data[hr].forEach((v,c)=>{if(/^2026-/.test(v))sheet[XLSX.utils.encode_cell({r:hr,c})].v=v.slice(5).replace('-','/');});}
-  if(api.parseWorkbook(book,context).count!==2)throw Error('Existing export format rejected');
+  if(api.parseWorkbook(book,context).count!==3)throw Error('Existing export format rejected');
   return true;
  });assert(check);
  await p.evaluate(()=>openAttendanceImport());const modal=p.locator('#attendance-export-modal');await modal.getByRole('tab',{name:'Download Template',exact:true}).click();assert(await modal.locator('[name=contents][value=current]').isChecked());await p.screenshot({path:path.join(process.env.TEMP,`attendance-template-form-${portal}-${width}.png`)});
- const dl=p.waitForEvent('download');await modal.getByRole('button',{name:'Download Template',exact:true}).click();await(await dl).saveAs(path.join(process.env.TEMP,`attendance-template-${portal}-${width}.xlsx`));await modal.waitFor({state:'detached'});
+ assert(await modal.getByText('Recorded Attendance',{exact:true}).isVisible());assert(await modal.locator('.attendance-import-mark-hint').isVisible());await p.evaluate(()=>{SigmaAttendance.refresh=()=>new Promise(resolve=>window.releaseDownload=resolve);});const dl=p.waitForEvent('download');await modal.getByRole('button',{name:'Download Template',exact:true}).click();assert(await modal.locator('.attendance-download-loading').isVisible());assert(!(await modal.getByRole('button',{name:'Downloading',exact:true}).isVisible()));await p.evaluate(()=>{releaseDownload();SigmaAttendance.refresh=async()=>{};});await(await dl).saveAs(path.join(process.env.TEMP,`attendance-template-${portal}-${width}.xlsx`));await modal.waitFor({state:'detached'});
  await p.evaluate(()=>openAttendanceImport());await modal.getByRole('tab',{name:'Upload Attendance',exact:true}).click();const drop=modal.locator('[data-drop]');await p.mouse.move(0,0);await p.waitForTimeout(250);
  const style=await drop.evaluate(el=>({radius:getComputedStyle(el).borderRadius,border:getComputedStyle(el).borderTopColor,icon:getComputedStyle(el.querySelector('i')).color}));assert.equal(style.radius,'16px');assert.equal(style.border,width===375?'rgb(255, 208, 0)':'rgba(0, 0, 0, 0.18)');assert.notEqual(style.icon,'rgb(21, 128, 61)');
  await p.screenshot({path:path.join(process.env.TEMP,`attendance-upload-form-${portal}-${width}.png`)});
@@ -60,6 +60,6 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
  await modal.locator('.attendance-import-tabs').getByRole('tab').nth(1).click();await p.screenshot({path:path.join(process.env.TEMP,`attendance-import-review-${portal}-${width}.png`)});
  await modal.getByRole('button',{name:'Submit Attendance',exact:true}).click();await modal.getByText('Replace Existing Marks?',{exact:true}).waitFor();assert.match(await modal.innerText(),/present/);assert.match(await modal.innerText(),/absent/);
  await modal.getByRole('button',{name:'Confirm Changes',exact:true}).click();await modal.waitFor({state:'detached'});
- const sent=await p.evaluate(()=>calls.filter(c=>c.action==='import'));assert.equal(sent.length,2);assert.equal(sent[1].overwrite,true);assert.equal(Object.keys(sent[1].days).length,2);
+ const sent=await p.evaluate(()=>calls.filter(c=>c.action==='import'));assert.equal(sent.length,2);assert.equal(sent[1].overwrite,true);assert.equal(Object.keys(sent[1].days).length,3);
  await p.close();console.log('PASS monthly XLSX roundtrip, old exports, blanks, wrong scope, preview, confirmation and responsive form',portal,width);
 }}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

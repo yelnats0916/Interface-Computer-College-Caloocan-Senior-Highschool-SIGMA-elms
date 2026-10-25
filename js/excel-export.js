@@ -31,15 +31,8 @@
     };
     const attendancePeriodReady = (period, section, subject) => {
         if (!period.available || !subjectExportPeriodAllowed(period, subject)) return false;
-        if (period.key.startsWith('sem')) {
-            const keys = period.key === 'sem1' ? ['q1', 'q2'] : ['q3', 'q4'];
-            return window.getAttendanceAcademicPeriods().filter(quarter => keys.includes(quarter.key))
-                .every(quarter => attendancePeriodReady(quarter, section, subject));
-        }
-        const data = window.findAttendanceClassroomRecord?.(section, subject)?.data || {};
-        const recorded = Object.entries(data).some(([date, entry]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= period.start && date <= period.end &&
-            Object.values(entry?.statuses || {}).some(status => ['P', 'A', 'L', 'E'].includes(String(status).trim().toUpperCase())));
-        return recorded || (data.date >= period.start && data.date <= period.end && Object.values(data.statuses || {}).some(status => ['P', 'A', 'L', 'E'].includes(String(status).trim().toUpperCase())));
+        return (window.getSubmittedAttendanceDays?.(section, subject) || []).some(entry => entry.date >= period.start && entry.date <= period.end &&
+            Object.values(entry.statuses || {}).some(status => ['P', 'A', 'L', 'E'].includes(String(status).trim().toUpperCase())));
     };
     window.isAttendanceAcademicPeriodReady = attendancePeriodReady;
     window.attendanceAcademicExportOptions = function (section, subject) {
@@ -48,7 +41,7 @@
             return `<label class="export-scope-option flex items-start gap-4 p-5 sm:p-6 rounded-2xl border border-slate-200 bg-white cursor-pointer transition-all hover:bg-slate-50" ${ready ? '' : 'style="opacity:.55;cursor:not-allowed"'}>
             <input type="radio" name="attendance-export-scope" value="${period.key}" class="mt-1 w-5 h-5 text-[#15803d] focus:ring-[#15803d] accent-[#15803d] cursor-pointer shrink-0" ${ready ? '' : 'disabled'} onchange="window.updateAttendanceExportOptionUI()">
             <div class="flex-1 min-w-0"><span class="export-scope-title text-base font-bold text-black">${period.label}${ready ? '' : ' · Locked'}</span>
-            <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed">${!period.available ? 'Configure this period’s dates in School Year settings to enable export.' : !ready ? (period.key.startsWith('sem') ? 'Available when attendance is recorded in both quarters.' : 'Available when attendance is recorded for this period.') : `Exports recorded attendance from ${escape(period.start)} to ${escape(period.end)}, grouped by month.`}</p></div></label>`;
+            <p class="export-scope-desc text-sm text-black-fade mt-1.5 leading-relaxed">${!period.available ? 'Configure this period’s dates in School Year settings to enable export.' : !ready ? 'Available when submitted attendance is recorded for this period.' : `Exports recorded attendance from ${escape(period.start)} to ${escape(period.end)}, grouped by month.`}</p></div></label>`;
         }).join('') + '</div>';
     };
     const refreshAttendancePeriods = () => {
