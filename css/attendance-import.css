@@ -20,7 +20,7 @@
 .attendance-import-options input{width:20px;height:20px;accent-color:#15803d;flex:none}
 #attendance-export-modal .attendance-import-dropzone{width:100%;max-width:768px;min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:28px;font:400 14px/22px Inter,sans-serif;box-sizing:border-box;cursor:pointer;color:#000}
 .attendance-import-dropzone .sigma-dropzone-icon-box{width:48px;height:48px;display:grid;place-items:center;border-radius:12px;font-size:24px}
-.attendance-import-dropzone strong{font-size:16px;font-weight:600}.attendance-import-dropzone.dragover{border-color:#15803d;background:#f0fdf4}
+.attendance-import-dropzone strong{font-size:16px;font-weight:600}
 .attendance-import-table{max-width:100%;overflow:auto;border:1px solid #e5e7eb;border-radius:12px;overscroll-behavior:contain;max-height:52vh}
 .attendance-import-table table{border-collapse:separate;border-spacing:0;min-width:100%;font:400 14px/22px Inter,sans-serif;color:#000}
 .attendance-import-table th,.attendance-import-table td{padding:14px 16px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:center}
@@ -41,12 +41,17 @@
 #attendance-export-modal.attendance-import .attendance-import-mode-tabs button[aria-selected=true]{background:#fff;color:#15803d;box-shadow:0 1px 4px #0001}
 .attendance-import-context{display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid #e5e7eb;font:400 13px/20px Inter,sans-serif;color:#64748b}
 .attendance-import-context strong{font-weight:600;color:#000}.attendance-import-context span:last-child{margin-left:auto}
-#attendance-export-modal.attendance-import .attendance-import-dropzone{max-width:none;min-height:260px;border:2px dashed #cbd5e1;border-radius:18px;background:#f8fafc;color:#000;text-transform:none!important}
-#attendance-export-modal.attendance-import .attendance-import-dropzone:hover,#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover{border-color:#15803d;background:#f0fdf4}
-#attendance-export-modal.attendance-import .attendance-import-dropzone :is(strong,span,u){color:inherit;text-transform:none!important}
-#attendance-export-modal.attendance-import .attendance-import-dropzone .text-black-fade{color:#64748b}
-#attendance-export-modal.attendance-import .attendance-import-dropzone .sigma-dropzone-icon-box{background:#fff;border:1px solid #e2e8f0;color:#15803d;margin-bottom:8px}
-#attendance-export-modal.attendance-import .attendance-import-dropzone i{color:#15803d!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone{max-width:none;min-height:260px;border-radius:16px;text-align:center;text-transform:none!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone :is(strong,span,u){text-transform:none!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone strong{color:#000;transition:color .2s ease}
+#attendance-export-modal.attendance-import .attendance-import-dropzone .text-black-fade{color:var(--black-fade,rgba(0,0,0,.40))}
+#attendance-export-modal.attendance-import .attendance-import-dropzone .sigma-dropzone-icon-box{margin-bottom:8px}
+#attendance-export-modal.attendance-import .attendance-import-dropzone:hover strong{color:#b45309}
+#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover{border-color:#FFD000!important;background-color:rgba(255,208,0,.06)!important;color:#b45309!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover strong{color:#b45309}
+#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover .text-black-fade{color:#d97706!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover .sigma-dropzone-icon-box{background-color:#FEF3C7!important;border-color:#FFD000!important}
+#attendance-export-modal.attendance-import .attendance-import-dropzone.dragover i{color:#92400e!important}
 #attendance-export-modal.attendance-import .attendance-import-fields{max-width:none}
 #attendance-export-modal.attendance-import .attendance-import-options{max-width:none;grid-template-columns:1fr 1fr;gap:16px}
 #attendance-export-modal.attendance-import .attendance-import-options .export-scope-option{padding:20px;font-size:14px}
@@ -74,5 +79,6 @@
  .attendance-import-context strong{width:100%}.attendance-import-context span:last-child{margin-left:0}
  #attendance-export-modal.attendance-import .attendance-import-options{grid-template-columns:1fr;gap:12px;margin-top:24px}
  #attendance-export-modal.attendance-import .attendance-import-options .export-scope-option{padding:16px;font-size:13px}
- #attendance-export-modal.attendance-import .attendance-import-dropzone{min-height:220px;border-radius:14px;padding:18px}
+ #attendance-export-modal.attendance-import .attendance-import-dropzone strong{color:#b45309}
+ #attendance-export-modal.attendance-import .attendance-import-dropzone{min-height:220px;border-radius:16px;padding:18px}
 }
