@@ -18,7 +18,7 @@ def build(destination: Path, runtime_path: str):
     for folder, extensions in {
         'js': {'.js'}, 'css': {'.css'}, 'image': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico'},
         'assets': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf'},
-        'php/api': {'.php'}, 'php/includes': {'.php'},
+        'php/api': {'.php'}, 'php/includes': {'.php'}, 'php/workers': {'.php'},
         'php/image': {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico'},
     }.items():
         for path in (ROOT / folder).rglob('*'):
@@ -48,7 +48,7 @@ DirectoryIndex index.html
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 '''
-    for folder in ['config', 'php/includes', 'storage']:
+    for folder in ['config', 'php/includes', 'php/workers', 'storage']:
         files['public/' + folder + '/.htaccess'] = b'Require all denied\n'
     for name in ['index.php', 'admin.php', 'teacher.php', 'student.php']:
         files['public/php/' + name] = (ROOT / 'php' / name).read_bytes()
