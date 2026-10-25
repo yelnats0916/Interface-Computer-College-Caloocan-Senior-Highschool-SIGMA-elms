@@ -1109,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.ensureLandingAtTop = ensureLandingAtTop;
 
     window.backToLoginForm = function () {
+        window.SigmaBackupCodes?.close();
         if (verificationLoaders.size) return;
         document.getElementById('landing2faVerifyView')?.classList.add('hidden');
         document.getElementById('landing2faSetupView')?.classList.add('hidden');
@@ -1535,6 +1536,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (err) err.classList.add('hidden');
         if (input) input.classList.remove('input-error');
 
+        let backupCodes = [];
         let verified = false;
         let serverRejected = false;
         const setupVerifyApiUrl = resolveAuthApiUrl();
@@ -1555,6 +1557,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const data = await res.json();
                     if (data && data.success) {
                         verified = true;
+                        backupCodes = Array.isArray(data.backupCodes) ? data.backupCodes : [];
                     } else if (res.status === 401 || current2faSetupFromServer) {
                         serverRejected = true;
                         verificationError = data?.error || 'Authenticator verification could not be completed. Please try again.';
@@ -1570,6 +1573,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 localStorage.setItem('sigma-2fa-enabled-' + current2faUserId, 'true');
                 markLocalUser2faEnabled(current2faUserId, true);
                 recordAuthenticationEvent('Google Authenticator 2FA enabled', findManagedAccount(current2faUserId), 'success');
+                if (backupCodes.length && window.SigmaBackupCodes) {
+                    const id=current2faUserId,callback=current2faSuccessCallback;
+                    window.SigmaBackupCodes.show(backupCodes,()=>open2faModal(id,callback));
+                    return;
+                }
                 if (typeof current2faSuccessCallback === 'function') {
                     if (label) label.textContent = 'Signing in...';
                     const outcome = await current2faSuccessCallback();
@@ -1636,14 +1644,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // A lost authenticator requires verified administrator recovery, not self-reset.
     document.getElementById('landing2faResetSelfBtn')?.addEventListener('click', () => {
-        const message = document.getElementById('landing2faVerifyError');
-        if (message) {
-            message.textContent = 'Ask an authorized school administrator to reset your authenticator. Then sign in again to scan a new QR code.';
-            message.classList.remove('hidden');
-            message.setAttribute('role', 'status');
-        }
+        if (!current2faUserId || verificationLoaders.size) return;
+        const id=current2faUserId,callback=current2faSuccessCallback;
+        window.SigmaBackupCodes.recover(id,()=>window.backToLoginForm(),()=>open2faModal(id,callback));
+    });
+    document.getElementById('landing2faBackupGenerateBtn')?.addEventListener('click', async e => {
+        if(!current2faUserId || verificationLoaders.size)return;
+        const button=e.currentTarget,error=document.getElementById('landing2faVerifyError');
+        const code=document.getElementById('landing2faVerifyCodeInput').value.trim();
+        if(!/^\d{6}$/.test(code)){error.textContent='Enter your current 6-digit authenticator code first.';error.classList.remove('hidden');return;}
+        if(button.disabled)return;button.disabled=true;button.textContent='Generating...';
+        try{const data=await window.SigmaDatabase.request('auth',{authentication:true,autoReconnect:false,data:{action:'generate_backup_codes',id:current2faUserId,code}});const id=current2faUserId,callback=current2faSuccessCallback;window.SigmaBackupCodes.show(data.backupCodes,()=>open2faModal(id,callback));}
+        catch(e){error.textContent=e.message||'Backup codes could not be generated.';error.classList.remove('hidden');}
+        finally{button.disabled=false;button.textContent='Generate backup codes';}
     });
 
     // ── 2FA INPUT RESTRICTIONS (NUMBERS ONLY, MAX 6 DIGITS, HARD STOP) ──────

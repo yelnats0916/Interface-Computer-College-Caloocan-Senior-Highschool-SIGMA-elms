@@ -34,6 +34,7 @@ require_once $rootDir . '/config/database.php';
 require_once $rootDir . '/php/includes/totp_service.php';
 require_once $rootDir . '/php/includes/application_auth.php';
 require_once __DIR__ . '/../includes/authentication_audit.php';
+require_once __DIR__ . '/../includes/authenticator_backup_codes.php';
 require_once $rootDir . '/php/includes/recaptcha_service.php';
 require_once $rootDir . '/php/includes/recaptcha_config.php';
 require_once $rootDir . '/php/includes/ai_routing_config.php';
@@ -602,6 +603,34 @@ try {
         jsonOut($result);
     }
 
+    if (in_array($action,['generate_backup_codes','recover_2fa'],true)) {
+        $userId=trim((string)($payload['id']??''));
+        sigmaRequireOwnIdentity($pdo,$userId,true);
+        sigmaEnsureBackupCodes($pdo);
+        sigmaTwoFactorRateLimit($pdo,$userId);
+        $pdo->beginTransaction();
+        $q=$pdo->prepare('SELECT id,password,totp_secret,totp_enabled FROM users WHERE id=? AND is_deleted=0 FOR UPDATE');$q->execute([$userId]);$account=$q->fetch(PDO::FETCH_ASSOC);
+        if(!$account||empty($account['totp_enabled'])){$pdo->rollBack();jsonOut(['success'=>false,'error'=>'Verify authenticator setup before using backup codes.'],409);}
+        if($action==='recover_2fa'){
+            $valid=password_verify((string)($payload['password']??''),$account['password']);
+            $valid=$valid&&sigmaConsumeBackupCode($pdo,$userId,(string)($payload['backupCode']??''));
+            if(!$valid){$pdo->rollBack();sigmaTwoFactorRateLimit($pdo,$userId,false);sigmaRecordAuthentication($pdo,$userId,'Authenticator backup-code recovery failed','failed');jsonOut(['success'=>false,'error'=>'The password or backup code is incorrect or has already been used.'],401);}
+            $pdo->prepare('UPDATE users SET totp_secret=NULL,totp_enabled=0 WHERE id=?')->execute([$userId]);
+            $pdo->prepare('DELETE FROM authenticator_backup_codes WHERE user_id=?')->execute([$userId]);
+            sigmaRevokeAccountSessions($pdo,$userId);
+            $pdo->prepare('DELETE FROM service_vault_sessions WHERE user_id=?')->execute([$userId]);
+            sigmaRecordAuthentication($pdo,$userId,'Google Authenticator 2FA reset','warning','Recovered using a one-time backup code. Previous sessions and backup codes revoked.');
+            $pdo->commit();sigmaTwoFactorRateLimit($pdo,$userId,true);
+            jsonOut(['success'=>true,'message'=>'Authenticator reset. Sign in again to set up a new authenticator.']);
+        }
+        $valid=TotpService::verifyCode($account['totp_secret'],trim((string)($payload['code']??'')));
+        if(!$valid){$pdo->rollBack();sigmaTwoFactorRateLimit($pdo,$userId,false);sigmaRecordAuthentication($pdo,$userId,'Backup code generation failed','failed');jsonOut(['success'=>false,'error'=>'Enter a valid code from your current authenticator.'],401);}
+        $codes=sigmaIssueBackupCodes($pdo,$userId);
+        sigmaRecordAuthentication($pdo,$userId,'Authenticator backup codes generated','success','Previous backup codes replaced.');
+        $pdo->commit();sigmaTwoFactorRateLimit($pdo,$userId,true);
+        jsonOut(['success'=>true,'backupCodes'=>$codes]);
+    }
+
     // ── POST: SETUP 2FA (Generate Secret + QR Code) ──────────────────────────
     if (in_array($action, ['setup_2fa', 'verify_and_enable_2fa', 'verify_login_2fa', 'accept_terms'], true)) {
         sigmaRequireOwnIdentity($pdo, trim((string)($payload['id'] ?? $payload['uid'] ?? '')), true);
@@ -653,16 +682,21 @@ try {
             jsonOut(['success' => false, 'error' => 'User ID and 6-digit code are required'], 400);
         }
 
-        $stmt = $pdo->prepare("SELECT id, totp_secret FROM users WHERE id = ? AND is_deleted = 0 LIMIT 1");
+        sigmaEnsureBackupCodes($pdo);
+        $pdo->beginTransaction();
+        $stmt = $pdo->prepare("SELECT id, totp_secret,totp_enabled FROM users WHERE id = ? AND is_deleted = 0 LIMIT 1 FOR UPDATE");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user || empty($user['totp_secret'])) {
+            $pdo->rollBack();
             jsonOut(['success' => false, 'error' => 'No 2FA setup found. Please scan the QR code first.'], 400);
         }
 
+        if (!empty($user['totp_enabled'])) { $pdo->rollBack(); jsonOut(['success'=>false,'error'=>'Authenticator is already verified. Sign in with its current code.'],409); }
         sigmaTwoFactorRateLimit($pdo, $userId);
         $isValid = TotpService::verifyCode($user['totp_secret'], $code);
+        if (!$isValid) $pdo->rollBack();
         sigmaTwoFactorRateLimit($pdo, $userId, $isValid);
         sigmaRecordAuthentication($pdo, $userId, $isValid ? 'Google Authenticator 2FA verified' : 'Google Authenticator 2FA verification failed', $isValid ? 'success' : 'failed');
         if (!$isValid) {
@@ -673,11 +707,15 @@ try {
         $upd = $pdo->prepare("UPDATE users SET totp_enabled = 1 WHERE id = ?");
         $upd->execute([$userId]);
         $pdo->prepare('DELETE FROM grade_sync_tokens WHERE user_id=?')->execute([$userId]);
+        $backupCodes=sigmaIssueBackupCodes($pdo,$userId);
         sigmaRecordAuthentication($pdo, $userId, 'Google Authenticator 2FA enabled');
+        sigmaRecordAuthentication($pdo,$userId,'Authenticator backup codes generated');
+        $pdo->commit();
 
         jsonOut([
             'success' => true,
-            'message' => 'Google Authenticator 2FA activated successfully!'
+            'message' => 'Google Authenticator 2FA activated successfully!',
+            'backupCodes' => $backupCodes
         ]);
     }
 
@@ -758,6 +796,7 @@ try {
         if (!sigmaCanResetAuthenticator($actor, $target)) {
             jsonOut(['success' => false, 'error' => 'A verified administrator with authority over this account must reset its authenticator.'], 403);
         }
+        sigmaEnsureBackupCodes($pdo);
         $pdo->beginTransaction();
         $stateQuery=$pdo->prepare('SELECT totp_enabled FROM users WHERE id=? AND is_deleted=0 FOR UPDATE');
         $stateQuery->execute([$userId]);
@@ -767,6 +806,7 @@ try {
         }
         $upd = $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?");
         $upd->execute([$userId]);
+        $pdo->prepare('DELETE FROM authenticator_backup_codes WHERE user_id=?')->execute([$userId]);
         sigmaRevokeAccountSessions($pdo, $userId);
         try {
             $pdo->prepare('DELETE FROM service_vault_sessions WHERE user_id=?')->execute([$userId]);
