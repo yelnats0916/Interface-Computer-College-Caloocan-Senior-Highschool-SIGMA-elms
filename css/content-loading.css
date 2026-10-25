@@ -51,3 +51,7 @@ html.sigma-teacher-route-pending body #teacher-route-loader .sigma-dot-spinner{-
 @media(max-width:767px){html.sigma-teacher-route-pending #teacher-route-loader{height:calc(100dvh - 150px)}html.sigma-teacher-route-pending body #teacher-route-loader .sigma-dot-spinner{--sigma-loader-size:32px}}
 
 html.sigma-teacher-route-pending .sigma-skeleton{display:none!important}
+/* Busy action keeps its place in the form while only the dots remain visible. */
+.sigma-action-loading{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;max-width:100%;box-sizing:border-box}
+.sigma-action-loading>.sigma-dot-spinner{--sigma-loader-size:32px}
+@media(max-width:767px){.sigma-action-loading>.sigma-dot-spinner{--sigma-loader-size:24px}}

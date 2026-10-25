@@ -153,3 +153,59 @@
     }
     window.SigmaContentLoading = {show, html, render, beginDataRead};
 })();
+/* Share the same standalone dots across existing asynchronous action buttons. */
+(function () {
+    'use strict';
+    const active = new Map();
+    const selector = 'button,[role="button"],input[type="submit"]';
+    const icons = '.sigma-dot-spinner,i.fa-spinner.fa-spin,i.fa-circle-notch.fa-spin,[data-sigma-auto-spinner]';
+    function busy(button) {
+        if (button.getAttribute('aria-busy') === 'true' || button.classList.contains('is-loading') || button.classList.contains('loading')) return true;
+        if (button.disabled && /\b(saving|creating|submitting|downloading|uploading|posting|converting|verifying|processing|generating|sending|deleting|restoring|publishing|deploying)\s*(\.{0,3}|\u2026)$/i.test(button.textContent.trim())) return true;
+        return [...button.querySelectorAll(icons)].some(icon => {
+            for (let node = icon; node && node !== button; node = node.parentElement) {
+                if (node.hidden || node.classList.contains('hidden') || getComputedStyle(node).display === 'none') return false;
+            }
+            return true;
+        });
+    }
+    function restore(button, state) {
+        state.loader.remove();
+        if (state.display) button.style.setProperty('display', state.display, state.priority);
+        else button.style.removeProperty('display');
+        active.delete(button);
+    }
+    function update(button) {
+        if (!button?.matches?.(selector)) return;
+        const state = active.get(button);
+        if (!button.isConnected) { if (state) restore(button, state); return; }
+        if (!busy(button)) { if (state) restore(button, state); return; }
+        if (state || button.hidden || getComputedStyle(button).display === 'none') return;
+        const rect = button.getBoundingClientRect();
+        const loader = document.createElement('span');
+        loader.className = 'sigma-action-loading';
+        loader.setAttribute('role', 'status');
+        loader.setAttribute('aria-label', 'Processing');
+        loader.style.width = `${Math.max(40, rect.width)}px`;
+        loader.style.height = `${Math.max(32, rect.height)}px`;
+        loader.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span>';
+        active.set(button, {loader, display:button.style.getPropertyValue('display'), priority:button.style.getPropertyPriority('display')});
+        button.before(loader);
+        button.style.setProperty('display', 'none', 'important');
+    }
+    const scan = node => {
+        if (node.nodeType !== 1) node = node.parentElement;
+        if (!node) return;
+        update(node.closest(selector));
+        node.querySelectorAll?.(selector).forEach(update);
+    };
+    new MutationObserver(records => {
+        for (const [button, state] of active) if (!button.isConnected) restore(button, state);
+        for (const record of records) {
+            if (record.type === 'childList') { scan(record.target); record.addedNodes.forEach(scan); }
+            else scan(record.target);
+        }
+    }).observe(document.documentElement, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','aria-busy','disabled','hidden']});
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => scan(document.body), {once:true});
+    else scan(document.body);
+})();

@@ -10943,6 +10943,7 @@ window.addSubjectTopic = function () {
     // ── SAVING & PUBLISHING WORKSTATION DATA ──────────────────────────────────
 
     window.handleSubjectSave = async function (status = 'Published') {
+        if (window._subjectDatabaseSavePending) return false;
         const editorOpts = window.subjectEditorOptions;
         const isStandaloneMode = !!editorOpts?.standalone;
         const standaloneStep = editorOpts?.standaloneStep || 0;
@@ -11085,7 +11086,21 @@ window.addSubjectTopic = function () {
             subjects.unshift(newSubject);
         }
 
-        if (!await window.syncSubjectToDB(newSubject)) return false;
+        const saveControl = document.getElementById(status === 'Draft' ? 'subject-draft-btn' : 'subject-save-btn') || document.activeElement?.closest('button');
+        const previousBusy = saveControl?.getAttribute('aria-busy');
+        const previousDisabled = saveControl?.disabled;
+        window._subjectDatabaseSavePending = true;
+        if (saveControl) { saveControl.disabled = true; saveControl.setAttribute('aria-busy', 'true'); }
+        try {
+            if (!await window.syncSubjectToDB(newSubject)) return false;
+        } finally {
+            window._subjectDatabaseSavePending = false;
+            if (saveControl) {
+                saveControl.disabled = previousDisabled;
+                if (previousBusy === null) saveControl.removeAttribute('aria-busy');
+                else saveControl.setAttribute('aria-busy', previousBusy);
+            }
+        }
         _saveStored(SUBJECTS_STORAGE_KEY, subjects);
 
         if (typeof window.saveSubjectGradebookWeights === 'function' && subjectWeights) {
