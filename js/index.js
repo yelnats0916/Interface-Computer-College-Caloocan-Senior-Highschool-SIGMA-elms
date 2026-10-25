@@ -1636,35 +1636,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Reset only after the server confirms a fully verified account or administrator.
-    document.getElementById('landing2faResetSelfBtn')?.addEventListener('click', async () => {
-        const uid = current2faUserId;
-        const btn = document.getElementById('landing2faResetSelfBtn');
-        const err = document.getElementById('landing2faVerifyError');
-        const showResetError = message => {
-            if (err) {
-                err.textContent = message;
-                err.classList.remove('hidden');
-                err.setAttribute('role', 'alert');
-            }
-        };
-        if (!uid) {
-            showResetError('Your sign-in has expired. Go back to Login and sign in again.');
-            return;
-        }
-        if (btn) { btn.disabled = true; btn.textContent = 'Checking recovery options...'; }
-        if (err) err.classList.add('hidden');
-        try {
-            await window.SigmaDatabase.request('auth', { data: { action: 'disable_2fa', id: uid } });
-            // A successful reset revokes old sessions. Start again with the account password.
-            sessionStorage.removeItem('sigma-login-challenge');
-            sessionStorage.removeItem('sigma-grade-sync-session');
-            window.backToLoginForm();
-            showError(ui.errors.pass, 'Authenticator reset confirmed. Sign in again to set up your new authenticator.', false, ui.inputs.pass);
-        } catch (error) {
-            showResetError(error.message || 'Recovery is unavailable. Your authenticator has not been changed. Please try again.');
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Lost code or deleted app? Reset 2FA'; }
+    // A lost authenticator requires verified administrator recovery, not self-reset.
+    document.getElementById('landing2faResetSelfBtn')?.addEventListener('click', () => {
+        const message = document.getElementById('landing2faVerifyError');
+        if (message) {
+            message.textContent = 'Ask an authorized school administrator to reset your authenticator. Then sign in again to scan a new QR code.';
+            message.classList.remove('hidden');
+            message.setAttribute('role', 'status');
         }
     });
 

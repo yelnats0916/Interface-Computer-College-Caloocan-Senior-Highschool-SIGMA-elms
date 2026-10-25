@@ -1,48 +1,16 @@
-const fs = require('fs');
-const assert = require('assert');
-
-// 1. Check php/api/users.php returns totp flags
-const usersPhp = fs.readFileSync('php/api/users.php', 'utf8');
-assert(usersPhp.includes("'totp_enabled' => !empty($row['totp_enabled'])"), 'users.php must serialize totp_enabled');
-assert(usersPhp.includes("'has2fa'       => !empty($row['totp_enabled']) || !empty($row['totp_secret'])"), 'users.php must serialize has2fa');
-assert(usersPhp.includes("'totpSecretGenerated' => !empty($row['totp_secret'])"), 'users.php must serialize totpSecretGenerated');
-
-// 2. Check admin.js defines window.userHasAccessed2FA
-const adminJs = fs.readFileSync('js/admin.js', 'utf8');
-assert(adminJs.includes('window.userHasAccessed2FA = function'), 'admin.js must define window.userHasAccessed2FA');
-assert(adminJs.includes('const userHas2FA = window.userHasAccessed2FA ? window.userHasAccessed2FA(user, id) : false;'), 'renderUserAccountsTable must check userHas2FA');
-assert(adminJs.includes('Locked: User has not accessed or set up 2FA QR code yet'), 'admin.js must show locked message when user has not accessed QR');
-assert(adminJs.includes('2FA Not Yet Activated'), 'admin.js resetUser2FA must guard against resetting users without 2FA');
-
-// 3. Test window.userHasAccessed2FA logic
-const sandbox = {
-    window: {},
-    localStorage: {
-        _store: {},
-        getItem(k) { return this._store[k] || null; },
-        setItem(k, v) { this._store[k] = String(v); }
-    },
-    USER_STORAGE_KEY: 'test-users',
-    getStoredJson() { return []; }
-};
-global.localStorage = sandbox.localStorage;
-
-const fnStart = adminJs.indexOf('window.userHasAccessed2FA = function');
-const fnEnd = adminJs.indexOf('window.resetUser2FA = function', fnStart);
-const fnCode = adminJs.slice(fnStart, fnEnd);
-eval(fnCode.replace('window.userHasAccessed2FA', 'sandbox.userHasAccessed2FA'));
-
-const userFresh = { id: '2026-01-T00001', role: 'Teacher', totp_enabled: false, has2fa: false };
-assert.strictEqual(sandbox.userHasAccessed2FA(userFresh, userFresh.id), false, 'Fresh user must not have accessed 2FA');
-
-const userWithSecret = { id: '2026-01-T00002', role: 'Teacher', totpSecretGenerated: true };
-assert.strictEqual(sandbox.userHasAccessed2FA(userWithSecret, userWithSecret.id), true, 'User who received QR secret must have accessed 2FA');
-
-const userEnabled = { id: '2026-01-T00003', role: 'Teacher', totp_enabled: true };
-assert.strictEqual(sandbox.userHasAccessed2FA(userEnabled, userEnabled.id), true, 'User with totp_enabled must have accessed 2FA');
-
-const userLocal = { id: '2026-01-T00004', role: 'Teacher' };
-sandbox.localStorage.setItem('sigma-2fa-secret-2026-01-T00004', 'JBSWY3DPEHPK3PXP');
-assert.strictEqual(sandbox.userHasAccessed2FA(userLocal, userLocal.id), true, 'User with local secret must have accessed 2FA');
-
-console.log('ALL 2FA UNLOCK CHECKS PASSED!');
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
+const source=fs.readFileSync('js/admin.js','utf8');
+const start=source.indexOf('window.userHasAccessed2FA = function'),end=source.indexOf('window.resetUser2FA = function',start);
+const context={window:{},USER_STORAGE_KEY:'users',getStoredJson:()=>[{id:'cached',totp_enabled:true}],localStorage:{getItem:()=> 'true'}};
+vm.runInNewContext(source.slice(start,end),context);const ready=context.window.userHasAccessed2FA;
+for(const user of [{},{id:'new',totp_enabled:false},{id:'qr',totpSecretGenerated:true,has2fa:true,totp_secret:'fixture'}, {id:'pending',totp_enabled:false,totpEnabled:true}, {id:'cached',totp_enabled:false}])assert.equal(ready(user,user.id),false,'QR, local secrets, stale positive flags and explicit disabled states never unlock reset');
+for(const enabled of [true,1,'1']){assert.equal(ready({totp_enabled:enabled}),true);assert.equal(ready({totpEnabled:enabled}),true);}
+assert.equal(ready(null,'cached'),true);assert.equal(ready(null,'missing'),false);
+const user={id:'account',totp_enabled:false};assert.equal(ready(user),false);user.totp_enabled=true;assert.equal(ready(user),true);user.totp_enabled=false;assert.equal(ready(user),false,'Reset relocks until the next successful setup verification');
+const users=fs.readFileSync('php/api/users.php','utf8');assert(users.includes("'has2fa'       => !empty($row['totp_enabled']),"));
+const auth=fs.readFileSync('php/api/auth.php','utf8');const disable=auth.slice(auth.indexOf("if ($action === 'disable_2fa')"));assert(disable.indexOf('sigmaCanResetAuthenticator')<disable.indexOf('UPDATE users SET totp_secret'));assert(disable.indexOf('SELECT totp_enabled FROM users')<disable.indexOf('UPDATE users SET totp_secret'));assert(disable.includes('FOR UPDATE'));assert(disable.includes('Authenticator setup has not been verified.'));
+// Recovery help is local guidance and never attempts an unauthenticated reset.
+const index=fs.readFileSync('js/index.js','utf8'),a=index.indexOf("document.getElementById('landing2faResetSelfBtn')?.addEventListener"),b=index.indexOf('// ── 2FA INPUT',a);let handler,requests=0;const message={classList:{remove(){}},setAttribute(){}};
+vm.runInNewContext(index.slice(a,b),{document:{getElementById:id=>id==='landing2faResetSelfBtn'?{addEventListener:(event,cb)=>handler=cb}:message},window:{SigmaDatabase:{request:()=>requests++}}});handler();assert.equal(requests,0);assert(message.textContent.includes('authorized school administrator'));
+for(const width of ['desktop','mobile'])assert(fs.readFileSync('js/profile-view.js','utf8').includes('Locked: Authenticator setup has not been verified'));
+console.log('PASS verified-only reset eligibility, stale/local-state rejection, reset relocking, API authority/state guards and network-free recovery guidance.');

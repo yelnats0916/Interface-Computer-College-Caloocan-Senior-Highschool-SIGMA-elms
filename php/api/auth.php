@@ -749,7 +749,7 @@ try {
         if (!$actor) {
             // A password challenge cannot replace a lost second factor.
             sigmaRequireOwnIdentity($pdo, $userId, true);
-            jsonOut(['success' => false, 'code' => 'recovery_required', 'error' => 'Your authenticator has not been reset. Ask a signed-in school administrator to verify your identity and reset 2FA in User Management. For a master admin account, ask another signed-in master admin or the server administrator. Then return to Login to set up a new authenticator.'], 403);
+            jsonOut(['success' => false, 'code' => 'recovery_required', 'error' => 'Ask an authorized school administrator to reset your authenticator. Then sign in again to set it up.'], 403);
         }
         $stmt = $pdo->prepare('SELECT id, role FROM users WHERE id=? AND is_deleted=0 LIMIT 1');
         $stmt->execute([$userId]);
@@ -759,6 +759,12 @@ try {
             jsonOut(['success' => false, 'error' => 'A verified administrator with authority over this account must reset its authenticator.'], 403);
         }
         $pdo->beginTransaction();
+        $stateQuery=$pdo->prepare('SELECT totp_enabled FROM users WHERE id=? AND is_deleted=0 FOR UPDATE');
+        $stateQuery->execute([$userId]);
+        if (!$stateQuery->fetchColumn()) {
+            $pdo->rollBack();
+            jsonOut(['success'=>false,'error'=>'Authenticator setup has not been verified.'],409);
+        }
         $upd = $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?");
         $upd->execute([$userId]);
         sigmaRevokeAccountSessions($pdo, $userId);

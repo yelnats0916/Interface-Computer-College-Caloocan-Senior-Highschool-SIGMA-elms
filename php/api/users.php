@@ -77,7 +77,7 @@ function userRowToRecord(array $row): array {
         'permissions'  => $permissions,
         'totp_enabled' => !empty($row['totp_enabled']),
         'totpEnabled'  => !empty($row['totp_enabled']),
-        'has2fa'       => !empty($row['totp_enabled']) || !empty($row['totp_secret']),
+        'has2fa'       => !empty($row['totp_enabled']),
         'totpSecretGenerated' => !empty($row['totp_secret']),
         'isDeleted'    => (bool) ($row['is_deleted'] ?? 0),
         'createdAt'    => $row['created_at'] ?? null,

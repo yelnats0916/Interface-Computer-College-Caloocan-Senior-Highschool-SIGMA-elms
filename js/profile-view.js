@@ -1190,10 +1190,10 @@
             reset2faBtn.classList.toggle('opacity-50', !userHas2FA);
             reset2faBtn.classList.toggle('cursor-not-allowed', !userHas2FA);
             reset2faBtn.classList.toggle('pointer-events-none', !userHas2FA);
-            reset2faBtn.title = userHas2FA ? '' : 'Locked: User has not accessed or set up 2FA QR code yet';
+            reset2faBtn.title = userHas2FA ? '' : 'Locked: Authenticator setup has not been verified';
             const sub = reset2faBtn.querySelector('.text-xs');
             if (sub) {
-                sub.textContent = userHas2FA ? 'Unbind Google Authenticator to issue a new QR barcode' : 'Locked: User has not accessed or set up 2FA yet';
+                sub.textContent = userHas2FA ? 'Unbind Google Authenticator to issue a new QR barcode' : 'Locked: Authenticator setup has not been verified';
             }
         }
         const actionsReset2faBtn = document.getElementById('profile-actions-reset-2fa-btn');
@@ -1203,7 +1203,7 @@
             actionsReset2faBtn.classList.toggle('opacity-50', !userHas2FA);
             actionsReset2faBtn.classList.toggle('cursor-not-allowed', !userHas2FA);
             actionsReset2faBtn.classList.toggle('pointer-events-none', !userHas2FA);
-            actionsReset2faBtn.title = userHas2FA ? '' : 'Locked: User has not accessed or set up 2FA QR code yet';
+            actionsReset2faBtn.title = userHas2FA ? '' : 'Locked: Authenticator setup has not been verified';
         }
 
         const deleteBtn = document.getElementById('profile-delete-btn');

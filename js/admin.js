@@ -704,7 +704,7 @@ function renderUserAccountsTable() {
                                             <span>Reset 2FA</span>
                                         </button>
                                     ` : `
-                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Locked: User has not accessed or set up 2FA QR code yet" onclick="event.stopPropagation();">
+                                        <button type="button" disabled class="action-dropdown-item is-locked disabled opacity-50 cursor-not-allowed text-slate-400" title="Locked: Authenticator setup has not been verified" onclick="event.stopPropagation();">
                                             <i class="fa-solid fa-qrcode text-slate-400"></i>
                                             <span>Reset 2FA</span>
                                             <i class="fa-solid fa-lock text-[11px] ml-auto text-slate-400"></i>
@@ -3028,39 +3028,15 @@ window.toggleUserLock = function (userId) {
     }
 };
 
+// Only server-confirmed activation unlocks reset; a QR or local secret is insufficient.
 window.userHasAccessed2FA = function (user, userId) {
     const cleanId = String(userId || user?.uid || user?.id || '').replace(/^#/, '').trim();
-    if (!cleanId && !user) return false;
-
-    if (user && typeof user === 'object') {
-        if (user.totp_enabled === true || user.totp_enabled === 1 || user.totp_enabled === '1') return true;
-        if (user.totpEnabled === true || user.totpEnabled === 1 || user.totpEnabled === '1') return true;
-        if (user.has2fa === true || user.has2fa === 1 || user.has2fa === '1') return true;
-        if (user.totpSecretGenerated === true || user.totpSecretGenerated === 1) return true;
-        if (typeof user.totp_secret === 'string' && user.totp_secret.trim() !== '') return true;
-        if (typeof user.totpSecret === 'string' && user.totpSecret.trim() !== '') return true;
-    }
-
-    if (cleanId) {
-        try {
-            if (localStorage.getItem('sigma-2fa-enabled-' + cleanId) === 'true') return true;
-            const sec = localStorage.getItem('sigma-2fa-secret-' + cleanId);
-            if (sec && String(sec).trim() !== '') return true;
-
-            const allUsers = (typeof getStoredJson === 'function') ? getStoredJson(USER_STORAGE_KEY, []) : [];
-            const cached = allUsers.find(u => String(u?.uid || u?.id || '').replace(/^#/, '').trim() === cleanId);
-            if (cached) {
-                if (cached.totp_enabled === true || cached.totp_enabled === 1 || cached.totp_enabled === '1') return true;
-                if (cached.totpEnabled === true || cached.totpEnabled === 1 || cached.totpEnabled === '1') return true;
-                if (cached.has2fa === true || cached.has2fa === 1 || cached.has2fa === '1') return true;
-                if (cached.totpSecretGenerated === true || cached.totpSecretGenerated === 1) return true;
-                if (typeof cached.totp_secret === 'string' && cached.totp_secret.trim() !== '') return true;
-                if (typeof cached.totpSecret === 'string' && cached.totpSecret.trim() !== '') return true;
-            }
-        } catch (_) {}
-    }
-
-    return false;
+    const target = user && typeof user === 'object' ? user
+        : ((typeof getStoredJson === 'function' ? getStoredJson(USER_STORAGE_KEY, []) : [])
+            .find(record => String(record?.uid || record?.id || '').replace(/^#/, '').trim() === cleanId));
+    if (!target) return false;
+    const enabled = target.totp_enabled !== undefined ? target.totp_enabled : target.totpEnabled;
+    return enabled === true || enabled === 1 || enabled === '1';
 };
 
 window.resetUser2FA = function (userId) {
@@ -3084,7 +3060,7 @@ window.resetUser2FA = function (userId) {
     const userName = user ? (user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || cleanId) : cleanId;
     const userHas2FA = window.userHasAccessed2FA ? window.userHasAccessed2FA(user, cleanId) : false;
     if (!userHas2FA) {
-        const lockedDesc = `${userName} (${cleanId}) has not accessed or received their 2FA QR barcode yet. Reset 2FA will only unlock once they have received their QR setup screen.`;
+        const lockedDesc = `${userName} (${cleanId}) has not verified their authenticator setup yet. Reset 2FA becomes available after their first correct authenticator code is verified.`;
         if (typeof window.showSigmaDialog === 'function') {
             window.showSigmaDialog({
                 title: '2FA Not Yet Activated',
