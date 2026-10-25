@@ -6,3 +6,6 @@ assert.equal(context.renderClassroomAttendanceTab(true),'current');assert.equal(
 assert(!teacher.slice(a,b).includes('innerHTML'));
 const shared=fs.readFileSync('js/classroom-room.js','utf8');assert(shared.includes('onclick="window.openAttendanceTransferMenu(this)"'));assert(shared.includes('line-height:16px;">Import / Export</span>'));
 console.log('PASS initial teacher route and refresh delegate to shared attendance renderer; no legacy table markup.');
+
+// The shared renderer and its controls must update the same closure state.
+for(const name of ['toggleAttendanceExpansion','setAttendanceStatus','navAttendanceMonth','toggleAttendanceStudentCol','goToTodayAttendance','selectAttendancePopupDay','selectAttendancePopupMonth','toggleTeacherAttendanceCalendarPopup','openAttendanceExportModal','executeAttendanceExport'])assert(!new RegExp('window\\.'+name+' = function').test(teacher),'Legacy handler overrides shared '+name);
