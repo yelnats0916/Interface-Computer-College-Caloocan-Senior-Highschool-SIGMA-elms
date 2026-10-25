@@ -33,6 +33,10 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   if(cell(totals,recordedCol).v!==1||cell(totals+1,recordedCol).v!==0)throw Error('Recorded date totals must include numeric zero');
   if(cell(header+2,3+rows[header].filter(v=>/^10\//.test(v)).length).v!=='')throw Error('Unmarked student totals show zero');
   if(!cell(totals,emptyCol).f.startsWith('IF(SUM(COUNTIF(')||!cell(totals,emptyCol).f.includes('=0,"",COUNTIF('))throw Error('Template totals must become blank when all valid marks are cleared');
+  const guidance=rows.findIndex(r=>String(r[1]).startsWith('Enter P (Present)'));
+  if(guidance<=totals+3)throw Error('Excel guidance must appear below attendance totals');
+  if(!rows[guidance][1].includes('row meets the date column'))throw Error('Excel guidance must explain where to enter marks');
+  if(!ws[XLSX.utils.encode_cell({r:guidance,c:1})].s.alignment.wrapText)throw Error('Excel guidance must wrap within merged cells');
   const col=rows[header].indexOf('10/23'),address=XLSX.utils.encode_cell({r:header+1,c:col});
   ws[address].v='X';let rejected=false;try{api.parseWorkbook(book,context);}catch(e){rejected=true;}if(!rejected)throw Error('Invalid mark accepted');ws[address].v='A';
   const col2=rows[header].indexOf('10/22');ws[XLSX.utils.encode_cell({r:header+2,c:col2})]={t:'s',v:'L'};
@@ -49,7 +53,7 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
   return true;
  });assert(check);
  await p.evaluate(()=>openAttendanceImport());const modal=p.locator('#attendance-export-modal');await modal.getByRole('tab',{name:'Download Template',exact:true}).click();assert(await modal.locator('[name=contents][value=current]').isChecked());await p.screenshot({path:path.join(process.env.TEMP,`attendance-template-form-${portal}-${width}.png`)});
- assert(await modal.getByText('Recorded Attendance',{exact:true}).isVisible());assert(await modal.locator('.attendance-import-mark-hint').isVisible());await p.evaluate(()=>{SigmaAttendance.refresh=()=>new Promise(resolve=>window.releaseDownload=resolve);});const dl=p.waitForEvent('download');await modal.getByRole('button',{name:'Download Template',exact:true}).click();assert(await modal.locator('.attendance-download-loading').isVisible());assert(!(await modal.getByRole('button',{name:'Downloading',exact:true}).isVisible()));await p.evaluate(()=>{releaseDownload();SigmaAttendance.refresh=async()=>{};});await(await dl).saveAs(path.join(process.env.TEMP,`attendance-template-${portal}-${width}.xlsx`));await modal.waitFor({state:'detached'});
+ assert(await modal.getByText('Recorded Attendance',{exact:true}).isVisible());assert.equal(await modal.locator('.attendance-import-mark-hint').count(),0);await p.evaluate(()=>{SigmaAttendance.refresh=()=>new Promise(resolve=>window.releaseDownload=resolve);});const dl=p.waitForEvent('download');await modal.getByRole('button',{name:'Download Template',exact:true}).click();assert(await modal.locator('.attendance-download-loading').isVisible());assert(!(await modal.getByRole('button',{name:'Downloading',exact:true}).isVisible()));await p.evaluate(()=>{releaseDownload();SigmaAttendance.refresh=async()=>{};});await(await dl).saveAs(path.join(process.env.TEMP,`attendance-template-${portal}-${width}.xlsx`));await modal.waitFor({state:'detached'});
  await p.evaluate(()=>openAttendanceImport());await modal.getByRole('tab',{name:'Upload Attendance',exact:true}).click();const drop=modal.locator('[data-drop]');await p.mouse.move(0,0);await p.waitForTimeout(250);
  const style=await drop.evaluate(el=>({radius:getComputedStyle(el).borderRadius,border:getComputedStyle(el).borderTopColor,icon:getComputedStyle(el.querySelector('i')).color}));assert.equal(style.radius,'16px');assert.equal(style.border,width===375?'rgb(255, 208, 0)':'rgba(0, 0, 0, 0.18)');assert.notEqual(style.icon,'rgb(21, 128, 61)');
  await p.screenshot({path:path.join(process.env.TEMP,`attendance-upload-form-${portal}-${width}.png`)});

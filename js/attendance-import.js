@@ -46,6 +46,18 @@
                 const value=ws[address]?.v ?? '';
                 ws[address]={...ws[address],t:typeof value==='number'?'n':'s',v:value,f:totalFormula(range,mark)};
             }));
+            const sheetRange = XLSX.utils.decode_range(ws['!ref']);
+            const guidanceRow = sheetRange.e.r + 2;
+            ws[XLSX.utils.encode_cell({r:guidanceRow,c:1})] = {
+                t:'s', v:'Enter P (Present), A (Absent), or L (Late) in the cell where the student’s row meets the date column. Leave cells blank to keep existing attendance unchanged.',
+                s:{font:{name:'Calibri',sz:11,color:{rgb:'000000'}},alignment:{wrapText:true,vertical:'center',horizontal:'left'}}
+            };
+            ws['!merges'] ||= [];
+            ws['!merges'].push({s:{r:guidanceRow,c:1},e:{r:guidanceRow,c:Math.min(8,sheetRange.e.c)}});
+            ws['!rows'] ||= [];
+            ws['!rows'][guidanceRow] = {hpt:48};
+            sheetRange.e.r = guidanceRow;
+            ws['!ref'] = XLSX.utils.encode_range(sheetRange);
             XLSX.utils.book_append_sheet(workbook, ws, month);
         }
         if (!workbook.SheetNames.length) throw Error('The selected date range has no school days.');
@@ -172,7 +184,7 @@
         function template() {
             mode('template');footer.hidden=false;error.textContent='';const month=`${scope.year}-${String(scope.month+1).padStart(2,'0')}`;
             const from=[month+'-01',context.start].sort().at(-1), to=[day(new Date(Date.UTC(scope.year,scope.month+1,0))),context.end].sort()[0];
-            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Recorded Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset><p class="attendance-import-mark-hint">Enter P (Present), A (Absent), or L (Late) in the cell where the student’s row meets the date column. Leave cells blank to keep existing attendance unchanged.</p>`;
+            content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Recorded Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset>`;
             content.onchange=()=>{const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
             const download=button('Download Template',()=>run(download,'Downloading',async()=>{
                 const form=overlay.querySelector('form');if(!form.reportValidity())return;
