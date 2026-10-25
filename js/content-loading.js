@@ -74,5 +74,71 @@
         if (!content) return;
         content.innerHTML = html(options);
     }
-    window.SigmaContentLoading = {show, html, render};
+    const tableReads = new Map();
+    const retrievedTables = new WeakSet();
+    function beginDataRead(input) {
+        const endpoint = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href).pathname.split('/').pop().replace('.php', '');
+        const selectors = {
+            users: '#userTableBody', sections: '#sectionTableBody, #student-roster-body',
+            subjects: '#subjectTableBody', school_years: '#schoolYearTableBody',
+            ai_logs: '#audit-ai-view tbody',
+            ai_records: '#audit-ai-view tbody, #ai-evaluations-table-body, #ai-feedback-table-body, #ai-assessments-table-body',
+            activity_logs: '#activity-log-rows', authentication_logs: '#audit-auth-view tbody',
+            notifications: '#notification-log-rows', notification_logs: '#notification-log-rows',
+            academic_records: '#gradebook-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
+            maintenance: '#maintenance-history-body'
+        };
+        const tracked = new Set();
+        function attachTables() {
+        const bodies = new Set(selectors[endpoint] ? document.querySelectorAll(selectors[endpoint]) : []);
+        // Dynamic tables use the same loader even when their renderer creates
+        // the table after navigation. Populated tables remain usable on refresh.
+        document.querySelectorAll('table tbody').forEach(body => {
+            if (!body.children.length && body.getClientRects().length) bodies.add(body);
+        });
+        bodies.forEach(body => {
+            if (tracked.has(body)) return;
+            let state = tableReads.get(body);
+            if (!state && retrievedTables.has(body) && body.children.length && !body.querySelector('[role="status"]')) return;
+            if (!state) {
+                const columns = body.closest('table')?.querySelector('thead tr')?.children.length || 1;
+                const row = document.createElement('tr');
+                row.className = 'sigma-table-loading-row';
+                const cell = document.createElement('td');
+                cell.colSpan = columns;
+                cell.innerHTML = html();
+                row.append(cell);
+                state = { count: 0, row, saved: Array.from(body.childNodes) };
+                body.replaceChildren(row);
+                body.setAttribute('aria-busy', 'true');
+                state.observer = new MutationObserver(() => {
+                    if (!body.contains(row)) {
+                        state.saved = Array.from(body.childNodes);
+                        body.replaceChildren(row);
+                    }
+                });
+                state.observer.observe(body, { childList: true });
+                tableReads.set(body, state);
+            }
+            state.count++;
+            tracked.add(body);
+        });
+        }
+        attachTables();
+        const additions = new MutationObserver(attachTables);
+        additions.observe(document.documentElement, {childList: true, subtree: true});
+        return () => {
+        additions.disconnect();
+        tracked.forEach(body => {
+            const state = tableReads.get(body);
+            if (!state || --state.count) return;
+            state.observer.disconnect();
+            if (body.contains(state.row)) body.replaceChildren(...state.saved);
+            body.removeAttribute('aria-busy');
+            retrievedTables.add(body);
+            tableReads.delete(body);
+        });
+        };
+    }
+    window.SigmaContentLoading = {show, html, render, beginDataRead};
 })();

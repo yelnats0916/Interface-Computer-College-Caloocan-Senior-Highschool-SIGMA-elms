@@ -1651,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', function () {
             markLocalUser2faEnabled(id,false);
             if(!await open2faSetupModal(id,callback,data))throw Error('Authenticator setup could not be displayed. Sign in again.');
         } catch(e) {
-            if(error){error.textContent=e.message||'Reset could not be completed. Please try again.';error.classList.remove('hidden');}
+            if(error){error.textContent=e.retryable ? 'Unable to reset right now. Please try again.' : (e.message||'Reset could not be completed. Please try again.');error.classList.remove('hidden');}
         } finally {button.disabled=false;button.textContent='Lost code or deleted app? Reset 2FA';}
     });
 

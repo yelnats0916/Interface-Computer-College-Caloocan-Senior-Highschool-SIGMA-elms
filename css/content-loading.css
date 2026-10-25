@@ -35,3 +35,9 @@ i.fa-spinner.fa-spin::before,i.fa-circle-notch.fa-spin::before { content:none!im
 .sigma-content-loading-state--compact { min-height:100px; padding:16px 12px; gap:12px; }
 .sigma-content-loading-state--inline { width:auto; min-height:0; padding:0; flex-direction:row; justify-content:flex-start; gap:8px; text-align:left; }
 .sigma-content-loading-state--inline .sigma-dot-spinner { --sigma-loader-size:20px; }
+.sigma-table-loading-row > td { padding:0!important; background:#fff; text-align:center; }
+.sigma-table-loading-row .sigma-content-loading-state { min-height:180px; }
+@media(max-width:640px) {
+    .sigma-table-loading-row .sigma-content-loading-state { min-height:130px; padding:20px 12px; }
+    .sigma-table-loading-row .sigma-dot-spinner { --sigma-loader-size:28px; }
+}

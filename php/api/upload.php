@@ -53,44 +53,11 @@ function uploadFileToGoogleDrive(string $keyFile, string $filePath, string $file
 // Shared usage totals are read-only for active administrators. Credential changes remain protected.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'folder_usage') {
     $usageActor = sigmaRequireApplicationActor(serviceSettingsPdo(), ['admin', 'masteradmin', 'administrator']);
-    require_once dirname(__DIR__) . '/includes/gdrive_usage.php';
+    require_once dirname(__DIR__) . '/includes/storage_usage_snapshot.php';
     try {
-        $auth = getGoogleAccessToken('');
-        if (empty($auth['token'])) throw new RuntimeException('Connect Google Drive before checking folder usage.');
-        $driveRequest = function ($url) use ($auth) {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $auth['token']], CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 10]);
-            $raw = curl_exec($ch); $status = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-            $data = json_decode($raw ?: '', true);
-            if ($status < 200 || $status >= 300 || !is_array($data)) throw new RuntimeException('Unable to read the connected Google Drive folder. Check its sharing permissions and try again.');
-            return $data;
-        };
-        $usage = collectElmsDriveUsage($driveConfig['folder_id'] ?? '', $driveRequest);
-        $usage['limit_bytes'] = null;
-        $usage['account_used_bytes'] = null;
-        $usage['is_estimated_limit'] = false;
-        try {
-            $about = $driveRequest('https://www.googleapis.com/drive/v3/about?fields=storageQuota');
-            $quota = $about['storageQuota'] ?? [];
-            if (isset($quota['limit']) && is_numeric($quota['limit']) && (float)$quota['limit'] > 0) $usage['limit_bytes'] = (float)$quota['limit'];
-            if (isset($quota['usage']) && is_numeric($quota['usage'])) $usage['account_used_bytes'] = (float)$quota['usage'];
-        } catch (Throwable $error) { /* Folder totals remain valid when account quota is unavailable. */ }
-
-        // Google Cloud Service Accounts connect to shared folders without exposing the owner's account limit.
-        // Fallback to the configured or standard 15 GB Google Drive storage tier.
-        $configuredLimitGb = isset($driveConfig['storage_limit_gb']) && is_numeric($driveConfig['storage_limit_gb']) && (float)$driveConfig['storage_limit_gb'] > 0
-            ? (float)$driveConfig['storage_limit_gb']
-            : 15.0; // Standard Google Drive free tier (15 GB)
-        if (empty($usage['limit_bytes'])) {
-            $usage['limit_bytes'] = $configuredLimitGb * 1024 * 1024 * 1024;
-            $usage['is_estimated_limit'] = true;
-        }
-        if ($usage['account_used_bytes'] === null || $usage['account_used_bytes'] <= 0) {
-            $usage['account_used_bytes'] = (float)($usage['total_bytes'] ?? 0);
-        }
-        $usage['storage_limit_gb'] = $configuredLimitGb;
-        jsonOut(['success' => true, 'usage' => $usage]);
-    } catch (Throwable $error) { jsonOut(['success' => false, 'error' => $error->getMessage()], 502); }
+        $result = sigmaStorageSnapshot($driveConfig);
+        jsonOut($result, !empty($result['pending']) ? 202 : (!empty($result['success']) ? 200 : 502));
+    } catch (Throwable $error) { jsonOut(['success'=>false,'error'=>$error->getMessage()],502); }
 }
 
 // Saved configuration is read without waiting for Google. Test Connection performs

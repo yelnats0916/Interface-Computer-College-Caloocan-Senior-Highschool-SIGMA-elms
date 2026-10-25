@@ -320,8 +320,15 @@
         window.renderGoogleDriveSettingsUsage();
         try {
             const url = new URL('storage_usage.php', new URL(window.resolveUploadApiUrl(), location.href));
-            const response = await window.SigmaDatabase.fetch(url.href);
-            const data = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
+            let response, data;
+            const deadline = Date.now() + 120000;
+            do {
+                response = await window.SigmaDatabase.fetch(url.href);
+                data = window.SigmaDatabase.readJson ? await window.SigmaDatabase.readJson(response) : await response.json();
+                if (!data.pending) break;
+                if (Date.now() >= deadline) throw new Error('Folder usage is unavailable. Please try again.');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            } while (data.pending);
             if (!response.ok || !data.success) throw new Error(data.error || 'Folder usage is unavailable.');
             driveUsage = data.usage;
             driveUsageLoading = false;

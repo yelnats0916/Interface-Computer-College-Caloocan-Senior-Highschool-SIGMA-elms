@@ -54,7 +54,20 @@
         };
         renew();
         const timer = typeof setInterval === 'function' ? setInterval(renew, 5000) : null;
-        try { return await withWorker(input, options, true); }
+        try {
+            for (let attempt = 0; ; attempt++) {
+                const response = await withWorker(input, options, true);
+                // Apache's capacity rejection happens before PHP executes. Only
+                // retry that response, never an uncertain reset/save timeout.
+                if (attempt >= 2 || response.status !== 503 ||
+                    /application\/json/i.test(response.headers?.get('Content-Type') || '')) return response;
+                const body = await response.clone().text();
+                if (!/Service Unavailable/i.test(body) || !/capacity|temporarily unable/i.test(body)) return response;
+                try { await response.body?.cancel(); } catch (_) {}
+                await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
+                options.signal?.throwIfAborted?.();
+            }
+        }
         finally {
             if (timer !== null) clearInterval(timer);
             try { if (localStorage.getItem(authPriorityKey) === lease) localStorage.removeItem(authPriorityKey); } catch (_) {}
@@ -81,6 +94,15 @@
         });
     }
     async function fetchWithIdentity(input, options = {}) {
+        const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
+        const apiRoot = new URL('.', url('session'));
+        const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        const finish = method === 'GET' && target.origin === apiRoot.origin && target.pathname.startsWith(apiRoot.pathname)
+            ? window.SigmaContentLoading?.beginDataRead(input) : null;
+        try { return await fetchDataWithIdentity(input, options); }
+        finally { finish?.(); }
+    }
+    async function fetchDataWithIdentity(input, options = {}) {
         const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, location.href);
         const apiRoot = new URL('.', url('session'));
         if (target.origin !== apiRoot.origin || !target.pathname.startsWith(apiRoot.pathname)) return performFetchWithIdentity(input, options);
