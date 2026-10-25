@@ -159,10 +159,21 @@
         overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','attendance-import-title');
         overlay.innerHTML = `<button type="button" data-close class="attendance-export-exit-btn fixed top-6 sm:top-10 right-6 sm:right-10 w-10 sm:w-12 h-10 sm:h-12 rounded-full hover:bg-slate-200 hidden sm:flex items-center justify-center text-black transition-all z-[12001] cursor-pointer" title="Exit" aria-label="Close attendance import"><i class="fa-solid fa-xmark text-lg sm:text-xl text-black"></i></button><div class="sigma-modal-shell"><form class="sigma-modal-panel"><div class="sigma-modal-header"><div class="sigma-modal-header-top flex items-center gap-2"><button type="button" data-close class="attendance-export-mobile-return-btn w-8 h-8 rounded-full flex items-center justify-center text-black hover:bg-slate-100 active:bg-slate-200 transition-colors cursor-pointer border-0 p-0 shadow-none outline-none shrink-0 -ml-1 sm:hidden" aria-label="Return"><i class="fa-solid fa-chevron-left text-sm text-black"></i></button><h1 class="sigma-modal-title" id="attendance-import-title">Import Attendance</h1></div></div><div class="sigma-modal-body"><div class="attendance-import-workspace"><div class="attendance-import-mode-tabs" role="tablist" aria-label="Attendance import"><button type="button" role="tab" data-mode="upload" aria-selected="true"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span>Upload Attendance</span></button><button type="button" role="tab" data-mode="template" aria-selected="false"><i class="fa-solid fa-file-excel" aria-hidden="true"></i><span>Download Template</span></button></div><div class="attendance-import-context" data-context></div><div data-content><div class="attendance-import-loading" role="status" aria-label="Loading attendance"><span class="sigma-dot-spinner" aria-hidden="true"></span></div></div><p data-error role="alert"></p></div></div><div class="sigma-modal-footer"></div></form></div>`;
         const previous = {body:document.body.style.overflow,root:document.documentElement.style.overflow};
-        const opener = document.activeElement; let busy = false, context, review, activeSheet = 0;
+        const opener = document.activeElement; let busy = false, context, review, activeSheet = 0, dirty = false, askingToExit = false;
         const content = overlay.querySelector('[data-content]'), footer = overlay.querySelector('.sigma-modal-footer'), error = overlay.querySelector('[data-error]');
         const close = () => {if(busy)return;overlay.remove();document.body.style.overflow=previous.body;document.documentElement.style.overflow=previous.root;document.documentElement.classList.remove('has-modal-open');document.removeEventListener('keydown',escape);opener?.focus({preventScroll:true});};
-        const escape = event => {if(event.key==='Escape')close();};overlay.querySelectorAll('[data-close]').forEach(button=>button.onclick=close);document.addEventListener('keydown',escape);
+        const requestClose = () => {
+            if(busy || askingToExit)return;
+            if(!dirty){close();return;}
+            const ask=window.openAskingPanel || window.showConfirmDialog;
+            if(typeof ask==='function'){
+                askingToExit=true;
+                const clearQuestion=()=>{askingToExit=false;document.getElementById('sigma-universal-ask-overlay')?.removeAttribute('data-attendance-import-discard');};
+                ask({title:'Discard Changes?',message:'Your attendance import has not been submitted. Discard your changes and exit?',confirmText:'Discard & Exit',cancelText:'Keep Editing',type:'warning',onConfirm:()=>{clearQuestion();close();},onCancel:clearQuestion});
+                document.getElementById('sigma-universal-ask-overlay')?.setAttribute('data-attendance-import-discard','true');
+            }else if(window.confirm('Discard your attendance import changes and exit?'))close();
+        };
+        const escape = event => {if(event.key==='Escape')requestClose();};overlay.querySelectorAll('[data-close]').forEach(button=>button.onclick=requestClose);document.addEventListener('keydown',escape);
         document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';document.documentElement.classList.add('has-modal-open');document.body.append(overlay);
         const button = (label, action, secondary = false) => {const b=document.createElement('button');b.type='button';b.className=`attendance-export-download-btn sigma-btn sigma-btn-${secondary?'secondary':'primary'} sigma-btn-md`;b.textContent=label;b.onclick=action;return b;};
         async function run(control, label, work) {
@@ -185,7 +196,7 @@
             mode('template');footer.hidden=false;error.textContent='';const month=`${scope.year}-${String(scope.month+1).padStart(2,'0')}`;
             const from=[month+'-01',context.start].sort().at(-1), to=[day(new Date(Date.UTC(scope.year,scope.month+1,0))),context.end].sort()[0];
             content.innerHTML=`<div class="attendance-import-fields"><label>From Date<input type="date" name="from" min="${context.start}" max="${context.end}" value="${templateValues?.from||(from<=to?from:context.start)}" required></label><label>To Date<input type="date" name="to" min="${context.start}" max="${context.end}" value="${templateValues?.to||(from<=to?to:context.end)}" required></label></div><fieldset class="attendance-import-options"><legend>Template Contents</legend><label class="export-scope-option"><input type="radio" name="contents" value="current" ${templateValues?.contents!=='blank'?'checked':''}><span>Recorded Attendance</span></label><label class="export-scope-option"><input type="radio" name="contents" value="blank" ${templateValues?.contents==='blank'?'checked':''}><span>Blank Attendance</span></label></fieldset>`;
-            content.onchange=()=>{const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
+            content.onchange=()=>{dirty=true;const form=overlay.querySelector('form');templateValues={from:form.elements.from.value,to:form.elements.to.value,contents:form.elements.contents.value};};
             const download=button('Download Template',()=>run(download,'Downloading',async()=>{
                 const form=overlay.querySelector('form');if(!form.reportValidity())return;
                 await window.SigmaAttendance.refresh();
@@ -201,7 +212,7 @@
                 if(!file||! /\.(xlsx|xls)$/i.test(file.name))throw Error('Upload an Excel workbook (.xlsx or .xls).');
                 if(file.size>10*1024*1024)throw Error('The Excel file must be 10 MB or smaller.');
                 const workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellFormula:true,bookVBA:false});
-                review=parseWorkbook(workbook,context);activeSheet=0;renderReview();
+                review=parseWorkbook(workbook,context);dirty=true;activeSheet=0;renderReview();
             });
             drop.onclick=()=>file.click();file.onchange=()=>read(file.files[0]);drop.ondragover=e=>{e.preventDefault();drop.classList.add('dragover');};drop.ondragleave=()=>drop.classList.remove('dragover');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('dragover');read(e.dataTransfer.files[0]);};
             footer.replaceChildren();
@@ -209,7 +220,7 @@
         function table(headers, rows) {return `<div class="attendance-import-table" tabindex="0"><table><thead><tr>${headers.map(h=>`<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;}
         function renderReview() {
             mode('upload');overlay.dataset.stage='review';footer.hidden=false;error.textContent='';const sheet=review.sheets[activeSheet];
-            content.innerHTML=`<h2>Review Attendance</h2><p>${review.count} marks across ${Object.keys(review.days).length} dates. Blank cells leave existing attendance unchanged.</p><div class="attendance-import-tabs" role="tablist">${review.sheets.map((item,index)=>`<button type="button" role="tab" aria-selected="${index===activeSheet}" data-sheet="${index}">${esc(/^\d{4}-\d{2}$/.test(item.name)?monthLabel(item.name):item.name)}</button>`).join('')}</div>`+table(['No.','Students','Student ID',...sheet.columns.map(c=>c.date.slice(5).replace('-','/'))],sheet.rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.name)}</td><td>${esc(row.id)}</td>${sheet.columns.map(c=>`<td class="mark-${row.values[c.date]||'blank'}">${row.values[c.date]||''}</td>`).join('')}</tr>`));
+            content.innerHTML=`<h2>Review Attendance</h2><p>${review.count} marks across ${Object.keys(review.days).length} dates. Blank cells leave existing attendance unchanged.</p><details class="sigma-quarter-dropdown attendance-import-month"><summary><span>${esc(/^\d{4}-\d{2}$/.test(sheet.name)?monthLabel(sheet.name):sheet.name)}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="sigma-quarter-dropdown-menu">${review.sheets.map((item,index)=>`<button type="button" aria-pressed="${index===activeSheet}" data-sheet="${index}">${esc(/^\d{4}-\d{2}$/.test(item.name)?monthLabel(item.name):item.name)}</button>`).join('')}</div></details>`+table(['No.','Students','Student ID',...sheet.columns.map(c=>c.date.slice(5).replace('-','/'))],sheet.rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.name)}</td><td>${esc(row.id)}</td>${sheet.columns.map(c=>`<td class="mark-${row.values[c.date]||'blank'}">${row.values[c.date]||''}</td>`).join('')}</tr>`));
             content.querySelectorAll('[data-sheet]').forEach(tab=>tab.onclick=()=>{activeSheet=Number(tab.dataset.sheet);renderReview();});
             const submit=button('Submit Attendance',()=>run(submit,'Submitting',()=>submitImport()));footer.replaceChildren(button('Change File',upload,true),submit);
         }

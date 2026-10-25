@@ -4,7 +4,7 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
  const p=await browser.newPage({viewport:{width,height:width===375?667:900},acceptDownloads:true});
  await p.goto('https://sigma-elms.alwaysdata.net/index.html');await p.setContent('<html><body></body></html>');
  const html=fs.readFileSync(portal+'.html','utf8');for(const m of html.matchAll(/<link[^>]*href="(css\/[^"?]+)[^"]*"/g))if(fs.existsSync(m[1]))await p.addStyleTag({path:m[1]});
- await p.addStyleTag({content:'.fa-xmark::before{content:"×"}.fa-chevron-left::before{content:"‹"}.fa-cloud-arrow-up::before{content:"↑"}'});
+ await p.addStyleTag({content:'#sigma-universal-ask-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0008}#sigma-universal-ask-overlay.hidden{display:none}.fa-xmark::before{content:"×"}.fa-chevron-left::before{content:"‹"}.fa-cloud-arrow-up::before{content:"↑"}'});
  await p.addScriptTag({path:'js/vendor/xlsx.bundle.js'});
  await p.evaluate(role=>{
   window.calls=[];window.testContext={section:'Einstein',subject:'Oral Communication in Context',schoolYear:'2026-2027',start:'2026-06-16',end:'2027-03-31',today:'2026-10-25',students:Array.from({length:10},(_,i)=>({id:String(2601030+i),name:'Student '+(i+1)}))};
@@ -16,7 +16,7 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
  await p.addScriptTag({path:'js/excel-export.js'});
  const source=fs.readFileSync('js/classroom-room.js','utf8'),a=source.indexOf('    function buildAttendanceWorksheet('),b=source.indexOf('    window.exportFilteredAttendancePdf',a);
  await p.addScriptTag({content:source.slice(a,b)+'window.buildAttendanceTransferWorksheet=buildAttendanceWorksheet;'});
- await p.addScriptTag({path:'js/attendance-import.js'});
+ await p.addScriptTag({path:'js/dialog.js'});await p.addScriptTag({path:'js/attendance-import.js'});
  const check=await p.evaluate(()=>{
   const api=SigmaAttendanceWorkbook,context=testContext;
   const book=api.workbookFor(context,'2026-09-01','2026-10-31',false);
@@ -61,11 +61,13 @@ for(const portal of ['teacher','admin'])for(const width of [1280,375]){
  const encoded=await p.evaluate(()=>testUpload);await modal.locator('[data-file]').setInputFiles({name:'Attendance.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(encoded,'base64')});
  await modal.getByText('Review Attendance',{exact:true}).waitFor();assert.equal(await p.evaluate(()=>calls.filter(c=>c.action==='import').length),0);
  const overflow=await modal.evaluate(el=>({panel:el.querySelector('.sigma-modal-panel').getBoundingClientRect().width,body:el.querySelector('.sigma-modal-body').getBoundingClientRect().width,scroll:document.documentElement.scrollWidth,viewport:innerWidth}));assert(overflow.scroll<=overflow.viewport);assert(overflow.panel<=width);
- await modal.locator('.attendance-import-tabs').getByRole('tab').nth(1).click();await p.screenshot({path:path.join(process.env.TEMP,`attendance-import-review-${portal}-${width}.png`)});
+ await modal.locator('.attendance-import-month summary').click();await modal.locator('.attendance-import-month [data-sheet]').nth(1).click();await p.screenshot({path:path.join(process.env.TEMP,`attendance-import-review-${portal}-${width}.png`)});
  const reviewLayout=await modal.evaluate(el=>{const table=el.querySelector('.attendance-import-table'),body=el.querySelector('.sigma-modal-body');return{headings:[...table.querySelectorAll('th')].map(th=>th.textContent),radius:getComputedStyle(table).borderRadius,vertical:table.scrollHeight>table.clientHeight+1,bodyScrollable:body.scrollHeight>body.clientHeight+1};});
- assert.equal(reviewLayout.headings[1],'Students');assert.equal(reviewLayout.headings[3],'10/01');assert.equal(reviewLayout.radius,'0px');assert.equal(reviewLayout.vertical,false,'Review table must not have a separate vertical scrollbar');assert(reviewLayout.bodyScrollable,'The form must own vertical scrolling');
+ assert.equal(reviewLayout.headings[1],'Students');assert.equal(reviewLayout.headings[3],'10/01');assert.equal(reviewLayout.radius,'0px');assert.equal(reviewLayout.vertical,false,'Review table must not have a separate vertical scrollbar');if(width>767){assert(await modal.evaluate(el=>el.scrollHeight>el.clientHeight+1),'Use export form outer scrolling on desktop');assert.equal(reviewLayout.bodyScrollable,false,'No inner panel scrollbar on desktop');}else{assert(reviewLayout.bodyScrollable,'Use export form mobile scrolling');}
+ await modal.locator('[data-close]:visible').first().click();const ask=p.locator('#sigma-universal-ask-overlay');assert(await ask.isVisible());await ask.locator('#sigma-ask-cancel-btn').click({timeout:3000});assert(await modal.isVisible());
  await modal.getByRole('button',{name:'Submit Attendance',exact:true}).click();await modal.getByText('Replace Existing Marks?',{exact:true}).waitFor();assert.match(await modal.innerText(),/present/);assert.match(await modal.innerText(),/absent/);
  await modal.getByRole('button',{name:'Confirm Changes',exact:true}).click();await modal.waitFor({state:'detached'});
  const sent=await p.evaluate(()=>calls.filter(c=>c.action==='import'));assert.equal(sent.length,2);assert.equal(sent[1].overwrite,true);assert.equal(Object.keys(sent[1].days).length,3);
+ await p.evaluate(()=>openAttendanceImport());await modal.getByRole('tab',{name:'Download Template',exact:true}).click();await modal.locator('[name=from]').fill('2026-10-02');await modal.locator('[data-close]:visible').first().click();assert(await ask.isVisible());await ask.locator('#sigma-ask-proceed-btn').click();await modal.waitFor({state:'detached'});
  await p.close();console.log('PASS monthly XLSX roundtrip, old exports, blanks, wrong scope, preview, confirmation and responsive form',portal,width);
 }}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -91,12 +91,24 @@
 .attendance-import-mark-hint{margin:20px 0 0;color:#000;font:400 14px/1.6 Inter,sans-serif;overflow-wrap:anywhere}
 @media(max-width:767px){.attendance-import-mark-hint{font-size:12px;line-height:1.5}.attendance-download-loading{min-height:40px}.attendance-download-loading .sigma-dot-spinner{width:24px;height:24px}}
 
-/* The form owns vertical scrolling; the table only pans across date columns. */
-#attendance-export-modal.attendance-import .sigma-modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior-y:contain}
+/* Keep the shared export form scrolling; only date columns pan in the table. */
+
 .attendance-import-table th:nth-child(2){text-align:left}
 .attendance-import-table th:first-child,.attendance-import-table td:first-child{min-width:44px;box-sizing:border-box}
 .attendance-import-table th:last-child,.attendance-import-table td:last-child{border-right:0}
 
-#attendance-export-modal.attendance-import .sigma-modal-shell{height:100dvh!important;min-height:0!important;max-height:100dvh!important}
-#attendance-export-modal.attendance-import .sigma-modal-panel{height:100%!important;min-height:0!important;max-height:100%!important;overflow:hidden!important}
-#attendance-export-modal.attendance-import :is(.sigma-modal-header,.sigma-modal-footer){flex-shrink:0}
+
+
+
+
+.attendance-import-month{margin:12px 0 20px;max-width:100%}
+html body .attendance-import-month summary{min-width:190px;min-height:48px;font-size:14px;line-height:22px;box-sizing:border-box}
+html body .attendance-import-month .sigma-quarter-dropdown-menu{min-width:100%;font-size:14px}
+@media(max-width:767px){
+ .attendance-import-month{margin:12px 0 16px}
+ html body .attendance-import-month summary{min-width:160px;min-height:40px;font-size:12px;line-height:18px}
+ html body .attendance-import-month .sigma-quarter-dropdown-menu button{font-size:12px;min-height:38px}
+ #attendance-export-modal.attendance-import[data-stage=review] .attendance-import-table{width:calc(100% + 32px);max-width:none;margin-left:-16px;margin-right:-16px}
+}
+
+#sigma-universal-ask-overlay[data-attendance-import-discard] #sigma-ask-actions{display:grid!important;grid-template-columns:1fr 1fr}
