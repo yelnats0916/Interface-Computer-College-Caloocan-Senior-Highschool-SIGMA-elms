@@ -88,6 +88,7 @@
             activity_logs: '#activity-log-rows', authentication_logs: '#audit-auth-view tbody',
             notifications: '#notification-log-rows', notification_logs: '#notification-log-rows',
             academic_records: '#gradebook-body, #student-attendance-history-body, #classroom-attendance-history-body, #attendanceReportTableBody, #performanceReportTableBody',
+            attendance: '#student-attendance-history-body, #classroom-attendance-history-body, #attendanceReportTableBody',
             maintenance: '#maintenance-history-body'
         };
         const selector = selectors[endpoint];

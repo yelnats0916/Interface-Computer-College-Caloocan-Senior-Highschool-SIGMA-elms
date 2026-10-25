@@ -78,17 +78,8 @@ try{
         $record=assessmentPublicRecord($record,!empty($config['assessmentShowCorrectAnswers'][$record['materialId']]));
         $db->commit();echo json_encode(['success'=>true,'submission'=>$record],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;
     }elseif($type==='attendance'){
-        if(!$staff||!sigmaActorPermission($actor,'teacherAttendance'))throw new RuntimeException('Attendance access is disabled.');
-        $date=$input['date']??'';if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date)||!strtotime($date)||$date>academicDay())throw new InvalidArgumentException('Choose a valid attendance date.');
-        $statuses=[];foreach($input['statuses']??[] as $id=>$status){
-            $student=null;
-            foreach($db->query("SELECT * FROM users WHERE is_deleted=0 AND LOWER(status)='active' AND LOWER(role)='student'")->fetchAll() as $candidate)if(gradeStudent($section,$candidate)&&gradeMatches((string)$id,$candidate)){$student=$candidate;break;}
-            if(!$student)throw new RuntimeException('An attendance entry is outside this section roster.');
-            $status=strtolower((string)$status);$status=['p'=>'present','a'=>'absent','l'=>'late','e'=>'excused'][$status]??$status;
-            if(!in_array($status,['present','absent','late','excused','excuse',''],true))throw new InvalidArgumentException('Invalid attendance status.');
-            $statuses[$student['id']]=$status;
-        }
-        academicWrite($db,$actor,'attendance',$subject,$section,'',$date,['date'=>$date,'statuses'=>$statuses]);
+        require_once __DIR__.'/../includes/attendance_records.php';
+        attendanceSubmit($db,$actor,$input);
     }elseif(in_array($type,['score','submission','rubric','teacher_feedback'],true)){
         $item=academicResolvedItem($db,$subject,$section,academicItem($subject,$input));$student=$type==='rubric'?null:academicStudent($db,$section,$role==='student'?$actor['id']:(string)($input['studentId']??''));
         if($type==='teacher_feedback'){

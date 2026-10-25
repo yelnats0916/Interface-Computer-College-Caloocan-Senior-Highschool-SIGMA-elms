@@ -20,6 +20,15 @@ def refresh_php_runtime(public: Path):
     token = secrets.token_hex(32)
     name = 'runtime-refresh-' + secrets.token_hex(16) + '.php'
     path = public / name
+    paths = {path}
+    release_root = HOME / 'sigma-releases'
+    if release_root.is_dir() and public.resolve().is_relative_to(release_root.resolve()):
+        # PHP's realpath cache can still resolve /www to an older public root.
+        # Publish the same protected one-use bridge there until cache reset completes.
+        for release in release_root.iterdir():
+            candidate = release / 'public'
+            if candidate.is_dir() and candidate.resolve().is_relative_to(release_root.resolve()):
+                paths.add(candidate / name)
     digest = hashlib.sha256(token.encode()).hexdigest()
     source = ("<?php header('Content-Type: application/json');header('Cache-Control: no-store');"
               "if(($_SERVER['REQUEST_METHOD']??'')!=='POST'||!hash_equals('" + digest + "',"
@@ -27,8 +36,9 @@ def refresh_php_runtime(public: Path):
               "clearstatcache(true);$enabled=(bool)ini_get('opcache.enable');"
               "echo json_encode(['enabled'=>$enabled,'reset'=>function_exists('opcache_reset')?opcache_reset():null]);")
     try:
-        path.write_text(source, encoding='utf-8')
-        path.chmod(0o644)
+        for target in paths:
+            target.write_text(source, encoding='utf-8')
+            target.chmod(0o644)
         request = urllib.request.Request('https://sigma-elms.alwaysdata.net/' + name,
                                          data=token.encode(), headers={'Content-Type': 'text/plain'})
         with urllib.request.urlopen(request, timeout=20) as response:
@@ -36,7 +46,8 @@ def refresh_php_runtime(public: Path):
         if result.get('enabled') and result.get('reset') is not True:
             raise RuntimeError('The web PHP runtime cache could not be refreshed.')
     finally:
-        path.unlink(missing_ok=True)
+        for target in paths:
+            target.unlink(missing_ok=True)
 
 
 def activate(archive: Path, release_name: str, initialize: bool = False):

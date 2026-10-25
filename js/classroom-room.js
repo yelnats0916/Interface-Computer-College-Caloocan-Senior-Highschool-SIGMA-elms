@@ -1904,8 +1904,11 @@
     const SHARED_ATTENDANCE_RECORDS_KEY = 'sigma-attendance-records-v1';
     let attendanceRecordsByClassroom = {};
 
+    const attendanceDraftKey = () => 'sigma-attendance-drafts:' + String(window.SigmaDatabase?.currentUser()?.id || '');
     function refreshAttendanceRecords() {
         attendanceRecordsByClassroom = getStoredJson(SHARED_ATTENDANCE_RECORDS_KEY, {});
+        const drafts = getStoredJson(attendanceDraftKey(), {});
+        for (const [key, days] of Object.entries(drafts)) attendanceRecordsByClassroom[key] = { ...(attendanceRecordsByClassroom[key] || {}), ...days };
         return attendanceRecordsByClassroom;
     }
 
@@ -2100,7 +2103,7 @@
         const { key: existingKey, data: existingClassroomData } = findAttendanceClassroomRecord(secName, subjName);
         const existingRecord = (existingClassroomData && existingClassroomData[dateString]) || {};
 
-        let isSubmitted = (existingRecord && existingRecord.submitted) || false;
+        let isSubmitted = false;
         let submittedAt = (existingRecord && existingRecord.submittedAt) || null;
         let updatedAt = new Date().toISOString();
 
@@ -2173,16 +2176,25 @@
             attendanceRecordsByClassroom[k][dateString] = { ...recordEntry };
         });
 
-        localStorage.setItem(SHARED_ATTENDANCE_RECORDS_KEY, JSON.stringify(attendanceRecordsByClassroom));
+        const drafts = getStoredJson(attendanceDraftKey(), {});
+        const published = getStoredJson(SHARED_ATTENDANCE_RECORDS_KEY, {});
+        keysToSave.forEach(key => {
+            if (isSubmitted) {
+                published[key] ||= {}; published[key][dateString] = { ...recordEntry };
+                if (drafts[key]) delete drafts[key][dateString];
+            } else { drafts[key] ||= {}; drafts[key][dateString] = { ...recordEntry }; }
+        });
+        localStorage.setItem(attendanceDraftKey(), JSON.stringify(drafts));
+        if (isSubmitted) localStorage.setItem(SHARED_ATTENDANCE_RECORDS_KEY, JSON.stringify(published));
         try {
             window.dispatchEvent(new CustomEvent('sigma:attendance-changed', {
-                detail: { classroomKey: fullKey, dateString, statuses }
+                detail: { classroomKey: fullKey, dateString, statuses, draft: !isSubmitted }
             }));
         } catch (e) {}
     }
     window.saveCurrentAttendanceStatuses = saveCurrentAttendanceStatuses;
 
-    window.submitDailyAttendance = function (dateString) {
+    window.submitDailyAttendance = async function (dateString) {
         if (!dateString) return;
         const statuses = getCurrentAttendanceStatuses(dateString);
         const excuses = getCurrentAttendanceExcuses(dateString);
@@ -2192,6 +2204,7 @@
         const enrolled = (Array.isArray(rawStudents) ? rawStudents.length : 0);
 
         let markedCount = 0;
+        const submittedStatuses = {}, submittedExcuses = {};
         if (Array.isArray(rawStudents)) {
             rawStudents.forEach(st => {
                 let s = statuses[st.name] || (st.id && statuses[st.id]) || '';
@@ -2203,7 +2216,11 @@
                         }
                     }
                 }
-                if (s) markedCount++;
+                if (s) {
+                    markedCount++; const id = st.id || st.uid || st.name; submittedStatuses[id] = s;
+                    const excuseKey = Object.keys(excuses || {}).find(key => String(key) === String(id) || studentNamesMatch(key, st.name));
+                    if (excuseKey) submittedExcuses[id] = excuses[excuseKey];
+                }
             });
         }
 
@@ -2214,9 +2231,24 @@
             return;
         }
 
+        const controls = document.querySelectorAll('.attendance-action-btn--submit, .attendance-action-btn--update');
+        if (window._sigmaAttendanceSubmitting) return;
+        window._sigmaAttendanceSubmitting = true;
+        const labels = new Map();
+        controls.forEach(button => { labels.set(button, button.innerHTML); button.disabled = true; button.setAttribute('aria-busy', 'true'); button.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span><span>Submitting</span>'; });
+        let confirmed;
+        try {
+            confirmed = await window.SigmaAttendance.submit({ subjectId: subjName, section: secName, date: dateString, statuses: submittedStatuses, excuses: submittedExcuses, submitted: true });
+        } catch (error) {
+            window.showToastNotification?.(error.message || 'Attendance was not submitted. Your draft is retained.', 'error');
+            return;
+        } finally {
+            window._sigmaAttendanceSubmitting = false;
+            controls.forEach(button => { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = labels.get(button); });
+        }
         attendanceEditingDays[dateString] = false;
         if (window.attendanceEditingDays) window.attendanceEditingDays[dateString] = false;
-        const nowIso = new Date().toISOString();
+        const nowIso = confirmed.record.submittedAt;
         saveCurrentAttendanceStatuses(statuses, dateString, excuses, {
             submitted: true,
             submittedAt: nowIso,
@@ -2283,9 +2315,14 @@
     window.cancelDailyAttendanceEdit = function (dateString) {
         if (!dateString) return;
         if (window.attendanceEditSnapshots && window.attendanceEditSnapshots[dateString]) {
-            const originalStatuses = window.attendanceEditSnapshots[dateString];
-            const excuses = getCurrentAttendanceExcuses(dateString);
-            saveCurrentAttendanceStatuses(originalStatuses, dateString, excuses);
+            const drafts = getStoredJson(attendanceDraftKey(), {});
+            const norm = value => String(value || '').replace(/^grade\s*\d+\s*[-–]?\s*/i, '').replace(/[-_]+/g, ' ').replace(/\s*&\s*/g, ' and ').trim().toLowerCase();
+            for (const key of Object.keys(drafts)) {
+                const [section, subject] = key.split('::');
+                if (norm(section) === norm(getActiveRoomSectionName()) && norm(subject) === norm(getActiveRoomSubjectName())) delete drafts[key][dateString];
+            }
+            localStorage.setItem(attendanceDraftKey(), JSON.stringify(drafts));
+            refreshAttendanceRecords();
             delete window.attendanceEditSnapshots[dateString];
         }
         attendanceEditingDays[dateString] = false;
@@ -2298,43 +2335,7 @@
         }
     };
 
-    window.updateDailyAttendance = function (dateString) {
-        if (!dateString) return;
-        if (window.attendanceEditSnapshots && window.attendanceEditSnapshots[dateString]) {
-            delete window.attendanceEditSnapshots[dateString];
-        }
-        const statuses = getCurrentAttendanceStatuses(dateString);
-        const excuses = getCurrentAttendanceExcuses(dateString);
-        attendanceEditingDays[dateString] = false;
-        if (window.attendanceEditingDays) window.attendanceEditingDays[dateString] = false;
-
-        const secName = (typeof getActiveRoomSectionName === 'function') ? getActiveRoomSectionName() : (window.currentClassroomSectionName || '');
-        const subjName = (typeof getActiveRoomSubjectName === 'function') ? getActiveRoomSubjectName() : '';
-        const { data: classroomData } = findAttendanceClassroomRecord(secName, subjName);
-        const existingRecord = (classroomData && classroomData[dateString]) || {};
-        const submittedAt = existingRecord.submittedAt || new Date().toISOString();
-        const nowIso = new Date().toISOString();
-
-        saveCurrentAttendanceStatuses(statuses, dateString, excuses, {
-            submitted: true,
-            submittedAt: submittedAt,
-            updatedAt: nowIso
-        });
-
-        const dObj = new Date(dateString + 'T00:00:00');
-        const formatted = !isNaN(dObj.getTime()) ? dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : dateString;
-
-        if (typeof window.showToastNotification === 'function') {
-            window.showToastNotification(`Attendance record for ${formatted} updated and saved successfully.`, 'success');
-        }
-
-        if (typeof renderClassroomAttendanceTab === 'function') {
-            renderClassroomAttendanceTab(false);
-        }
-        if (typeof renderAttendanceSection === 'function') {
-            renderAttendanceSection();
-        }
-    };
+    window.updateDailyAttendance = function (dateString) { return window.submitDailyAttendance(dateString); };
 
     function formatStudentLastFirstMiddle(student) {
         if (!student) return '';

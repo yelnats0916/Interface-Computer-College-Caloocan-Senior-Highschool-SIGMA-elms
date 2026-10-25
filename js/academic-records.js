@@ -180,12 +180,6 @@
             });
         }
     });
-    window.addEventListener('sigma:attendance-changed', event => {
-        if (!staff()) return;
-        const { classroomKey, dateString, statuses } = event.detail || {};
-        const [section, subjectId] = String(classroomKey || '').split('::');
-        if (section && subjectId && statuses) save({ type: 'attendance', subjectId, section, date: dateString, statuses }).catch(() => {});
-    });
     const sync = () => { clearSyntheticCacheRecords(); return refresh().catch(error => console.warn('Assessment refresh:', error.message)); };
     window.addEventListener('focus', sync);
     window.addEventListener('online', sync);

@@ -14,6 +14,22 @@ spec.loader.exec_module(activation)
 
 
 class RuntimeRefreshTests(unittest.TestCase):
+    def test_refresh_covers_cached_previous_public_root(self):
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            current = home / 'sigma-releases/current/public'
+            previous = home / 'sigma-releases/previous/public'
+            current.mkdir(parents=True)
+            previous.mkdir(parents=True)
+            def respond(request, timeout):
+                name = request.full_url.rsplit('/', 1)[1]
+                self.assertEqual((current / name).read_text(), (previous / name).read_text())
+                return io.BytesIO(b'{"enabled":true,"reset":true}')
+            with patch.object(activation, 'HOME', home), patch.object(activation.urllib.request, 'urlopen', side_effect=respond):
+                activation.refresh_php_runtime(current)
+            self.assertEqual(list(current.iterdir()), [])
+            self.assertEqual(list(previous.iterdir()), [])
+
     def test_protected_post_refresh_and_cleanup(self):
         with tempfile.TemporaryDirectory() as folder:
             public = Path(folder)

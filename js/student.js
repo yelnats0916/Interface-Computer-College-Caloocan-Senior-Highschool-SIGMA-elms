@@ -1076,7 +1076,8 @@ function initStudentPortal() {
             Object.keys(cData).forEach(dateKey => {
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
                 const entry = cData[dateKey];
-                const statuses = (entry && entry.statuses) || {};
+                if (entry?.submitted !== true) return;
+                const statuses = entry.statuses || {};
 
                 // Find status matching student name or candidate names
                 let foundStatus = '';
