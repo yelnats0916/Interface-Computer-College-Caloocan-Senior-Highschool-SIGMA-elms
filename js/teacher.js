@@ -2170,23 +2170,6 @@ function initTeacherPortal() {
         }
     }
 
-    let attendanceResizeTimer = null;
-    window.addEventListener('resize', () => {
-        clearTimeout(attendanceResizeTimer);
-        attendanceResizeTimer = setTimeout(() => requestAnimationFrame(() => {
-            updateAttendanceMobileSummaryWidth();
-            const container = document.getElementById('detail-section-attendance');
-            const slider = container ? container.querySelector('.attendance-grid-container') : null;
-            if (!slider || !slider.getClientRects().length) return;
-            const now = new Date();
-            const currentMonth = attendanceViewingMonth === now.getMonth() && attendanceViewingYear === now.getFullYear();
-            const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol : (currentMonth ? now.getDate() : null);
-            if (day !== null) {
-                slideToBesideStudentCol(slider, day, false);
-            }
-        }), 120);
-    });
-
     function initAttendanceDragScroll() {
         const slider = document.querySelector('.attendance-grid-container');
         if (!slider) return;
@@ -26642,6 +26625,7 @@ const wwDisplay = (wwPct !== null && wwPct !== undefined) ? `${(Number(wwPct) * 
     // Restore the requested route before revealing the initial page content.
     setupNavigationHistory();
     document.documentElement.classList.remove('sigma-teacher-route-pending');
+    window.alignClassroomAttendanceViewport?.();
 
 
     /**

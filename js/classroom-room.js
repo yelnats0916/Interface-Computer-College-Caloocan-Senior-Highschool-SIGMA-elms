@@ -2585,11 +2585,14 @@
         const lastStickyTh = summaryTh?.getClientRects().length ? summaryTh : slider.querySelector('thead th.student-name-col');
         if (!lastStickyTh) return;
 
-        const dayRect = dayTh.getBoundingClientRect();
-        const stickyRight = lastStickyTh.getBoundingClientRect().right;
         const zoomFactor = getEffectiveAttendanceZoom(slider);
-        const offsetDiff = (dayRect.left - stickyRight) / zoomFactor;
-        const perfectTarget = Math.max(0, Math.round(slider.scrollLeft + offsetDiff));
+        // Use date-column widths, independent of the sticky header's current position.
+        // Repeated initial/layout alignment must converge on one fixed scroll target.
+        const precedingWidth = Array.from(slider.querySelectorAll('thead th.day-col[data-day]'))
+            .filter(header => Number(header.dataset.day) < Number(day))
+            .reduce((width, header) => width + header.getBoundingClientRect().width / zoomFactor, 0);
+        const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
+        const perfectTarget = Math.min(maxScroll, Math.max(0, Math.round(precedingWidth)));
 
         if (smooth) {
             smoothScrollAttendance(slider, perfectTarget, 300);
@@ -2599,7 +2602,7 @@
                 attendanceScrollAnimationId = null;
             }
             slider.scrollLeft = perfectTarget;
-            attendanceLastScrollLeft = perfectTarget;
+            attendanceLastScrollLeft = slider.scrollLeft;
         }
     }
 
@@ -4264,9 +4267,17 @@
         return realSubmissions;
     };
 
+    window.alignClassroomAttendanceViewport = function () {
+        const slider = document.querySelector('#detail-section-attendance .attendance-grid-container');
+        if (!slider || !slider.getClientRects().length) return;
+        const today = new Date(getTodayLocalDateString() + 'T00:00:00');
+        const day = expandedAttendanceCol !== -1 ? expandedAttendanceCol :
+            (attendanceViewingMonth === today.getMonth() && attendanceViewingYear === today.getFullYear() ? today.getDate() : null);
+        if (day !== null) slideToBesideStudentCol(slider, day, false);
+    };
+
     let attendanceResizeTimer = null;
     window.addEventListener('resize', () => {
-        if (document.getElementById('teacher-header')) return;
         clearTimeout(attendanceResizeTimer);
         attendanceResizeTimer = setTimeout(() => requestAnimationFrame(() => {
             updateAttendanceMobileSummaryWidth();
