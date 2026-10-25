@@ -2274,26 +2274,49 @@
     };
 
     window.viewDailyAttendance = function(dateString) {
-        const students = getAttendanceStudents(getActiveRoomSectionName(), getActiveRoomSubjectName()) || [];
-        const statuses = getCurrentAttendanceStatuses(dateString);
+        return window.openAttendanceRecordDialog({dateString, section:getActiveRoomSectionName(), subject:getActiveRoomSubjectName(), statuses:getCurrentAttendanceStatuses(dateString)});
+    };
+    window.openAttendanceRecordDialog = function({dateString, section, subject, statuses = {}, students = null, dates = []}) {
+        students ||= getAttendanceStudents(section, subject) || [];
         const calendar = window.getActiveSchoolYearRecord?.();
         const quarter = calendar && [1,2,3,4].find(q => calendar[`q${q}Start`] && calendar[`q${q}End`] && dateString >= calendar[`q${q}Start`] && dateString <= calendar[`q${q}End`]);
-        document.getElementById('attendance-record-dialog')?.remove();
+        const old = document.getElementById('attendance-record-dialog');
+        if (old) { old._sigmaCleanup?.(); old.close(); old.remove(); }
         const dialog = document.createElement('dialog');
         dialog.id = 'attendance-record-dialog';
+        dialog.setAttribute('aria-labelledby','attendance-record-title');
         const date = new Date(`${dateString}T00:00:00`).toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
-        dialog.innerHTML = `<header><div><h2>Attendance Record</h2><p>${escapeHtml(date)}${quarter ? ` · <span class="attendance-record-quarter-full">${['1st','2nd','3rd','4th'][quarter - 1]} Quarter</span><span class="attendance-record-quarter-short">Q${quarter}</span>` : ''}${calendar ? ` · S.Y. ${escapeHtml(`${calendar.yearStart}-${calendar.yearEnd}`)}` : ''}</p></div><button type="button" class="sigma-btn sigma-btn-white sigma-btn-md" data-close aria-label="Close attendance record"><span class="attendance-record-close-label">Close</span><i class="fa-solid fa-xmark attendance-record-close-icon" aria-hidden="true"></i></button></header><div class="attendance-record-table"><table data-sigma-paginate><thead><tr><th>No.</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${students.map((student,index) => {
+        const rows = students.map((student,index) => {
             const name = student.fullName || student.name || [student.firstName,student.lastName].filter(Boolean).join(' ');
             const key = Object.keys(statuses).find(key => (student.id && String(key) === String(student.id)) || studentNamesMatch(key,name));
             const status = statuses[student.id] || statuses[name] || statuses[key] || '';
-            const label = {P:'Present',A:'Absent',L:'Late',E:'Excused'}[status] || 'Unmarked';
-            return `<tr><td>${index + 1}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(name)}</span></div></td><td>${label}</td></tr>`;
-        }).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div>`;
+            const label = {P:'Present',A:'Absent',L:'Late',E:'Excused',present:'Present',absent:'Absent',late:'Late',excused:'Excused'}[status] || 'Unmarked';
+            return {number:index+1,name,id:String(student.id || student.uid || ''),label,student};
+        });
+        dialog.innerHTML = `<header><button type="button" class="attendance-record-dismiss" data-close aria-label="Close attendance record"><i class="fa-solid fa-xmark attendance-record-desktop-close" aria-hidden="true"></i><i class="fa-solid fa-chevron-left attendance-record-mobile-back" aria-hidden="true"></i></button><div class="attendance-record-heading"><h2 id="attendance-record-title">Attendance Record</h2><p>${escapeHtml(date)}${quarter ? ` · <span class="attendance-record-quarter-full">${['1st','2nd','3rd','4th'][quarter - 1]} Quarter</span><span class="attendance-record-quarter-short">Q${quarter}</span>` : ''}${calendar ? ` · S.Y. ${escapeHtml(`${calendar.yearStart}-${calendar.yearEnd}`)}` : ''}</p></div></header><div class="attendance-record-table" tabindex="0" aria-label="Attendance records"><table><thead><tr><th>No.</th><th>Student Name</th><th>Status</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.number}</td><td><div class="attendance-record-person"><span class="attendance-record-avatar">${window.renderUserAvatarHtml?.(row.student,'sm') || '<i class="fa-solid fa-user" aria-hidden="true"></i>'}</span><span>${escapeHtml(row.name)}</span></div></td><td>${row.label}</td></tr>`).join('') || '<tr><td colspan="3">No students.</td></tr>'}</tbody></table></div><footer><button type="button" class="sigma-btn sigma-btn-green" data-export><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>Export PDF</span></button></footer>`;
         dialog.querySelector('[data-close]').onclick = () => dialog.close();
-        dialog.addEventListener('click', event => { if (event.target === dialog) { const rect=dialog.getBoundingClientRect(); if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close(); } });
-        dialog.addEventListener('close', () => dialog.remove());
-        document.body.append(dialog);
-        dialog.showModal();
+        dialog.querySelector('[data-export]').onclick = async event => {
+            const button = event.currentTarget, label = button.innerHTML;
+            if (button.disabled) return;
+            button.disabled = true; button.setAttribute('aria-busy','true'); button.innerHTML = '<span class="sigma-dot-spinner" aria-hidden="true"></span><span>Exporting</span>';
+            try { await window.saveAttendanceRecordPdf({section,subject,date,rows,quarter,schoolYear:calendar ? `${calendar.yearStart}-${calendar.yearEnd}` : ''}); }
+            catch(error) { window.showToastNotification?.(error.message || 'PDF export failed. Please try again.','error'); }
+            finally { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = label; }
+        };
+        const page = document.body, root = document.documentElement;
+        const scroll = {x:window.scrollX,y:window.scrollY};
+        const previous = {overflow:page.style.overflow,position:page.style.position,top:page.style.top,width:page.style.width,rootOverflow:root.style.overflow};
+        page.style.overflow='hidden';page.style.position='fixed';page.style.top=`-${scroll.y}px`;page.style.width='100%';root.style.overflow='hidden';
+        let restored = false;
+        const cleanup = () => {
+            if (restored) return; restored = true;
+            Object.assign(page.style,{overflow:previous.overflow,position:previous.position,top:previous.top,width:previous.width});root.style.overflow=previous.rootOverflow;
+            dialog.remove(); window.scrollTo(scroll.x,scroll.y);
+        };
+        dialog._sigmaCleanup = cleanup;
+        dialog.addEventListener('click', event => { if(event.target === dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();} });
+        dialog.addEventListener('close',cleanup,{once:true});
+        document.body.append(dialog); dialog.showModal();
     };
     window.attendanceEditSnapshots = window.attendanceEditSnapshots || {};
 

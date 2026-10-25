@@ -1092,6 +1092,11 @@ window.openTodayAttendanceSummaryModal = function (sectionName, subjectName, req
         return;
     }
 
+    if (typeof window.openAttendanceRecordDialog === 'function') {
+        window.openAttendanceRecordDialog({dateString:todayCheck.date,section:rawSection,subject:rawSubject,statuses:todayCheck.dayRecord.statuses || {},dates:todayCheck.dates});
+        return;
+    }
+
     const modal = document.getElementById('admin-attendance-summary-modal');
     if (!modal) return;
 
