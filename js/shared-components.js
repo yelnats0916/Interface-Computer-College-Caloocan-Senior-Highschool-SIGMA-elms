@@ -8399,7 +8399,7 @@ window.toggleSharedManageDropdown = function (event, menuTarget) {
         event.preventDefault();
     }
     const menu = (typeof menuTarget === 'string')
-        ? (document.getElementById(menuTarget) || event?.currentTarget?.closest('.manage-curriculum-dropdown-container')?.querySelector('.shared-manage-curriculum-menu'))
+        ? (event?.currentTarget?.closest('.manage-curriculum-dropdown-container')?.querySelector('.shared-manage-curriculum-menu') || document.getElementById(menuTarget))
         : menuTarget;
     if (!menu) return;
     const isCurrentlyHidden = menu.classList.contains('hidden');
@@ -8885,7 +8885,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                 <button type="button"
                     id="${prefix}-add-edit-curriculum-btn"
                     class="w-full py-2 px-2.5 rounded-lg sm:rounded-xl flex items-center gap-2 text-left bg-transparent hover:bg-slate-100 active:bg-slate-200 cursor-pointer font-['Inter'] transition-colors border-0 text-black group"
-                    onclick="window.closeAllSharedManageDropdowns(); (window.openTeacherAddTopicForm || window.openSharedTopicsAndMaterials)?.();"
+                    onclick="event.stopPropagation(); window.closeAllSharedManageDropdowns(); (window.openTeacherAddTopicForm || window.openSharedTopicsAndMaterials)?.();"
                     title="Add or Edit Topics and Materials">
                     <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 text-[#15803d] flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                         <i class="fa-solid fa-folder-plus text-xs sm:text-sm text-[#15803d]"></i>
@@ -8897,7 +8897,7 @@ window.buildTopicSectionSelectorCard = function (data, isDetail = false, viewMod
                 <button type="button"
                     id="${prefix}-release-curriculum-btn"
                     class="w-full py-2 px-2.5 rounded-lg sm:rounded-xl flex items-center gap-2 text-left bg-transparent hover:bg-slate-100 active:bg-slate-200 cursor-pointer font-['Inter'] transition-colors border-0 text-black group"
-                    onclick="window.closeAllSharedManageDropdowns(); (window.openTeacherReleaseAssessmentsModal ? window.openTeacherReleaseAssessmentsModal() : window.openManageCurriculumHub?.('release-hub'));"
+                    onclick="event.stopPropagation(); window.closeAllSharedManageDropdowns(); (window.openTeacherReleaseAssessmentsModal ? window.openTeacherReleaseAssessmentsModal() : window.openManageCurriculumHub?.('release-hub'));"
                     title="Release Topics & Materials">
                     <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 text-[#15803d] flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                         <i class="fa-solid fa-paper-plane text-xs sm:text-sm text-[#15803d]"></i>
@@ -9532,12 +9532,17 @@ window.buildSharedTopicPage = function (containerEl, subjectId, subject, data, s
             </div>
     `;
 
-    containerEl.innerHTML = `
+    const pageHtml = `
         <div class="topic-page-shell student-topic-page-shell teacher-topic-page-shell${embeddedClass} font-['Inter']">
             ${quarterHeaderHtml}
             ${topicsBodyHtml}
         </div>
     `;
+    // A background refresh with identical data must not replace live menu buttons.
+    if (containerEl._sigmaTopicPageHtml !== pageHtml || !containerEl.firstElementChild) {
+        containerEl.innerHTML = pageHtml;
+        containerEl._sigmaTopicPageHtml = pageHtml;
+    }
 
     if (options.embedded === true) {
         window._roomQuarterSubjectId = subjectId;
@@ -9727,7 +9732,11 @@ window.syncRoomQuarterSwitch = function () {
             toolbarQuarterHost = host;
             if (host.parentElement !== toolbar) toolbar.appendChild(host);
         }
-        host.innerHTML = window.renderRoomQuarterSwitchHtml();
+        const html = window.renderRoomQuarterSwitchHtml();
+        if (host._sigmaQuarterHtml !== html || !host.firstElementChild) {
+            host.innerHTML = html;
+            host._sigmaQuarterHtml = html;
+        }
     });
 };
 

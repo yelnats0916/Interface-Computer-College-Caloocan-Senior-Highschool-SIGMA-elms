@@ -17438,14 +17438,8 @@ function initTeacherPortal() {
                 if (newHtml) oldToolbar.innerHTML = newHtml;
             }
         }
-        const roomMount = document.getElementById('room-topics-mount');
-        if (roomMount && !roomMount.classList.contains('hidden')) {
-            const oldToolbar = roomMount.querySelector('.teacher-topic-toolbar');
-            if (oldToolbar) {
-                const newHtml = typeof _buildTopicSectionSelectorCard === 'function' ? _buildTopicSectionSelectorCard(data, true) : '';
-                if (newHtml) oldToolbar.innerHTML = newHtml;
-            }
-        }
+        // Progress changes do not change classroom actions. Replacing this toolbar
+        // removed the quarter selector and detached buttons during a click.
 
         // 2. Topic Content Page (ONLY if in overview/top-level tab without active detail/submission)
         const content = document.getElementById('section-topic-content');
